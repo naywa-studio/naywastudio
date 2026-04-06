@@ -7,7 +7,7 @@ export function CTA() {
   return (
     <section
       id="contact"
-      className="relative py-24 sm:py-32 overflow-hidden"
+      className="relative z-10 py-24 sm:py-32 overflow-hidden bg-[#0A0A0F]/60 backdrop-blur-sm"
       aria-labelledby="cta-heading"
     >
       {/* ── Background gradient ───────────────────────── */}

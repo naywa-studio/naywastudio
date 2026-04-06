@@ -81,7 +81,7 @@ export function AgentsCatalog() {
   return (
     <section
       id="agents"
-      className="relative py-24 sm:py-32"
+      className="relative z-10 py-24 sm:py-32 bg-[#0A0A0F]/80 backdrop-blur-sm"
       aria-labelledby="agents-heading"
     >
       {/* Background accent */}

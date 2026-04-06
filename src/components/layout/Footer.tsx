@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { GradientText } from '@/components/ui'
+import { Logo } from '@/components/ui/Logo'
 
 const footerNav = {
   Navigation: [
@@ -61,15 +62,10 @@ export function Footer() {
           <div className="col-span-2 md:col-span-1">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 mb-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066FF] rounded-md"
+              className="inline-flex mb-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066FF] rounded-md"
               aria-label="Nawa Studio — accueil"
             >
-              <span className="h-7 w-7 rounded-lg bg-[#0066FF] flex items-center justify-center shrink-0" aria-hidden>
-                <span className="text-white font-bold text-xs leading-none">N</span>
-              </span>
-              <span className="font-semibold text-[#F8F8FF] tracking-tight" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
-                Nawa Studio
-              </span>
+              <Logo size="sm" showText={true} />
             </Link>
             <p className="text-sm text-[#8B8BA8] leading-relaxed max-w-[200px]">
               Votre AI Workforce Studio — agents IA sur-mesure pour entreprises ambitieuses.

@@ -93,7 +93,7 @@ export function HowItWorks() {
     <section
       ref={sectionRef}
       id="comment"
-      className="relative py-24 sm:py-32 overflow-hidden"
+      className="relative z-10 py-24 sm:py-32 overflow-hidden bg-[#0A0A0F]/80 backdrop-blur-sm"
       aria-labelledby="how-heading"
     >
       {/* Background */}

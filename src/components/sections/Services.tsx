@@ -49,7 +49,7 @@ export function Services() {
   return (
     <section
       id="services"
-      className="relative py-24 sm:py-32 overflow-hidden"
+      className="relative z-10 py-24 sm:py-32 overflow-hidden bg-[#0A0A0F]/80 backdrop-blur-sm"
       aria-labelledby="services-heading"
     >
       {/* Subtle background glow */}
