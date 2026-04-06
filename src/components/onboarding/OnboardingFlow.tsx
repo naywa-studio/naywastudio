@@ -99,7 +99,7 @@ export default function OnboardingFlow({ onClose }: { onClose: () => void }) {
             {step === "sector" && <ChoiceButtons choices={sectorChoices} onSelect={handleSector} />}
             {step === "need" && <ChoiceButtons choices={needChoices[answers.sector || "default"] ?? needChoices.default} onSelect={handleNeed} />}
             {step === "budget" && <ChoiceButtons choices={budgetChoices} onSelect={handleBudget} />}
-            {step === "proposal" && <AgentCard answers={answers} onNext={() => setStep("signup")} />}
+            {step === "proposal" && <AgentCard answers={answers as Record<string, string>} onNext={() => setStep("signup")} />}
             {step === "signup" && <SignupForm onDone={() => setStep("done")} />}
             {step === "done" && (
               <div className="text-center py-4">
