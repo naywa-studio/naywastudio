@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --yes)",
+      "Bash(mv /c/Users/1/nawa-studio/CLAUDE.md /c/Users/1/CLAUDE.md.bak)",
+      "Bash(mv /c/Users/1/CLAUDE.md.bak /c/Users/1/nawa-studio/CLAUDE.md)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(sed -i 's/import { motion, type Variants }/import { m, type Variants }/g' /c/Users/1/nawa-studio/src/components/sections/Hero.tsx)",
+      "Bash(sed -i 's/<motion\\\\./<m./g; s/<\\\\/motion\\\\./<\\\\/m./g' /c/Users/1/nawa-studio/src/components/sections/Hero.tsx)",
+      "Bash(sed -i 's/import { motion, AnimatePresence }/import { m, AnimatePresence }/g' /c/Users/1/nawa-studio/src/components/layout/Navbar.tsx)",
+      "Bash(sed -i 's/<motion\\\\./<m./g; s/<\\\\/motion\\\\./<\\\\/m./g' /c/Users/1/nawa-studio/src/components/layout/Navbar.tsx)",
+      "Bash(sed -i \"s/import { motion, type HTMLMotionProps }/import { m, type HTMLMotionProps }/g\" /c/Users/1/nawa-studio/src/components/ui/Button.tsx)",
+      "Bash(sed -i 's/<motion\\\\./<m./g; s/<\\\\/motion\\\\./<\\\\/m./g' /c/Users/1/nawa-studio/src/components/ui/Button.tsx)",
+      "Bash(npx next:*)",
+      "Bash(TURBOPACK=0 npx next build)",
+      "Bash(xargs ls:*)",
+      "Bash(sort -k5 -hr)",
+      "Bash(find /c/Users/1/nawa-studio/.next/static -name *.js)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git rebase:*)",
+      "Bash(GIT_EDITOR=true git rebase --continue)"
+    ]
+  }
+}
