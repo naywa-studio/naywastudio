@@ -2,39 +2,25 @@
 
 /* ── Design tokens ── */
 :root {
-  --color-primary:         #0066FF;
-  --color-primary-dark:    #0047CC;
-  --color-surface:         #0A0A0F;
-  --color-surface-card:    #111118;
-  --color-surface-border:  #1E1E2E;
-  --color-text-primary:    #F8F8FF;
-  --color-text-secondary:  #8B8BA8;
-  --color-text-muted:      #4A4A6A;
+  --bg:                  #FFFFFF;
+  --surface:             #F8F6FF;
+  --border:              #E2DAF6;
+  --text-primary:        #111827;
+  --text-secondary:      #4B5563;
+  --text-muted:          #9CA3AF;
+  --accent-blue:         #7C63C8;
+  --accent-blue-light:   #EEE9FB;
+  --accent-violet:       #B8AEDE;
+  --accent-violet-light: #DDD8F5;
 }
 
 /* ── Tailwind v4 theme extension ── */
 @theme inline {
-  /* Fonts */
   --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-body:    var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
-  /* Colors */
-  --color-primary:         var(--color-primary);
-  --color-primary-dark:    var(--color-primary-dark);
-  --color-surface:         var(--color-surface);
-  --color-surface-card:    var(--color-surface-card);
-  --color-surface-border:  var(--color-surface-border);
-  --color-text-primary:    var(--color-text-primary);
-  --color-text-secondary:  var(--color-text-secondary);
-  --color-text-muted:      var(--color-text-muted);
-
-  /* Keyframes */
-  --animate-fade-up:  fadeUp 0.6s ease forwards;
-  --animate-fade-in:  fadeIn 0.5s ease forwards;
-  --animate-float:    float 4s ease-in-out infinite;
-
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(24px); }
+    from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
@@ -42,44 +28,25 @@
     from { opacity: 0; }
     to   { opacity: 1; }
   }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50%       { transform: translateY(-10px); }
-  }
 }
 
-/* ── Base styles ── */
+/* ── Base ── */
 html {
   scroll-behavior: smooth;
-  color-scheme: dark;
 }
 
 body {
-  background-color: #0A0A0F;
-  color: #F8F8FF;
+  background: #FFFFFF;
+  color: #111827;
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Custom scrollbar ── */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #0A0A0F;
-}
-::-webkit-scrollbar-thumb {
-  background: #1E1E2E;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #2E2E4E;
-}
+/* ── Scrollbar ── */
+::-webkit-scrollbar       { width: 5px; }
+::-webkit-scrollbar-track { background: #FFFFFF; }
+::-webkit-scrollbar-thumb { background: #E2DAF6; border-radius: 4px; }
 
 /* ── Selection ── */
-::selection {
-  background: #0066FF33;
-  color: #F8F8FF;
-}
+::selection { background: #DDD8F5; color: #7C63C8; }

@@ -1,23 +1,25 @@
-import { NeuralSceneClient } from '@/components/ui/NeuralSceneClient'
-import { Hero }              from '@/components/sections/Hero'
-import { Services }          from '@/components/sections/Services'
-import { AgentsCatalog }     from '@/components/sections/AgentsCatalog'
-import { HowItWorks }        from '@/components/sections/HowItWorks'
-import { Pricing }           from '@/components/sections/Pricing'
-import { CTA }               from '@/components/sections/CTA'
+"use client"
+import { useState } from "react"
+import { Navbar } from "@/components/layout/Navbar"
+import { Hero } from "@/components/sections/Hero"
+import { WhyNawa } from "@/components/sections/WhyNawa"
+import { AgentsPreview } from "@/components/sections/AgentsPreview"
+import { FinalCTA } from "@/components/sections/FinalCTA"
+import { Footer } from "@/components/layout/Footer"
+import OnboardingFlow from "@/components/onboarding/OnboardingFlow"
 
 export default function Home() {
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
   return (
     <>
-      {/* Neural network canvas — fixed behind everything (z-0), client-only */}
-      <NeuralSceneClient />
-
-      <Hero />
-      <Services />
-      <AgentsCatalog />
-      <HowItWorks />
-      <Pricing />
-      <CTA />
+      <Navbar />
+      <Hero onOpenOnboarding={() => setShowOnboarding(true)} />
+      <WhyNawa />
+      <AgentsPreview />
+      <FinalCTA onOpenOnboarding={() => setShowOnboarding(true)} />
+      <Footer />
+      {showOnboarding && <OnboardingFlow onClose={() => setShowOnboarding(false)} />}
     </>
   )
 }

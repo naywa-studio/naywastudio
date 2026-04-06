@@ -17,18 +17,16 @@ interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
 
 const variantStyles: Record<Variant, string> = {
   primary: [
-    'bg-[#0066FF] text-white border border-[#0066FF]',
-    'hover:bg-[#0047CC] hover:border-[#0047CC]',
-    'shadow-[0_0_0_0_rgba(0,102,255,0)] hover:shadow-[0_0_24px_4px_rgba(0,102,255,0.35)]',
-    'transition-shadow',
+    'bg-[#3D8B5E] text-white border border-[#3D8B5E]',
+    'hover:bg-[#2E7050] hover:border-[#2E7050]',
   ].join(' '),
   ghost: [
-    'bg-transparent text-[#F8F8FF] border border-transparent',
-    'hover:bg-[#1E1E2E] hover:border-[#1E1E2E]',
+    'bg-transparent text-[#111827] border border-transparent',
+    'hover:bg-[#F5FAF6]',
   ].join(' '),
   outline: [
-    'bg-transparent text-[#F8F8FF] border border-[#1E1E2E]',
-    'hover:border-[#0066FF] hover:text-[#0066FF]',
+    'bg-transparent text-[#111827] border border-[#E4EDE6]',
+    'hover:border-[#9CA3AF]',
   ].join(' '),
 }
 
@@ -49,7 +47,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(
           'inline-flex items-center justify-center rounded-lg font-medium',
           'cursor-pointer select-none outline-none',
-          'focus-visible:ring-2 focus-visible:ring-[#0066FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0F]',
+          'focus-visible:ring-2 focus-visible:ring-[#3D8B5E] focus-visible:ring-offset-2 focus-visible:ring-offset-white',
           'disabled:opacity-40 disabled:pointer-events-none',
           'transition-colors duration-200',
           variantStyles[variant],

@@ -1,133 +1,109 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { m, type Variants } from 'framer-motion'
-import { ArrowRight, Zap, Clock, Rocket } from 'lucide-react'
-import { Button, Badge, GradientText } from '@/components/ui'
+import { m } from 'framer-motion'
 
-const fadeUp: Variants = {
-  hidden:  { opacity: 0, y: 28 },
-  visible: (delay: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.7,
-      ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
-      delay,
-    },
-  }),
-}
+const AnimatedBackground = dynamic(() => import('@/components/ui/AnimatedBackground'), { ssr: false })
 
-const metrics = [
-  { icon: Zap,    value: '50+', label: 'automatisations' },
-  { icon: Clock,  value: '10h', label: '/semaine économisées' },
-  { icon: Rocket, value: '48h', label: 'déploiement' },
-]
-
-export function Hero() {
+export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
   return (
-    <section
-      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-16"
-      aria-labelledby="hero-heading"
-    >
-      {/* Content sits above the fixed NeuralScene canvas (z-0) */}
-      <div className="relative z-10 mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center gap-7 py-24">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-6 pt-24 pb-20">
+      <AnimatedBackground />
+
+      <div className="relative z-10 flex flex-col items-center text-center max-w-2xl mx-auto gap-6">
 
         {/* Badge */}
-        <m.div variants={fadeUp} custom={0} initial="hidden" animate="visible">
-          <Badge
-            variant="blue"
-            className="py-1.5 px-3 text-xs font-semibold tracking-widest uppercase"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-[#0066FF] animate-pulse" aria-hidden />
-            AI Workforce Studio
-          </Badge>
+        <m.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4 }}
+          style={{
+            background: '#EEE9FB',
+            color: '#7C63C8',
+            fontSize: 12,
+            fontWeight: 500,
+            borderRadius: 100,
+            padding: '6px 14px',
+          }}
+        >
+          Agents IA · Déployés en 48h
         </m.div>
 
         {/* H1 */}
         <m.h1
-          id="hero-heading"
-          variants={fadeUp}
-          custom={0.1}
-          initial="hidden"
-          animate="visible"
-          className="text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-bold leading-[1.07] tracking-tight text-[#F8F8FF]"
-          style={{ fontFamily: 'var(--font-space-grotesk)' }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          style={{
+            fontFamily: 'var(--font-space-grotesk), sans-serif',
+            fontWeight: 700,
+            fontSize: 'clamp(34px, 5vw, 54px)',
+            color: '#111827',
+            lineHeight: 1.1,
+            letterSpacing: '-0.02em',
+          }}
         >
-          Des agents IA qui{' '}
-          <GradientText direction="diagonal">travaillent</GradientText>
-          <br className="hidden sm:block" />
-          {' '}pour votre business
+          L&apos;agent IA de votre métier, opérationnel en 48h.
         </m.h1>
 
         {/* Subtitle */}
         <m.p
-          variants={fadeUp}
-          custom={0.2}
-          initial="hidden"
-          animate="visible"
-          className="text-base sm:text-lg text-[#8B8BA8] leading-relaxed max-w-xl"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          style={{
+            fontSize: 17,
+            color: '#4B5563',
+            maxWidth: 460,
+            lineHeight: 1.6,
+          }}
         >
-          Déployez en{' '}
-          <span className="text-[#F8F8FF] font-medium">48h</span>{' '}
-          des agents IA opérationnels sur votre site. Ils qualifient,
-          répondent, relancent — pendant que vous vous concentrez sur
-          l&apos;essentiel.
+          Nawa Studio configure et déploie des agents IA adaptés à votre activité.
+          Recrutement, support client, commercial — sans code, sans complexité.
         </m.p>
 
-        {/* CTAs */}
-        <m.div
-          variants={fadeUp}
-          custom={0.3}
-          initial="hidden"
-          animate="visible"
-          className="flex flex-wrap items-center justify-center gap-3 sm:gap-4"
+        {/* CTA principal */}
+        <m.button
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          onClick={onOpenOnboarding}
+          style={{
+            background: '#7C63C8',
+            color: '#FFFFFF',
+            borderRadius: 12,
+            padding: '16px 32px',
+            fontSize: 16,
+            fontWeight: 600,
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'background 150ms, box-shadow 150ms',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#6B54B2'
+            e.currentTarget.style.boxShadow = '0 4px 20px rgba(61,139,94,0.25)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = '#7C63C8'
+            e.currentTarget.style.boxShadow = 'none'
+          }}
         >
-          <Button size="lg" asChild>
-            <Link href="#agents" className="flex items-center gap-2">
-              Voir le catalogue
-              <ArrowRight size={16} aria-hidden />
-            </Link>
-          </Button>
-          <Button variant="ghost" size="lg" asChild>
-            <Link href="#contact">Réserver un appel</Link>
-          </Button>
-        </m.div>
+          Testez votre agent clé en main →
+        </m.button>
 
-        {/* Metrics strip */}
-        <m.div
-          variants={fadeUp}
-          custom={0.42}
-          initial="hidden"
-          animate="visible"
-          className="flex flex-wrap items-center justify-center gap-5 sm:gap-8 pt-2"
-          aria-label="Chiffres clés"
+        {/* Lien secondaire */}
+        <Link
+          href="#agents"
+          style={{ color: '#7C63C8', fontSize: 14, textDecoration: 'none' }}
+          onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
         >
-          {metrics.map(({ icon: Icon, value, label }, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0066FF]/10 border border-[#0066FF]/20 shrink-0">
-                <Icon size={14} className="text-[#0066FF]" aria-hidden />
-              </div>
-              <span
-                className="text-lg font-bold text-[#F8F8FF]"
-                style={{ fontFamily: 'var(--font-space-grotesk)' }}
-              >
-                {value}
-              </span>
-              <span className="text-xs text-[#8B8BA8]">{label}</span>
-              {i < metrics.length - 1 && (
-                <span className="ml-3 h-4 w-px bg-[#1E1E2E]" aria-hidden />
-              )}
-            </div>
-          ))}
-        </m.div>
+          Voir tous les agents
+        </Link>
+
       </div>
 
-      {/* Bottom fade so neural scene dissolves into next section */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute bottom-0 inset-x-0 h-40 bg-linear-to-t from-[#0A0A0F] to-transparent z-10"
-      />
     </section>
   )
 }

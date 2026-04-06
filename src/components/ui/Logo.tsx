@@ -1,65 +1,51 @@
-import { cn } from '@/lib/utils'
-
 type LogoSize = 'sm' | 'md' | 'lg'
 
-interface LogoProps {
-  size?: LogoSize
-  showText?: boolean
-  className?: string
-}
-
-const px: Record<LogoSize, number> = { sm: 24, md: 32, lg: 48 }
-const textSizes: Record<LogoSize, string> = {
-  sm: 'text-sm',
-  md: 'text-base',
-  lg: 'text-xl',
-}
-
-export function Logo({ size = 'md', showText = true, className }: LogoProps) {
-  const dim = px[size]
+export function Logo({ size = 'md' }: { size?: LogoSize }) {
+  const s = size === 'sm' ? 24 : size === 'lg' ? 44 : 32
+  const fontSize = s * 0.5
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
-      {/* SVG mark — two interlocking arcs forming an abstract N */}
+    <div className="flex items-center gap-2 select-none">
       <svg
-        width={dim}
-        height={dim}
-        viewBox="0 0 40 40"
+        width={s}
+        height={s}
+        viewBox="0 0 32 32"
         fill="none"
+        xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        {/* Upper arc — blue */}
+        <rect width="32" height="32" rx="8" fill="#7C63C8" fillOpacity="0.08" />
+        {/* Geometric N */}
         <path
-          d="M6 28 C8 16, 15 10, 20 10 C25 10, 32 16, 34 28"
-          stroke="#0066FF"
-          strokeWidth="3.2"
+          d="M9 23V9l7 9 7-9v14"
+          stroke="#7C63C8"
+          strokeWidth="2.2"
           strokeLinecap="round"
+          strokeLinejoin="round"
           fill="none"
         />
-        {/* Lower arc — violet, slightly offset to create interlock */}
+        {/* Wave accent on centre bar */}
         <path
-          d="M6 20 C8 30, 15 34, 20 34 C25 34, 32 30, 34 20"
-          stroke="#7C3AED"
-          strokeWidth="3.2"
+          d="M13 17.5 Q16 15 19 17.5"
+          stroke="#7C63C8"
+          strokeWidth="1.5"
           strokeLinecap="round"
           fill="none"
-          opacity="0.75"
+          opacity="0.5"
         />
-        {/* Central node dot */}
-        <circle cx="20" cy="22" r="2" fill="#0066FF" opacity="0.9" />
       </svg>
-
-      {showText && (
-        <span
-          className={cn(
-            'font-semibold tracking-tight text-[#F8F8FF] leading-none',
-            textSizes[size],
-          )}
-          style={{ fontFamily: 'var(--font-space-grotesk)' }}
-        >
-          Nawa Studio
-        </span>
-      )}
+      <span
+        style={{
+          fontFamily: 'var(--font-space-grotesk), sans-serif',
+          fontWeight: 600,
+          fontSize,
+          color: '#111827',
+          letterSpacing: '-0.01em',
+          lineHeight: 1,
+        }}
+      >
+        Nawa Studio
+      </span>
     </div>
   )
 }
