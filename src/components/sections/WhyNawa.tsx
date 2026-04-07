@@ -1,22 +1,22 @@
 "use client"
-import { CheckCircle, Clock, Settings } from "lucide-react"
+import { CheckCircle, Clock, Shield } from "lucide-react"
 import { m } from "framer-motion"
 
 const items = [
   {
     Icon: CheckCircle,
-    title: "Déployé en 48h, pas en 3 mois",
-    desc: "On configure votre agent en quelques heures, pas en quelques mois.",
+    title: "Un seul interlocuteur",
+    desc: "Vous échangez avec un seul agent. Toute la complexité est gérée en coulisse.",
   },
   {
     Icon: Clock,
-    title: "Vos agents travaillent nuits et week-ends",
-    desc: "Disponibilité 24/7, sans heure sup ni congés.",
+    title: "Disponible 24h/24",
+    desc: "Vos agents IA travaillent nuits et week-ends, sans interruption.",
   },
   {
-    Icon: Settings,
-    title: "Tout se configure depuis votre espace client",
-    desc: "Modifiez les règles, le ton, les scénarios — sans toucher au code.",
+    Icon: Shield,
+    title: "Montée en autonomie progressive",
+    desc: "Du simple tri au recrutement complet — évoluez à votre rythme.",
   },
 ]
 
@@ -40,7 +40,7 @@ export function WhyNawa() {
               transition={{ duration: 0.4, delay: i * 0.1 }}
               style={{
                 background: "#FFFFFF",
-                border: "1px solid #E4EDE6",
+                border: "1px solid #E2DAF6",
                 borderRadius: 14,
                 padding: 24,
                 display: "flex",

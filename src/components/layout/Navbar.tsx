@@ -1,154 +1,145 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { Menu, X } from 'lucide-react'
-import { Logo } from '@/components/ui/Logo'
+"use client"
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { Logo } from "@/components/ui/Logo"
 
 const navLinks = [
-  { label: 'Agents',   href: '#agents' },
-  { label: 'Tarifs',   href: '#tarifs' },
-  { label: 'À propos', href: '#apropos' },
+  { label: "Catalogue", href: "/catalogue" },
+  { label: "Espace client", href: "/espace-client" },
 ]
 
-interface NavbarProps {
-  onOpenOnboarding?: () => void
-  onOpenLogin?: () => void
-}
-
-export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
+export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
   useEffect(() => {
-    const onResize = () => { if (window.innerWidth >= 768) setMobileOpen(false) }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    const mq = window.matchMedia("(min-width: 768px)")
+    const handler = () => { if (mq.matches) setMobileOpen(false) }
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
   }, [])
 
   return (
-    <>
-      <header
-        className="fixed top-0 inset-x-0 z-40 h-16 transition-all duration-200"
-        style={{
-          background: '#FFFFFF',
-          borderBottom: scrolled ? '1px solid #E2DAF6' : '1px solid transparent',
-        }}
-      >
-        <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4 sm:px-6">
+    <header
+      className="fixed top-0 inset-x-0 z-40 h-16 flex items-center px-5 sm:px-8 transition-all"
+      style={{
+        background: "rgba(255,255,255,0.92)",
+        backdropFilter: "blur(12px)",
+        borderBottom: scrolled ? "1px solid #F0ECF8" : "1px solid transparent",
+      }}
+    >
+      <Link href="/" style={{ textDecoration: "none" }} onClick={() => setMobileOpen(false)}>
+        <Logo size="md" />
+      </Link>
 
-          {/* Logo */}
-          <Link href="/" aria-label="Nawa Studio — accueil">
-            <Logo size="md" />
-          </Link>
-
-          {/* Centre — liens desktop */}
-          <nav className="hidden md:flex items-center gap-1" aria-label="Navigation principale">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="px-4 py-2 rounded-md transition-colors duration-150"
-                style={{ fontSize: 14, color: '#4B5563', textDecoration: 'none' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#111827')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#4B5563')}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Droite — desktop */}
-          <div className="hidden md:flex items-center gap-2">
-            <button
-              onClick={onOpenLogin}
-              style={{
-                background: 'transparent', color: '#7C63C8',
-                border: '1.5px solid #7C63C8', borderRadius: 8,
-                fontSize: 14, fontWeight: 500, padding: '9px 18px', cursor: 'pointer',
-                transition: 'background 150ms',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#F5F0FF' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-            >
-              Se connecter
-            </button>
-
-            <button
-              onClick={onOpenOnboarding}
-              style={{
-                background: '#7C63C8', color: '#FFFFFF', border: 'none', borderRadius: 8,
-                fontSize: 14, fontWeight: 600, padding: '10px 20px', cursor: 'pointer',
-                transition: 'background 150ms',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#6B54B2' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#7C63C8' }}
-            >
-              Testez votre agent !
-            </button>
-          </div>
-
-          {/* Toggle mobile */}
-          <button
-            type="button"
-            aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
-            className="md:hidden p-2 rounded-md"
-            style={{ color: '#4B5563' }}
-            onClick={() => setMobileOpen((v) => !v)}
+      {/* Desktop nav */}
+      <nav className="hidden md:flex items-center gap-6 ml-10">
+        {navLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            style={{ fontSize: 14, fontWeight: 500, color: "#4B5563", textDecoration: "none" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#111827")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#4B5563")}
           >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-      </header>
+            {link.label}
+          </Link>
+        ))}
+      </nav>
 
-      {/* Mobile dropdown */}
+      {/* Desktop CTA */}
+      <div className="hidden md:flex items-center gap-3 ml-auto">
+        <Link
+          href="/espace-client"
+          style={{
+            fontSize: 13, fontWeight: 600, color: "#7C63C8",
+            padding: "8px 16px", borderRadius: 8, border: "1.5px solid #E2DAF6",
+            textDecoration: "none", transition: "all 150ms",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#7C63C8"; e.currentTarget.style.background = "rgba(124,99,200,0.05)" }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2DAF6"; e.currentTarget.style.background = "transparent" }}
+        >
+          Se connecter
+        </Link>
+        <Link
+          href="/catalogue"
+          style={{
+            fontSize: 13, fontWeight: 600, color: "white",
+            padding: "8px 18px", borderRadius: 8, background: "#7C63C8",
+            textDecoration: "none", transition: "background 150ms",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#6B54B2")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#7C63C8")}
+        >
+          Voir le catalogue
+        </Link>
+      </div>
+
+      {/* Mobile toggle */}
+      <button
+        className="md:hidden ml-auto"
+        onClick={() => setMobileOpen(!mobileOpen)}
+        aria-label="Menu"
+        style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2">
+          {mobileOpen
+            ? <path d="M18 6L6 18M6 6l12 12" />
+            : <path d="M4 6h16M4 12h16M4 18h16" />}
+        </svg>
+      </button>
+
+      {/* Mobile menu */}
       {mobileOpen && (
         <div
-          className="fixed inset-x-0 top-16 z-30 border-b shadow-lg"
-          style={{ background: '#FFFFFF', borderColor: '#E2DAF6' }}
+          style={{
+            position: "absolute", top: 64, left: 0, right: 0,
+            background: "rgba(255,255,255,0.98)", backdropFilter: "blur(12px)",
+            borderBottom: "1px solid #F0ECF8", padding: "16px 24px 24px",
+            display: "flex", flexDirection: "column", gap: 12,
+          }}
         >
-          <div className="flex flex-col px-4 py-4 gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                style={{ fontSize: 15, color: '#4B5563', textDecoration: 'none', padding: '10px 12px', borderRadius: 8 }}
-                onClick={() => setMobileOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="flex flex-col gap-2 mt-3 pt-3 border-t" style={{ borderColor: '#E2DAF6' }}>
-              <button
-                onClick={() => { setMobileOpen(false); onOpenLogin?.() }}
-                style={{
-                  padding: '12px', borderRadius: 10, border: '1.5px solid #7C63C8',
-                  background: 'transparent', color: '#7C63C8', fontSize: 15,
-                  fontWeight: 500, cursor: 'pointer',
-                }}
-              >
-                Se connecter
-              </button>
-              <button
-                onClick={() => { setMobileOpen(false); onOpenOnboarding?.() }}
-                style={{
-                  padding: '12px', borderRadius: 10, border: 'none',
-                  background: '#7C63C8', color: 'white', fontSize: 15,
-                  fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                Testez votre agent !
-              </button>
-            </div>
-          </div>
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setMobileOpen(false)}
+              style={{ fontSize: 15, fontWeight: 500, color: "#4B5563", textDecoration: "none", padding: "8px 0" }}
+            >
+              {link.label}
+            </Link>
+          ))}
+          <div style={{ height: 1, background: "#F0ECF8", margin: "4px 0" }} />
+          <Link
+            href="/espace-client"
+            onClick={() => setMobileOpen(false)}
+            style={{
+              textAlign: "center", fontSize: 14, fontWeight: 600, color: "#7C63C8",
+              padding: "12px", borderRadius: 10, border: "1.5px solid #E2DAF6",
+              textDecoration: "none",
+            }}
+          >
+            Se connecter
+          </Link>
+          <Link
+            href="/catalogue"
+            onClick={() => setMobileOpen(false)}
+            style={{
+              textAlign: "center", fontSize: 14, fontWeight: 600, color: "white",
+              background: "#7C63C8", padding: "12px", borderRadius: 10,
+              textDecoration: "none",
+            }}
+          >
+            Voir le catalogue
+          </Link>
         </div>
       )}
-    </>
+    </header>
   )
 }

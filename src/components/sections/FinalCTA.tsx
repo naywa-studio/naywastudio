@@ -1,7 +1,8 @@
 "use client"
 import { m } from "framer-motion"
+import Link from "next/link"
 
-export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
+export function FinalCTA() {
   return (
     <section style={{ background: "#EEE9FB", padding: "100px 24px" }}>
       <m.div
@@ -29,13 +30,13 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
             margin: 0,
           }}
         >
-          Trouvez votre agent en 2 minutes.
+          Prêt à automatiser votre sourcing ?
         </h2>
         <p style={{ margin: 0, fontSize: 14, color: "#4B5563" }}>
-          Premier appel offert · Sans engagement · Réponse sous 24h
+          Essai gratuit · Sans engagement · Résultat en 24h
         </p>
-        <button
-          onClick={onOpenOnboarding}
+        <Link
+          href="/catalogue"
           style={{
             marginTop: 8,
             background: "#7C63C8",
@@ -44,21 +45,20 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
             padding: "16px 32px",
             fontSize: 16,
             fontWeight: 600,
-            border: "none",
-            cursor: "pointer",
+            textDecoration: "none",
             transition: "background 150ms, box-shadow 150ms",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "#6B54B2"
-            e.currentTarget.style.boxShadow = "0 4px 20px rgba(61,139,94,0.25)"
+            e.currentTarget.style.boxShadow = "0 4px 20px rgba(124,99,200,0.3)"
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "#7C63C8"
             e.currentTarget.style.boxShadow = "none"
           }}
         >
-          Testez maintenant →
-        </button>
+          Découvrir le catalogue →
+        </Link>
       </m.div>
     </section>
   )

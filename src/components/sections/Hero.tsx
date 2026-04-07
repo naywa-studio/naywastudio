@@ -6,7 +6,7 @@ import { m } from 'framer-motion'
 
 const AnimatedBackground = dynamic(() => import('@/components/ui/AnimatedBackground'), { ssr: false })
 
-export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
+export function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-6 pt-24 pb-20">
       <AnimatedBackground />
@@ -27,7 +27,7 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
             padding: '6px 14px',
           }}
         >
-          Agents IA · Déployés en 48h
+          Agents IA · Sourcing automatisé
         </m.div>
 
         {/* H1 */}
@@ -44,7 +44,7 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
             letterSpacing: '-0.02em',
           }}
         >
-          L&apos;agent IA de votre métier, opérationnel en 48h.
+          Votre sourcing, piloté par des agents IA.
         </m.h1>
 
         {/* Subtitle */}
@@ -55,51 +55,54 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
           style={{
             fontSize: 17,
             color: '#4B5563',
-            maxWidth: 460,
+            maxWidth: 500,
             lineHeight: 1.6,
           }}
         >
-          Nawa Studio configure et déploie des agents IA adaptés à votre activité.
-          Recrutement, support client, commercial — sans code, sans complexité.
+          Nawa Studio déploie des agents IA spécialisés pour automatiser votre sourcing de candidats
+          — du simple tri de CVs au processus complet de recrutement.
         </m.p>
 
         {/* CTA principal */}
-        <m.button
+        <m.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          onClick={onOpenOnboarding}
-          style={{
-            background: '#7C63C8',
-            color: '#FFFFFF',
-            borderRadius: 12,
-            padding: '16px 32px',
-            fontSize: 16,
-            fontWeight: 600,
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'background 150ms, box-shadow 150ms',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#6B54B2'
-            e.currentTarget.style.boxShadow = '0 4px 20px rgba(61,139,94,0.25)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#7C63C8'
-            e.currentTarget.style.boxShadow = 'none'
-          }}
+          style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}
         >
-          Testez votre agent clé en main →
-        </m.button>
+          <Link
+            href="/catalogue"
+            style={{
+              background: '#7C63C8',
+              color: '#FFFFFF',
+              borderRadius: 12,
+              padding: '16px 32px',
+              fontSize: 16,
+              fontWeight: 600,
+              textDecoration: 'none',
+              transition: 'background 150ms, box-shadow 150ms',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#6B54B2'
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,99,200,0.3)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#7C63C8'
+              e.currentTarget.style.boxShadow = 'none'
+            }}
+          >
+            Découvrir le Package Sourcing →
+          </Link>
+        </m.div>
 
         {/* Lien secondaire */}
         <Link
-          href="#agents"
+          href="/espace-client"
           style={{ color: '#7C63C8', fontSize: 14, textDecoration: 'none' }}
           onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
           onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
         >
-          Voir tous les agents
+          Accéder à mon espace client
         </Link>
 
       </div>
