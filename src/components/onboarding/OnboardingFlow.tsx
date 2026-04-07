@@ -7,31 +7,41 @@ import AgentCard from "./AgentCard"
 import SignupForm from "./SignupForm"
 import { Logo } from "@/components/ui/Logo"
 
-type Step = "sector" | "need" | "budget" | "proposal" | "signup" | "done"
+type Step = "volume" | "pain" | "autonomy" | "proposal" | "signup" | "done"
 
 interface Answers {
-  sector?: string
-  need?: string
-  budget?: string
+  volume?: string
+  pain?: string
+  autonomy?: string
 }
 
 interface SelectedAgent {
   name: string
-  price: string
+  level: number
 }
 
 const TOTAL_STEPS = 5
 const stepNumber: Record<Step, number> = {
-  sector: 1, need: 2, budget: 3, proposal: 4, signup: 5, done: 5
+  volume: 1, pain: 2, autonomy: 3, proposal: 4, signup: 5, done: 5
 }
 
-const SECTOR_CHOICES = ["Recrutement / RH", "Support client", "Marketing & contenu", "E-commerce", "Autre"]
-const NEED_CHOICES: Record<string, string[]> = {
-  "Recrutement / RH": ["Qualifier les candidats", "Répondre aux candidatures", "Planifier les entretiens", "Rédiger les offres"],
-  "Support client": ["Répondre rapidement", "Gérer hors horaires", "Réduire la charge équipe", "Centraliser les tickets"],
-  default: ["Créer du contenu", "Gérer mes réseaux", "Rédiger des newsletters", "Générer des idées"],
-}
-const BUDGET_CHOICES = ["Moins de 150€/mois", "150€ – 300€/mois", "300€ – 500€/mois", "Je veux d'abord voir"]
+const VOLUME_CHOICES = [
+  "1 à 5 recrutements / mois",
+  "5 à 20 recrutements / mois",
+  "Plus de 20 recrutements / mois",
+  "Je ne sais pas encore",
+]
+const PAIN_CHOICES = [
+  "Trier des CVs / listes de candidats",
+  "Construire des shortlists qualifiées",
+  "Gérer tout le processus de sourcing",
+  "Contacter et planifier les entretiens",
+]
+const AUTONOMY_CHOICES = [
+  "Je veux garder le contrôle, juste un coup de main",
+  "Je veux déléguer le tri et la qualification",
+  "Je veux une solution complète, clé en main",
+]
 
 // Deterministic bubble data — no Math.random to avoid hydration mismatch
 const BUBBLES = Array.from({ length: 16 }, (_, i) => ({
@@ -46,18 +56,18 @@ const BUBBLES = Array.from({ length: 16 }, (_, i) => ({
 
 interface Props {
   onClose: () => void
-  initialStep?: "sector" | "signup"
+  initialStep?: "volume" | "signup"
   defaultAuthMode?: "signup" | "login"
 }
 
-export default function OnboardingFlow({ onClose, initialStep = "sector", defaultAuthMode = "signup" }: Props) {
-  const [step, setStep] = useState<Step>(initialStep)
+export default function OnboardingFlow({ onClose, initialStep = "volume", defaultAuthMode = "signup" }: Props) {
+  const [step, setStep] = useState<Step>(initialStep === "signup" ? "signup" : "volume")
   const [answers, setAnswers] = useState<Answers>({})
-  const [selectedAgent, setSelectedAgent] = useState<SelectedAgent>({ name: "", price: "" })
+  const [selectedAgent, setSelectedAgent] = useState<SelectedAgent>({ name: "", level: 0 })
   const [messages, setMessages] = useState(() =>
     initialStep === "signup"
       ? [{ from: "agent", text: defaultAuthMode === "login" ? "Bon retour 👋 Connectez-vous à votre espace Nawa Studio." : "Créez votre espace Nawa Studio pour accéder à votre agent." }]
-      : [{ from: "agent", text: "Bonjour 👋 En 3 questions, je vais vous proposer l'agent IA qui correspond à votre activité. Quel est votre secteur ?" }]
+      : [{ from: "agent", text: "Bonjour 👋 Je suis là pour vous recommander la bonne solution de sourcing. Combien de recrutements gérez-vous par mois ?" }]
   )
   const [isTyping, setIsTyping] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -85,26 +95,22 @@ export default function OnboardingFlow({ onClose, initialStep = "sector", defaul
     }, 900)
   }
 
-  const handleSector = (choice: string) => {
+  const handleVolume = (choice: string) => {
     setMessages((prev) => [...prev, { from: "user", text: choice }])
-    setAnswers((prev) => ({ ...prev, sector: choice }))
-    const q =
-      choice === "Recrutement / RH" ? "Qu'est-ce qui vous prend le plus de temps aujourd'hui ?"
-      : choice === "Support client" ? "Quel est votre défi principal ?"
-      : "Où avez-vous besoin d'aide en priorité ?"
-    addAgentMessage(q, "need")
+    setAnswers((prev) => ({ ...prev, volume: choice }))
+    addAgentMessage("Qu'est-ce qui vous prend le plus de temps aujourd'hui dans votre sourcing ?", "pain")
   }
 
-  const handleNeed = (choice: string) => {
+  const handlePain = (choice: string) => {
     setMessages((prev) => [...prev, { from: "user", text: choice }])
-    setAnswers((prev) => ({ ...prev, need: choice }))
-    addAgentMessage("Parfait. Dernière question — quel budget mensuel envisagez-vous ?", "budget")
+    setAnswers((prev) => ({ ...prev, pain: choice }))
+    addAgentMessage("Dernière question — quel niveau d'automatisation recherchez-vous ?", "autonomy")
   }
 
-  const handleBudget = (choice: string) => {
+  const handleAutonomy = (choice: string) => {
     setMessages((prev) => [...prev, { from: "user", text: choice }])
-    setAnswers((prev) => ({ ...prev, budget: choice }))
-    addAgentMessage("Voici l'agent qui correspond à votre profil 👇", "proposal")
+    setAnswers((prev) => ({ ...prev, autonomy: choice }))
+    addAgentMessage("Parfait, voici la solution que je vous recommande 👇", "proposal")
   }
 
   return (
@@ -307,32 +313,29 @@ export default function OnboardingFlow({ onClose, initialStep = "sector", defaul
                 transition={{ duration: 0.3 }}
                 className="mt-2"
               >
-                {step === "sector" && (
-                  <ChoiceButtons choices={SECTOR_CHOICES} onSelect={handleSector} />
+                {step === "volume" && (
+                  <ChoiceButtons choices={VOLUME_CHOICES} onSelect={handleVolume} />
                 )}
-                {step === "need" && (
-                  <ChoiceButtons
-                    choices={NEED_CHOICES[answers.sector ?? "default"] ?? NEED_CHOICES.default}
-                    onSelect={handleNeed}
-                  />
+                {step === "pain" && (
+                  <ChoiceButtons choices={PAIN_CHOICES} onSelect={handlePain} />
                 )}
-                {step === "budget" && (
-                  <ChoiceButtons choices={BUDGET_CHOICES} onSelect={handleBudget} />
+                {step === "autonomy" && (
+                  <ChoiceButtons choices={AUTONOMY_CHOICES} onSelect={handleAutonomy} />
                 )}
                 {step === "proposal" && (
                   <AgentCard
                     answers={answers as Record<string, string>}
-                    onNext={(name, price) => {
-                      setSelectedAgent({ name, price })
+                    onNext={(name: string, level: number) => {
+                      setSelectedAgent({ name, level })
                       setStep("signup")
                     }}
                   />
                 )}
                 {step === "signup" && (
                   <SignupForm
-                    answers={answers}
+                    answers={answers as Record<string, string | undefined>}
                     agentName={selectedAgent.name}
-                    agentPrice={selectedAgent.price}
+                    agentPrice={`Niveau ${selectedAgent.level}`}
                     defaultMode={defaultAuthMode}
                     onDone={() => setStep("done")}
                   />

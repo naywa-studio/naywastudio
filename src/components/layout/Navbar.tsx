@@ -3,12 +3,17 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 
+interface NavbarProps {
+  onOpenOnboarding?: () => void
+  onOpenLogin?: () => void
+}
+
 const navLinks = [
   { label: "Catalogue", href: "/catalogue" },
   { label: "Espace client", href: "/espace-client" },
 ]
 
-export function Navbar() {
+export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -55,30 +60,30 @@ export function Navbar() {
 
       {/* Desktop CTA */}
       <div className="hidden md:flex items-center gap-3 ml-auto">
-        <Link
-          href="/espace-client"
+        <button
+          onClick={onOpenLogin}
           style={{
             fontSize: 13, fontWeight: 600, color: "#7C63C8",
             padding: "8px 16px", borderRadius: 8, border: "1.5px solid #E2DAF6",
-            textDecoration: "none", transition: "all 150ms",
+            background: "transparent", cursor: "pointer", transition: "all 150ms",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#7C63C8"; e.currentTarget.style.background = "rgba(124,99,200,0.05)" }}
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2DAF6"; e.currentTarget.style.background = "transparent" }}
         >
           Se connecter
-        </Link>
-        <Link
-          href="/catalogue"
+        </button>
+        <button
+          onClick={onOpenOnboarding}
           style={{
             fontSize: 13, fontWeight: 600, color: "white",
             padding: "8px 18px", borderRadius: 8, background: "#7C63C8",
-            textDecoration: "none", transition: "background 150ms",
+            border: "none", cursor: "pointer", transition: "background 150ms",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = "#6B54B2")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "#7C63C8")}
         >
-          Voir le catalogue
-        </Link>
+          Testez votre agent !
+        </button>
       </div>
 
       {/* Mobile toggle */}
@@ -116,28 +121,26 @@ export function Navbar() {
             </Link>
           ))}
           <div style={{ height: 1, background: "#F0ECF8", margin: "4px 0" }} />
-          <Link
-            href="/espace-client"
-            onClick={() => setMobileOpen(false)}
+          <button
+            onClick={() => { setMobileOpen(false); onOpenLogin?.() }}
             style={{
               textAlign: "center", fontSize: 14, fontWeight: 600, color: "#7C63C8",
               padding: "12px", borderRadius: 10, border: "1.5px solid #E2DAF6",
-              textDecoration: "none",
+              background: "transparent", cursor: "pointer",
             }}
           >
             Se connecter
-          </Link>
-          <Link
-            href="/catalogue"
-            onClick={() => setMobileOpen(false)}
+          </button>
+          <button
+            onClick={() => { setMobileOpen(false); onOpenOnboarding?.() }}
             style={{
               textAlign: "center", fontSize: 14, fontWeight: 600, color: "white",
               background: "#7C63C8", padding: "12px", borderRadius: 10,
-              textDecoration: "none",
+              border: "none", cursor: "pointer",
             }}
           >
-            Voir le catalogue
-          </Link>
+            Testez votre agent !
+          </button>
         </div>
       )}
     </header>

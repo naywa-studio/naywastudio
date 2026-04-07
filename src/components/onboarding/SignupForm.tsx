@@ -4,9 +4,7 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 
 interface Answers {
-  sector?: string
-  need?: string
-  budget?: string
+  [key: string]: string | undefined
 }
 
 interface Props {
@@ -38,9 +36,9 @@ export default function SignupForm({ answers, agentName, agentPrice, onDone, def
 
   const profileMeta = {
     first_name: form.firstName,
-    sector: answers.sector ?? "",
-    need: answers.need ?? "",
-    budget: answers.budget ?? "",
+    sector: answers.volume ?? answers.sector ?? "",
+    need: answers.pain ?? answers.need ?? "",
+    budget: answers.autonomy ?? answers.budget ?? "",
     agent_name: agentName,
     agent_price: agentPrice,
   }

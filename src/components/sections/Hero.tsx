@@ -6,7 +6,7 @@ import { m } from 'framer-motion'
 
 const AnimatedBackground = dynamic(() => import('@/components/ui/AnimatedBackground'), { ssr: false })
 
-export function Hero() {
+export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-6 pt-24 pb-20">
       <AnimatedBackground />
@@ -63,15 +63,15 @@ export function Hero() {
           — du simple tri de CVs au processus complet de recrutement.
         </m.p>
 
-        {/* CTA principal */}
+        {/* CTAs */}
         <m.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
           style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}
         >
-          <Link
-            href="/catalogue"
+          <button
+            onClick={onOpenOnboarding}
             style={{
               background: '#7C63C8',
               color: '#FFFFFF',
@@ -79,7 +79,8 @@ export function Hero() {
               padding: '16px 32px',
               fontSize: 16,
               fontWeight: 600,
-              textDecoration: 'none',
+              border: 'none',
+              cursor: 'pointer',
               transition: 'background 150ms, box-shadow 150ms',
             }}
             onMouseEnter={(e) => {
@@ -91,22 +92,21 @@ export function Hero() {
               e.currentTarget.style.boxShadow = 'none'
             }}
           >
-            Découvrir le Package Sourcing →
-          </Link>
+            Trouver mon agent en 2 min →
+          </button>
         </m.div>
 
-        {/* Lien secondaire */}
+        {/* Secondary link */}
         <Link
-          href="/espace-client"
+          href="/catalogue"
           style={{ color: '#7C63C8', fontSize: 14, textDecoration: 'none' }}
           onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
           onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
         >
-          Accéder à mon espace client
+          Voir le catalogue complet
         </Link>
 
       </div>
-
     </section>
   )
 }
