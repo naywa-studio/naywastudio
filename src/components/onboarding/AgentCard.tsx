@@ -19,7 +19,12 @@ const agentMap: Record<string, { name: string; bullets: string[]; price: string 
   }
 }
 
-export default function AgentCard({ answers, onNext }: { answers: Record<string, string>; onNext: () => void }) {
+interface AgentCardProps {
+  answers: Record<string, string>
+  onNext: (agentName: string, agentPrice: string) => void
+}
+
+export default function AgentCard({ answers, onNext }: AgentCardProps) {
   const agent = agentMap[answers.sector || "default"] ?? agentMap.default
   return (
     <m.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4">
@@ -39,7 +44,7 @@ export default function AgentCard({ answers, onNext }: { answers: Record<string,
         <p style={{ marginTop: 14, fontSize: 14, fontWeight: 600, color: "#7C63C8" }}>{agent.price}</p>
       </div>
       <button
-        onClick={onNext}
+        onClick={() => onNext(agent.name, agent.price)}
         style={{ background: "#7C63C8", color: "white", border: "none", borderRadius: 10,
           padding: "14px 24px", fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%" }}
       >Je veux tester cet agent →</button>

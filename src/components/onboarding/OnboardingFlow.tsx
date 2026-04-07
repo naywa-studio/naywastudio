@@ -136,51 +136,50 @@ export default function OnboardingFlow({ onClose, initialStep = "sector", defaul
           animate={{ height: `${progress}%` }}
           transition={{ duration: 1.5, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
-          {/* Wave surface */}
-          <div style={{ position: "absolute", top: -18, left: 0, right: 0, height: 36, overflow: "hidden" }}>
+          {/* Wave surface — deep, organic */}
+          <div style={{ position: "absolute", top: -48, left: 0, right: 0, height: 60, overflow: "hidden" }}>
             <m.div
               style={{ display: "flex", width: "200%", height: "100%" }}
               animate={{ x: ["0%", "-50%"] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
             >
-              {/* Two identical SVG paths tiled side by side for seamless loop */}
               {[0, 1].map((k) => (
                 <svg
                   key={k}
-                  viewBox="0 0 1440 36"
+                  viewBox="0 0 1440 60"
                   preserveAspectRatio="none"
-                  style={{ width: "50%", height: 36, flexShrink: 0 }}
+                  style={{ width: "50%", height: 60, flexShrink: 0 }}
                 >
                   <path
-                    d="M0,18 C180,36 360,0 540,18 C720,36 900,0 1080,18 C1260,36 1440,0 1620,18 L1620,36 L0,36 Z"
-                    fill="rgba(184,174,222,0.75)"
+                    d="M0,30 C100,50 200,10 360,28 C520,46 600,8 720,28 C840,48 960,10 1100,30 C1240,50 1360,12 1440,30 L1440,60 L0,60 Z"
+                    fill="rgba(184,174,222,0.8)"
                   />
                   <path
-                    d="M0,22 C120,10 240,34 360,22 C480,10 600,34 720,22 C840,10 960,34 1080,22 C1200,10 1320,34 1440,22 L1440,36 L0,36 Z"
-                    fill="rgba(140,118,210,0.5)"
+                    d="M0,38 C80,22 180,52 320,36 C460,20 560,50 700,34 C840,18 980,52 1120,36 C1260,20 1360,46 1440,38 L1440,60 L0,60 Z"
+                    fill="rgba(210,204,240,0.5)"
                   />
                 </svg>
               ))}
             </m.div>
           </div>
 
-          {/* Second wave — slower, different phase */}
-          <div style={{ position: "absolute", top: -10, left: 0, right: 0, height: 24, overflow: "hidden" }}>
+          {/* Second wave — slower, higher amplitude */}
+          <div style={{ position: "absolute", top: -28, left: 0, right: 0, height: 40, overflow: "hidden" }}>
             <m.div
               style={{ display: "flex", width: "200%", height: "100%" }}
               animate={{ x: ["-50%", "0%"] }}
-              transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 11, repeat: Infinity, ease: "linear" }}
             >
               {[0, 1].map((k) => (
                 <svg
                   key={k}
-                  viewBox="0 0 1440 24"
+                  viewBox="0 0 1440 40"
                   preserveAspectRatio="none"
-                  style={{ width: "50%", height: 24, flexShrink: 0 }}
+                  style={{ width: "50%", height: 40, flexShrink: 0 }}
                 >
                   <path
-                    d="M0,12 C240,24 480,0 720,12 C960,24 1200,0 1440,12 L1440,24 L0,24 Z"
-                    fill="rgba(210,204,240,0.55)"
+                    d="M0,20 C160,38 320,4 480,22 C640,40 800,6 960,24 C1120,42 1280,8 1440,20 L1440,40 L0,40 Z"
+                    fill="rgba(155,141,212,0.35)"
                   />
                 </svg>
               ))}
