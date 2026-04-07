@@ -92,7 +92,7 @@ export default function SignupForm({ answers, agentName, agentPrice, onDone, def
     }
   }
 
-  const handleOAuth = async (provider: "google" | "apple") => {
+  const handleOAuth = async (provider: "google") => {
     // Persist onboarding data across the OAuth redirect
     sessionStorage.setItem("nawa_pending_profile", JSON.stringify(profileMeta))
     await getSupabase().auth.signInWithOAuth({
@@ -133,22 +133,6 @@ export default function SignupForm({ answers, agentName, agentPrice, onDone, def
           <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
         </svg>
         Continuer avec Google
-      </button>
-
-      <button
-        type="button"
-        onClick={() => handleOAuth("apple")}
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-          padding: "11px 14px", borderRadius: 8, border: "1px solid #E2DAF6",
-          fontSize: 14, cursor: "pointer", background: "white", color: "#111827", fontWeight: 500,
-        }}
-      >
-        {/* Apple logo */}
-        <svg width="16" height="18" viewBox="0 0 814 1000" aria-hidden="true" fill="currentColor">
-          <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 790.7 0 663 0 541.8c0-207.5 135.4-317.3 269-317.3 70.1 0 128.4 46.4 172.5 46.4 42.8 0 109.6-49 192.5-49 31 0 108.2 2.6 168.1 80.6zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/>
-        </svg>
-        Continuer avec Apple
       </button>
 
       {/* Divider */}
