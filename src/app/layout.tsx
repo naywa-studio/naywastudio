@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import { spaceGrotesk, inter } from '@/lib/fonts'
-import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
 import { MotionProvider } from '@/components/providers/MotionProvider'
 import './globals.css'
 
@@ -135,9 +133,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <MotionProvider>
-          <Navbar />
           <main className="flex-1">{children}</main>
-          <Footer />
         </MotionProvider>
 
         {/* Structured Data */}
