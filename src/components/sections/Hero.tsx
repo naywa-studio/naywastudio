@@ -1,286 +1,330 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { m } from 'framer-motion'
 
-// ── Reusable fade-up helper ────────────────────────────────────────────────
+const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
 const fu = (delay: number) => ({
-  initial:    { opacity: 0, y: 28 },
-  animate:    { opacity: 1, y: 0 },
-  transition: { duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
+  initial: { opacity: 0, y: 32 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.75, delay, ease: EASE },
 })
 
-// ── Component ──────────────────────────────────────────────────────────────
 export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
   return (
-    <section className="relative min-h-screen overflow-hidden flex items-center justify-center">
+    <section
+      style={{
+        position: 'relative',
+        minHeight: '100vh',
+        overflow: 'hidden',
+      }}
+    >
+      {/* ── Background image ───────────────────────────────────────────── */}
+      <Image
+        src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&q=80"
+        alt="Équipe au travail dans un bureau moderne"
+        fill
+        priority
+        sizes="100vw"
+        style={{ objectFit: 'cover', objectPosition: 'center 30%' }}
+      />
 
-      {/* ── Background ─────────────────────────────────────────────────── */}
-      <div aria-hidden className="absolute inset-0 pointer-events-none select-none overflow-hidden">
+      {/* ── Gradient overlays ──────────────────────────────────────────── */}
+      {/* Main bottom-to-top darkening for text readability */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(to top, rgba(4,2,16,0.92) 0%, rgba(4,2,16,0.65) 35%, rgba(4,2,16,0.3) 65%, rgba(4,2,16,0.15) 100%)',
+        }}
+      />
 
-        {/* Dot grid — masked to fade at edges */}
+      {/* Purple tint — bottom-left corner */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'radial-gradient(ellipse 70% 60% at 0% 100%, rgba(124,99,200,0.32) 0%, transparent 60%)',
+        }}
+      />
+
+      {/* Subtle top vignette for Navbar readability */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 160,
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, transparent 100%)',
+        }}
+      />
+
+      {/* ── Bottom-left content ────────────────────────────────────────── */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+        }}
+      >
         <div
-          className="absolute inset-0"
           style={{
-            backgroundImage:
-              'radial-gradient(circle, rgba(124,99,200,0.13) 1px, transparent 1px)',
-            backgroundSize: '28px 28px',
-            maskImage:
-              'radial-gradient(ellipse 90% 80% at 50% 40%, black 30%, transparent 100%)',
-            WebkitMaskImage:
-              'radial-gradient(ellipse 90% 80% at 50% 40%, black 30%, transparent 100%)',
+            maxWidth: 1152,
+            margin: '0 auto',
+            padding: '0 56px 80px',
           }}
-        />
-
-        {/* Top-right blob */}
-        <div
-          className="absolute -top-48 -right-32 w-[720px] h-[720px] rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle at center, rgba(124,99,200,0.13) 0%, transparent 65%)',
-            animation: 'heroBlob1 14s ease-in-out infinite',
-          }}
-        />
-
-        {/* Bottom-left blob */}
-        <div
-          className="absolute -bottom-28 -left-28 w-[560px] h-[560px] rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle at center, rgba(184,174,222,0.11) 0%, transparent 65%)',
-            animation: 'heroBlob2 18s ease-in-out infinite',
-          }}
-        />
-
-        {/* Center warm glow */}
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[320px]"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, rgba(238,233,251,0.55) 0%, transparent 70%)',
-          }}
-        />
-
-        {/* Bottom fade */}
-        <div
-          className="absolute bottom-0 inset-x-0 h-48"
-          style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.9))' }}
-        />
-      </div>
-
-      {/* ── Content ────────────────────────────────────────────────────── */}
-      <div className="relative z-10 flex flex-col items-center text-center px-6 pt-28 pb-20 w-full max-w-4xl mx-auto">
-
-        {/* Badge */}
-        <m.div {...fu(0)} className="mb-9">
-          <span
-            style={{
-              display:       'inline-flex',
-              alignItems:    'center',
-              gap:            8,
-              background:    'rgba(124,99,200,0.07)',
-              border:        '1px solid rgba(124,99,200,0.2)',
-              color:         '#7C63C8',
-              fontSize:       12,
-              fontWeight:     600,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase' as const,
-              borderRadius:   100,
-              padding:       '7px 18px',
-              fontFamily:    'var(--font-inter), sans-serif',
-            }}
-          >
+          className="hero-content"
+        >
+          {/* Badge */}
+          <m.div {...fu(0.1)} style={{ marginBottom: 22 }}>
             <span
               style={{
-                width:      6,
-                height:     6,
-                borderRadius: '50%',
-                background: '#7C63C8',
-                boxShadow:  '0 0 8px rgba(124,99,200,0.85)',
-                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.22)',
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.09em',
+                textTransform: 'uppercase' as const,
+                borderRadius: 100,
+                padding: '6px 16px',
+                fontFamily: 'var(--font-inter), sans-serif',
+                backdropFilter: 'blur(8px)',
               }}
-            />
-            AI Workforce Studio
-          </span>
-        </m.div>
-
-        {/* H1 */}
-        <m.h1
-          {...fu(0.08)}
-          style={{
-            fontFamily:    'var(--font-space-grotesk), sans-serif',
-            fontWeight:     800,
-            fontSize:      'clamp(44px, 6.8vw, 82px)',
-            lineHeight:     1.05,
-            letterSpacing: '-0.035em',
-            color:         '#111827',
-            maxWidth:      '20ch',
-            margin:         0,
-          }}
-        >
-          Votre sourcing,
-          <br />
-          piloté par des{' '}
-          <span
-            style={{
-              background:              'linear-gradient(130deg, #7C63C8 0%, #A48FDB 55%, #C8BCEC 100%)',
-              WebkitBackgroundClip:    'text',
-              WebkitTextFillColor:     'transparent',
-              backgroundClip:          'text',
-            }}
-          >
-            agents IA.
-          </span>
-        </m.h1>
-
-        {/* Separator line */}
-        <m.div
-          {...fu(0.16)}
-          style={{
-            width:       48,
-            height:       2,
-            borderRadius: 2,
-            background:  'linear-gradient(90deg, #7C63C8, rgba(124,99,200,0))',
-            margin:      '28px 0 0',
-          }}
-        />
-
-        {/* Subtitle */}
-        <m.p
-          {...fu(0.22)}
-          style={{
-            fontFamily: 'var(--font-inter), sans-serif',
-            fontSize:   'clamp(16px, 1.25vw, 19px)',
-            color:      '#6B7280',
-            lineHeight:  1.75,
-            maxWidth:   '52ch',
-            marginTop:   20,
-            fontWeight:  400,
-          }}
-        >
-          Nawa Studio déploie des agents IA spécialisés pour automatiser
-          votre sourcing de candidats — du simple tri de CVs au processus
-          complet de recrutement.
-        </m.p>
-
-        {/* CTAs */}
-        <m.div
-          {...fu(0.3)}
-          style={{
-            marginTop:      44,
-            display:        'flex',
-            gap:             14,
-            flexWrap:       'wrap' as const,
-            justifyContent: 'center',
-            alignItems:     'center',
-          }}
-        >
-          <button
-            onClick={onOpenOnboarding}
-            style={{
-              background:   '#7C63C8',
-              color:        '#FFFFFF',
-              borderRadius:  14,
-              padding:      '15px 34px',
-              fontSize:      15,
-              fontWeight:    600,
-              border:       'none',
-              cursor:       'pointer',
-              transition:   'all 180ms cubic-bezier(0.22, 1, 0.36, 1)',
-              letterSpacing: '-0.01em',
-              fontFamily:   'var(--font-inter), sans-serif',
-              boxShadow:    '0 1px 2px rgba(0,0,0,0.06), 0 6px 20px rgba(124,99,200,0.24)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background  = '#6B54B2'
-              e.currentTarget.style.transform   = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow   =
-                '0 2px 4px rgba(0,0,0,0.08), 0 12px 32px rgba(124,99,200,0.38)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background  = '#7C63C8'
-              e.currentTarget.style.transform   = 'translateY(0)'
-              e.currentTarget.style.boxShadow   =
-                '0 1px 2px rgba(0,0,0,0.06), 0 6px 20px rgba(124,99,200,0.24)'
-            }}
-          >
-            Trouver mon agent en 2 min →
-          </button>
-
-          <Link
-            href="/catalogue"
-            style={{
-              color:        '#7C63C8',
-              fontSize:      15,
-              fontWeight:    500,
-              textDecoration: 'none',
-              padding:      '15px 8px',
-              display:      'inline-flex',
-              alignItems:   'center',
-              gap:           5,
-              fontFamily:   'var(--font-inter), sans-serif',
-              borderBottom: '1px solid transparent',
-              transition:   'border-color 150ms, color 150ms',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderBottomColor = 'rgba(124,99,200,0.45)'
-              e.currentTarget.style.color             = '#6B54B2'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderBottomColor = 'transparent'
-              e.currentTarget.style.color             = '#7C63C8'
-            }}
-          >
-            Voir le catalogue →
-          </Link>
-        </m.div>
-
-        {/* Trust line */}
-        <m.div
-          {...fu(0.4)}
-          style={{
-            marginTop:   56,
-            display:     'flex',
-            alignItems:  'center',
-            gap:          10,
-            flexWrap:    'wrap' as const,
-            justifyContent: 'center',
-          }}
-        >
-          {[
-            'Déployé en 48h',
-            'Sans intégration technique',
-            'Agents sur-mesure',
-          ].map((item, i, arr) => (
-            <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            >
               <span
                 style={{
-                  fontSize:      13,
-                  color:         '#9CA3AF',
-                  fontFamily:    'var(--font-inter), sans-serif',
-                  letterSpacing: '0.01em',
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: '#C8BCEC',
+                  boxShadow: '0 0 8px rgba(200,188,236,0.9)',
+                  flexShrink: 0,
                 }}
-              >
-                {item}
-              </span>
-              {i < arr.length - 1 && (
-                <span
-                  style={{
-                    width:      3,
-                    height:     3,
-                    borderRadius: '50%',
-                    background: '#D1D5DB',
-                    display:    'inline-block',
-                    flexShrink: 0,
-                  }}
-                />
-              )}
+              />
+              AI Workforce Studio
             </span>
-          ))}
-        </m.div>
+          </m.div>
 
+          {/* H1 */}
+          <m.h1
+            {...fu(0.18)}
+            style={{
+              fontFamily: 'var(--font-space-grotesk), sans-serif',
+              fontWeight: 800,
+              fontSize: 'clamp(38px, 5.2vw, 70px)',
+              lineHeight: 1.06,
+              letterSpacing: '-0.035em',
+              color: '#FFFFFF',
+              margin: '0 0 22px',
+              maxWidth: '16ch',
+            }}
+          >
+            Votre équipe<br />
+            d&apos;agents IA,<br />
+            opérationnelle<br />
+            en{' '}
+            <span
+              style={{
+                background: 'linear-gradient(120deg, #C8BCEC 0%, #A48FDB 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              48h
+            </span>
+            .
+          </m.h1>
+
+          {/* Subtitle */}
+          <m.p
+            {...fu(0.26)}
+            style={{
+              fontFamily: 'var(--font-inter), sans-serif',
+              fontSize: 'clamp(15px, 1.05vw, 18px)',
+              color: 'rgba(255,255,255,0.68)',
+              lineHeight: 1.75,
+              maxWidth: '50ch',
+              margin: '0 0 40px',
+            }}
+          >
+            Nawa Studio déploie des agents IA sur-mesure pour automatiser
+            vos processus métier — et vous rendre du temps sur ce qui
+            compte vraiment.
+          </m.p>
+
+          {/* CTAs */}
+          <m.div
+            {...fu(0.34)}
+            style={{
+              display: 'flex',
+              gap: 12,
+              flexWrap: 'wrap' as const,
+              alignItems: 'center',
+              marginBottom: 44,
+            }}
+          >
+            <button
+              onClick={onOpenOnboarding}
+              style={{
+                background: '#FFFFFF',
+                color: '#7C63C8',
+                borderRadius: 12,
+                padding: '14px 30px',
+                fontSize: 15,
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 200ms cubic-bezier(0.22, 1, 0.36, 1)',
+                fontFamily: 'var(--font-inter), sans-serif',
+                letterSpacing: '-0.01em',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 8px 36px rgba(0,0,0,0.35)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.25)'
+              }}
+            >
+              Trouver mon agent →
+            </button>
+
+            <Link
+              href="/catalogue"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                color: 'rgba(255,255,255,0.85)',
+                fontSize: 15,
+                fontWeight: 500,
+                textDecoration: 'none',
+                padding: '14px 22px',
+                borderRadius: 12,
+                border: '1px solid rgba(255,255,255,0.22)',
+                background: 'rgba(255,255,255,0.08)',
+                fontFamily: 'var(--font-inter), sans-serif',
+                transition: 'all 150ms',
+                backdropFilter: 'blur(6px)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.15)'
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'
+              }}
+            >
+              Voir le catalogue
+            </Link>
+          </m.div>
+
+          {/* Trust pills */}
+          <m.div
+            {...fu(0.42)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              flexWrap: 'wrap' as const,
+            }}
+          >
+            {['Déployé en 48h', 'Sans intégration technique', 'Agents sur-mesure'].map(
+              (item, i, arr) => (
+                <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: 'rgba(255,255,255,0.48)',
+                      fontFamily: 'var(--font-inter), sans-serif',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    {item}
+                  </span>
+                  {i < arr.length - 1 && (
+                    <span
+                      style={{
+                        width: 3,
+                        height: 3,
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.25)',
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                </span>
+              )
+            )}
+          </m.div>
+        </div>
       </div>
 
+      {/* ── Scroll indicator ───────────────────────────────────────────── */}
+      <m.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 0.6 }}
+        style={{
+          position: 'absolute',
+          bottom: 32,
+          right: 56,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 6,
+        }}
+        className="scroll-indicator"
+      >
+        <span
+          style={{
+            fontSize: 10,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase' as const,
+            color: 'rgba(255,255,255,0.35)',
+            fontFamily: 'var(--font-inter), sans-serif',
+            writingMode: 'vertical-rl' as const,
+          }}
+        >
+          Scroll
+        </span>
+        <div
+          style={{
+            width: 1,
+            height: 40,
+            background: 'linear-gradient(to bottom, rgba(255,255,255,0.35), transparent)',
+          }}
+        />
+      </m.div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .hero-content {
+            padding: 0 24px 64px !important;
+          }
+          .scroll-indicator {
+            display: none !important;
+          }
+        }
+      `}</style>
     </section>
   )
 }

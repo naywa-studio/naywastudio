@@ -123,8 +123,8 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
               position: "relative",
             }}
           >
-            Prêt à automatiser<br />
-            votre recrutement ?
+            Prêt à gagner du temps<br />
+            avec vos agents IA ?
           </m.h2>
 
           {/* Subtext */}
@@ -141,7 +141,7 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
             }}
           >
             Découvrez quel agent correspond à votre besoin en 2 minutes.
-            Votre premier résultat arrive sous 7 jours.
+            Votre équipe d&apos;agents est opérationnelle sous 48h.
           </m.p>
 
           {/* CTA buttons */}

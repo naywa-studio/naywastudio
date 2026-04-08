@@ -19,12 +19,12 @@ const metrics = [
   {
     value: "24/7",
     title: "Toujours disponible",
-    desc: "Nuits, week-ends, jours fériés — vos agents ne s'arrêtent jamais de sourcer.",
+    desc: "Nuits, week-ends, jours fériés — vos agents travaillent en continu, sans interruption.",
   },
   {
     value: "×3",
     title: "Plus de profils qualifiés",
-    desc: "Nos clients triplent en moyenne leur volume de candidats pertinents dès le premier mois.",
+    desc: "Nos clients multiplient par 3 leur productivité opérationnelle dès le premier mois.",
   },
 ]
 
