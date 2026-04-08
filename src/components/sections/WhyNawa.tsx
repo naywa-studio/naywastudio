@@ -1,71 +1,186 @@
 "use client"
-import { CheckCircle, Clock, Shield } from "lucide-react"
 import { m } from "framer-motion"
 
-const items = [
+const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
+const fu = (delay: number) => ({
+  initial: { opacity: 0, y: 24 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.65, delay, ease: EASE },
+})
+
+const metrics = [
   {
-    Icon: CheckCircle,
-    title: "Un seul interlocuteur",
-    desc: "Vous échangez avec un seul agent. Toute la complexité est gérée en coulisse.",
+    value: "48h",
+    title: "Déploiement express",
+    desc: "Votre agent est opérationnel en deux jours. Sans équipe technique, sans intégration lourde.",
   },
   {
-    Icon: Clock,
-    title: "Disponible 24h/24",
-    desc: "Vos agents IA travaillent nuits et week-ends, sans interruption.",
+    value: "24/7",
+    title: "Toujours disponible",
+    desc: "Nuits, week-ends, jours fériés — vos agents ne s'arrêtent jamais de sourcer.",
   },
   {
-    Icon: Shield,
-    title: "Montée en autonomie progressive",
-    desc: "Du simple tri au recrutement complet — évoluez à votre rythme.",
+    value: "×3",
+    title: "Plus de profils qualifiés",
+    desc: "Nos clients triplent en moyenne leur volume de candidats pertinents dès le premier mois.",
   },
 ]
 
 export function WhyNawa() {
   return (
-    <section style={{ background: "#F8F6FF", padding: "80px 24px" }}>
-      <div style={{ maxWidth: 960, margin: "0 auto" }}>
+    <section
+      style={{
+        background: "#FFFFFF",
+        padding: "112px 24px",
+        borderTop: "1px solid #F0ECF8",
+      }}
+    >
+      <div style={{ maxWidth: 1040, margin: "0 auto" }}>
+
+        {/* Section header */}
+        <m.div
+          {...fu(0)}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+            marginBottom: 80,
+            gap: 16,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              background: "rgba(124,99,200,0.07)",
+              border: "1px solid rgba(124,99,200,0.18)",
+              borderRadius: 100,
+              padding: "5px 14px",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#7C63C8",
+              letterSpacing: "0.09em",
+              textTransform: "uppercase" as const,
+              fontFamily: "var(--font-inter), sans-serif",
+            }}
+          >
+            Résultats mesurables
+          </span>
+
+          <h2
+            style={{
+              fontFamily: "var(--font-space-grotesk), sans-serif",
+              fontSize: "clamp(28px, 3.8vw, 46px)",
+              fontWeight: 800,
+              color: "#111827",
+              letterSpacing: "-0.025em",
+              lineHeight: 1.12,
+              margin: 0,
+              maxWidth: "22ch",
+            }}
+          >
+            Ce que Nawa change<br />
+            pour votre équipe RH
+          </h2>
+
+          <p
+            style={{
+              fontFamily: "var(--font-inter), sans-serif",
+              fontSize: 15,
+              color: "#6B7280",
+              lineHeight: 1.7,
+              margin: 0,
+              maxWidth: "48ch",
+            }}
+          >
+            Des résultats concrets, mesurables dès les premières semaines.
+            Pas de promesses — des indicateurs.
+          </p>
+        </m.div>
+
+        {/* Metrics row */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 20,
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
           }}
         >
-          {items.map(({ Icon, title, desc }, i) => (
+          {metrics.map(({ value, title, desc }, i) => (
             <m.div
-              key={title}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.1 }}
+              key={value}
+              {...fu(0.1 + i * 0.1)}
               style={{
-                background: "#FFFFFF",
-                border: "1px solid #E2DAF6",
-                borderRadius: 14,
-                padding: 24,
+                padding: "44px 40px",
+                borderTop: "3px solid transparent",
+                borderImage: "linear-gradient(90deg, #7C63C8, #B8AEDE) 1",
                 display: "flex",
                 flexDirection: "column",
-                gap: 10,
-                transition: "box-shadow 150ms",
+                gap: 14,
+                position: "relative",
               }}
-              onMouseEnter={(e) =>
-                ((e.currentTarget as HTMLDivElement).style.boxShadow =
-                  "0 4px 16px rgba(0,0,0,0.07)")
-              }
-              onMouseLeave={(e) =>
-                ((e.currentTarget as HTMLDivElement).style.boxShadow = "none")
-              }
             >
-              <Icon size={22} color="#7C63C8" strokeWidth={2} />
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#111827" }}>
+              {/* Subtle separator between items (not after last) */}
+              {i < metrics.length - 1 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    right: 0,
+                    width: 1,
+                    height: "100%",
+                    background: "linear-gradient(to bottom, transparent, #E2DAF6 30%, #E2DAF6 70%, transparent)",
+                  }}
+                />
+              )}
+
+              {/* Big metric */}
+              <div
+                style={{
+                  fontFamily: "var(--font-space-grotesk), sans-serif",
+                  fontSize: "clamp(56px, 6.5vw, 80px)",
+                  fontWeight: 800,
+                  color: "#7C63C8",
+                  lineHeight: 1,
+                  letterSpacing: "-0.04em",
+                }}
+              >
+                {value}
+              </div>
+
+              {/* Title */}
+              <p
+                style={{
+                  margin: 0,
+                  fontFamily: "var(--font-space-grotesk), sans-serif",
+                  fontSize: 17,
+                  fontWeight: 700,
+                  color: "#111827",
+                  letterSpacing: "-0.01em",
+                }}
+              >
                 {title}
               </p>
-              <p style={{ margin: 0, fontSize: 13, color: "#4B5563", lineHeight: 1.5 }}>
+
+              {/* Description */}
+              <p
+                style={{
+                  margin: 0,
+                  fontFamily: "var(--font-inter), sans-serif",
+                  fontSize: 14,
+                  color: "#6B7280",
+                  lineHeight: 1.7,
+                }}
+              >
                 {desc}
               </p>
             </m.div>
           ))}
         </div>
+
       </div>
     </section>
   )

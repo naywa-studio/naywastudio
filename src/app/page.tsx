@@ -5,6 +5,7 @@ import { Navbar } from "@/components/layout/Navbar"
 import { Hero } from "@/components/sections/Hero"
 import { WhyNawa } from "@/components/sections/WhyNawa"
 import { AgentsPreview } from "@/components/sections/AgentsPreview"
+import { HowItWorks } from "@/components/sections/HowItWorks"
 import { FinalCTA } from "@/components/sections/FinalCTA"
 import { Footer } from "@/components/layout/Footer"
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow"
@@ -29,10 +30,13 @@ export default function Home() {
   return (
     <>
       <Navbar onOpenOnboarding={openOnboarding} onOpenLogin={openLogin} />
-      <Hero onOpenOnboarding={openOnboarding} />
-      <WhyNawa />
-      <AgentsPreview />
-      <FinalCTA onOpenOnboarding={openOnboarding} />
+      <main>
+        <Hero onOpenOnboarding={openOnboarding} />
+        <WhyNawa />
+        <AgentsPreview />
+        <HowItWorks />
+        <FinalCTA onOpenOnboarding={openOnboarding} />
+      </main>
       <Footer />
 
       <AnimatePresence>
