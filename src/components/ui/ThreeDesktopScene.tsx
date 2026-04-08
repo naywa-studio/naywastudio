@@ -78,7 +78,9 @@ export default function ThreeDesktopScene() {
     deskGrp.add(monGrp)
 
     // Base plate
-    monGrp.add(Object.assign(mk(bx(0.85, 0.06, 0.45), phong(0xcec7ee)), { position: new THREE.Vector3(0, 0, 0) }))
+    const monBase = mk(bx(0.85, 0.06, 0.45), phong(0xcec7ee))
+    monBase.position.set(0, 0, 0)
+    monGrp.add(monBase)
 
     // Stand
     const monStand = mk(bx(0.1, 0.5, 0.1), phong(0xbdb6e8))
