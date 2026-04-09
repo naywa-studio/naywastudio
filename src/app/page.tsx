@@ -6,9 +6,9 @@ import { Hero } from "@/components/sections/Hero"
 import { WhyNawa } from "@/components/sections/WhyNawa"
 import { AgentsPreview } from "@/components/sections/AgentsPreview"
 import { HowItWorks } from "@/components/sections/HowItWorks"
-import { FinalCTA } from "@/components/sections/FinalCTA"
 import { Footer } from "@/components/layout/Footer"
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow"
+import { ShaderBackground } from "@/components/ui/ShaderBackground"
 
 export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -29,13 +29,13 @@ export default function Home() {
 
   return (
     <>
+      <ShaderBackground />
       <Navbar onOpenOnboarding={openOnboarding} onOpenLogin={openLogin} />
-      <main>
+      <main style={{ position: "relative", zIndex: 1 }}>
         <Hero onOpenOnboarding={openOnboarding} />
         <WhyNawa />
         <AgentsPreview />
         <HowItWorks />
-        <FinalCTA onOpenOnboarding={openOnboarding} />
       </main>
       <Footer />
 

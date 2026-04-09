@@ -30,18 +30,21 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
     return () => mq.removeEventListener("change", handler)
   }, [])
 
-  const isLight = !scrolled && !mobileOpen
+  const isLight = false
 
   return (
     <header
       className="fixed top-0 inset-x-0 z-40 h-16 flex items-center px-5 sm:px-8"
       style={{
         background: scrolled
-          ? "rgba(255,255,255,0.92)"
-          : "transparent",
-        backdropFilter: scrolled ? "blur(12px)" : "none",
-        borderBottom: scrolled ? "1px solid #F0ECF8" : "1px solid transparent",
-        transition: "background 300ms ease, backdrop-filter 300ms ease, border-color 300ms ease",
+          ? "rgba(255,255,255,0.85)"
+          : "rgba(255,255,255,0.55)",
+        backdropFilter: "blur(14px) saturate(140%)",
+        WebkitBackdropFilter: "blur(14px) saturate(140%)",
+        borderBottom: scrolled
+          ? "1px solid rgba(240,236,248,0.8)"
+          : "1px solid rgba(240,236,248,0.35)",
+        transition: "background 300ms ease, border-color 300ms ease",
       }}
     >
       <Link href="/" style={{ textDecoration: "none" }} onClick={() => setMobileOpen(false)}>

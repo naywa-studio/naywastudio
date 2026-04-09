@@ -51,9 +51,10 @@ export function HowItWorks() {
   return (
     <section
       style={{
-        background: "#FFFFFF",
+        background: "transparent",
         padding: "112px 24px",
-        borderTop: "1px solid #F0ECF8",
+        borderTop: "1px solid rgba(240,236,248,0.6)",
+        position: "relative",
       }}
     >
       <div style={{ maxWidth: 1040, margin: "0 auto" }}>
