@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import { spaceGrotesk, inter } from '@/lib/fonts'
 import { MotionProvider } from '@/components/providers/MotionProvider'
+import { MockStoreProvider } from '@/lib/mock-store'
 import './globals.css'
 
 const SITE_URL = 'https://nawastudio.com'
@@ -132,9 +133,11 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${inter.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
-        <MotionProvider>
-          <main className="flex-1">{children}</main>
-        </MotionProvider>
+        <MockStoreProvider>
+          <MotionProvider>
+            <main className="flex-1">{children}</main>
+          </MotionProvider>
+        </MockStoreProvider>
 
         {/* Structured Data */}
         <Script

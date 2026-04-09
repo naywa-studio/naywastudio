@@ -2,6 +2,8 @@
 import { m } from "framer-motion"
 import { Logo } from "@/components/ui/Logo"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useMockStore } from "@/lib/mock-store"
 
 /* ─── Data ────────────────────────────────────────────────────── */
 
@@ -86,6 +88,14 @@ const fadeUp = {
 /* ─── Page ────────────────────────────────────────────────────── */
 
 export default function CataloguePage() {
+  const router = useRouter()
+  const { subscribe } = useMockStore()
+
+  const handleActivate = (level: number) => {
+    subscribe(level)
+    router.push("/espace-client/sourcing")
+  }
+
   return (
     <div style={{ background: "#FAFAFA", minHeight: "100vh" }}>
       {/* Navbar */}
@@ -376,25 +386,27 @@ export default function CataloguePage() {
               </p>
 
               {/* CTA */}
-              <Link
-                href={`/espace-client?level=${level.number}`}
+              <button
+                onClick={() => handleActivate(level.number)}
                 style={{
                   display: "block",
+                  width: "100%",
                   textAlign: "center",
                   padding: "14px 24px",
                   borderRadius: 12,
                   fontWeight: 600,
                   fontSize: 15,
-                  textDecoration: "none",
                   color: "white",
                   background: level.color,
+                  border: "none",
+                  cursor: "pointer",
                   transition: "opacity 150ms, transform 150ms",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; e.currentTarget.style.transform = "translateY(-1px)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "translateY(0)" }}
               >
-                Démarrer avec {level.agentName} →
-              </Link>
+                Activer {level.agentName} →
+              </button>
             </m.div>
           ))}
         </div>
