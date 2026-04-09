@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
-import { spaceGrotesk, inter } from '@/lib/fonts'
+import { spaceGrotesk, inter, instrumentSerif } from '@/lib/fonts'
 import { MotionProvider } from '@/components/providers/MotionProvider'
 import { MockStoreProvider } from '@/lib/mock-store'
 import './globals.css'
@@ -130,7 +130,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${spaceGrotesk.variable} ${inter.variable} h-full`}
+      className={`${spaceGrotesk.variable} ${inter.variable} ${instrumentSerif.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
         <MockStoreProvider>

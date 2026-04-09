@@ -98,55 +98,63 @@ export function ShaderBackground() {
         vec2 p = uv;
         p.x *= uRes.x / uRes.y;
 
+        // ── Mouse repulsion — push the sampled field AWAY from cursor
+        // No color bloom, no pulse: the shader forms physically deform
+        // around the cursor, as if the fluid parted to make room.
+        vec2 m = uMouse / uRes;
+        m.x *= uRes.x / uRes.y;
+        vec2  toP      = p - m;
+        float dist     = length(toP) + 1e-4;
+        float radius   = 0.42;
+        float push     = smoothstep(radius, 0.0, dist);
+        push           = push * push;                   // sharper core
+        vec2  dir      = toP / dist;
+        vec2  displace = dir * push * 0.22;             // max ~0.22 UV shift
+        vec2  pd       = p + displace;                  // displaced sample
+
         float t = uTime * 0.035;
 
         // ── FAR layer (parallax ~0.6x): slow, large-scale wash ─────
         float sFar  = uScroll * 2.0;
         vec2 qFar = vec2(
-          fbm(p * 0.9 + vec2(0.0, t * 0.6 + sFar * 0.35)),
-          fbm(p * 0.9 + vec2(5.2, -t * 0.6 + sFar * 0.35) + 1.3)
+          fbm(pd * 0.9 + vec2(0.0, t * 0.6 + sFar * 0.35)),
+          fbm(pd * 0.9 + vec2(5.2, -t * 0.6 + sFar * 0.35) + 1.3)
         );
-        float nFar = fbm(p * 1.0 + qFar * 1.2 + vec2(0.0, sFar));
+        float nFar = fbm(pd * 1.0 + qFar * 1.2 + vec2(0.0, sFar));
         nFar = nFar * 0.5 + 0.5;
 
         // ── NEAR layer (parallax ~1.4x): crisper, faster domain warp
         float sNear = uScroll * 4.6;
         vec2 qNear = vec2(
-          fbm(p * 1.4 + vec2(0.0, t + sNear * 0.6)),
-          fbm(p * 1.4 + vec2(5.2, -t + sNear * 0.6) + 1.3)
+          fbm(pd * 1.4 + vec2(0.0, t + sNear * 0.6)),
+          fbm(pd * 1.4 + vec2(5.2, -t + sNear * 0.6) + 1.3)
         );
         vec2 rNear = vec2(
-          fbm(p * 2.0 + qNear * 1.6 + vec2(1.7 + t, 9.2)),
-          fbm(p * 2.0 + qNear * 1.6 + vec2(8.3, 2.8 - t))
+          fbm(pd * 2.0 + qNear * 1.6 + vec2(1.7 + t, 9.2)),
+          fbm(pd * 2.0 + qNear * 1.6 + vec2(8.3, 2.8 - t))
         );
-        float nNear = fbm(p * 1.8 + rNear * 1.5 + vec2(sNear * 0.4, sNear));
+        float nNear = fbm(pd * 1.8 + rNear * 1.5 + vec2(sNear * 0.4, sNear));
         nNear = nNear * 0.5 + 0.5;
 
         // Blend the two parallax layers → depth + motion parallax
         float n = mix(nFar, nNear, 0.55);
 
-        // Mouse spring bloom — soft violet glow under cursor
-        vec2 m = uMouse / uRes;
-        m.x *= uRes.x / uRes.y;
-        float md = distance(p, m);
-        float bloom = smoothstep(0.55, 0.0, md);
-        bloom = pow(bloom, 1.6);
+        // Fade the field intensity inside the repulsion zone → the
+        // shader literally "clears" a small breathing space near the
+        // cursor without adding any color halo.
+        n = mix(n, n * (1.0 - push * 0.55), 1.0);
 
         // ── Nawa palette ───────────────────────────────────────────
         vec3 white    = vec3(1.000, 1.000, 1.000);
         vec3 mist     = vec3(0.965, 0.956, 0.988); // #F6F4FC
         vec3 softV    = vec3(0.855, 0.827, 0.949); // #DBD3F2
         vec3 violet   = vec3(0.722, 0.682, 0.871); // #B8AEDE
-        vec3 deep     = vec3(0.486, 0.388, 0.784); // #7C63C8
 
         // Flowing color stack — mostly near-white, occasional violet
         float tint1 = smoothstep(0.35, 0.75, n);
         float tint2 = smoothstep(0.62, 0.98, n);
         vec3  col   = mix(mist,  softV,  tint1 * 0.85);
               col   = mix(col,   violet, tint2 * 0.55);
-
-        // Mouse bloom pushes color toward deep violet around cursor
-        col = mix(col, deep, bloom * 0.35);
 
         // Film grain — very subtle, keeps the surface alive
         float g = hash(gl_FragCoord.xy + vec2(uTime * 37.0, uTime * 53.0));

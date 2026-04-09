@@ -1,4 +1,4 @@
-import { Space_Grotesk, Inter } from 'next/font/google'
+import { Space_Grotesk, Inter, Instrument_Serif } from 'next/font/google'
 
 export const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -11,5 +11,13 @@ export const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500'],
   variable: '--font-inter',
+  display: 'swap',
+})
+
+export const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  weight: ['400'],
+  style: ['normal', 'italic'],
+  variable: '--font-instrument-serif',
   display: 'swap',
 })

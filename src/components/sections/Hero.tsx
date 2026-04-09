@@ -49,59 +49,42 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
         }}
         className="hero-content"
       >
-        {/* Badge */}
-        <m.div {...fu(0.1)} style={{ marginBottom: 24 }}>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              background: 'rgba(124,99,200,0.06)',
-              border: '1px solid rgba(124,99,200,0.2)',
-              color: '#7C63C8',
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.09em',
-              textTransform: 'uppercase' as const,
-              borderRadius: 100,
-              padding: '6px 16px',
-              fontFamily: 'var(--font-inter), sans-serif',
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: '#7C63C8',
-                boxShadow: '0 0 8px rgba(124,99,200,0.6)',
-                flexShrink: 0,
-              }}
-            />
-            AI Workforce Studio
-          </span>
-        </m.div>
-
         {/* H1 */}
         <m.h1
           {...fu(0.18)}
           style={{
             fontFamily: 'var(--font-space-grotesk), sans-serif',
-            fontWeight: 800,
-            fontSize: 'clamp(38px, 5.2vw, 72px)',
-            lineHeight: 1.06,
+            fontWeight: 700,
+            fontSize: 'clamp(40px, 5.6vw, 80px)',
+            lineHeight: 1.04,
             letterSpacing: '-0.035em',
             color: '#111827',
-            margin: '0 0 24px',
-            maxWidth: '16ch',
+            margin: '0 0 28px',
+            maxWidth: '14ch',
           }}
         >
           Votre équipe<br />
-          d&apos;agents IA,<br />
-          opérationnelle<br />
-          en{' '}
+          d&apos;
           <span
             style={{
+              fontFamily: 'var(--font-instrument-serif), ui-serif, Georgia, serif',
+              fontWeight: 400,
+              fontStyle: 'italic',
+              letterSpacing: '-0.015em',
+              color: '#7C63C8',
+            }}
+          >
+            agents&nbsp;IA
+          </span>
+          ,<br />
+          opérationnelle<br />
+          en&nbsp;
+          <span
+            style={{
+              fontFamily: 'var(--font-instrument-serif), ui-serif, Georgia, serif',
+              fontWeight: 400,
+              fontStyle: 'italic',
+              letterSpacing: '-0.01em',
               background: 'linear-gradient(120deg, #7C63C8 0%, #B8AEDE 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -110,7 +93,7 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
           >
             48h
           </span>
-          .
+          <span style={{ color: '#111827' }}>.</span>
         </m.h1>
 
         {/* Subtitle */}
@@ -138,7 +121,6 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
             gap: 12,
             flexWrap: 'wrap' as const,
             alignItems: 'center',
-            marginBottom: 44,
           }}
         >
           <button
@@ -201,45 +183,6 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
           </Link>
         </m.div>
 
-        {/* Trust pills */}
-        <m.div
-          {...fu(0.42)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap' as const,
-          }}
-        >
-          {['Déployé en 48h', 'Sans intégration technique', 'Agents sur-mesure'].map(
-            (item, i, arr) => (
-              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: '#9CA3AF',
-                    fontFamily: 'var(--font-inter), sans-serif',
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  {item}
-                </span>
-                {i < arr.length - 1 && (
-                  <span
-                    style={{
-                      width: 3,
-                      height: 3,
-                      borderRadius: '50%',
-                      background: '#D1D5DB',
-                      display: 'inline-block',
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-              </span>
-            )
-          )}
-        </m.div>
       </div>
 
       <style>{`
