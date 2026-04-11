@@ -43,9 +43,9 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
           position: 'relative',
           zIndex: 1,
           maxWidth: 1152,
-          margin: '0 auto',
+          margin: '0',
           width: '100%',
-          padding: '0 56px 88px',
+          padding: '0 0 88px 56px',
         }}
         className="hero-content"
       >
@@ -53,8 +53,8 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
         <m.h1
           {...fu(0.18)}
           style={{
-            fontFamily: 'var(--font-space-grotesk), sans-serif',
-            fontWeight: 700,
+            fontFamily: 'var(--font-inter), sans-serif',
+            fontWeight: 800,
             fontSize: 'clamp(40px, 5.6vw, 80px)',
             lineHeight: 1.04,
             letterSpacing: '-0.035em',
@@ -188,7 +188,7 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
       <style>{`
         @media (max-width: 640px) {
           .hero-content {
-            padding: 0 24px 72px !important;
+            padding: 0 0 72px 24px !important;
           }
         }
       `}</style>

@@ -44,7 +44,6 @@ export function ShaderBackground() {
       precision highp float;
 
       uniform vec2  uRes;
-      uniform vec2  uMouse;      // in pixels, with spring smoothing
       uniform float uTime;
       uniform float uScroll;     // 0..1 across document
       uniform float uDpr;
@@ -97,20 +96,7 @@ export function ShaderBackground() {
         vec2 uv = gl_FragCoord.xy / uRes;
         vec2 p = uv;
         p.x *= uRes.x / uRes.y;
-
-        // ── Mouse repulsion — push the sampled field AWAY from cursor
-        // No color bloom, no pulse: the shader forms physically deform
-        // around the cursor, as if the fluid parted to make room.
-        vec2 m = uMouse / uRes;
-        m.x *= uRes.x / uRes.y;
-        vec2  toP      = p - m;
-        float dist     = length(toP) + 1e-4;
-        float radius   = 0.42;
-        float push     = smoothstep(radius, 0.0, dist);
-        push           = push * push;                   // sharper core
-        vec2  dir      = toP / dist;
-        vec2  displace = dir * push * 0.22;             // max ~0.22 UV shift
-        vec2  pd       = p + displace;                  // displaced sample
+        vec2 pd = p;
 
         float t = uTime * 0.035;
 
@@ -138,11 +124,6 @@ export function ShaderBackground() {
 
         // Blend the two parallax layers → depth + motion parallax
         float n = mix(nFar, nNear, 0.55);
-
-        // Fade the field intensity inside the repulsion zone → the
-        // shader literally "clears" a small breathing space near the
-        // cursor without adding any color halo.
-        n = mix(n, n * (1.0 - push * 0.55), 1.0);
 
         // ── Nawa palette ───────────────────────────────────────────
         vec3 white    = vec3(1.000, 1.000, 1.000);
@@ -209,7 +190,6 @@ export function ShaderBackground() {
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
 
     const uRes    = gl.getUniformLocation(prog, 'uRes')
-    const uMouse  = gl.getUniformLocation(prog, 'uMouse')
     const uTime   = gl.getUniformLocation(prog, 'uTime')
     const uScroll = gl.getUniformLocation(prog, 'uScroll')
     const uDpr    = gl.getUniformLocation(prog, 'uDpr')
@@ -219,13 +199,8 @@ export function ShaderBackground() {
     const state = {
       w: 0,
       h: 0,
-      mx: -9999,
-      my: -9999,
-      smx: -9999,
-      smy: -9999,
       scroll: 0,
       scrollY: 0,
-      parallaxY: 0,
     }
 
     const resize = () => {
@@ -238,12 +213,6 @@ export function ShaderBackground() {
       gl.viewport(0, 0, canvas.width, canvas.height)
     }
 
-    const onMove = (e: MouseEvent) => {
-      state.mx = e.clientX * dpr
-      state.my = (state.h - e.clientY) * dpr // flip Y for GL
-    }
-    const onLeave = () => { state.mx = -9999; state.my = -9999 }
-
     const onScroll = () => {
       const max = Math.max(1, document.documentElement.scrollHeight - state.h)
       state.scrollY = window.scrollY
@@ -253,8 +222,6 @@ export function ShaderBackground() {
     resize()
     onScroll()
     window.addEventListener('resize', resize)
-    window.addEventListener('mousemove', onMove, { passive: true })
-    window.addEventListener('mouseleave', onLeave)
     window.addEventListener('scroll', onScroll, { passive: true })
 
     // ── Render loop ────────────────────────────────────────────────────
@@ -264,15 +231,9 @@ export function ShaderBackground() {
     const tick = () => {
       raf = requestAnimationFrame(tick)
 
-      // Spring-damped mouse for silky movement
-      if (state.smx === -9999) { state.smx = state.mx; state.smy = state.my }
-      state.smx += (state.mx - state.smx) * 0.08
-      state.smy += (state.my - state.smy) * 0.08
-
       const time = (performance.now() - start) / 1000
 
       gl.uniform2f(uRes, canvas.width, canvas.height)
-      gl.uniform2f(uMouse, state.smx, state.smy)
       gl.uniform1f(uTime, time)
       gl.uniform1f(uScroll, state.scroll)
       gl.uniform1f(uDpr, dpr)
@@ -284,8 +245,6 @@ export function ShaderBackground() {
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('resize', resize)
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseleave', onLeave)
       window.removeEventListener('scroll', onScroll)
       gl.deleteBuffer(buf)
       gl.deleteProgram(prog)
