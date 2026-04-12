@@ -139,12 +139,7 @@ export function ShaderBackground() {
 
         // Film grain — very subtle, keeps the surface alive
         float g = hash(gl_FragCoord.xy + vec2(uTime * 37.0, uTime * 53.0));
-        col += (g - 0.5) * 0.018;
-
-        // Vignette falloff — corners stay pure white
-        vec2 vv = uv - 0.5;
-        float vig = smoothstep(0.95, 0.25, length(vv));
-        col = mix(white, col, vig * 0.92);
+        col += (g - 0.5) * 0.022;
 
         gl_FragColor = vec4(col, 1.0);
       }
@@ -254,17 +249,34 @@ export function ShaderBackground() {
   }, [])
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden
-      style={{
-        position:      'fixed',
-        inset:         0,
-        width:         '100%',
-        height:        '100%',
-        pointerEvents: 'none',
-        zIndex:        0,
-      }}
-    />
+    <>
+      {/* SVG clip-path — organic curved band */}
+      <svg aria-hidden width="0" height="0" style={{ position: 'absolute' }}>
+        <defs>
+          <clipPath id="nawa-band" clipPathUnits="objectBoundingBox">
+            {/*
+              Band flows from top-left to bottom-right with S-curve edges.
+              objectBoundingBox: x/y in [0,1] relative to canvas dimensions.
+              Top edge:    y ≈ 0.08 → dips low → rises → 0.06 at right
+              Bottom edge: y ≈ 0.58 → same organic warp                  */}
+            <path d="M 0,0.08 C 0.25,-0.04 0.6,0.22 1,0.06 L 1,0.58 C 0.65,0.74 0.3,0.50 0,0.62 Z" />
+          </clipPath>
+        </defs>
+      </svg>
+
+      <canvas
+        ref={canvasRef}
+        aria-hidden
+        style={{
+          position:      'fixed',
+          inset:         0,
+          width:         '100%',
+          height:        '100%',
+          pointerEvents: 'none',
+          zIndex:        0,
+          clipPath:      'url(#nawa-band)',
+        }}
+      />
+    </>
   )
 }

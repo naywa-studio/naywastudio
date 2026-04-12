@@ -11,6 +11,8 @@ interface NavbarProps {
 const navLinks = [
   { label: "Catalogue",      href: "/catalogue" },
   { label: "Espace client",  href: "/espace-client" },
+  { label: "À propos",       href: "/a-propos" },
+  { label: "Contact",        href: "/contact" },
 ]
 
 export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
@@ -62,7 +64,7 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1 ml-8">
+        <nav className="hidden lg:flex items-center gap-1 ml-8">
           {navLinks.map((link, i) => (
             <span key={link.href} style={{ display: "inline-flex", alignItems: "center" }}>
               {i > 0 && (
@@ -105,7 +107,7 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
         </nav>
 
         {/* Desktop CTAs */}
-        <div className="hidden md:flex items-center gap-2 ml-auto">
+        <div className="hidden lg:flex items-center gap-2 ml-auto">
           <button
             onClick={onOpenLogin}
             style={{
@@ -169,7 +171,7 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
 
         {/* Mobile toggle */}
         <button
-          className="md:hidden ml-auto"
+          className="lg:hidden ml-auto"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Menu"
           style={{
