@@ -248,22 +248,63 @@ export function ShaderBackground() {
     }
   }, [])
 
+  // ── Band path keyframes (objectBoundingBox coords, same command structure) ──
+  // Band 1 — upper thin band, y ≈ 0.22..0.33
+  const b1F = [
+    'M0,0.22 C0.30,0.15 0.65,0.28 1,0.20 L1,0.32 C0.65,0.39 0.30,0.27 0,0.34 Z',
+    'M0,0.23 C0.30,0.17 0.65,0.26 1,0.21 L1,0.33 C0.65,0.37 0.30,0.29 0,0.35 Z',
+    'M0,0.22 C0.30,0.15 0.65,0.28 1,0.20 L1,0.32 C0.65,0.39 0.30,0.27 0,0.34 Z',
+  ].join(';')
+  const b1T = [
+    'M0,0.22 C0.30,0.15 0.65,0.28 1,0.20',
+    'M0,0.23 C0.30,0.17 0.65,0.26 1,0.21',
+    'M0,0.22 C0.30,0.15 0.65,0.28 1,0.20',
+  ].join(';')
+  const b1B = [
+    'M0,0.34 C0.30,0.27 0.65,0.39 1,0.32',
+    'M0,0.35 C0.30,0.29 0.65,0.37 1,0.33',
+    'M0,0.34 C0.30,0.27 0.65,0.39 1,0.32',
+  ].join(';')
+
+  // Band 2 — lower thin band, y ≈ 0.44..0.55
+  const b2F = [
+    'M0,0.44 C0.35,0.38 0.70,0.49 1,0.42 L1,0.54 C0.70,0.61 0.35,0.50 0,0.56 Z',
+    'M0,0.43 C0.35,0.40 0.70,0.47 1,0.43 L1,0.55 C0.70,0.59 0.35,0.52 0,0.57 Z',
+    'M0,0.44 C0.35,0.38 0.70,0.49 1,0.42 L1,0.54 C0.70,0.61 0.35,0.50 0,0.56 Z',
+  ].join(';')
+  const b2T = [
+    'M0,0.44 C0.35,0.38 0.70,0.49 1,0.42',
+    'M0,0.43 C0.35,0.40 0.70,0.47 1,0.43',
+    'M0,0.44 C0.35,0.38 0.70,0.49 1,0.42',
+  ].join(';')
+  const b2B = [
+    'M0,0.56 C0.35,0.50 0.70,0.61 1,0.54',
+    'M0,0.57 C0.35,0.52 0.70,0.59 1,0.55',
+    'M0,0.56 C0.35,0.50 0.70,0.61 1,0.54',
+  ].join(';')
+
+  const spline = '0.45 0 0.55 1;0.45 0 0.55 1'
+  const kTimes = '0;0.5;1'
+
   return (
     <>
-      {/* SVG clip-path — organic curved band */}
+      {/* Clip-path defs — 2 thin animated bands */}
       <svg aria-hidden width="0" height="0" style={{ position: 'absolute' }}>
         <defs>
-          <clipPath id="nawa-band" clipPathUnits="objectBoundingBox">
-            {/*
-              Band flows from top-left to bottom-right with S-curve edges.
-              objectBoundingBox: x/y in [0,1] relative to canvas dimensions.
-              Top edge:    y ≈ 0.08 → dips low → rises → 0.06 at right
-              Bottom edge: y ≈ 0.58 → same organic warp                  */}
-            <path d="M 0,0.08 C 0.25,-0.04 0.6,0.22 1,0.06 L 1,0.58 C 0.65,0.74 0.3,0.50 0,0.62 Z" />
+          <clipPath id="nawa-bands" clipPathUnits="objectBoundingBox">
+            <path>
+              <animate attributeName="d" dur="11s" repeatCount="indefinite"
+                calcMode="spline" keyTimes={kTimes} keySplines={spline} values={b1F} />
+            </path>
+            <path>
+              <animate attributeName="d" dur="15s" repeatCount="indefinite"
+                calcMode="spline" keyTimes={kTimes} keySplines={spline} values={b2F} />
+            </path>
           </clipPath>
         </defs>
       </svg>
 
+      {/* WebGL canvas, clipped to the two bands */}
       <canvas
         ref={canvasRef}
         aria-hidden
@@ -274,9 +315,48 @@ export function ShaderBackground() {
           height:        '100%',
           pointerEvents: 'none',
           zIndex:        0,
-          clipPath:      'url(#nawa-band)',
+          clipPath:      'url(#nawa-bands)',
         }}
       />
+
+      {/* Animated band borders — drawn over the canvas */}
+      <svg
+        aria-hidden
+        viewBox="0 0 1 1"
+        preserveAspectRatio="none"
+        style={{
+          position:      'fixed',
+          inset:         0,
+          width:         '100%',
+          height:        '100%',
+          pointerEvents: 'none',
+          zIndex:        1,
+          overflow:      'visible',
+        }}
+      >
+        {/* Band 1 edges */}
+        <path fill="none" stroke="rgba(184,174,222,0.65)" strokeWidth="1.5"
+          vectorEffect="non-scaling-stroke">
+          <animate attributeName="d" dur="11s" repeatCount="indefinite"
+            calcMode="spline" keyTimes={kTimes} keySplines={spline} values={b1T} />
+        </path>
+        <path fill="none" stroke="rgba(184,174,222,0.65)" strokeWidth="1.5"
+          vectorEffect="non-scaling-stroke">
+          <animate attributeName="d" dur="11s" repeatCount="indefinite"
+            calcMode="spline" keyTimes={kTimes} keySplines={spline} values={b1B} />
+        </path>
+        {/* Band 2 edges */}
+        <path fill="none" stroke="rgba(184,174,222,0.50)" strokeWidth="1.2"
+          vectorEffect="non-scaling-stroke">
+          <animate attributeName="d" dur="15s" repeatCount="indefinite"
+            calcMode="spline" keyTimes={kTimes} keySplines={spline} values={b2T} />
+        </path>
+        <path fill="none" stroke="rgba(184,174,222,0.50)" strokeWidth="1.2"
+          vectorEffect="non-scaling-stroke">
+          <animate attributeName="d" dur="15s" repeatCount="indefinite"
+            calcMode="spline" keyTimes={kTimes} keySplines={spline} values={b2B} />
+        </path>
+      </svg>
     </>
   )
 }
