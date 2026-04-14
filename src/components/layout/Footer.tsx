@@ -26,6 +26,8 @@ export function Footer() {
       style={{
         background: '#F8F6FF',
         borderTop: '1px solid #E2DAF6',
+        position: 'relative',
+        zIndex: 2,
       }}
     >
       {/* Main footer content */}

@@ -324,7 +324,21 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
   const subscribe = useCallback((level: number) => {
     setSubscribedLevel(level)
-    setMissions(createInitialMissions(level))
+    setMissions(prev => {
+      // First subscription — no existing missions → create demo ones
+      if (prev.length === 0) return createInitialMissions(level)
+      // Upgrading/changing agent — preserve missions, update level + adjust sections
+      return prev.map(m => {
+        // Keep only the "besoin" section (client-specific), replace level sections
+        const besoinSections = m.sections.filter(s => s.type === 'besoin')
+        const newLevelSections = m.needDefined ? getSectionsForLevel(level) : []
+        return {
+          ...m,
+          agentLevel: level,
+          sections: m.needDefined ? [...besoinSections, ...newLevelSections] : [],
+        }
+      })
+    })
   }, [])
 
   const unsubscribe = useCallback(() => {
