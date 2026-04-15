@@ -17,6 +17,8 @@ interface WorkspaceCtx {
   userEmail: string
   agentLevel: number
   hasSubscription: boolean
+  isProvisioning: boolean
+  refetchProfile: () => Promise<void>
 }
 
 const WorkspaceContext = createContext<WorkspaceCtx | null>(null)
@@ -37,39 +39,41 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const [userEmail, setUserEmail] = useState("")
   const [ready, setReady] = useState(false)
 
-  useEffect(() => {
-    const init = async () => {
-      const sb = getSupabase()
-      const { data: { user } } = await sb.auth.getUser()
+  const fetchProfile = async () => {
+    const sb = getSupabase()
+    const { data: { user } } = await sb.auth.getUser()
 
-      if (!user) {
-        router.replace("/login")
-        return
-      }
-
-      setUserEmail(user.email ?? "")
-
-      const { data: prof } = await sb
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .single()
-
-      // Si le profil n'a pas de prénom (ex: Google OAuth), on le prend depuis user_metadata
-      if (prof && !prof.first_name) {
-        const meta = user.user_metadata ?? {}
-        const fullName: string = meta.full_name ?? meta.name ?? ""
-        const derivedFirst = fullName.split(" ")[0] ?? ""
-        if (derivedFirst) {
-          await sb.from("profiles").update({ first_name: derivedFirst }).eq("user_id", user.id)
-          prof.first_name = derivedFirst
-        }
-      }
-
-      setProfile(prof ?? null)
-      setReady(true)
+    if (!user) {
+      router.replace("/login")
+      return
     }
-    init()
+
+    setUserEmail(user.email ?? "")
+
+    const { data: prof } = await sb
+      .from("profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .single()
+
+    // Si le profil n'a pas de prénom (ex: Google OAuth), on le prend depuis user_metadata
+    if (prof && !prof.first_name) {
+      const meta = user.user_metadata ?? {}
+      const fullName: string = meta.full_name ?? meta.name ?? ""
+      const derivedFirst = fullName.split(" ")[0] ?? ""
+      if (derivedFirst) {
+        await sb.from("profiles").update({ first_name: derivedFirst }).eq("user_id", user.id)
+        prof.first_name = derivedFirst
+      }
+    }
+
+    setProfile(prof ?? null)
+    setReady(true)
+  }
+
+  useEffect(() => {
+    fetchProfile()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router])
 
   const handleLogout = async () => {
@@ -97,8 +101,13 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const agentLevel = profile?.subscription_level ? (LEVEL_MAP[profile.subscription_level] ?? 1) : 0
   const agent = AGENT_LEVELS[agentLevel] ?? AGENT_LEVELS[1]
 
+  // Provisioning = subscribed but VPS not ready yet
+  const isProvisioning =
+    hasSubscription &&
+    (profile?.vps_status === "pending" || profile?.vps_status === "provisioning")
+
   return (
-    <WorkspaceContext.Provider value={{ profile, userEmail, agentLevel, hasSubscription }}>
+    <WorkspaceContext.Provider value={{ profile, userEmail, agentLevel, hasSubscription, isProvisioning, refetchProfile: fetchProfile }}>
       <div style={{ minHeight: "100vh", background: "#FAFAFA" }}>
         {/* Header */}
         <header

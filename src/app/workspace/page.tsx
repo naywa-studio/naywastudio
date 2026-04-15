@@ -7,6 +7,7 @@ import Link from "next/link"
 import { getSupabase } from "@/lib/supabase"
 import { AGENT_LEVELS } from "@/lib/mock-store"
 import { useWorkspace } from "./layout"
+import ProvisioningScreen from "@/components/workspace/ProvisioningScreen"
 import type { Database } from "@/lib/database.types"
 
 type Mission = Database["public"]["Tables"]["missions"]["Row"]
@@ -133,7 +134,7 @@ const STATUS_META: Record<Mission["status"], { label: string; color: string; bg:
 
 export default function WorkspacePage() {
   const router = useRouter()
-  const { profile, userEmail, agentLevel, hasSubscription } = useWorkspace()
+  const { profile, userEmail, agentLevel, hasSubscription, isProvisioning, refetchProfile } = useWorkspace()
   const agent = AGENT_LEVELS[agentLevel] ?? AGENT_LEVELS[1]
 
   const [missions, setMissions] = useState<Mission[]>([])
@@ -176,6 +177,18 @@ export default function WorkspacePage() {
       router.push(`/workspace/missions/${data.id}`)
     }
     setCreating(false)
+  }
+
+  // ── Provisioning in progress ─────────────────────────────────────────────
+  if (isProvisioning && profile?.subscription_level) {
+    return (
+      <ProvisioningScreen
+        initialVpsStatus={profile.vps_status ?? "pending"}
+        initialAgentStatus={profile.agent_status ?? "not_deployed"}
+        agentLevel={profile.subscription_level}
+        onReady={refetchProfile}
+      />
+    )
   }
 
   if (!hasSubscription) {

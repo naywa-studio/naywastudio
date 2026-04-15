@@ -1,0 +1,32 @@
+services:
+  agent-leo:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: nawa-agent-leo
+    ports:
+      - "8000:8000"
+    environment:
+      - NAWA_AGENT_SECRET=${NAWA_AGENT_SECRET}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - AGENT_LEVEL=leo
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+    profiles:
+      - leo
+
+  agent-nora:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: nawa-agent-nora
+    ports:
+      - "8001:8000"
+    environment:
+      - NAWA_AGENT_SECRET=${NAWA_AGENT_SECRET}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - AGENT_LEVEL=nora
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+    profiles:
+      - nora
