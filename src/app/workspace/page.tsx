@@ -11,6 +11,112 @@ import type { Database } from "@/lib/database.types"
 
 type Mission = Database["public"]["Tables"]["missions"]["Row"]
 
+/* ── Booking URL setup card (Alex only) ──────────────────────── */
+
+function BookingSetupCard({ onSaved }: { onSaved: (url: string) => void }) {
+  const [url, setUrl] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+
+  const save = async () => {
+    const trimmed = url.trim()
+    if (!trimmed) return
+    if (!trimmed.startsWith("http")) {
+      setError("L'URL doit commencer par http:// ou https://")
+      return
+    }
+    setSaving(true)
+    const sb = getSupabase()
+    const { data: { user } } = await sb.auth.getUser()
+    if (!user) return
+    const { error: err } = await sb
+      .from("profiles")
+      .update({ booking_url: trimmed })
+      .eq("user_id", user.id)
+    if (err) {
+      setError("Erreur lors de la sauvegarde.")
+      setSaving(false)
+      return
+    }
+    onSaved(trimmed)
+    setSaving(false)
+  }
+
+  return (
+    <m.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      style={{
+        background: "linear-gradient(135deg, #F8F6FF 0%, #F0ECF8 100%)",
+        border: "1.5px solid #E2DAF6",
+        borderRadius: 16,
+        padding: "20px 24px",
+        marginBottom: 24,
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "flex-start",
+        gap: 16,
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 240 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 18 }}>📅</span>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+            Configurez votre outil de réservation
+          </p>
+        </div>
+        <p style={{ margin: "0 0 12px", fontSize: 13, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
+          Collez votre lien Calendly ou MS Bookings pour activer les liens de booking candidats.
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input
+            value={url}
+            onChange={(e) => { setUrl(e.target.value); setError("") }}
+            onKeyDown={(e) => e.key === "Enter" && save()}
+            placeholder="https://calendly.com/votre-lien"
+            style={{
+              flex: 1,
+              minWidth: 220,
+              padding: "9px 14px",
+              borderRadius: 9,
+              border: `1.5px solid ${error ? "#EF4444" : "#E2DAF6"}`,
+              fontSize: 13,
+              color: "#111827",
+              outline: "none",
+              fontFamily: "var(--font-inter), sans-serif",
+              background: "white",
+            }}
+          />
+          <button
+            onClick={save}
+            disabled={!url.trim() || saving}
+            style={{
+              padding: "9px 18px",
+              borderRadius: 9,
+              border: "none",
+              cursor: url.trim() && !saving ? "pointer" : "not-allowed",
+              fontSize: 13,
+              fontWeight: 700,
+              color: "white",
+              background: url.trim() ? "#7C63C8" : "#D1D5DB",
+              fontFamily: "var(--font-inter), sans-serif",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {saving ? "Enregistrement…" : "Enregistrer"}
+          </button>
+        </div>
+        {error && (
+          <p style={{ margin: "6px 0 0", fontSize: 12, color: "#EF4444", fontFamily: "var(--font-inter), sans-serif" }}>
+            {error}
+          </p>
+        )}
+      </div>
+    </m.div>
+  )
+}
+
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const fu = (delay: number) => ({
   initial: { opacity: 0, y: 20 },
@@ -36,6 +142,8 @@ export default function WorkspacePage() {
   const [creating, setCreating] = useState(false)
 
   const firstName = profile.first_name ?? userEmail.split("@")[0]
+  const [bookingUrl, setBookingUrl] = useState<string | null>(profile.booking_url ?? null)
+  const showBookingSetup = agentLevel === 3 && !bookingUrl
 
   const fetchMissions = useCallback(async () => {
     const { data } = await getSupabase()
@@ -88,6 +196,13 @@ export default function WorkspacePage() {
           Gérez vos missions de sourcing depuis cet espace.
         </p>
       </m.div>
+
+      {/* Booking URL setup — Alex only, when not yet configured */}
+      <AnimatePresence>
+        {showBookingSetup && (
+          <BookingSetupCard onSaved={(url) => setBookingUrl(url)} />
+        )}
+      </AnimatePresence>
 
       {/* Agent card */}
       <m.div

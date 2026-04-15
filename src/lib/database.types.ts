@@ -13,6 +13,7 @@ export type Database = {
           agent_name: string | null
           agent_price: string | null
           subscription_level: 'leo' | 'nora' | 'alex' | null
+          booking_url: string | null
           created_at: string
           updated_at: string
         }
@@ -26,6 +27,7 @@ export type Database = {
           agent_name?: string | null
           agent_price?: string | null
           subscription_level?: 'leo' | 'nora' | 'alex' | null
+          booking_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -39,6 +41,7 @@ export type Database = {
           agent_name?: string | null
           agent_price?: string | null
           subscription_level?: 'leo' | 'nora' | 'alex' | null
+          booking_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -145,7 +148,22 @@ export type Database = {
       }
     }
     Views: { [_ in never]: never }
-    Functions: { [_ in never]: never }
+    Functions: {
+      get_booking_by_token: {
+        Args: { p_token: string }
+        Returns: Array<{
+          id: string
+          token: string
+          status: string
+          mission_id: string
+          mission_title: string
+          candidate_id: string
+          candidate_name: string | null
+          recruiter_name: string | null
+          booking_url: string | null
+        }>
+      }
+    }
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }
   }
