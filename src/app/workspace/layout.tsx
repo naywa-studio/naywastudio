@@ -55,6 +55,17 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         .eq("user_id", user.id)
         .single()
 
+      // Si le profil n'a pas de prénom (ex: Google OAuth), on le prend depuis user_metadata
+      if (prof && !prof.first_name) {
+        const meta = user.user_metadata ?? {}
+        const fullName: string = meta.full_name ?? meta.name ?? ""
+        const derivedFirst = fullName.split(" ")[0] ?? ""
+        if (derivedFirst) {
+          await sb.from("profiles").update({ first_name: derivedFirst }).eq("user_id", user.id)
+          prof.first_name = derivedFirst
+        }
+      }
+
       setProfile(prof ?? null)
       setReady(true)
     }

@@ -238,7 +238,7 @@ export default function WorkspacePage() {
             vos premiers candidats.
           </p>
           <Link
-            href="/tarifs"
+            href="/packages"
             style={{
               display: "inline-flex",
               alignItems: "center",
