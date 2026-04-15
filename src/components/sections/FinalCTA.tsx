@@ -106,7 +106,7 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
                 flexShrink: 0,
               }}
             />
-            Essai gratuit disponible
+            Déployé en 48h · Sans engagement
           </m.span>
 
           {/* Headline */}

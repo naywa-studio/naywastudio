@@ -10,7 +10,7 @@ interface NavbarProps {
 
 const navLinks = [
   { label: "Catalogue",      href: "/catalogue" },
-  { label: "Espace client",  href: "/espace-client" },
+  { label: "Workspace",      href: "/workspace" },
   { label: "À propos",       href: "/a-propos" },
   { label: "Contact",        href: "/contact" },
 ]

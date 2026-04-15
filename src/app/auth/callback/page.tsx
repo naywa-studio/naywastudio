@@ -47,7 +47,7 @@ export default function AuthCallbackPage() {
 
       setStatus("done")
       // Redirect to home with a flag so the page can show the "done" state
-      setTimeout(() => router.push("/?auth=done"), 1200)
+      setTimeout(() => router.push("/workspace"), 1200)
     }
 
     handleCallback()

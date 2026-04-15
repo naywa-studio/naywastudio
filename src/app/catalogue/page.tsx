@@ -119,7 +119,7 @@ export default function CataloguePage() {
         </Link>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <Link
-            href="/espace-client"
+            href="/workspace"
             style={{
               fontSize: 14,
               fontWeight: 500,
@@ -492,10 +492,10 @@ export default function CataloguePage() {
             Prêt à automatiser votre sourcing ?
           </h2>
           <p style={{ fontSize: 15, color: "#6B7280", marginBottom: 28 }}>
-            Créez votre espace client et commencez gratuitement.
+            Choisissez votre agent et démarrez en moins de 48h.
           </p>
           <Link
-            href="/espace-client"
+            href="/workspace"
             style={{
               display: "inline-block",
               background: "#7C63C8",

@@ -116,7 +116,7 @@ export default function TarifsPage() {
             Catalogue
           </Link>
           <Link
-            href="/espace-client"
+            href="/workspace"
             style={{
               fontSize: 14,
               fontWeight: 600,
@@ -131,27 +131,6 @@ export default function TarifsPage() {
           </Link>
         </div>
       </header>
-
-      {/* Banner — accès gratuit */}
-      <div
-        style={{
-          background: 'linear-gradient(90deg, #7C63C8 0%, #9B8DD4 100%)',
-          padding: '12px 24px',
-          textAlign: 'center',
-        }}
-      >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 13,
-            fontWeight: 600,
-            color: 'white',
-            fontFamily: 'var(--font-inter), sans-serif',
-          }}
-        >
-          Accès gratuit pendant la phase de lancement — aucune carte bancaire requise
-        </p>
-      </div>
 
       {/* Hero */}
       <section style={{ padding: '72px 24px 40px', textAlign: 'center', maxWidth: 720, margin: '0 auto' }}>

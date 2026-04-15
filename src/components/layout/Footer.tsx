@@ -7,7 +7,7 @@ const footerLinks: Record<string, FooterLink[]> = {
   Produit: [
     { label: 'Catalogue agents', href: '/catalogue' },
     { label: 'Tarifs', href: '/tarifs' },
-    { label: 'Espace client', href: '/espace-client' },
+    { label: 'Espace client', href: '/workspace' },
   ],
   Ressources: [
     { label: 'Comment ça marche', href: '#how' },

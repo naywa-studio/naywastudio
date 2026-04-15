@@ -71,8 +71,8 @@ const CATEGORIES = [
         a: "L'abonnement est mensuel, à date fixe. Pas d'engagement sur la durée. Résiliation possible à tout moment — votre accès reste actif jusqu'à la fin de la période en cours.",
       },
       {
-        q: "Le service est-il gratuit pour l'instant ?",
-        a: "Oui, nous sommes en phase de lancement avec un accès gratuit limité. Le paiement sera activé prochainement. Vous serez notifié avant tout changement.",
+        q: "Comment souscrire à un abonnement ?",
+        a: "Rendez-vous sur la page Tarifs, choisissez votre agent (Léo, Nora ou Alex), puis créez votre compte. L'accès à votre workspace est activé dès la souscription.",
       },
     ],
   },
@@ -132,7 +132,7 @@ export default function FAQPage() {
             Tarifs
           </Link>
           <Link
-            href="/espace-client"
+            href="/workspace"
             style={{
               fontSize: 14,
               fontWeight: 600,
