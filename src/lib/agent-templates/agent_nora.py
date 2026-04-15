@@ -116,8 +116,12 @@ async def generate_message(
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
-async def run(brief: dict) -> str:
-    """Return base64-encoded Excel file (2 sheets)."""
+async def run(brief: dict) -> dict:
+    """
+    Return dict: { excel_b64: str, candidates: list[dict] }
+    excel_b64  → base64 Excel (2 sheets: Shortlist + Longlist)
+    candidates → all profiles with scores + messages for DB
+    """
     queries = build_queries(brief)
     profiles: list[dict] = []
     seen: set[str] = set()
@@ -189,5 +193,22 @@ async def run(brief: dict) -> str:
                 max_len = max(len(str(cell.value or "")) for cell in col)
                 ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 80)
 
+    excel_b64 = base64.b64encode(buf.getvalue()).decode()
     log.info("Nora Excel generated — shortlist=%d longlist=%d", len(df_short), len(df_long))
-    return base64.b64encode(buf.getvalue()).decode()
+
+    # Build flat candidates list (all profiles) for DB ingestion
+    shortlist_map = {p["linkedin_url"]: p.get("message_draft", "") for p in shortlist}
+    all_candidates = []
+    for p in profiles:
+        all_candidates.append({
+            "linkedin_url": p["linkedin_url"],
+            "name_estimated": p.get("name_estimated"),
+            "title_estimated": p.get("title_estimated"),
+            "company": p.get("company"),
+            "keywords": [k.strip() for k in str(p.get("keywords", "")).split(",") if k.strip()],
+            "relevance_score": p.get("relevance_score"),
+            "score_justification": p.get("score_justification"),
+            "message": shortlist_map.get(p["linkedin_url"]),
+        })
+
+    return {"excel_b64": excel_b64, "candidates": all_candidates}

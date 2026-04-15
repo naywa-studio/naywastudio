@@ -7,7 +7,10 @@ import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
 import { AGENT_LEVELS } from "@/lib/mock-store"
 import { useWorkspace } from "../../layout"
+import BriefForm from "@/components/workspace/BriefForm"
+import MissionRunPanel from "@/components/workspace/MissionRunPanel"
 import type { Database } from "@/lib/database.types"
+import type { MissionBrief } from "@/lib/database.types"
 
 type Mission = Database["public"]["Tables"]["missions"]["Row"]
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"]
@@ -115,14 +118,11 @@ export default function MissionDetailPage() {
   const [loading, setLoading] = useState(true)
   const [activeSection, setActiveSection] = useState<SectionKey>("results")
 
-  // Chat state
-  const [showChat, setShowChat] = useState(false)
-  const [chatInput, setChatInput] = useState("")
-  const [chatStep, setChatStep] = useState(0)
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([])
-  const chatEndRef = useRef<HTMLDivElement>(null)
+  // Run state
+  const [isRunning, setIsRunning] = useState(false)
+  const [excelB64, setExcelB64] = useState<string | null>(null)
 
-  const questions = AGENT_QUESTIONS[agentLevel] ?? AGENT_QUESTIONS[1]
+  const chatEndRef = useRef<HTMLDivElement>(null)
   const sections = getSections(agentLevel)
 
   const fetchData = useCallback(async () => {
@@ -140,46 +140,43 @@ export default function MissionDetailPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [chatMessages.length, showChat])
+  /* ── Brief submission → save to DB ──────────────────────── */
 
-  /* ── Chat brief ──────────────────────────────────────────── */
-
-  const handleStartChat = () => {
-    setShowChat(true)
-    if (chatMessages.length === 0) {
-      setChatMessages([{ id: "a0", role: "agent", text: questions[0] }])
-      setChatStep(1)
-    }
+  const handleBriefSubmit = async (brief: MissionBrief) => {
+    await getSupabase()
+      .from("missions")
+      .update({ brief })
+      .eq("id", missionId)
+    setMission((prev) => prev ? { ...prev, brief } : prev)
+    setIsRunning(true)
   }
 
-  const handleSendMessage = async () => {
-    if (!chatInput.trim()) return
-    const text = chatInput.trim()
-    setChatInput("")
-    setChatMessages((prev) => [...prev, { id: `u${Date.now()}`, role: "user", text }])
+  /* ── Run completed ───────────────────────────────────────── */
 
-    const nextStep = chatStep
-    if (nextStep < questions.length) {
-      setTimeout(() => {
-        setChatMessages((prev) => [
-          ...prev,
-          { id: `a${Date.now()}`, role: "agent", text: questions[nextStep] },
-        ])
-        setChatStep(nextStep + 1)
-        if (nextStep === questions.length - 1) {
-          setTimeout(async () => {
-            const brief = { titre_poste: "", mots_cles: [], localisation: "" }
-            await getSupabase()
-              .from("missions")
-              .update({ brief, status: "in_progress" })
-              .eq("id", missionId)
-            setMission((prev) => prev ? { ...prev, brief, status: "in_progress" } : prev)
-          }, 600)
-        }
-      }, 700)
-    }
+  const handleRunCompleted = (b64: string, count: number) => {
+    setExcelB64(b64)
+    setIsRunning(false)
+    setMission((prev) => prev ? { ...prev, status: "completed", profiles_count: count } : prev)
+    fetchData() // reload candidates from DB
+  }
+
+  const handleRunError = () => {
+    setIsRunning(false)
+    setMission((prev) => prev ? { ...prev, status: "error" } : prev)
+  }
+
+  /* ── Excel download helper ───────────────────────────────── */
+
+  const downloadExcel = () => {
+    if (!excelB64 || !mission) return
+    const bytes = Uint8Array.from(atob(excelB64), (c) => c.charCodeAt(0))
+    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${mission.title.replace(/\s+/g, "_")}_${agentLevel >= 2 ? "nora" : "leo"}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   /* ── Booking link actions ─────────────────────────────────── */
@@ -287,70 +284,64 @@ export default function MissionDetailPage() {
             </span>
           </div>
 
-          {!briefDefined && (
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "16px", borderRadius: 12, background: agent.colorLight, border: `1px solid ${agent.borderColor}` }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "white", background: agent.color, flexShrink: 0 }}>
-                {agent.agent.charAt(0)}
-              </div>
-              <div>
-                <p style={{ margin: "0 0 10px", fontSize: 14, color: "#111827", lineHeight: 1.6, fontFamily: "var(--font-inter), sans-serif" }}>
-                  Bonjour&nbsp;! Je suis <strong>{agent.agent}</strong>, votre {agent.role.toLowerCase()}.
-                  Commençons par définir votre besoin pour cette mission.
-                </p>
-                <button
-                  onClick={handleStartChat}
-                  style={{ padding: "9px 18px", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white", background: agent.color, fontFamily: "var(--font-inter), sans-serif" }}
-                >
-                  Définir le besoin →
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </m.div>
 
-      {/* Chat panel */}
-      <AnimatePresence>
-        {showChat && !briefDefined && (
-          <m.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            style={{ background: "white", borderRadius: 18, border: "1.5px solid #F0ECF8", overflow: "hidden", marginBottom: 20 }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #F0ECF8" }}>
-              <div style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "white", background: agent.color }}>
-                {agent.agent.charAt(0)}
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#111827", fontFamily: "var(--font-inter), sans-serif" }}>Conversation avec {agent.agent}</p>
-                <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>Définition du besoin</p>
-              </div>
-            </div>
-            <div style={{ maxHeight: 320, overflowY: "auto", padding: "16px 20px" }}>
-              {chatMessages.map((msg) => (
-                <div key={msg.id} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
-                  <div style={{ maxWidth: "76%", padding: "10px 14px", fontSize: 13, lineHeight: 1.6, fontFamily: "var(--font-inter), sans-serif", borderRadius: msg.role === "user" ? "12px 12px 3px 12px" : "12px 12px 12px 3px", background: msg.role === "user" ? agent.color : "#F3F4F6", color: msg.role === "user" ? "white" : "#111827" }}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              <div ref={chatEndRef} />
-            </div>
-            {chatStep < questions.length && (
-              <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #F0ECF8" }}>
-                <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSendMessage()} placeholder="Décrivez votre besoin…" style={{ flex: 1, padding: "10px 14px", borderRadius: 9, border: "1.5px solid #E5E7EB", fontSize: 13, color: "#111827", outline: "none", fontFamily: "var(--font-inter), sans-serif" }} />
-                <button onClick={handleSendMessage} disabled={!chatInput.trim()} style={{ padding: "10px 16px", borderRadius: 9, border: "none", cursor: chatInput.trim() ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 700, color: "white", background: chatInput.trim() ? agent.color : "#D1D5DB", fontFamily: "var(--font-inter), sans-serif" }}>
-                  Envoyer
-                </button>
-              </div>
-            )}
-          </m.div>
-        )}
-      </AnimatePresence>
+      {/* ── Brief form (mission not yet started) ─────────────────────────── */}
+      {!briefDefined && !isRunning && (
+        <m.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ background: "white", borderRadius: 18, border: "1.5px solid #F0ECF8", padding: "24px", marginBottom: 20 }}
+        >
+          <BriefForm
+            agentColor={agent.color}
+            agentName={agent.agent}
+            agentLevel={agentLevel}
+            onSubmit={handleBriefSubmit}
+          />
+        </m.div>
+      )}
 
-      {/* Sections — once brief is defined */}
-      {briefDefined && (
+      {/* ── Mission running (polling) ─────────────────────────────────── */}
+      {isRunning && mission && (
+        <m.div style={{ marginBottom: 20 }}>
+          <MissionRunPanel
+            missionId={missionId}
+            agentColor={agent.color}
+            agentName={agent.agent}
+            onCompleted={handleRunCompleted}
+            onError={handleRunError}
+          />
+        </m.div>
+      )}
+
+      {/* ── Excel download button (after completion) ─────────────────── */}
+      {excelB64 && (
+        <m.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "16px 20px", borderRadius: 14, background: "rgba(34,197,94,0.06)", border: "1.5px solid rgba(34,197,94,0.2)" }}
+        >
+          <div>
+            <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 700, color: "#16a34a", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+              ✓ {mission?.profiles_count ?? 0} profils trouvés
+            </p>
+            <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
+              Fichier Excel prêt · également visible dans les résultats ci-dessous
+            </p>
+          </div>
+          <button
+            onClick={downloadExcel}
+            style={{ padding: "10px 20px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white", background: "#16a34a", fontFamily: "var(--font-inter), sans-serif", boxShadow: "0 4px 14px rgba(22,163,74,0.3)" }}
+          >
+            ⬇ Télécharger Excel
+          </button>
+        </m.div>
+      )}
+
+      {/* Sections — once brief is defined and not running */}
+      {briefDefined && !isRunning && (
         <m.div {...fu(0.08)}>
           {/* Section tabs */}
           <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 2 }}>

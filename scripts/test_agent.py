@@ -55,19 +55,23 @@ TEST_BRIEF = {
 async def run_leo():
     import agent_leo  # type: ignore
     print("\n[test] Running Léo agent...")
-    result_b64 = await agent_leo.run(TEST_BRIEF)
+    result = await agent_leo.run(TEST_BRIEF)
     out_path = project_root / "test_leo_output.xlsx"
-    out_path.write_bytes(base64.b64decode(result_b64))
-    print(f"[test] ✓ Output written to {out_path}")
+    out_path.write_bytes(base64.b64decode(result["excel_b64"]))
+    print(f"[test] ✓ Excel written to {out_path}")
+    print(f"[test]   {len(result['candidates'])} candidates found")
 
 
 async def run_nora():
     import agent_nora  # type: ignore
     print("\n[test] Running Nora agent (this may take 1-2 min)...")
-    result_b64 = await agent_nora.run(TEST_BRIEF)
+    result = await agent_nora.run(TEST_BRIEF)
     out_path = project_root / "test_nora_output.xlsx"
-    out_path.write_bytes(base64.b64decode(result_b64))
-    print(f"[test] ✓ Output written to {out_path}")
+    out_path.write_bytes(base64.b64decode(result["excel_b64"]))
+    print(f"[test] ✓ Excel written to {out_path}")
+    scored = [c for c in result["candidates"] if c.get("relevance_score") is not None]
+    shortlist = [c for c in result["candidates"] if (c.get("relevance_score") or 0) >= 60]
+    print(f"[test]   {len(result['candidates'])} total · {len(scored)} scored · {len(shortlist)} in shortlist")
 
 
 if __name__ == "__main__":

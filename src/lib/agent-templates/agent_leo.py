@@ -91,8 +91,12 @@ def parse_profile(result: dict) -> dict | None:
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
-async def run(brief: dict) -> str:
-    """Return base64-encoded Excel file."""
+async def run(brief: dict) -> dict:
+    """
+    Return dict: { excel_b64: str, candidates: list[dict] }
+    excel_b64  → base64 Excel for download
+    candidates → structured list for DB ingestion
+    """
     queries = build_queries(brief)
     profiles: list[dict] = []
     seen: set[str] = set()
@@ -121,10 +125,17 @@ async def run(brief: dict) -> str:
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="Profils", index=False)
-        # Auto-width columns
         ws = writer.sheets["Profils"]
         for col in ws.columns:
             max_len = max(len(str(cell.value or "")) for cell in col)
             ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 60)
 
-    return base64.b64encode(buf.getvalue()).decode()
+    excel_b64 = base64.b64encode(buf.getvalue()).decode()
+
+    # Normalize keywords to list for DB
+    candidates = [
+        {**p, "keywords": [k.strip() for k in p["keywords"].split(",") if k.strip()]}
+        for p in profiles
+    ]
+
+    return {"excel_b64": excel_b64, "candidates": candidates}

@@ -25,12 +25,15 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("/opt/nawa-agent/logs/agent.log", delay=True),
+        # File handler only created if directory exists (VPS env)
+        *([logging.FileHandler("/opt/nawa-agent/logs/agent.log", delay=True)]
+          if os.path.isdir("/opt/nawa-agent/logs") else []),
     ],
 )
 log = logging.getLogger("nawa-agent")
 
 # In-memory store — single-tenant VPS, no persistence needed
+# result shape: { status, excel_b64, candidates, error }
 missions: dict[str, dict[str, Any]] = {}
 
 
@@ -72,12 +75,14 @@ async def create_mission(
     x_nawa_secret: str | None = Header(None),
 ):
     check_secret(x_nawa_secret)
-    brief = await request.json()
+    body = await request.json()
+    # Accept both { brief: {...} } and plain brief dict
+    brief = body.get("brief", body)
     mission_id = str(uuid.uuid4())
-    missions[mission_id] = {"status": "running", "result": None, "error": None}
+    missions[mission_id] = {"status": "running", "excel_b64": None, "candidates": None, "error": None}
     background_tasks.add_task(_run_mission, mission_id, brief)
-    log.info("Mission %s created", mission_id)
-    return {"id": mission_id, "status": "running"}
+    log.info("Mission %s created (level=%s)", mission_id, AGENT_LEVEL)
+    return {"mission_id": mission_id, "status": "running"}
 
 
 @app.get("/missions/{mission_id}/status")
@@ -86,7 +91,7 @@ def get_status(mission_id: str, x_nawa_secret: str | None = Header(None)):
     m = missions.get(mission_id)
     if not m:
         raise HTTPException(status_code=404, detail="Mission not found")
-    return {"id": mission_id, "status": m["status"], "error": m.get("error")}
+    return {"mission_id": mission_id, "status": m["status"], "error": m.get("error")}
 
 
 @app.get("/missions/{mission_id}/result")
@@ -95,9 +100,16 @@ def get_result(mission_id: str, x_nawa_secret: str | None = Header(None)):
     m = missions.get(mission_id)
     if not m:
         raise HTTPException(status_code=404, detail="Mission not found")
-    if m["status"] != "completed":
-        raise HTTPException(status_code=400, detail=f"Mission status: {m['status']}")
-    return {"id": mission_id, "status": "completed", "excel_base64": m["result"]}
+    if m["status"] == "running":
+        raise HTTPException(status_code=400, detail="Mission still running")
+    if m["status"] == "error":
+        raise HTTPException(status_code=500, detail=m.get("error", "Unknown error"))
+    return {
+        "mission_id": mission_id,
+        "status": "completed",
+        "result": m["excel_b64"],         # base64 Excel
+        "candidates": m["candidates"],    # list[dict] for DB ingestion
+    }
 
 
 # ── Background task ───────────────────────────────────────────────────────────
@@ -110,9 +122,11 @@ async def _run_mission(mission_id: str, brief: dict) -> None:
             from agent_leo import run
 
         result = await run(brief)
+        # run() returns dict: { excel_b64: str, candidates: list[dict] }
         missions[mission_id]["status"] = "completed"
-        missions[mission_id]["result"] = result
-        log.info("Mission %s completed", mission_id)
+        missions[mission_id]["excel_b64"] = result["excel_b64"]
+        missions[mission_id]["candidates"] = result["candidates"]
+        log.info("Mission %s completed — %d candidates", mission_id, len(result["candidates"]))
     except Exception as exc:
         missions[mission_id]["status"] = "error"
         missions[mission_id]["error"] = str(exc)
