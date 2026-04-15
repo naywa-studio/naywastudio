@@ -15,6 +15,7 @@ const LEVELS = [
     colorLight: "rgba(59,130,246,0.06)",
     colorMid: "rgba(59,130,246,0.12)",
     borderColor: "rgba(59,130,246,0.22)",
+    price: "149",
     headline: "Recherche de profils LinkedIn en quelques minutes",
     description:
       "Décrivez le poste. Léo interroge le web, récupère les profils publics et vous remet un tableur structuré, prêt à explorer.",
@@ -36,6 +37,7 @@ const LEVELS = [
     colorLight: "rgba(124,99,200,0.06)",
     colorMid: "rgba(124,99,200,0.12)",
     borderColor: "rgba(124,99,200,0.25)",
+    price: "299",
     headline: "Sourcing complet + messages prêts à envoyer",
     description:
       "Nora trie les profils, les score selon votre poste et rédige un message personnalisé pour chaque candidat prioritaire. Vous copiez, vous envoyez.",
@@ -57,6 +59,7 @@ const LEVELS = [
     colorLight: "rgba(124,58,237,0.06)",
     colorMid: "rgba(124,58,237,0.12)",
     borderColor: "rgba(124,58,237,0.22)",
+    price: "499",
     headline: "Pipeline complet jusqu'au rendez-vous",
     description:
       "Alex gère le sourcing, le scoring, les messages et suit chaque candidat jusqu'à la réservation d'un créneau. Tout se passe dans votre workspace Nawa.",
@@ -344,6 +347,32 @@ export default function CataloguePage() {
                   >
                     {level.agentRole}
                   </p>
+                </div>
+
+                {/* Prix */}
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-space-grotesk), sans-serif",
+                      fontSize: 40,
+                      fontWeight: 800,
+                      color: "#111827",
+                      lineHeight: 1,
+                      letterSpacing: -1,
+                    }}
+                  >
+                    {level.price}€
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-inter), sans-serif",
+                      fontSize: 13,
+                      color: "#9CA3AF",
+                      fontWeight: 500,
+                    }}
+                  >
+                    / mois
+                  </span>
                 </div>
 
                 {/* Divider */}

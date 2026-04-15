@@ -128,12 +128,13 @@ const STATUS_META: Record<Mission["status"], { label: string; color: string; bg:
   preparation: { label: "Préparation",  color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
   in_progress: { label: "En cours",     color: "#22c55e", bg: "rgba(34,197,94,0.08)" },
   completed:   { label: "Terminée",     color: "#6B7280", bg: "rgba(107,114,128,0.08)" },
+  error:       { label: "Erreur",       color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
 }
 
 export default function WorkspacePage() {
   const router = useRouter()
-  const { profile, userEmail, agentLevel } = useWorkspace()
-  const agent = AGENT_LEVELS[agentLevel]
+  const { profile, userEmail, agentLevel, hasSubscription } = useWorkspace()
+  const agent = AGENT_LEVELS[agentLevel] ?? AGENT_LEVELS[1]
 
   const [missions, setMissions] = useState<Mission[]>([])
   const [loadingMissions, setLoadingMissions] = useState(true)
@@ -141,8 +142,8 @@ export default function WorkspacePage() {
   const [newTitle, setNewTitle] = useState("")
   const [creating, setCreating] = useState(false)
 
-  const firstName = profile.first_name ?? userEmail.split("@")[0]
-  const [bookingUrl, setBookingUrl] = useState<string | null>(profile.booking_url ?? null)
+  const firstName = profile?.first_name ?? userEmail.split("@")[0]
+  const [bookingUrl, setBookingUrl] = useState<string | null>(profile?.booking_url ?? null)
   const showBookingSetup = agentLevel === 3 && !bookingUrl
 
   const fetchMissions = useCallback(async () => {
@@ -175,6 +176,111 @@ export default function WorkspacePage() {
       router.push(`/workspace/missions/${data.id}`)
     }
     setCreating(false)
+  }
+
+  if (!hasSubscription) {
+    return (
+      <main
+        style={{
+          minHeight: "calc(100vh - 60px)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "40px 24px",
+          textAlign: "center",
+        }}
+      >
+        <m.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          style={{ maxWidth: 480 }}
+        >
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 20,
+              background: "#F8F6FF",
+              border: "1.5px solid #E2DAF6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 32,
+              margin: "0 auto 28px",
+            }}
+          >
+            🤖
+          </div>
+          <h1
+            style={{
+              fontSize: "clamp(22px, 4vw, 32px)",
+              fontWeight: 800,
+              color: "#111827",
+              margin: "0 0 12px",
+              fontFamily: "var(--font-space-grotesk), sans-serif",
+              letterSpacing: -0.3,
+            }}
+          >
+            Bonjour{firstName ? `, ${firstName}` : ""} 👋
+          </h1>
+          <p
+            style={{
+              fontSize: 16,
+              color: "#6B7280",
+              lineHeight: 1.65,
+              margin: "0 0 36px",
+              fontFamily: "var(--font-inter), sans-serif",
+            }}
+          >
+            Votre espace est prêt. Choisissez un agent pour commencer à sourcer
+            vos premiers candidats.
+          </p>
+          <Link
+            href="/tarifs"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "16px 32px",
+              borderRadius: 14,
+              background: "#7C63C8",
+              color: "white",
+              fontSize: 16,
+              fontWeight: 700,
+              textDecoration: "none",
+              fontFamily: "var(--font-space-grotesk), sans-serif",
+              boxShadow: "0 8px 32px rgba(124,99,200,0.28)",
+              transition: "transform 150ms, box-shadow 150ms",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)"
+              e.currentTarget.style.boxShadow = "0 12px 40px rgba(124,99,200,0.38)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)"
+              e.currentTarget.style.boxShadow = "0 8px 32px rgba(124,99,200,0.28)"
+            }}
+          >
+            Trouver mon agent !
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Link>
+          <p
+            style={{
+              marginTop: 20,
+              fontSize: 12,
+              color: "#9CA3AF",
+              fontFamily: "var(--font-inter), sans-serif",
+            }}
+          >
+            Setup en 48h · VPS dédié · Sans engagement
+          </p>
+        </m.div>
+      </main>
+    )
   }
 
   return (

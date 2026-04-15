@@ -13,9 +13,10 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 /* ── Context ──────────────────────────────────────────────────── */
 
 interface WorkspaceCtx {
-  profile: Profile
+  profile: Profile | null
   userEmail: string
   agentLevel: number
+  hasSubscription: boolean
 }
 
 const WorkspaceContext = createContext<WorkspaceCtx | null>(null)
@@ -54,12 +55,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         .eq("user_id", user.id)
         .single()
 
-      if (!prof?.subscription_level) {
-        router.replace("/tarifs")
-        return
-      }
-
-      setProfile(prof)
+      setProfile(prof ?? null)
       setReady(true)
     }
     init()
@@ -70,7 +66,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     router.replace("/")
   }
 
-  if (!ready || !profile) {
+  if (!ready) {
     return (
       <div
         style={{
@@ -86,11 +82,12 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     )
   }
 
-  const agentLevel = LEVEL_MAP[profile.subscription_level!] ?? 1
-  const agent = AGENT_LEVELS[agentLevel]
+  const hasSubscription = !!profile?.subscription_level
+  const agentLevel = profile?.subscription_level ? (LEVEL_MAP[profile.subscription_level] ?? 1) : 0
+  const agent = AGENT_LEVELS[agentLevel] ?? AGENT_LEVELS[1]
 
   return (
-    <WorkspaceContext.Provider value={{ profile, userEmail, agentLevel }}>
+    <WorkspaceContext.Provider value={{ profile, userEmail, agentLevel, hasSubscription }}>
       <div style={{ minHeight: "100vh", background: "#FAFAFA" }}>
         {/* Header */}
         <header
@@ -128,25 +125,27 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
           {/* Right */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* Agent badge */}
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "5px 12px",
-                borderRadius: 999,
-                color: agent.color,
-                background: agent.colorLight,
-                border: `1px solid ${agent.borderColor}`,
-                fontFamily: "var(--font-inter), sans-serif",
-              }}
-            >
-              <span>{agent.icon}</span>
-              Mon agent&nbsp;: {agent.agent}
-            </span>
+            {/* Agent badge — visible uniquement si abonné */}
+            {hasSubscription && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: "5px 12px",
+                  borderRadius: 999,
+                  color: agent.color,
+                  background: agent.colorLight,
+                  border: `1px solid ${agent.borderColor}`,
+                  fontFamily: "var(--font-inter), sans-serif",
+                }}
+              >
+                <span>{agent.icon}</span>
+                Mon agent&nbsp;: {agent.agent}
+              </span>
+            )}
 
             {/* Email */}
             <span
