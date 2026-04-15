@@ -43,6 +43,7 @@ const STATUS_META: Record<Mission["status"], { label: string; color: string; bg:
   preparation: { label: "Préparation", color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
   in_progress: { label: "En cours",    color: "#22c55e", bg: "rgba(34,197,94,0.08)" },
   completed:   { label: "Terminée",    color: "#6B7280", bg: "rgba(107,114,128,0.08)" },
+  error:       { label: "Erreur",      color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
 }
 
 const BOOKING_STATUS_META: Record<BookingLink["status"], { label: string; color: string }> = {
@@ -169,7 +170,7 @@ export default function MissionDetailPage() {
         setChatStep(nextStep + 1)
         if (nextStep === questions.length - 1) {
           setTimeout(async () => {
-            const brief = `Brief défini le ${new Date().toLocaleDateString("fr-FR")}.`
+            const brief = { titre_poste: "", mots_cles: [], localisation: "" }
             await getSupabase()
               .from("missions")
               .update({ brief, status: "in_progress" })
@@ -201,7 +202,7 @@ export default function MissionDetailPage() {
     const messageDraft = buildMessageTemplate(
       candidate.name_estimated,
       mission?.title ?? "",
-      profile.first_name,
+      profile?.first_name ?? null,
       bookingPageUrl
     )
     await sb
@@ -381,7 +382,7 @@ export default function MissionDetailPage() {
                 candidates={candidates}
                 bookingLinks={bookingLinks}
                 agentLevel={agentLevel}
-                hasBookingUrl={Boolean(profile.booking_url)}
+                hasBookingUrl={Boolean(profile?.booking_url)}
                 onGenerateLink={generateBookingLink}
               />
             )}
@@ -430,8 +431,8 @@ function ResultsSection({ candidates }: { candidates: Candidate[] }) {
                 <td style={{ padding: "11px 12px", fontWeight: 500, color: "#111827", fontFamily: "var(--font-inter), sans-serif" }}>{c.name_estimated ?? "—"}</td>
                 <td style={{ padding: "11px 12px", color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>{c.company ?? "—"}</td>
                 <td style={{ padding: "11px 12px" }}>
-                  {c.score !== null ? (
-                    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 6, fontSize: 12, fontWeight: 700, color: c.score >= 80 ? "#22c55e" : "#F59E0B", background: c.score >= 80 ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", fontFamily: "var(--font-inter), sans-serif" }}>{c.score}</span>
+                  {c.relevance_score !== null ? (
+                    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 6, fontSize: 12, fontWeight: 700, color: c.relevance_score >= 80 ? "#22c55e" : "#F59E0B", background: c.relevance_score >= 80 ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", fontFamily: "var(--font-inter), sans-serif" }}>{c.relevance_score}</span>
                   ) : "—"}
                 </td>
                 <td style={{ padding: "11px 12px", color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>{c.status}</td>
@@ -445,7 +446,7 @@ function ResultsSection({ candidates }: { candidates: Candidate[] }) {
 }
 
 function ScoringSection({ candidates }: { candidates: Candidate[] }) {
-  const scored = candidates.filter((c) => c.score !== null).sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+  const scored = candidates.filter((c) => c.relevance_score !== null).sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0))
   if (scored.length === 0) return <WaitingState label="Les scores apparaîtront ici une fois le sourcing effectué." />
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -463,7 +464,7 @@ function ScoringSection({ candidates }: { candidates: Candidate[] }) {
             )}
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-            <span style={{ fontSize: 24, fontWeight: 800, color: (c.score ?? 0) >= 80 ? "#22c55e" : "#F59E0B", fontFamily: "var(--font-space-grotesk), sans-serif" }}>{c.score ?? "—"}</span>
+            <span style={{ fontSize: 24, fontWeight: 800, color: (c.relevance_score ?? 0) >= 80 ? "#22c55e" : "#F59E0B", fontFamily: "var(--font-space-grotesk), sans-serif" }}>{c.relevance_score ?? "—"}</span>
             <span style={{ fontSize: 12, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>/100</span>
           </div>
         </div>
@@ -583,9 +584,9 @@ function PipelineSection({
   bookingLinks: BookingLink[]
   onUpdateStatus: (linkId: string, status: BookingLink["status"]) => Promise<void>
 }) {
-  const statuses: Candidate["status"][] = ["new", "qualified", "contacted", "rejected"]
-  const statusLabels: Record<Candidate["status"], string> = { new: "Nouveau", qualified: "Qualifié", contacted: "Contacté", rejected: "Rejeté" }
-  const statusColors: Record<Candidate["status"], string> = { new: "#6B7280", qualified: "#3b82f6", contacted: "#22c55e", rejected: "#EF4444" }
+  const statuses: Candidate["status"][] = ["raw", "shortlisted", "rejected"]
+  const statusLabels: Record<Candidate["status"], string> = { raw: "Brut", shortlisted: "Shortlist", rejected: "Rejeté" }
+  const statusColors: Record<Candidate["status"], string> = { raw: "#6B7280", shortlisted: "#22c55e", rejected: "#EF4444" }
 
   if (candidates.length === 0) return <WaitingState label="Le pipeline de candidats s'affichera ici." />
 
