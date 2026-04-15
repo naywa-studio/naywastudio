@@ -13,7 +13,8 @@ export default function LoginPage() {
   const searchParams = useSearchParams()
   const nextPath = searchParams.get("next") ?? "/workspace"
 
-  const [mode, setMode] = useState<Mode>("login")
+  const initialMode = (searchParams.get("mode") === "signup" ? "signup" : "login") as Mode
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [firstName, setFirstName] = useState("")

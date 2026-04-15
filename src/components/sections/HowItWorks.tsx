@@ -30,9 +30,9 @@ const steps = [
         <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.64 5.64l1.42 1.42M16.95 16.95l1.41 1.41M5.64 18.36l1.42-1.42M16.95 7.05l1.41-1.41" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" />
       </svg>
     ),
-    title: "On configure votre agent",
-    subtitle: "Sous 48h",
-    desc: "Notre équipe paramètre l'agent selon votre contexte — offres, critères, ton de communication. Aucune intégration technique requise.",
+    title: "Votre workspace est prêt",
+    subtitle: "< 24h",
+    desc: "Votre workspace est configuré automatiquement en moins de 24h. Aucune intégration technique requise de votre côté.",
   },
   {
     number: "03",
@@ -158,7 +158,6 @@ export function HowItWorks() {
 
               {/* Icon + number row */}
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                {/* Icon container */}
                 <div
                   style={{
                     width: 52,
@@ -175,7 +174,6 @@ export function HowItWorks() {
                   {icon}
                 </div>
 
-                {/* Step number + subtitle */}
                 <div>
                   <p
                     style={{
@@ -190,14 +188,7 @@ export function HowItWorks() {
                   >
                     Étape {number}
                   </p>
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      marginTop: 3,
-                    }}
-                  >
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 3 }}>
                     <span
                       style={{
                         width: 6,

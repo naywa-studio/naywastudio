@@ -15,53 +15,58 @@ const agents = [
   {
     number: "01",
     name: "Léo",
-    role: "Tri & qualification",
     level: "Essentiel",
+    badge: undefined,
     color: "#3B82F6",
     colorBg: "rgba(59,130,246,0.06)",
     colorBorder: "rgba(59,130,246,0.18)",
-    desc: "Importez vos CVs bruts — Léo les analyse, les score et nettoie votre base. Une shortlist propre en quelques minutes.",
+    headline: "Recherche de profils LinkedIn en quelques minutes",
+    desc: "Décrivez le poste. Léo interroge le web, récupère les profils publics et vous remet un tableur structuré, prêt à explorer.",
+    keyPoint: "Sans compte LinkedIn. Sans scraping.",
     features: [
-      "Lecture PDF, Word, LinkedIn",
-      "Score de pertinence automatique",
-      "Détection des doublons",
-      "Export tableur prêt à l'emploi",
+      "Recherche web de profils publics",
+      "Tableur structuré livré rapidement",
+      "Critères en langage naturel",
+      "Export prêt à l'emploi",
     ],
   },
   {
     number: "02",
     name: "Nora",
-    role: "Sourcing complet",
-    level: "Recommandé",
+    level: "Le plus demandé",
+    badge: "Le plus demandé",
     color: "#7C63C8",
     colorBg: "rgba(124,99,200,0.06)",
     colorBorder: "rgba(124,99,200,0.22)",
-    desc: "Nora prend en charge l'analyse, le scoring et produit une shortlist commentée — prête à envoyer à votre client.",
+    headline: "Sourcing complet + messages prêts à envoyer",
+    desc: "Nora trie les profils, les score selon votre poste et rédige un message personnalisé pour chaque candidat prioritaire. Vous copiez, vous envoyez.",
+    keyPoint: "Nora ne contacte jamais les candidats à votre place.",
     features: [
-      "Multi-sources (jobboards + CVthèque)",
-      "Shortlist commentée et priorisée",
-      "Suivi de l'avancement candidat",
-      "Rapport hebdomadaire auto",
+      "Scoring automatique des profils",
+      "Shortlist priorisée et commentée",
+      "Messages personnalisés par candidat",
+      "Copier-coller direct",
     ],
-    badge: "Le plus demandé",
   },
   {
     number: "03",
     name: "Alex",
-    role: "Recrutement piloté",
     level: "Premium",
+    badge: undefined,
     color: "#7C3AED",
     colorBg: "rgba(124,58,237,0.06)",
     colorBorder: "rgba(124,58,237,0.18)",
-    desc: "Du sourcing au booking d'entretiens, Alex orchestre l'intégralité du processus. Vous supervisez, l'agent exécute.",
+    headline: "Pipeline complet jusqu'au rendez-vous",
+    desc: "Alex gère le sourcing, le scoring, les messages et suit chaque candidat jusqu'à la réservation d'un créneau. Tout se passe dans votre workspace Nawa.",
+    keyPoint: "Lien de réservation unique par candidat. Connecté à votre Calendly.",
     features: [
-      "Sourcing → scoring → booking",
-      "Relances automatiques des candidats",
-      "Calendrier d'entretiens géré",
-      "Dashboard temps réel",
+      "Sourcing → scoring → messages → booking",
+      "Suivi par candidat en temps réel",
+      "Lien de réservation Calendly intégré",
+      "Pipeline complet dans votre workspace",
     ],
   },
-]
+] as const
 
 export function AgentsPreview() {
   return (
@@ -144,7 +149,7 @@ export function AgentsPreview() {
             gap: 20,
           }}
         >
-          {agents.map(({ number, name, role, level, color, colorBg, colorBorder, desc, features, badge }, i) => (
+          {agents.map(({ number, name, level, color, colorBg, colorBorder, headline, desc, keyPoint, features, badge }, i) => (
             <m.div
               key={number}
               {...fu(0.1 + i * 0.1)}
@@ -161,12 +166,7 @@ export function AgentsPreview() {
               whileHover={{ y: -4, boxShadow: `0 12px 40px rgba(0,0,0,0.08), 0 2px 8px ${colorBg.replace("0.06", "0.12")}` }}
             >
               {/* Top accent bar */}
-              <div
-                style={{
-                  height: 3,
-                  background: `linear-gradient(90deg, ${color}, transparent)`,
-                }}
-              />
+              <div style={{ height: 3, background: `linear-gradient(90deg, ${color}, transparent)` }} />
 
               {/* Card body */}
               <div style={{ padding: "28px 28px 32px", display: "flex", flexDirection: "column", gap: 20, flex: 1 }}>
@@ -174,7 +174,6 @@ export function AgentsPreview() {
                 {/* Header row */}
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    {/* Number badge */}
                     <div
                       style={{
                         width: 36,
@@ -208,22 +207,9 @@ export function AgentsPreview() {
                       >
                         {name}
                       </p>
-                      <p
-                        style={{
-                          margin: 0,
-                          fontFamily: "var(--font-inter), sans-serif",
-                          fontSize: 12,
-                          color: "#9CA3AF",
-                          letterSpacing: "0.02em",
-                          marginTop: 2,
-                        }}
-                      >
-                        {role}
-                      </p>
                     </div>
                   </div>
 
-                  {/* Level or badge */}
                   {badge ? (
                     <span
                       style={{
@@ -239,7 +225,7 @@ export function AgentsPreview() {
                         fontFamily: "var(--font-inter), sans-serif",
                       }}
                     >
-                      {badge}
+                      {level}
                     </span>
                   ) : (
                     <span
@@ -262,6 +248,20 @@ export function AgentsPreview() {
                   )}
                 </div>
 
+                {/* Headline */}
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: "var(--font-space-grotesk), sans-serif",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#111827",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {headline}
+                </p>
+
                 {/* Description */}
                 <p
                   style={{
@@ -279,7 +279,7 @@ export function AgentsPreview() {
                 <div style={{ height: 1, background: "#F0ECF8" }} />
 
                 {/* Feature list */}
-                <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 9 }}>
+                <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
                   {features.map((feature) => (
                     <li
                       key={feature}
@@ -314,15 +314,57 @@ export function AgentsPreview() {
                   ))}
                 </ul>
 
+                {/* Key point callout */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "9px 12px",
+                    borderRadius: 9,
+                    background: colorBg,
+                    border: `1px solid ${colorBorder}`,
+                  }}
+                >
+                  <span style={{ fontSize: 13, flexShrink: 0 }}>💡</span>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontFamily: "var(--font-inter), sans-serif",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {keyPoint}
+                  </p>
+                </div>
+
               </div>
             </m.div>
           ))}
         </div>
 
+        {/* Trust line */}
+        <m.p
+          {...fu(0.4)}
+          style={{
+            textAlign: "center",
+            marginTop: 28,
+            fontSize: 13,
+            color: "#6B7280",
+            fontFamily: "var(--font-inter), sans-serif",
+            fontStyle: "italic",
+          }}
+        >
+          Nawa ne prend jamais contact avec les candidats à votre place.
+        </m.p>
+
         {/* CTA */}
         <m.div
-          {...fu(0.45)}
-          style={{ textAlign: "center", marginTop: 52 }}
+          {...fu(0.48)}
+          style={{ textAlign: "center", marginTop: 24 }}
         >
           <Link
             href="/catalogue"

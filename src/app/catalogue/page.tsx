@@ -2,100 +2,111 @@
 import { m } from "framer-motion"
 import { Logo } from "@/components/ui/Logo"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useMockStore } from "@/lib/mock-store"
 
 /* ─── Data ────────────────────────────────────────────────────── */
 
 const LEVELS = [
   {
-    number: 1,
-    label: "Niveau 1",
+    number: "01",
+    label: "Essentiel",
     agentName: "Léo",
-    agentRole: "Agent de tri & nettoyage",
-    color: "#22c55e",
-    colorLight: "rgba(34,197,94,0.08)",
-    colorMid: "rgba(34,197,94,0.15)",
-    borderColor: "rgba(34,197,94,0.25)",
+    agentRole: "Sourcing de profils publics",
+    color: "#3B82F6",
+    colorLight: "rgba(59,130,246,0.06)",
+    colorMid: "rgba(59,130,246,0.12)",
+    borderColor: "rgba(59,130,246,0.22)",
+    headline: "Recherche de profils LinkedIn en quelques minutes",
     description:
-      "Triez, nettoyez et filtrez une liste de candidats en quelques minutes. Uploadez un tableur, définissez votre profil cible, et Léo fait le reste.",
+      "Décrivez le poste. Léo interroge le web, récupère les profils publics et vous remet un tableur structuré, prêt à explorer.",
+    keyPoint: "Sans compte LinkedIn. Sans scraping.",
     features: [
-      "Upload de tableur (export Walaxy, CSV…)",
-      "Définition du profil cible en langage naturel",
-      "Tableur nettoyé avec profils pertinents mis en évidence",
+      "Recherche web de profils publics",
+      "Tableur structuré livré rapidement",
+      "Critères en langage naturel",
+      "Export prêt à l'emploi",
     ],
-    result: "Un tableur propre et exploitable, prêt à l'usage.",
-    positioning: "Solution simple et rapide pour débuter.",
     badge: null,
   },
   {
-    number: 2,
-    label: "Niveau 2",
+    number: "02",
+    label: "Le plus demandé",
     agentName: "Nora",
-    agentRole: "Agent maître de sourcing",
-    color: "#3b82f6",
-    colorLight: "rgba(59,130,246,0.08)",
-    colorMid: "rgba(59,130,246,0.15)",
-    borderColor: "rgba(59,130,246,0.25)",
+    agentRole: "Sourcing complet + messages",
+    color: "#7C63C8",
+    colorLight: "rgba(124,99,200,0.06)",
+    colorMid: "rgba(124,99,200,0.12)",
+    borderColor: "rgba(124,99,200,0.25)",
+    headline: "Sourcing complet + messages prêts à envoyer",
     description:
-      "Nora prend en charge le sourcing de A à Z : analyse de votre besoin, tri des profils, scoring et priorisation. Vous échangez uniquement avec Nora.",
+      "Nora trie les profils, les score selon votre poste et rédige un message personnalisé pour chaque candidat prioritaire. Vous copiez, vous envoyez.",
+    keyPoint: "Nora ne contacte jamais les candidats à votre place.",
     features: [
-      "Analyse fine du besoin de recrutement",
-      "Tri automatique et nettoyage des listes",
-      "Scoring & priorisation des candidats",
-      "Shortlist prête à l'usage",
+      "Scoring automatique des profils",
+      "Shortlist priorisée et commentée",
+      "Messages personnalisés par candidat",
+      "Copier-coller direct",
     ],
-    result: "Une shortlist priorisée de candidats qualifiés.",
-    positioning: "Automatisation métier réelle, sans complexité pour vous.",
-    badge: "Recommandé",
+    badge: "Le plus demandé",
   },
   {
-    number: 3,
-    label: "Niveau 3",
+    number: "03",
+    label: "Premium",
     agentName: "Alex",
-    agentRole: "Agent orchestrateur de recrutement",
-    color: "#7C63C8",
-    colorLight: "rgba(124,99,200,0.08)",
-    colorMid: "rgba(124,99,200,0.15)",
-    borderColor: "rgba(124,99,200,0.25)",
+    agentRole: "Pipeline complet jusqu'au rendez-vous",
+    color: "#7C3AED",
+    colorLight: "rgba(124,58,237,0.06)",
+    colorMid: "rgba(124,58,237,0.12)",
+    borderColor: "rgba(124,58,237,0.22)",
+    headline: "Pipeline complet jusqu'au rendez-vous",
     description:
-      "Alex pilote l'intégralité de votre processus de sourcing : rédaction d'offres, chasse, scoring, contact candidats, booking d'entretiens, synthèse — le tout documenté étape par étape.",
+      "Alex gère le sourcing, le scoring, les messages et suit chaque candidat jusqu'à la réservation d'un créneau. Tout se passe dans votre workspace Nawa.",
+    keyPoint: "Lien de réservation unique par candidat. Connecté à votre Calendly.",
     features: [
-      "Analyse du besoin & rédaction d'offres",
-      "Sourcing & chasse active de candidats",
-      "Filtrage, scoring et priorisation",
-      "Prise de contact & booking d'entretiens",
-      "Transcription d'appels & synthèse candidat",
-      "Reporting complet à chaque étape",
+      "Sourcing → scoring → messages → booking",
+      "Suivi par candidat en temps réel",
+      "Lien de réservation Calendly intégré",
+      "Pipeline complet dans votre workspace",
     ],
-    result: "Dossiers candidats complets, prêts à être présentés au client final.",
-    positioning: "L'équivalent d'une équipe de recrutement digitale.",
     badge: "Premium",
   },
 ] as const
 
+/* ─── Comparison table data ───────────────────────────────────── */
+
+const COMPARISON_ROWS = [
+  { feature: "Recherche de profils publics", leo: true, nora: true, alex: true },
+  { feature: "Export tableur structuré", leo: true, nora: true, alex: true },
+  { feature: "Scoring et priorisation des profils", leo: false, nora: true, alex: true },
+  { feature: "Shortlist commentée", leo: false, nora: true, alex: true },
+  { feature: "Messages personnalisés par candidat", leo: false, nora: true, alex: true },
+  { feature: "Suivi par candidat en temps réel", leo: false, nora: false, alex: true },
+  { feature: "Lien de réservation Calendly intégré", leo: false, nora: false, alex: true },
+  { feature: "Pipeline complet dans le workspace", leo: false, nora: false, alex: true },
+]
+
 /* ─── Animations ──────────────────────────────────────────────── */
+
+const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
+const fu = (delay: number) => ({
+  initial: { opacity: 0, y: 24 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.65, delay, ease: EASE },
+})
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, delay: i * 0.12, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    transition: { duration: 0.5, delay: i * 0.12, ease: EASE },
   }),
 }
 
 /* ─── Page ────────────────────────────────────────────────────── */
 
 export default function CataloguePage() {
-  const router = useRouter()
-  const { subscribe } = useMockStore()
-
-  const handleActivate = (level: number) => {
-    subscribe(level)
-    router.push("/espace-client/sourcing")
-  }
-
   return (
     <div style={{ background: "#FAFAFA", minHeight: "100vh" }}>
       {/* Navbar */}
@@ -155,12 +166,14 @@ export default function CataloguePage() {
               padding: "6px 16px",
               borderRadius: 100,
               marginBottom: 24,
+              fontFamily: "var(--font-inter), sans-serif",
             }}
           >
             Catalogue
           </span>
           <h1
             style={{
+              fontFamily: "var(--font-space-grotesk), sans-serif",
               fontSize: "clamp(32px, 5vw, 52px)",
               fontWeight: 800,
               color: "#111827",
@@ -173,22 +186,22 @@ export default function CataloguePage() {
           </h1>
           <p
             style={{
+              fontFamily: "var(--font-inter), sans-serif",
               fontSize: "clamp(16px, 2vw, 19px)",
               color: "#6B7280",
               lineHeight: 1.65,
-              maxWidth: 640,
+              maxWidth: 600,
               margin: "0 auto",
             }}
           >
-            Déléguez tout ou partie de votre processus de sourcing de candidats
-            à des agents IA spécialisés, avec une montée en autonomie progressive.
+            3 niveaux d&apos;autonomie. Choisissez celui qui correspond à votre organisation.
+            Évoluez d&apos;un niveau à l&apos;autre sans interruption.
           </p>
         </m.div>
       </section>
 
-      {/* Visual flow: 3 levels */}
+      {/* Level progression indicator */}
       <section style={{ padding: "20px 24px 80px", maxWidth: 1200, margin: "0 auto" }}>
-        {/* Level progression indicator */}
         <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -216,6 +229,7 @@ export default function CataloguePage() {
                   fontWeight: 700,
                   color: "white",
                   boxShadow: `0 0 0 4px ${level.colorMid}`,
+                  fontFamily: "var(--font-space-grotesk), sans-serif",
                 }}
               >
                 {level.number}
@@ -225,7 +239,7 @@ export default function CataloguePage() {
                   style={{
                     width: 80,
                     height: 2,
-                    background: "linear-gradient(90deg, " + LEVELS[i].color + ", " + LEVELS[i + 1].color + ")",
+                    background: `linear-gradient(90deg, ${LEVELS[i].color}, ${LEVELS[i + 1].color})`,
                     opacity: 0.3,
                   }}
                 />
@@ -256,163 +270,220 @@ export default function CataloguePage() {
                 background: "white",
                 borderRadius: 20,
                 border: `1.5px solid ${level.borderColor}`,
-                padding: "32px 28px 28px",
+                overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
-                gap: 20,
                 transition: "box-shadow 200ms, transform 200ms",
-                cursor: "default",
               }}
               whileHover={{
                 boxShadow: `0 12px 40px ${level.colorMid}`,
                 y: -4,
               }}
             >
+              {/* Top accent bar */}
+              <div style={{ height: 3, background: `linear-gradient(90deg, ${level.color}, transparent)` }} />
+
               {/* Badge */}
               {level.badge && (
                 <div
                   style={{
                     position: "absolute",
-                    top: -12,
+                    top: 20,
                     right: 20,
-                    background: level.color,
-                    color: "white",
-                    fontSize: 11,
+                    background: level.badge === "Le plus demandé" ? level.color : level.colorLight,
+                    border: level.badge === "Le plus demandé" ? "none" : `1px solid ${level.borderColor}`,
+                    color: level.badge === "Le plus demandé" ? "white" : level.color,
+                    fontSize: 10,
                     fontWeight: 700,
-                    padding: "4px 14px",
+                    padding: "4px 10px",
                     borderRadius: 100,
-                    letterSpacing: 0.5,
+                    letterSpacing: "0.04em",
                     textTransform: "uppercase",
+                    fontFamily: "var(--font-inter), sans-serif",
                   }}
                 >
                   {level.badge}
                 </div>
               )}
 
-              {/* Level header */}
-              <div>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: 1.5,
-                    textTransform: "uppercase",
-                    color: level.color,
-                  }}
-                >
-                  {level.label}
-                </span>
-                <h2
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 800,
-                    color: "#111827",
-                    margin: "8px 0 2px",
-                    letterSpacing: -0.3,
-                  }}
-                >
-                  {level.agentName}
-                </h2>
-                <p style={{ fontSize: 14, color: "#6B7280", margin: 0, fontWeight: 500 }}>
-                  {level.agentRole}
-                </p>
-              </div>
-
-              {/* Divider */}
-              <div style={{ height: 1, background: level.borderColor }} />
-
-              {/* Description */}
-              <p style={{ fontSize: 14, color: "#4B5563", lineHeight: 1.65, margin: 0 }}>
-                {level.description}
-              </p>
-
-              {/* Features */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-                {level.features.map((feat) => (
-                  <div
-                    key={feat}
+              <div style={{ padding: "28px 28px 32px", display: "flex", flexDirection: "column", gap: 20, flex: 1 }}>
+                {/* Level header */}
+                <div>
+                  <span
                     style={{
-                      display: "flex",
-                      gap: 10,
-                      alignItems: "flex-start",
-                      fontSize: 13,
-                      color: "#374151",
-                      lineHeight: 1.5,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "#9CA3AF",
+                      fontFamily: "var(--font-inter), sans-serif",
                     }}
                   >
-                    <span
+                    {level.number}
+                  </span>
+                  <h2
+                    style={{
+                      fontFamily: "var(--font-space-grotesk), sans-serif",
+                      fontSize: 28,
+                      fontWeight: 800,
+                      color: "#111827",
+                      margin: "8px 0 2px",
+                      letterSpacing: -0.3,
+                    }}
+                  >
+                    {level.agentName}
+                  </h2>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-inter), sans-serif",
+                      fontSize: 14,
+                      color: "#6B7280",
+                      margin: 0,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {level.agentRole}
+                  </p>
+                </div>
+
+                {/* Divider */}
+                <div style={{ height: 1, background: level.borderColor }} />
+
+                {/* Headline */}
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: "var(--font-space-grotesk), sans-serif",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#111827",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {level.headline}
+                </p>
+
+                {/* Description */}
+                <p
+                  style={{
+                    fontFamily: "var(--font-inter), sans-serif",
+                    fontSize: 13.5,
+                    color: "#4B5563",
+                    lineHeight: 1.7,
+                    margin: 0,
+                  }}
+                >
+                  {level.description}
+                </p>
+
+                {/* Features */}
+                <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
+                  {level.features.map((feat) => (
+                    <li
+                      key={feat}
                       style={{
-                        color: level.color,
-                        fontSize: 15,
-                        lineHeight: "20px",
-                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 9,
+                        fontFamily: "var(--font-inter), sans-serif",
+                        fontSize: 13,
+                        color: "#374151",
                       }}
                     >
-                      ✓
-                    </span>
-                    {feat}
-                  </div>
-                ))}
+                      <span
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: "50%",
+                          background: level.colorLight,
+                          border: `1px solid ${level.borderColor}`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                          <path d="M1.5 4L3.5 6L6.5 2" stroke={level.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                      {feat}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Key point callout */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "9px 12px",
+                    borderRadius: 9,
+                    background: level.colorLight,
+                    border: `1px solid ${level.borderColor}`,
+                  }}
+                >
+                  <span style={{ fontSize: 13, flexShrink: 0 }}>💡</span>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontFamily: "var(--font-inter), sans-serif",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: level.color,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {level.keyPoint}
+                  </p>
+                </div>
+
+                {/* CTA */}
+                <Link
+                  href="/signup"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "center",
+                    padding: "14px 24px",
+                    borderRadius: 12,
+                    fontWeight: 600,
+                    fontSize: 15,
+                    color: "white",
+                    background: level.color,
+                    textDecoration: "none",
+                    transition: "opacity 150ms, transform 150ms",
+                    fontFamily: "var(--font-inter), sans-serif",
+                    boxShadow: `0 4px 16px ${level.colorMid}`,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; e.currentTarget.style.transform = "translateY(-1px)" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "translateY(0)" }}
+                >
+                  Activer {level.agentName} →
+                </Link>
               </div>
-
-              {/* Result */}
-              <div
-                style={{
-                  background: level.colorLight,
-                  borderRadius: 12,
-                  padding: "14px 16px",
-                  border: `1px solid ${level.borderColor}`,
-                }}
-              >
-                <p style={{ fontSize: 12, fontWeight: 600, color: level.color, margin: "0 0 4px" }}>
-                  Résultat
-                </p>
-                <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.55 }}>
-                  {level.result}
-                </p>
-              </div>
-
-              {/* Positioning */}
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#9CA3AF",
-                  fontStyle: "italic",
-                  margin: 0,
-                  textAlign: "center",
-                }}
-              >
-                {level.positioning}
-              </p>
-
-              {/* CTA */}
-              <button
-                onClick={() => handleActivate(level.number)}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "center",
-                  padding: "14px 24px",
-                  borderRadius: 12,
-                  fontWeight: 600,
-                  fontSize: 15,
-                  color: "white",
-                  background: level.color,
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "opacity 150ms, transform 150ms",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; e.currentTarget.style.transform = "translateY(-1px)" }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "translateY(0)" }}
-              >
-                Activer {level.agentName} →
-              </button>
             </m.div>
           ))}
         </div>
+
+        {/* Trust line */}
+        <m.p
+          {...fu(0.4)}
+          style={{
+            textAlign: "center",
+            marginTop: 28,
+            fontSize: 13,
+            color: "#6B7280",
+            fontFamily: "var(--font-inter), sans-serif",
+            fontStyle: "italic",
+          }}
+        >
+          Nawa ne prend jamais contact avec les candidats à votre place.
+        </m.p>
       </section>
 
-      {/* How it works (simple) */}
+      {/* Comparison table */}
       <section
         style={{
           padding: "64px 24px",
@@ -421,12 +492,174 @@ export default function CataloguePage() {
           borderBottom: "1px solid #F0ECF8",
         }}
       >
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <m.div
+            {...fu(0)}
+            style={{ textAlign: "center", marginBottom: 48 }}
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                background: "rgba(124,99,200,0.07)",
+                border: "1px solid rgba(124,99,200,0.18)",
+                borderRadius: 100,
+                padding: "5px 14px",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#7C63C8",
+                letterSpacing: "0.09em",
+                textTransform: "uppercase" as const,
+                fontFamily: "var(--font-inter), sans-serif",
+                marginBottom: 16,
+              }}
+            >
+              Comparaison
+            </span>
+            <h2
+              style={{
+                fontFamily: "var(--font-space-grotesk), sans-serif",
+                fontSize: "clamp(22px, 3vw, 34px)",
+                fontWeight: 800,
+                color: "#111827",
+                margin: "0 auto",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Ce qui est inclus à chaque niveau
+            </h2>
+          </m.div>
+
+          <m.div {...fu(0.1)} style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-inter), sans-serif" }}>
+              <thead>
+                <tr>
+                  <th
+                    style={{
+                      textAlign: "left",
+                      padding: "12px 16px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#9CA3AF",
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      borderBottom: "2px solid #E5E7EB",
+                      width: "46%",
+                    }}
+                  >
+                    Fonctionnalité
+                  </th>
+                  {LEVELS.map((level) => (
+                    <th
+                      key={level.number}
+                      style={{
+                        textAlign: "center",
+                        padding: "12px 16px",
+                        borderBottom: "2px solid #E5E7EB",
+                        width: "18%",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-block",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: level.color,
+                          fontFamily: "var(--font-space-grotesk), sans-serif",
+                        }}
+                      >
+                        {level.agentName}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON_ROWS.map((row, i) => (
+                  <tr
+                    key={row.feature}
+                    style={{
+                      background: i % 2 === 0 ? "white" : "rgba(248,246,255,0.6)",
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: "13px 16px",
+                        fontSize: 13.5,
+                        color: "#374151",
+                        borderBottom: "1px solid #F3F4F6",
+                      }}
+                    >
+                      {row.feature}
+                    </td>
+                    {(["leo", "nora", "alex"] as const).map((key) => (
+                      <td
+                        key={key}
+                        style={{
+                          textAlign: "center",
+                          padding: "13px 16px",
+                          borderBottom: "1px solid #F3F4F6",
+                        }}
+                      >
+                        {row[key] ? (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: 22,
+                              height: 22,
+                              borderRadius: "50%",
+                              background: key === "leo"
+                                ? "rgba(59,130,246,0.1)"
+                                : key === "nora"
+                                  ? "rgba(124,99,200,0.1)"
+                                  : "rgba(124,58,237,0.1)",
+                            }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                              <path
+                                d="M2 5.5L4.5 8L9 3"
+                                stroke={key === "leo" ? "#3B82F6" : key === "nora" ? "#7C63C8" : "#7C3AED"}
+                                strokeWidth="1.75"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </span>
+                        ) : (
+                          <span style={{ color: "#D1D5DB", fontSize: 16 }}>—</span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </m.div>
+        </div>
+      </section>
+
+      {/* How it works (simple) */}
+      <section
+        style={{
+          padding: "64px 24px",
+          borderBottom: "1px solid #F0ECF8",
+        }}
+      >
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
           <m.h2
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            style={{ fontSize: 28, fontWeight: 700, color: "#111827", marginBottom: 48 }}
+            style={{
+              fontFamily: "var(--font-space-grotesk), sans-serif",
+              fontSize: 28,
+              fontWeight: 700,
+              color: "#111827",
+              marginBottom: 48,
+            }}
           >
             Comment ça fonctionne ?
           </m.h2>
@@ -438,9 +671,21 @@ export default function CataloguePage() {
             }}
           >
             {[
-              { step: "1", title: "Choisissez votre niveau", desc: "Sélectionnez le niveau d'autonomie adapté à vos besoins." },
-              { step: "2", title: "Créez votre espace", desc: "Inscrivez-vous en 30 secondes et accédez à votre agent." },
-              { step: "3", title: "Échangez avec votre agent", desc: "Décrivez votre besoin. Votre agent s'occupe du reste." },
+              {
+                step: "1",
+                title: "Choisissez votre niveau",
+                desc: "Sélectionnez le niveau d'autonomie adapté à vos besoins.",
+              },
+              {
+                step: "2",
+                title: "Votre workspace est prêt",
+                desc: "Votre workspace est configuré automatiquement en moins de 24h. Aucune intégration technique requise.",
+              },
+              {
+                step: "3",
+                title: "Votre agent travaille",
+                desc: "L'agent source, trie et qualifie vos candidats 24h/24. Vous recevez une shortlist commentée.",
+              },
             ].map((item, i) => (
               <m.div
                 key={item.step}
@@ -464,14 +709,31 @@ export default function CataloguePage() {
                     fontSize: 18,
                     fontWeight: 700,
                     margin: "0 auto 16px",
+                    fontFamily: "var(--font-space-grotesk), sans-serif",
                   }}
                 >
                   {item.step}
                 </div>
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: "#111827", marginBottom: 8 }}>
+                <h3
+                  style={{
+                    fontFamily: "var(--font-space-grotesk), sans-serif",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: "#111827",
+                    marginBottom: 8,
+                  }}
+                >
                   {item.title}
                 </h3>
-                <p style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6, margin: 0 }}>
+                <p
+                  style={{
+                    fontFamily: "var(--font-inter), sans-serif",
+                    fontSize: 14,
+                    color: "#6B7280",
+                    lineHeight: 1.6,
+                    margin: 0,
+                  }}
+                >
                   {item.desc}
                 </p>
               </m.div>
@@ -488,24 +750,64 @@ export default function CataloguePage() {
           viewport={{ once: true }}
           style={{ maxWidth: 520, margin: "0 auto" }}
         >
-          <h2 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 12 }}>
-            Prêt à automatiser votre sourcing ?
+          <h2
+            style={{
+              fontFamily: "var(--font-space-grotesk), sans-serif",
+              fontSize: 24,
+              fontWeight: 700,
+              color: "#111827",
+              marginBottom: 12,
+            }}
+          >
+            Opérationnel en 48h, sans friction
           </h2>
-          <p style={{ fontSize: 15, color: "#6B7280", marginBottom: 28 }}>
+          <p
+            style={{
+              fontFamily: "var(--font-inter), sans-serif",
+              fontSize: 15,
+              color: "#6B7280",
+              marginBottom: 12,
+            }}
+          >
             Choisissez votre agent et démarrez en moins de 48h.
           </p>
-          <Link
-            href="/workspace"
+          <p
             style={{
-              display: "inline-block",
+              fontFamily: "var(--font-inter), sans-serif",
+              fontSize: 13,
+              color: "#9CA3AF",
+              fontStyle: "italic",
+              marginBottom: 28,
+            }}
+          >
+            Nawa ne prend jamais contact avec les candidats à votre place.
+          </p>
+          <Link
+            href="/signup"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
               background: "#7C63C8",
               color: "white",
-              padding: "15px 32px",
+              padding: "14px 30px",
               borderRadius: 12,
               fontSize: 15,
               fontWeight: 600,
               textDecoration: "none",
+              fontFamily: "var(--font-inter), sans-serif",
               boxShadow: "0 4px 16px rgba(124,99,200,0.3)",
+              transition: "all 200ms cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#6B54B2"
+              e.currentTarget.style.transform = "translateY(-2px)"
+              e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.08), 0 12px 32px rgba(124,99,200,0.36)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#7C63C8"
+              e.currentTarget.style.transform = "translateY(0)"
+              e.currentTarget.style.boxShadow = "0 4px 16px rgba(124,99,200,0.3)"
             }}
           >
             Créer mon espace →
@@ -526,11 +828,11 @@ export default function CataloguePage() {
         }}
       >
         <Logo size="sm" />
-        <span style={{ fontSize: 12, color: "#9CA3AF" }}>© 2026 Nawa Studio</span>
-        <Link href="/mentions-legales" style={{ fontSize: 12, color: "#9CA3AF", textDecoration: "none" }}>
+        <span style={{ fontSize: 12, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>© 2026 Nawa Studio</span>
+        <Link href="/mentions-legales" style={{ fontSize: 12, color: "#9CA3AF", textDecoration: "none", fontFamily: "var(--font-inter), sans-serif" }}>
           Mentions légales
         </Link>
-        <a href="mailto:contact@nawastudio.com" style={{ fontSize: 12, color: "#9CA3AF", textDecoration: "none" }}>
+        <a href="mailto:contact@nawastudio.com" style={{ fontSize: 12, color: "#9CA3AF", textDecoration: "none", fontFamily: "var(--font-inter), sans-serif" }}>
           contact@nawastudio.com
         </a>
       </footer>
