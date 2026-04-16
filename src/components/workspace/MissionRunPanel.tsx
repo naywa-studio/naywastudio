@@ -74,7 +74,7 @@ export default function MissionRunPanel({
         const res = await fetch(`/api/missions/${missionId}/agent-status`)
         const data = await res.json() as { status: string; error?: string }
 
-        if (data.status === "done") {
+        if (data.status === "done" || data.status === "completed") {
           clearInterval(timerRef.current!)
           await fetchResult()
         } else if (data.status === "error") {

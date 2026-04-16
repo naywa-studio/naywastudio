@@ -129,7 +129,7 @@ export default function MissionDetailPage() {
     const sb = getSupabase()
     const [{ data: m }, { data: c }, { data: bl }] = await Promise.all([
       sb.from("missions").select("*").eq("id", missionId).single(),
-      sb.from("candidates").select("*").eq("mission_id", missionId).order("score", { ascending: false }),
+      sb.from("candidates").select("*").eq("mission_id", missionId).order("relevance_score", { ascending: false }),
       sb.from("booking_links").select("*").eq("mission_id", missionId),
     ])
     setMission(m)
@@ -167,9 +167,12 @@ export default function MissionDetailPage() {
 
   /* ── Excel download helper ───────────────────────────────── */
 
-  const downloadExcel = () => {
-    if (!excelB64 || !mission) return
-    const bytes = Uint8Array.from(atob(excelB64), (c) => c.charCodeAt(0))
+  const [reDownloading, setReDownloading] = useState(false)
+
+  const downloadExcel = (b64?: string) => {
+    const data = b64 ?? excelB64
+    if (!data || !mission) return
+    const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
     const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -177,6 +180,21 @@ export default function MissionDetailPage() {
     a.download = `${mission.title.replace(/\s+/g, "_")}_${agentLevel >= 2 ? "nora" : "leo"}.xlsx`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadClick = () => downloadExcel()
+
+  // Re-fetch Excel from agent for already-completed missions (after page refresh)
+  const reDownload = async () => {
+    if (!mission) return
+    setReDownloading(true)
+    try {
+      const res = await fetch(`/api/missions/${missionId}/download`, { method: "POST" })
+      const data = await res.json() as { ok?: boolean; excel_b64?: string; error?: string }
+      if (data.ok && data.excel_b64) downloadExcel(data.excel_b64)
+    } finally {
+      setReDownloading(false)
+    }
   }
 
   /* ── Booking link actions ─────────────────────────────────── */
@@ -332,10 +350,35 @@ export default function MissionDetailPage() {
             </p>
           </div>
           <button
-            onClick={downloadExcel}
+            onClick={handleDownloadClick}
             style={{ padding: "10px 20px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white", background: "#16a34a", fontFamily: "var(--font-inter), sans-serif", boxShadow: "0 4px 14px rgba(22,163,74,0.3)" }}
           >
             ⬇ Télécharger Excel
+          </button>
+        </m.div>
+      )}
+
+      {/* Re-download button for already-completed missions (after page refresh) */}
+      {mission?.status === "completed" && !excelB64 && !isRunning && (
+        <m.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "16px 20px", borderRadius: 14, background: "rgba(34,197,94,0.06)", border: "1.5px solid rgba(34,197,94,0.2)" }}
+        >
+          <div>
+            <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 700, color: "#16a34a", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+              ✓ {mission.profiles_count ?? candidates.length} profils trouvés
+            </p>
+            <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
+              Mission terminée · Résultats visibles ci-dessous
+            </p>
+          </div>
+          <button
+            onClick={reDownload}
+            disabled={reDownloading}
+            style={{ padding: "10px 20px", borderRadius: 10, border: "none", cursor: reDownloading ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 700, color: "white", background: reDownloading ? "#D1D5DB" : "#16a34a", fontFamily: "var(--font-inter), sans-serif", boxShadow: "0 4px 14px rgba(22,163,74,0.3)" }}
+          >
+            {reDownloading ? "Chargement…" : "⬇ Re-télécharger Excel"}
           </button>
         </m.div>
       )}

@@ -90,26 +90,34 @@ export async function POST(
   )
 
   if (agentData.candidates && agentData.candidates.length > 0) {
-    const rows = agentData.candidates.map((c) => ({
-      mission_id: missionId,
-      user_id: user.id,
-      linkedin_url: c.linkedin_url,
-      name_estimated: c.name_estimated ?? null,
-      title_estimated: c.title_estimated ?? null,
-      company: c.company ?? null,
-      keywords: c.keywords ?? [],
-      relevance_score: c.relevance_score ?? null,
-      score_justification: c.score_justification ?? null,
-      message_draft: c.message ?? null,
-      status: (c.relevance_score != null && c.relevance_score >= 60)
-        ? "shortlisted" as const
-        : "raw" as const,
-    }))
+    // Check if candidates already exist (idempotent — handles React StrictMode double-mount)
+    const { count } = await sbAdmin
+      .from("candidates")
+      .select("id", { count: "exact", head: true })
+      .eq("mission_id", missionId)
 
-    await sbAdmin.from("candidates").insert(rows)
+    if (!count || count === 0) {
+      const rows = agentData.candidates.map((c) => ({
+        mission_id: missionId,
+        user_id: user.id,
+        linkedin_url: c.linkedin_url,
+        name_estimated: c.name_estimated ?? null,
+        title_estimated: c.title_estimated ?? null,
+        company: c.company ?? null,
+        keywords: c.keywords ?? [],
+        relevance_score: c.relevance_score ?? null,
+        score_justification: c.score_justification ?? null,
+        message_draft: c.message ?? null,
+        status: (c.relevance_score != null && c.relevance_score >= 60)
+          ? "shortlisted" as const
+          : "raw" as const,
+      }))
+
+      await sbAdmin.from("candidates").insert(rows)
+    }
   }
 
-  // ── Update mission status ────────────────────────────────────────────────────
+  // ── Update mission status (idempotent) ────────────────────────────────────
   await sbAdmin
     .from("missions")
     .update({

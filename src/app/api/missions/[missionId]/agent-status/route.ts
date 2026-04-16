@@ -68,5 +68,7 @@ export async function GET(
   }
 
   const data = await res.json() as { status: string; error?: string }
-  return NextResponse.json(data)
+  // Normalize agent "completed" → "done" for the client
+  const normalizedStatus = data.status === "completed" ? "done" : data.status
+  return NextResponse.json({ ...data, status: normalizedStatus })
 }
