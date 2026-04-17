@@ -10,7 +10,20 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { getAgentBaseUrl, agentHeaders } from "@/lib/agent-proxy"
 import type { Database } from "@/lib/database.types"
-import type { MissionBrief } from "@/lib/database.types"
+
+const log = { info: (msg: string) => console.log(`[download] ${msg}`) }
+
+function normUrl(url: string): string {
+  const base = url.split("?")[0].split("#")[0].replace(/\/$/, "").toLowerCase()
+  return base.replace(/^https?:\/\/(www\.|[a-z]{2}\.)?/, "")
+}
+
+interface ScoreDimensions {
+  competences:  number
+  seniorite:    number
+  localisation: number
+  qualite:      number
+}
 
 interface AgentCandidate {
   linkedin_url: string
@@ -20,12 +33,16 @@ interface AgentCandidate {
   keywords: string[]
   relevance_score?: number | null
   score_justification?: string | null
+  score_dimensions?: ScoreDimensions | null
+  seniority_level?: string | null
   message?: string | null
+  source?: 'linkedin' | 'malt' | 'apec' | null
 }
 
 interface AgentResult {
   result: string              // base64 Excel
   candidates?: AgentCandidate[]
+  research_report?: string   // Nora only
 }
 
 export async function POST(
@@ -53,20 +70,20 @@ export async function POST(
 
   const { data: mission } = await sb
     .from("missions")
-    .select("brief, status")
+    .select("brief, status, agent_level")
     .eq("id", missionId)
     .eq("user_id", user.id)
     .single()
 
   if (!mission) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const brief = mission.brief as (MissionBrief & { __agent_id?: string }) | null
+  const brief = mission.brief as ({ __agent_id?: string } | null)
   const agentMissionId = brief?.__agent_id
   if (!agentMissionId) return NextResponse.json({ error: "No agent mission id" }, { status: 400 })
 
   let agentBase: string
   try {
-    agentBase = await getAgentBaseUrl(user.id)
+    agentBase = await getAgentBaseUrl(user.id, mission.agent_level)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: msg }, { status: 503 })
@@ -90,46 +107,94 @@ export async function POST(
   )
 
   if (agentData.candidates && agentData.candidates.length > 0) {
-    // Check if candidates already exist (idempotent — handles React StrictMode double-mount)
-    const { count } = await sbAdmin
+    // Get existing candidate URLs for this mission (for URL-based dedup)
+    const { data: existingCands } = await sbAdmin
       .from("candidates")
-      .select("id", { count: "exact", head: true })
+      .select("linkedin_url")
       .eq("mission_id", missionId)
 
-    if (!count || count === 0) {
-      const rows = agentData.candidates.map((c) => ({
-        mission_id: missionId,
-        user_id: user.id,
-        linkedin_url: c.linkedin_url,
-        name_estimated: c.name_estimated ?? null,
-        title_estimated: c.title_estimated ?? null,
-        company: c.company ?? null,
-        keywords: c.keywords ?? [],
-        relevance_score: c.relevance_score ?? null,
-        score_justification: c.score_justification ?? null,
-        message_draft: c.message ?? null,
-        status: (c.relevance_score != null && c.relevance_score >= 60)
-          ? "shortlisted" as const
-          : "raw" as const,
-      }))
+    const existingNormUrls = new Set(
+      (existingCands ?? []).map((c) => normUrl(c.linkedin_url ?? ""))
+    )
 
-      await sbAdmin.from("candidates").insert(rows)
+    const deduped = agentData.candidates.filter((c) => {
+      const n = normUrl(c.linkedin_url)
+      if (!n || existingNormUrls.has(n)) return false
+      existingNormUrls.add(n)
+      return true
+    })
+
+    // For Nora missions: top 7% by score (min 4) are shortlisted
+    // For Léo missions: fixed score >= 60 threshold
+    const isNora = mission.agent_level === 'nora'
+    let shortlistUrls: Set<string> | null = null
+    if (isNora) {
+      const sorted = [...deduped]
+        .filter((c) => c.relevance_score != null)
+        .sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0))
+      const shortlistN = Math.max(4, Math.ceil(deduped.length * 0.07))
+      shortlistUrls = new Set(sorted.slice(0, shortlistN).map((c) => normUrl(c.linkedin_url)))
     }
+
+    const newRows = deduped.map((c) => ({
+      mission_id: missionId,
+      user_id: user.id,
+      linkedin_url: c.linkedin_url,
+      name_estimated: c.name_estimated ?? null,
+      title_estimated: c.title_estimated ?? null,
+      company: c.company ?? null,
+      keywords: c.keywords ?? [],
+      relevance_score: c.relevance_score ?? null,
+      score_justification: c.score_justification ?? null,
+      score_dimensions: c.score_dimensions ?? null,
+      seniority_level: c.seniority_level ?? null,
+      // Agent may pre-generate message for top profils (used in Excel)
+      // but status stays 'raw' — the Nora carousel is the validation step
+      message_draft: c.message ?? null,
+      source: c.source ?? 'linkedin',
+      status: "raw" as const,
+    }))
+
+    if (newRows.length > 0) {
+      await sbAdmin.from("candidates").insert(newRows)
+      log.info(`Inserted ${newRows.length} new candidates for mission ${missionId}`)
+    }
+
+    const totalCount = (existingCands?.length ?? 0) + newRows.length
+
+    // Save research_report if provided (Nora agent only)
+    const missionUpdate: {
+      status: "completed"
+      profiles_count: number
+      research_report?: string | null
+    } = {
+      status: "completed",
+      profiles_count: totalCount,
+    }
+    if (agentData.research_report) {
+      missionUpdate.research_report = agentData.research_report
+    }
+    await sbAdmin.from("missions").update(missionUpdate).eq("id", missionId)
+
+    return NextResponse.json({
+      ok: true,
+      excel_b64: agentData.result,
+      candidates_count: totalCount,
+      new_candidates: newRows.length,
+      research_report: agentData.research_report ?? null,
+    })
   }
 
-  // ── Update mission status (idempotent) ────────────────────────────────────
+  // ── No candidates — still mark completed ────────────────────────────────────
   await sbAdmin
     .from("missions")
-    .update({
-      status: "completed",
-      profiles_count: agentData.candidates?.length ?? 0,
-    })
+    .update({ status: "completed", profiles_count: 0 })
     .eq("id", missionId)
 
-  // ── Return Excel base64 + candidate count ────────────────────────────────────
   return NextResponse.json({
     ok: true,
     excel_b64: agentData.result,
-    candidates_count: agentData.candidates?.length ?? 0,
+    candidates_count: 0,
+    new_candidates: 0,
   })
 }

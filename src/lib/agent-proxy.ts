@@ -17,8 +17,15 @@ function supabaseAdmin() {
   )
 }
 
-export async function getAgentBaseUrl(userId: string): Promise<string> {
+export async function getAgentBaseUrl(
+  userId: string,
+  agentLevel?: string | null,
+): Promise<string> {
   // ── Docker / local dev override ───────────────────────────────────────────
+  // NAWA_AGENT_URL_NORA overrides for Nora container (port 8001 by default)
+  if (agentLevel === "nora" && process.env.NAWA_AGENT_URL_NORA) {
+    return process.env.NAWA_AGENT_URL_NORA.replace(/\/$/, "")
+  }
   if (process.env.NAWA_AGENT_URL) {
     return process.env.NAWA_AGENT_URL.replace(/\/$/, "")
   }

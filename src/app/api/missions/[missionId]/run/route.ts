@@ -49,7 +49,7 @@ export async function POST(
   // ── Get agent URL ────────────────────────────────────────────────────────────
   let agentBase: string
   try {
-    agentBase = await getAgentBaseUrl(user.id)
+    agentBase = await getAgentBaseUrl(user.id, mission.agent_level)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: msg }, { status: 503 })

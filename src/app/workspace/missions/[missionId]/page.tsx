@@ -7,8 +7,11 @@ import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
 import { AGENT_LEVELS } from "@/lib/mock-store"
 import { useWorkspace } from "../../layout"
-import BriefForm from "@/components/workspace/BriefForm"
+import BriefChat, { type BriefChatHandle } from "@/components/workspace/BriefChat"
 import MissionRunPanel from "@/components/workspace/MissionRunPanel"
+import NoraDashboard from "@/components/workspace/NoraDashboard"
+import CandidateCarousel from "@/components/workspace/CandidateCarousel"
+import { SOURCE_META } from "@/lib/candidate-meta"
 import type { Database } from "@/lib/database.types"
 import type { MissionBrief } from "@/lib/database.types"
 
@@ -55,29 +58,6 @@ const BOOKING_STATUS_META: Record<BookingLink["status"], { label: string; color:
   done:     { label: "Effectué",   color: "#22c55e" },
 }
 
-const AGENT_QUESTIONS: Record<number, string[]> = {
-  1: [
-    "Bonjour ! Je suis Léo. Décrivez-moi le profil que vous recherchez et je nettoierai votre liste.",
-    "Quel format de fichier source souhaitez-vous utiliser ? (CSV, Excel, export Walaxy…)",
-    "Merci. Je vais analyser et trier votre liste. Les résultats arrivent très vite.",
-  ],
-  2: [
-    "Bonjour ! Je suis Nora. Décrivez-moi le poste que vous cherchez à pourvoir.",
-    "Quel niveau d'expérience attendez-vous ? Dans quel périmètre géographique ?",
-    "Des compétences techniques ou soft skills indispensables ?",
-    "Parfait, j'ai tout ce qu'il me faut. Je lance le sourcing et vous présenterai une shortlist priorisée.",
-  ],
-  3: [
-    "Bonjour ! Je suis Alex. Décrivez-moi le poste et son contexte.",
-    "Quel est le budget salarial prévu et le type de contrat ?",
-    "Y a-t-il des contraintes de délai ?",
-    "Des compétences techniques ou qualités humaines incontournables ?",
-    "Parfait. Je prends en charge l'intégralité du processus. Premiers profils sous 48h.",
-  ],
-}
-
-type ChatMsg = { id: string; role: "agent" | "user"; text: string }
-
 /* ── Helpers ───────────────────────────────────────────────── */
 
 function buildBookingPageUrl(token: string) {
@@ -117,12 +97,12 @@ export default function MissionDetailPage() {
   const [bookingLinks, setBookingLinks] = useState<BookingLink[]>([])
   const [loading, setLoading] = useState(true)
   const [activeSection, setActiveSection] = useState<SectionKey>("results")
+  const briefChatRef = useRef<BriefChatHandle>(null)
 
   // Run state
   const [isRunning, setIsRunning] = useState(false)
   const [excelB64, setExcelB64] = useState<string | null>(null)
 
-  const chatEndRef = useRef<HTMLDivElement>(null)
   const sections = getSections(agentLevel)
 
   const fetchData = useCallback(async () => {
@@ -140,23 +120,31 @@ export default function MissionDetailPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  /* ── Brief submission → save to DB ──────────────────────── */
+  /* ── Chat-guided brief launch ───────────────────────────── */
 
-  const handleBriefSubmit = async (brief: MissionBrief) => {
+  const handleChatLaunch = async (brief: MissionBrief) => {
     await getSupabase()
       .from("missions")
       .update({ brief })
       .eq("id", missionId)
-    setMission((prev) => prev ? { ...prev, brief } : prev)
+    setMission((prev) => prev ? { ...prev, brief, status: "in_progress" } : prev)
     setIsRunning(true)
   }
 
   /* ── Run completed ───────────────────────────────────────── */
 
-  const handleRunCompleted = (b64: string, count: number) => {
+  const handleRunCompleted = (b64: string, count: number, researchReport?: string) => {
     setExcelB64(b64)
     setIsRunning(false)
-    setMission((prev) => prev ? { ...prev, status: "completed", profiles_count: count } : prev)
+    setMission((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        status: "completed",
+        profiles_count: count,
+        research_report: researchReport ?? prev.research_report ?? null,
+      }
+    })
     fetchData() // reload candidates from DB
   }
 
@@ -194,6 +182,73 @@ export default function MissionDetailPage() {
       if (data.ok && data.excel_b64) downloadExcel(data.excel_b64)
     } finally {
       setReDownloading(false)
+    }
+  }
+
+  /* ── Contact tracking (Nora) ────────────────────────────────── */
+
+  const handleContact = async (candidateId: string) => {
+    const current = candidates.find((c) => c.id === candidateId)
+    const previousVal = current?.contacted_at ?? null
+    const newVal = previousVal ? null : new Date().toISOString()
+    // Optimistic update
+    setCandidates((prev) =>
+      prev.map((c) => c.id === candidateId ? { ...c, contacted_at: newVal } : c)
+    )
+    try {
+      await fetch(`/api/candidates/${candidateId}/contact`, { method: "PATCH" })
+    } catch {
+      // Rollback on failure
+      setCandidates((prev) =>
+        prev.map((c) => c.id === candidateId ? { ...c, contacted_at: previousVal } : c)
+      )
+    }
+  }
+
+  /* ── Carousel decision (Nora) ──────────────────────────────── */
+
+  const handleDecision = async (
+    candidateId: string,
+    decision: "validated" | "rejected" | "later",
+    messageDraft?: string
+  ) => {
+    if (decision === "validated") {
+      setCandidates((prev) =>
+        prev.map((c) =>
+          c.id === candidateId
+            ? { ...c, status: "shortlisted" as const, message_draft: messageDraft ?? c.message_draft }
+            : c
+        )
+      )
+    } else if (decision === "rejected") {
+      setCandidates((prev) =>
+        prev.map((c) => c.id === candidateId ? { ...c, status: "rejected" as const } : c)
+      )
+      try {
+        await getSupabase().from("candidates").update({ status: "rejected" }).eq("id", candidateId)
+      } catch { /* ignore — optimistic update already applied */ }
+    }
+    // "later" = skipped in carousel queue, no DB change
+  }
+
+  /* ── Consult tracking ───────────────────────────────────────── */
+
+  const handleConsult = async (candidateId: string) => {
+    // Optimistic update
+    setCandidates((prev) =>
+      prev.map((c) =>
+        c.id === candidateId ? { ...c, consulted_at: new Date().toISOString() } : c
+      )
+    )
+    try {
+      await fetch(`/api/candidates/${candidateId}/consult`, { method: "PATCH" })
+    } catch {
+      // Rollback on failure
+      setCandidates((prev) =>
+        prev.map((c) =>
+          c.id === candidateId ? { ...c, consulted_at: null } : c
+        )
+      )
     }
   }
 
@@ -265,65 +320,123 @@ export default function MissionDetailPage() {
   const missionDate = new Date(mission.created_at).toLocaleDateString("fr-FR", {
     day: "numeric", month: "long", year: "numeric",
   })
-  const briefDefined = Boolean(mission.brief)
+
+  /* ── Nora-specific computed values ───────────────────────────── */
+  const scoredCandidates = candidates.filter((c) => c.relevance_score != null)
+  const shortlistN = scoredCandidates.length > 0
+    ? Math.max(4, Math.ceil(scoredCandidates.length * 0.07))
+    : 0
+  const topByScore = [...scoredCandidates]
+    .sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0))
+    .slice(0, shortlistN)
+  // Carousel shows top 7% candidates not yet decided (still raw)
+  const carouselCandidates = topByScore.filter((c) => c.status === "raw")
+  // Validated section shows status=shortlisted
+  const validatedCandidates = candidates.filter((c) => c.status === "shortlisted")
+  const rejectedCount = candidates.filter((c) => c.status === "rejected").length
+  const carouselDone = shortlistN > 0 && carouselCandidates.length === 0
 
   return (
-    <main style={{ maxWidth: 960, margin: "0 auto", padding: "32px 24px 80px" }}>
-      {/* Breadcrumb */}
-      <nav style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#9CA3AF" }}>
-        <Link href="/workspace" style={{ color: "#9CA3AF", textDecoration: "none", fontFamily: "var(--font-inter), sans-serif" }}>
-          Workspace
-        </Link>
-        <span>/</span>
-        <span style={{ color: "#374151", fontWeight: 500, fontFamily: "var(--font-inter), sans-serif", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {mission.title}
-        </span>
-      </nav>
+    <div style={{ display: "flex", minHeight: "calc(100vh - 60px)", position: "relative" }}>
+      {/* Animated background bands */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
+        <div style={{
+          position: "absolute", inset: "-100%",
+          background: "repeating-linear-gradient(118deg, transparent 0px, transparent 90px, rgba(124,99,200,0.022) 90px, rgba(124,99,200,0.022) 180px)",
+          animation: "bandsDrift 30s linear infinite",
+        }} />
+        <div style={{
+          position: "absolute", inset: "-100%",
+          background: "repeating-linear-gradient(118deg, transparent 0px, transparent 140px, rgba(124,99,200,0.013) 140px, rgba(124,99,200,0.013) 280px)",
+          animation: "bandsDrift 45s linear infinite reverse",
+        }} />
+        <style>{`@keyframes bandsDrift { 0% { transform: translateX(0); } 100% { transform: translateX(180px); } }`}</style>
+      </div>
 
-      {/* Mission header */}
-      <m.div
-        {...fu(0)}
-        style={{ background: "white", borderRadius: 18, border: `1.5px solid ${agent.borderColor}`, overflow: "hidden", marginBottom: 20 }}
-      >
-        <div style={{ height: 3, background: agent.color }} />
-        <div style={{ padding: "20px 24px" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: briefDefined ? 0 : 16 }}>
+      {/* ── LEFT SIDEBAR — BriefChat ─────────────────────────── */}
+      <div style={{
+        width: 460,
+        flexShrink: 0,
+        position: "sticky",
+        top: 60,
+        height: "calc(100vh - 60px)",
+        borderRight: "1.5px solid #F0ECF8",
+        background: "rgba(255,255,255,0.98)",
+        display: "flex",
+        flexDirection: "column",
+        zIndex: 5,
+        overflowY: "auto",
+        padding: "20px",
+      }}>
+        <BriefChat
+          ref={briefChatRef}
+          missionId={missionId}
+          firstName={profile?.first_name ?? null}
+          agentColor={agent.color}
+          agentName={agent.agent}
+          isRunning={isRunning}
+          completedCount={mission.status === "completed" ? (mission.profiles_count ?? candidates.length) : undefined}
+          onLaunch={handleChatLaunch}
+        />
+      </div>
+
+      {/* ── RIGHT CONTENT ─────────────────────────────────────── */}
+      <div style={{ flex: 1, minWidth: 0, padding: "28px 28px 80px", position: "relative", zIndex: 1 }}>
+
+        {/* Top nav: back button + breadcrumb */}
+        <div style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+          <Link
+            href="/workspace"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "7px 14px", borderRadius: 10,
+              border: "1.5px solid #E2DAF6", background: "white",
+              color: "#7C63C8", fontSize: 13, fontWeight: 600,
+              textDecoration: "none", fontFamily: "var(--font-inter), sans-serif",
+              transition: "all 150ms", boxShadow: "0 1px 4px rgba(124,99,200,0.08)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#F0ECF8"; e.currentTarget.style.borderColor = "#7C63C8" }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#E2DAF6" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+              <path d="M15 10H5M9 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Workspace
+          </Link>
+          <nav style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#9CA3AF" }}>
+            <span style={{ fontFamily: "var(--font-inter), sans-serif" }}>Workspace</span>
+            <span>/</span>
+            <span style={{ color: "#374151", fontWeight: 500, fontFamily: "var(--font-inter), sans-serif", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {mission.title}
+            </span>
+          </nav>
+        </div>
+
+        {/* Mission header */}
+        <m.div
+          {...fu(0)}
+          style={{ background: "white", borderRadius: 16, border: `1.5px solid ${agent.borderColor}`, overflow: "hidden", marginBottom: 18 }}
+        >
+          <div style={{ height: 3, background: agent.color }} />
+          <div style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
             <div>
-              <h1 style={{ margin: "0 0 4px", fontSize: "clamp(18px, 2.5vw, 24px)", fontWeight: 800, color: "#111827", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+              <h1 style={{ margin: "0 0 2px", fontSize: "clamp(15px, 2vw, 20px)", fontWeight: 800, color: "#111827", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
                 {mission.title}
               </h1>
-              <p style={{ margin: 0, fontSize: 13, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>
+              <p style={{ margin: 0, fontSize: 12, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>
                 Agent {agent.agent} · Créée le {missionDate}
+                {candidates.length > 0 && ` · ${candidates.length} profil${candidates.length > 1 ? "s" : ""}`}
               </p>
             </div>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, padding: "5px 12px", borderRadius: 999, color: statusMeta.color, background: statusMeta.bg, fontFamily: "var(--font-inter), sans-serif" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, padding: "5px 11px", borderRadius: 999, color: statusMeta.color, background: statusMeta.bg, fontFamily: "var(--font-inter), sans-serif" }}>
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: statusMeta.color }} />
               {statusMeta.label}
             </span>
           </div>
-
-        </div>
-      </m.div>
-
-      {/* ── Brief form (mission not yet started) ─────────────────────────── */}
-      {!briefDefined && !isRunning && (
-        <m.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{ background: "white", borderRadius: 18, border: "1.5px solid #F0ECF8", padding: "24px", marginBottom: 20 }}
-        >
-          <BriefForm
-            agentColor={agent.color}
-            agentName={agent.agent}
-            agentLevel={agentLevel}
-            onSubmit={handleBriefSubmit}
-          />
         </m.div>
-      )}
 
-      {/* ── Mission running (polling) ─────────────────────────────────── */}
-      {isRunning && mission && (
-        <m.div style={{ marginBottom: 20 }}>
+        {/* ── Running ─────────────────────────────────────── */}
+        {isRunning && (
           <MissionRunPanel
             missionId={missionId}
             agentColor={agent.color}
@@ -331,149 +444,431 @@ export default function MissionDetailPage() {
             onCompleted={handleRunCompleted}
             onError={handleRunError}
           />
-        </m.div>
-      )}
+        )}
 
-      {/* ── Excel download button (after completion) ─────────────────── */}
-      {excelB64 && (
-        <m.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "16px 20px", borderRadius: 14, background: "rgba(34,197,94,0.06)", border: "1.5px solid rgba(34,197,94,0.2)" }}
-        >
-          <div>
-            <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 700, color: "#16a34a", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
-              ✓ {mission?.profiles_count ?? 0} profils trouvés
+        {/* ── Not started yet ─────────────────────────────── */}
+        {!isRunning && candidates.length === 0 && (
+          <div style={{
+            background: "white", borderRadius: 16, border: "1.5px solid #F0ECF8",
+            padding: "60px 24px", textAlign: "center",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12,
+          }}>
+            <div style={{ fontSize: 40 }}>💬</div>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#374151", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+              Définissez votre recherche
             </p>
-            <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
-              Fichier Excel prêt · également visible dans les résultats ci-dessous
+            <p style={{ margin: 0, fontSize: 13, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif", maxWidth: 320 }}>
+              Discutez avec l'assistant pour cadrer votre besoin et lancer la recherche.
             </p>
           </div>
-          <button
-            onClick={handleDownloadClick}
-            style={{ padding: "10px 20px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white", background: "#16a34a", fontFamily: "var(--font-inter), sans-serif", boxShadow: "0 4px 14px rgba(22,163,74,0.3)" }}
-          >
-            ⬇ Télécharger Excel
-          </button>
-        </m.div>
-      )}
+        )}
 
-      {/* Re-download button for already-completed missions (after page refresh) */}
-      {mission?.status === "completed" && !excelB64 && !isRunning && (
-        <m.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "16px 20px", borderRadius: 14, background: "rgba(34,197,94,0.06)", border: "1.5px solid rgba(34,197,94,0.2)" }}
-        >
-          <div>
-            <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 700, color: "#16a34a", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
-              ✓ {mission.profiles_count ?? candidates.length} profils trouvés
-            </p>
-            <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
-              Mission terminée · Résultats visibles ci-dessous
-            </p>
-          </div>
-          <button
-            onClick={reDownload}
-            disabled={reDownloading}
-            style={{ padding: "10px 20px", borderRadius: 10, border: "none", cursor: reDownloading ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 700, color: "white", background: reDownloading ? "#D1D5DB" : "#16a34a", fontFamily: "var(--font-inter), sans-serif", boxShadow: "0 4px 14px rgba(22,163,74,0.3)" }}
-          >
-            {reDownloading ? "Chargement…" : "⬇ Re-télécharger Excel"}
-          </button>
-        </m.div>
-      )}
+        {/* ── Results ─────────────────────────────────────── */}
+        {!isRunning && candidates.length > 0 && (
+          agentLevel === 2 ? (
+            /* ━━ NORA: Rapport + Tableur + Carousel + Validated + Dashboard ━━ */
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
-      {/* Sections — once brief is defined and not running */}
-      {briefDefined && !isRunning && (
-        <m.div {...fu(0.08)}>
-          {/* Section tabs */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 2 }}>
-            {sections.map((key) => {
-              const meta = SECTION_META[key]
-              const isActive = activeSection === key
-              return (
+              {/* 0. Research report (Nora insight) */}
+              {mission.research_report && (
+                <div style={{
+                  borderRadius: 14,
+                  border: "1.5px solid #E2DAF6",
+                  background: "linear-gradient(135deg, #FDFAFF 0%, #F5F0FF 100%)",
+                  padding: "14px 18px",
+                  display: "flex", gap: 12, alignItems: "flex-start",
+                }}>
+                  <span style={{ fontSize: 20, flexShrink: 0, lineHeight: 1 }}>🔍</span>
+                  <div>
+                    <p style={{
+                      margin: "0 0 5px", fontSize: 10, fontWeight: 700, color: "#7C63C8",
+                      textTransform: "uppercase", letterSpacing: "0.07em",
+                      fontFamily: "var(--font-inter), sans-serif",
+                    }}>
+                      Analyse Nora
+                    </p>
+                    <p style={{
+                      margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.6,
+                      fontFamily: "var(--font-inter), sans-serif",
+                    }}>
+                      {mission.research_report}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 1. Tableur / Excel card */}
+              <div style={{
+                background: "white", borderRadius: 14,
+                border: "1.5px solid #F0ECF8",
+                padding: "16px 20px",
+                display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
+              }}>
+                <div>
+                  <p style={{ margin: "0 0 10px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-inter), sans-serif" }}>
+                    Tableur de résultats
+                  </p>
+                  <div style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+                        {candidates.length}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>Profils trouvés</p>
+                    </div>
+                    <div style={{ width: 1, height: 28, background: "#F0ECF8" }} />
+                    <div>
+                      <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#16a34a", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+                        {validatedCandidates.length}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>Validés</p>
+                    </div>
+                    {rejectedCount > 0 && (
+                      <>
+                        <div style={{ width: 1, height: 28, background: "#F0ECF8" }} />
+                        <div>
+                          <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#DC2626", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+                            {rejectedCount}
+                          </p>
+                          <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>Refusés</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
                 <button
-                  key={key}
-                  onClick={() => setActiveSection(key)}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10, border: isActive ? `1.5px solid ${agent.borderColor}` : "1.5px solid #F0ECF8", cursor: "pointer", fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? agent.color : "#6B7280", background: isActive ? agent.colorLight : "white", fontFamily: "var(--font-inter), sans-serif", whiteSpace: "nowrap", transition: "all 150ms" }}
+                  onClick={mission.status === "completed" && !excelB64 ? reDownload : handleDownloadClick}
+                  disabled={reDownloading || (!excelB64 && mission.status !== "completed")}
+                  style={{
+                    padding: "10px 18px", borderRadius: 10, border: "none",
+                    background: (!excelB64 && mission.status !== "completed") ? "#F0ECF8" : "#16a34a",
+                    color: (!excelB64 && mission.status !== "completed") ? "#9CA3AF" : "white",
+                    fontSize: 13, fontWeight: 700,
+                    cursor: (!excelB64 && mission.status !== "completed") ? "not-allowed" : "pointer",
+                    fontFamily: "var(--font-inter), sans-serif",
+                    transition: "all 150ms",
+                  }}
                 >
-                  <span>{meta.icon}</span>
-                  {meta.label}
-                  {key === "calendar" && bookingLinks.length > 0 && (
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: agent.colorMid, color: agent.color }}>{bookingLinks.length}</span>
-                  )}
+                  {reDownloading ? "…" : "⬇ Télécharger Excel"}
                 </button>
-              )
-            })}
-          </div>
+              </div>
 
-          {/* Section content */}
-          <div style={{ background: "white", borderRadius: 16, border: "1.5px solid #F0ECF8", padding: "24px", minHeight: 200 }}>
-            {activeSection === "results" && <ResultsSection candidates={candidates} />}
-            {activeSection === "scoring" && <ScoringSection candidates={candidates} />}
-            {activeSection === "messages" && (
-              <MessagesSection
+              {/* 2. CandidateCarousel */}
+              {!carouselDone ? (
+                <div style={{
+                  background: "white", borderRadius: 14,
+                  border: "1.5px solid #E2DAF6",
+                  padding: "20px",
+                  boxShadow: "0 4px 20px rgba(124,99,200,0.07)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+                      Évaluation candidats
+                    </p>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999,
+                      background: "#F0ECF8", color: "#7C63C8",
+                      fontFamily: "var(--font-inter), sans-serif", textTransform: "uppercase", letterSpacing: "0.04em",
+                    }}>
+                      Top {shortlistN} profils
+                    </span>
+                  </div>
+                  <CandidateCarousel
+                    candidates={carouselCandidates}
+                    missionId={missionId}
+                    onDecision={handleDecision}
+                  />
+                </div>
+              ) : (
+                /* Carousel finished — summary pill */
+                <div style={{
+                  background: "white", borderRadius: 14, border: "1.5px solid #E2DAF6",
+                  padding: "20px 24px", display: "flex", alignItems: "center", gap: 14,
+                }}>
+                  <span style={{ fontSize: 28 }}>🎯</span>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+                      Évaluation terminée
+                    </p>
+                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>
+                      {validatedCandidates.length} validé{validatedCandidates.length !== 1 ? "s" : ""}
+                      {rejectedCount > 0 && ` · ${rejectedCount} refusé${rejectedCount !== 1 ? "s" : ""}`}
+                      {" · "}messages prêts à copier
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Validated candidates with messages */}
+              {validatedCandidates.length > 0 && (
+                <ValidatedSection
+                  candidates={validatedCandidates}
+                  onContact={handleContact}
+                />
+              )}
+
+              {/* 4. NoraDashboard: full accordion for all candidates */}
+              <NoraDashboard
                 candidates={candidates}
-                bookingLinks={bookingLinks}
-                agentLevel={agentLevel}
-                hasBookingUrl={Boolean(profile?.booking_url)}
-                onGenerateLink={generateBookingLink}
+                briefChatRef={briefChatRef}
+                onConsult={handleConsult}
+                onContact={handleContact}
               />
-            )}
-            {activeSection === "pipeline" && (
-              <PipelineSection
-                candidates={candidates}
-                bookingLinks={bookingLinks}
-                onUpdateStatus={updateBookingStatus}
-              />
-            )}
-            {activeSection === "calendar" && (
-              <CalendarSection
-                candidates={candidates}
-                bookingLinks={bookingLinks}
-                onUpdateStatus={updateBookingStatus}
-              />
-            )}
-          </div>
-        </m.div>
-      )}
-    </main>
+            </div>
+          ) : (
+            /* ━━ LÉO: tab-based sections ━━ */
+            <div>
+              <div style={{ display: "flex", gap: 5, marginBottom: 12, overflowX: "auto", paddingBottom: 2 }}>
+                {sections.map((key) => {
+                  const meta = SECTION_META[key]
+                  const isActive = activeSection === key
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setActiveSection(key)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: isActive ? `1.5px solid ${agent.borderColor}` : "1.5px solid #F0ECF8", cursor: "pointer", fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? agent.color : "#6B7280", background: isActive ? agent.colorLight : "white", fontFamily: "var(--font-inter), sans-serif", whiteSpace: "nowrap", transition: "all 150ms" }}
+                    >
+                      <span>{meta.icon}</span>
+                      {meta.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <div style={{ background: "white", borderRadius: 14, border: "1.5px solid #F0ECF8", padding: "20px" }}>
+                {activeSection === "results" && <ResultsSection candidates={candidates} onConsult={handleConsult} />}
+                {activeSection === "scoring" && <ScoringSection candidates={candidates} />}
+                {activeSection === "messages" && (
+                  <MessagesSection
+                    candidates={candidates}
+                    bookingLinks={bookingLinks}
+                    agentLevel={agentLevel}
+                    hasBookingUrl={Boolean(profile?.booking_url)}
+                    onGenerateLink={generateBookingLink}
+                  />
+                )}
+                {activeSection === "pipeline" && (
+                  <PipelineSection
+                    candidates={candidates}
+                    bookingLinks={bookingLinks}
+                    onUpdateStatus={updateBookingStatus}
+                  />
+                )}
+                {activeSection === "calendar" && (
+                  <CalendarSection
+                    candidates={candidates}
+                    bookingLinks={bookingLinks}
+                    onUpdateStatus={updateBookingStatus}
+                  />
+                )}
+              </div>
+            </div>
+          )
+        )}
+      </div>
+    </div>
   )
 }
 
 /* ── Section components ────────────────────────────────────── */
 
-function ResultsSection({ candidates }: { candidates: Candidate[] }) {
+function ResultsSection({ candidates, onConsult }: { candidates: Candidate[]; onConsult: (id: string) => void }) {
+  const [filter, setFilter] = useState<"all" | "linkedin" | "malt" | "apec">("all")
+  const [search, setSearch] = useState("")
+
   if (candidates.length === 0) return <WaitingState label="Les profils identifiés apparaîtront ici." />
+
+  const consultedCount = candidates.filter((c) => c.consulted_at).length
+  const liCount   = candidates.filter((c) => (c.source ?? "linkedin") === "linkedin").length
+  const maltCount = candidates.filter((c) => c.source === "malt").length
+  const apecCount = candidates.filter((c) => c.source === "apec").length
+
+  const filtered = candidates.filter((c) => {
+    const matchSource = filter === "all" || (c.source ?? "linkedin") === filter
+    const matchSearch = !search || [c.name_estimated, c.title_estimated, c.company]
+      .some((v) => v?.toLowerCase().includes(search.toLowerCase()))
+    return matchSource && matchSearch
+  })
+
   return (
     <div>
-      <p style={{ margin: "0 0 12px", fontSize: 13, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
-        {candidates.length} profil{candidates.length !== 1 ? "s" : ""} identifié{candidates.length !== 1 ? "s" : ""}
-      </p>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", minWidth: 480, borderCollapse: "collapse", fontSize: 13 }}>
-          <thead>
-            <tr>
-              {["Nom estimé", "Entreprise", "Score", "Statut"].map((h) => (
-                <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "2px solid #F0ECF8", fontFamily: "var(--font-inter), sans-serif" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {candidates.map((c) => (
-              <tr key={c.id} style={{ borderBottom: "1px solid #F8F6FF" }}>
-                <td style={{ padding: "11px 12px", fontWeight: 500, color: "#111827", fontFamily: "var(--font-inter), sans-serif" }}>{c.name_estimated ?? "—"}</td>
-                <td style={{ padding: "11px 12px", color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>{c.company ?? "—"}</td>
-                <td style={{ padding: "11px 12px" }}>
-                  {c.relevance_score !== null ? (
-                    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 6, fontSize: 12, fontWeight: 700, color: c.relevance_score >= 80 ? "#22c55e" : "#F59E0B", background: c.relevance_score >= 80 ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", fontFamily: "var(--font-inter), sans-serif" }}>{c.relevance_score}</span>
-                  ) : "—"}
-                </td>
-                <td style={{ padding: "11px 12px", color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>{c.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Stats bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        {/* Source filter pills */}
+        {[
+          { key: "all",      label: `Tous (${candidates.length})`,  color: "#7C63C8", bg: "#F0ECF8" },
+          { key: "linkedin", label: `LinkedIn (${liCount})`,        color: "#0A66C2", bg: "rgba(10,102,194,0.08)" },
+          { key: "malt",     label: `Malt (${maltCount})`,          color: "#FC5757", bg: "rgba(252,87,87,0.08)" },
+          { key: "apec",     label: `APEC (${apecCount})`,          color: "#E87722", bg: "rgba(232,119,34,0.08)" },
+        ].map(({ key, label, color, bg }) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key as typeof filter)}
+            style={{
+              padding: "5px 12px", borderRadius: 999, border: `1.5px solid ${filter === key ? color : "#E5E7EB"}`,
+              background: filter === key ? bg : "white", color: filter === key ? color : "#6B7280",
+              fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 130ms",
+              fontFamily: "var(--font-inter), sans-serif",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+
+        {/* Search */}
+        <div style={{ marginLeft: "auto", position: "relative", minWidth: 180 }}>
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none"
+            style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }}>
+            <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.8"/>
+            <path d="M13.5 13.5l3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher…"
+            style={{
+              paddingLeft: 28, paddingRight: 10, paddingTop: 6, paddingBottom: 6,
+              borderRadius: 8, border: "1.5px solid #E5E7EB", fontSize: 12,
+              color: "#111827", outline: "none", background: "white", width: "100%",
+              fontFamily: "var(--font-inter), sans-serif", boxSizing: "border-box" as const,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Consulted info */}
+      {consultedCount > 0 && (
+        <p style={{ margin: "0 0 10px", fontSize: 11, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>
+          {consultedCount} profil{consultedCount > 1 ? "s" : ""} consulté{consultedCount > 1 ? "s" : ""}
+          {" · "}cliquez sur un lien pour marquer comme consulté
+        </p>
+      )}
+
+      {/* Card list */}
+      <div style={{ maxHeight: "calc(100vh - 420px)", minHeight: 300, overflowY: "auto", display: "flex", flexDirection: "column", gap: 5, paddingRight: 2 }}>
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 0", color: "#9CA3AF", fontSize: 13, fontFamily: "var(--font-inter), sans-serif" }}>
+            Aucun profil pour ce filtre.
+          </div>
+        ) : filtered.map((c, i) => {
+          const source    = (c.source ?? "linkedin") as keyof typeof SOURCE_META
+          const srcMeta   = SOURCE_META[source] ?? SOURCE_META.linkedin
+          const isConsulted = Boolean(c.consulted_at)
+          const score     = c.relevance_score
+
+          return (
+            <div
+              key={c.id}
+              style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                borderRadius: 11,
+                border: `1.5px solid ${isConsulted ? "#E2DAF6" : "#F0ECF8"}`,
+                background: isConsulted ? "#FDFAFF" : "white",
+                transition: "all 150ms", opacity: isConsulted ? 0.72 : 1,
+              }}
+              onMouseEnter={(e) => { if (!isConsulted) (e.currentTarget as HTMLElement).style.borderColor = "#E2DAF6" }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isConsulted ? "#E2DAF6" : "#F0ECF8" }}
+            >
+              {/* Index */}
+              <span style={{
+                flexShrink: 0, width: 24, height: 24, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 10, fontWeight: 700, fontFamily: "var(--font-inter), sans-serif",
+                color: isConsulted ? "#7C63C8" : "#9CA3AF",
+                background: isConsulted ? "#EDE8FB" : "#F8F6FF",
+              }}>
+                {isConsulted ? "✓" : i + 1}
+              </span>
+
+              {/* Source badge */}
+              <span style={{
+                flexShrink: 0, width: 22, height: 22, borderRadius: 6,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 10, fontWeight: 800, color: srcMeta.color, background: srcMeta.bg,
+                fontFamily: "var(--font-inter), sans-serif", letterSpacing: -0.3,
+              }}>
+                {srcMeta.icon}
+              </span>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <p style={{
+                    margin: 0, fontSize: 13, fontWeight: 600, color: "#111827",
+                    fontFamily: "var(--font-inter), sans-serif",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160,
+                  }}>
+                    {c.name_estimated ?? "Profil inconnu"}
+                  </p>
+                  {isConsulted && (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999, color: "#7C63C8", background: "#EDE8FB", fontFamily: "var(--font-inter), sans-serif", whiteSpace: "nowrap" }}>
+                      Consulté
+                    </span>
+                  )}
+                </div>
+                <p style={{
+                  margin: "1px 0 0", fontSize: 11, color: "#6B7280",
+                  fontFamily: "var(--font-inter), sans-serif",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260,
+                }}>
+                  {[c.title_estimated, c.company].filter(Boolean).join(" · ") || "—"}
+                </p>
+              </div>
+
+              {/* Score (Nora only) */}
+              {score !== null && score !== undefined && (
+                <span style={{
+                  flexShrink: 0, fontSize: 11, fontWeight: 700, padding: "3px 7px", borderRadius: 6,
+                  color: score >= 80 ? "#16a34a" : score >= 60 ? "#F59E0B" : "#EF4444",
+                  background: score >= 80 ? "rgba(22,163,74,0.08)" : score >= 60 ? "rgba(245,158,11,0.08)" : "rgba(239,68,68,0.08)",
+                  fontFamily: "var(--font-inter), sans-serif",
+                }}>
+                  {score}
+                </span>
+              )}
+
+              {/* Link button */}
+              {c.linkedin_url ? (
+                <a
+                  href={c.linkedin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => !isConsulted && onConsult(c.id)}
+                  style={{
+                    flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5,
+                    fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 8,
+                    textDecoration: "none", whiteSpace: "nowrap", transition: "all 150ms",
+                    color: isConsulted ? "#9CA3AF" : srcMeta.color,
+                    background: isConsulted ? "#F3F4F6" : srcMeta.bg,
+                    border: `1.5px solid ${isConsulted ? "#E5E7EB" : srcMeta.color + "40"}`,
+                    fontFamily: "var(--font-inter), sans-serif",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isConsulted) {
+                      e.currentTarget.style.background = srcMeta.color
+                      e.currentTarget.style.color = "white"
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isConsulted) {
+                      e.currentTarget.style.background = srcMeta.bg
+                      e.currentTarget.style.color = srcMeta.color
+                    }
+                  }}
+                >
+                  {source === "linkedin" && (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                    </svg>
+                  )}
+                  {source === "malt" && <span style={{ fontSize: 10, fontWeight: 900 }}>M</span>}
+                  {source === "apec" && <span style={{ fontSize: 10, fontWeight: 900 }}>A</span>}
+                  {srcMeta.urlLabel}
+                </a>
+              ) : (
+                <span style={{ flexShrink: 0, fontSize: 11, color: "#D1D5DB", fontFamily: "var(--font-inter), sans-serif" }}>—</span>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -759,6 +1154,163 @@ function CalendarSection({
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/* ── ValidatedSection (Nora) ─────────────────────────────────── */
+
+function ValidatedSection({
+  candidates,
+  onContact,
+}: {
+  candidates: Candidate[]
+  onContact: (id: string) => void
+}) {
+  const [copied, setCopied] = useState<string | null>(null)
+
+  const copyText = (text: string, id: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(id)
+    setTimeout(() => setCopied(null), 2200)
+  }
+
+  return (
+    <div>
+      <p style={{
+        margin: "0 0 10px", fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+        textTransform: "uppercase", letterSpacing: "0.06em",
+        fontFamily: "var(--font-inter), sans-serif",
+      }}>
+        Messages de contact — {candidates.length} candidat{candidates.length !== 1 ? "s" : ""} validé{candidates.length !== 1 ? "s" : ""}
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {candidates.map((c) => {
+          const source = (c.source ?? "linkedin") as keyof typeof SOURCE_META
+          const srcMeta = SOURCE_META[source] ?? SOURCE_META.linkedin
+          const isContacted = Boolean(c.contacted_at)
+
+          return (
+            <div
+              key={c.id}
+              style={{
+                borderRadius: 12,
+                border: `1.5px solid ${isContacted ? "#BBF7D0" : "#E2DAF6"}`,
+                overflow: "hidden",
+                background: isContacted ? "#F0FDF4" : "white",
+                transition: "all 200ms",
+              }}
+            >
+              {/* Card header */}
+              <div style={{
+                padding: "10px 14px",
+                background: isContacted ? "rgba(22,163,74,0.05)" : "rgba(124,99,200,0.04)",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                flexWrap: "wrap", gap: 8,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  {/* Source badge */}
+                  <span style={{
+                    flexShrink: 0, width: 22, height: 22, borderRadius: 6,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, fontWeight: 900, color: srcMeta.color, background: srcMeta.bg,
+                    fontFamily: "var(--font-inter), sans-serif",
+                  }}>{srcMeta.icon}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{
+                      margin: 0, fontSize: 13, fontWeight: 700, color: "#111827",
+                      fontFamily: "var(--font-inter), sans-serif",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {c.name_estimated ?? "Candidat"}
+                      {c.company && (
+                        <span style={{ fontWeight: 400, color: "#6B7280" }}> · {c.company}</span>
+                      )}
+                    </p>
+                    {c.title_estimated && (
+                      <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>
+                        {c.title_estimated}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                  {/* LinkedIn link */}
+                  {c.linkedin_url && (
+                    <a
+                      href={c.linkedin_url} target="_blank" rel="noopener noreferrer"
+                      style={{
+                        fontSize: 11, fontWeight: 600, padding: "4px 9px", borderRadius: 7,
+                        textDecoration: "none", color: srcMeta.color, background: srcMeta.bg,
+                        fontFamily: "var(--font-inter), sans-serif", flexShrink: 0,
+                      }}
+                    >→ Profil</a>
+                  )}
+
+                  {/* Copy message */}
+                  {c.message_draft && (
+                    <button
+                      onClick={() => copyText(c.message_draft!, c.id)}
+                      style={{
+                        fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 7,
+                        border: `1.5px solid ${copied === c.id ? "#16a34a" : "#E2DAF6"}`,
+                        background: copied === c.id ? "rgba(22,163,74,0.07)" : "white",
+                        color: copied === c.id ? "#16a34a" : "#7C63C8",
+                        cursor: "pointer", fontFamily: "var(--font-inter), sans-serif",
+                        transition: "all 150ms",
+                      }}
+                    >
+                      {copied === c.id ? "✓ Copié" : "Copier"}
+                    </button>
+                  )}
+
+                  {/* Contacted checkbox */}
+                  <label style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    color: isContacted ? "#16a34a" : "#9CA3AF",
+                    fontFamily: "var(--font-inter), sans-serif",
+                    padding: "4px 8px", borderRadius: 7,
+                    background: isContacted ? "rgba(22,163,74,0.08)" : "#F9FAFB",
+                    border: `1.5px solid ${isContacted ? "rgba(22,163,74,0.25)" : "#E5E7EB"}`,
+                    transition: "all 150ms",
+                    userSelect: "none",
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={isContacted}
+                      onChange={() => onContact(c.id)}
+                      style={{ width: 13, height: 13, accentColor: "#16a34a", cursor: "pointer" }}
+                    />
+                    Contacté
+                  </label>
+                </div>
+              </div>
+
+              {/* Message body */}
+              {c.message_draft ? (
+                <p style={{
+                  margin: 0, padding: "12px 14px",
+                  fontSize: 12, color: "#374151", lineHeight: 1.75,
+                  fontFamily: "var(--font-inter), sans-serif", whiteSpace: "pre-wrap",
+                }}>
+                  {c.message_draft}
+                </p>
+              ) : (
+                <p style={{
+                  margin: 0, padding: "12px 14px",
+                  fontSize: 12, color: "#9CA3AF", fontStyle: "italic",
+                  fontFamily: "var(--font-inter), sans-serif",
+                }}>
+                  Message en cours de génération…
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

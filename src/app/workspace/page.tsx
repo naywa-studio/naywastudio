@@ -165,9 +165,13 @@ export default function WorkspacePage() {
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return
 
+    // Map numeric agentLevel → DB enum ('leo' | 'nora')
+    const agentLevelMap: Record<number, 'leo' | 'nora'> = { 1: 'leo', 2: 'nora' }
+    const missionAgentLevel = agentLevelMap[agentLevel] ?? 'leo'
+
     const { data } = await sb
       .from("missions")
-      .insert({ title: newTitle.trim(), user_id: user.id })
+      .insert({ title: newTitle.trim(), user_id: user.id, agent_level: missionAgentLevel })
       .select()
       .single()
 

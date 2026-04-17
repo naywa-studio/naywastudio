@@ -7,7 +7,7 @@ interface MissionRunPanelProps {
   missionId: string
   agentColor: string
   agentName: string
-  onCompleted: (excelB64: string, candidatesCount: number) => void
+  onCompleted: (excelB64: string, candidatesCount: number, researchReport?: string) => void
   onError: (msg: string) => void
 }
 
@@ -91,7 +91,13 @@ export default function MissionRunPanel({
 
   const fetchResult = async () => {
     const res = await fetch(`/api/missions/${missionId}/download`, { method: "POST" })
-    const data = await res.json() as { ok?: boolean; excel_b64?: string; candidates_count?: number; error?: string }
+    const data = await res.json() as {
+      ok?: boolean
+      excel_b64?: string
+      candidates_count?: number
+      research_report?: string
+      error?: string
+    }
     if (!res.ok || !data.ok) {
       setStatus("error")
       setErrorMsg(data.error ?? "Erreur téléchargement")
@@ -99,7 +105,7 @@ export default function MissionRunPanel({
       return
     }
     setStatus("done")
-    onCompleted(data.excel_b64!, data.candidates_count ?? 0)
+    onCompleted(data.excel_b64!, data.candidates_count ?? 0, data.research_report)
   }
 
   return (

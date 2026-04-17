@@ -71,6 +71,7 @@ export type Database = {
           agent_level: 'leo' | 'nora' | null
           brief: MissionBrief | null
           profiles_count: number
+          research_report: string | null
           created_at: string
           updated_at: string
         }
@@ -82,6 +83,7 @@ export type Database = {
           agent_level?: 'leo' | 'nora' | null
           brief?: MissionBrief | null
           profiles_count?: number
+          research_report?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -93,6 +95,7 @@ export type Database = {
           agent_level?: 'leo' | 'nora' | null
           brief?: MissionBrief | null
           profiles_count?: number
+          research_report?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -110,8 +113,13 @@ export type Database = {
           keywords: string[] | null
           relevance_score: number | null
           score_justification: string | null
+          score_dimensions: ScoreDimensions | null
+          seniority_level: string | null
           status: 'raw' | 'shortlisted' | 'rejected'
           message_draft: string | null
+          consulted_at: string | null
+          contacted_at: string | null
+          source: 'linkedin' | 'malt' | 'apec' | null
           created_at: string
           updated_at: string
         }
@@ -126,8 +134,13 @@ export type Database = {
           keywords?: string[] | null
           relevance_score?: number | null
           score_justification?: string | null
+          score_dimensions?: ScoreDimensions | null
+          seniority_level?: string | null
           status?: 'raw' | 'shortlisted' | 'rejected'
           message_draft?: string | null
+          consulted_at?: string | null
+          contacted_at?: string | null
+          source?: 'linkedin' | 'malt' | 'apec' | null
           created_at?: string
           updated_at?: string
         }
@@ -142,8 +155,13 @@ export type Database = {
           keywords?: string[] | null
           relevance_score?: number | null
           score_justification?: string | null
+          score_dimensions?: ScoreDimensions | null
+          seniority_level?: string | null
           status?: 'raw' | 'shortlisted' | 'rejected'
           message_draft?: string | null
+          consulted_at?: string | null
+          contacted_at?: string | null
+          source?: 'linkedin' | 'malt' | 'apec' | null
           created_at?: string
           updated_at?: string
         }
@@ -200,6 +218,13 @@ export type Database = {
 }
 
 // ── Types métier dérivés ──────────────────────────────────────────────────────
+
+export type ScoreDimensions = {
+  competences:  number
+  seniorite:    number
+  localisation: number
+  qualite:      number
+}
 
 export type MissionBrief = {
   titre_poste: string

@@ -36,7 +36,7 @@ export async function GET(
 
   const { data: mission } = await sb
     .from("missions")
-    .select("brief, status")
+    .select("brief, status, agent_level")
     .eq("id", missionId)
     .eq("user_id", user.id)
     .single()
@@ -53,7 +53,7 @@ export async function GET(
 
   let agentBase: string
   try {
-    agentBase = await getAgentBaseUrl(user.id)
+    agentBase = await getAgentBaseUrl(user.id, mission.agent_level)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: msg }, { status: 503 })
