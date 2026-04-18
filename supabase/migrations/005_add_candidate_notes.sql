@@ -1,0 +1,1 @@
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS notes text DEFAULT NULL;

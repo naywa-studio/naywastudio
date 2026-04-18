@@ -11,7 +11,7 @@ import { m, AnimatePresence } from "framer-motion"
 import type { MissionBrief } from "@/lib/database.types"
 
 export interface BriefChatHandle {
-  triggerExtend: () => void
+  triggerExtend: (prefill?: string) => void
 }
 
 const PURPLE = "#7C63C8"
@@ -327,7 +327,7 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
 
   /* ── Expose triggerExtend to parent via ref ─────────────── */
   useImperativeHandle(ref, () => ({
-    triggerExtend: () => sendMessage("📈 Plus de profils"),
+    triggerExtend: (prefill?: string) => sendMessage(prefill ?? "📈 Plus de profils"),
   }), [sendMessage])
 
   const handleLaunch = (brief: MissionBrief, msgId: string) => {

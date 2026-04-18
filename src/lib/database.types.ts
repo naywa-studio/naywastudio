@@ -117,6 +117,7 @@ export type Database = {
           seniority_level: string | null
           status: 'raw' | 'shortlisted' | 'rejected'
           message_draft: string | null
+          notes: string | null
           consulted_at: string | null
           contacted_at: string | null
           source: 'linkedin' | 'malt' | 'apec' | null
@@ -138,6 +139,7 @@ export type Database = {
           seniority_level?: string | null
           status?: 'raw' | 'shortlisted' | 'rejected'
           message_draft?: string | null
+          notes?: string | null
           consulted_at?: string | null
           contacted_at?: string | null
           source?: 'linkedin' | 'malt' | 'apec' | null
@@ -159,6 +161,7 @@ export type Database = {
           seniority_level?: string | null
           status?: 'raw' | 'shortlisted' | 'rejected'
           message_draft?: string | null
+          notes?: string | null
           consulted_at?: string | null
           contacted_at?: string | null
           source?: 'linkedin' | 'malt' | 'apec' | null
