@@ -1,9 +1,9 @@
 "use client"
 
 /**
- * BriefChat — AI-guided brief collection chat
- * Always purple (#7C63C8) regardless of agent color.
- * agentColor is kept only for the agent badge reference.
+ * BriefChat — Conversational AI brief collection
+ * Feels like a real AI chat (think Claude / ChatGPT) oriented toward
+ * understanding the client's recruitment need.
  */
 
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react"
@@ -16,7 +16,6 @@ export interface BriefChatHandle {
 
 const PURPLE = "#7C63C8"
 const PURPLE_LIGHT = "#F0ECF8"
-const PURPLE_MID = "rgba(124,99,200,0.12)"
 
 interface ChatMsg {
   id: string
@@ -24,14 +23,14 @@ interface ChatMsg {
   content: string
   brief?: MissionBrief
   chips?: string[]
-  isExtend?: boolean  // flag for extend-search messages
+  isExtend?: boolean
 }
 
 interface BriefChatProps {
   missionId: string
   firstName: string | null
-  agentColor: string   // kept for agent badge only
-  agentName: string    // e.g. "Léo", "Nora"
+  agentColor: string
+  agentName: string
   isRunning: boolean
   completedCount?: number
   onLaunch: (brief: MissionBrief) => void
@@ -76,13 +75,31 @@ function renderContent(text: string) {
   )
 }
 
-/* ── Brief Card (purple always) ──────────────────────────────── */
+function formatTime(date: Date) {
+  return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+}
+
+/* ── Nawa Avatar SVG ─────────────────────────────────────────── */
+
+function NawaAvatar({ size = 30 }: { size?: number }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: `linear-gradient(135deg, ${PURPLE} 0%, #9B7FE8 100%)`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: "0 2px 8px rgba(124,99,200,0.3)",
+    }}>
+      <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 14 14" fill="none">
+        <path d="M2 12V2l4 7 4-7v10" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </div>
+  )
+}
+
+/* ── Brief Card ──────────────────────────────────────────────── */
 
 function BriefCard({
-  brief,
-  onLaunch,
-  launched,
-  isExtend,
+  brief, onLaunch, launched, isExtend,
 }: {
   brief: MissionBrief
   onLaunch: () => void
@@ -91,40 +108,53 @@ function BriefCard({
 }) {
   return (
     <m.div
-      initial={{ opacity: 0, y: 10, scale: 0.96 }}
+      initial={{ opacity: 0, y: 8, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
       style={{
-        marginTop: 10,
+        marginTop: 8,
         borderRadius: 14,
-        border: `1.5px solid ${PURPLE}30`,
+        border: `1.5px solid ${PURPLE}25`,
         background: "white",
         overflow: "hidden",
-        boxShadow: "0 2px 16px rgba(124,99,200,0.1)",
+        boxShadow: "0 4px 20px rgba(124,99,200,0.1)",
       }}
     >
-      {/* Colored top bar */}
+      {/* Top gradient bar */}
       <div style={{ height: 3, background: `linear-gradient(90deg, ${PURPLE}, #A78BFA)` }} />
 
       {/* Header */}
-      <div style={{ padding: "10px 14px 8px", display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 14 }}>{isExtend ? "🔍" : "📋"}</span>
+      <div style={{ padding: "10px 14px 6px", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{
+          width: 22, height: 22, borderRadius: 7,
+          background: isExtend ? "rgba(14,165,233,0.1)" : PURPLE_LIGHT,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
+            {isExtend
+              ? <circle cx="9" cy="9" r="6" stroke={PURPLE} strokeWidth="2"/>
+              : <path d="M4 6h12M4 10h8M4 14h10" stroke={PURPLE} strokeWidth="1.8" strokeLinecap="round"/>
+            }
+          </svg>
+        </div>
         <p style={{
-          margin: 0, fontSize: 11, fontWeight: 700, color: PURPLE,
-          textTransform: "uppercase", letterSpacing: "0.07em",
+          margin: 0, fontSize: 10, fontWeight: 700, color: PURPLE,
+          textTransform: "uppercase", letterSpacing: "0.08em",
           fontFamily: "var(--font-inter), sans-serif",
         }}>
-          {isExtend ? "Recherche étendue" : "Récapitulatif de recherche"}
+          {isExtend ? "Recherche étendue" : "Fiche de recherche"}
         </p>
       </div>
 
-      {/* Brief fields */}
-      <div style={{ padding: "0 14px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
-        <BriefRow icon="💼" label={brief.titre_poste} />
-        <BriefRow icon="📍" label={brief.localisation} />
+      {/* Fields */}
+      <div style={{ padding: "4px 14px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+        <BriefField label="Poste" value={brief.titre_poste} />
+        <BriefField label="Lieu" value={brief.localisation} />
         {Array.isArray(brief.mots_cles) && brief.mots_cles.length > 0 && (
-          <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-            <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>🔑</span>
+          <div>
+            <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-inter), sans-serif" }}>
+              Compétences
+            </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {brief.mots_cles.map((kw) => (
                 <span key={kw} style={{
@@ -136,13 +166,14 @@ function BriefCard({
             </div>
           </div>
         )}
-        {brief.criteres && <BriefRow icon="📋" label={brief.criteres} />}
+        {brief.criteres && <BriefField label="Critères" value={brief.criteres} />}
+        {brief.ton && <BriefField label="Ton" value={brief.ton} />}
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, background: "#F0ECF8", margin: "0 14px" }} />
+      <div style={{ height: 1, background: "#F0ECF8" }} />
 
-      {/* Launch button */}
+      {/* Launch */}
       <div style={{ padding: "10px 14px" }}>
         {launched ? (
           <div style={{
@@ -159,13 +190,8 @@ function BriefCard({
           <button
             onClick={onLaunch}
             style={{
-              width: "100%",
-              padding: "10px 16px",
-              borderRadius: 10,
-              border: "none",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 700,
+              width: "100%", padding: "10px 16px", borderRadius: 10,
+              border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700,
               color: "white",
               background: `linear-gradient(135deg, ${PURPLE} 0%, #9B7FE8 100%)`,
               fontFamily: "var(--font-inter), sans-serif",
@@ -182,7 +208,7 @@ function BriefCard({
               e.currentTarget.style.boxShadow = "0 4px 16px rgba(124,99,200,0.35)"
             }}
           >
-            {isExtend ? "🔍 Lancer la recherche étendue" : "🚀 Lancer la recherche"}
+            {isExtend ? "Lancer la recherche étendue →" : "Lancer la recherche →"}
           </button>
         )}
       </div>
@@ -190,11 +216,15 @@ function BriefCard({
   )
 }
 
-function BriefRow({ icon, label }: { icon: string; label: string }) {
+function BriefField({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: "flex", gap: 6, fontSize: 12, color: "#374151", fontFamily: "var(--font-inter), sans-serif", lineHeight: 1.5 }}>
-      <span style={{ flexShrink: 0, fontSize: 13 }}>{icon}</span>
-      <span>{label}</span>
+    <div>
+      <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-inter), sans-serif" }}>
+        {label}
+      </p>
+      <p style={{ margin: 0, fontSize: 12, color: "#374151", fontFamily: "var(--font-inter), sans-serif", lineHeight: 1.5 }}>
+        {value}
+      </p>
     </div>
   )
 }
@@ -211,6 +241,7 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
   onLaunch,
 }: BriefChatProps, ref) {
   const [messages, setMessages] = useState<ChatMsg[]>([])
+  const [timestamps] = useState<Map<string, Date>>(new Map())
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [launchedBriefs, setLaunchedBriefs] = useState<Set<string>>(new Set())
@@ -226,17 +257,24 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
     }, 60)
   }, [])
 
+  const addMsg = useCallback((msg: ChatMsg) => {
+    timestamps.set(msg.id, new Date())
+    setMessages(prev => [...prev, msg])
+  }, [timestamps])
+
   /* ── Auto-greet ───────────────────────────────────────────── */
   useEffect(() => {
     if (hasGreeted.current) return
     hasGreeted.current = true
-    const name = firstName ? `, **${firstName}**` : ""
-    setMessages([{
+    const name = firstName ? ` **${firstName}**` : ""
+    const greeting: ChatMsg = {
       id: uid(),
       role: "assistant",
-      content: `Bonjour${name} ! 👋 Je suis votre assistant de sourcing.\n\nDécrivez-moi le poste que vous cherchez à pourvoir et je vous guiderai pour construire la recherche la plus précise possible sur LinkedIn.`,
-    }])
-  }, [firstName])
+      content: `Bonjour${name} ! Pour trouver les meilleurs profils, j'ai besoin de bien comprendre votre contexte.\n\nQuel est le projet derrière ce recrutement — vous renforcez une équipe existante, ou c'est un nouveau besoin ?`,
+    }
+    timestamps.set(greeting.id, new Date())
+    setMessages([greeting])
+  }, [firstName, timestamps])
 
   /* ── Run completed notification ─────────────────────────── */
   useEffect(() => {
@@ -246,16 +284,17 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
       completedCount !== prevCompletedCount.current
     ) {
       const count = completedCount
-      setMessages((prev) => [...prev, {
+      const msg: ChatMsg = {
         id: uid(),
         role: "assistant",
-        content: `✅ **${count} profil${count > 1 ? "s" : ""} trouvé${count > 1 ? "s" : ""} !**\n\nConsultez les résultats dans le panneau à droite.\n\nVous souhaitez aller plus loin ?`,
-        chips: ["🔍 Élargir la zone géo", "🎯 Critères alternatifs", "📈 Plus de profils"],
-      }])
+        content: `**${count} profil${count > 1 ? "s" : ""} trouvé${count > 1 ? "s" : ""}** — consultez les résultats à droite.\n\nVous voulez ajuster la recherche ?`,
+        chips: ["Élargir la zone", "Critères alternatifs", "Plus de profils"],
+      }
+      addMsg(msg)
       scrollToBottom()
     }
     prevCompletedCount.current = completedCount
-  }, [completedCount, scrollToBottom])
+  }, [completedCount, scrollToBottom, addMsg])
 
   /* ── Send message ──────────────────────────────────────── */
   const sendMessage = useCallback(async (text: string) => {
@@ -263,12 +302,11 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
     if (!trimmed || loading || isRunning) return
 
     const userMsg: ChatMsg = { id: uid(), role: "user", content: trimmed }
-    setMessages((prev) => [...prev, userMsg])
+    addMsg(userMsg)
     setInput("")
     setLoading(true)
     scrollToBottom()
 
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto"
     }
@@ -293,41 +331,41 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
       const chips = parseChips(cleanContent)
       const displayContent = stripChips(cleanContent)
 
-      // Detect extend search context
       const isExtend = Boolean(
         prevCompletedCount.current !== undefined &&
         (trimmed.toLowerCase().includes("élargi") ||
          trimmed.toLowerCase().includes("plus de profil") ||
          trimmed.toLowerCase().includes("alternatif") ||
          trimmed.toLowerCase().includes("plus large") ||
-         trimmed === "🔍 Élargir la zone géo" ||
-         trimmed === "🎯 Critères alternatifs" ||
-         trimmed === "📈 Plus de profils")
+         trimmed === "Élargir la zone" ||
+         trimmed === "Critères alternatifs" ||
+         trimmed === "Plus de profils")
       )
 
-      setMessages((prev) => [...prev, {
+      const assistantMsg: ChatMsg = {
         id: uid(),
         role: "assistant",
         content: displayContent,
         brief: brief ?? undefined,
         chips: chips.length > 0 ? chips : undefined,
         isExtend,
-      }])
+      }
+      addMsg(assistantMsg)
     } catch {
-      setMessages((prev) => [...prev, {
+      addMsg({
         id: uid(),
         role: "assistant",
         content: "Une erreur de connexion est survenue. Réessayez dans un instant.",
-      }])
+      })
     } finally {
       setLoading(false)
       scrollToBottom()
     }
-  }, [messages, loading, isRunning, missionId, scrollToBottom])
+  }, [messages, loading, isRunning, missionId, scrollToBottom, addMsg])
 
-  /* ── Expose triggerExtend to parent via ref ─────────────── */
+  /* ── Expose triggerExtend ──────────────────────────────── */
   useImperativeHandle(ref, () => ({
-    triggerExtend: (prefill?: string) => sendMessage(prefill ?? "📈 Plus de profils"),
+    triggerExtend: (prefill?: string) => sendMessage(prefill ?? "Plus de profils"),
   }), [sendMessage])
 
   const handleLaunch = (brief: MissionBrief, msgId: string) => {
@@ -353,80 +391,63 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
       borderRadius: 18,
       border: `1.5px solid ${PURPLE_LIGHT}`,
       overflow: "hidden",
-      boxShadow: "0 4px 32px rgba(124,99,200,0.08)",
     }}>
-
-      {/* Animated keyframes */}
       <style>{`
         @keyframes chatBounce {
-          0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
-          30% { transform: translateY(-5px); opacity: 1; }
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+          30% { transform: translateY(-4px); opacity: 1; }
         }
         @keyframes chatPulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.4; transform: scale(0.85); }
         }
+        .chat-msg-user:hover .chat-time,
+        .chat-msg-ai:hover .chat-time {
+          opacity: 1 !important;
+        }
       `}</style>
 
       {/* ── Header ─────────────────────────────────────────── */}
       <div style={{
-        padding: "14px 18px",
-        borderBottom: `1.5px solid ${PURPLE_LIGHT}`,
+        padding: "13px 16px",
+        borderBottom: `1px solid ${PURPLE_LIGHT}`,
         display: "flex",
         alignItems: "center",
-        gap: 12,
+        gap: 11,
         flexShrink: 0,
-        background: "linear-gradient(135deg, #FDFCFF 0%, #F8F5FF 100%)",
+        background: "#FDFCFF",
       }}>
-        {/* Purple avatar */}
-        <div style={{
-          width: 38,
-          height: 38,
-          borderRadius: 12,
-          background: `linear-gradient(135deg, ${PURPLE} 0%, #9B7FE8 100%)`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 18,
-          flexShrink: 0,
-          boxShadow: `0 4px 12px rgba(124,99,200,0.3)`,
-        }}>
-          🤖
-        </div>
+        <NawaAvatar size={36} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
-            margin: 0, fontSize: 14, fontWeight: 700, color: "#111827",
+            margin: 0, fontSize: 13, fontWeight: 700, color: "#111827",
             fontFamily: "var(--font-space-grotesk), sans-serif",
           }}>
-            Assistant Nawa
+            Nawa AI
           </p>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
             <span style={{
-              fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
-              color: agentColor, background: `${agentColor}14`,
-              border: `1px solid ${agentColor}30`,
+              display: "inline-block", width: 6, height: 6, borderRadius: "50%",
+              background: isRunning ? "#F59E0B" : "#22c55e",
+              animation: isRunning ? "chatPulse 1.5s ease-in-out infinite" : "none",
+            }} />
+            <span style={{
+              fontSize: 11, color: "#9CA3AF",
               fontFamily: "var(--font-inter), sans-serif",
             }}>
-              Agent {agentName}
+              {isRunning ? "Recherche en cours…" : "En ligne"}
             </span>
-            <span style={{ fontSize: 11, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>
-              Cadrage de recherche
+            <span style={{
+              fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 999,
+              color: agentColor, background: `${agentColor}14`,
+              border: `1px solid ${agentColor}25`,
+              fontFamily: "var(--font-inter), sans-serif",
+              marginLeft: 4,
+            }}>
+              {agentName}
             </span>
           </div>
         </div>
-
-        {/* Running indicator */}
-        {isRunning && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{
-              width: 7, height: 7, borderRadius: "50%", background: "#22c55e",
-              animation: "chatPulse 1.5s ease-in-out infinite",
-            }} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: "#22c55e", fontFamily: "var(--font-inter), sans-serif" }}>
-              En cours…
-            </span>
-          </div>
-        )}
       </div>
 
       {/* ── Messages ───────────────────────────────────────── */}
@@ -435,113 +456,128 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
         style={{
           flex: 1,
           overflowY: "auto",
-          padding: "16px 14px",
+          padding: "20px 16px",
           display: "flex",
           flexDirection: "column",
-          gap: 14,
+          gap: 4,
           scrollbarWidth: "thin",
           scrollbarColor: "#E2DAF6 transparent",
         }}
       >
         <AnimatePresence initial={false}>
-          {messages.map((msg) => (
-            <m.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              style={{
-                display: "flex",
-                justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-                alignItems: "flex-end",
-                gap: 8,
-              }}
-            >
-              {/* AI avatar dot */}
-              {msg.role === "assistant" && (
-                <div style={{
-                  width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-                  background: `linear-gradient(135deg, ${PURPLE} 0%, #9B7FE8 100%)`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, marginBottom: 2,
-                }}>
-                  🤖
-                </div>
-              )}
+          {messages.map((msg, idx) => {
+            const prevMsg = messages[idx - 1]
+            const sameRole = prevMsg?.role === msg.role
+            const ts = timestamps.get(msg.id)
 
-              <div style={{ maxWidth: "84%", minWidth: 0 }}>
-                {/* Bubble */}
-                <div style={{
-                  padding: "11px 14px",
-                  borderRadius: msg.role === "user"
-                    ? "16px 16px 4px 16px"
-                    : "16px 16px 16px 4px",
-                  background: msg.role === "user"
-                    ? `linear-gradient(135deg, ${PURPLE} 0%, #9B7FE8 100%)`
-                    : "#F8F5FF",
-                  color: msg.role === "user" ? "white" : "#1F1535",
-                  fontSize: 13,
-                  lineHeight: 1.65,
-                  fontFamily: "var(--font-inter), sans-serif",
-                  whiteSpace: "pre-wrap",
-                  boxShadow: msg.role === "user"
-                    ? "0 3px 12px rgba(124,99,200,0.3)"
-                    : "0 1px 4px rgba(0,0,0,0.04)",
-                }}>
-                  {renderContent(msg.content)}
-                </div>
-
-                {/* Brief card */}
-                {msg.brief && (
-                  <BriefCard
-                    brief={msg.brief}
-                    launched={launchedBriefs.has(msg.id)}
-                    isExtend={msg.isExtend}
-                    onLaunch={() => handleLaunch(msg.brief!, msg.id)}
-                  />
-                )}
-
-                {/* Chips */}
-                {msg.chips && msg.chips.length > 0 && !msg.brief && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
-                    {msg.chips.map((chip) => (
-                      <button
-                        key={chip}
-                        onClick={() => sendMessage(chip)}
-                        disabled={loading || isRunning}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: 20,
-                          border: `1.5px solid ${PURPLE}35`,
-                          background: "white",
-                          color: PURPLE,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: loading || isRunning ? "not-allowed" : "pointer",
-                          fontFamily: "var(--font-inter), sans-serif",
-                          transition: "all 130ms",
-                          opacity: loading || isRunning ? 0.5 : 1,
-                          boxShadow: "0 1px 4px rgba(124,99,200,0.08)",
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!loading && !isRunning) {
-                            e.currentTarget.style.background = PURPLE_LIGHT
-                            e.currentTarget.style.borderColor = `${PURPLE}60`
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "white"
-                          e.currentTarget.style.borderColor = `${PURPLE}35`
-                        }}
-                      >
-                        {chip}
-                      </button>
-                    ))}
+            return (
+              <m.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                className={msg.role === "user" ? "chat-msg-user" : "chat-msg-ai"}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: msg.role === "user" ? "flex-end" : "flex-start",
+                  marginTop: sameRole ? 2 : 12,
+                }}
+              >
+                {/* Avatar (only on first of a group) */}
+                {msg.role === "assistant" && !sameRole && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
+                    <NawaAvatar size={22} />
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", fontFamily: "var(--font-inter), sans-serif" }}>
+                      Nawa AI
+                    </span>
+                    {ts && (
+                      <span className="chat-time" style={{ fontSize: 10, color: "#D1D5DB", opacity: 0, transition: "opacity 150ms", fontFamily: "var(--font-inter), sans-serif" }}>
+                        {formatTime(ts)}
+                      </span>
+                    )}
                   </div>
                 )}
-              </div>
-            </m.div>
-          ))}
+
+                <div style={{ maxWidth: "88%", minWidth: 0 }}>
+                  {/* Bubble */}
+                  <div style={{
+                    padding: "10px 14px",
+                    borderRadius: msg.role === "user"
+                      ? (sameRole ? "16px 4px 4px 16px" : "16px 4px 16px 16px")
+                      : (sameRole ? "4px 16px 16px 4px" : "4px 16px 16px 16px"),
+                    background: msg.role === "user"
+                      ? `linear-gradient(135deg, ${PURPLE} 0%, #9B7FE8 100%)`
+                      : "#F5F3FF",
+                    color: msg.role === "user" ? "white" : "#1F1535",
+                    fontSize: 13,
+                    lineHeight: 1.65,
+                    fontFamily: "var(--font-inter), sans-serif",
+                    whiteSpace: "pre-wrap",
+                    boxShadow: msg.role === "user"
+                      ? "0 2px 10px rgba(124,99,200,0.25)"
+                      : "none",
+                  }}>
+                    {renderContent(msg.content)}
+                  </div>
+
+                  {/* User timestamp */}
+                  {msg.role === "user" && ts && (
+                    <div className="chat-time" style={{ textAlign: "right", marginTop: 3, opacity: 0, transition: "opacity 150ms" }}>
+                      <span style={{ fontSize: 10, color: "#D1D5DB", fontFamily: "var(--font-inter), sans-serif" }}>
+                        {formatTime(ts)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Brief card */}
+                  {msg.brief && (
+                    <BriefCard
+                      brief={msg.brief}
+                      launched={launchedBriefs.has(msg.id)}
+                      isExtend={msg.isExtend}
+                      onLaunch={() => handleLaunch(msg.brief!, msg.id)}
+                    />
+                  )}
+
+                  {/* Chips */}
+                  {msg.chips && msg.chips.length > 0 && !msg.brief && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+                      {msg.chips.map((chip) => (
+                        <button
+                          key={chip}
+                          onClick={() => sendMessage(chip)}
+                          disabled={loading || isRunning}
+                          style={{
+                            padding: "5px 12px", borderRadius: 20,
+                            border: `1.5px solid ${PURPLE}30`,
+                            background: "white", color: PURPLE,
+                            fontSize: 12, fontWeight: 600,
+                            cursor: loading || isRunning ? "not-allowed" : "pointer",
+                            fontFamily: "var(--font-inter), sans-serif",
+                            transition: "all 130ms",
+                            opacity: loading || isRunning ? 0.5 : 1,
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!loading && !isRunning) {
+                              e.currentTarget.style.background = PURPLE_LIGHT
+                              e.currentTarget.style.borderColor = `${PURPLE}55`
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "white"
+                            e.currentTarget.style.borderColor = `${PURPLE}30`
+                          }}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </m.div>
+            )
+          })}
 
           {/* Typing indicator */}
           {loading && (
@@ -550,28 +586,20 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              style={{ display: "flex", alignItems: "flex-end", gap: 8 }}
+              style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}
             >
+              <NawaAvatar size={22} />
               <div style={{
-                width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-                background: `linear-gradient(135deg, ${PURPLE} 0%, #9B7FE8 100%)`,
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12,
-              }}>🤖</div>
-              <div style={{
-                padding: "12px 16px",
-                borderRadius: "16px 16px 16px 4px",
-                background: "#F8F5FF",
-                display: "flex",
-                gap: 5,
-                alignItems: "center",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+                padding: "10px 14px",
+                borderRadius: "4px 16px 16px 16px",
+                background: "#F5F3FF",
+                display: "flex", gap: 5, alignItems: "center",
               }}>
                 {[0, 1, 2].map((i) => (
                   <span key={i} style={{
-                    width: 7, height: 7, borderRadius: "50%",
-                    background: PURPLE,
-                    display: "inline-block",
-                    animation: `chatBounce 1.3s ease-in-out ${i * 0.18}s infinite`,
+                    width: 6, height: 6, borderRadius: "50%",
+                    background: PURPLE, display: "inline-block",
+                    animation: `chatBounce 1.2s ease-in-out ${i * 0.16}s infinite`,
                   }} />
                 ))}
               </div>
@@ -582,8 +610,8 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
 
       {/* ── Input ──────────────────────────────────────────── */}
       <div style={{
-        padding: "12px 14px 14px",
-        borderTop: `1.5px solid ${PURPLE_LIGHT}`,
+        padding: "10px 14px 14px",
+        borderTop: `1px solid ${PURPLE_LIGHT}`,
         flexShrink: 0,
         background: "white",
       }}>
@@ -593,10 +621,10 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
           alignItems: "flex-end",
           background: isFocused ? "#FDFCFF" : "#F8F5FF",
           borderRadius: 14,
-          border: `1.5px solid ${isFocused ? PURPLE : PURPLE_LIGHT}`,
-          padding: "9px 12px",
-          transition: "border-color 200ms, background 200ms",
-          boxShadow: isFocused ? `0 0 0 3px rgba(124,99,200,0.1)` : "none",
+          border: `1.5px solid ${isFocused ? PURPLE : "#E9E4F8"}`,
+          padding: "9px 10px 9px 14px",
+          transition: "border-color 180ms, background 180ms, box-shadow 180ms",
+          boxShadow: isFocused ? `0 0 0 3px rgba(124,99,200,0.09)` : "none",
         }}>
           <textarea
             ref={textareaRef}
@@ -606,63 +634,56 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             disabled={loading || isRunning}
-            placeholder={isRunning ? "Recherche en cours…" : "Décrivez votre besoin… (↵ pour envoyer)"}
+            placeholder={isRunning ? "Recherche en cours…" : "Parlez-moi de votre besoin…"}
             rows={1}
             style={{
-              flex: 1,
-              background: "transparent",
-              border: "none",
-              outline: "none",
-              resize: "none",
-              fontSize: 13,
-              color: "#111827",
+              flex: 1, background: "transparent", border: "none", outline: "none",
+              resize: "none", fontSize: 13, color: "#111827",
               fontFamily: "var(--font-inter), sans-serif",
-              lineHeight: 1.55,
-              maxHeight: 100,
-              overflow: "auto",
+              lineHeight: 1.55, maxHeight: 110, overflow: "auto",
               opacity: isRunning ? 0.45 : 1,
             }}
             onInput={(e) => {
               const el = e.currentTarget
               el.style.height = "auto"
-              el.style.height = `${Math.min(el.scrollHeight, 100)}px`
+              el.style.height = `${Math.min(el.scrollHeight, 110)}px`
             }}
           />
           <button
             onClick={() => sendMessage(input)}
             disabled={!canSend}
             style={{
-              flexShrink: 0,
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              border: "none",
-              cursor: canSend ? "pointer" : "not-allowed",
+              flexShrink: 0, width: 32, height: 32, borderRadius: 10,
+              border: "none", cursor: canSend ? "pointer" : "not-allowed",
               background: canSend
                 ? `linear-gradient(135deg, ${PURPLE} 0%, #9B7FE8 100%)`
-                : "#E5E7EB",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+                : "#E9E4F8",
+              display: "flex", alignItems: "center", justifyContent: "center",
               transition: "all 150ms",
-              boxShadow: canSend ? "0 3px 10px rgba(124,99,200,0.35)" : "none",
-              transform: canSend ? "scale(1)" : "scale(0.92)",
+              boxShadow: canSend ? "0 2px 8px rgba(124,99,200,0.35)" : "none",
+              transform: canSend ? "scale(1)" : "scale(0.9)",
+            }}
+            onMouseEnter={(e) => {
+              if (canSend) e.currentTarget.style.transform = "scale(1.05)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = canSend ? "scale(1)" : "scale(0.9)"
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-              <path d="M4 10h12M11 5l5 5-5 5" stroke="white" strokeWidth="2.2"
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+              <path d="M10 4v12M4 10l6-6 6 6" stroke="white" strokeWidth="2.2"
                 strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
         </div>
         <p style={{
-          margin: "6px 0 0",
+          margin: "5px 0 0",
           fontSize: 10,
           color: "#C4B5FD",
           fontFamily: "var(--font-inter), sans-serif",
           textAlign: "center",
         }}>
-          Shift+↵ pour un saut de ligne
+          Entrée pour envoyer · Shift+Entrée pour sauter une ligne
         </p>
       </div>
     </div>
