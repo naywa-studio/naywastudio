@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
@@ -9,6 +9,14 @@ import { AGENT_LEVELS } from "@/lib/mock-store"
 import type { Database } from "@/lib/database.types"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+type SubscriptionLevel = NonNullable<Profile["subscription_level"]>
+
+const IS_DEV = process.env.NODE_ENV === "development"
+const DEV_LEVELS: { level: SubscriptionLevel; label: string; color: string }[] = [
+  { level: "leo",  label: "Léo N1",  color: "#22c55e" },
+  { level: "nora", label: "Nora N2", color: "#3b82f6" },
+  { level: "alex", label: "Alex N3", color: "#7C63C8" },
+]
 
 /* ── Context ──────────────────────────────────────────────────── */
 
@@ -81,6 +89,18 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     router.replace("/")
   }
 
+  const handleDevSwitch = useCallback(async (level: SubscriptionLevel) => {
+    const sb = getSupabase()
+    const { data: { user } } = await sb.auth.getUser()
+    if (!user) return
+    await sb
+      .from("profiles")
+      .update({ subscription_level: level, vps_status: "ready", agent_status: "running" })
+      .eq("user_id", user.id)
+    await fetchProfile()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   if (!ready) {
     return (
       <div
@@ -145,6 +165,49 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
           {/* Right */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* ── DEV SWITCHER (local only) ───────────────────────── */}
+            {IS_DEV && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  background: "#1a1a2e",
+                  border: "1px solid #333",
+                  borderRadius: 10,
+                  padding: "3px 4px",
+                  fontFamily: "var(--font-inter), monospace",
+                }}
+              >
+                <span style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: 1, padding: "0 4px", textTransform: "uppercase" }}>
+                  DEV
+                </span>
+                {DEV_LEVELS.map(({ level, label, color }) => {
+                  const active = profile?.subscription_level === level
+                  return (
+                    <button
+                      key={level}
+                      onClick={() => handleDevSwitch(level)}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: "3px 9px",
+                        borderRadius: 7,
+                        border: "none",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        transition: "all 0.15s",
+                        background: active ? color : "transparent",
+                        color: active ? "#fff" : "#666",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
             {/* Agent badge — visible uniquement si abonné */}
             {hasSubscription && (
               <span

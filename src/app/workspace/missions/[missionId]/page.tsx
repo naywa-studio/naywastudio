@@ -287,12 +287,13 @@ export default function MissionDetailPage() {
           )}
 
           {!isRunning && candidates.length > 0 && (
-            agentLevel === 2
+            agentLevel >= 2
               ? <NoraSections
                   mission={mission}
                   candidates={candidates}
                   missionId={missionId}
                   agentColor={agent.color}
+                  agentLevel={agentLevel}
                   excelB64={excelB64}
                   reDownloading={reDownloading}
                   briefChatRef={briefChatRef}
@@ -324,7 +325,7 @@ export default function MissionDetailPage() {
    NORA SECTIONS  — bandeau stats + tabs verticales
    ════════════════════════════════════════════════════════════════ */
 
-type NoraTab = "fiches" | "tableur" | "contact"
+type NoraTab = "fiches" | "tableur" | "contact" | "pipeline" | "relances"
 
 interface ScoringWeights { competences: number; seniorite: number; localisation: number; qualite: number }
 
@@ -346,13 +347,14 @@ function getAdjustedScore(c: Candidate, w: ScoringWeights): number {
 }
 
 function NoraSections({
-  mission, candidates, missionId, agentColor, excelB64, reDownloading,
+  mission, candidates, missionId, agentColor, agentLevel, excelB64, reDownloading,
   briefChatRef, onDownload, onDecision, onContact, onNoteChange,
 }: {
   mission: Mission
   candidates: Candidate[]
   missionId: string
   agentColor: string
+  agentLevel: number
   excelB64: string | null
   reDownloading: boolean
   briefChatRef: React.RefObject<BriefChatHandle | null>
@@ -501,12 +503,22 @@ function NoraSections({
           padding: "12px 8px",
           gap: 2,
         }}>
-          {(["fiches", "tableur", "contact"] as NoraTab[]).map(tab => {
-            const labels: Record<NoraTab, string> = { fiches: "Fiches candidats", tableur: "Tableur", contact: "Contact" }
-            const counts: Record<NoraTab, string | number> = {
-              fiches:  topN.length,
-              tableur: candidates.length,
-              contact: `${contacted.length}/${validated.length}`,
+          {(["fiches", "tableur", "contact", ...(agentLevel >= 3 ? ["pipeline", "relances"] as NoraTab[] : [])] as NoraTab[]).map(tab => {
+            const candidatesWithStage = candidates.filter(c => c.pipeline_stage != null)
+            const relancesCount = validated.filter(c => c.contacted_at && !c.pipeline_stage?.match(/replied|interview|offer/)).length
+            const labels: Record<NoraTab, string> = {
+              fiches:   "Fiches candidats",
+              tableur:  "Tableur",
+              contact:  "Contact",
+              pipeline: "Pipeline",
+              relances: "Relances",
+            }
+            const counts: Partial<Record<NoraTab, string | number>> = {
+              fiches:   topN.length,
+              tableur:  candidates.length,
+              contact:  `${contacted.length}/${validated.length}`,
+              pipeline: candidatesWithStage.length,
+              relances: relancesCount,
             }
             const active = activeTab === tab
             return (
@@ -525,10 +537,10 @@ function NoraSections({
                 <span style={{
                   fontSize: 10, fontWeight: 700,
                   padding: "1px 6px", borderRadius: 999,
-                  background: active ? "rgba(255,255,255,0.22)" : "#F0ECF8",
-                  color: active ? "white" : "#9CA3AF",
+                  background: active ? "rgba(255,255,255,0.22)" : (tab === "relances" && Number(counts[tab] ?? 0) > 0 ? "rgba(239,68,68,0.12)" : "#F0ECF8"),
+                  color: active ? "white" : (tab === "relances" && Number(counts[tab] ?? 0) > 0 ? "#EF4444" : "#9CA3AF"),
                 }}>
-                  {counts[tab]}
+                  {counts[tab] ?? ""}
                 </span>
               </button>
             )
@@ -828,7 +840,319 @@ function NoraSections({
             </div>
           )}
 
+          {/* ── PIPELINE TAB (Alex N3) ─────────────────────── */}
+          {activeTab === "pipeline" && agentLevel >= 3 && (
+            <AlexPipelineSection
+              candidates={candidates}
+              missionId={missionId}
+              agentColor={agentColor}
+            />
+          )}
+
+          {/* ── RELANCES TAB (Alex N3) ─────────────────────── */}
+          {activeTab === "relances" && agentLevel >= 3 && (
+            <RelancesSection
+              candidates={validated}
+              missionId={missionId}
+              mission={mission}
+              agentColor={agentColor}
+            />
+          )}
+
         </div>
+      </div>
+    </div>
+  )
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PIPELINE SECTION (Alex N3)
+   ════════════════════════════════════════════════════════════════ */
+
+type PipelineStage = "identified" | "contacted" | "replied" | "interview" | "offer"
+
+const STAGE_META: Record<PipelineStage, { label: string; color: string; bg: string }> = {
+  identified: { label: "Identifié",  color: "#7C63C8", bg: "rgba(124,99,200,0.07)" },
+  contacted:  { label: "Contacté",   color: "#0EA5E9", bg: "rgba(14,165,233,0.07)" },
+  replied:    { label: "Répondu",    color: "#F59E0B", bg: "rgba(245,158,11,0.07)" },
+  interview:  { label: "Entretien",  color: "#10B981", bg: "rgba(16,185,129,0.07)" },
+  offer:      { label: "Offre",      color: "#EF4444", bg: "rgba(239,68,68,0.07)"  },
+}
+const STAGE_ORDER: PipelineStage[] = ["identified", "contacted", "replied", "interview", "offer"]
+
+function AlexPipelineSection({
+  candidates, missionId, agentColor,
+}: {
+  candidates: Candidate[]
+  missionId: string
+  agentColor: string
+}) {
+  const [localCandidates, setLocalCandidates] = useState<Candidate[]>(candidates)
+  const [movingId, setMovingId] = useState<string | null>(null)
+
+  // sync when parent candidates change
+  useEffect(() => { setLocalCandidates(candidates) }, [candidates])
+
+  const shortlisted = localCandidates.filter(c => c.status === "shortlisted")
+
+  // Auto-assign stage to shortlisted without one
+  const withStage = shortlisted.map(c => ({
+    ...c,
+    pipeline_stage: c.pipeline_stage ?? (c.contacted_at ? "contacted" : "identified") as PipelineStage,
+  }))
+
+  const byStage = STAGE_ORDER.reduce<Record<PipelineStage, typeof withStage>>(
+    (acc, s) => ({ ...acc, [s]: withStage.filter(c => c.pipeline_stage === s) }),
+    {} as Record<PipelineStage, typeof withStage>
+  )
+
+  const moveToStage = async (candidateId: string, stage: PipelineStage) => {
+    setMovingId(candidateId)
+    setLocalCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, pipeline_stage: stage } : c))
+    try {
+      await fetch(`/api/candidates/${candidateId}/pipeline-stage`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage }),
+      })
+    } finally {
+      setMovingId(null)
+    }
+  }
+
+  if (shortlisted.length === 0) {
+    return <EmptySlate label="Validez des candidats dans l'onglet Fiches pour les voir ici." />
+  }
+
+  return (
+    <div>
+      <p style={{ margin: "0 0 14px", fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-inter), sans-serif" }}>
+        Pipeline de recrutement · {shortlisted.length} candidat{shortlisted.length > 1 ? "s" : ""}
+      </p>
+      <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8 }}>
+        {STAGE_ORDER.map(stage => {
+          const meta = STAGE_META[stage]
+          const cards = byStage[stage] ?? []
+          return (
+            <div key={stage} style={{
+              minWidth: 180, flex: "0 0 180px",
+              background: meta.bg,
+              border: `1.5px solid ${meta.color}22`,
+              borderRadius: 12, padding: "10px 8px",
+            }}>
+              {/* Column header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: meta.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: meta.color, fontFamily: "var(--font-inter), sans-serif" }}>{meta.label}</span>
+                <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, color: meta.color, background: `${meta.color}18`, borderRadius: 999, padding: "1px 7px", fontFamily: "var(--font-inter), sans-serif" }}>{cards.length}</span>
+              </div>
+
+              {/* Cards */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {cards.map(c => (
+                  <div key={c.id} style={{
+                    background: "white", borderRadius: 9,
+                    border: "1.5px solid #F0ECF8",
+                    padding: "8px 10px",
+                    opacity: movingId === c.id ? 0.5 : 1,
+                    transition: "opacity 150ms",
+                  }}>
+                    <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, color: "#1F2937", fontFamily: "var(--font-inter), sans-serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {c.name_estimated ?? "Profil anonyme"}
+                    </p>
+                    <p style={{ margin: "0 0 6px", fontSize: 10, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {c.title_estimated ?? c.company ?? "—"}
+                    </p>
+                    {/* Stage arrows */}
+                    <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                      {STAGE_ORDER.filter(s => s !== stage).map(s => (
+                        <button key={s} onClick={() => moveToStage(c.id, s)} style={{
+                          fontSize: 9, fontWeight: 600, padding: "2px 6px",
+                          borderRadius: 6, border: `1px solid ${STAGE_META[s].color}44`,
+                          background: "transparent", color: STAGE_META[s].color,
+                          cursor: "pointer", fontFamily: "var(--font-inter), sans-serif",
+                        }}>
+                          → {STAGE_META[s].label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {cards.length === 0 && (
+                  <p style={{ fontSize: 10, color: "#C4B5FD", textAlign: "center", padding: "8px 0", fontFamily: "var(--font-inter), sans-serif", margin: 0 }}>Vide</p>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RELANCES SECTION (Alex N3)
+   ════════════════════════════════════════════════════════════════ */
+
+function RelancesSection({
+  candidates, missionId, mission, agentColor,
+}: {
+  candidates: Candidate[]
+  missionId: string
+  mission: Mission
+  agentColor: string
+}) {
+  const brief = mission.brief as { nom_recruteur?: string } | null
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [generating, setGenerating] = useState<Record<string, boolean>>({})
+  const [copied, setCopied] = useState<string | null>(null)
+
+  // Candidates contacted but no reply detected (not in replied/interview/offer)
+  const toRelance = candidates.filter(c =>
+    c.contacted_at &&
+    !["replied", "interview", "offer"].includes(c.pipeline_stage ?? "")
+  )
+
+  const daysSince = (dateStr: string) =>
+    Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+
+  const generateRelance = async (c: Candidate) => {
+    setGenerating(p => ({ ...p, [c.id]: true }))
+    try {
+      const res = await fetch(`/api/missions/${missionId}/followup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidate_name: c.name_estimated,
+          original_message: c.message_draft ?? "",
+          days_since_contact: c.contacted_at ? daysSince(c.contacted_at) : 7,
+          recruiter_name: brief?.nom_recruteur ?? null,
+        }),
+      })
+      const data = await res.json() as { draft?: string; error?: string }
+      if (data.draft) setDrafts(p => ({ ...p, [c.id]: data.draft! }))
+    } finally {
+      setGenerating(p => ({ ...p, [c.id]: false }))
+    }
+  }
+
+  const copyToClipboard = (id: string, text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(id); setTimeout(() => setCopied(null), 2000)
+    })
+  }
+
+  if (toRelance.length === 0) {
+    return (
+      <EmptySlate label="Aucun candidat à relancer pour le moment. Contactez des profils via l'onglet Contact." />
+    )
+  }
+
+  return (
+    <div>
+      <p style={{ margin: "0 0 14px", fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-inter), sans-serif" }}>
+        À relancer · {toRelance.length} candidat{toRelance.length > 1 ? "s" : ""}
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {toRelance.map(c => {
+          const days = c.contacted_at ? daysSince(c.contacted_at) : 0
+          const draft = drafts[c.id]
+          const isGenerating = generating[c.id]
+          return (
+            <div key={c.id} style={{
+              background: "white", borderRadius: 12,
+              border: "1.5px solid #F0ECF8", padding: "14px 16px",
+            }}>
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8, gap: 8 }}>
+                <div>
+                  <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 700, color: "#1F2937", fontFamily: "var(--font-inter), sans-serif" }}>
+                    {c.name_estimated ?? "Profil anonyme"}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>
+                    {c.title_estimated ?? ""}{c.company ? ` · ${c.company}` : ""}
+                  </p>
+                </div>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, flexShrink: 0,
+                  background: days > 10 ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)",
+                  color: days > 10 ? "#EF4444" : "#D97706",
+                  border: `1px solid ${days > 10 ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.2)"}`,
+                  fontFamily: "var(--font-inter), sans-serif",
+                }}>
+                  {days}j sans réponse
+                </span>
+              </div>
+
+              {/* Original message preview */}
+              {c.message_draft && (
+                <div style={{ marginBottom: 10, padding: "8px 10px", background: "#F9FAFB", borderRadius: 8, border: "1px solid #F0ECF8" }}>
+                  <p style={{ margin: "0 0 3px", fontSize: 9, fontWeight: 700, color: "#C4B5FD", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "var(--font-inter), sans-serif" }}>
+                    Message initial
+                  </p>
+                  <p style={{ margin: 0, fontSize: 11, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif", lineHeight: 1.5,
+                    display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden",
+                  }}>
+                    {c.message_draft}
+                  </p>
+                </div>
+              )}
+
+              {/* Draft relance */}
+              {draft && (
+                <div style={{ marginBottom: 10, padding: "10px 12px", background: "rgba(124,99,200,0.04)", borderRadius: 9, border: "1.5px solid rgba(124,99,200,0.18)" }}>
+                  <p style={{ margin: "0 0 3px", fontSize: 9, fontWeight: 700, color: agentColor, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "var(--font-inter), sans-serif" }}>
+                    Message de relance
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12, color: "#374151", fontFamily: "var(--font-inter), sans-serif", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {draft}
+                  </p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={() => generateRelance(c)}
+                  disabled={isGenerating}
+                  style={{
+                    fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8,
+                    border: `1.5px solid ${agentColor}33`,
+                    background: isGenerating ? "#F5F3FF" : "white", color: agentColor,
+                    cursor: isGenerating ? "not-allowed" : "pointer",
+                    fontFamily: "var(--font-inter), sans-serif",
+                    display: "flex", alignItems: "center", gap: 5,
+                  }}
+                >
+                  {isGenerating ? (
+                    <>
+                      <svg width="10" height="10" viewBox="0 0 24 24" style={{ animation: "spin 0.8s linear infinite" }}>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" opacity="0.3"/>
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round"/>
+                      </svg>
+                      Génération…
+                    </>
+                  ) : (
+                    <>{draft ? "↺ Régénérer" : "✦ Générer relance"}</>
+                  )}
+                </button>
+                {draft && (
+                  <button
+                    onClick={() => copyToClipboard(c.id, draft)}
+                    style={{
+                      fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8,
+                      border: "1.5px solid #E5E7EB", background: "white",
+                      color: copied === c.id ? "#10B981" : "#6B7280",
+                      cursor: "pointer", fontFamily: "var(--font-inter), sans-serif",
+                    }}
+                  >
+                    {copied === c.id ? "✓ Copié" : "Copier"}
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -1171,7 +1495,7 @@ function LeoSections({
           {activeTab === "results"  && <ResultsSection candidates={candidates} onConsult={onConsult} agentColor={agent.color} />}
           {activeTab === "scoring"  && <ScoringSection candidates={candidates} />}
           {activeTab === "messages" && <MessagesSection candidates={candidates} bookingLinks={bookingLinks} agentLevel={agentLevel} hasBookingUrl={Boolean(profile?.booking_url)} onGenerateLink={onGenerateLink} />}
-          {activeTab === "pipeline" && <PipelineSection candidates={candidates} bookingLinks={bookingLinks} />}
+          {activeTab === "pipeline" && <LeoPipelineSection candidates={candidates} bookingLinks={bookingLinks} />}
           {activeTab === "calendar" && <CalendarSection candidates={candidates} bookingLinks={bookingLinks} onUpdateStatus={onUpdateBookingStatus} />}
         </div>
       </div>
@@ -1293,7 +1617,7 @@ function MessagesSection({ candidates, bookingLinks, agentLevel, hasBookingUrl, 
   )
 }
 
-function PipelineSection({ candidates, bookingLinks }: { candidates: Candidate[]; bookingLinks: BookingLink[] }) {
+function LeoPipelineSection({ candidates, bookingLinks }: { candidates: Candidate[]; bookingLinks: BookingLink[] }) {
   const statuses: Candidate["status"][] = ["raw", "shortlisted", "rejected"]
   const labels: Record<Candidate["status"], string> = { raw: "Brut", shortlisted: "Shortlist", rejected: "Rejeté" }
   const colors: Record<Candidate["status"], string> = { raw: "#6B7280", shortlisted: "#22c55e", rejected: "#EF4444" }

@@ -54,7 +54,7 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[SITE_URL] if SITE_URL else ["*"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -112,11 +112,85 @@ def get_result(mission_id: str, x_nawa_secret: str | None = Header(None)):
     }
 
 
+# ── Delete mission (VPS cleanup) ──────────────────────────────────────────────
+
+@app.delete("/missions/{mission_id}/delete")
+def delete_mission(mission_id: str, x_nawa_secret: str | None = Header(None)):
+    check_secret(x_nawa_secret)
+    missions.pop(mission_id, None)
+    log.info("Mission %s deleted from VPS store", mission_id)
+    return {"ok": True}
+
+
+# ── Alex: follow-up generation ────────────────────────────────────────────────
+
+@app.post("/followup")
+async def generate_followup_endpoint(
+    request: Request,
+    x_nawa_secret: str | None = Header(None),
+):
+    """
+    Alex-only endpoint. Generates a follow-up message for a candidate.
+    Body: {
+      candidate_name: str | null,
+      original_message: str,
+      days_since_contact: int,
+      job_title: str,
+      recruiter_name: str | null
+    }
+    """
+    if AGENT_LEVEL != "alex":
+        raise HTTPException(status_code=403, detail="This endpoint requires Alex (N3)")
+    check_secret(x_nawa_secret)
+
+    body = await request.json()
+    from agent_alex import generate_followup
+
+    draft = await generate_followup(
+        candidate_name=body.get("candidate_name"),
+        original_message=body.get("original_message", ""),
+        days_since_contact=body.get("days_since_contact", 7),
+        job_title=body.get("job_title", ""),
+        recruiter_name=body.get("recruiter_name"),
+    )
+    return {"draft": draft}
+
+
+# ── Alex: pipeline report ─────────────────────────────────────────────────────
+
+@app.post("/pipeline-report")
+async def pipeline_report_endpoint(
+    request: Request,
+    x_nawa_secret: str | None = Header(None),
+):
+    """
+    Alex-only endpoint. Generates a pipeline analysis report.
+    Body: {
+      job_title: str,
+      stages: { identified: int, contacted: int, replied: int, interview: int, offer: int },
+      avg_score: float
+    }
+    """
+    if AGENT_LEVEL != "alex":
+        raise HTTPException(status_code=403, detail="This endpoint requires Alex (N3)")
+    check_secret(x_nawa_secret)
+
+    body = await request.json()
+    from agent_alex import generate_pipeline_report
+
+    report = await generate_pipeline_report(
+        job_title=body.get("job_title", ""),
+        stages=body.get("stages", {}),
+        avg_score=body.get("avg_score", 0),
+    )
+    return {"report": report}
+
+
 # ── Background task ───────────────────────────────────────────────────────────
 
 async def _run_mission(mission_id: str, brief: dict) -> None:
     try:
-        if AGENT_LEVEL == "nora":
+        if AGENT_LEVEL in ("nora", "alex"):
             from agent_nora import run
         else:
             from agent_leo import run

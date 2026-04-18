@@ -116,6 +116,7 @@ export type Database = {
           score_dimensions: ScoreDimensions | null
           seniority_level: string | null
           status: 'raw' | 'shortlisted' | 'rejected'
+          pipeline_stage: 'identified' | 'contacted' | 'replied' | 'interview' | 'offer' | null
           message_draft: string | null
           notes: string | null
           consulted_at: string | null
@@ -138,6 +139,7 @@ export type Database = {
           score_dimensions?: ScoreDimensions | null
           seniority_level?: string | null
           status?: 'raw' | 'shortlisted' | 'rejected'
+          pipeline_stage?: 'identified' | 'contacted' | 'replied' | 'interview' | 'offer' | null
           message_draft?: string | null
           notes?: string | null
           consulted_at?: string | null
@@ -160,6 +162,7 @@ export type Database = {
           score_dimensions?: ScoreDimensions | null
           seniority_level?: string | null
           status?: 'raw' | 'shortlisted' | 'rejected'
+          pipeline_stage?: 'identified' | 'contacted' | 'replied' | 'interview' | 'offer' | null
           message_draft?: string | null
           notes?: string | null
           consulted_at?: string | null
