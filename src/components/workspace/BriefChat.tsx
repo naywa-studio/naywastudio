@@ -270,7 +270,8 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
     const greeting: ChatMsg = {
       id: uid(),
       role: "assistant",
-      content: `Bonjour${name} ! Pour trouver les meilleurs profils, j'ai besoin de bien comprendre votre contexte.\n\nQuel est le projet derrière ce recrutement — vous renforcez une équipe existante, ou c'est un nouveau besoin ?`,
+      content: `Bonjour${name} ! Pour trouver les meilleurs profils, j'ai besoin de bien comprendre votre contexte.\n\nQuel est le projet derrière ce recrutement ?`,
+      chips: ["Renforcement d'équipe", "Nouveau poste créé", "Remplacement d'un départ", "Je vais vous expliquer"],
     }
     timestamps.set(greeting.id, new Date())
     setMessages([greeting])
