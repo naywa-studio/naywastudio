@@ -10,8 +10,7 @@ import { useWorkspace } from "../../layout"
 import BriefChat, { type BriefChatHandle } from "@/components/workspace/BriefChat"
 import MissionRunPanel from "@/components/workspace/MissionRunPanel"
 import { SOURCE_META } from "@/lib/candidate-meta"
-import type { Database } from "@/lib/database.types"
-import type { MissionBrief, ScoreDimensions } from "@/lib/database.types"
+import type { Database, MissionBrief, ScoreDimensions, ChatHistoryMsg } from "@/lib/database.types"
 
 type Mission   = Database["public"]["Tables"]["missions"]["Row"]
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"]
@@ -78,6 +77,12 @@ export default function MissionDetailPage() {
   const [excelB64,   setExcelB64]   = useState<string | null>(null)
   const [reDownloading, setReDownloading] = useState(false)
 
+  const [chatCollapsed, setChatCollapsed] = useState(false)
+  const [chatWidth, setChatWidth]         = useState(400)
+  const isResizing  = useRef(false)
+  const resizeStartX = useRef(0)
+  const resizeStartW = useRef(0)
+
   const fetchData = useCallback(async () => {
     const sb = getSupabase()
     const [{ data: m }, { data: c }, { data: bl }] = await Promise.all([
@@ -92,6 +97,37 @@ export default function MissionDetailPage() {
   }, [missionId])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  /* ── Resize handle ───────────────────────────────────────── */
+  const startResize = useCallback((e: React.MouseEvent) => {
+    isResizing.current = true
+    resizeStartX.current = e.clientX
+    resizeStartW.current = chatWidth
+
+    const onMove = (ev: MouseEvent) => {
+      if (!isResizing.current) return
+      const delta = ev.clientX - resizeStartX.current
+      setChatWidth(Math.max(280, Math.min(600, resizeStartW.current + delta)))
+    }
+    const onUp = () => {
+      isResizing.current = false
+      window.removeEventListener("mousemove", onMove)
+      window.removeEventListener("mouseup", onUp)
+    }
+    window.addEventListener("mousemove", onMove)
+    window.addEventListener("mouseup", onUp)
+  }, [chatWidth])
+
+  /* ── Save chat history ───────────────────────────────────── */
+  const saveHistory = useCallback(async (msgs: ChatHistoryMsg[]) => {
+    try {
+      await fetch(`/api/missions/${missionId}/chat-history`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: msgs }),
+      })
+    } catch { /* non-critical */ }
+  }, [missionId])
 
   /* ── Chat launch ─────────────────────────────────────────── */
   const handleChatLaunch = async (brief: MissionBrief) => {
@@ -187,25 +223,74 @@ export default function MissionDetailPage() {
   return (
     <div style={{ display: "flex", height: "calc(100vh - 60px)", overflow: "hidden" }}>
 
-      {/* ── LEFT SIDEBAR — BriefChat ──────────────────────── */}
-      <div style={{
-        width: 440, flexShrink: 0,
-        borderRight: "1.5px solid #F0ECF8",
-        background: "white",
-        display: "flex", flexDirection: "column",
-        overflowY: "auto", padding: "18px",
-      }}>
-        <BriefChat
-          ref={briefChatRef}
-          missionId={missionId}
-          firstName={profile?.first_name ?? null}
-          agentColor={agent.color}
-          agentName={agent.agent}
-          isRunning={isRunning}
-          completedCount={mission.status === "completed" ? (mission.profiles_count ?? candidates.length) : undefined}
-          onLaunch={handleChatLaunch}
-        />
-      </div>
+      {/* ── LEFT SIDEBAR — BriefChat ──────────────────────────── */}
+      {!chatCollapsed && (
+        <div style={{
+          width: chatWidth, flexShrink: 0,
+          borderRight: "1.5px solid #F0ECF8",
+          background: "white",
+          display: "flex", flexDirection: "column",
+          overflowY: "auto", padding: "18px",
+          position: "relative",
+        }}>
+          <BriefChat
+            ref={briefChatRef}
+            missionId={missionId}
+            firstName={profile?.first_name ?? null}
+            agentColor={agent.color}
+            agentName={agent.agent}
+            isRunning={isRunning}
+            completedCount={mission.status === "completed" ? (mission.profiles_count ?? candidates.length) : undefined}
+            onLaunch={handleChatLaunch}
+            initialMessages={(mission.chat_history as ChatHistoryMsg[] | null) ?? undefined}
+            onHistoryUpdate={saveHistory}
+          />
+          {/* Resize handle */}
+          <div
+            onMouseDown={startResize}
+            style={{
+              position: "absolute", right: 0, top: 0, bottom: 0, width: 6,
+              cursor: "col-resize", zIndex: 10,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <div style={{ width: 2, height: 40, borderRadius: 2, background: "#E2DAF6" }} />
+          </div>
+        </div>
+      )}
+
+      {/* Collapse toggle tab */}
+      <button
+        onClick={() => setChatCollapsed(p => !p)}
+        title={chatCollapsed ? "Ouvrir le chat" : "Fermer le chat"}
+        style={{
+          position: "relative",
+          zIndex: 5,
+          alignSelf: "center",
+          width: 20,
+          height: 48,
+          flexShrink: 0,
+          background: "white",
+          border: "1.5px solid #E2DAF6",
+          borderLeft: chatCollapsed ? "1.5px solid #E2DAF6" : "none",
+          borderRight: chatCollapsed ? "none" : "1.5px solid #E2DAF6",
+          borderRadius: chatCollapsed ? "0 8px 8px 0" : "8px 0 0 8px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#9CA3AF",
+          marginLeft: chatCollapsed ? 0 : -10,
+          transition: "all 200ms",
+        }}
+      >
+        <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
+          <path
+            d={chatCollapsed ? "M7 5l6 5-6 5" : "M13 5l-6 5 6 5"}
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          />
+        </svg>
+      </button>
 
       {/* ── RIGHT PANEL ───────────────────────────────────── */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>

@@ -90,7 +90,9 @@ def detect_seniority(criteres: str) -> str:
 # ── Query builder ──────────────────────────────────────────────────────────────
 
 def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
-    """Return (linkedin_queries, malt_queries, apec_queries)."""
+    """Return (linkedin_queries, malt_queries, apec_queries).
+    LinkedIn is the primary source — APEC is disabled, Malt is secondary.
+    """
     titre     = brief.get("titre_poste", "")
     mots_list = coerce_keywords(brief.get("mots_cles", []))
     mots      = " ".join(mots_list)
@@ -101,54 +103,60 @@ def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
     half   = max(len(mots_list) // 2, 1)
     mots_a = " ".join(mots_list[:half])
     mots_b = " ".join(mots_list[half:]) if len(mots_list) > half else mots
+    mots_c = " ".join(mots_list[:3]) if len(mots_list) >= 3 else mots
 
+    # ── LinkedIn — primary source, maximum coverage ────────────────────────
     linkedin_q = [
         f'site:linkedin.com/in "{titre}" {mots} {loc_q}',
-        f'site:linkedin.com/in "{titre}" {loc_q} {mots_a}',
-        f'site:linkedin.com/in "{titre}" {loc_q} {mots_b}',
+        f'site:linkedin.com/in "{titre}" {mots_a} {loc_q}',
+        f'site:linkedin.com/in "{titre}" {mots_b} {loc_q}',
         f'site:linkedin.com/in {mots} {loc_q}',
-        f'"{titre}" {mots} {loc_q} linkedin profil',
-        f'"{titre}" {loc_q} linkedin disponible recrutement',
-        f'linkedin "{titre}" {mots_a} {loc_q}',
+        f'site:linkedin.com/in "{titre}" {mots_c} {loc_q}',
+        f'"{titre}" {mots} {loc_q} linkedin',
+        f'linkedin.com/in "{titre}" {mots_a} {loc_q}',
     ]
 
     french_cities = ["paris", "lyon", "bordeaux", "marseille", "toulouse", "nantes",
                      "lille", "strasbourg", "rennes", "nice", "montpellier", "france"]
-    if loc and any(city in loc.lower() for city in french_cities):
+    is_french = loc and any(city in loc.lower() for city in french_cities)
+
+    if is_french:
         linkedin_q += [
             f'site:fr.linkedin.com/in "{titre}" {mots}',
             f'site:fr.linkedin.com/in "{titre}" {mots_a} {loc_q}',
+            f'site:fr.linkedin.com/in "{titre}" {mots_b} {loc_q}',
             f'site:fr.linkedin.com/in {mots} {loc_q}',
+            f'site:fr.linkedin.com/in "{titre}" {mots_c}',
         ]
 
-    # Seniority-specific queries (no OR operator — not supported by Tavily)
+    # Seniority-specific LinkedIn queries
     if seniority == "senior":
         linkedin_q += [
-            f'site:fr.linkedin.com/in "{titre}" "Tech Lead" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre}" "Expert" "10 ans" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre}" "Lead" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre}" "Expert" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre}" "Senior" {mots_a} {loc_q}',
+            f'site:linkedin.com/in "{titre}" "Head of" {loc_q}',
         ]
     elif seniority == "junior":
         linkedin_q += [
             f'site:fr.linkedin.com/in "{titre}" "junior" {loc_q}',
             f'site:fr.linkedin.com/in "{titre}" "alternance" {loc_q}',
+            f'site:linkedin.com/in "{titre}" "graduate" {loc_q}',
         ]
     elif seniority == "confirmed":
         linkedin_q += [
             f'site:fr.linkedin.com/in "{titre}" "confirmé" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre}" "5 ans expérience" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre}" "expérimenté" {loc_q}',
+            f'site:linkedin.com/in "{titre}" "mid-level" {loc_q}',
         ]
 
-    # Malt queries (freelances uniquement)
+    # ── Malt — secondary, freelances only, 1 query ────────────────────────
     malt_q = [
-        f'site:malt.fr "{titre}" {mots} {loc_q}',
-        f'site:malt.fr {mots} {loc_q}',
+        f'site:malt.fr "{titre}" {mots_a} {loc_q}',
     ]
 
-    # APEC queries (cadres français, profils publics indexés par Google)
-    apec_q = [
-        f'site:cadres.apec.fr "{titre}" {mots} {loc_q}',
-        f'site:apec.fr "{titre}" {mots} {loc_q}',
-    ]
+    # APEC disabled — low quality for most searches
+    apec_q: list[str] = []
 
     return linkedin_q, malt_q, apec_q
 

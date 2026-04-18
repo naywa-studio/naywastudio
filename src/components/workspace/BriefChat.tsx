@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react"
 import { m, AnimatePresence } from "framer-motion"
-import type { MissionBrief } from "@/lib/database.types"
+import type { MissionBrief, ChatHistoryMsg } from "@/lib/database.types"
 
 export interface BriefChatHandle {
   triggerExtend: (prefill?: string) => void
@@ -34,6 +34,8 @@ interface BriefChatProps {
   isRunning: boolean
   completedCount?: number
   onLaunch: (brief: MissionBrief) => void
+  initialMessages?: ChatHistoryMsg[]
+  onHistoryUpdate?: (msgs: ChatHistoryMsg[]) => void
 }
 
 /* ── Helpers ─────────────────────────────────────────────────── */
@@ -239,6 +241,8 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
   isRunning,
   completedCount,
   onLaunch,
+  initialMessages,
+  onHistoryUpdate,
 }: BriefChatProps, ref) {
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [timestamps] = useState<Map<string, Date>>(new Map())
@@ -250,6 +254,8 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const hasGreeted = useRef(false)
   const prevCompletedCount = useRef<number | undefined>(undefined)
+  const hasMounted = useRef(false)
+  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -262,10 +268,23 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
     setMessages(prev => [...prev, msg])
   }, [timestamps])
 
-  /* ── Auto-greet ───────────────────────────────────────────── */
+  /* ── Auto-greet (or restore history) ─────────────────────── */
   useEffect(() => {
     if (hasGreeted.current) return
     hasGreeted.current = true
+
+    if (initialMessages && initialMessages.length > 0) {
+      const restored: ChatMsg[] = initialMessages.map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        chips: m.chips,
+      }))
+      restored.forEach(m => timestamps.set(m.id, new Date()))
+      setMessages(restored)
+      return
+    }
+
     const name = firstName ? ` **${firstName}**` : ""
     const greeting: ChatMsg = {
       id: uid(),
@@ -275,7 +294,7 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
     }
     timestamps.set(greeting.id, new Date())
     setMessages([greeting])
-  }, [firstName, timestamps])
+  }, [firstName, timestamps, initialMessages])
 
   /* ── Run completed notification ─────────────────────────── */
   useEffect(() => {
@@ -296,6 +315,25 @@ const BriefChat = forwardRef<BriefChatHandle, BriefChatProps>(function BriefChat
     }
     prevCompletedCount.current = completedCount
   }, [completedCount, scrollToBottom, addMsg])
+
+  /* ── Debounced history save ────────────────────────────── */
+  useEffect(() => {
+    if (!hasMounted.current) { hasMounted.current = true; return }
+    if (!onHistoryUpdate || messages.length === 0) return
+
+    if (saveTimeout.current) clearTimeout(saveTimeout.current)
+    saveTimeout.current = setTimeout(() => {
+      const toSave: ChatHistoryMsg[] = messages.map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        ...(m.chips ? { chips: m.chips } : {}),
+      }))
+      onHistoryUpdate(toSave)
+    }, 1200)
+
+    return () => { if (saveTimeout.current) clearTimeout(saveTimeout.current) }
+  }, [messages, onHistoryUpdate])
 
   /* ── Send message ──────────────────────────────────────── */
   const sendMessage = useCallback(async (text: string) => {

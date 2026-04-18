@@ -289,7 +289,8 @@ export default function WorkspacePage() {
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return
 
-    const agentLevelMap: Record<number, "leo" | "nora"> = { 1: "leo", 2: "nora" }
+    // Alex (3) runs the same Nora pipeline on VPS
+    const agentLevelMap: Record<number, "leo" | "nora"> = { 1: "leo", 2: "nora", 3: "nora" }
     const missionAgentLevel = agentLevelMap[agentLevel] ?? "leo"
 
     const { data } = await sb

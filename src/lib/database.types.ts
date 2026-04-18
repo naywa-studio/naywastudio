@@ -1,4 +1,12 @@
 // Generated-style type definition compatible with @supabase/supabase-js v2
+
+export type ChatHistoryMsg = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  chips?: string[]
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -72,6 +80,7 @@ export type Database = {
           brief: MissionBrief | null
           profiles_count: number
           research_report: string | null
+          chat_history: ChatHistoryMsg[] | null
           created_at: string
           updated_at: string
         }
@@ -84,6 +93,7 @@ export type Database = {
           brief?: MissionBrief | null
           profiles_count?: number
           research_report?: string | null
+          chat_history?: ChatHistoryMsg[] | null
           created_at?: string
           updated_at?: string
         }
@@ -96,6 +106,7 @@ export type Database = {
           brief?: MissionBrief | null
           profiles_count?: number
           research_report?: string | null
+          chat_history?: ChatHistoryMsg[] | null
           created_at?: string
           updated_at?: string
         }
