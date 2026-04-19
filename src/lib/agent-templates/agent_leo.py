@@ -51,7 +51,7 @@ def normalize_name(name: str) -> str:
     return re.sub(r'\s+', ' ', ascii_name).strip()
 
 
-def fuzzy_name_match(a: str, b: str, threshold: float = 0.92) -> bool:
+def fuzzy_name_match(a: str, b: str, threshold: float = 0.85) -> bool:
     """True if two normalized names are likely the same person."""
     if len(a) < 6 or len(b) < 6:
         return False
@@ -87,6 +87,22 @@ def detect_seniority(criteres: str) -> str:
     return "any"
 
 
+# ── Short title extractor ──────────────────────────────────────────────────────
+
+def short_title(titre: str) -> str:
+    """Extract core job title: first 3 words, stopping at specialization markers."""
+    stop_words = ["spécialisé", "spécialiste", "en charge", "responsable de", "expert en",
+                  "dédié", "chargé", "orienté", "axé", "focalisé", "dans", "pour", "chez"]
+    lower = titre.lower()
+    for sw in stop_words:
+        idx = lower.find(sw)
+        if idx > 0:
+            titre = titre[:idx].strip(" ,/-")
+            break
+    words = titre.split()
+    return " ".join(words[:3]) if len(words) > 3 else titre
+
+
 # ── Query builder ──────────────────────────────────────────────────────────────
 
 def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
@@ -105,15 +121,17 @@ def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
     mots_b = " ".join(mots_list[half:]) if len(mots_list) > half else mots
     mots_c = " ".join(mots_list[:3]) if len(mots_list) >= 3 else mots
 
+    titre_court = short_title(titre)
+
     # ── LinkedIn — primary source, maximum coverage ────────────────────────
     linkedin_q = [
-        f'site:linkedin.com/in "{titre}" {mots} {loc_q}',
-        f'site:linkedin.com/in "{titre}" {mots_a} {loc_q}',
-        f'site:linkedin.com/in "{titre}" {mots_b} {loc_q}',
+        f'site:linkedin.com/in "{titre_court}" {mots} {loc_q}',
+        f'site:linkedin.com/in "{titre_court}" {mots_a} {loc_q}',
+        f'site:linkedin.com/in "{titre_court}" {mots_b} {loc_q}',
         f'site:linkedin.com/in {mots} {loc_q}',
-        f'site:linkedin.com/in "{titre}" {mots_c} {loc_q}',
-        f'"{titre}" {mots} {loc_q} linkedin',
-        f'linkedin.com/in "{titre}" {mots_a} {loc_q}',
+        f'site:linkedin.com/in "{titre_court}" {mots_c} {loc_q}',
+        f'"{titre_court}" {mots} {loc_q} linkedin',
+        f'linkedin.com/in "{titre_court}" {mots_a} {loc_q}',
     ]
 
     french_cities = ["paris", "lyon", "bordeaux", "marseille", "toulouse", "nantes",
@@ -122,37 +140,37 @@ def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
 
     if is_french:
         linkedin_q += [
-            f'site:fr.linkedin.com/in "{titre}" {mots}',
-            f'site:fr.linkedin.com/in "{titre}" {mots_a} {loc_q}',
-            f'site:fr.linkedin.com/in "{titre}" {mots_b} {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" {mots}',
+            f'site:fr.linkedin.com/in "{titre_court}" {mots_a} {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" {mots_b} {loc_q}',
             f'site:fr.linkedin.com/in {mots} {loc_q}',
-            f'site:fr.linkedin.com/in "{titre}" {mots_c}',
+            f'site:fr.linkedin.com/in "{titre_court}" {mots_c}',
         ]
 
     # Seniority-specific LinkedIn queries
     if seniority == "senior":
         linkedin_q += [
-            f'site:fr.linkedin.com/in "{titre}" "Lead" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre}" "Expert" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre}" "Senior" {mots_a} {loc_q}',
-            f'site:linkedin.com/in "{titre}" "Head of" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "Lead" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "Expert" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "Senior" {mots_a} {loc_q}',
+            f'site:linkedin.com/in "{titre_court}" "Head of" {loc_q}',
         ]
     elif seniority == "junior":
         linkedin_q += [
-            f'site:fr.linkedin.com/in "{titre}" "junior" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre}" "alternance" {loc_q}',
-            f'site:linkedin.com/in "{titre}" "graduate" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "junior" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "alternance" {loc_q}',
+            f'site:linkedin.com/in "{titre_court}" "graduate" {loc_q}',
         ]
     elif seniority == "confirmed":
         linkedin_q += [
-            f'site:fr.linkedin.com/in "{titre}" "confirmé" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre}" "expérimenté" {loc_q}',
-            f'site:linkedin.com/in "{titre}" "mid-level" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "confirmé" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "expérimenté" {loc_q}',
+            f'site:linkedin.com/in "{titre_court}" "mid-level" {loc_q}',
         ]
 
     # ── Malt — secondary, freelances only, 1 query ────────────────────────
     malt_q = [
-        f'site:malt.fr "{titre}" {mots_a} {loc_q}',
+        f'site:malt.fr "{titre_court}" {mots_a} {loc_q}',
     ]
 
     # APEC disabled — low quality for most searches
@@ -273,6 +291,7 @@ def parse_linkedin_profile(result: dict, location: str = "") -> dict | None:
         "_loc_score":     loc_sc,
         "_norm_url":      normalize_url(url),
         "_norm_name":     normalize_name(name) if name else "",
+        "_snippet":       snippet,
         "_source":        "linkedin",
     }
 
@@ -317,6 +336,7 @@ def parse_malt_profile(result: dict, location: str = "") -> dict | None:
         "_loc_score":     loc_sc,
         "_norm_url":      normalize_url(url),
         "_norm_name":     normalize_name(name) if name else "",
+        "_snippet":       snippet,
         "_source":        "malt",
     }
 
@@ -440,7 +460,7 @@ async def run(brief: dict) -> dict:
     location = brief.get("localisation", "")
     profiles: list[dict]  = []
     seen_urls: set[str]   = set()
-    seen_names: list[str] = []  # list for fuzzy matching
+    seen_names: set[str]  = set()
 
     # Throttle concurrency to avoid Tavily rate limits (max 5 simultaneous requests)
     semaphore = asyncio.Semaphore(5)
@@ -466,24 +486,22 @@ async def run(brief: dict) -> dict:
         norm_url  = p["_norm_url"]
         norm_name = p["_norm_name"]
 
-        # 1. URL dedup
+        # 1. URL exact dedup
         if norm_url in seen_urls:
             return
 
-        # 2. Exact name+company dedup
-        name_co_key = f"{norm_name}|{p['company'].lower().strip()}"
-        if norm_name and norm_name in seen_names and p["company"]:
-            if name_co_key in seen_names:
-                return
-
-        # 3. Fuzzy name dedup (catches "Jean-Marie" vs "Jean Marie", typos…)
-        if norm_name and any(fuzzy_name_match(norm_name, existing) for existing in seen_names):
+        # 2. Name exact dedup (catches same name regardless of company)
+        if norm_name and norm_name in seen_names:
             return
+
+        # 3. Fuzzy name dedup (catches "Jean-Marie" vs "Jean Marie", etc)
+        if norm_name and len(norm_name) >= 6:
+            if any(fuzzy_name_match(norm_name, e) for e in seen_names):
+                return
 
         seen_urls.add(norm_url)
         if norm_name:
-            seen_names.append(norm_name)
-            seen_names.append(name_co_key)
+            seen_names.add(norm_name)
         profiles.append(p)
 
     # LinkedIn profiles

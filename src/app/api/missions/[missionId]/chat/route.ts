@@ -36,9 +36,11 @@ MISE EN FORME DES MESSAGES :
 INFORMATIONS À COLLECTER (dans l'ordre naturel de la conversation) :
 1. Contexte : pourquoi ce recrutement ? quel projet, quelle équipe ?
 2. Le rôle exact : intitulé précis, responsabilités principales
-3. Le profil idéal : compétences clés, soft skills, niveau d'expérience
+3. Le profil idéal : compétences techniques clés, niveau d'expérience, secteur
 4. Contraintes pratiques : localisation, type de contrat, urgence
 5. Le ton des messages : comment ils veulent s'adresser aux candidats
+
+IMPORTANT : Ne demande JAMAIS de soft skills (autonomie, esprit d'équipe, rigueur, etc.) — ces informations n'apparaissent pas sur les profils LinkedIn et ne sont pas utiles pour le sourcing. Reste focalisé sur les compétences techniques, les outils, les technos, l'expérience secteur et la séniorité.
 
 SUGGESTIONS CLIQUABLES [chips] — UTILISATION SYSTÉMATIQUE :
 À chaque question, propose des options rapides en [crochets] adaptées au contexte.
@@ -47,7 +49,7 @@ Ces chips permettent à l'utilisateur de répondre en un clic sans taper.
 Exemples par étape :
 - Localisation → [Paris] [Lyon] [Bordeaux] [Marseille] [Toulouse] [Nantes] [Remote] [Toute la France]
 - Compétences tech → suggestions adaptées au poste, ex: [React] [Node.js] [TypeScript] [Python] [AWS]
-- Compétences non-tech → [Management] [Négociation] [CRM] [Excel] [Gestion de projet]
+- Compétences non-tech (postes fonctionnels) → [Management d'équipe] [CRM (Salesforce/HubSpot)] [Excel avancé] [Gestion de projet] [Analyse de données]
 - Séniorité → [Junior (0-3 ans)] [Confirmé (3-7 ans)] [Senior (7+ ans)]
 - Contrat → [CDI] [Freelance] [CDD] [Alternance]
 - Ton → [Professionnel et formel] [Direct et efficace] [Chaleureux et humain] [Startup / casual]
@@ -58,6 +60,22 @@ Règle chips : propose 4-6 chips max par message. Toujours inclure une option "o
 GÉNÉRATION DU BRIEF :
 Génère le brief seulement quand tu as confirmé : titre_poste + localisation + au moins 4 mots_cles.
 Annonce-le naturellement : "J'ai tout ce qu'il me faut, voici ce que je retiens :"
+
+RÈGLE CRITIQUE — titre_poste :
+Le champ titre_poste doit contenir UNIQUEMENT le titre court du poste (1 à 4 mots maximum).
+Les spécialisations, domaines et compétences vont dans mots_cles, PAS dans titre_poste.
+
+Exemples corrects :
+❌ "Avocat spécialisé en droit des contrats et du travail" → titre_poste trop long
+✅ titre_poste: "Avocat", mots_cles: ["droit des contrats", "droit du travail", "contentieux"]
+
+❌ "Développeur React senior full stack Paris CDI" → titre_poste trop long
+✅ titre_poste: "Développeur Full Stack", mots_cles: ["React", "Node.js", "TypeScript"]
+
+❌ "Responsable marketing digital e-commerce B2C" → titre_poste trop long
+✅ titre_poste: "Responsable Marketing Digital", mots_cles: ["e-commerce", "B2C", "SEA", "Analytics"]
+
+Le titre_poste DOIT pouvoir apparaître tel quel sur un profil LinkedIn. Si l'utilisateur te donne un titre long, reformule-le en titre court + enrichis les mots_cles.
 
 Format obligatoire :
 <brief>{"titre_poste":"...","localisation":"...","mots_cles":["...","..."],"criteres":"...","ton":"..."}</brief>
@@ -96,10 +114,10 @@ export async function POST(
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Load mission + brief for memory injection
+  // Load mission + brief + agent_level for memory injection and prompt adaptation
   const { data: mission } = await sb
     .from("missions")
-    .select("id, title, brief, profiles_count")
+    .select("id, title, brief, profiles_count, agent_level")
     .eq("id", missionId)
     .eq("user_id", user.id)
     .single()
@@ -118,6 +136,18 @@ export async function POST(
     return NextResponse.json({ error: "OpenRouter API key not configured" }, { status: 500 })
   }
 
+  const isLeo = mission.agent_level === "leo"
+
+  // For Léo: no message tone — Léo only does sourcing (no outreach drafting)
+  const leoOverrides = isLeo ? `
+
+ADAPTATION LÉO :
+- Ne demande PAS le ton des messages candidats — Léo ne génère pas de messages d'approche.
+- L'objectif est uniquement d'identifier les profils. Arrête-toi à 4 informations : contexte, rôle, compétences techniques, contraintes pratiques.
+- Le brief ne doit PAS inclure de champ "ton".
+- Format brief pour Léo :
+<brief>{"titre_poste":"...","localisation":"...","mots_cles":["...","..."],"criteres":"..."}</brief>` : ""
+
   // Inject brief memory into system prompt if already defined
   const brief = mission.brief as Record<string, unknown> | null
   const briefContext = brief && brief.titre_poste
@@ -128,12 +158,13 @@ Brief actuel :
 - Localisation : ${brief.localisation ?? "non définie"}
 - Mots-clés : ${Array.isArray(brief.mots_cles) ? (brief.mots_cles as string[]).join(", ") : brief.mots_cles ?? "non définis"}
 - Critères : ${brief.criteres ?? "non définis"}
+${!isLeo && brief.ton ? `- Ton : ${brief.ton}` : ""}
 ${mission.profiles_count ? `- Dernière recherche : ${mission.profiles_count} profils trouvés` : ""}
 
 Si l'utilisateur demande d'affiner, d'élargir ou de relancer, utilise ce contexte comme base et génère un nouveau <brief> ajusté.`
     : ""
 
-  const systemPromptWithMemory = SYSTEM_PROMPT + briefContext
+  const systemPromptWithMemory = SYSTEM_PROMPT + leoOverrides + briefContext
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",

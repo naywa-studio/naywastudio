@@ -160,7 +160,9 @@ export async function POST(
       log.info(`Inserted ${newRows.length} new candidates for mission ${missionId}`)
     }
 
-    const totalCount = (existingCands?.length ?? 0) + newRows.length
+    // profiles_count = total profiles found in THIS run (matches Excel row count)
+    // newRows.length = deduplicated new entries saved to DB this run
+    const runCount = agentData.candidates.length
 
     // Save research_report if provided (Nora agent only)
     const missionUpdate: {
@@ -169,7 +171,7 @@ export async function POST(
       research_report?: string | null
     } = {
       status: "completed",
-      profiles_count: totalCount,
+      profiles_count: runCount,
     }
     if (agentData.research_report) {
       missionUpdate.research_report = agentData.research_report
@@ -179,7 +181,7 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       excel_b64: agentData.result,
-      candidates_count: totalCount,
+      candidates_count: runCount,
       new_candidates: newRows.length,
       research_report: agentData.research_report ?? null,
     })

@@ -35,6 +35,7 @@ from agent_leo import (
     coerce_keywords,
     location_score,
     detect_seniority,
+    short_title,
 )
 
 MAX_PROFILES       = 150
@@ -69,10 +70,13 @@ async def expand_brief(brief: dict, client: httpx.AsyncClient) -> dict:
         f"Critères : {criteres}\n"
         f"Compétences déjà identifiées : {', '.join(mots)}\n\n"
         "Génère en JSON :\n"
-        "- alt_titles : liste de 4 intitulés alternatifs (ex : Lead Developer, CTO part-time, "
-        "Tech Lead, Ingénieur Principal). Variantes françaises et anglaises.\n"
-        "- extra_keywords : liste de 4 compétences/technologies connexes NON présentes dans "
-        "les compétences déjà identifiées (ex : si React → Next.js, Vite, SPA, TypeScript).\n"
+        "- alt_titles : liste de 4 intitulés COURTS alternatifs (1-3 mots max, comme ils apparaissent "
+        "sur LinkedIn — ex : 'Lead Developer', 'Tech Lead', 'Ingénieur Senior'). "
+        "Variantes françaises ET anglaises. JAMAIS de phrases longues.\n"
+        "- extra_keywords : liste de 4 compétences/domaines connexes NON présentes dans "
+        "les compétences déjà identifiées (ex : si React → Next.js, TypeScript, SPA).\n"
+        "RÈGLE : alt_titles doivent être des titres de poste courts (1-3 mots) comme on les voit "
+        "sur un profil LinkedIn, pas des descriptions de mission.\n"
         "Réponds UNIQUEMENT avec le JSON, sans explication :\n"
         '{"alt_titles":["..."],"extra_keywords":["..."]}'
     )
@@ -124,8 +128,9 @@ def build_expanded_queries(brief: dict) -> tuple[list[str], list[str], list[str]
 
     extra_li: list[str] = []
     for alt in alt_titles[:3]:
-        extra_li.append(f'site:linkedin.com/in "{alt}" {loc_q}')
-        extra_li.append(f'site:fr.linkedin.com/in "{alt}" {loc_q}')
+        alt_short = short_title(alt)
+        extra_li.append(f'site:linkedin.com/in "{alt_short}" {loc_q}')
+        extra_li.append(f'site:fr.linkedin.com/in "{alt_short}" {loc_q}')
 
     if extra_keywords:
         kw_str = " ".join(extra_keywords[:3])
@@ -134,7 +139,8 @@ def build_expanded_queries(brief: dict) -> tuple[list[str], list[str], list[str]
     # Extra Malt queries for alt titles
     extra_malt: list[str] = []
     for alt in alt_titles[:2]:
-        extra_malt.append(f'site:malt.fr "{alt}" {loc_q}')
+        alt_short = short_title(alt)
+        extra_malt.append(f'site:malt.fr "{alt_short}" {loc_q}')
 
     return (
         base_li + extra_li,
@@ -350,18 +356,35 @@ async def generate_message(
     kw_list = [k.strip() for k in kw_raw.split(",") if k.strip()][:3]
     kw_str  = ", ".join(kw_list) if kw_list else "ses compétences"
 
+    # Map brief ton to concrete style instruction
+    ton_raw = brief.get("ton", "")
+    ton_map = {
+        "professionnel": "Ton formel et soigné, phrases complètes, vouvoiement.",
+        "formel":        "Ton formel et soigné, phrases complètes, vouvoiement.",
+        "direct":        "Ton direct et concis, aller droit au but, pas de fioritures.",
+        "efficace":      "Ton direct et concis, aller droit au but, pas de fioritures.",
+        "chaleureux":    "Ton chaleureux et humain, proche, tutoiement possible.",
+        "humain":        "Ton chaleureux et humain, proche, tutoiement possible.",
+        "startup":       "Ton startup/casual, décontracté, peut tutoyer, énergie entrepreneuriale.",
+        "casual":        "Ton startup/casual, décontracté, peut tutoyer, énergie entrepreneuriale.",
+    }
+    ton_instruction = next(
+        (v for k, v in ton_map.items() if k in ton_raw.lower()),
+        "Ton professionnel mais humain, ni trop formel ni trop familier."
+    )
+
     prompt = (
         f"Rédige un message de prise de contact LinkedIn professionnel et personnalisé.\n"
         f"Recruteur : {nom_recruteur} | Poste : {titre_poste}\n"
         f"{source_ctx}\n"
         f"Compétences mises en avant : {kw_str}\n"
         f"Ce qui a retenu l'attention : {highlight}\n\n"
+        f"STYLE IMPOSÉ : {ton_instruction}\n\n"
         "Règles STRICTES :\n"
         "- 3-4 phrases maximum\n"
         "- Mentionner UN élément spécifique du profil (titre, entreprise, ou compétence clé)\n"
         "- Ne PAS mentionner de salaire, plateforme, score, ou outil de recrutement\n"
         "- Terminer par une question ouverte ou proposition de 30 min\n"
-        "- Ton : professionnel mais humain, pas formel\n"
         "- PAS de 'J'espère que ce message vous trouve bien'\n"
         "- PAS de formule de politesse finale, PAS de signature\n"
         "Réponds UNIQUEMENT avec le message."
@@ -515,9 +538,9 @@ async def run(brief: dict) -> dict:
     """
     location = brief.get("localisation", "")
 
-    profiles: list[dict]  = []
-    seen_urls: set[str]   = set()
-    seen_names: list[str] = []
+    profiles: list[dict] = []
+    seen_urls: set[str]  = set()
+    seen_names: set[str] = set()
 
     semaphore = asyncio.Semaphore(5)
 
@@ -549,19 +572,22 @@ async def run(brief: dict) -> dict:
         norm_url  = p["_norm_url"]
         norm_name = p["_norm_name"]
 
+        # 1. URL exact dedup
         if norm_url in seen_urls:
             return
-        name_co_key = f"{norm_name}|{(p.get('company') or '').lower().strip()}"
-        if norm_name and norm_name in seen_names and p.get("company"):
-            if name_co_key in seen_names:
-                return
-        if norm_name and any(fuzzy_name_match(norm_name, e) for e in seen_names):
+
+        # 2. Name exact dedup (same person regardless of company)
+        if norm_name and norm_name in seen_names:
             return
+
+        # 3. Fuzzy name dedup (typos, hyphens, accents)
+        if norm_name and len(norm_name) >= 6:
+            if any(fuzzy_name_match(norm_name, e) for e in seen_names):
+                return
 
         seen_urls.add(norm_url)
         if norm_name:
-            seen_names.append(norm_name)
-            seen_names.append(name_co_key)
+            seen_names.add(norm_name)
         profiles.append(p)
 
     for results in li_results:

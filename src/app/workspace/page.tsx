@@ -60,10 +60,12 @@ function DeleteDialog({
   mission,
   onConfirm,
   onCancel,
+  isDeleting,
 }: {
   mission: Mission
   onConfirm: () => void
   onCancel: () => void
+  isDeleting?: boolean
 }) {
   return (
     <div
@@ -126,14 +128,17 @@ function DeleteDialog({
           </button>
           <button
             onClick={onConfirm}
+            disabled={isDeleting}
             style={{
               padding: "9px 18px", borderRadius: 10,
               border: "none", background: "#EF4444",
               fontSize: 13, fontWeight: 700, color: "white",
-              cursor: "pointer", fontFamily: "var(--font-inter), sans-serif",
+              cursor: isDeleting ? "not-allowed" : "pointer",
+              fontFamily: "var(--font-inter), sans-serif",
+              opacity: isDeleting ? 0.65 : 1,
             }}
           >
-            Supprimer
+            {isDeleting ? "Suppression…" : "Supprimer"}
           </button>
         </div>
       </m.div>
@@ -581,7 +586,8 @@ export default function WorkspacePage() {
           <DeleteDialog
             mission={deleteTarget}
             onConfirm={deleting ? () => {} : handleDelete}
-            onCancel={() => setDeleteTarget(null)}
+            onCancel={() => !deleting && setDeleteTarget(null)}
+            isDeleting={deleting}
           />
         )}
       </AnimatePresence>

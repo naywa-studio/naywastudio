@@ -7,6 +7,7 @@ interface MissionRunPanelProps {
   missionId: string
   agentColor: string
   agentName: string
+  skipLaunch?: boolean   // true when resuming a mission that's already running on the VPS
   onCompleted: (excelB64: string, candidatesCount: number, researchReport?: string) => void
   onError: (msg: string) => void
 }
@@ -37,15 +38,20 @@ function ElapsedTimer({ startedAt }: { startedAt: number }) {
 const POLL_MS = 5000
 
 export default function MissionRunPanel({
-  missionId, agentColor, agentName, onCompleted, onError,
+  missionId, agentColor, agentName, skipLaunch = false, onCompleted, onError,
 }: MissionRunPanelProps) {
-  const [status, setStatus] = useState<RunStatus>("launching")
+  const [status, setStatus] = useState<RunStatus>(skipLaunch ? "running" : "launching")
   const [errorMsg, setErrorMsg] = useState("")
   const startedAt = useRef(Date.now())
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // ── Launch on mount ──────────────────────────────────────────────────────────
+  // ── Launch on mount (or skip if resuming) ───────────────────────────────────
   useEffect(() => {
+    if (skipLaunch) {
+      // Already running on VPS — go straight to polling
+      startPoll()
+      return () => { if (timerRef.current) clearInterval(timerRef.current) }
+    }
     const launch = async () => {
       const res = await fetch(`/api/missions/${missionId}/run`, { method: "POST" })
       if (!res.ok) {
@@ -163,9 +169,41 @@ export default function MissionRunPanel({
             <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "#EF4444", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
               Erreur agent
             </p>
-            <p style={{ margin: 0, fontSize: 13, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif", maxWidth: 360 }}>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif", maxWidth: 360 }}>
               {errorMsg}
             </p>
+            <button
+              onClick={async () => {
+                setStatus("launching")
+                setErrorMsg("")
+                startedAt.current = Date.now()
+                try {
+                  const res = await fetch(`/api/missions/${missionId}/run`, { method: "POST" })
+                  if (!res.ok) {
+                    const { error } = await res.json() as { error: string }
+                    setStatus("error")
+                    setErrorMsg(error ?? "Erreur au lancement")
+                    onError(error)
+                    return
+                  }
+                  setStatus("running")
+                  startPoll()
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : String(err)
+                  setStatus("error")
+                  setErrorMsg(msg)
+                  onError(msg)
+                }
+              }}
+              style={{
+                padding: "9px 20px", borderRadius: 10, border: "none",
+                background: agentColor, color: "white",
+                fontSize: 13, fontWeight: 700, cursor: "pointer",
+                fontFamily: "var(--font-inter), sans-serif",
+              }}
+            >
+              Réessayer
+            </button>
           </div>
         </>
       )}

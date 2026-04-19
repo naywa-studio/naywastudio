@@ -37,10 +37,11 @@ function toB64(content: string): string {
 
 // ── Cloud-init script generator ───────────────────────────────────────────────
 
-function buildCloudInit(userId: string, level: "leo" | "nora"): string {
+function buildCloudInit(userId: string, level: "leo" | "nora" | "alex"): string {
   const mainB64 = toB64(readTemplate("main.py"))
   const leoB64 = toB64(readTemplate("agent_leo.py"))
-  const noraB64 = level === "nora" ? toB64(readTemplate("agent_nora.py")) : null
+  const noraB64 = (level === "nora" || level === "alex") ? toB64(readTemplate("agent_nora.py")) : null
+  const alexB64 = level === "alex" ? toB64(readTemplate("agent_alex.py")) : null
   const reqB64 = toB64(readTemplate("requirements.txt"))
 
   const secret = process.env.NAWA_AGENT_SECRET!
@@ -74,6 +75,7 @@ echo "${reqB64}" | base64 -d > requirements.txt
 echo "${mainB64}" | base64 -d > main.py
 echo "${leoB64}" | base64 -d > agent_leo.py
 ${noraB64 ? `echo "${noraB64}" | base64 -d > agent_nora.py` : ""}
+${alexB64 ? `echo "${alexB64}" | base64 -d > agent_alex.py` : ""}
 
 # Environment
 cat > /opt/nawa-agent/.env << 'ENVEOF'
@@ -136,62 +138,135 @@ echo "[nawa] Setup complete — ip=$VPS_IP"
 }
 
 // ── Hostinger VPS creation ────────────────────────────────────────────────────
+//
+// Hostinger VPS API v1 flow (2-step):
+//   1. POST /api/billing/v1/orders  → creates subscription + VPS shell
+//      Body: { item_id: "hostingercom-vps-kvm1"|"hostingercom-vps-kvm2" }
+//      Returns: { subscription_id, ... } → VPS shows up at GET /vps/v1/virtual-machines
+//
+//   2. POST /vps/v1/virtual-machines/{id}/setup → installs OS + SSH key
+//      Body: { template_id: 1077 (Ubuntu 24.04), data_center_id: 19 (Frankfurt),
+//              public_key_ids: [SSH_KEY_ID], hostname }
+//      After this: poll GET /vps/v1/virtual-machines/{id} until state=="running"
+//
+//   3. SSH in → run buildCloudInit() script (agent files too large for post-install)
+//      Uses AGENT_VPS_SSH_KEY (base64-encoded ed25519 private key, no passphrase)
+//
+// Note: cloud-init user_data is NOT supported by Hostinger VPS API v1.
+//       Post-install scripts have a ~90KB size limit (our agent bundle ~93KB).
+//       Deployment is done via SSH after VPS is ready (see scripts/provision-admin.mjs).
+
+// Hostinger template IDs (GET /vps/v1/templates)
+const TEMPLATE_UBUNTU_24 = 1077
+// Hostinger data center IDs (GET /vps/v1/data-centers)
+const DC_FRANKFURT = 19
+// Hostinger catalog item IDs (GET /api/billing/v1/catalog)
+const PLAN_IDS = { leo: "hostingercom-vps-kvm1", nora: "hostingercom-vps-kvm2", alex: "hostingercom-vps-kvm2" } as const
 
 interface VpsCreateResult {
   vps_id: string
+  vps_ip?: string
 }
 
 export async function createVps(
   userId: string,
-  level: "leo" | "nora"
+  level: "leo" | "nora" | "alex"
 ): Promise<VpsCreateResult> {
   const hostname = `nawa-${userId.slice(0, 8)}`
-  const plan = level === "leo" ? "KVM_1" : "KVM_2"
-  const cloudInit = buildCloudInit(userId, level)
+  const sshKeyId = Number(process.env.HOSTINGER_SSH_KEY_ID)
 
-  const resp = await fetch(`${HOSTINGER_API}/virtual-machines`, {
+  // Step 1 — Create billing order (purchases the VPS subscription)
+  const orderResp = await fetch("https://developers.hostinger.com/api/billing/v1/orders", {
+    method: "POST",
+    headers: hostingerHeaders(),
+    body: JSON.stringify({ item_id: PLAN_IDS[level] }),
+  })
+
+  if (!orderResp.ok) {
+    const err = await orderResp.text()
+    throw new Error(`Hostinger billing order failed: ${orderResp.status} — ${err}`)
+  }
+
+  // Step 2 — Find the newly created VPS (it appears in the VM list within seconds)
+  await new Promise(r => setTimeout(r, 5000))
+  const vmsResp = await fetch(`${HOSTINGER_API}/virtual-machines`, { headers: hostingerHeaders() })
+  const vms = await vmsResp.json() as Array<{ id: number; state: string; hostname: string; subscription_id?: string }>
+  const newVm = vms.find(v => v.state === "initial" || v.hostname === hostname || v.hostname.startsWith("srv"))
+  if (!newVm) throw new Error("Could not locate newly created VPS")
+
+  const vpsId = String(newVm.id)
+
+  // Step 3 — Set up OS + SSH key
+  const setupResp = await fetch(`${HOSTINGER_API}/virtual-machines/${vpsId}/setup`, {
     method: "POST",
     headers: hostingerHeaders(),
     body: JSON.stringify({
-      plan,
-      region: "eu-west-1",
+      template_id: TEMPLATE_UBUNTU_24,
+      data_center_id: DC_FRANKFURT,
+      public_key_ids: [sshKeyId],
       hostname,
-      ssh_key_ids: [Number(process.env.HOSTINGER_SSH_KEY_ID)],
-      os: "ubuntu-22-04",
-      user_data: Buffer.from(cloudInit).toString("base64"),
     }),
   })
 
-  if (!resp.ok) {
-    const err = await resp.text()
-    throw new Error(`Hostinger create VPS failed: ${resp.status} — ${err}`)
+  if (!setupResp.ok) {
+    const err = await setupResp.text()
+    throw new Error(`Hostinger VPS setup failed: ${setupResp.status} — ${err}`)
   }
 
-  const data = await resp.json()
-  return { vps_id: String(data.id ?? data.virtual_machine?.id) }
+  return { vps_id: vpsId }
 }
+
+// ── Poll VPS until running ────────────────────────────────────────────────────
+
+async function waitForVpsReady(vpsId: string, timeoutMs = 300_000): Promise<string> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 15_000))
+    const r = await fetch(`${HOSTINGER_API}/virtual-machines/${vpsId}`, { headers: hostingerHeaders() })
+    if (!r.ok) continue
+    const vm = await r.json() as { state: string; actions_lock: string; ipv4?: Array<{ address: string }> }
+    if (vm.state === "running" && vm.actions_lock === "unlocked") {
+      return vm.ipv4?.[0]?.address ?? ""
+    }
+  }
+  throw new Error("VPS did not become ready within timeout")
+}
+
+// ── SSH agent deployment ──────────────────────────────────────────────────────
+//
+// After VPS is running, we SSH in and deploy the agent files.
+// Requires: AGENT_VPS_SSH_KEY (base64 ed25519 private key, no passphrase)
+// TODO: implement with node-ssh once added to package.json dependencies.
+// For now, manual deployment via scripts/provision-admin.mjs.
 
 // ── Background provisioning (called fire-and-forget from /api/subscribe) ─────
 
 export async function provisionInBackground(
   userId: string,
-  level: "leo" | "nora"
+  level: "leo" | "nora" | "alex"
 ): Promise<void> {
   const sb = supabaseAdmin()
 
   try {
-    // Create VPS (fast — Hostinger API just queues it)
+    // Step 1: Create VPS via Hostinger billing + setup API
     const { vps_id } = await createVps(userId, level)
+    await sb.from("profiles").update({ vps_id, vps_status: "provisioning" }).eq("user_id", userId)
 
+    // Step 2: Wait for VPS to be running (OS setup ~2-5 min)
+    const vpsIp = await waitForVpsReady(vps_id)
+    if (!vpsIp) throw new Error("VPS IP not available after setup")
+
+    // Step 3: SSH deploy agent files
+    // TODO: automated SSH deployment (see scripts/provision-admin.mjs for manual reference)
+    // For now we mark as "deploying" — admin must run the deploy script manually.
     await sb
       .from("profiles")
-      .update({ vps_id, vps_status: "provisioning" })
+      .update({ vps_ip: vpsIp, vps_status: "provisioning", agent_status: "not_deployed" })
       .eq("user_id", userId)
+
+    console.log(`[vps] VPS ${vps_id} ready at ${vpsIp} — SSH deploy required`)
   } catch (err) {
     console.error("[vps] provisionInBackground error:", err)
-    await sb
-      .from("profiles")
-      .update({ vps_status: "error" })
-      .eq("user_id", userId)
+    await sb.from("profiles").update({ vps_status: "error" }).eq("user_id", userId)
   }
 }

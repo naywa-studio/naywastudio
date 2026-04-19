@@ -73,8 +73,9 @@ export default function MissionDetailPage() {
   const [leoTab,       setLeoTab]       = useState<LeoTab>("results")
   const briefChatRef = useRef<BriefChatHandle>(null)
 
-  const [isRunning,  setIsRunning]  = useState(false)
-  const [excelB64,   setExcelB64]   = useState<string | null>(null)
+  const [isRunning,    setIsRunning]    = useState(false)
+  const [runResumed,   setRunResumed]   = useState(false)  // true when restoring in_progress from DB
+  const [excelB64,     setExcelB64]     = useState<string | null>(null)
   const [reDownloading, setReDownloading] = useState(false)
 
   const [chatCollapsed, setChatCollapsed] = useState(false)
@@ -83,7 +84,7 @@ export default function MissionDetailPage() {
   const resizeStartX = useRef(0)
   const resizeStartW = useRef(0)
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (isFirstLoad = false) => {
     const sb = getSupabase()
     const [{ data: m }, { data: c }, { data: bl }] = await Promise.all([
       sb.from("missions").select("*").eq("id", missionId).single(),
@@ -93,10 +94,15 @@ export default function MissionDetailPage() {
     setMission(m)
     setCandidates(c ?? [])
     setBookingLinks(bl ?? [])
+    // Restore running state if mission is still in_progress on page load
+    if (isFirstLoad && m?.status === "in_progress") {
+      setIsRunning(true)
+      setRunResumed(true)
+    }
     setLoading(false)
   }, [missionId])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchData(true) }, [fetchData])
 
   /* ── Resize handle ───────────────────────────────────────── */
   const startResize = useCallback((e: React.MouseEvent) => {
@@ -140,6 +146,7 @@ export default function MissionDetailPage() {
   const handleRunCompleted = (b64: string, count: number, researchReport?: string) => {
     setExcelB64(b64)
     setIsRunning(false)
+    setRunResumed(false)
     setMission(prev => !prev ? prev : { ...prev, status: "completed", profiles_count: count, research_report: researchReport ?? prev.research_report ?? null })
     fetchData()
   }
@@ -224,15 +231,17 @@ export default function MissionDetailPage() {
     <div style={{ display: "flex", height: "calc(100vh - 60px)", overflow: "hidden" }}>
 
       {/* ── LEFT SIDEBAR — BriefChat ──────────────────────────── */}
-      {!chatCollapsed && (
-        <div style={{
-          width: chatWidth, flexShrink: 0,
-          borderRight: "1.5px solid #F0ECF8",
-          background: "white",
-          display: "flex", flexDirection: "column",
-          overflowY: "auto", padding: "18px",
-          position: "relative",
-        }}>
+      <div style={{
+        width: chatCollapsed ? 0 : chatWidth,
+        flexShrink: 0,
+        overflow: "hidden",
+        transition: "width 220ms cubic-bezier(0.22,1,0.36,1)",
+        borderRight: chatCollapsed ? "none" : "1.5px solid #F0ECF8",
+        background: "white",
+        display: "flex", flexDirection: "column",
+        position: "relative",
+      }}>
+        <div style={{ width: chatWidth, height: "100%", display: "flex", flexDirection: "column", overflowY: "auto", padding: "18px", position: "relative", flexShrink: 0 }}>
           <BriefChat
             ref={briefChatRef}
             missionId={missionId}
@@ -257,15 +266,15 @@ export default function MissionDetailPage() {
             <div style={{ width: 2, height: 40, borderRadius: 2, background: "#E2DAF6" }} />
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Collapse toggle tab */}
+      {/* Collapse toggle tab — always in DOM, always clickable */}
       <button
         onClick={() => setChatCollapsed(p => !p)}
         title={chatCollapsed ? "Ouvrir le chat" : "Fermer le chat"}
         style={{
           position: "relative",
-          zIndex: 5,
+          zIndex: 20,
           alignSelf: "center",
           width: 20,
           height: 48,
@@ -279,15 +288,15 @@ export default function MissionDetailPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#9CA3AF",
-          marginLeft: chatCollapsed ? 0 : -10,
-          transition: "all 200ms",
+          color: "#7C63C8",
+          transition: "all 220ms cubic-bezier(0.22,1,0.36,1)",
+          boxShadow: chatCollapsed ? "2px 0 8px rgba(124,99,200,0.10)" : "none",
         }}
       >
         <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
           <path
             d={chatCollapsed ? "M7 5l6 5-6 5" : "M13 5l-6 5 6 5"}
-            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
           />
         </svg>
       </button>
@@ -350,8 +359,9 @@ export default function MissionDetailPage() {
                 missionId={missionId}
                 agentColor={agent.color}
                 agentName={agent.agent}
+                skipLaunch={runResumed}
                 onCompleted={handleRunCompleted}
-                onError={() => { setIsRunning(false); setMission(prev => prev ? { ...prev, status: "error" } : prev) }}
+                onError={() => { setIsRunning(false); setRunResumed(false); setMission(prev => prev ? { ...prev, status: "error" } : prev) }}
               />
             </div>
           )}
@@ -448,7 +458,7 @@ function NoraSections({
   onContact: (id: string) => void
   onNoteChange: (id: string, text: string) => void
 }) {
-  const [activeTab,    setActiveTab]    = useState<NoraTab>("fiches")
+  const [activeTab,    setActiveTab]    = useState<NoraTab>("tableur")
   const [weights,      setWeights]      = useState<ScoringWeights>(DEFAULT_WEIGHTS)
   const [showWeights,  setShowWeights]  = useState(false)
   const [threshold,    setThreshold]    = useState(7)
@@ -456,7 +466,8 @@ function NoraSections({
 
   /* ── Computed ──────────────────────────────────────────── */
   const scored    = candidates.filter(c => c.relevance_score != null)
-  const shortlistN = Math.max(3, Math.ceil(scored.length * threshold / 100))
+  // Only show Top % count when we actually have scored candidates
+  const shortlistN = scored.length > 0 ? Math.max(3, Math.ceil(scored.length * threshold / 100)) : 0
 
   const sorted = [...scored].sort((a, b) => getAdjustedScore(b, weights) - getAdjustedScore(a, weights))
   const topN   = sorted.slice(0, shortlistN)
@@ -804,7 +815,7 @@ function NoraSections({
               </div>
 
               {/* Download buttons */}
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
                 <button onClick={onDownload} disabled={reDownloading || (!excelB64 && mission.status !== "completed")}
                   style={{
                     padding: "10px 18px", borderRadius: 10, border: "none",
@@ -836,6 +847,9 @@ function NoraSections({
                   </button>
                 )}
               </div>
+
+              {/* Candidate list — same as Leo results */}
+              <TableurCandidateList candidates={candidates} agentColor={agentColor} />
             </div>
           )}
 
@@ -1583,6 +1597,78 @@ function LeoSections({
           {activeTab === "pipeline" && <LeoPipelineSection candidates={candidates} bookingLinks={bookingLinks} />}
           {activeTab === "calendar" && <CalendarSection candidates={candidates} bookingLinks={bookingLinks} onUpdateStatus={onUpdateBookingStatus} />}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Tableur candidate list (Nora/Alex) ────────────────────── */
+function TableurCandidateList({ candidates, agentColor }: { candidates: Candidate[]; agentColor: string }) {
+  const [filter, setFilter] = useState<"all" | "linkedin" | "malt" | "apec">("all")
+  const [search, setSearch] = useState("")
+
+  const liCount   = candidates.filter(c => (c.source ?? "linkedin") === "linkedin").length
+  const maltCount = candidates.filter(c => c.source === "malt").length
+  const apecCount = candidates.filter(c => c.source === "apec").length
+
+  const filtered = candidates.filter(c => {
+    const ms = filter === "all" || (c.source ?? "linkedin") === filter
+    const mq = !search || [c.name_estimated, c.title_estimated, c.company].some(v => v?.toLowerCase().includes(search.toLowerCase()))
+    return ms && mq
+  })
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-inter), sans-serif" }}>
+          Tous les profils
+        </p>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          {[
+            { key: "all",      label: `Tous (${candidates.length})`,  color: agentColor, bg: "#F0ECF8" },
+            ...(liCount   ? [{ key: "linkedin", label: `LinkedIn (${liCount})`,        color: "#0A66C2", bg: "rgba(10,102,194,0.08)" }] : []),
+            ...(maltCount ? [{ key: "malt",     label: `Malt (${maltCount})`,          color: "#FC5757", bg: "rgba(252,87,87,0.08)" }] : []),
+            ...(apecCount ? [{ key: "apec",     label: `APEC (${apecCount})`,          color: "#E87722", bg: "rgba(232,119,34,0.08)" }] : []),
+          ].map(({ key, label, color, bg }) => (
+            <button key={key} onClick={() => setFilter(key as typeof filter)} style={{ padding: "4px 10px", borderRadius: 999, border: `1.5px solid ${filter === key ? color : "#E5E7EB"}`, background: filter === key ? bg : "white", color: filter === key ? color : "#6B7280", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-inter), sans-serif" }}>{label}</button>
+          ))}
+        </div>
+        <div style={{ marginLeft: "auto", position: "relative" }}>
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="none" style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }}>
+            <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.8"/>
+            <path d="M13.5 13.5l3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" style={{ paddingLeft: 26, paddingRight: 10, paddingTop: 5, paddingBottom: 5, borderRadius: 8, border: "1.5px solid #E5E7EB", fontSize: 12, color: "#111827", outline: "none", background: "white", width: 150, fontFamily: "var(--font-inter), sans-serif" }} />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {filtered.map((c, i) => {
+          const sm = SOURCE_META[(c.source ?? "linkedin") as keyof typeof SOURCE_META] ?? SOURCE_META.linkedin
+          const score = c.relevance_score
+          const isShortlisted = c.status === "shortlisted"
+          const isRejected    = c.status === "rejected"
+          return (
+            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${isShortlisted ? "#D1FAE5" : isRejected ? "#FEE2E2" : "#F0ECF8"}`, background: isShortlisted ? "#F0FDF4" : isRejected ? "#FEF2F2" : "white", opacity: isRejected ? 0.6 : 1 }}>
+              <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#9CA3AF", background: "#F8F6FF", fontFamily: "var(--font-inter), sans-serif" }}>{i + 1}</span>
+              <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: sm.color, background: sm.bg, fontFamily: "var(--font-inter), sans-serif" }}>{sm.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "#111827", fontFamily: "var(--font-inter), sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name_estimated ?? "—"}</p>
+                <p style={{ margin: 0, fontSize: 11, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[c.title_estimated, c.company].filter(Boolean).join(" · ") || "—"}</p>
+              </div>
+              {c.seniority_level && <span style={{ flexShrink: 0, fontSize: 10, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>{c.seniority_level}</span>}
+              {score != null && <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 6, color: score >= 80 ? "#16a34a" : score >= 60 ? "#F59E0B" : "#EF4444", background: score >= 80 ? "rgba(22,163,74,0.08)" : score >= 60 ? "rgba(245,158,11,0.08)" : "rgba(239,68,68,0.08)", fontFamily: "var(--font-inter), sans-serif" }}>{score}</span>}
+              {isShortlisted && <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: "#16a34a", fontFamily: "var(--font-inter), sans-serif" }}>✓</span>}
+              {c.linkedin_url
+                ? <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 6, textDecoration: "none", color: sm.color, background: sm.bg, fontFamily: "var(--font-inter), sans-serif" }}>{sm.urlLabel}</a>
+                : <span style={{ flexShrink: 0, fontSize: 11, color: "#D1D5DB" }}>—</span>
+              }
+            </div>
+          )
+        })}
+        {filtered.length === 0 && (
+          <p style={{ textAlign: "center", color: "#9CA3AF", fontSize: 13, padding: "24px 0", fontFamily: "var(--font-inter), sans-serif", margin: 0 }}>Aucun profil trouvé.</p>
+        )}
       </div>
     </div>
   )

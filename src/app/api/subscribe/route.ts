@@ -4,8 +4,8 @@ import { cookies } from "next/headers"
 import { provisionInBackground } from "@/lib/vps"
 import type { Database } from "@/lib/database.types"
 
-type Level = "leo" | "nora"
-const VALID_LEVELS: Level[] = ["leo", "nora"]
+type Level = "leo" | "nora" | "alex"
+const VALID_LEVELS: Level[] = ["leo", "nora", "alex"]
 
 export async function POST(req: NextRequest) {
   // ── Parse body ────────────────────────────────────────────────────────────

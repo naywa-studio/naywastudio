@@ -79,7 +79,7 @@ async def create_mission(
     # Accept both { brief: {...} } and plain brief dict
     brief = body.get("brief", body)
     mission_id = str(uuid.uuid4())
-    missions[mission_id] = {"status": "running", "excel_b64": None, "candidates": None, "error": None}
+    missions[mission_id] = {"status": "running", "excel_b64": None, "candidates": None, "research_report": None, "error": None}
     background_tasks.add_task(_run_mission, mission_id, brief)
     log.info("Mission %s created (level=%s)", mission_id, AGENT_LEVEL)
     return {"mission_id": mission_id, "status": "running"}
@@ -107,8 +107,9 @@ def get_result(mission_id: str, x_nawa_secret: str | None = Header(None)):
     return {
         "mission_id": mission_id,
         "status": "completed",
-        "result": m["excel_b64"],         # base64 Excel
-        "candidates": m["candidates"],    # list[dict] for DB ingestion
+        "result": m["excel_b64"],                         # base64 Excel
+        "candidates": m["candidates"],                    # list[dict] for DB ingestion
+        "research_report": m.get("research_report"),      # Nora/Alex only
     }
 
 
@@ -196,10 +197,11 @@ async def _run_mission(mission_id: str, brief: dict) -> None:
             from agent_leo import run
 
         result = await run(brief)
-        # run() returns dict: { excel_b64: str, candidates: list[dict] }
+        # run() returns dict: { excel_b64: str, candidates: list[dict], research_report?: str }
         missions[mission_id]["status"] = "completed"
         missions[mission_id]["excel_b64"] = result["excel_b64"]
         missions[mission_id]["candidates"] = result["candidates"]
+        missions[mission_id]["research_report"] = result.get("research_report")
         log.info("Mission %s completed — %d candidates", mission_id, len(result["candidates"]))
     except Exception as exc:
         missions[mission_id]["status"] = "error"
