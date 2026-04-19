@@ -7,10 +7,9 @@ import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
 import { AGENT_LEVELS } from "@/lib/mock-store"
 import { useWorkspace } from "../../layout"
-import BriefChat, { type BriefChatHandle } from "@/components/workspace/BriefChat"
 import MissionRunPanel from "@/components/workspace/MissionRunPanel"
 import { SOURCE_META } from "@/lib/candidate-meta"
-import type { Database, MissionBrief, ScoreDimensions, ChatHistoryMsg } from "@/lib/database.types"
+import type { Database, ScoreDimensions, ChatHistoryMsg } from "@/lib/database.types"
 
 type Mission   = Database["public"]["Tables"]["missions"]["Row"]
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"]
@@ -71,18 +70,11 @@ export default function MissionDetailPage() {
   const [bookingLinks, setBookingLinks] = useState<BookingLink[]>([])
   const [loading,      setLoading]      = useState(true)
   const [leoTab,       setLeoTab]       = useState<LeoTab>("results")
-  const briefChatRef = useRef<BriefChatHandle>(null)
 
   const [isRunning,    setIsRunning]    = useState(false)
   const [runResumed,   setRunResumed]   = useState(false)  // true when restoring in_progress from DB
   const [excelB64,     setExcelB64]     = useState<string | null>(null)
   const [reDownloading, setReDownloading] = useState(false)
-
-  const [chatCollapsed, setChatCollapsed] = useState(false)
-  const [chatWidth, setChatWidth]         = useState(400)
-  const isResizing  = useRef(false)
-  const resizeStartX = useRef(0)
-  const resizeStartW = useRef(0)
 
   const fetchData = useCallback(async (isFirstLoad = false) => {
     const sb = getSupabase()
@@ -104,26 +96,6 @@ export default function MissionDetailPage() {
 
   useEffect(() => { fetchData(true) }, [fetchData])
 
-  /* ── Resize handle ───────────────────────────────────────── */
-  const startResize = useCallback((e: React.MouseEvent) => {
-    isResizing.current = true
-    resizeStartX.current = e.clientX
-    resizeStartW.current = chatWidth
-
-    const onMove = (ev: MouseEvent) => {
-      if (!isResizing.current) return
-      const delta = ev.clientX - resizeStartX.current
-      setChatWidth(Math.max(280, Math.min(600, resizeStartW.current + delta)))
-    }
-    const onUp = () => {
-      isResizing.current = false
-      window.removeEventListener("mousemove", onMove)
-      window.removeEventListener("mouseup", onUp)
-    }
-    window.addEventListener("mousemove", onMove)
-    window.addEventListener("mouseup", onUp)
-  }, [chatWidth])
-
   /* ── Save chat history ───────────────────────────────────── */
   const saveHistory = useCallback(async (msgs: ChatHistoryMsg[]) => {
     try {
@@ -134,13 +106,6 @@ export default function MissionDetailPage() {
       })
     } catch { /* non-critical */ }
   }, [missionId])
-
-  /* ── Chat launch ─────────────────────────────────────────── */
-  const handleChatLaunch = async (brief: MissionBrief) => {
-    await getSupabase().from("missions").update({ brief }).eq("id", missionId)
-    setMission(prev => prev ? { ...prev, brief, status: "in_progress" } : prev)
-    setIsRunning(true)
-  }
 
   /* ── Run completed ───────────────────────────────────────── */
   const handleRunCompleted = (b64: string, count: number, researchReport?: string) => {
@@ -228,81 +193,7 @@ export default function MissionDetailPage() {
   const missionDate = new Date(mission.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
 
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 60px)", overflow: "hidden" }}>
-
-      {/* ── LEFT SIDEBAR — BriefChat ──────────────────────────── */}
-      <div style={{
-        width: chatCollapsed ? 0 : chatWidth,
-        flexShrink: 0,
-        overflow: "hidden",
-        transition: "width 220ms cubic-bezier(0.22,1,0.36,1)",
-        borderRight: chatCollapsed ? "none" : "1.5px solid #F0ECF8",
-        background: "white",
-        display: "flex", flexDirection: "column",
-        position: "relative",
-      }}>
-        <div style={{ width: chatWidth, height: "100%", display: "flex", flexDirection: "column", overflowY: "auto", padding: "18px", position: "relative", flexShrink: 0 }}>
-          <BriefChat
-            ref={briefChatRef}
-            missionId={missionId}
-            firstName={profile?.first_name ?? null}
-            agentColor={agent.color}
-            agentName={agent.agent}
-            isRunning={isRunning}
-            completedCount={mission.status === "completed" ? (mission.profiles_count ?? candidates.length) : undefined}
-            onLaunch={handleChatLaunch}
-            initialMessages={(mission.chat_history as ChatHistoryMsg[] | null) ?? undefined}
-            onHistoryUpdate={saveHistory}
-          />
-          {/* Resize handle */}
-          <div
-            onMouseDown={startResize}
-            style={{
-              position: "absolute", right: 0, top: 0, bottom: 0, width: 6,
-              cursor: "col-resize", zIndex: 10,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <div style={{ width: 2, height: 40, borderRadius: 2, background: "#E2DAF6" }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Collapse toggle tab — always in DOM, always clickable */}
-      <button
-        onClick={() => setChatCollapsed(p => !p)}
-        title={chatCollapsed ? "Ouvrir le chat" : "Fermer le chat"}
-        style={{
-          position: "relative",
-          zIndex: 20,
-          alignSelf: "center",
-          width: 20,
-          height: 48,
-          flexShrink: 0,
-          background: "white",
-          border: "1.5px solid #E2DAF6",
-          borderLeft: chatCollapsed ? "1.5px solid #E2DAF6" : "none",
-          borderRight: chatCollapsed ? "none" : "1.5px solid #E2DAF6",
-          borderRadius: chatCollapsed ? "0 8px 8px 0" : "8px 0 0 8px",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#7C63C8",
-          transition: "all 220ms cubic-bezier(0.22,1,0.36,1)",
-          boxShadow: chatCollapsed ? "2px 0 8px rgba(124,99,200,0.10)" : "none",
-        }}
-      >
-        <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
-          <path
-            d={chatCollapsed ? "M7 5l6 5-6 5" : "M13 5l-6 5 6 5"}
-            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
-      {/* ── RIGHT PANEL ───────────────────────────────────── */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 60px)", overflow: "hidden" }}>
 
         {/* Top bar */}
         <div style={{
@@ -391,7 +282,6 @@ export default function MissionDetailPage() {
                   agentLevel={agentLevel}
                   excelB64={excelB64}
                   reDownloading={reDownloading}
-                  briefChatRef={briefChatRef}
                   onDownload={() => mission.status === "completed" && !excelB64 ? reDownload() : downloadExcel()}
                   onDecision={handleDecision}
                   onContact={handleContact}
@@ -411,13 +301,12 @@ export default function MissionDetailPage() {
                 />
           )}
         </div>
-      </div>
     </div>
   )
 }
 
 /* ════════════════════════════════════════════════════════════════
-   NORA SECTIONS  — bandeau stats + tabs verticales
+   NORA SECTIONS  — bandeau stats + tabs horizontales
    ════════════════════════════════════════════════════════════════ */
 
 type NoraTab = "fiches" | "tableur" | "contact" | "pipeline" | "relances"
@@ -443,7 +332,7 @@ function getAdjustedScore(c: Candidate, w: ScoringWeights): number {
 
 function NoraSections({
   mission, candidates, missionId, agentColor, agentLevel, excelB64, reDownloading,
-  briefChatRef, onDownload, onDecision, onContact, onNoteChange,
+  onDownload, onDecision, onContact, onNoteChange,
 }: {
   mission: Mission
   candidates: Candidate[]
@@ -452,7 +341,6 @@ function NoraSections({
   agentLevel: number
   excelB64: string | null
   reDownloading: boolean
-  briefChatRef: React.RefObject<BriefChatHandle | null>
   onDownload: () => void
   onDecision: (id: string, decision: "validated" | "rejected", msgDraft?: string) => void
   onContact: (id: string) => void
@@ -587,70 +475,58 @@ function NoraSections({
         </div>
       </div>
 
-      {/* ── MAIN AREA: sidebar tabs + content ─────────────── */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-
-        {/* Vertical tab sidebar */}
-        <div style={{
-          width: 168, flexShrink: 0,
-          borderRight: "1.5px solid #F0ECF8",
-          background: "#FDFCFF",
-          display: "flex", flexDirection: "column",
-          padding: "12px 8px",
-          gap: 2,
-        }}>
-          {(["fiches", "tableur", "contact", ...(agentLevel >= 3 ? ["pipeline", "relances"] as NoraTab[] : [])] as NoraTab[]).map(tab => {
-            const candidatesWithStage = candidates.filter(c => c.pipeline_stage != null)
-            const relancesCount = validated.filter(c => c.contacted_at && !c.pipeline_stage?.match(/replied|interview|offer/)).length
-            const labels: Record<NoraTab, string> = {
-              fiches:   "Fiches candidats",
-              tableur:  "Tableur",
-              contact:  "Contact",
-              pipeline: "Pipeline",
-              relances: "Relances",
-            }
-            const counts: Partial<Record<NoraTab, string | number>> = {
-              fiches:   topN.length,
-              tableur:  candidates.length,
-              contact:  `${contacted.length}/${validated.length}`,
-              pipeline: candidatesWithStage.length,
-              relances: relancesCount,
-            }
-            const active = activeTab === tab
-            return (
-              <button key={tab} onClick={() => setActiveTab(tab)} style={{
-                width: "100%", padding: "9px 10px",
-                borderRadius: 9, border: "none",
-                background: active ? agentColor : "transparent",
-                color: active ? "white" : "#6B7280",
-                textAlign: "left", cursor: "pointer",
-                fontFamily: "var(--font-inter), sans-serif",
-                fontSize: 12, fontWeight: active ? 700 : 500,
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                transition: "all 150ms",
+      {/* ── HORIZONTAL TABS STRIP ────────────────────────────── */}
+      <div style={{ flexShrink: 0, padding: "0 20px", borderBottom: "1.5px solid #F0ECF8", background: "white", display: "flex", alignItems: "center", gap: 0, overflowX: "auto" }}>
+        {(["fiches", "tableur", "contact", ...(agentLevel >= 3 ? ["pipeline", "relances"] as NoraTab[] : [])] as NoraTab[]).map(tab => {
+          const candidatesWithStage = candidates.filter(c => c.pipeline_stage != null)
+          const relancesCount = validated.filter(c => c.contacted_at && !c.pipeline_stage?.match(/replied|interview|offer/)).length
+          const labels: Record<NoraTab, string> = {
+            fiches:   "Fiches candidats",
+            tableur:  "Tableur",
+            contact:  "Contact",
+            pipeline: "Pipeline",
+            relances: "Relances",
+          }
+          const counts: Partial<Record<NoraTab, string | number>> = {
+            fiches:   topN.length,
+            tableur:  candidates.length,
+            contact:  `${contacted.length}/${validated.length}`,
+            pipeline: candidatesWithStage.length,
+            relances: relancesCount,
+          }
+          const active = activeTab === tab
+          return (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{
+              padding: "10px 16px", background: "none", border: "none",
+              borderBottom: active ? `2px solid ${agentColor}` : "2px solid transparent",
+              color: active ? agentColor : "#6B7280",
+              fontSize: 13, fontWeight: active ? 700 : 500,
+              cursor: "pointer", fontFamily: "var(--font-inter), sans-serif",
+              display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
+            }}>
+              {labels[tab]}
+              <span style={{
+                fontSize: 10, fontWeight: 700,
+                padding: "1px 6px", borderRadius: 999,
+                background: active ? `${agentColor}18` : (tab === "relances" && Number(counts[tab] ?? 0) > 0 ? "rgba(239,68,68,0.12)" : "#F0ECF8"),
+                color: active ? agentColor : (tab === "relances" && Number(counts[tab] ?? 0) > 0 ? "#EF4444" : "#9CA3AF"),
               }}>
-                <span>{labels[tab]}</span>
-                <span style={{
-                  fontSize: 10, fontWeight: 700,
-                  padding: "1px 6px", borderRadius: 999,
-                  background: active ? "rgba(255,255,255,0.22)" : (tab === "relances" && Number(counts[tab] ?? 0) > 0 ? "rgba(239,68,68,0.12)" : "#F0ECF8"),
-                  color: active ? "white" : (tab === "relances" && Number(counts[tab] ?? 0) > 0 ? "#EF4444" : "#9CA3AF"),
-                }}>
-                  {counts[tab] ?? ""}
-                </span>
-              </button>
-            )
-          })}
+                {counts[tab] ?? ""}
+              </span>
+            </button>
+          )
+        })}
 
-          <div style={{ flexGrow: 1 }} />
-
+        {/* Push "Chercher plus" and scoring weights to the right */}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8, padding: "8px 0", alignItems: "center", flexShrink: 0 }}>
           {/* Scoring weights */}
-          <div style={{ borderTop: "1px solid #F0ECF8", paddingTop: 10 }}>
+          <div style={{ position: "relative" }}>
             <button onClick={() => setShowWeights(p => !p)} style={{
-              width: "100%", padding: "8px 10px", borderRadius: 9,
-              border: "none", background: showWeights ? "#F0ECF8" : "transparent",
+              padding: "5px 11px", borderRadius: 8,
+              border: `1.5px solid ${showWeights ? agentColor + "44" : "#E5E7EB"}`,
+              background: showWeights ? `${agentColor}08` : "white",
               cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-              fontSize: 11, fontWeight: 600, color: "#6B7280",
+              fontSize: 11, fontWeight: 600, color: showWeights ? agentColor : "#6B7280",
               fontFamily: "var(--font-inter), sans-serif",
             }}>
               <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
@@ -661,14 +537,18 @@ function NoraSections({
               </svg>
               Pondération
             </button>
-
             {showWeights && (
-              <div style={{ padding: "6px 4px 4px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{
+                position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 30,
+                background: "white", borderRadius: 10, border: "1.5px solid #E2DAF6",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.10)", padding: "12px 14px",
+                minWidth: 200, display: "flex", flexDirection: "column", gap: 8,
+              }}>
                 {(Object.keys(DEFAULT_WEIGHTS) as Array<keyof ScoringWeights>).map(dim => (
                   <div key={dim}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                      <span style={{ fontSize: 9, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>{DIM_META[dim].label}</span>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: DIM_META[dim].color, fontFamily: "var(--font-inter), sans-serif" }}>{weights[dim]}</span>
+                      <span style={{ fontSize: 10, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>{DIM_META[dim].label}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: DIM_META[dim].color, fontFamily: "var(--font-inter), sans-serif" }}>{weights[dim]}</span>
                     </div>
                     <input type="range" min={0} max={60} step={5} value={weights[dim]}
                       onChange={e => setWeights(w => ({ ...w, [dim]: Number(e.target.value) }))}
@@ -677,7 +557,7 @@ function NoraSections({
                   </div>
                 ))}
                 <button onClick={() => setWeights(DEFAULT_WEIGHTS)} style={{
-                  fontSize: 9, color: "#9CA3AF", background: "none", border: "none",
+                  fontSize: 10, color: "#9CA3AF", background: "none", border: "none",
                   cursor: "pointer", textAlign: "center", padding: "2px 0",
                   fontFamily: "var(--font-inter), sans-serif",
                 }}>
@@ -686,10 +566,9 @@ function NoraSections({
               </div>
             )}
           </div>
-
           {/* Chercher plus */}
-          <button onClick={() => briefChatRef.current?.triggerExtend()} style={{
-            width: "100%", padding: "8px 10px", borderRadius: 9,
+          <button onClick={() => window.history.back()} style={{
+            padding: "5px 11px", borderRadius: 8,
             border: `1.5px solid ${agentColor}30`,
             background: `${agentColor}08`,
             cursor: "pointer", fontSize: 11, fontWeight: 600,
@@ -704,9 +583,10 @@ function NoraSections({
             Chercher plus
           </button>
         </div>
+      </div>
 
-        {/* Content area */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+      {/* ── CONTENT AREA — full width ─────────────────────────── */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
 
           {/* ── FICHES TAB ─────────────────────────────────── */}
           {activeTab === "fiches" && (
@@ -734,9 +614,7 @@ function NoraSections({
                   {topN.map(c => (
                     <CandidateFiche key={c.id} candidate={c} weights={weights} agentColor={agentColor}
                       onDecision={onDecision} onNoteChange={onNoteChange}
-                      onSimilar={() => briefChatRef.current?.triggerExtend(
-                        `Cherche des profils similaires à ${c.title_estimated ?? "ce profil"}${c.company ? ` chez ${c.company}` : ""}`
-                      )}
+                      onSimilar={() => {}}
                     />
                   ))}
                 </div>
@@ -763,9 +641,7 @@ function NoraSections({
                       {others.map(c => (
                         <CandidateFiche key={c.id} candidate={c} weights={weights} agentColor={agentColor}
                           dimmed onDecision={onDecision} onNoteChange={onNoteChange}
-                          onSimilar={() => briefChatRef.current?.triggerExtend(
-                            `Cherche des profils similaires à ${c.title_estimated ?? "ce profil"}${c.company ? ` chez ${c.company}` : ""}`
-                          )}
+                          onSimilar={() => {}}
                         />
                       ))}
                     </div>
@@ -959,7 +835,6 @@ function NoraSections({
           )}
 
         </div>
-      </div>
     </div>
   )
 }

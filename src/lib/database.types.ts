@@ -7,6 +7,14 @@ export type ChatHistoryMsg = {
   chips?: string[]
 }
 
+export type WorkspaceMsg = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  attachedMissionId?: string
+  attachedMissionTitle?: string
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -27,6 +35,8 @@ export type Database = {
           vps_ip: string | null
           vps_status: 'pending' | 'provisioning' | 'ready' | 'error' | null
           agent_status: 'not_deployed' | 'deploying' | 'running' | 'error'
+          workspace_memory: string | null
+          workspace_messages: WorkspaceMsg[] | null
           created_at: string
           updated_at: string
         }
@@ -46,6 +56,8 @@ export type Database = {
           vps_ip?: string | null
           vps_status?: 'pending' | 'provisioning' | 'ready' | 'error' | null
           agent_status?: 'not_deployed' | 'deploying' | 'running' | 'error'
+          workspace_memory?: string | null
+          workspace_messages?: WorkspaceMsg[] | null
           created_at?: string
           updated_at?: string
         }
@@ -65,6 +77,8 @@ export type Database = {
           vps_ip?: string | null
           vps_status?: 'pending' | 'provisioning' | 'ready' | 'error' | null
           agent_status?: 'not_deployed' | 'deploying' | 'running' | 'error'
+          workspace_memory?: string | null
+          workspace_messages?: WorkspaceMsg[] | null
           created_at?: string
           updated_at?: string
         }
@@ -81,6 +95,7 @@ export type Database = {
           profiles_count: number
           research_report: string | null
           chat_history: ChatHistoryMsg[] | null
+          brief_memory: string | null
           created_at: string
           updated_at: string
         }
@@ -94,6 +109,7 @@ export type Database = {
           profiles_count?: number
           research_report?: string | null
           chat_history?: ChatHistoryMsg[] | null
+          brief_memory?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -107,6 +123,7 @@ export type Database = {
           profiles_count?: number
           research_report?: string | null
           chat_history?: ChatHistoryMsg[] | null
+          brief_memory?: string | null
           created_at?: string
           updated_at?: string
         }

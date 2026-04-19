@@ -12,6 +12,7 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 type SubscriptionLevel = NonNullable<Profile["subscription_level"]>
 
 const IS_DEV = process.env.NODE_ENV === "development"
+const ADMIN_EMAILS = ["elyas.malki1003@gmail.com"]
 const DEV_LEVELS: { level: SubscriptionLevel; label: string; color: string }[] = [
   { level: "leo",  label: "Léo N1",  color: "#22c55e" },
   { level: "nora", label: "Nora N2", color: "#3b82f6" },
@@ -120,6 +121,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const hasSubscription = !!profile?.subscription_level
   const agentLevel = profile?.subscription_level ? (LEVEL_MAP[profile.subscription_level] ?? 1) : 0
   const agent = AGENT_LEVELS[agentLevel] ?? AGENT_LEVELS[1]
+  const isAdmin = ADMIN_EMAILS.includes(userEmail)
 
   // Provisioning = subscribed but VPS not ready yet
   const isProvisioning =
@@ -146,27 +148,29 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           }}
         >
           {/* Left */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Link href="/" style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: 32, height: 32, borderRadius: 8,
+              border: "1.5px solid #E2DAF6", background: "white",
+              color: "#7C63C8", textDecoration: "none", flexShrink: 0,
+              transition: "background 150ms, border-color 150ms",
+            }}
+              title="Retour à l'accueil"
+            >
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                <path d="M3 10l7-7 7 7M5 8v7a1 1 0 001 1h3v-4h2v4h3a1 1 0 001-1V8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </Link>
             <Link href="/workspace" style={{ textDecoration: "none" }}>
               <Logo size="md" />
-            </Link>
-            <Link
-              href="/workspace"
-              style={{
-                fontSize: 13,
-                color: "#6B7280",
-                textDecoration: "none",
-                fontFamily: "var(--font-inter), sans-serif",
-              }}
-            >
-              Workspace
             </Link>
           </div>
 
           {/* Right */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* ── DEV SWITCHER (local only) ───────────────────────── */}
-            {IS_DEV && (
+            {/* ── LEVEL SWITCHER (dev + admin emails) ─────────────── */}
+            {(IS_DEV || isAdmin) && (
               <div
                 style={{
                   display: "flex",
