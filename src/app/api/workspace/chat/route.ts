@@ -12,7 +12,6 @@ import { cookies } from "next/headers"
 import type { Database, WorkspaceMsg } from "@/lib/database.types"
 
 const COMPACTION_TOKEN_THRESHOLD = 16_000 // ~64k chars ≈ 16k tokens
-const ADMIN_EMAILS = ["elyas.malki1003@gmail.com"]
 
 function supabaseAdmin() {
   return createClient<Database>(
@@ -26,49 +25,65 @@ function countApproxTokens(msgs: WorkspaceMsg[]): number {
   return Math.round(total / 4)
 }
 
-const WORKSPACE_SYSTEM_PROMPT = `Tu es l'assistant IA central de Nawa Studio, une plateforme de sourcing de candidats.
-Tu gères l'espace de travail du recruteur : créer des missions, définir des briefs, lancer des recherches, suivre les résultats.
+const WORKSPACE_SYSTEM_PROMPT = `Tu es l'assistant IA central de Nawa Studio, une plateforme de sourcing de profils LinkedIn.
+Tu aides le recruteur à créer des missions et lancer des recherches directement depuis le chat.
 
-RÔLE ET PÉRIMÈTRE :
-- Tu aides le client à structurer ses besoins en recrutement
-- Tu crées et gères les dossiers-missions
-- Tu analyses les résultats de sourcing et tu les commentes
-- Tu proposes des actions concrètes (élargir la recherche, modifier le brief, relancer, etc.)
-- Tu DEMANDES TOUJOURS l'approbation avant toute action (création, modification, lancement)
+REGLE ABSOLUE N1 — ACTIONS INVISIBLES :
+Les balises <action> sont executees en arriere-plan par le systeme. L'utilisateur ne les voit PAS.
+- N'ecris JAMAIS "je genere une action", "voici l'action", "je lance l'action", "je vais creer"
+- N'utilise JAMAIS les mots "action", "balise", "systeme", "JSON"
+- Agis directement — ton texte confirme ce qui vient de se passer, pas ce que tu vas faire
+- Les balises <action> sont dans ta reponse mais completement transparentes pour l'utilisateur
 
-TON ET STYLE :
-- Chaleureux, direct, professionnel — comme un collègue senior de confiance
-- Maximum 3 phrases par message sauf si l'utilisateur demande plus de détails
-- Utilise **gras** pour les éléments clés
-- Un emoji occasionnel, pas plus d'un par message
-- Réponds toujours en français
+REGLE ABSOLUE N2 — FORMAT ACTIONS :
+Chaque reponse contient AU PLUS UNE balise <action> (JSON valide, une seule ligne) :
+<action>{"type":"...","champ":"valeur"}</action>
 
-FLUX POUR UNE NOUVELLE MISSION :
-1. Créer la mission :
-<action>{"type":"create_mission","title":"..."}</action>
+Types disponibles :
+- create_mission — cree un dossier-mission + sauvegarde le brief en une seule fois
+- run_mission — lance la recherche sur le dossier actif
+- update_brief — met a jour le brief d'une mission deja attachee
 
-2. Collecter le brief via la conversation (poste, localisation, compétences, séniorité, contrat, ton)
+FLUX — NOUVELLE MISSION :
 
-3. Quand tu as assez d'informations, proposer de sauvegarder le brief :
-<action>{"type":"update_brief","missionId":"...","brief":{"titre_poste":"...","mots_cles":["...","..."],"localisation":"...","criteres":"...","ton":"..."}}</action>
+CAS 1 : L'utilisateur donne assez d'infos (poste + lieu + competences mentionnees)
+-> Genere directement create_mission avec le brief complet :
+<action>{"type":"create_mission","title":"[2-4 mots]","brief":{"titre_poste":"[1-4 mots]","localisation":"[ville]","mots_cles":["comp1","comp2","comp3"],"criteres":"[seniorite, contrat, urgence]","ton":"[style contact]"}}</action>
 
-4. Après confirmation du client, proposer de lancer la recherche :
-<action>{"type":"run_mission","missionId":"..."}</action>
+Ton texte de reponse (SANS mentionner l'action ni les balises) :
+- 1 phrase qui confirme ce que tu as compris du besoin
+- Resume les points cles retenus : poste, lieu, competences principales
+- Termine par : "Je lance la recherche ?" ou "Tout est correct, je peux lancer ?"
 
-RÈGLES BRIEF :
-- titre_poste : 1-4 mots max (ex: "Développeur Full Stack", "Avocat", "DRH")
-- mots_cles : compétences techniques ou sectorielles uniquement (pas de soft skills)
-- localisation : ville ou région (ex: "Paris", "Lyon", "Remote")
-- criteres : résumé concis des contraintes (séniorité, contrat, secteur, urgence)
+CAS 2 : Infos insuffisantes (poste flou OU localisation absente)
+-> Pose UNE seule question, la plus importante
+-> Ne cree JAMAIS de mission sans : titre_poste + localisation + au moins 2 mots_cles
+
+CAS 3 : Utilisateur confirme le brief (oui / lancez / c'est bon / parfait / top)
+-> L'ID mission est dans ton contexte sous "ID mission : xxx"
+-> Genere :
+<action>{"type":"run_mission","missionId":"[ID_EXACT_DU_CONTEXTE]"}</action>
+Texte : "Recherche lancee ! Je vous redirige vers le dossier pour suivre l'avancement en temps reel."
+
+FLUX — MISSION EXISTANTE ATTACHEE (glissee dans le chat) :
+Tu as le brief de la mission en contexte. Propose naturellement :
+- Relancer la recherche -> run_mission
+- Affiner le brief -> update_brief
+- Chercher plus de profils -> run_mission avec brief ajuste
+
+REGLES BRIEF :
+- titre_poste : 1-4 mots MAX (ex: "Developpeur Full Stack", "Avocat", "DRH")
+- mots_cles : competences techniques/sectorielles UNIQUEMENT — jamais de soft skills
+- localisation : ville ou region (ex: "Paris", "Lyon", "Remote")
+- criteres : resume concis (seniorite, contrat, secteur, urgence, salaire si mentionne)
 - ton : style pour contacter les candidats (ex: "Direct et humain", "Professionnel")
 
-ÉTAT INITIAL :
-Si c'est la première conversation (pas de mémoire), propose deux options :
-1. "Démarrer une nouvelle mission" — pour définir un nouveau besoin
-2. "Continuer une mission existante" — pour travailler sur un dossier déjà créé (glisser-déposer depuis le panneau de droite)
-
-Ne génère jamais de brief ou d'action sans avoir les informations suffisantes.
-Ne parle que de recrutement et de sourcing.`
+STYLE :
+- Chaleureux, direct, efficace — collegue senior de confiance
+- Max 3 phrases par reponse sauf demande explicite de details
+- **Gras** pour les elements cles (poste, lieu, competences)
+- Reponds TOUJOURS en francais
+- Ne parle que de recrutement et de sourcing`
 
 const COMPACTION_PROMPT = `Résume la conversation ci-dessous en un fichier mémoire Markdown structuré.
 Ce fichier sera injecté dans les futures conversations pour donner le contexte au début.
@@ -137,7 +152,6 @@ export async function POST(req: NextRequest) {
       if (mission.brief_memory) {
         missionMemory = mission.brief_memory
       } else if (mission.brief) {
-        // Auto-generate basic mission memory from brief
         const b = mission.brief
         missionMemory = `# Mission : ${mission.title}
 Statut : ${mission.status}
@@ -160,9 +174,12 @@ Profils trouvés : ${mission.profiles_count}`
 
   if (missionMemory) {
     systemPrompt += `\n\n---\n## Dossier-mission attaché : "${missionTitle}"\nID mission : ${attachedMissionId}\n${missionMemory}`
+  } else if (attachedMissionId) {
+    // Mission attached but no brief yet — still inject the ID
+    systemPrompt += `\n\n---\n## Dossier-mission attaché : "${missionTitle ?? "Sans titre"}"\nID mission : ${attachedMissionId}\nAucun brief défini pour l'instant.`
   }
 
-  // Add client context
+  // Client context
   systemPrompt += `\n\n---\nClient : ${profile?.first_name ?? user.email}
 Niveau agent : ${profile?.subscription_level ?? "inconnu"}
 ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
@@ -202,8 +219,8 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
         { role: "system", content: systemPrompt },
         ...openrouterMessages,
       ],
-      temperature: 0.65,
-      max_tokens: 800,
+      temperature: 0.6,
+      max_tokens: 500,
     }),
   })
 
@@ -240,7 +257,6 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
   let newWorkspaceMemory = workspaceMemory
 
   if (approxTokens > COMPACTION_TOKEN_THRESHOLD) {
-    // Trigger compaction
     try {
       const compactRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -261,12 +277,12 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
       if (compactRes.ok) {
         const compactData = await compactRes.json() as { choices: Array<{ message: { content: string } }> }
         newWorkspaceMemory = compactData.choices[0]?.message?.content ?? workspaceMemory
-        savedMessages = [] // Clear history after compaction
+        savedMessages = []
       }
     } catch { /* keep existing if compaction fails */ }
   }
 
-  // Handle mission creation action server-side
+  // ── Handle create_mission (with optional embedded brief) ────────────────────
   if (action?.type === "create_mission" && action.title) {
     const { data: newMission } = await sbAdmin
       .from("missions")
@@ -280,10 +296,25 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
 
     if (newMission) {
       action = { ...action, missionId: newMission.id }
+
+      // If brief is embedded in create_mission, save it immediately
+      if (action.brief) {
+        try {
+          const brief = typeof action.brief === "string" ? JSON.parse(action.brief) : action.brief
+          await sbAdmin
+            .from("missions")
+            .update({ brief, status: "preparation" })
+            .eq("id", newMission.id)
+
+          const b = brief as Record<string, unknown>
+          const mem = `# Mission brief\nPoste : ${b.titre_poste}\nLocalisation : ${b.localisation}\nMots-clés : ${Array.isArray(b.mots_cles) ? (b.mots_cles as string[]).join(", ") : ""}\nCritères : ${b.criteres ?? ""}\nTon : ${b.ton ?? ""}`
+          await sbAdmin.from("missions").update({ brief_memory: mem }).eq("id", newMission.id)
+        } catch { /* ignore */ }
+      }
     }
   }
 
-  // Resolve missionId for run_mission — AI may not know it; fall back to attached mission
+  // ── Resolve missionId for run_mission ───────────────────────────────────────
   if (action?.type === "run_mission") {
     const mId = action.missionId as string | undefined
     const resolvedId = mId && mId !== "..." ? mId : attachedMissionId
@@ -292,21 +323,19 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
     }
   }
 
-  // Handle brief update action server-side
+  // ── Handle update_brief ────────────────────────────────────────────────────
   if (action?.type === "update_brief" && action.missionId && action.brief) {
     try {
-      // brief may arrive as an object (nested JSON) or a stringified JSON
       const brief = typeof action.brief === "string" ? JSON.parse(action.brief) : action.brief
       await sbAdmin
         .from("missions")
         .update({ brief, status: "preparation" })
         .eq("id", action.missionId as string)
         .eq("user_id", user.id)
-      // Also update brief_memory with a summary
       const b = brief as Record<string, unknown>
-      const mem = `# Mission brief\nPoste : ${b.titre_poste}\nLocalisation : ${b.localisation}\nMots-clés : ${(Array.isArray(b.mots_cles) ? (b.mots_cles as string[]).join(", ") : "")}\nCritères : ${b.criteres ?? ""}\nTon : ${b.ton ?? ""}`
+      const mem = `# Mission brief\nPoste : ${b.titre_poste}\nLocalisation : ${b.localisation}\nMots-clés : ${Array.isArray(b.mots_cles) ? (b.mots_cles as string[]).join(", ") : ""}\nCritères : ${b.criteres ?? ""}\nTon : ${b.ton ?? ""}`
       await sbAdmin.from("missions").update({ brief_memory: mem }).eq("id", action.missionId as string).eq("user_id", user.id)
-    } catch { /* ignore parse errors */ }
+    } catch { /* ignore */ }
   }
 
   // Save messages + memory to Supabase
@@ -318,7 +347,7 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
     })
     .eq("user_id", user.id)
 
-  // Update mission brief_memory if attached
+  // Update mission brief_memory if attached but no memory yet
   if (attachedMissionId && finalMessages.length > 0 && !missionMemory) {
     const missionSummary = `# Mission : ${missionTitle}\nContexte défini dans le chat workspace.`
     await sbAdmin

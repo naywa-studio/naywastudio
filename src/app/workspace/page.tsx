@@ -437,7 +437,7 @@ export default function WorkspacePage() {
 
       {/* ── Right: Missions panel OR mission preview ───────────────────────── */}
       <div style={{
-        width: 320,
+        width: attachedMission ? 380 : 320,
         flexShrink: 0,
         borderLeft: "1px solid #F0ECF8",
         background: "white",
@@ -445,6 +445,7 @@ export default function WorkspacePage() {
         flexDirection: "column",
         height: "100%",
         overflow: "hidden",
+        transition: "width 250ms cubic-bezier(0.22, 1, 0.36, 1)",
       }}>
         <AnimatePresence mode="wait">
           {attachedMission ? (
