@@ -66,18 +66,21 @@ async def expand_brief(brief: dict, client: httpx.AsyncClient) -> dict:
     criteres = brief.get("criteres", "")
 
     prompt = (
-        f"Tu es expert RH. Pour le recrutement de : « {titre} »\n"
+        f"Tu es expert en sourcing LinkedIn. Pour le recrutement de : « {titre} »\n"
         f"Critères : {criteres}\n"
         f"Compétences déjà identifiées : {', '.join(mots)}\n\n"
         "Génère en JSON :\n"
-        "- alt_titles : liste de 4 intitulés COURTS alternatifs (1-3 mots max, comme ils apparaissent "
-        "sur LinkedIn — ex : 'Lead Developer', 'Tech Lead', 'Ingénieur Senior'). "
-        "Variantes françaises ET anglaises. JAMAIS de phrases longues.\n"
-        "- extra_keywords : liste de 4 compétences/domaines connexes NON présentes dans "
-        "les compétences déjà identifiées (ex : si React → Next.js, TypeScript, SPA).\n"
-        "RÈGLE : alt_titles doivent être des titres de poste courts (1-3 mots) comme on les voit "
-        "sur un profil LinkedIn, pas des descriptions de mission.\n"
-        "Réponds UNIQUEMENT avec le JSON, sans explication :\n"
+        "- alt_titles : 4 intitulés alternatifs COURTS (1-3 mots MAX) tels qu'ils apparaissent "
+        "RÉELLEMENT sur des profils LinkedIn.\n"
+        "  Obligatoire : inclure au moins 2 variantes EN ANGLAIS si le poste est technique/industriel.\n"
+        "  Exemples valides : 'Rotating Equipment Engineer', 'Reliability Engineer', "
+        "'Ingénieur Fiabilité', 'Mechanical Engineer'.\n"
+        "  Exemples INVALIDES (trop longs) : 'Expert en maintenance des équipements de compression'.\n"
+        "- extra_keywords : 4 compétences/technologies connexes NON présentes dans les compétences "
+        "déjà identifiées. Inclure des termes anglais si le domaine est technique.\n"
+        "  Ex pour équipements rotatifs : 'turbomachinery', 'API 618', 'RCM', 'vibration analysis'\n"
+        "RÈGLE ABSOLUE : alt_titles = titres de profil LinkedIn (1-3 mots), pas des descriptions.\n"
+        "Réponds UNIQUEMENT avec du JSON valide :\n"
         '{"alt_titles":["..."],"extra_keywords":["..."]}'
     )
 
@@ -174,31 +177,50 @@ def estimate_seniority(title: str, snippet: str) -> str:
 
 def pre_filter(profiles: list[dict], brief: dict) -> list[dict]:
     """
-    Quickly eliminate profiles with zero keyword overlap with the brief.
-    Avoids wasting LLM tokens on clearly irrelevant profiles.
+    Lightly eliminate profiles with zero relevance signal.
+    Conservative by design — false negatives (missing good candidates) are worse
+    than false positives (keeping borderline profiles for LLM scoring to handle).
+
+    Matching strategy (OR logic — any one hit keeps the profile):
+    1. Exact keyword in Tavily snippet/keywords field
+    2. Any word from the job title (≥4 chars) in the profile title
+    3. Any single keyword token (≥5 chars) in the profile title or snippet
     """
     all_keywords = coerce_keywords(brief.get("mots_cles", []))
     all_keywords += brief.get("_extra_keywords", [])
     if not all_keywords:
         return profiles
 
-    normalized_kw = {k.lower().strip() for k in all_keywords}
-    titre = brief.get("titre_poste", "").lower()
+    normalized_kw  = [k.lower().strip() for k in all_keywords]
+    # Single tokens from keywords (handles "rotating equipment" → ["rotating", "equipment"])
+    kw_tokens = {
+        token
+        for kw in normalized_kw
+        for token in kw.split()
+        if len(token) >= 5
+    }
+    titre_words = {w.lower() for w in brief.get("titre_poste", "").split() if len(w) >= 4}
 
     kept, dropped = [], []
     for p in profiles:
-        kw_str   = str(p.get("keywords", "")).lower()
-        title_p  = str(p.get("title_estimated", "")).lower()
-        # Keep if: has matching keyword OR title overlaps with the role
-        has_kw    = any(k in kw_str or k in title_p for k in normalized_kw)
-        has_title = any(word in title_p for word in titre.split() if len(word) > 3)
-        if has_kw or has_title:
+        text = (
+            str(p.get("keywords", "")) + " " +
+            str(p.get("title_estimated", "")) + " " +
+            str(p.get("_snippet", ""))
+        ).lower()
+
+        has_kw_phrase = any(kw in text for kw in normalized_kw)
+        has_kw_token  = any(tok in text for tok in kw_tokens)
+        has_title_word = any(w in text for w in titre_words)
+
+        if has_kw_phrase or has_kw_token or has_title_word:
             kept.append(p)
         else:
             dropped.append(p)
 
     log.info("Pre-filter: kept %d / dropped %d profiles", len(kept), len(dropped))
-    return kept if len(kept) >= 10 else profiles  # fallback: keep all if too aggressive
+    # Safety net: if filter is too aggressive (< 15 kept), bypass entirely
+    return kept if len(kept) >= 15 else profiles
 
 
 # ── Multi-dimensional LLM scoring ─────────────────────────────────────────────

@@ -103,18 +103,151 @@ def short_title(titre: str) -> str:
     return " ".join(words[:3]) if len(words) > 3 else titre
 
 
+# ── Location normalization — suburb → nearest major city ──────────────────────
+
+# Many suburbs are not written on LinkedIn profiles; map them to the canonical city.
+_SUBURB_TO_CITY: dict[str, str] = {
+    # IDF (Paris area)
+    "la garenne-colombes": "Paris", "boulogne-billancourt": "Paris",
+    "neuilly-sur-seine": "Paris",   "levallois-perret": "Paris",
+    "issy-les-moulineaux": "Paris", "courbevoie": "Paris",
+    "nanterre": "Paris",            "puteaux": "Paris",
+    "saint-denis": "Paris",         "vincennes": "Paris",
+    "montreuil": "Paris",           "saint-cloud": "Paris",
+    "rueil-malmaison": "Paris",     "massy": "Paris",
+    "velizy-villacoublay": "Paris", "versailles": "Paris",
+    "cergy": "Paris",               "croissy-sur-seine": "Paris",
+    "gennevilliers": "Paris",       "colombes": "Paris",
+    "argenteuil": "Paris",          "suresnes": "Paris",
+    "chatou": "Paris",              "clamart": "Paris",
+    "montrouge": "Paris",           "vanves": "Paris",
+    "malakoff": "Paris",            "fontenay-sous-bois": "Paris",
+    "saint-maur-des-fosses": "Paris", "creteil": "Paris",
+    "vitry-sur-seine": "Paris",     "ivry-sur-seine": "Paris",
+    # Lyon area
+    "villeurbanne": "Lyon",  "caluire-et-cuire": "Lyon",
+    "ecully": "Lyon",        "bron": "Lyon", "venissieux": "Lyon",
+    # Bordeaux area
+    "merignac": "Bordeaux",  "pessac": "Bordeaux", "begles": "Bordeaux",
+    # Toulouse area
+    "blagnac": "Toulouse",   "colomiers": "Toulouse",
+    # Lille area
+    "roubaix": "Lille",      "tourcoing": "Lille", "villeneuve-d-ascq": "Lille",
+    # Marseille area
+    "aubagne": "Marseille",  "aix-en-provence": "Marseille",
+    # Nantes area
+    "saint-herblain": "Nantes", "reze": "Nantes",
+}
+
+_CITY_TO_REGION: dict[str, str] = {
+    "paris": "Île-de-France",       "lyon": "Auvergne-Rhône-Alpes",
+    "marseille": "PACA",             "toulouse": "Occitanie",
+    "bordeaux": "Nouvelle-Aquitaine","nantes": "Pays de la Loire",
+    "lille": "Hauts-de-France",      "strasbourg": "Grand Est",
+    "rennes": "Bretagne",            "nice": "Côte d'Azur",
+    "montpellier": "Occitanie",      "grenoble": "Auvergne-Rhône-Alpes",
+}
+
+def normalize_location(loc: str) -> tuple[str, str, str]:
+    """Return (original, city_for_queries, region).
+
+    Maps suburbs to their nearest major city so LinkedIn queries match real profiles.
+    Example: "La Garenne-Colombes" → city="Paris", region="Île-de-France"
+    """
+    if not loc:
+        return "", "", ""
+    nfkd  = unicodedata.normalize("NFD", loc.lower().strip())
+    ascii_loc = "".join(c for c in nfkd if not unicodedata.combining(c))
+    ascii_loc = re.sub(r"[\s']+", "-", ascii_loc).strip("-")
+
+    city = _SUBURB_TO_CITY.get(loc.lower().strip(),
+           _SUBURB_TO_CITY.get(ascii_loc, loc))
+    region = _CITY_TO_REGION.get(city.lower(), "")
+    return loc, city, region
+
+
+# ── English keyword expansion for technical/industrial domains ─────────────────
+
+# Maps French technical terms to English equivalents used on LinkedIn profiles.
+# Many French engineers write their profiles in English (especially oil & gas, IT).
+_FR_TO_EN: dict[str, str] = {
+    "équipements rotatifs":    "rotating equipment",
+    "equipements rotatifs":    "rotating equipment",
+    "compression":             "compression",
+    "compresseurs":            "compressor",
+    "turbines":                "turbine",
+    "pompes":                  "pump",
+    "fiabilité":               "reliability",
+    "fiabilite":               "reliability",
+    "maintenance industrielle":"industrial maintenance",
+    "génie mécanique":         "mechanical engineer",
+    "genie mecanique":         "mechanical engineer",
+    "génie civil":             "civil engineer",
+    "génie électrique":        "electrical engineer",
+    "automatisme":             "automation",
+    "instrumentation":         "instrumentation",
+    "procédés":                "process engineer",
+    "procedes":                "process engineer",
+    "développeur":             "developer",
+    "developpeur":             "developer",
+    "cybersécurité":           "cybersecurity",
+    "cybersecurite":           "cybersecurity",
+    "intelligence artificielle": "artificial intelligence",
+    "apprentissage automatique": "machine learning",
+    "science des données":     "data science",
+    "réseaux":                 "network engineer",
+    "cloud":                   "cloud",
+    "devops":                  "devops",
+    "fullstack":               "full stack",
+    "frontend":                "frontend",
+    "backend":                 "backend",
+    "logistique":              "supply chain",
+    "ressources humaines":     "human resources",
+    "finance":                 "finance",
+    "comptabilité":            "accounting",
+}
+
+def detect_english_equivalents(titre: str, mots_list: list[str]) -> list[str]:
+    """Return English equivalents for French technical terms (max 3).
+    Only returns terms not already present in the brief keywords.
+    """
+    all_text = (titre + " " + " ".join(mots_list)).lower()
+    nfkd     = unicodedata.normalize("NFD", all_text)
+    ascii_t  = "".join(c for c in nfkd if not unicodedata.combining(c))
+
+    found: list[str] = []
+    for fr_term, en_term in _FR_TO_EN.items():
+        nfkd_fr  = unicodedata.normalize("NFD", fr_term)
+        ascii_fr = "".join(c for c in nfkd_fr if not unicodedata.combining(c))
+        if (fr_term in all_text or ascii_fr in ascii_t) and en_term not in all_text:
+            found.append(en_term)
+        if len(found) >= 3:
+            break
+    return found
+
+
 # ── Query builder ──────────────────────────────────────────────────────────────
 
 def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
     """Return (linkedin_queries, malt_queries, apec_queries).
-    LinkedIn is the primary source — APEC is disabled, Malt is secondary.
+
+    Key improvements:
+    - Location is normalized: suburbs → nearest major city (e.g. La Garenne-Colombes → Paris)
+    - English-language queries added automatically for technical/industrial roles
+    - Region-level queries (Île-de-France) for broader coverage
+    - Fallback no-location queries to widen the net
     """
     titre     = brief.get("titre_poste", "")
     mots_list = coerce_keywords(brief.get("mots_cles", []))
     mots      = " ".join(mots_list)
-    loc       = brief.get("localisation", "")
-    loc_q     = f'"{loc}"' if loc else ""
+    loc_orig  = brief.get("localisation", "")
     seniority = detect_seniority(brief.get("criteres", ""))
+
+    # ── Location normalization ─────────────────────────────────────────────
+    _, city_loc, region = normalize_location(loc_orig)
+    # Use city for queries (never suburb — too specific for LinkedIn)
+    loc_q      = f'"{city_loc}"' if city_loc else ""
+    loc_q_reg  = f'"{region}"'   if region   else ""
 
     half   = max(len(mots_list) // 2, 1)
     mots_a = " ".join(mots_list[:half])
@@ -123,36 +256,52 @@ def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
 
     titre_court = short_title(titre)
 
+    # ── English equivalents (for technical/industrial profiles) ────────────
+    en_terms = detect_english_equivalents(titre, mots_list)
+    en_str_a = " ".join(en_terms[:2]) if en_terms else ""
+    en_str_b = en_terms[0] if en_terms else ""
+
     # ── LinkedIn — primary source, maximum coverage ────────────────────────
     linkedin_q = [
-        f'site:linkedin.com/in "{titre_court}" {mots} {loc_q}',
         f'site:linkedin.com/in "{titre_court}" {mots_a} {loc_q}',
         f'site:linkedin.com/in "{titre_court}" {mots_b} {loc_q}',
         f'site:linkedin.com/in {mots} {loc_q}',
         f'site:linkedin.com/in "{titre_court}" {mots_c} {loc_q}',
-        f'"{titre_court}" {mots} {loc_q} linkedin',
-        f'linkedin.com/in "{titre_court}" {mots_a} {loc_q}',
+        f'"{titre_court}" {mots_a} {loc_q} linkedin',
+        # Region-level for wider net
+        f'site:linkedin.com/in "{titre_court}" {mots_a} {loc_q_reg}',
+        # No-location fallback (catches profiles without city in snippet)
+        f'site:linkedin.com/in "{titre_court}" {mots}',
     ]
 
     french_cities = ["paris", "lyon", "bordeaux", "marseille", "toulouse", "nantes",
                      "lille", "strasbourg", "rennes", "nice", "montpellier", "france"]
-    is_french = loc and any(city in loc.lower() for city in french_cities)
+    is_french = city_loc and any(c in city_loc.lower() for c in french_cities)
 
     if is_french:
         linkedin_q += [
-            f'site:fr.linkedin.com/in "{titre_court}" {mots}',
             f'site:fr.linkedin.com/in "{titre_court}" {mots_a} {loc_q}',
             f'site:fr.linkedin.com/in "{titre_court}" {mots_b} {loc_q}',
             f'site:fr.linkedin.com/in {mots} {loc_q}',
             f'site:fr.linkedin.com/in "{titre_court}" {mots_c}',
+            f'site:fr.linkedin.com/in "{titre_court}" {mots_a} {loc_q_reg}',
+            f'site:fr.linkedin.com/in {mots_a} {mots_b}',  # no-loc fallback
         ]
 
-    # Seniority-specific LinkedIn queries
+    # ── English-language queries (technical / oil & gas / IT profiles) ─────
+    if en_str_a:
+        linkedin_q += [
+            f'site:linkedin.com/in {en_str_a} {loc_q}',
+            f'site:fr.linkedin.com/in {en_str_a} {loc_q}',
+            f'site:linkedin.com/in "{titre_court}" {en_str_b} {loc_q}',
+        ]
+
+    # ── Seniority-specific queries ─────────────────────────────────────────
     if seniority == "senior":
         linkedin_q += [
-            f'site:fr.linkedin.com/in "{titre_court}" "Lead" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "Senior" {loc_q}',
             f'site:fr.linkedin.com/in "{titre_court}" "Expert" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre_court}" "Senior" {mots_a} {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "Lead" {loc_q}',
             f'site:linkedin.com/in "{titre_court}" "Head of" {loc_q}',
         ]
     elif seniority == "junior":
@@ -168,7 +317,7 @@ def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
             f'site:linkedin.com/in "{titre_court}" "mid-level" {loc_q}',
         ]
 
-    # ── Malt — secondary, freelances only, 1 query ────────────────────────
+    # ── Malt — secondary, freelances only ─────────────────────────────────
     malt_q = [
         f'site:malt.fr "{titre_court}" {mots_a} {loc_q}',
     ]
@@ -176,6 +325,10 @@ def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
     # APEC disabled — low quality for most searches
     apec_q: list[str] = []
 
+    log.debug(
+        "build_queries — loc '%s'→'%s' (region:'%s') | en_terms: %s | %d li queries",
+        loc_orig, city_loc, region, en_terms, len(linkedin_q),
+    )
     return linkedin_q, malt_q, apec_q
 
 
