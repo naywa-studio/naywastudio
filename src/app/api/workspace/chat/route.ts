@@ -364,6 +364,33 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
   })
 }
 
+// DELETE — clear conversation history
+export async function DELETE(req: NextRequest) {
+  const cookieStore = await cookies()
+  const sb = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (toSet) => {
+          try { toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } catch {}
+        },
+      },
+    }
+  )
+
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  await supabaseAdmin()
+    .from("profiles")
+    .update({ workspace_messages: [] })
+    .eq("user_id", user.id)
+
+  return NextResponse.json({ ok: true })
+}
+
 // GET — load message history
 export async function GET(req: NextRequest) {
   const cookieStore = await cookies()

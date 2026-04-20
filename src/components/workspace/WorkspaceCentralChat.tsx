@@ -410,6 +410,12 @@ export default function WorkspaceCentralChat({
 
   const isEmpty = messages.length === 0 && !initialLoading
 
+  const handleReset = useCallback(async () => {
+    setMessages([])
+    onAttachedMissionChange(null)
+    await fetch("/api/workspace/chat", { method: "DELETE" }).catch(() => {})
+  }, [onAttachedMissionChange])
+
   return (
     <div
       style={{
@@ -450,6 +456,50 @@ export default function WorkspaceCentralChat({
             }}>
               📂 Déposer la mission ici
             </div>
+          </m.div>
+        )}
+      </AnimatePresence>
+
+      {/* Reset button — visible only when conversation has started */}
+      <AnimatePresence>
+        {!isEmpty && !initialLoading && (
+          <m.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: EASE }}
+            style={{
+              position: "absolute", top: 12, right: 16, zIndex: 5,
+            }}
+          >
+            <button
+              onClick={handleReset}
+              title="Nouvelle conversation"
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "5px 10px", borderRadius: 8,
+                border: "1px solid #E5E7EB", background: "white",
+                fontSize: 11, fontWeight: 600, color: "#9CA3AF",
+                cursor: "pointer", fontFamily: "var(--font-inter), sans-serif",
+                transition: "border-color 150ms, color 150ms, background 150ms",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#7C63C8"
+                e.currentTarget.style.color = "#7C63C8"
+                e.currentTarget.style.background = "#F8F6FF"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#E5E7EB"
+                e.currentTarget.style.color = "#9CA3AF"
+                e.currentTarget.style.background = "white"
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
+                <path d="M4 4v5h5M16 16v-5h-5M4.93 14.07A8 8 0 1 0 5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Nouvelle conversation
+            </button>
           </m.div>
         )}
       </AnimatePresence>
