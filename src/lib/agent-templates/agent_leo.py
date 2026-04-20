@@ -103,67 +103,222 @@ def short_title(titre: str) -> str:
     return " ".join(words[:3]) if len(words) > 3 else titre
 
 
-# ── Location normalization — suburb → nearest major city ──────────────────────
+# ── Location normalization ────────────────────────────────────────────────────
+#
+# Strategy:
+#   1. Map known suburbs/communes to their nearest major city (LinkedIn-friendly)
+#   2. For ANY location that is NOT a recognized major city (known or mapped),
+#      treat it as a suburb → always add broad fallback queries (region + no-loc)
+#
+# This handles the ~35 000 French communes we cannot enumerate explicitly.
 
-# Many suburbs are not written on LinkedIn profiles; map them to the canonical city.
 _SUBURB_TO_CITY: dict[str, str] = {
-    # IDF (Paris area)
-    "la garenne-colombes": "Paris", "boulogne-billancourt": "Paris",
-    "neuilly-sur-seine": "Paris",   "levallois-perret": "Paris",
-    "issy-les-moulineaux": "Paris", "courbevoie": "Paris",
-    "nanterre": "Paris",            "puteaux": "Paris",
-    "saint-denis": "Paris",         "vincennes": "Paris",
-    "montreuil": "Paris",           "saint-cloud": "Paris",
-    "rueil-malmaison": "Paris",     "massy": "Paris",
-    "velizy-villacoublay": "Paris", "versailles": "Paris",
-    "cergy": "Paris",               "croissy-sur-seine": "Paris",
-    "gennevilliers": "Paris",       "colombes": "Paris",
-    "argenteuil": "Paris",          "suresnes": "Paris",
-    "chatou": "Paris",              "clamart": "Paris",
-    "montrouge": "Paris",           "vanves": "Paris",
-    "malakoff": "Paris",            "fontenay-sous-bois": "Paris",
+    # ── Île-de-France (Paris area) ──────────────────────────────────────────
+    "la garenne-colombes": "Paris",   "boulogne-billancourt": "Paris",
+    "neuilly-sur-seine": "Paris",     "levallois-perret": "Paris",
+    "issy-les-moulineaux": "Paris",   "courbevoie": "Paris",
+    "nanterre": "Paris",              "puteaux": "Paris",
+    "saint-denis": "Paris",           "vincennes": "Paris",
+    "montreuil": "Paris",             "saint-cloud": "Paris",
+    "rueil-malmaison": "Paris",       "massy": "Paris",
+    "velizy-villacoublay": "Paris",   "versailles": "Paris",
+    "cergy": "Paris",                 "croissy-sur-seine": "Paris",
+    "gennevilliers": "Paris",         "colombes": "Paris",
+    "argenteuil": "Paris",            "suresnes": "Paris",
+    "chatou": "Paris",                "clamart": "Paris",
+    "montrouge": "Paris",             "vanves": "Paris",
+    "malakoff": "Paris",              "fontenay-sous-bois": "Paris",
     "saint-maur-des-fosses": "Paris", "creteil": "Paris",
-    "vitry-sur-seine": "Paris",     "ivry-sur-seine": "Paris",
-    # Lyon area
-    "villeurbanne": "Lyon",  "caluire-et-cuire": "Lyon",
-    "ecully": "Lyon",        "bron": "Lyon", "venissieux": "Lyon",
-    # Bordeaux area
-    "merignac": "Bordeaux",  "pessac": "Bordeaux", "begles": "Bordeaux",
-    # Toulouse area
-    "blagnac": "Toulouse",   "colomiers": "Toulouse",
-    # Lille area
-    "roubaix": "Lille",      "tourcoing": "Lille", "villeneuve-d-ascq": "Lille",
-    # Marseille area
-    "aubagne": "Marseille",  "aix-en-provence": "Marseille",
-    # Nantes area
-    "saint-herblain": "Nantes", "reze": "Nantes",
+    "vitry-sur-seine": "Paris",       "ivry-sur-seine": "Paris",
+    "asnieres-sur-seine": "Paris",    "asnieres": "Paris",
+    "aubervilliers": "Paris",         "pantin": "Paris",
+    "noisy-le-grand": "Paris",        "bondy": "Paris",
+    "clichy": "Paris",                "antony": "Paris",
+    "champigny-sur-marne": "Paris",   "aulnay-sous-bois": "Paris",
+    "villemomble": "Paris",           "bagnolet": "Paris",
+    "maisons-alfort": "Paris",        "alfortville": "Paris",
+    "charenton-le-pont": "Paris",     "nogent-sur-marne": "Paris",
+    "joinville-le-pont": "Paris",     "saint-maure": "Paris",
+    "saint-mande": "Paris",           "vincennes": "Paris",
+    "epinay-sur-seine": "Paris",      "garges-les-gonesse": "Paris",
+    "sarcelles": "Paris",             "villeneuve-la-garenne": "Paris",
+    "asnières": "Paris",              "choisy-le-roi": "Paris",
+    "thiais": "Paris",                "orly": "Paris",
+    "rungis": "Paris",                "chevilly-larue": "Paris",
+    "l-hay-les-roses": "Paris",       "villejuif": "Paris",
+    "arcueil": "Paris",               "cachan": "Paris",
+    "gentilly": "Paris",              "kremlin-bicetre": "Paris",
+    "bagneux": "Paris",               "chatenay-malabry": "Paris",
+    "chateauay": "Paris",             "montrouge": "Paris",
+    "longjumeau": "Paris",            "les-ulis": "Paris",
+    "palaiseau": "Paris",             "orsay": "Paris",
+    "gif-sur-yvette": "Paris",        "corbeil-essonnes": "Paris",
+    "evry": "Paris",                  "evry-courcouronnes": "Paris",
+    "poissy": "Paris",                "saint-germain-en-laye": "Paris",
+    "le-pecq": "Paris",               "meudon": "Paris",
+    "sevres": "Paris",                "chaville": "Paris",
+    "viroflay": "Paris",              "le-vesinet": "Paris",
+    "carrières-sur-seine": "Paris",   "carrieres-sur-seine": "Paris",
+    "houilles": "Paris",              "sartrouville": "Paris",
+    "conflans-sainte-honorine": "Paris",
+    "enghien-les-bains": "Paris",     "deuil-la-barre": "Paris",
+    "montmorency": "Paris",           "ermont": "Paris",
+    "pontoise": "Paris",              "cergy-pontoise": "Paris",
+    "saint-ouen": "Paris",            "saint-ouen-sur-seine": "Paris",
+    "la-courneuve": "Paris",          "pierrefitte-sur-seine": "Paris",
+    "stains": "Paris",                "villetaneuse": "Paris",
+    "dugny": "Paris",                 "le-bourget": "Paris",
+    "drancy": "Paris",                "bobigny": "Paris",
+    "livry-gargan": "Paris",          "clichy-sous-bois": "Paris",
+    "montfermeil": "Paris",           "gagny": "Paris",
+    "rosny-sous-bois": "Paris",       "neuilly-plaisance": "Paris",
+    "neuilly-sur-marne": "Paris",     "chelles": "Paris",
+    "villepinte": "Paris",            "tremblay-en-france": "Paris",
+    "roissy-en-france": "Paris",      "goussainville": "Paris",
+    "marly-le-roi": "Paris",          "le-chesnay": "Paris",
+    "velizy": "Paris",                "buc": "Paris",
+    "guyancourt": "Paris",            "trappes": "Paris",
+    "montigny-le-bretonneux": "Paris","voisins-le-bretonneux": "Paris",
+    "elancourt": "Paris",             "la-verriere": "Paris",
+    "saclay": "Paris",                "bures-sur-yvette": "Paris",
+    "savigny-sur-orge": "Paris",      "juvisy-sur-orge": "Paris",
+    "athis-mons": "Paris",            "paray-vieille-poste": "Paris",
+    "chilly-mazarin": "Paris",        "morangis": "Paris",
+    "wissous": "Paris",               "fresnes": "Paris",
+    "l-hay": "Paris",                 "hay-les-roses": "Paris",
+    # ── Lyon area ────────────────────────────────────────────────────────────
+    "villeurbanne": "Lyon",           "caluire-et-cuire": "Lyon",
+    "ecully": "Lyon",                 "bron": "Lyon",
+    "venissieux": "Lyon",             "oullins": "Lyon",
+    "saint-fons": "Lyon",             "feyzin": "Lyon",
+    "tassin-la-demi-lune": "Lyon",    "charbonnieres-les-bains": "Lyon",
+    "chassieu": "Lyon",               "mions": "Lyon",
+    "corbas": "Lyon",                 "saint-priest": "Lyon",
+    "meyzieu": "Lyon",                "decines-charpieu": "Lyon",
+    "vaulx-en-velin": "Lyon",        "rillieux-la-pape": "Lyon",
+    "craponne": "Lyon",               "francheville": "Lyon",
+    "sainte-foy-les-lyon": "Lyon",    "pierre-benite": "Lyon",
+    # ── Bordeaux area ────────────────────────────────────────────────────────
+    "merignac": "Bordeaux",           "pessac": "Bordeaux",
+    "begles": "Bordeaux",             "talence": "Bordeaux",
+    "gradignan": "Bordeaux",          "villenave-d-ornon": "Bordeaux",
+    "le-bouscat": "Bordeaux",         "bruges": "Bordeaux",
+    "eysines": "Bordeaux",            "lormont": "Bordeaux",
+    "cenon": "Bordeaux",              "floirac": "Bordeaux",
+    # ── Toulouse area ────────────────────────────────────────────────────────
+    "blagnac": "Toulouse",            "colomiers": "Toulouse",
+    "tournefeuille": "Toulouse",      "balma": "Toulouse",
+    "castanet-tolosan": "Toulouse",   "labege": "Toulouse",
+    "ramonville-saint-agne": "Toulouse", "muret": "Toulouse",
+    # ── Lille area ───────────────────────────────────────────────────────────
+    "roubaix": "Lille",               "tourcoing": "Lille",
+    "villeneuve-d-ascq": "Lille",     "hem": "Lille",
+    "wasquehal": "Lille",             "marcq-en-baroeul": "Lille",
+    "mouvaux": "Lille",               "wattrelos": "Lille",
+    "loos": "Lille",                  "lambersart": "Lille",
+    "saint-andre-lez-lille": "Lille", "la-madeleine": "Lille",
+    # ── Marseille area ───────────────────────────────────────────────────────
+    "aubagne": "Marseille",           "aix-en-provence": "Marseille",
+    "vitrolles": "Marseille",         "martigues": "Marseille",
+    "salon-de-provence": "Marseille", "istres": "Marseille",
+    "la-ciotat": "Marseille",         "cassis": "Marseille",
+    "gardanne": "Marseille",          "bouc-bel-air": "Marseille",
+    # ── Nantes area ──────────────────────────────────────────────────────────
+    "saint-herblain": "Nantes",       "reze": "Nantes",
+    "orvault": "Nantes",              "sainte-luce-sur-loire": "Nantes",
+    "carquefou": "Nantes",            "vertou": "Nantes",
+    "bouguenais": "Nantes",           "coueron": "Nantes",
+    # ── Strasbourg area ──────────────────────────────────────────────────────
+    "illkirch-graffenstaden": "Strasbourg", "schiltigheim": "Strasbourg",
+    "ostwald": "Strasbourg",          "lingolsheim": "Strasbourg",
+    "oberhausbergen": "Strasbourg",   "bischheim": "Strasbourg",
+    # ── Nice / Côte d'Azur ───────────────────────────────────────────────────
+    "antibes": "Nice",                "cannes": "Nice",
+    "grasse": "Nice",                 "cagnes-sur-mer": "Nice",
+    "saint-laurent-du-var": "Nice",   "menton": "Nice",
+    "monaco": "Nice",                 "vallauris": "Nice",
+    # ── Grenoble area ────────────────────────────────────────────────────────
+    "echirolles": "Grenoble",         "saint-martin-d-heres": "Grenoble",
+    "meylan": "Grenoble",             "fontaine": "Grenoble",
+    "crolles": "Grenoble",            "montbonnot-saint-martin": "Grenoble",
 }
+
+# Cities whose names appear directly on LinkedIn profiles (no mapping needed)
+_MAJOR_FRENCH_CITIES: frozenset[str] = frozenset({
+    "paris", "lyon", "marseille", "toulouse", "bordeaux", "nantes",
+    "lille", "strasbourg", "rennes", "nice", "montpellier", "grenoble",
+    "tours", "nimes", "dijon", "angers", "reims", "le havre", "le mans",
+    "saint-etienne", "toulon", "brest", "caen", "rouen", "metz", "nancy",
+    "clermont-ferrand", "pau", "limoges", "perpignan", "besancon",
+    "orleans", "mulhouse", "amiens", "dunkerque", "lorient", "quimper",
+    "bayonne", "poitiers", "la rochelle", "annecy", "chambery",
+    "valence", "saint-nazaire", "calais", "troyes", "ajaccio",
+    "france", "remote", "télétravail", "teletravail", "full remote",
+})
 
 _CITY_TO_REGION: dict[str, str] = {
-    "paris": "Île-de-France",       "lyon": "Auvergne-Rhône-Alpes",
-    "marseille": "PACA",             "toulouse": "Occitanie",
-    "bordeaux": "Nouvelle-Aquitaine","nantes": "Pays de la Loire",
-    "lille": "Hauts-de-France",      "strasbourg": "Grand Est",
-    "rennes": "Bretagne",            "nice": "Côte d'Azur",
-    "montpellier": "Occitanie",      "grenoble": "Auvergne-Rhône-Alpes",
+    "paris": "Île-de-France",         "lyon": "Auvergne-Rhône-Alpes",
+    "marseille": "PACA",               "toulouse": "Occitanie",
+    "bordeaux": "Nouvelle-Aquitaine",  "nantes": "Pays de la Loire",
+    "lille": "Hauts-de-France",        "strasbourg": "Grand Est",
+    "rennes": "Bretagne",              "nice": "Côte d'Azur",
+    "montpellier": "Occitanie",        "grenoble": "Auvergne-Rhône-Alpes",
+    "metz": "Grand Est",               "nancy": "Grand Est",
+    "rouen": "Normandie",              "caen": "Normandie",
+    "dijon": "Bourgogne-Franche-Comté","besancon": "Bourgogne-Franche-Comté",
+    "clermont-ferrand": "Auvergne-Rhône-Alpes",
+    "saint-etienne": "Auvergne-Rhône-Alpes",
+    "angers": "Pays de la Loire",      "saint-nazaire": "Pays de la Loire",
+    "poitiers": "Nouvelle-Aquitaine",  "la rochelle": "Nouvelle-Aquitaine",
+    "bayonne": "Nouvelle-Aquitaine",   "pau": "Nouvelle-Aquitaine",
+    "limoges": "Nouvelle-Aquitaine",   "bordeaux": "Nouvelle-Aquitaine",
+    "perpignan": "Occitanie",          "nimes": "Occitanie",
+    "toulon": "PACA",                  "nice": "PACA",
+    "brest": "Bretagne",               "quimper": "Bretagne",
+    "lorient": "Bretagne",             "rennes": "Bretagne",
+    "reims": "Grand Est",              "mulhouse": "Grand Est",
+    "amiens": "Hauts-de-France",       "dunkerque": "Hauts-de-France",
+    "calais": "Hauts-de-France",       "tours": "Centre-Val de Loire",
+    "orleans": "Centre-Val de Loire",  "annecy": "Auvergne-Rhône-Alpes",
+    "chambery": "Auvergne-Rhône-Alpes","valence": "Auvergne-Rhône-Alpes",
 }
 
-def normalize_location(loc: str) -> tuple[str, str, str]:
-    """Return (original, city_for_queries, region).
 
-    Maps suburbs to their nearest major city so LinkedIn queries match real profiles.
-    Example: "La Garenne-Colombes" → city="Paris", region="Île-de-France"
+def _ascii_key(s: str) -> str:
+    """Lowercase + strip accents + collapse spaces/apostrophes to hyphens."""
+    nfkd = unicodedata.normalize("NFD", s.lower().strip())
+    out  = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return re.sub(r"[\s'\u2019]+", "-", out).strip("-")
+
+
+def normalize_location(loc: str) -> tuple[str, str, str, bool]:
+    """Return (original, city_for_queries, region, is_major_city).
+
+    - Maps suburbs to their nearest major city.
+    - is_major_city = False  → location is a suburb or unknown commune.
+      build_queries will add region + no-location fallback queries automatically.
     """
     if not loc:
-        return "", "", ""
-    nfkd  = unicodedata.normalize("NFD", loc.lower().strip())
-    ascii_loc = "".join(c for c in nfkd if not unicodedata.combining(c))
-    ascii_loc = re.sub(r"[\s']+", "-", ascii_loc).strip("-")
+        return "", "", "", True
 
-    city = _SUBURB_TO_CITY.get(loc.lower().strip(),
-           _SUBURB_TO_CITY.get(ascii_loc, loc))
+    loc_key = loc.lower().strip()
+    asc_key = _ascii_key(loc)
+
+    # 1. Direct or ASCII-normalised lookup in the suburb map
+    city = _SUBURB_TO_CITY.get(loc_key, _SUBURB_TO_CITY.get(asc_key, ""))
+
+    if not city:
+        # 2. Check if the location IS already a major city
+        if loc_key in _MAJOR_FRENCH_CITIES or asc_key in _MAJOR_FRENCH_CITIES:
+            city = loc.strip()
+        else:
+            # 3. Unknown commune — use as-is but flag as non-major
+            city = loc.strip()
+
     region = _CITY_TO_REGION.get(city.lower(), "")
-    return loc, city, region
+    is_major = city.lower() in _MAJOR_FRENCH_CITIES or _ascii_key(city) in _MAJOR_FRENCH_CITIES
+
+    return loc, city, region, is_major
 
 
 # ── English keyword expansion for technical/industrial domains ─────────────────
@@ -244,10 +399,16 @@ def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
     seniority = detect_seniority(brief.get("criteres", ""))
 
     # ── Location normalization ─────────────────────────────────────────────
-    _, city_loc, region = normalize_location(loc_orig)
-    # Use city for queries (never suburb — too specific for LinkedIn)
-    loc_q      = f'"{city_loc}"' if city_loc else ""
-    loc_q_reg  = f'"{region}"'   if region   else ""
+    _, city_loc, region, is_major = normalize_location(loc_orig)
+
+    # Primary location query: use city (mapped from suburb if needed)
+    loc_q     = f'"{city_loc}"' if city_loc else ""
+    loc_q_reg = f'"{region}"'   if region   else ""
+
+    # If location is a suburb/commune not recognized as a major city:
+    # → the city_loc might still be too specific for LinkedIn snippets,
+    #   so we ALWAYS include region + no-location queries prominently.
+    is_suburb = loc_orig and not is_major
 
     half   = max(len(mots_list) // 2, 1)
     mots_a = " ".join(mots_list[:half])
@@ -256,78 +417,97 @@ def build_queries(brief: dict) -> tuple[list[str], list[str], list[str]]:
 
     titre_court = short_title(titre)
 
-    # ── English equivalents (for technical/industrial profiles) ────────────
+    # ── English equivalents (technical/industrial/IT profiles) ────────────
     en_terms = detect_english_equivalents(titre, mots_list)
     en_str_a = " ".join(en_terms[:2]) if en_terms else ""
     en_str_b = en_terms[0] if en_terms else ""
 
-    # ── LinkedIn — primary source, maximum coverage ────────────────────────
-    linkedin_q = [
-        f'site:linkedin.com/in "{titre_court}" {mots_a} {loc_q}',
-        f'site:linkedin.com/in "{titre_court}" {mots_b} {loc_q}',
-        f'site:linkedin.com/in {mots} {loc_q}',
-        f'site:linkedin.com/in "{titre_court}" {mots_c} {loc_q}',
-        f'"{titre_court}" {mots_a} {loc_q} linkedin',
-        # Region-level for wider net
-        f'site:linkedin.com/in "{titre_court}" {mots_a} {loc_q_reg}',
-        # No-location fallback (catches profiles without city in snippet)
+    # ── LinkedIn — primary source (ALL queries go here) ───────────────────
+    linkedin_q: list[str] = []
+
+    # Core queries with city location
+    if loc_q:
+        linkedin_q += [
+            f'site:linkedin.com/in "{titre_court}" {mots_a} {loc_q}',
+            f'site:linkedin.com/in "{titre_court}" {mots_b} {loc_q}',
+            f'site:linkedin.com/in {mots_a} {loc_q}',
+            f'site:linkedin.com/in "{titre_court}" {mots_c} {loc_q}',
+            f'"{titre_court}" {mots_a} {loc_q} linkedin',
+        ]
+
+    # Region-level queries — ALWAYS included, especially critical for suburbs
+    if loc_q_reg:
+        linkedin_q += [
+            f'site:linkedin.com/in "{titre_court}" {mots_a} {loc_q_reg}',
+            f'site:fr.linkedin.com/in "{titre_court}" {mots_a} {loc_q_reg}',
+            f'site:fr.linkedin.com/in {mots_a} {loc_q_reg}',
+        ]
+
+    # No-location queries — ALWAYS included (profiles without city in snippet)
+    linkedin_q += [
         f'site:linkedin.com/in "{titre_court}" {mots}',
+        f'site:fr.linkedin.com/in "{titre_court}" {mots_a}',
+        f'site:fr.linkedin.com/in {mots_a} {mots_b}',
     ]
 
-    french_cities = ["paris", "lyon", "bordeaux", "marseille", "toulouse", "nantes",
-                     "lille", "strasbourg", "rennes", "nice", "montpellier", "france"]
-    is_french = city_loc and any(c in city_loc.lower() for c in french_cities)
-
-    if is_french:
+    # French sub-domain with city (best for French profiles)
+    if loc_q:
         linkedin_q += [
             f'site:fr.linkedin.com/in "{titre_court}" {mots_a} {loc_q}',
             f'site:fr.linkedin.com/in "{titre_court}" {mots_b} {loc_q}',
             f'site:fr.linkedin.com/in {mots} {loc_q}',
             f'site:fr.linkedin.com/in "{titre_court}" {mots_c}',
-            f'site:fr.linkedin.com/in "{titre_court}" {mots_a} {loc_q_reg}',
-            f'site:fr.linkedin.com/in {mots_a} {mots_b}',  # no-loc fallback
         ]
 
-    # ── English-language queries (technical / oil & gas / IT profiles) ─────
-    if en_str_a:
+    # Extra broad queries for suburbs: "France" fallback
+    if is_suburb:
         linkedin_q += [
-            f'site:linkedin.com/in {en_str_a} {loc_q}',
-            f'site:fr.linkedin.com/in {en_str_a} {loc_q}',
-            f'site:linkedin.com/in "{titre_court}" {en_str_b} {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" {mots_a} "France"',
+            f'site:linkedin.com/in "{titre_court}" {mots_a} "France"',
+        ]
+
+    # ── English-language queries (critical for technical/industrial) ───────
+    if en_str_a:
+        en_loc = loc_q_reg if loc_q_reg else loc_q
+        linkedin_q += [
+            f'site:linkedin.com/in {en_str_a} {en_loc}',
+            f'site:fr.linkedin.com/in {en_str_a} {en_loc}',
+            f'site:linkedin.com/in "{titre_court}" {en_str_b} {en_loc}',
+            f'site:linkedin.com/in {en_str_a}',  # no-loc for EN profiles
         ]
 
     # ── Seniority-specific queries ─────────────────────────────────────────
+    sen_loc = loc_q_reg if is_suburb else loc_q
     if seniority == "senior":
         linkedin_q += [
-            f'site:fr.linkedin.com/in "{titre_court}" "Senior" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre_court}" "Expert" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre_court}" "Lead" {loc_q}',
-            f'site:linkedin.com/in "{titre_court}" "Head of" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "Senior" {sen_loc}',
+            f'site:fr.linkedin.com/in "{titre_court}" "Expert" {sen_loc}',
+            f'site:fr.linkedin.com/in "{titre_court}" "Lead" {sen_loc}',
+            f'site:linkedin.com/in "{titre_court}" "Head of" {sen_loc}',
         ]
     elif seniority == "junior":
         linkedin_q += [
-            f'site:fr.linkedin.com/in "{titre_court}" "junior" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre_court}" "alternance" {loc_q}',
-            f'site:linkedin.com/in "{titre_court}" "graduate" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "junior" {sen_loc}',
+            f'site:fr.linkedin.com/in "{titre_court}" "alternance" {sen_loc}',
+            f'site:linkedin.com/in "{titre_court}" "graduate" {sen_loc}',
         ]
     elif seniority == "confirmed":
         linkedin_q += [
-            f'site:fr.linkedin.com/in "{titre_court}" "confirmé" {loc_q}',
-            f'site:fr.linkedin.com/in "{titre_court}" "expérimenté" {loc_q}',
-            f'site:linkedin.com/in "{titre_court}" "mid-level" {loc_q}',
+            f'site:fr.linkedin.com/in "{titre_court}" "confirmé" {sen_loc}',
+            f'site:fr.linkedin.com/in "{titre_court}" "expérimenté" {sen_loc}',
+            f'site:linkedin.com/in "{titre_court}" "mid-level" {sen_loc}',
         ]
 
-    # ── Malt — secondary, freelances only ─────────────────────────────────
-    malt_q = [
-        f'site:malt.fr "{titre_court}" {mots_a} {loc_q}',
-    ]
+    # ── Malt — 1 query only (LinkedIn must dominate) ──────────────────────
+    malt_q = [f'site:malt.fr "{titre_court}" {mots_a} {loc_q}']
 
-    # APEC disabled — low quality for most searches
+    # APEC disabled — low quality
     apec_q: list[str] = []
 
     log.debug(
-        "build_queries — loc '%s'→'%s' (region:'%s') | en_terms: %s | %d li queries",
-        loc_orig, city_loc, region, en_terms, len(linkedin_q),
+        "build_queries — loc '%s'→'%s' | is_major=%s | region='%s' | "
+        "en_terms=%s | %d LinkedIn queries",
+        loc_orig, city_loc, is_major, region, en_terms, len(linkedin_q),
     )
     return linkedin_q, malt_q, apec_q
 
