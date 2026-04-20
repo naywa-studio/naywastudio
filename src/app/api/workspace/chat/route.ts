@@ -43,12 +43,24 @@ TON ET STYLE :
 - Un emoji occasionnel, pas plus d'un par message
 - Réponds toujours en français
 
-ACTIONS DISPONIBLES :
-Quand tu veux créer une mission, réponds avec ce bloc JSON :
+FLUX POUR UNE NOUVELLE MISSION :
+1. Créer la mission :
 <action>{"type":"create_mission","title":"..."}</action>
 
-Quand tu veux lancer une recherche sur une mission attachée :
+2. Collecter le brief via la conversation (poste, localisation, compétences, séniorité, contrat, ton)
+
+3. Quand tu as assez d'informations, proposer de sauvegarder le brief :
+<action>{"type":"update_brief","missionId":"...","brief":{"titre_poste":"...","mots_cles":["...","..."],"localisation":"...","criteres":"...","ton":"..."}}</action>
+
+4. Après confirmation du client, proposer de lancer la recherche :
 <action>{"type":"run_mission","missionId":"..."}</action>
+
+RÈGLES BRIEF :
+- titre_poste : 1-4 mots max (ex: "Développeur Full Stack", "Avocat", "DRH")
+- mots_cles : compétences techniques ou sectorielles uniquement (pas de soft skills)
+- localisation : ville ou région (ex: "Paris", "Lyon", "Remote")
+- criteres : résumé concis des contraintes (séniorité, contrat, secteur, urgence)
+- ton : style pour contacter les candidats (ex: "Direct et humain", "Professionnel")
 
 ÉTAT INITIAL :
 Si c'est la première conversation (pas de mémoire), propose deux options :
@@ -269,6 +281,21 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
     if (newMission) {
       action = { ...action, missionId: newMission.id }
     }
+  }
+
+  // Handle brief update action server-side
+  if (action?.type === "update_brief" && action.missionId && action.brief) {
+    try {
+      const brief = JSON.parse(action.brief)
+      await sbAdmin
+        .from("missions")
+        .update({ brief, status: "preparation" })
+        .eq("id", action.missionId)
+        .eq("user_id", user.id)
+      // Also update brief_memory with a summary
+      const mem = `# Mission brief\nPoste : ${brief.titre_poste}\nLocalisation : ${brief.localisation}\nMots-clés : ${(brief.mots_cles ?? []).join(", ")}\nCritères : ${brief.criteres ?? ""}\nTon : ${brief.ton ?? ""}`
+      await sbAdmin.from("missions").update({ brief_memory: mem }).eq("id", action.missionId).eq("user_id", user.id)
+    } catch { /* ignore parse errors */ }
   }
 
   // Save messages + memory to Supabase

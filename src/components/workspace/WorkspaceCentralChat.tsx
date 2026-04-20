@@ -7,7 +7,7 @@ import type { WorkspaceMsg } from "@/lib/database.types"
 
 /* ── Types ───────────────────────────────────────────────────── */
 
-interface AttachedMission {
+export interface AttachedMission {
   id: string
   title: string
   color: string
@@ -17,6 +17,8 @@ interface Props {
   agentColor: string
   agentName: string
   firstName: string | null
+  attachedMission: AttachedMission | null
+  onAttachedMissionChange: (mission: AttachedMission | null) => void
   onMissionCreated?: (missionId: string) => void
 }
 
@@ -190,13 +192,16 @@ function WelcomeState({
 
 /* ── Main component ──────────────────────────────────────────── */
 
-export default function WorkspaceCentralChat({ agentColor, agentName, firstName, onMissionCreated }: Props) {
+export default function WorkspaceCentralChat({
+  agentColor, agentName, firstName,
+  attachedMission, onAttachedMissionChange,
+  onMissionCreated,
+}: Props) {
   const router = useRouter()
   const [messages, setMessages] = useState<WorkspaceMsg[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
-  const [attachedMission, setAttachedMission] = useState<AttachedMission | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -253,7 +258,7 @@ export default function WorkspaceCentralChat({ agentColor, agentName, firstName,
 
       const data = await res.json() as {
         content: string
-        action?: { type: string; missionId?: string; title?: string }
+        action?: { type: string; missionId?: string; title?: string; brief?: string }
         compacted?: boolean
       }
 
@@ -267,12 +272,21 @@ export default function WorkspaceCentralChat({ agentColor, agentName, firstName,
       // Handle actions
       if (data.action?.type === "create_mission" && data.action.missionId) {
         onMissionCreated?.(data.action.missionId)
-        // Navigate to the new mission after a short delay
-        setTimeout(() => router.push(`/workspace/missions/${data.action!.missionId}`), 1200)
+      }
+
+      if (data.action?.type === "run_mission" && data.action.missionId) {
+        const mId = data.action.missionId
+        // Trigger the run then navigate to mission page
+        await fetch(`/api/missions/${mId}/run`, { method: "POST" })
+        setTimeout(() => router.push(`/workspace/missions/${mId}`), 800)
+      }
+
+      if (data.action?.type === "update_brief") {
+        // Brief was saved — refresh missions list
+        onMissionCreated?.("") // trigger a missions refresh
       }
 
       if (data.compacted) {
-        // Memory was compacted — reload messages from server
         const reloadRes = await fetch("/api/workspace/chat")
         const reloadData = await reloadRes.json() as { messages: WorkspaceMsg[] }
         setMessages(reloadData.messages ?? [])
@@ -301,7 +315,7 @@ export default function WorkspaceCentralChat({ agentColor, agentName, firstName,
     if (!data) return
     try {
       const mission = JSON.parse(data) as AttachedMission
-      setAttachedMission(mission)
+      onAttachedMissionChange(mission)
     } catch { /* ignore */ }
   }
 
@@ -456,7 +470,7 @@ export default function WorkspaceCentralChat({ agentColor, agentName, firstName,
             {attachedMission && (
               <MissionChip
                 mission={attachedMission}
-                onRemove={() => setAttachedMission(null)}
+                onRemove={() => onAttachedMissionChange(null)}
               />
             )}
           </AnimatePresence>

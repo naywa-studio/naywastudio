@@ -8,7 +8,7 @@ import { getSupabase } from "@/lib/supabase"
 import { AGENT_LEVELS } from "@/lib/mock-store"
 import { useWorkspace } from "./layout"
 import ProvisioningScreen from "@/components/workspace/ProvisioningScreen"
-import WorkspaceCentralChat from "@/components/workspace/WorkspaceCentralChat"
+import WorkspaceCentralChat, { type AttachedMission } from "@/components/workspace/WorkspaceCentralChat"
 import type { Database } from "@/lib/database.types"
 
 type Mission = Database["public"]["Tables"]["missions"]["Row"]
@@ -290,6 +290,17 @@ function NewMissionForm({
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
+/* ── InfoRow ─────────────────────────────────────────────────── */
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p style={{ margin: "0 0 3px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-inter), sans-serif" }}>{label}</p>
+      <p style={{ margin: 0, fontSize: 12, color: "#374151", fontFamily: "var(--font-inter), sans-serif", lineHeight: 1.4 }}>{value}</p>
+    </div>
+  )
+}
+
 /* ── Main page ───────────────────────────────────────────────── */
 
 export default function WorkspacePage() {
@@ -302,6 +313,7 @@ export default function WorkspacePage() {
   const [showNewForm, setShowNewForm] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Mission | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [attachedMission, setAttachedMission] = useState<AttachedMission | null>(null)
 
   const firstName = profile?.first_name ?? userEmail.split("@")[0]
 
@@ -403,6 +415,10 @@ export default function WorkspacePage() {
 
   // ── Main workspace layout ─────────────────────────────────────────────────
 
+  const attachedMissionData = attachedMission
+    ? missions.find((m) => m.id === attachedMission.id) ?? null
+    : null
+
   return (
     <div style={{
       display: "flex",
@@ -414,12 +430,12 @@ export default function WorkspacePage() {
         agentColor={agent.color}
         agentName={agent.agent}
         firstName={firstName}
-        onMissionCreated={(id) => {
-          fetchMissions()
-        }}
+        attachedMission={attachedMission}
+        onAttachedMissionChange={setAttachedMission}
+        onMissionCreated={() => fetchMissions()}
       />
 
-      {/* ── Right: Missions panel ──────────────────────────────────────────── */}
+      {/* ── Right: Missions panel OR mission preview ───────────────────────── */}
       <div style={{
         width: 320,
         flexShrink: 0,
@@ -430,6 +446,102 @@ export default function WorkspacePage() {
         height: "100%",
         overflow: "hidden",
       }}>
+        <AnimatePresence mode="wait">
+          {attachedMission ? (
+            /* ── Mission preview panel ──────────────────────────── */
+            <m.div
+              key="preview"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.22, ease: EASE }}
+              style={{ display: "flex", flexDirection: "column", height: "100%" }}
+            >
+              {/* Preview header */}
+              <div style={{
+                padding: "14px 16px 12px",
+                borderBottom: "1px solid #F0ECF8",
+                display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
+              }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: attachedMission.color, flexShrink: 0 }} />
+                <p style={{
+                  margin: 0, fontSize: 12, fontWeight: 700, color: "#111827",
+                  fontFamily: "var(--font-space-grotesk), sans-serif",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1,
+                }}>
+                  {attachedMission.title}
+                </p>
+                <button
+                  onClick={() => setAttachedMission(null)}
+                  style={{
+                    width: 22, height: 22, borderRadius: 6, border: "1px solid #E5E7EB",
+                    background: "white", cursor: "pointer", color: "#9CA3AF",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
+                    <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+              {/* Preview content */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+                {attachedMissionData?.brief ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <InfoRow label="Poste" value={attachedMissionData.brief.titre_poste} />
+                    <InfoRow label="Localisation" value={attachedMissionData.brief.localisation} />
+                    {attachedMissionData.brief.mots_cles?.length > 0 && (
+                      <div>
+                        <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-inter), sans-serif" }}>Mots-clés</p>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                          {attachedMissionData.brief.mots_cles.map((kw) => (
+                            <span key={kw} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: attachedMission.color + "15", color: attachedMission.color, fontWeight: 600, fontFamily: "var(--font-inter), sans-serif" }}>{kw}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {attachedMissionData.brief.criteres && (
+                      <InfoRow label="Critères" value={attachedMissionData.brief.criteres} />
+                    )}
+                    {attachedMissionData.brief.ton && (
+                      <InfoRow label="Ton" value={attachedMissionData.brief.ton} />
+                    )}
+                    {attachedMissionData.profiles_count > 0 && (
+                      <div style={{ marginTop: 4, padding: "10px 12px", borderRadius: 10, background: attachedMission.color + "10", border: `1px solid ${attachedMission.color}30` }}>
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: attachedMission.color, fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+                          {attachedMissionData.profiles_count} profils trouvés
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "32px 12px" }}>
+                    <p style={{ margin: 0, fontSize: 12, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif", lineHeight: 1.6 }}>
+                      Aucun brief défini.<br />Décrivez le poste dans le chat pour que l&apos;IA le configure.
+                    </p>
+                  </div>
+                )}
+                <Link href={`/workspace/missions/${attachedMission.id}`} style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  marginTop: 16, padding: "9px 14px", borderRadius: 10,
+                  border: `1.5px solid ${attachedMission.color}40`, background: attachedMission.color + "08",
+                  color: attachedMission.color, fontSize: 12, fontWeight: 600, textDecoration: "none",
+                  fontFamily: "var(--font-inter), sans-serif",
+                }}>
+                  Ouvrir la mission →
+                </Link>
+              </div>
+            </m.div>
+          ) : (
+            /* ── Missions grid ──────────────────────────────────── */
+            <m.div
+              key="grid"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.18, ease: EASE }}
+              style={{ display: "flex", flexDirection: "column", height: "100%" }}
+            >
         {/* Panel header */}
         <div style={{
           padding: "16px 16px 12px",
@@ -517,6 +629,9 @@ export default function WorkspacePage() {
             Glissez un dossier dans le chat →
           </p>
         </div>
+            </m.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Delete dialog */}
