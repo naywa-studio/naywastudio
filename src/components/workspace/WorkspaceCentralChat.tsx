@@ -274,11 +274,13 @@ export default function WorkspaceCentralChat({
         onMissionCreated?.(data.action.missionId)
       }
 
-      if (data.action?.type === "run_mission" && data.action.missionId) {
-        const mId = data.action.missionId
-        // Trigger the run then navigate to mission page
-        await fetch(`/api/missions/${mId}/run`, { method: "POST" })
-        setTimeout(() => router.push(`/workspace/missions/${mId}`), 800)
+      if (data.action?.type === "run_mission") {
+        const mId = data.action.missionId ?? attachedMission?.id
+        if (mId && mId !== "...") {
+          // Trigger the run then navigate to mission page
+          await fetch(`/api/missions/${mId}/run`, { method: "POST" })
+          setTimeout(() => router.push(`/workspace/missions/${mId}`), 800)
+        }
       }
 
       if (data.action?.type === "update_brief") {

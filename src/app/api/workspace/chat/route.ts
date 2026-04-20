@@ -159,7 +159,7 @@ Profils trouvés : ${mission.profiles_count}`
   }
 
   if (missionMemory) {
-    systemPrompt += `\n\n---\n## Dossier-mission attaché : "${missionTitle}"\n${missionMemory}`
+    systemPrompt += `\n\n---\n## Dossier-mission attaché : "${missionTitle}"\nID mission : ${attachedMissionId}\n${missionMemory}`
   }
 
   // Add client context
@@ -217,7 +217,7 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
 
   // Parse action tags from response
   const actionMatch = assistantContent.match(/<action>([\s\S]*?)<\/action>/)
-  let action: Record<string, string> | null = null
+  let action: Record<string, unknown> | null = null
   let cleanContent = assistantContent
   if (actionMatch) {
     try {
@@ -271,7 +271,7 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
     const { data: newMission } = await sbAdmin
       .from("missions")
       .insert({
-        title: action.title,
+        title: action.title as string,
         user_id: user.id,
         agent_level: profile?.subscription_level === "leo" ? "leo" : "nora",
       })
@@ -283,18 +283,29 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
     }
   }
 
+  // Resolve missionId for run_mission — AI may not know it; fall back to attached mission
+  if (action?.type === "run_mission") {
+    const mId = action.missionId as string | undefined
+    const resolvedId = mId && mId !== "..." ? mId : attachedMissionId
+    if (resolvedId) {
+      action = { ...action, missionId: resolvedId }
+    }
+  }
+
   // Handle brief update action server-side
   if (action?.type === "update_brief" && action.missionId && action.brief) {
     try {
-      const brief = JSON.parse(action.brief)
+      // brief may arrive as an object (nested JSON) or a stringified JSON
+      const brief = typeof action.brief === "string" ? JSON.parse(action.brief) : action.brief
       await sbAdmin
         .from("missions")
         .update({ brief, status: "preparation" })
-        .eq("id", action.missionId)
+        .eq("id", action.missionId as string)
         .eq("user_id", user.id)
       // Also update brief_memory with a summary
-      const mem = `# Mission brief\nPoste : ${brief.titre_poste}\nLocalisation : ${brief.localisation}\nMots-clés : ${(brief.mots_cles ?? []).join(", ")}\nCritères : ${brief.criteres ?? ""}\nTon : ${brief.ton ?? ""}`
-      await sbAdmin.from("missions").update({ brief_memory: mem }).eq("id", action.missionId).eq("user_id", user.id)
+      const b = brief as Record<string, unknown>
+      const mem = `# Mission brief\nPoste : ${b.titre_poste}\nLocalisation : ${b.localisation}\nMots-clés : ${(Array.isArray(b.mots_cles) ? (b.mots_cles as string[]).join(", ") : "")}\nCritères : ${b.criteres ?? ""}\nTon : ${b.ton ?? ""}`
+      await sbAdmin.from("missions").update({ brief_memory: mem }).eq("id", action.missionId as string).eq("user_id", user.id)
     } catch { /* ignore parse errors */ }
   }
 

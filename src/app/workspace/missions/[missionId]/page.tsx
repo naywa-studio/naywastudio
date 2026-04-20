@@ -8,8 +8,9 @@ import { getSupabase } from "@/lib/supabase"
 import { AGENT_LEVELS } from "@/lib/mock-store"
 import { useWorkspace } from "../../layout"
 import MissionRunPanel from "@/components/workspace/MissionRunPanel"
+import BriefChat from "@/components/workspace/BriefChat"
 import { SOURCE_META } from "@/lib/candidate-meta"
-import type { Database, ScoreDimensions, ChatHistoryMsg } from "@/lib/database.types"
+import type { Database, ScoreDimensions, ChatHistoryMsg, MissionBrief } from "@/lib/database.types"
 
 type Mission   = Database["public"]["Tables"]["missions"]["Row"]
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"]
@@ -63,7 +64,7 @@ export default function MissionDetailPage() {
   const params     = useParams()
   const missionId  = params.missionId as string
   const { agentLevel, profile } = useWorkspace()
-  const agent = AGENT_LEVELS[agentLevel]
+  const agent = AGENT_LEVELS[agentLevel] ?? AGENT_LEVELS[1]
 
   const [mission,      setMission]      = useState<Mission | null>(null)
   const [candidates,   setCandidates]   = useState<Candidate[]>([])
@@ -258,17 +259,28 @@ export default function MissionDetailPage() {
           )}
 
           {!isRunning && candidates.length === 0 && (
-            <div style={{
-              flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-              padding: "40px 24px", gap: 10, textAlign: "center",
-            }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: "#F8F6FF", border: "1.5px solid #E2DAF6", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#7C63C8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#374151", fontFamily: "var(--font-space-grotesk), sans-serif" }}>Définissez votre recherche</p>
-              <p style={{ margin: 0, fontSize: 12, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif", maxWidth: 280 }}>Discutez avec l'assistant pour cadrer votre besoin et lancer la recherche.</p>
+            <div style={{ flex: 1, overflow: "hidden", padding: "16px 20px", display: "flex", flexDirection: "column" }}>
+              <BriefChat
+                missionId={missionId}
+                firstName={profile?.first_name ?? null}
+                agentColor={agent.color}
+                agentName={agent.agent}
+                isRunning={isRunning}
+                completedCount={candidates.length}
+                onLaunch={async (brief: MissionBrief) => {
+                  // Save brief to DB
+                  await getSupabase()
+                    .from("missions")
+                    .update({ brief, status: "preparation" })
+                    .eq("id", missionId)
+                  setMission(prev => prev ? { ...prev, brief, status: "preparation" } : prev)
+                  // Launch the run
+                  setIsRunning(true)
+                  setRunResumed(false)
+                }}
+                initialMessages={mission.chat_history ?? undefined}
+                onHistoryUpdate={saveHistory}
+              />
             </div>
           )}
 
