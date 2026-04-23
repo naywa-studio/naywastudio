@@ -37,6 +37,8 @@ export type Database = {
           agent_status: 'not_deployed' | 'deploying' | 'running' | 'error'
           workspace_memory: string | null
           workspace_messages: WorkspaceMsg[] | null
+          apify_credits_used: number
+          apify_reset_at: string
           created_at: string
           updated_at: string
         }
@@ -58,6 +60,8 @@ export type Database = {
           agent_status?: 'not_deployed' | 'deploying' | 'running' | 'error'
           workspace_memory?: string | null
           workspace_messages?: WorkspaceMsg[] | null
+          apify_credits_used?: number
+          apify_reset_at?: string
           created_at?: string
           updated_at?: string
         }
@@ -79,6 +83,8 @@ export type Database = {
           agent_status?: 'not_deployed' | 'deploying' | 'running' | 'error'
           workspace_memory?: string | null
           workspace_messages?: WorkspaceMsg[] | null
+          apify_credits_used?: number
+          apify_reset_at?: string
           created_at?: string
           updated_at?: string
         }
