@@ -355,7 +355,9 @@ export default function WorkspaceCentralChat({
 
       // ── run_mission ────────────────────────────────────────
       if (data.action?.type === "run_mission") {
-        const mId = (data.action.missionId as string | undefined) ?? attachedMission?.id
+        const rawMId = data.action.missionId as string | undefined
+        const isPlaceholder = !rawMId || !rawMId.includes("-") || rawMId.includes("CONTEXTE") || rawMId.includes("COLLER") || rawMId === "..."
+        const mId = isPlaceholder ? attachedMission?.id : rawMId
         if (mId && mId !== "...") {
           const mTitle = attachedMission?.title ?? agentName
           assistantMsg.actionCard = { type: "search_launched", title: mTitle, color: "#22c55e" }

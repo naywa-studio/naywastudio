@@ -53,8 +53,9 @@ Pas de balise. Pose UNE seule question (la plus importante).
 
 [CONFIRMATION — utilisateur dit oui/lancez/c'est bon/parfait/top/go]
 L'ID mission est disponible dans le contexte sous "ID mission : xxx".
+Remplace EXACTEMENT l'ID dans la balise par la valeur UUID presente dans le contexte (ex: "a1b2c3d4-...").
 Ecris OBLIGATOIREMENT cette balise :
-<action>{"type":"run_mission","missionId":"ID_EXACT_DU_CONTEXTE"}</action>
+<action>{"type":"run_mission","missionId":"COLLER_ICI_LUUID_DU_CONTEXTE"}</action>
 Texte : "Recherche lancee ! Redirection vers le dossier en cours..."
 
 [MISSION EXISTANTE ATTACHEE]
@@ -317,7 +318,8 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
   // ── Resolve missionId for run_mission ───────────────────────────────────────
   if (action?.type === "run_mission") {
     const mId = action.missionId as string | undefined
-    const resolvedId = mId && mId !== "..." ? mId : attachedMissionId
+    const isPlaceholder = !mId || mId === "..." || mId.includes("CONTEXTE") || mId.includes("COLLER") || mId.includes("uuid") || mId.includes("UUID") || !mId.includes("-")
+    const resolvedId = isPlaceholder ? attachedMissionId : mId
     if (resolvedId) {
       action = { ...action, missionId: resolvedId }
     }
