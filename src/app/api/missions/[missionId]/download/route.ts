@@ -178,6 +178,33 @@ export async function POST(
     }
     await sbAdmin.from("missions").update(missionUpdate).eq("id", missionId)
 
+    // ── Incrémenter quota Apify ──────────────────────────────────────────────
+    if (runCount > 0) {
+      const { data: prof } = await sbAdmin
+        .from("profiles")
+        .select("apify_credits_used, apify_reset_at")
+        .eq("user_id", user.id)
+        .single()
+
+      const now      = new Date()
+      const resetAt  = prof?.apify_reset_at ? new Date(prof.apify_reset_at) : new Date(0)
+      const sameMonth = now.getFullYear() === resetAt.getFullYear() && now.getMonth() === resetAt.getMonth()
+      const today    = now.toISOString().slice(0, 10)
+
+      if (sameMonth) {
+        await sbAdmin
+          .from("profiles")
+          .update({ apify_credits_used: (prof?.apify_credits_used ?? 0) + runCount })
+          .eq("user_id", user.id)
+      } else {
+        // Nouveau mois → reset
+        await sbAdmin
+          .from("profiles")
+          .update({ apify_credits_used: runCount, apify_reset_at: today })
+          .eq("user_id", user.id)
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       excel_b64: agentData.result,

@@ -46,6 +46,27 @@ export async function POST(
   if (!mission.brief) return NextResponse.json({ error: "Brief not configured" }, { status: 400 })
   if (mission.status === "in_progress") return NextResponse.json({ error: "Already running" }, { status: 409 })
 
+  // ── Quota Apify (1000 profils/mois) ─────────────────────────────────────────
+  const { data: profileRow } = await sb
+    .from("profiles")
+    .select("apify_credits_used, apify_reset_at")
+    .eq("user_id", user.id)
+    .single()
+
+  if (profileRow) {
+    const now      = new Date()
+    const resetAt  = profileRow.apify_reset_at ? new Date(profileRow.apify_reset_at) : new Date(0)
+    const sameMonth = now.getFullYear() === resetAt.getFullYear() && now.getMonth() === resetAt.getMonth()
+    const creditsUsed = sameMonth ? (profileRow.apify_credits_used ?? 0) : 0
+
+    if (creditsUsed >= 1000) {
+      return NextResponse.json(
+        { error: "Quota mensuel atteint (1 000 profils). Réinitialisé le 1er du mois prochain." },
+        { status: 429 }
+      )
+    }
+  }
+
   // ── Get agent URL ────────────────────────────────────────────────────────────
   let agentBase: string
   try {
