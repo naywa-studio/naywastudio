@@ -286,7 +286,6 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 function Spinner() {
   return (
     <svg width="32" height="32" viewBox="0 0 24 24" style={{ animation: "spin 0.8s linear infinite" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <circle cx="12" cy="12" r="10" stroke="#E2DAF6" strokeWidth="3" fill="none" />
       <path d="M12 2a10 10 0 0 1 10 10" stroke="#7C63C8" strokeWidth="3" fill="none" strokeLinecap="round" />
     </svg>

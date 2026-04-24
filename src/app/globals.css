@@ -15,6 +15,11 @@
 
 }
 
+/* ── Shared animations ── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ── Tailwind v4 theme extension ── */
 @theme inline {
   --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;

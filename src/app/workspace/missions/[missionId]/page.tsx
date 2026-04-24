@@ -3,14 +3,15 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { m } from "framer-motion"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
 import { AGENT_LEVELS } from "@/lib/mock-store"
 import { useWorkspace } from "../../layout"
 import MissionRunPanel from "@/components/workspace/MissionRunPanel"
-import BriefChat from "@/components/workspace/BriefChat"
+import { Spinner } from "@/components/workspace/WorkspaceCentralChat"
 import { SOURCE_META } from "@/lib/candidate-meta"
-import type { Database, ScoreDimensions, ChatHistoryMsg, MissionBrief } from "@/lib/database.types"
+import type { Database, ScoreDimensions, MissionBrief } from "@/lib/database.types"
+// Note: ChatHistoryMsg no longer needed (BriefChat removed)
 
 type Mission   = Database["public"]["Tables"]["missions"]["Row"]
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"]
@@ -60,6 +61,190 @@ function buildMessageTemplate(name: string | null, title: string, recruiter: str
    PAGE
    ════════════════════════════════════════════════════════════════ */
 
+/* ── Mission empty state — no candidates yet ──────────────────────────── */
+
+function MissionEmptyState({
+  missionId, brief, agentColor, onLaunch,
+}: {
+  missionId: string
+  brief: MissionBrief | null
+  agentColor: string
+  onLaunch: () => void
+}) {
+  const router    = useRouter()
+  const [launching, setLaunching] = useState(false)
+
+  const handleLaunch = async () => {
+    setLaunching(true)
+    try {
+      await fetch(`/api/missions/${missionId}/run`, { method: "POST" })
+      onLaunch()
+    } catch {
+      setLaunching(false)
+    }
+  }
+
+  // No brief configured yet
+  if (!brief?.titre_poste) {
+    return (
+      <m.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: EASE }}
+        style={{
+          flex: 1, display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          padding: "48px 24px", textAlign: "center",
+        }}
+      >
+        <div style={{
+          width: 44, height: 44, borderRadius: 12, background: agentColor + "15",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          marginBottom: 20,
+        }}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M2 6C2 4.9 2.9 4 4 4h4l2 2h6c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6z"
+              stroke={agentColor} strokeWidth="1.6" fill="none" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <p style={{
+          margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "#111827",
+          fontFamily: "var(--font-space-grotesk), sans-serif",
+        }}>
+          Aucun brief défini
+        </p>
+        <p style={{
+          margin: "0 0 24px", fontSize: 13, color: "#6B7280", lineHeight: 1.6,
+          maxWidth: 320, fontFamily: "var(--font-inter), sans-serif",
+        }}>
+          Décrivez votre besoin dans le chat pour que l'agent configure automatiquement cette mission.
+        </p>
+        <button
+          onClick={() => router.push(`/workspace?mission=${missionId}`)}
+          style={{
+            padding: "10px 22px", borderRadius: 10, border: "none",
+            background: agentColor, color: "white",
+            fontSize: 13, fontWeight: 700, cursor: "pointer",
+            fontFamily: "var(--font-inter), sans-serif",
+            display: "flex", alignItems: "center", gap: 7,
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+            <path d="M10 2C5.58 2 2 5.58 2 10s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm1 13H9v-6h2v6zm0-8H9V5h2v2z"
+              fill="currentColor"/>
+          </svg>
+          Configurer dans le chat
+        </button>
+      </m.div>
+    )
+  }
+
+  // Brief defined — show summary + direct launch
+  return (
+    <m.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: EASE }}
+      style={{
+        flex: 1, display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        padding: "40px 24px",
+      }}
+    >
+      <div style={{
+        background: "white", borderRadius: 16,
+        border: "1.5px solid #E2DAF6",
+        padding: "24px", maxWidth: 460, width: "100%",
+        boxShadow: "0 2px 16px rgba(124,99,200,0.07)",
+      }}>
+        <p style={{
+          margin: "0 0 16px", fontSize: 13, fontWeight: 700, color: "#6B7280",
+          textTransform: "uppercase", letterSpacing: "0.07em",
+          fontFamily: "var(--font-inter), sans-serif",
+        }}>
+          Brief configuré
+        </p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          <div>
+            <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-inter), sans-serif" }}>Poste</p>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#111827", fontFamily: "var(--font-space-grotesk), sans-serif" }}>{brief.titre_poste}</p>
+          </div>
+          <div style={{ display: "flex", gap: 20 }}>
+            {brief.localisation && (
+              <div>
+                <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-inter), sans-serif" }}>Localisation</p>
+                <p style={{ margin: 0, fontSize: 13, color: "#374151", fontFamily: "var(--font-inter), sans-serif" }}>{brief.localisation}</p>
+              </div>
+            )}
+            {brief.criteres && (
+              <div>
+                <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-inter), sans-serif" }}>Critères</p>
+                <p style={{ margin: 0, fontSize: 13, color: "#374151", fontFamily: "var(--font-inter), sans-serif" }}>{brief.criteres}</p>
+              </div>
+            )}
+          </div>
+          {brief.mots_cles?.length > 0 && (
+            <div>
+              <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-inter), sans-serif" }}>Mots-clés</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {brief.mots_cles.map((kw) => (
+                  <span key={kw} style={{
+                    fontSize: 11, padding: "2px 8px", borderRadius: 6,
+                    background: agentColor + "15", color: agentColor,
+                    fontWeight: 600, fontFamily: "var(--font-inter), sans-serif",
+                  }}>{kw}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={handleLaunch}
+            disabled={launching}
+            style={{
+              flex: 1, padding: "11px 0", borderRadius: 10, border: "none",
+              background: launching ? "#D1D5DB" : agentColor,
+              color: "white", fontSize: 13, fontWeight: 700,
+              cursor: launching ? "not-allowed" : "pointer",
+              fontFamily: "var(--font-inter), sans-serif",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              transition: "background 150ms",
+            }}
+          >
+            {launching ? (
+              <><Spinner size={14} color="rgba(255,255,255,0.7)" /> Lancement…</>
+            ) : (
+              <>
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                  <path d="M6 4l10 6-10 6V4z" fill="currentColor"/>
+                </svg>
+                Lancer la recherche
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => router.push(`/workspace?mission=${missionId}`)}
+            style={{
+              padding: "11px 16px", borderRadius: 10,
+              border: "1.5px solid #E2DAF6", background: "white",
+              color: "#374151", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              fontFamily: "var(--font-inter), sans-serif",
+              transition: "border-color 150ms",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = agentColor }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2DAF6" }}
+          >
+            Modifier
+          </button>
+        </div>
+      </div>
+    </m.div>
+  )
+}
+
 export default function MissionDetailPage() {
   const params     = useParams()
   const missionId  = params.missionId as string
@@ -97,16 +282,7 @@ export default function MissionDetailPage() {
 
   useEffect(() => { fetchData(true) }, [fetchData])
 
-  /* ── Save chat history ───────────────────────────────────── */
-  const saveHistory = useCallback(async (msgs: ChatHistoryMsg[]) => {
-    try {
-      await fetch(`/api/missions/${missionId}/chat-history`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: msgs }),
-      })
-    } catch { /* non-critical */ }
-  }, [missionId])
+
 
   /* ── Run completed ───────────────────────────────────────── */
   const handleRunCompleted = (b64: string, count: number, researchReport?: string) => {
@@ -259,27 +435,15 @@ export default function MissionDetailPage() {
           )}
 
           {!isRunning && candidates.length === 0 && (
-            <div style={{ flex: 1, overflow: "hidden", padding: "16px 20px", display: "flex", flexDirection: "column" }}>
-              <BriefChat
+            <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <MissionEmptyState
                 missionId={missionId}
-                firstName={profile?.first_name ?? null}
+                brief={(mission.brief as MissionBrief | null) ?? null}
                 agentColor={agent.color}
-                agentName={agent.agent}
-                isRunning={isRunning}
-                completedCount={candidates.length}
-                onLaunch={async (brief: MissionBrief) => {
-                  // Save brief to DB
-                  await getSupabase()
-                    .from("missions")
-                    .update({ brief, status: "preparation" })
-                    .eq("id", missionId)
-                  setMission(prev => prev ? { ...prev, brief, status: "preparation" } : prev)
-                  // Launch the run
+                onLaunch={() => {
                   setIsRunning(true)
                   setRunResumed(false)
                 }}
-                initialMessages={mission.chat_history ?? undefined}
-                onHistoryUpdate={saveHistory}
               />
             </div>
           )}
@@ -1766,12 +1930,4 @@ function WaitingState({ label }: { label: string }) {
   return <EmptySlate label={label} />
 }
 
-function Spinner() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" style={{ animation: "spin 0.8s linear infinite" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <circle cx="12" cy="12" r="10" stroke="#E2DAF6" strokeWidth="3" fill="none" />
-      <path d="M12 2a10 10 0 0 1 10 10" stroke="#7C63C8" strokeWidth="3" fill="none" strokeLinecap="round" />
-    </svg>
-  )
-}
+// Spinner imported from WorkspaceCentralChat
