@@ -18,6 +18,7 @@ import pandas as pd
 from agent_leo import (
     search_profiles,
     parse_profile,
+    pre_filter,
     build_excel,
     coerce_keywords,
     normalize_location,
@@ -28,7 +29,7 @@ log = logging.getLogger("nawa-agent.nora")
 
 OPENROUTER_KEY = os.environ["OPENROUTER_API_KEY"]
 MODEL          = "openai/gpt-4o-mini"
-LLM_TIMEOUT    = 35.0
+LLM_TIMEOUT    = 50.0
 
 MAX_PROFILES  = 40
 MAX_MESSAGES  = 20
@@ -88,31 +89,54 @@ async def expand_brief(brief: dict, client: httpx.AsyncClient) -> dict:
 # ── Multi-dimensional scoring ──────────────────────────────────────────────────
 
 async def score_profiles(brief: dict, profiles: list[dict], client: httpx.AsyncClient) -> list[dict]:
-    """Score multi-dimensionnel : titre (40) + localisation (20) + compétences (30) + profil (10)."""
+    """
+    Scoring riche multi-dimensionnel (4 axes + justification) — identique à Léo
+    mais avec génération de messages personnalisés en prime.
+    Utilise toutes les données disponibles : expérience, compétences, résumé, etc.
+    """
     if not profiles:
         return profiles
 
     titre     = brief.get("titre_poste", "")
+    loc       = brief.get("localisation", "")
     mots      = coerce_keywords(brief.get("mots_cles", []))
     extra     = brief.get("extra_keywords", [])
-    all_kw    = mots + extra
-    city, _   = normalize_location(brief.get("localisation", ""))
+    all_kw    = (mots + extra)[:12]
     criteres  = brief.get("criteres", "")
 
     batch = profiles[:30]
+
+    # Construction des profils enrichis pour le LLM
+    profiles_for_llm = []
+    for i, p in enumerate(batch):
+        profiles_for_llm.append({
+            "index":       i,
+            "titre":       p["title"],
+            "entreprise":  p["company"],
+            "lieu":        p["location"],
+            "competences": p.get("skills", [])[:12],
+            "experience":  p.get("experience_summary", ""),
+            "annees_exp":  p.get("years_experience", 0),
+            "resume":      p.get("summary", "")[:200],
+        })
+
     prompt = (
-        f"Score ces profils LinkedIn pour : « {titre} » à {city}.\n"
-        f"Critères : {criteres}\n"
-        f"Mots-clés attendus : {', '.join(all_kw[:8])}\n\n"
-        "Pour chaque profil, retourne un score global 0-100 et une estimation de séniorité.\n"
-        "UNIQUEMENT ce JSON : [{\"index\": 0, \"score\": 85, \"seniority\": \"Senior\"}, ...]\n\n"
+        f"Expert recruteur, évalue ces profils LinkedIn pour : « {titre} » à {loc}.\n"
+        f"Critères client : {criteres}\n"
+        f"Compétences requises : {', '.join(all_kw)}\n\n"
+        "Pour chaque profil, retourne UNIQUEMENT ce JSON array :\n"
+        '[{"index":0,"score":85,"competences":90,"seniorite":80,"localisation":100,"qualite":75,'
+        '"seniority":"Senior","justification":"8 ans React, TypeScript ✓, Paris ✓"},...]\n\n'
+        "Définitions :\n"
+        "- score : pertinence globale 0-100\n"
+        "- competences : % compétences requises présentes 0-100\n"
+        "- seniorite : niveau d'expérience vs critères 0-100\n"
+        "- localisation : correspondance géographique 0-100\n"
+        "- qualite : profil complet et cohérent 0-100\n"
+        "- seniority : Junior | Confirmé | Senior | Expert\n"
+        "- justification : 1 phrase max, points forts/faibles clés\n\n"
         "Profils :\n"
-        + json.dumps(
-            [{"index": i, "title": p["title"], "company": p["company"],
-              "location": p["location"], "summary": p.get("summary", "")[:100]}
-             for i, p in enumerate(batch)],
-            ensure_ascii=False
-        )
+        + json.dumps(profiles_for_llm, ensure_ascii=False)
     )
 
     try:
@@ -123,29 +147,38 @@ async def score_profiles(brief: dict, profiles: list[dict], client: httpx.AsyncC
                 "model": MODEL,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.1,
-                "max_tokens": 600,
+                "max_tokens": 2000,
             },
             timeout=LLM_TIMEOUT,
         )
         r.raise_for_status()
         content = r.json()["choices"][0]["message"]["content"]
-        log.info("score_profiles LLM raw (first 300): %s", content[:300])
-        # Use greedy match to capture the full JSON array (non-greedy stopped at first ])
+        log.info("score_profiles raw (first 300): %s", content[:300])
         match = re.search(r'\[.*\]', content, re.DOTALL)
-        log.info("score_profiles regex match: %s", bool(match))
         if match:
             results = json.loads(match.group())
             log.info("score_profiles parsed %d scores", len(results))
             for item in results:
                 i = item.get("index", -1)
                 if 0 <= i < len(batch):
-                    batch[i]["score"]    = item.get("score", 50)
-                    batch[i]["seniority"] = item.get("seniority", "")
-            log.info("score_profiles applied — sample score: %s", batch[0].get("score") if batch else "n/a")
+                    batch[i]["score"]            = item.get("score", 50)
+                    batch[i]["seniority"]        = item.get("seniority", "")
+                    batch[i]["justification"]    = item.get("justification", "")
+                    batch[i]["score_dimensions"] = {
+                        "competences": item.get("competences", 50),
+                        "seniorite":   item.get("seniorite",   50),
+                        "localisation":item.get("localisation",50),
+                        "qualite":     item.get("qualite",     50),
+                    }
+            log.info("score_profiles — top score: %s", batch[0].get("score") if batch else "n/a")
+        else:
+            log.warning("score_profiles regex no match — content: %s", content[:300])
+            for p in batch:
+                p["score"] = p.get("score") or 50
     except Exception as e:
         log.warning("score_profiles failed: %s", e, exc_info=True)
         for p in batch:
-            p["score"] = p.get("score") or 50  # override None with 50
+            p["score"] = p.get("score") or 50
 
     profiles.sort(key=lambda p: p.get("score") or 0, reverse=True)
     return profiles
@@ -154,10 +187,22 @@ async def score_profiles(brief: dict, profiles: list[dict], client: httpx.AsyncC
 # ── Message generation ─────────────────────────────────────────────────────────
 
 async def generate_message(brief: dict, profile: dict, client: httpx.AsyncClient) -> str:
-    """Génère un message de prise de contact personnalisé."""
+    """Génère un message de prise de contact personnalisé et contextualisé."""
     ton      = brief.get("ton", "professionnel")
     titre    = brief.get("titre_poste", "")
     criteres = brief.get("criteres", "")
+
+    # Enrichissement avec données de qualité
+    exp_summary  = profile.get("experience_summary", "")
+    years_exp    = profile.get("years_experience", 0)
+    skills_str   = ", ".join(profile.get("skills", [])[:5])
+    justification = profile.get("justification", "")
+
+    context_line = ""
+    if exp_summary:
+        context_line = f"Expérience récente : {exp_summary[:120]}\n"
+    elif skills_str:
+        context_line = f"Compétences clés : {skills_str}\n"
 
     prompt = (
         f"Rédige un message de prise de contact LinkedIn court et personnalisé.\n"
@@ -165,12 +210,13 @@ async def generate_message(brief: dict, profile: dict, client: httpx.AsyncClient
         f"Poste à pourvoir : {titre}\n"
         f"Profil ciblé : {profile.get('name', '')} — {profile.get('title', '')} "
         f"chez {profile.get('company', '')}\n"
+        f"{context_line}"
         f"Critères clés : {criteres}\n\n"
         "Règles :\n"
         "- 3-4 phrases max\n"
-        "- Personnalisé (mention du titre/entreprise actuelle)\n"
+        "- Mentionner le poste actuel ou une compétence spécifique du profil\n"
         "- Pas de formule générique type 'J'espère que vous allez bien'\n"
-        "- Terminer par une invitation à échanger\n"
+        "- Terminer par une invitation courte à échanger\n"
         "Retourne UNIQUEMENT le message, sans guillemets ni explication."
     )
 
@@ -222,16 +268,18 @@ async def generate_report(brief: dict, profiles: list[dict], client: httpx.Async
     companies = list({p["company"] for p in top if p.get("company")})[:5]
     titles    = list({p["title"] for p in top if p.get("title")})[:5]
     avg_score = round(sum(p.get("score") or 0 for p in top) / len(top)) if top else 0
+    avg_years = round(sum(p.get("years_experience") or 0 for p in top) / len(top)) if top else 0
 
     prompt = (
         f"Analyse de marché pour : {titre} à {city}\n"
         f"Profils trouvés : {len(profiles)}\n"
         f"Score moyen top 10 : {avg_score}/100\n"
+        f"Ancienneté moyenne top 10 : {avg_years} ans\n"
         f"Entreprises représentées : {', '.join(companies)}\n"
         f"Titres fréquents : {', '.join(titles)}\n\n"
         "Rédige un rapport concis (150 mots max) avec :\n"
         "1. Disponibilité des profils sur le marché\n"
-        "2. Profil type trouvé\n"
+        "2. Profil type trouvé (ancienneté, provenance)\n"
         "3. 1-2 recommandations pour optimiser la recherche\n"
         "Format markdown simple."
     )
@@ -262,14 +310,18 @@ def build_nora_excel(shortlist: list[dict], longlist: list[dict]) -> str:
         rows = []
         for i, p in enumerate(profiles):
             row = {
-                "Rang":         i + 1,
-                "Nom":          p.get("name", ""),
-                "Titre":        p.get("title", ""),
-                "Entreprise":   p.get("company", ""),
-                "Localisation": p.get("location", ""),
-                "Séniorité":    p.get("seniority", ""),
-                "Score":        p.get("score") or "",
-                "LinkedIn":     p.get("linkedin_url", ""),
+                "Rang":           i + 1,
+                "Nom":            p.get("name", ""),
+                "Titre":          p.get("title", ""),
+                "Entreprise":     p.get("company", ""),
+                "Localisation":   p.get("location", ""),
+                "Années exp.":    p.get("years_experience") or "",
+                "Séniorité":      p.get("seniority", ""),
+                "Score":          p.get("score") or "",
+                "Justification":  p.get("justification", ""),
+                "Compétences":    ", ".join(p.get("skills", [])[:8]),
+                "Expérience":     p.get("experience_summary", ""),
+                "LinkedIn":       p.get("linkedin_url", ""),
             }
             if with_message:
                 row["Message"] = p.get("message", "")
@@ -312,39 +364,45 @@ async def run(brief: dict) -> dict:
         raw = await search_profiles(enriched_brief)
         log.info("Apify : %d profils bruts", len(raw))
 
-        # 3. Parse
+        # 3. Parse — extraction complète des données Apify
         profiles = [parse_profile(r) for r in raw if r.get("linkedinUrl") or r.get("url")]
 
-        # 4. Scoring multi-dimensionnel
+        # 4. Pre-filter (géographique + pertinence minimale)
+        profiles = pre_filter(profiles, enriched_brief)
+        log.info("Après pre_filter : %d profils", len(profiles))
+
+        # 5. Scoring multi-dimensionnel
         profiles = await score_profiles(enriched_brief, profiles, client)
 
-        # 5. Shortlist
+        # 6. Shortlist
         n_short   = max(4, min(MAX_MESSAGES, int(len(profiles) * SHORTLIST_PCT)))
         shortlist = profiles[:n_short]
         longlist  = profiles[n_short:]
 
-        # 6. Génération messages shortlist
+        # 7. Génération messages shortlist
         shortlist = await generate_messages_batch(enriched_brief, shortlist)
 
-        # 7. Rapport marché
+        # 8. Rapport marché
         report = await generate_report(enriched_brief, profiles, client)
 
-    # 8. Excel 2 feuilles
+    # 9. Excel 2 feuilles
     excel_b64 = build_nora_excel(shortlist, longlist)
 
     candidates = [
         {
-            "linkedin_url":    p["linkedin_url"],
-            "name_estimated":  p["name"],
-            "title_estimated": p["title"],
-            "company":         p["company"],
-            "keywords":        p.get("skills", []),
-            "relevance_score": p.get("score"),
-            "seniority_level": p.get("seniority", ""),
-            "message":         p.get("message", ""),
-            "source":          "nora",
+            "linkedin_url":      p["linkedin_url"],
+            "name_estimated":    p["name"],
+            "title_estimated":   p["title"],
+            "company":           p["company"],
+            "keywords":          p.get("skills", []),
+            "relevance_score":   p.get("score"),
+            "score_justification": p.get("justification", ""),
+            "score_dimensions":  p.get("score_dimensions"),
+            "seniority_level":   p.get("seniority", ""),
+            "message":           p.get("message", ""),
+            "source":            "nora",
         }
-        for p in profiles
+        for p in shortlist + longlist
     ]
 
     log.info("Nora terminé — %d profils (%d shortlist)", len(profiles), len(shortlist))
