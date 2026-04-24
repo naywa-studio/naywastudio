@@ -129,18 +129,23 @@ async def score_profiles(brief: dict, profiles: list[dict], client: httpx.AsyncC
         )
         r.raise_for_status()
         content = r.json()["choices"][0]["message"]["content"]
-        match = re.search(r'\[.*?\]', content, re.DOTALL)
+        log.info("score_profiles LLM raw (first 300): %s", content[:300])
+        # Use greedy match to capture the full JSON array (non-greedy stopped at first ])
+        match = re.search(r'\[.*\]', content, re.DOTALL)
+        log.info("score_profiles regex match: %s", bool(match))
         if match:
             results = json.loads(match.group())
+            log.info("score_profiles parsed %d scores", len(results))
             for item in results:
                 i = item.get("index", -1)
                 if 0 <= i < len(batch):
                     batch[i]["score"]    = item.get("score", 50)
                     batch[i]["seniority"] = item.get("seniority", "")
+            log.info("score_profiles applied — sample score: %s", batch[0].get("score") if batch else "n/a")
     except Exception as e:
-        log.warning("score_profiles failed: %s", e)
+        log.warning("score_profiles failed: %s", e, exc_info=True)
         for p in batch:
-            p.setdefault("score", 50)
+            p["score"] = p.get("score") or 50  # override None with 50
 
     profiles.sort(key=lambda p: p.get("score") or 0, reverse=True)
     return profiles

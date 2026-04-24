@@ -223,8 +223,10 @@ async def search_profiles(brief: dict) -> list[dict]:
                 if url_norm in seen_urls:
                     continue
 
-                # Déduplication par nom
-                name = item.get("fullName") or item.get("name") or ""
+                # Déduplication par nom (harvestapi: firstName + lastName)
+                first = item.get("firstName") or ""
+                last  = item.get("lastName") or ""
+                name  = f"{first} {last}".strip() or item.get("fullName") or item.get("name") or ""
                 name_norm = normalize_name(name)
                 if name_norm and any(fuzzy_name_match(name_norm, n) for n in seen_names):
                     continue
@@ -240,16 +242,42 @@ async def search_profiles(brief: dict) -> list[dict]:
 # ── Profile parsing ────────────────────────────────────────────────────────────
 
 def parse_profile(raw: dict) -> dict:
-    """Normalise un profil brut Apify vers le format Nawa."""
+    """Normalise un profil brut Apify (harvestapi) vers le format Nawa."""
+    # Name: harvestapi returns firstName + lastName separately
+    first = raw.get("firstName") or ""
+    last  = raw.get("lastName") or ""
+    name  = f"{first} {last}".strip() or raw.get("fullName") or raw.get("name") or ""
+
+    # Company: from currentPosition list
+    current_pos = raw.get("currentPosition") or []
+    company = ""
+    if current_pos and isinstance(current_pos, list):
+        company = current_pos[0].get("companyName") or current_pos[0].get("company") or ""
+
+    # Location: harvestapi returns a dict {linkedinText, parsed: {city, ...}}
+    loc_raw = raw.get("location") or ""
+    if isinstance(loc_raw, dict):
+        location = (loc_raw.get("linkedinText") or
+                    loc_raw.get("parsed", {}).get("city") or "")
+    else:
+        location = str(loc_raw)
+
+    # Skills: harvestapi returns [{name: "React", ...}], extract names
+    skills_raw = raw.get("skills") or raw.get("topSkills") or []
+    if skills_raw and isinstance(skills_raw[0], dict):
+        skills = [s.get("name", "") for s in skills_raw if s.get("name")]
+    else:
+        skills = [str(s) for s in skills_raw if s]
+
     return {
         "source":       "linkedin",
         "linkedin_url": raw.get("linkedinUrl") or raw.get("url") or "",
-        "name":         raw.get("fullName") or raw.get("name") or "",
-        "title":        raw.get("headline") or raw.get("title") or "",
-        "company":      raw.get("currentCompany") or raw.get("company") or "",
-        "location":     raw.get("location") or "",
-        "summary":      (raw.get("summary") or "")[:300],
-        "skills":       raw.get("skills") or [],
+        "name":         name,
+        "title":        raw.get("headline") or (current_pos[0].get("position") if current_pos else "") or "",
+        "company":      company,
+        "location":     location,
+        "summary":      (raw.get("about") or raw.get("summary") or "")[:300],
+        "skills":       skills,
         "score":        None,
     }
 
