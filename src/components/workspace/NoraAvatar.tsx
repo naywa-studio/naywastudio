@@ -2,42 +2,42 @@
 
 import Image from "next/image"
 
-type LeoState = "idle" | "observation" | "thinking"
+type NoraState = "idle" | "observation" | "thinking"
 
-interface LeoAvatarProps {
-  state?: LeoState
+interface NoraAvatarProps {
+  state?: NoraState
   size?: number
 }
 
-const SRC: Record<LeoState, string> = {
-  idle:        "/agents/leo-idle.png",
-  observation: "/agents/leo-search.png",
-  thinking:    "/agents/leo-run.png",
+const SRC: Record<NoraState, string> = {
+  idle:        "/agents/nora-idle.png",
+  observation: "/agents/nora-search.png",
+  thinking:    "/agents/nora-run.png",
 }
 
-const ALT: Record<LeoState, string> = {
-  idle:        "Léo au repos",
-  observation: "Léo observe votre message",
-  thinking:    "Léo génère une réponse",
+const ALT: Record<NoraState, string> = {
+  idle:        "Nora au repos",
+  observation: "Nora observe votre message",
+  thinking:    "Nora génère une réponse",
 }
 
-export function LeoAvatar({ state = "idle", size = 56 }: LeoAvatarProps) {
+export function NoraAvatar({ state = "idle", size = 56 }: NoraAvatarProps) {
   return (
     <>
       <div
-        className="leo-avatar-wrap"
+        className="nora-avatar-wrap"
         aria-label={ALT[state]}
         role="img"
         style={{ width: size, height: size, position: "relative", flexShrink: 0 }}
       >
-        {(["idle", "observation", "thinking"] as LeoState[]).map(s => (
+        {(["idle", "observation", "thinking"] as NoraState[]).map(s => (
           <Image
             key={s}
             src={SRC[s]}
             alt={ALT[s]}
             width={size}
             height={size}
-            className={`leo-avatar-img ${state === s ? "leo-visible" : "leo-hidden"}`}
+            className={`nora-avatar-img ${state === s ? "nora-visible" : "nora-hidden"}`}
             style={{ position: "absolute", inset: 0, objectFit: "contain" }}
             priority={s === "idle"}
           />
@@ -45,19 +45,19 @@ export function LeoAvatar({ state = "idle", size = 56 }: LeoAvatarProps) {
       </div>
 
       <style>{`
-        .leo-avatar-img {
+        .nora-avatar-img {
           transition: opacity 250ms ease, transform 250ms ease;
           border-radius: 50%;
         }
-        .leo-visible {
+        .nora-visible {
           opacity: 1;
           transform: scale(1);
           filter:
-            drop-shadow(0px 10px 18px rgba(100, 70, 180, 0.30))
+            drop-shadow(0px 10px 18px rgba(59, 130, 246, 0.30))
             drop-shadow(0px 3px 6px rgba(0, 0, 0, 0.18))
             drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.12));
         }
-        .leo-hidden {
+        .nora-hidden {
           opacity: 0;
           transform: scale(0.9);
           pointer-events: none;

@@ -3,10 +3,12 @@
 /** DEV ONLY — Preview espace client fidèle au workspace main */
 
 import { useState, useRef, useEffect } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import { AGENT_LEVELS, MockStoreProvider, useMockStore } from "@/lib/mock-store"
 import { LeoAvatar } from "@/components/workspace/LeoAvatar"
+import { NoraAvatar } from "@/components/workspace/NoraAvatar"
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -49,7 +51,6 @@ function FolderIcon({ color, size: _size = 48 }: { color: string; size?: number 
       position: "relative",
       width: W,
       height: H + tipH,
-      animation: "nawaFloat 2.5s infinite ease-in-out",
       perspective: 600,
     }}>
       {/* Back side — deux feuilles blanches */}
@@ -157,12 +158,20 @@ function Inner() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "var(--font-inter), sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#EDE9FF", fontFamily: "var(--font-inter), sans-serif", position: "relative", overflow: "hidden" }}>
+
+      {/* ── Background blobs ── */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
+        <div style={{ position: "absolute", top: "-18%", left: "-12%", width: "52vw", height: "52vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(185,162,238,0.48) 0%, transparent 68%)" }} />
+        <div style={{ position: "absolute", bottom: "-18%", right: "-10%", width: "48vw", height: "48vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(185,162,238,0.42) 0%, transparent 68%)" }} />
+        <div style={{ position: "absolute", top: "35%", right: "22%", width: "28vw", height: "28vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(210,195,245,0.28) 0%, transparent 65%)" }} />
+        <div style={{ position: "absolute", top: "10%", right: "5%", width: "14vw", height: "14vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(200,180,242,0.22) 0%, transparent 60%)" }} />
+      </div>
 
       {/* ── Header ── */}
       <header style={{
         position: "sticky", top: 0, zIndex: 40, height: 60,
-        background: "rgba(255,255,255,0.95)", backdropFilter: "blur(14px)",
+        background: "rgba(255,255,255,0.95)", backdropFilter: "blur(18px)",
         borderBottom: "1px solid #F0ECF8",
         display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px",
       }}>
@@ -186,7 +195,12 @@ function Inner() {
                 boxShadow: active ? `0 0 0 3px ${a.color}18, 0 0 10px ${a.color}28` : "none",
                 transition: "all 150ms",
               }}>
-                {a.icon} {a.agent}
+                {lvl === 1
+                  ? <Image src="/agents/leo-idle.png" alt="Léo" width={18} height={18} style={{ borderRadius: "50%", objectFit: "contain" }} />
+                  : lvl === 2
+                  ? <Image src="/agents/Nora-idle.png" alt="Nora" width={18} height={18} style={{ borderRadius: "50%", objectFit: "contain" }} />
+                  : a.icon
+                } {a.agent}
               </button>
             )
           })}
@@ -203,7 +217,7 @@ function Inner() {
 
         {/* ── Zone chat (gauche) ── */}
         <div
-          style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: "#FAFAFA" }}
+          style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: "transparent", position: "relative", zIndex: 1 }}
           onDragOver={e => e.preventDefault()}
           onDrop={e => {
             e.preventDefault()
@@ -223,7 +237,9 @@ function Inner() {
             }}>
               <div style={{ marginBottom: 24 }}>
                 {agentLevel === 1
-                  ? <LeoAvatar state="idle" size={80} />
+                  ? <LeoAvatar state="idle" size={120} />
+                  : agentLevel === 2
+                  ? <NoraAvatar state="idle" size={140} />
                   : (
                     <div style={{
                       width: 80, height: 80, borderRadius: 20,
@@ -257,7 +273,7 @@ function Inner() {
                   onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)" }}
                   onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)" }}
                 >
-                  ✦ Nouvelle mission
+                  ✦ Nouvelle recherche
                 </button>
                 <button
                   onClick={() => startChat("Reprenons là où nous en étions. Quelle mission souhaitez-vous continuer ?")}
@@ -279,7 +295,7 @@ function Inner() {
             <>
               {/* Mission chip */}
               {attached && (
-                <div style={{ padding: "8px 20px", borderBottom: "1px solid #F0ECF8", background: "white", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <div style={{ padding: "8px 20px", borderBottom: "1px solid rgba(200,185,245,0.25)", background: "rgba(237,233,255,0.55)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                   <span style={{ fontSize: 11, color: "#9CA3AF" }}>Mission :</span>
                   <span style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
@@ -308,7 +324,21 @@ function Inner() {
                         background: "#E2DAF6", fontSize: 13, fontWeight: 700, color: "#7C63C8",
                       }}>H</div>
                     ) : agentLevel === 1 ? (
-                      <LeoAvatar state={avatarState} size={36} />
+                      <div style={{
+                        borderRadius: "50%", flexShrink: 0,
+                        boxShadow: "0 0 0 5px rgba(124,99,200,0.07), 0 0 18px rgba(124,99,200,0.18)",
+                        background: "rgba(124,99,200,0.04)",
+                      }}>
+                        <LeoAvatar state={avatarState} size={48} />
+                      </div>
+                    ) : agentLevel === 2 ? (
+                      <div style={{
+                        borderRadius: "50%", flexShrink: 0,
+                        boxShadow: "0 0 0 5px rgba(59,130,246,0.07), 0 0 18px rgba(59,130,246,0.18)",
+                        background: "rgba(59,130,246,0.04)",
+                      }}>
+                        <NoraAvatar state={avatarState} size={56} />
+                      </div>
                     ) : (
                       <div style={{
                         width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
@@ -362,7 +392,13 @@ function Inner() {
                 {typing && (
                   <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                     {agentLevel === 1
-                      ? <LeoAvatar state="thinking" size={36} />
+                      ? <div style={{ borderRadius: "50%", flexShrink: 0, boxShadow: "0 0 0 5px rgba(124,99,200,0.07), 0 0 18px rgba(124,99,200,0.18)", background: "rgba(124,99,200,0.04)" }}>
+                          <LeoAvatar state="thinking" size={48} />
+                        </div>
+                      : agentLevel === 2
+                      ? <div style={{ borderRadius: "50%", flexShrink: 0, boxShadow: "0 0 0 5px rgba(59,130,246,0.07), 0 0 18px rgba(59,130,246,0.18)", background: "rgba(59,130,246,0.04)" }}>
+                          <NoraAvatar state="thinking" size={56} />
+                        </div>
                       : <div style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(135deg, ${agent.color} 0%, #A78BFA 100%)` }}>
                           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 12V2l4 7 4-7v10" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </div>
@@ -376,7 +412,7 @@ function Inner() {
               </div>
 
               {/* Input — style Uiverse pill */}
-              <div style={{ padding: "14px 28px 16px", borderTop: "1px solid #F0ECF8", background: "white", flexShrink: 0 }}>
+              <div style={{ padding: "14px 28px 16px", borderTop: "1px solid rgba(200,185,245,0.25)", background: "rgba(237,233,255,0.65)", backdropFilter: "blur(12px)", flexShrink: 0 }}>
                 <div className="nawa-input-outer" style={{
                   position: "relative",
                   background: `linear-gradient(135deg, ${agent.colorLight} 0%, ${agent.colorLight} 100%)`,
@@ -448,7 +484,7 @@ function Inner() {
         {/* ── Panneau missions (droite 320px) ── */}
         <div style={{
           width: 320, flexShrink: 0,
-          borderLeft: "1px solid #F0ECF8", background: "white",
+          borderLeft: "1px solid rgba(200,185,245,0.35)", background: "rgba(255,255,255,0.75)", backdropFilter: "blur(16px)",
           display: "flex", flexDirection: "column", height: "100%", overflow: "hidden",
         }}>
           {/* Header */}
@@ -562,11 +598,6 @@ function Inner() {
           0%,100% { transform:translateY(0px) }
           50%      { transform:translateY(-7px) }
         }
-        /* Dossier — pause de la flottaison au hover */
-        .nawa-card:hover .nawa-folder-wrap {
-          animation-play-state: paused;
-        }
-
         /* Input pill — couches glass (::before / ::after) */
         .nawa-input-inner::before {
           content: "";
