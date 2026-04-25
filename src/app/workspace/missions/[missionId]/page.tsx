@@ -409,13 +409,42 @@ export default function MissionDetailPage() {
               </span>
             </div>
           </div>
-          <span style={{
-            flexShrink: 0, fontSize: 10, fontWeight: 700, padding: "3px 9px",
-            borderRadius: 999, color: statusMeta.color, background: statusMeta.bg,
-            fontFamily: "var(--font-inter), sans-serif",
-          }}>
-            {statusMeta.label}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {mission.status === "error" && !isRunning && (
+              <button
+                onClick={async () => {
+                  setIsRunning(true)
+                  setRunResumed(false)
+                  setMission(prev => prev ? { ...prev, status: "in_progress" } : prev)
+                  try { await fetch(`/api/missions/${missionId}/run`, { method: "POST" }) }
+                  catch { setIsRunning(false); setMission(prev => prev ? { ...prev, status: "error" } : prev) }
+                }}
+                style={{
+                  padding: "5px 12px", borderRadius: 8,
+                  border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)",
+                  color: "#EF4444", fontSize: 11, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "var(--font-inter), sans-serif",
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  transition: "background 150ms",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.12)" }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(239,68,68,0.06)" }}
+              >
+                <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
+                  <path d="M4 10a6 6 0 1 1 1.5 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                  <path d="M4 14V10h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Relancer
+              </button>
+            )}
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: "3px 9px",
+              borderRadius: 999, color: statusMeta.color, background: statusMeta.bg,
+              fontFamily: "var(--font-inter), sans-serif",
+            }}>
+              {statusMeta.label}
+            </span>
+          </div>
         </div>
 
         {/* Scrollable content */}
@@ -527,6 +556,7 @@ function NoraSections({
   const [showWeights,  setShowWeights]  = useState(false)
   const [threshold,    setThreshold]    = useState(7)
   const [showOthers,   setShowOthers]   = useState(false)
+  const [showReport,   setShowReport]   = useState(false)
 
   /* ── Computed ──────────────────────────────────────────── */
   const scored    = candidates.filter(c => c.relevance_score != null)
@@ -586,7 +616,7 @@ function NoraSections({
         ].filter(s => !s.hide).map((s, i, arr) => (
           <div key={s.label} style={{ display: "flex", alignItems: "center" }}>
             <div style={{ padding: "0 18px", textAlign: "center" }}>
-              <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: s.color, fontFamily: "var(--font-space-grotesk), sans-serif", lineHeight: 1 }}>{s.value}</p>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: s.color, fontFamily: "var(--font-space-grotesk), sans-serif", lineHeight: 1 }}>{s.value}</p>
               <p style={{ margin: "2px 0 0", fontSize: 10, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif", whiteSpace: "nowrap" }}>{s.label}</p>
             </div>
             {i < arr.length - 1 && <div style={{ width: 1, height: 28, background: "#E5E7EB", flexShrink: 0 }} />}
@@ -594,26 +624,30 @@ function NoraSections({
         ))}
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 6, paddingLeft: 16, flexShrink: 0 }}>
-          {/* Research report tooltip */}
+          {/* Research report — inline expandable panel */}
           {mission.research_report && (
-            <div style={{ position: "relative" }} className="report-tip-wrap">
-              <button
-                title={mission.research_report}
-                style={{
-                  padding: "5px 11px", borderRadius: 8,
-                  border: `1.5px solid ${agentColor}30`, background: `${agentColor}08`,
-                  color: agentColor, fontSize: 11, fontWeight: 600,
-                  cursor: "pointer", fontFamily: "var(--font-inter), sans-serif",
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.8"/>
-                  <path d="M10 9v5M10 7h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                </svg>
-                Analyse
-              </button>
-            </div>
+            <button
+              onClick={() => setShowReport(p => !p)}
+              style={{
+                padding: "5px 11px", borderRadius: 8,
+                border: `1.5px solid ${showReport ? agentColor + "60" : agentColor + "30"}`,
+                background: showReport ? `${agentColor}12` : `${agentColor}08`,
+                color: agentColor, fontSize: 11, fontWeight: 600,
+                cursor: "pointer", fontFamily: "var(--font-inter), sans-serif",
+                display: "inline-flex", alignItems: "center", gap: 5,
+                transition: "background 150ms, border-color 150ms",
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.8"/>
+                <path d="M10 9v5M10 7h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+              Analyse
+              <svg width="10" height="10" viewBox="0 0 20 20" fill="none"
+                style={{ transform: showReport ? "rotate(180deg)" : "rotate(0)", transition: "transform 180ms" }}>
+                <path d="M5 7.5l5 5 5-5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
           )}
           {/* Export CSV */}
           {validated.length > 0 && (
@@ -650,6 +684,31 @@ function NoraSections({
           </button>
         </div>
       </div>
+
+      {/* ── ANALYSE PANEL (collapsible) ──────────────────────── */}
+      {showReport && mission.research_report && (
+        <div style={{
+          flexShrink: 0,
+          padding: "12px 20px",
+          borderBottom: "1.5px solid #F0ECF8",
+          background: `${agentColor}06`,
+          display: "flex", gap: 10,
+        }}>
+          <div style={{ flexShrink: 0, marginTop: 1 }}>
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="8" stroke={agentColor} strokeWidth="1.8"/>
+              <path d="M10 9v5M10 7h.01" stroke={agentColor} strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <p style={{
+            margin: 0, fontSize: 12, color: "#374151", lineHeight: 1.65,
+            fontFamily: "var(--font-inter), sans-serif",
+            whiteSpace: "pre-wrap",
+          }}>
+            {mission.research_report}
+          </p>
+        </div>
+      )}
 
       {/* ── HORIZONTAL TABS STRIP ────────────────────────────── */}
       <div style={{ flexShrink: 0, padding: "0 20px", borderBottom: "1.5px solid #F0ECF8", background: "white", display: "flex", alignItems: "center", gap: 0, overflowX: "auto" }}>
@@ -841,7 +900,7 @@ function NoraSections({
                   { label: "Sans message",      value: noMsg.length,       color: "#F59E0B" },
                 ].map(s => (
                   <div key={s.label} style={{ background: "white", borderRadius: 12, border: "1.5px solid #F0ECF8", padding: "14px 16px" }}>
-                    <p style={{ margin: 0, fontSize: 22, fontWeight: 800, color: s.color, fontFamily: "var(--font-space-grotesk), sans-serif", lineHeight: 1 }}>{s.value}</p>
+                    <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: s.color, fontFamily: "var(--font-space-grotesk), sans-serif", lineHeight: 1 }}>{s.value}</p>
                     <p style={{ margin: "4px 0 0", fontSize: 11, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>{s.label}</p>
                   </div>
                 ))}
