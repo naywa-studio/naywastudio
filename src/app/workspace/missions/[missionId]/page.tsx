@@ -8,17 +8,15 @@ import { getSupabase } from "@/lib/supabase"
 import { AGENT_LEVELS } from "@/lib/mock-store"
 import { useWorkspace } from "../../layout"
 import MissionRunPanel from "@/components/workspace/MissionRunPanel"
-import { Spinner } from "@/components/workspace/WorkspaceCentralChat"
+import { Spinner, EASE } from "@/components/workspace/WorkspaceCentralChat"
 import { SOURCE_META } from "@/lib/candidate-meta"
 import type { Database, ScoreDimensions, MissionBrief } from "@/lib/database.types"
-// Note: ChatHistoryMsg no longer needed (BriefChat removed)
 
 type Mission   = Database["public"]["Tables"]["missions"]["Row"]
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"]
 type BookingLink = Database["public"]["Tables"]["booking_links"]["Row"]
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nawastudio.com"
-const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const fu = (d: number) => ({ initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4, delay: d, ease: EASE } })
 
 /* ── Status helpers ──────────────────────────────────────────── */
@@ -551,6 +549,7 @@ function NoraSections({
   onContact: (id: string) => void
   onNoteChange: (id: string, text: string) => void
 }) {
+  const router         = useRouter()
   const [activeTab,    setActiveTab]    = useState<NoraTab>("tableur")
   const [weights,      setWeights]      = useState<ScoringWeights>(DEFAULT_WEIGHTS)
   const [showWeights,  setShowWeights]  = useState(false)
@@ -802,7 +801,7 @@ function NoraSections({
             )}
           </div>
           {/* Chercher plus */}
-          <button onClick={() => window.history.back()} style={{
+          <button onClick={() => router.push(`/workspace?mission=${missionId}`)} style={{
             padding: "5px 11px", borderRadius: 8,
             border: `1.5px solid ${agentColor}30`,
             background: `${agentColor}08`,
@@ -1654,7 +1653,6 @@ function CandidateFiche({
         </div>
       )}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </m.div>
   )
 }
