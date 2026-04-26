@@ -1,10 +1,9 @@
 /**
  * POST /api/admin/provision
- * Admin-only endpoint to set up or reset an account's subscription + trigger VPS provisioning.
- * Bypasses the "already subscribed" guard — useful for test/admin accounts.
+ * Admin-only — creates Hostinger VPS + sets up OS (fast, <30s).
+ * SSH agent deployment is handled by the cron: /api/cron/deploy-agents
  *
  * Body: { level: "leo" | "nora" | "alex", reset?: boolean }
- *
  * Security: only ADMIN_EMAILS can call this route.
  */
 
@@ -12,14 +11,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
-import { waitUntil } from "@vercel/functions"
-import { provisionInBackground } from "@/lib/vps"
+import { createVps } from "@/lib/vps"
 import type { Database } from "@/lib/database.types"
 
 type Level = "leo" | "nora" | "alex"
 const VALID_LEVELS: Level[] = ["leo", "nora", "alex"]
-
-// Emails that are allowed to call this route
 const ADMIN_EMAILS = ["elyas.malki1003@gmail.com"]
 
 function supabaseAdmin() {
@@ -30,7 +26,7 @@ function supabaseAdmin() {
 }
 
 export async function POST(req: NextRequest) {
-  // ── Auth check ────────────────────────────────────────────────────────────
+  // ── Auth ─────────────────────────────────────────────────────────────────
   const cookieStore = await cookies()
   const sb = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,9 +35,7 @@ export async function POST(req: NextRequest) {
       cookies: {
         getAll: () => cookieStore.getAll(),
         setAll: (toSet) => {
-          for (const { name, value, options } of toSet) {
-            cookieStore.set(name, value, options)
-          }
+          for (const { name, value, options } of toSet) cookieStore.set(name, value, options)
         },
       },
     }
@@ -49,8 +43,6 @@ export async function POST(req: NextRequest) {
 
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 })
-
-  // ── Admin email check ────────────────────────────────────────────────────
   if (!ADMIN_EMAILS.includes(user.email ?? "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
@@ -74,7 +66,7 @@ export async function POST(req: NextRequest) {
   // ── Check existing subscription (unless reset) ───────────────────────────
   const { data: profile } = await sbAdmin
     .from("profiles")
-    .select("subscription_level, vps_status, vps_id")
+    .select("subscription_level, vps_status")
     .eq("user_id", user.id)
     .single()
 
@@ -85,31 +77,30 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // ── Update profile → pending ──────────────────────────────────────────────
-  const now = new Date().toISOString()
-  const { error: updateErr } = await sbAdmin
-    .from("profiles")
-    .update({
-      subscription_level: level,
-      subscribed_at: now,
-      vps_status: "pending",
-      agent_status: "not_deployed",
-      vps_id: null,
-      vps_ip: null,
-    })
-    .eq("user_id", user.id)
+  // ── Reset profile ─────────────────────────────────────────────────────────
+  await sbAdmin.from("profiles").update({
+    subscription_level: level,
+    subscribed_at: new Date().toISOString(),
+    vps_status: "pending",
+    agent_status: "not_deployed",
+    vps_id: null,
+    vps_ip: null,
+  }).eq("user_id", user.id)
 
-  if (updateErr) {
-    console.error("[admin/provision] profile update error:", updateErr)
-    return NextResponse.json({ error: "DB error" }, { status: 500 })
+  // ── Create VPS via Hostinger API (fast, ~10-20s) ─────────────────────────
+  // SSH deployment handled by cron /api/cron/deploy-agents (runs every 2 min)
+  try {
+    const { vps_id } = await createVps(user.id, level)
+    await sbAdmin.from("profiles").update({
+      vps_id,
+      vps_status: "provisioning",
+    }).eq("user_id", user.id)
+
+    console.log(`[admin/provision] VPS ${vps_id} created for user ${user.id}, waiting for cron to deploy agents`)
+    return NextResponse.json({ ok: true, level, vps_id, status: "provisioning", reset })
+  } catch (err) {
+    console.error("[admin/provision] VPS creation failed:", err)
+    await sbAdmin.from("profiles").update({ vps_status: "error" }).eq("user_id", user.id)
+    return NextResponse.json({ error: String(err) }, { status: 500 })
   }
-
-  // ── Trigger provisioning (kept alive via waitUntil) ───────────────────────
-  waitUntil(
-    provisionInBackground(user.id, level).catch((err) =>
-      console.error("[admin/provision] background provision failed:", err)
-    )
-  )
-
-  return NextResponse.json({ ok: true, level, status: "pending", reset })
 }
