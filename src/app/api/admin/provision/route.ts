@@ -12,8 +12,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
+import { waitUntil } from "@vercel/functions"
 import { provisionInBackground } from "@/lib/vps"
 import type { Database } from "@/lib/database.types"
+
+// Allow up to 800s for the background provisioning to complete (Vercel Pro)
+export const maxDuration = 800
 
 type Level = "leo" | "nora" | "alex"
 const VALID_LEVELS: Level[] = ["leo", "nora", "alex"]
@@ -103,9 +107,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "DB error" }, { status: 500 })
   }
 
-  // ── Trigger provisioning (non-blocking) ───────────────────────────────────
-  provisionInBackground(user.id, level).catch((err) =>
-    console.error("[admin/provision] background provision failed:", err)
+  // ── Trigger provisioning (kept alive via waitUntil) ───────────────────────
+  waitUntil(
+    provisionInBackground(user.id, level).catch((err) =>
+      console.error("[admin/provision] background provision failed:", err)
+    )
   )
 
   return NextResponse.json({ ok: true, level, status: "pending", reset })
