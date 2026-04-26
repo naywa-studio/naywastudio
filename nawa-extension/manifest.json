@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Nawa Studio",
-  "version": "1.0.0",
-  "description": "Enrichissement LinkedIn automatique pour Nawa Studio (Nora N2)",
+  "version": "1.1.0",
+  "description": "Sourcing LinkedIn automatique pour Nawa Studio — Léo (N1) + Nora (N2)",
 
   "permissions": [
     "tabs",
@@ -14,6 +14,8 @@
   "host_permissions": [
     "https://www.linkedin.com/*",
     "https://linkedin.com/*",
+    "https://www.google.com/*",
+    "https://google.com/*",
     "https://nawa-studio.vercel.app/*",
     "https://*.vercel.app/*"
   ],
@@ -27,6 +29,14 @@
     {
       "matches": ["https://www.linkedin.com/in/*"],
       "js": ["content_linkedin.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.google.com/search*",
+        "https://google.com/search*"
+      ],
+      "js": ["content_google.js"],
       "run_at": "document_idle"
     },
     {

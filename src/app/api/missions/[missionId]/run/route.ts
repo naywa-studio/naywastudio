@@ -77,10 +77,18 @@ export async function POST(
   }
 
   // ── Call agent ───────────────────────────────────────────────────────────────
+  // Inject __user_id and __mission_id so the agent can call back to Vercel
+  // (used by Leo to create extension search sessions)
+  const briefWithMeta = {
+    ...(mission.brief as MissionBrief),
+    __user_id:    user.id,
+    __mission_id: missionId,
+  }
+
   const agentRes = await fetch(`${agentBase}/missions`, {
     method: "POST",
     headers: agentHeaders(),
-    body: JSON.stringify({ brief: mission.brief }),
+    body: JSON.stringify({ brief: briefWithMeta }),
   })
 
   if (!agentRes.ok) {
@@ -91,9 +99,11 @@ export async function POST(
   const { mission_id: agentMissionId } = await agentRes.json() as { mission_id: string }
 
   // ── Store agent_id in brief.__agent_id + mark in_progress ──────────────────
-  const updatedBrief: MissionBrief & { __agent_id?: string } = {
+  const updatedBrief: MissionBrief & { __agent_id?: string; __user_id?: string; __mission_id?: string } = {
     ...(mission.brief as MissionBrief),
-    __agent_id: agentMissionId,
+    __agent_id:    agentMissionId,
+    __user_id:     user.id,
+    __mission_id:  missionId,
   }
 
   await sb

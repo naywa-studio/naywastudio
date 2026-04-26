@@ -1,6 +1,7 @@
 """
-Agent Léo (N1) — LinkedIn sourcing via Bing Web Search API
-Recherche + pre-filter + scoring LLM multi-dimensionnel (4 axes + justification)
+Agent Léo (N1) — LinkedIn sourcing via Chrome Extension (Google Search)
+L'extension ouvre des onglets Google en background → extrait les URLs LinkedIn
+→ les renvoie au VPS via Vercel. Léo attend les résultats puis score avec LLM.
 """
 
 import os
@@ -19,12 +20,13 @@ import pandas as pd
 
 log = logging.getLogger("nawa-agent.leo")
 
-GOOGLE_API_KEY    = os.environ["GOOGLE_SEARCH_API_KEY"]
-GOOGLE_CX         = os.environ["GOOGLE_SEARCH_ENGINE_ID"]
-OPENROUTER_KEY    = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+SITE_URL       = os.environ.get("NEXT_PUBLIC_SITE_URL", "").rstrip("/")
+AGENT_SECRET   = os.environ.get("NAWA_AGENT_SECRET", "")
 
-GOOGLE_ENDPOINT = "https://www.googleapis.com/customsearch/v1"
-MAX_PROFILES    = 40
+MAX_PROFILES       = 40
+POLL_INTERVAL_S    = 8     # secondes entre chaque poll
+POLL_TIMEOUT_S     = 360   # 6 minutes max d'attente (l'extension a 8 min de timeout)
 
 
 # ── String helpers ─────────────────────────────────────────────────────────────
@@ -122,50 +124,135 @@ def normalize_location(loc: str) -> tuple[str, str]:
     return city, region
 
 
-# ── Bing search ────────────────────────────────────────────────────────────────
+# ── Query builder ──────────────────────────────────────────────────────────────
 
-async def _google_search(query: str, client: httpx.AsyncClient, start: int = 1) -> list[dict]:
-    """Recherche Google Custom Search avec filtre site:linkedin.com/in/"""
+def build_queries(brief: dict) -> list[str]:
+    """Construit les requêtes Google pour l'extension Chrome."""
+    titre     = brief.get("titre_poste", "")
+    keywords  = coerce_keywords(brief.get("mots_cles", []))
+    criteres  = brief.get("criteres", "")
+    loc_raw   = brief.get("localisation", "France")
+
+    city, region  = normalize_location(loc_raw)
+    titre_court   = short_title(titre)
+    kw_str        = " ".join(keywords[:2]) if keywords else ""
+    seniority     = detect_seniority(criteres)
+    seniority_kw  = {"senior": "Senior", "junior": "Junior", "confirmed": "Confirmé"}.get(seniority, "")
+
+    queries: list[str] = []
+    queries.append(f'"{titre_court}" "{city}"')
+    if kw_str:
+        queries.append(f'"{titre_court}" {kw_str} "{city}"')
+    if seniority_kw:
+        queries.append(f'{seniority_kw} "{titre_court}" "{city}"')
+    if region:
+        queries.append(f'"{titre_court}" "{region}"')
+    queries.append(f'"{titre_court}" France')
+    if kw_str:
+        queries.append(f'"{titre_court}" {kw_str} France')
+
+    for alt in brief.get("alt_titles", [])[:2]:
+        queries.append(f'"{alt}" "{city}"')
+
+    # Dédupliquer tout en conservant l'ordre
+    seen: set[str] = set()
+    unique: list[str] = []
+    for q in queries:
+        if q not in seen:
+            seen.add(q)
+            unique.append(q)
+
+    return unique
+
+
+# ── Extension-based search ─────────────────────────────────────────────────────
+
+async def create_search_session(user_id: str, mission_id: str | None, queries: list[str]) -> str | None:
+    """Crée une session de recherche sur Vercel. Retourne le session_id."""
+    if not SITE_URL or not AGENT_SECRET:
+        log.error("SITE_URL ou AGENT_SECRET manquant — impossible de créer une session de recherche")
+        return None
+
     try:
-        resp = await client.get(
-            GOOGLE_ENDPOINT,
-            params={
-                "key":   GOOGLE_API_KEY,
-                "cx":    GOOGLE_CX,
-                "q":     f'site:linkedin.com/in/ {query}',
-                "num":   10,      # Max par requête Google CSE
-                "start": start,   # Pagination (1, 11, 21…)
-                "hl":    "fr",
-                "gl":    "fr",
-            },
-            timeout=15.0,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("items", [])
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            r = await client.post(
+                f"{SITE_URL}/api/extension/search-session",
+                headers={"x-nawa-secret": AGENT_SECRET, "Content-Type": "application/json"},
+                json={"user_id": user_id, "mission_id": mission_id, "queries": queries},
+            )
+            if not r.is_success:
+                log.error("Erreur création session: %s — %s", r.status_code, r.text[:200])
+                return None
+            data = r.json()
+            session_id = data.get("session_id")
+            log.info("Session de recherche créée : %s (%d requêtes)", session_id, len(queries))
+            return session_id
     except Exception as e:
-        log.warning("Google CSE query failed [%s]: %s", query, e)
-        return []
+        log.error("Exception création session: %s", e)
+        return None
 
 
-def _parse_google_item(item: dict) -> dict | None:
+async def poll_search_results(session_id: str) -> list[dict]:
     """
-    Parse un résultat Google CSE en profil Nawa.
-    Format : title = "Marie Dupont - Développeur React | LinkedIn"
-             snippet = "Développeur React Senior chez Doctolib · Paris · …"
-             link = "https://www.linkedin.com/in/marie-dupont"
+    Attend que l'extension Chrome complète les recherches Google et retourne les résultats.
+    Timeout : POLL_TIMEOUT_S secondes.
     """
-    url = item.get("link", "")
+    log.info("Attente résultats extension (session %s) — timeout %ds", session_id, POLL_TIMEOUT_S)
+    elapsed = 0
 
-    # Garder uniquement les URLs profil /in/{slug}
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        while elapsed < POLL_TIMEOUT_S:
+            await asyncio.sleep(POLL_INTERVAL_S)
+            elapsed += POLL_INTERVAL_S
+
+            try:
+                r = await client.get(
+                    f"{SITE_URL}/api/extension/search-session",
+                    headers={"x-nawa-secret": AGENT_SECRET},
+                    params={"id": session_id},
+                )
+                if not r.is_success:
+                    log.warning("Poll session %s: HTTP %s", session_id, r.status_code)
+                    continue
+
+                data   = r.json()
+                status = data.get("status", "pending")
+                results = data.get("results", [])
+
+                log.info("Poll session %s [%ds]: status=%s, résultats=%d",
+                         session_id, elapsed, status, len(results))
+
+                if status == "ready":
+                    return results
+                if status == "timeout":
+                    log.warning("Session %s expirée — %d résultats partiels", session_id, len(results))
+                    return results  # Retourner ce qu'on a quand même
+
+            except Exception as e:
+                log.warning("Exception poll session %s: %s", session_id, e)
+
+    log.warning("Timeout côté agent (%ds) — session %s", POLL_TIMEOUT_S, session_id)
+    return []
+
+
+# ── Parse Google result → profil Nawa ──────────────────────────────────────────
+
+def parse_google_result(item: dict) -> dict | None:
+    """
+    Convertit un résultat Google (envoyé par l'extension) en profil Nawa.
+    Format : display_title = "Marie Dupont - Développeur React | LinkedIn"
+             snippet       = "Développeur React Senior chez Doctolib · Paris · …"
+             linkedin_url  = "https://www.linkedin.com/in/marie-dupont"
+    """
+    url = (item.get("linkedin_url") or "").strip()
     if not re.match(r'https?://([a-z]{2}\.)?linkedin\.com/in/[^/?#\s]+/?$', url):
         return None
 
-    display_name = item.get("title", "")
-    snippet      = item.get("snippet", "")
+    display_title = item.get("display_title", "")
+    snippet       = item.get("snippet", "")
 
     # "Marie Dupont - Développeur React | LinkedIn" → nom + titre
-    clean = re.sub(r'\s*[|]\s*LinkedIn.*$', '', display_name, flags=re.IGNORECASE).strip()
+    clean = re.sub(r'\s*[|]\s*LinkedIn.*$', '', display_title, flags=re.IGNORECASE).strip()
     name, title = "", ""
     sep_match = re.search(r'\s[-–—]\s', clean)
     if sep_match:
@@ -204,7 +291,7 @@ def _parse_google_item(item: dict) -> dict | None:
         "location":           location,
         "location_country":   "France",
         "summary":            snippet[:400],
-        "skills":             [],        # Enrichi ultérieurement par l'extension Chrome
+        "skills":             [],
         "experience_summary": "",
         "years_experience":   0,
         "score":              None,
@@ -212,79 +299,66 @@ def _parse_google_item(item: dict) -> dict | None:
 
 
 async def search_profiles(brief: dict) -> list[dict]:
-    """Construit les requêtes Bing et retourne des profils dédupliqués."""
-    titre     = brief.get("titre_poste", "")
-    keywords  = coerce_keywords(brief.get("mots_cles", []))
-    criteres  = brief.get("criteres", "")
-    loc_raw   = brief.get("localisation", "France")
+    """
+    Recherche LinkedIn via l'extension Chrome.
+    1. Construit les requêtes Google
+    2. Crée une session sur Vercel
+    3. Attend que l'extension renvoie les URLs
+    4. Déduplique et retourne les profils
+    """
+    user_id    = brief.get("__user_id", "")
+    mission_id = brief.get("__mission_id")
 
-    city, region  = normalize_location(loc_raw)
-    titre_court   = short_title(titre)
-    kw_str        = " ".join(keywords[:2]) if keywords else ""
-    seniority     = detect_seniority(criteres)
-    seniority_kw  = {"senior": "Senior", "junior": "Junior", "confirmed": "Confirmé"}.get(seniority, "")
+    if not user_id:
+        log.error("__user_id absent du brief — impossible de créer une session extension")
+        return []
 
-    queries: list[str] = []
-    queries.append(f'"{titre_court}" "{city}"')
-    if kw_str:
-        queries.append(f'"{titre_court}" {kw_str} "{city}"')
-    if seniority_kw:
-        queries.append(f'{seniority_kw} "{titre_court}" "{city}"')
-    if region:
-        queries.append(f'"{titre_court}" "{region}"')
-    queries.append(f'"{titre_court}" France')
-    if kw_str:
-        queries.append(f'"{titre_court}" {kw_str} France')
+    queries = build_queries(brief)
+    log.info("Léo → %d requêtes Google via extension", len(queries))
 
-    for alt in brief.get("alt_titles", [])[:2]:
-        queries.append(f'"{alt}" "{city}"')
+    session_id = await create_search_session(user_id, mission_id, queries)
+    if not session_id:
+        return []
 
+    raw_results = await poll_search_results(session_id)
+    if not raw_results:
+        log.warning("Aucun résultat reçu de l'extension")
+        return []
+
+    # Dédupliquer et parser
     seen_urls:  set[str] = set()
     seen_names: set[str] = set()
-    all_profiles: list[dict] = []
+    profiles: list[dict] = []
 
-    async with httpx.AsyncClient() as client:
-        for query in queries:
-            if len(all_profiles) >= MAX_PROFILES:
-                break
-            # Google CSE : 10 résultats/requête — on pagine si besoin (start=1 puis start=11)
-            for start in (1, 11):
-                if len(all_profiles) >= MAX_PROFILES:
-                    break
-                items = await _google_search(query, client, start=start)
-                if not items:
-                    break
+    for item in raw_results:
+        profile = parse_google_result(item)
+        if not profile:
+            continue
 
-                for item in items:
-                    profile = _parse_google_item(item)
-                    if not profile:
-                        continue
+        url_norm = normalize_url(profile["linkedin_url"])
+        if url_norm in seen_urls:
+            continue
 
-                    url_norm = normalize_url(profile["linkedin_url"])
-                    if url_norm in seen_urls:
-                        continue
+        name_norm = normalize_name(profile["name"])
+        if name_norm and any(fuzzy_name_match(name_norm, n) for n in seen_names):
+            continue
 
-                    name_norm = normalize_name(profile["name"])
-                    if name_norm and any(fuzzy_name_match(name_norm, n) for n in seen_names):
-                        continue
+        seen_urls.add(url_norm)
+        if name_norm:
+            seen_names.add(name_norm)
+        profiles.append(profile)
 
-                    seen_urls.add(url_norm)
-                    if name_norm:
-                        seen_names.add(name_norm)
-                    all_profiles.append(profile)
+        if len(profiles) >= MAX_PROFILES:
+            break
 
-    log.info("Google CSE : %d profils bruts récupérés", len(all_profiles))
-    return all_profiles[:MAX_PROFILES]
+    log.info("Extension → %d profils bruts, %d après déduplication", len(raw_results), len(profiles))
+    return profiles
 
 
 # ── Pre-filter ─────────────────────────────────────────────────────────────────
 
 def pre_filter(profiles: list[dict], brief: dict) -> list[dict]:
-    """
-    Filtre rapide (sans LLM) — élimine les profils clairement hors-sujet.
-    Vérifie pertinence dans : titre + compétences + résumé (snippet Bing) + expérience.
-    Intentionnellement peu agressif pour ne pas rejeter de bons profils.
-    """
+    """Filtre rapide (sans LLM) — élimine les profils clairement hors-sujet."""
     keywords     = [k.lower() for k in coerce_keywords(brief.get("mots_cles", []))]
     localisation = brief.get("localisation", "france").lower()
     is_national  = localisation in ("france", "remote", "télétravail", "partout")
@@ -294,20 +368,19 @@ def pre_filter(profiles: list[dict], brief: dict) -> list[dict]:
         if not p.get("linkedin_url"):
             continue
 
-        # Filtre géographique
         country = (p.get("location_country") or "").lower()
         if not is_national and country and "france" not in country and country not in ("fr", ""):
             continue
 
-        # Filtre pertinence minimale
+        # Léo n'a pas encore les skills (c'est Nora qui les enrichit) — filtre léger
         if keywords:
             text = " ".join([
                 (p.get("title") or "").lower(),
-                " ".join(p.get("skills") or []).lower(),
-                (p.get("summary") or "").lower(),            # snippet Bing
+                (p.get("summary") or "").lower(),
                 (p.get("experience_summary") or "").lower(),
             ])
-            if not any(kw in text for kw in keywords):
+            # Accepter si au moins 1 keyword présent (ou pas de texte du tout = nouveau profil)
+            if text.strip() and not any(kw in text for kw in keywords):
                 continue
 
         filtered.append(p)
@@ -319,10 +392,7 @@ def pre_filter(profiles: list[dict], brief: dict) -> list[dict]:
 # ── LLM scoring multi-dimensionnel ────────────────────────────────────────────
 
 async def llm_score(brief: dict, profiles: list[dict]) -> list[dict]:
-    """
-    Scoring riche via LLM : titre, résumé (snippet), entreprise.
-    Retourne 4 dimensions + justification pour chaque profil.
-    """
+    """Scoring LLM sur titre + snippet Google. Retourne 4 dimensions + justification."""
     if not OPENROUTER_KEY or not profiles:
         return profiles
 
@@ -339,7 +409,7 @@ async def llm_score(brief: dict, profiles: list[dict]) -> list[dict]:
             "titre":      p["title"],
             "entreprise": p["company"],
             "lieu":       p["location"],
-            "resume":     p.get("summary", "")[:250],   # snippet Bing — source principale
+            "resume":     p.get("summary", "")[:250],
         })
 
     prompt = (
@@ -357,6 +427,8 @@ async def llm_score(brief: dict, profiles: list[dict]) -> list[dict]:
         "- qualite : profil complet et cohérent 0-100\n"
         "- seniority : Junior | Confirmé | Senior | Expert\n"
         "- justification : 1 phrase max, points forts/faibles clés\n\n"
+        "Note: ces profils viennent de résultats Google — les données sont partielles.\n"
+        "Base ton évaluation sur le titre et le résumé disponibles.\n\n"
         "Profils :\n"
         + json.dumps(profiles_for_llm, ensure_ascii=False)
     )
@@ -436,8 +508,13 @@ def build_excel(profiles: list[dict], sheet_name: str = "Profils") -> str:
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 async def run(brief: dict) -> dict:
-    """Point d'entrée Léo. Retourne {excel_b64, candidates, profiles_count}."""
-    log.info("Léo démarrage — %s / %s", brief.get("titre_poste"), brief.get("localisation"))
+    """
+    Point d'entrée Léo. Retourne {excel_b64, candidates, profiles_count}.
+    Le brief doit contenir __user_id (ajouté par run/route.ts).
+    """
+    log.info("Léo démarrage — %s / %s (user: %s)",
+             brief.get("titre_poste"), brief.get("localisation"),
+             brief.get("__user_id", "???"))
 
     profiles = await search_profiles(brief)
     profiles = pre_filter(profiles, brief)

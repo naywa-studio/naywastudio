@@ -234,6 +234,35 @@ export type Database = {
         }
         Relationships: []
       }
+      extension_search_sessions: {
+        Row: {
+          id:         string
+          user_id:    string
+          mission_id: string | null
+          queries:    string[]
+          results:    Array<{ linkedin_url: string; display_title: string; snippet: string }>
+          status:     'pending' | 'collecting' | 'ready' | 'timeout'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?:        string
+          user_id:    string
+          mission_id?: string | null
+          queries?:   string[]
+          results?:   Array<{ linkedin_url: string; display_title: string; snippet: string }>
+          status?:    'pending' | 'collecting' | 'ready' | 'timeout'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          queries?:   string[]
+          results?:   Array<{ linkedin_url: string; display_title: string; snippet: string }>
+          status?:    'pending' | 'collecting' | 'ready' | 'timeout'
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: { [_ in never]: never }
     Functions: {

@@ -1,7 +1,10 @@
 /**
  * GET /api/extension/jobs
- * Retourne les candidats en attente d'enrichissement pour l'utilisateur authentifié.
- * Authentification : Bearer token (Supabase access_token passé par l'extension Chrome).
+ * Returns pending jobs for the authenticated user's Chrome extension:
+ *  - type "linkedin_enrich": candidates awaiting LinkedIn profile enrichment (Nora)
+ *  - type "google_search":   Google search sessions awaiting URL collection (Leo)
+ *
+ * Auth: Bearer token (Supabase access_token from extension).
  */
 
 import { NextRequest, NextResponse } from "next/server"
@@ -27,9 +30,8 @@ export async function GET(req: NextRequest) {
   const user = await getUserFromToken(req)
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Candidats sans enrichissement : keywords vide ou null
-  // L'extension Chrome (Nora N2+) peut enrichir tous les candidats linkedin
-  const { data: candidates, error } = await sbAdmin
+  // ── LinkedIn enrichment jobs (Nora) ──────────────────────────────────────────
+  const { data: candidates, error: candError } = await sbAdmin
     .from("candidates")
     .select("id, linkedin_url, name_estimated, title_estimated, mission_id")
     .eq("user_id", user.id)
@@ -39,18 +41,46 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(30)
 
-  if (error) {
-    console.error("extension/jobs error:", error)
+  if (candError) {
+    console.error("extension/jobs candidates error:", candError)
     return NextResponse.json({ error: "Database error" }, { status: 500 })
   }
 
-  const jobs = (candidates ?? []).map(c => ({
-    candidate_id:  c.id,
-    linkedin_url:  c.linkedin_url,
-    name:          c.name_estimated,
-    title:         c.title_estimated,
-    mission_id:    c.mission_id,
+  const linkedinJobs = (candidates ?? []).map(c => ({
+    type:         "linkedin_enrich" as const,
+    candidate_id: c.id,
+    linkedin_url: c.linkedin_url,
+    name:         c.name_estimated,
+    title:        c.title_estimated,
+    mission_id:   c.mission_id,
   }))
 
-  return NextResponse.json({ jobs, total: jobs.length })
+  // ── Google search jobs (Leo) ─────────────────────────────────────────────────
+  const { data: sessions, error: sessError } = await sbAdmin
+    .from("extension_search_sessions")
+    .select("id, queries, mission_id")
+    .eq("user_id", user.id)
+    .in("status", ["pending", "collecting"])
+    .order("created_at", { ascending: true })
+    .limit(5)  // max 5 sessions at once
+
+  if (sessError) {
+    console.error("extension/jobs sessions error:", sessError)
+    // Don't fail — return linkedin jobs at minimum
+  }
+
+  const googleJobs = (sessions ?? []).map(s => ({
+    type:       "google_search" as const,
+    session_id: s.id,
+    queries:    s.queries as string[],
+    mission_id: s.mission_id,
+  }))
+
+  // Legacy support: keep `jobs` field pointing to linkedin_enrich for old extension versions
+  return NextResponse.json({
+    jobs:         linkedinJobs,   // legacy (linkedin_enrich only)
+    linkedin_jobs: linkedinJobs,
+    google_jobs:   googleJobs,
+    total:         linkedinJobs.length + googleJobs.length,
+  })
 }
