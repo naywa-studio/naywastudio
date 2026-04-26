@@ -3,6 +3,7 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   compress: true,
   reactCompiler: true,
+  serverExternalPackages: ['node-ssh', 'ssh2'],
   images: {
     remotePatterns: [
       {
