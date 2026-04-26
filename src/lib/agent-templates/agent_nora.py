@@ -17,7 +17,6 @@ import pandas as pd
 
 from agent_leo import (
     search_profiles,
-    parse_profile,
     pre_filter,
     build_excel,
     coerce_keywords,
@@ -360,18 +359,15 @@ async def run(brief: dict) -> dict:
         enriched_brief = await expand_brief(brief, client)
         log.info("Brief enrichi — alt_titles: %s", enriched_brief.get("alt_titles", []))
 
-        # 2. Recherche Apify (même base que Léo)
-        raw = await search_profiles(enriched_brief)
-        log.info("Apify : %d profils bruts", len(raw))
+        # 2. Recherche Bing (même base que Léo + titres alternatifs)
+        profiles = await search_profiles(enriched_brief)
+        log.info("Bing : %d profils bruts", len(profiles))
 
-        # 3. Parse — extraction complète des données Apify
-        profiles = [parse_profile(r) for r in raw if r.get("linkedinUrl") or r.get("url")]
-
-        # 4. Pre-filter (géographique + pertinence minimale)
+        # 3. Pre-filter (géographique + pertinence minimale)
         profiles = pre_filter(profiles, enriched_brief)
         log.info("Après pre_filter : %d profils", len(profiles))
 
-        # 5. Scoring multi-dimensionnel
+        # 4. Scoring multi-dimensionnel
         profiles = await score_profiles(enriched_brief, profiles, client)
 
         # 6. Shortlist

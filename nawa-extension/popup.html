@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nawa Studio</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+              stroke="#7C63C8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand">Nawa Studio</span>
+    </div>
+
+    <!-- État connexion -->
+    <div id="state-connected" class="state hidden">
+      <div class="status-row">
+        <span class="dot dot--green"></span>
+        <span class="status-text">Connecté</span>
+        <span id="enriched-count" class="badge"></span>
+      </div>
+      <p class="hint" id="user-email"></p>
+
+      <button id="btn-enrich" class="btn btn--primary">
+        Enrichir maintenant
+      </button>
+      <button id="btn-disconnect" class="btn btn--ghost">
+        Déconnecter
+      </button>
+    </div>
+
+    <div id="state-disconnected" class="state hidden">
+      <div class="status-row">
+        <span class="dot dot--red"></span>
+        <span class="status-text">Non connecté</span>
+      </div>
+      <p class="hint">
+        Ouvrez <strong>nawa-studio.vercel.app</strong> dans votre navigateur — l'extension se connecte automatiquement.
+      </p>
+      <a href="https://nawa-studio.vercel.app/workspace"
+         target="_blank" class="btn btn--primary" id="btn-open-nawa">
+        Ouvrir Nawa Studio →
+      </a>
+    </div>
+
+    <!-- Loading -->
+    <div id="state-loading" class="state">
+      <div class="loader"></div>
+    </div>
+
+    <!-- Enrichissement en cours -->
+    <div id="state-enriching" class="state hidden">
+      <div class="status-row">
+        <div class="loader loader--small"></div>
+        <span class="status-text">Enrichissement en cours…</span>
+      </div>
+      <p class="hint" id="enriching-detail">Ouverture des profils LinkedIn</p>
+    </div>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

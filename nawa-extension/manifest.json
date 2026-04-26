@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "Nawa Studio",
+  "version": "1.0.0",
+  "description": "Enrichissement LinkedIn automatique pour Nawa Studio (Nora N2)",
+
+  "permissions": [
+    "tabs",
+    "storage",
+    "alarms",
+    "scripting"
+  ],
+
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://linkedin.com/*",
+    "https://nawa-studio.vercel.app/*",
+    "https://*.vercel.app/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/in/*"],
+      "js": ["content_linkedin.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://nawa-studio.vercel.app/*",
+        "https://*.vercel.app/*"
+      ],
+      "js": ["content_nawa.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16":  "icons/16.png",
+      "48":  "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+
+  "icons": {
+    "16":  "icons/16.png",
+    "48":  "icons/48.png",
+    "128": "icons/128.png"
+  }
+}

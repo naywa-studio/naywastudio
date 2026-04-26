@@ -1,5 +1,5 @@
 """
-Agent Léo (N1) — LinkedIn sourcing via Apify harvestapi
+Agent Léo (N1) — LinkedIn sourcing via Bing Web Search API
 Recherche + pre-filter + scoring LLM multi-dimensionnel (4 axes + justification)
 """
 
@@ -19,13 +19,11 @@ import pandas as pd
 
 log = logging.getLogger("nawa-agent.leo")
 
-APIFY_TOKEN    = os.environ["APIFY_TOKEN"]
+BING_KEY       = os.environ["BING_SEARCH_API_KEY"]
 OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 
-APIFY_ACTOR  = "harvestapi~linkedin-profile-search"
-APIFY_BASE   = "https://api.apify.com/v2"
-
-MAX_PROFILES = 40
+BING_ENDPOINT = "https://api.bing.microsoft.com/v7.0/search"
+MAX_PROFILES  = 40
 
 
 # ── String helpers ─────────────────────────────────────────────────────────────
@@ -123,119 +121,122 @@ def normalize_location(loc: str) -> tuple[str, str]:
     return city, region
 
 
-# ── Experience helpers ─────────────────────────────────────────────────────────
+# ── Bing search ────────────────────────────────────────────────────────────────
 
-def _get_year(date_field: object) -> int | None:
-    """Extrait l'année depuis les formats Apify variés (int, dict, None)."""
-    if not date_field:
-        return None
-    if isinstance(date_field, int):
-        return date_field
-    if isinstance(date_field, dict):
-        return date_field.get("year")
-    return None
-
-
-def _extract_experience_summary(experience_raw: list, current_pos: list) -> str:
-    """Formate les dernières expériences en string pour le LLM."""
-    if not experience_raw:
-        if current_pos:
-            pos = current_pos[0]
-            title = pos.get("title") or pos.get("position") or ""
-            company = pos.get("companyName") or pos.get("company") or ""
-            return f"{title} @ {company}".strip(" @")
-        return ""
-
-    entries = []
-    for exp in experience_raw[:4]:
-        title   = exp.get("title") or exp.get("position") or ""
-        company = exp.get("companyName") or exp.get("company") or ""
-        start   = _get_year(exp.get("startDate") or exp.get("start") or exp.get("startYear"))
-        end     = _get_year(exp.get("endDate") or exp.get("end") or exp.get("endYear"))
-
-        if title or company:
-            entry = f"{title} @ {company}".strip(" @")
-            if start:
-                end_str = str(end) if end else "présent"
-                entry += f" ({start}-{end_str})"
-            entries.append(entry)
-
-    return " | ".join(entries)
-
-
-def _estimate_years_experience(experience_raw: list) -> int:
-    """Estime le nombre d'années d'expérience totales."""
-    if not experience_raw:
-        return 0
-
-    current_year = datetime.datetime.now().year
-    total_months = 0
-
-    for exp in experience_raw:
-        start_year = _get_year(
-            exp.get("startDate") or exp.get("start") or exp.get("startYear")
-        )
-        end_year = _get_year(
-            exp.get("endDate") or exp.get("end") or exp.get("endYear")
-        )
-        if start_year:
-            end = end_year or current_year
-            total_months += max(0, (end - start_year) * 12)
-
-    return min(round(total_months / 12), 40)
-
-
-# ── Apify search ───────────────────────────────────────────────────────────────
-
-async def _apify_search(query: str, client: httpx.AsyncClient) -> list[dict]:
+async def _bing_search(query: str, client: httpx.AsyncClient) -> list[dict]:
+    """Recherche Bing avec filtre site:linkedin.com/in/"""
     try:
-        resp = await client.post(
-            f"{APIFY_BASE}/acts/{APIFY_ACTOR}/run-sync-get-dataset-items",
-            params={"token": APIFY_TOKEN, "timeout": 90, "memory": 512},
-            json={
-                "searchQuery": query,
-                "profileScraperMode": "Full",
-                "takePages": 1,
-                "maxItems": 25,
+        resp = await client.get(
+            BING_ENDPOINT,
+            headers={"Ocp-Apim-Subscription-Key": BING_KEY},
+            params={
+                "q":              f'site:linkedin.com/in/ {query}',
+                "count":          50,
+                "mkt":            "fr-FR",
+                "responseFilter": "Webpages",
+                "setLang":        "fr",
             },
-            timeout=100.0,
+            timeout=15.0,
         )
         resp.raise_for_status()
         data = resp.json()
-        return data if isinstance(data, list) else []
+        return data.get("webPages", {}).get("value", [])
     except Exception as e:
-        log.warning("Apify query failed [%s]: %s", query, e)
+        log.warning("Bing query failed [%s]: %s", query, e)
         return []
 
 
+def _parse_bing_item(item: dict) -> dict | None:
+    """
+    Parse un résultat Bing en profil Nawa.
+    Format Bing : name = "Marie Dupont - Développeur React | LinkedIn"
+                  snippet = "Développeur React Senior chez Doctolib · Paris · …"
+    """
+    url = item.get("url", "")
+
+    # Garder uniquement les URLs profil /in/{slug} — pas /search, /pub, /company, etc.
+    if not re.match(r'https?://([a-z]{2}\.)?linkedin\.com/in/[^/?#\s]+/?$', url):
+        return None
+
+    display_name = item.get("name", "")
+    snippet      = item.get("snippet", "")
+
+    # Nettoyer le titre LinkedIn : "Nom - Titre | LinkedIn" ou "Nom | LinkedIn"
+    clean = re.sub(r'\s*[|]\s*LinkedIn.*$', '', display_name, flags=re.IGNORECASE).strip()
+    name, title = "", ""
+    # Séparateurs possibles : " - ", " – ", " — "
+    sep_match = re.search(r'\s[-–—]\s', clean)
+    if sep_match:
+        idx   = sep_match.start()
+        name  = clean[:idx].strip()
+        title = clean[idx + len(sep_match.group()):].strip()
+    else:
+        name = clean
+
+    # Extraction entreprise depuis snippet ("chez X", "at X", "· X ·")
+    company = ""
+    m = re.search(r'(?:chez|at|@)\s+([A-ZÀ-Ÿ][^,\.\n·—]{2,40})', snippet)
+    if not m:
+        # Bullet-point style : "Titre · Entreprise · Lieu"
+        parts = [p.strip() for p in snippet.split("·") if p.strip()]
+        if len(parts) >= 2:
+            company = parts[1]
+    else:
+        company = m.group(1).strip()
+
+    # Extraction localisation depuis snippet
+    location = ""
+    loc_match = re.search(
+        r'\b(Paris|Lyon|Marseille|Toulouse|Bordeaux|Lille|Nantes|Strasbourg|'
+        r'Nice|Grenoble|Rennes|Rouen|Montpellier|France|Remote|Télétravail)\b',
+        snippet, re.IGNORECASE,
+    )
+    if loc_match:
+        location = loc_match.group(1)
+
+    return {
+        "source":             "linkedin",
+        "linkedin_url":       url.split("?")[0].rstrip("/"),
+        "name":               name,
+        "title":              title,
+        "company":            company,
+        "location":           location,
+        "location_country":   "France",
+        "summary":            snippet[:400],
+        "skills":             [],        # Enrichi ultérieurement par l'extension Chrome
+        "experience_summary": "",
+        "years_experience":   0,
+        "score":              None,
+    }
+
+
 async def search_profiles(brief: dict) -> list[dict]:
-    """Construit les requêtes et appelle Apify. Retourne des profils dédupliqués."""
+    """Construit les requêtes Bing et retourne des profils dédupliqués."""
     titre     = brief.get("titre_poste", "")
     keywords  = coerce_keywords(brief.get("mots_cles", []))
     criteres  = brief.get("criteres", "")
     loc_raw   = brief.get("localisation", "France")
 
-    city, region = normalize_location(loc_raw)
-    titre_court  = short_title(titre)
-    kw_str       = " ".join(keywords[:2]) if keywords else ""
-    seniority    = detect_seniority(criteres)
-    seniority_kw = {"senior": "Senior", "junior": "Junior", "confirmed": "Confirmé"}.get(seniority, "")
+    city, region  = normalize_location(loc_raw)
+    titre_court   = short_title(titre)
+    kw_str        = " ".join(keywords[:2]) if keywords else ""
+    seniority     = detect_seniority(criteres)
+    seniority_kw  = {"senior": "Senior", "junior": "Junior", "confirmed": "Confirmé"}.get(seniority, "")
 
     queries: list[str] = []
-    queries.append(f"{titre_court} {city}")
+    queries.append(f'"{titre_court}" "{city}"')
     if kw_str:
-        queries.append(f"{titre_court} {kw_str} {city}")
+        queries.append(f'"{titre_court}" {kw_str} "{city}"')
     if seniority_kw:
-        queries.append(f"{seniority_kw} {titre_court} {city}")
+        queries.append(f'{seniority_kw} "{titre_court}" "{city}"')
     if region:
-        queries.append(f"{titre_court} {region}")
-    queries.append(f"{titre_court} France")
+        queries.append(f'"{titre_court}" "{region}"')
+    queries.append(f'"{titre_court}" France')
     if kw_str:
-        queries.append(f"{titre_court} {kw_str} France")
+        queries.append(f'"{titre_court}" {kw_str} France')
 
-    alt_titles = brief.get("alt_titles", [])
-    for alt in alt_titles[:2]:
-        queries.append(f"{alt} {city}")
+    for alt in brief.get("alt_titles", [])[:2]:
+        queries.append(f'"{alt}" "{city}"')
 
     seen_urls:  set[str] = set()
     seen_names: set[str] = set()
@@ -245,84 +246,28 @@ async def search_profiles(brief: dict) -> list[dict]:
         for query in queries:
             if len(all_profiles) >= MAX_PROFILES:
                 break
-            items = await _apify_search(query, client)
+            items = await _bing_search(query, client)
 
             for item in items:
-                url = item.get("linkedinUrl") or item.get("url") or ""
-                if not url:
+                profile = _parse_bing_item(item)
+                if not profile:
                     continue
-                url_norm = normalize_url(url)
+
+                url_norm = normalize_url(profile["linkedin_url"])
                 if url_norm in seen_urls:
                     continue
 
-                first = item.get("firstName") or ""
-                last  = item.get("lastName") or ""
-                name  = f"{first} {last}".strip() or item.get("fullName") or item.get("name") or ""
-                name_norm = normalize_name(name)
+                name_norm = normalize_name(profile["name"])
                 if name_norm and any(fuzzy_name_match(name_norm, n) for n in seen_names):
                     continue
 
                 seen_urls.add(url_norm)
                 if name_norm:
                     seen_names.add(name_norm)
-                all_profiles.append(item)
+                all_profiles.append(profile)
 
+    log.info("Bing : %d profils bruts récupérés sur %d requêtes", len(all_profiles), len(queries))
     return all_profiles[:MAX_PROFILES]
-
-
-# ── Profile parsing — données complètes ───────────────────────────────────────
-
-def parse_profile(raw: dict) -> dict:
-    """Normalise un profil brut Apify vers le format Nawa — extrait toutes les données utiles."""
-    # Nom
-    first = raw.get("firstName") or ""
-    last  = raw.get("lastName") or ""
-    name  = f"{first} {last}".strip() or raw.get("fullName") or raw.get("name") or ""
-
-    # Entreprise actuelle
-    current_pos = raw.get("currentPosition") or []
-    company = ""
-    if current_pos and isinstance(current_pos, list):
-        company = current_pos[0].get("companyName") or current_pos[0].get("company") or ""
-
-    # Localisation (Apify renvoie un dict ou une string)
-    loc_raw = raw.get("location") or ""
-    if isinstance(loc_raw, dict):
-        location    = loc_raw.get("linkedinText") or loc_raw.get("parsed", {}).get("city") or ""
-        loc_country = (loc_raw.get("parsed") or {}).get("country") or ""
-    else:
-        location    = str(loc_raw)
-        loc_country = "France" if "france" in str(loc_raw).lower() else ""
-
-    # Compétences (Apify renvoie [{name: "..."}, ...])
-    skills_raw = raw.get("skills") or raw.get("topSkills") or []
-    if skills_raw and isinstance(skills_raw[0], dict):
-        skills = [s.get("name", "") for s in skills_raw if s.get("name")]
-    else:
-        skills = [str(s) for s in skills_raw if s]
-
-    # Expérience professionnelle
-    experience_raw     = raw.get("experience") or []
-    experience_summary = _extract_experience_summary(experience_raw, current_pos)
-    years_experience   = _estimate_years_experience(experience_raw)
-
-    # Résumé / about
-    about = (raw.get("about") or raw.get("summary") or "")[:400]
-
-    return {
-        "source":             "linkedin",
-        "linkedin_url":       raw.get("linkedinUrl") or raw.get("url") or "",
-        "name":               name,
-        "title":              raw.get("headline") or (current_pos[0].get("position") or current_pos[0].get("title") if current_pos else "") or "",
-        "company":            company,
-        "location":           location,
-        "location_country":   loc_country,
-        "summary":            about,
-        "skills":             skills,
-        "experience_summary": experience_summary,
-        "years_experience":   years_experience,
-        "score":              None,
-    }
 
 
 # ── Pre-filter ─────────────────────────────────────────────────────────────────
@@ -330,13 +275,10 @@ def parse_profile(raw: dict) -> dict:
 def pre_filter(profiles: list[dict], brief: dict) -> list[dict]:
     """
     Filtre rapide (sans LLM) — élimine les profils clairement hors-sujet.
-    Règles :
-      1. Pays != France si mission en France → rejeté
-      2. Aucun mot-clé requis trouvé dans titre + skills + about + exp → rejeté
-    Intentionnellement peu agressif : mieux vaut garder un faux positif
-    que rejeter un vrai positif rare.
+    Vérifie pertinence dans : titre + compétences + résumé (snippet Bing) + expérience.
+    Intentionnellement peu agressif pour ne pas rejeter de bons profils.
     """
-    keywords    = [k.lower() for k in coerce_keywords(brief.get("mots_cles", []))]
+    keywords     = [k.lower() for k in coerce_keywords(brief.get("mots_cles", []))]
     localisation = brief.get("localisation", "france").lower()
     is_national  = localisation in ("france", "remote", "télétravail", "partout")
 
@@ -355,7 +297,7 @@ def pre_filter(profiles: list[dict], brief: dict) -> list[dict]:
             text = " ".join([
                 (p.get("title") or "").lower(),
                 " ".join(p.get("skills") or []).lower(),
-                (p.get("summary") or "").lower(),
+                (p.get("summary") or "").lower(),            # snippet Bing
                 (p.get("experience_summary") or "").lower(),
             ])
             if not any(kw in text for kw in keywords):
@@ -371,7 +313,7 @@ def pre_filter(profiles: list[dict], brief: dict) -> list[dict]:
 
 async def llm_score(brief: dict, profiles: list[dict]) -> list[dict]:
     """
-    Scoring riche : utilise titre, compétences, expérience complète, résumé.
+    Scoring riche via LLM : titre, résumé (snippet), entreprise.
     Retourne 4 dimensions + justification pour chaque profil.
     """
     if not OPENROUTER_KEY or not profiles:
@@ -383,18 +325,14 @@ async def llm_score(brief: dict, profiles: list[dict]) -> list[dict]:
     criteres = brief.get("criteres", "")
     keywords = coerce_keywords(brief.get("mots_cles", []))
 
-    # Construction des profils enrichis pour le LLM
     profiles_for_llm = []
     for i, p in enumerate(batch):
         profiles_for_llm.append({
-            "index":       i,
-            "titre":       p["title"],
-            "entreprise":  p["company"],
-            "lieu":        p["location"],
-            "competences": p.get("skills", [])[:12],
-            "experience":  p.get("experience_summary", ""),
-            "annees_exp":  p.get("years_experience", 0),
-            "resume":      p.get("summary", "")[:200],
+            "index":      i,
+            "titre":      p["title"],
+            "entreprise": p["company"],
+            "lieu":       p["location"],
+            "resume":     p.get("summary", "")[:250],   # snippet Bing — source principale
         })
 
     prompt = (
@@ -403,7 +341,7 @@ async def llm_score(brief: dict, profiles: list[dict]) -> list[dict]:
         f"Compétences requises : {', '.join(keywords[:10])}\n\n"
         "Pour chaque profil, retourne UNIQUEMENT ce JSON array :\n"
         '[{"index":0,"score":85,"competences":90,"seniorite":80,"localisation":100,"qualite":75,'
-        '"seniority":"Senior","justification":"8 ans chez Total, skills API618 ✓, Paris ✓"},...]\n\n'
+        '"seniority":"Senior","justification":"8 ans React, TypeScript ✓, Paris ✓"},...]\n\n'
         "Définitions :\n"
         "- score : pertinence globale 0-100\n"
         "- competences : % compétences requises présentes 0-100\n"
@@ -445,8 +383,7 @@ async def llm_score(brief: dict, profiles: list[dict]) -> list[dict]:
                             "localisation":item.get("localisation",50),
                             "qualite":     item.get("qualite",     50),
                         }
-                log.info("llm_score: %d profils scorés, top score: %s",
-                         len(scores), batch[0].get("score") if batch else "n/a")
+                log.info("llm_score: %d profils scorés", len(scores))
             else:
                 log.warning("llm_score: regex no match — content: %s", content[:200])
                 for p in batch:
@@ -465,17 +402,16 @@ async def llm_score(brief: dict, profiles: list[dict]) -> list[dict]:
 def build_excel(profiles: list[dict], sheet_name: str = "Profils") -> str:
     rows = [
         {
-            "Rang":           i + 1,
-            "Nom":            p.get("name", ""),
-            "Titre":          p.get("title", ""),
-            "Entreprise":     p.get("company", ""),
-            "Localisation":   p.get("location", ""),
-            "Années exp.":    p.get("years_experience") or "",
-            "Score":          p.get("score") or "",
-            "Justification":  p.get("justification", ""),
-            "Compétences":    ", ".join(p.get("skills", [])[:8]),
-            "Expérience":     p.get("experience_summary", ""),
-            "LinkedIn":       p.get("linkedin_url", ""),
+            "Rang":          i + 1,
+            "Nom":           p.get("name", ""),
+            "Titre":         p.get("title", ""),
+            "Entreprise":    p.get("company", ""),
+            "Localisation":  p.get("location", ""),
+            "Score":         p.get("score") or "",
+            "Séniorité":     p.get("seniority", ""),
+            "Justification": p.get("justification", ""),
+            "Résumé":        p.get("summary", "")[:200],
+            "LinkedIn":      p.get("linkedin_url", ""),
         }
         for i, p in enumerate(profiles)
     ]
@@ -496,25 +432,22 @@ async def run(brief: dict) -> dict:
     """Point d'entrée Léo. Retourne {excel_b64, candidates, profiles_count}."""
     log.info("Léo démarrage — %s / %s", brief.get("titre_poste"), brief.get("localisation"))
 
-    raw = await search_profiles(brief)
-    log.info("Apify : %d profils bruts", len(raw))
-
-    profiles = [parse_profile(r) for r in raw if r.get("linkedinUrl") or r.get("url")]
+    profiles = await search_profiles(brief)
     profiles = pre_filter(profiles, brief)
     profiles = await llm_score(brief, profiles)
 
     candidates = [
         {
-            "linkedin_url":      p["linkedin_url"],
-            "name_estimated":    p["name"],
-            "title_estimated":   p["title"],
-            "company":           p["company"],
-            "keywords":          p.get("skills", []),
-            "relevance_score":   p.get("score"),
+            "linkedin_url":        p["linkedin_url"],
+            "name_estimated":      p["name"],
+            "title_estimated":     p["title"],
+            "company":             p["company"],
+            "keywords":            p.get("skills", []),
+            "relevance_score":     p.get("score"),
             "score_justification": p.get("justification", ""),
-            "score_dimensions":  p.get("score_dimensions"),
-            "seniority_level":   p.get("seniority", ""),
-            "source":            "leo",
+            "score_dimensions":    p.get("score_dimensions"),
+            "seniority_level":     p.get("seniority", ""),
+            "source":              "leo",
         }
         for p in profiles
     ]
