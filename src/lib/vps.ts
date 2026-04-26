@@ -6,6 +6,7 @@
 import { readFileSync } from "fs"
 import { join } from "path"
 import { createClient } from "@supabase/supabase-js"
+import { NodeSSH } from "node-ssh"
 import type { Database } from "@/lib/database.types"
 
 const HOSTINGER_API = "https://developers.hostinger.com/api/vps/v1"
@@ -235,11 +236,104 @@ async function waitForVpsReady(vpsId: string, timeoutMs = 300_000): Promise<stri
 }
 
 // ── SSH agent deployment ──────────────────────────────────────────────────────
-//
-// After VPS is running, we SSH in and deploy the agent files.
-// Requires: AGENT_VPS_SSH_KEY (base64 ed25519 private key, no passphrase)
-// TODO: implement with node-ssh once added to package.json dependencies.
-// For now, manual deployment via scripts/provision-admin.mjs.
+
+async function deployAgentViaSsh(
+  vpsIp: string,
+  level: "leo" | "nora" | "alex"
+): Promise<void> {
+  const privateKey = Buffer.from(process.env.AGENT_VPS_SSH_KEY!, "base64").toString("utf-8")
+  const secret       = process.env.NAWA_AGENT_SECRET!
+  const openrouterKey = process.env.OPENROUTER_API_KEY!
+  const googleApiKey  = process.env.GOOGLE_SEARCH_API_KEY!
+  const googleCx      = process.env.GOOGLE_SEARCH_ENGINE_ID!
+  const siteUrl       = process.env.NEXT_PUBLIC_SITE_URL!
+
+  const ssh = new NodeSSH()
+
+  // Retry SSH connection — VPS peut mettre quelques secondes à accepter les connexions
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await ssh.connect({ host: vpsIp, username: "root", privateKey, readyTimeout: 20000 })
+      break
+    } catch (e) {
+      if (attempt === 5) throw new Error(`SSH connection failed after 5 attempts: ${e}`)
+      await new Promise(r => setTimeout(r, 10000))
+    }
+  }
+
+  try {
+    // 1. Dépendances système
+    await ssh.execCommand("apt-get update -qq && apt-get install -y python3 python3-pip python3-venv")
+
+    // 2. Répertoire agent
+    await ssh.execCommand("mkdir -p /opt/nawa-agent/logs")
+
+    // 3. Upload des fichiers agent
+    const tplDir = join(process.cwd(), "src", "lib", "agent-templates")
+    await ssh.putFile(join(tplDir, "main.py"),         "/opt/nawa-agent/main.py")
+    await ssh.putFile(join(tplDir, "agent_leo.py"),    "/opt/nawa-agent/agent_leo.py")
+    await ssh.putFile(join(tplDir, "requirements.txt"),"/opt/nawa-agent/requirements.txt")
+    if (level === "nora" || level === "alex") {
+      await ssh.putFile(join(tplDir, "agent_nora.py"), "/opt/nawa-agent/agent_nora.py")
+    }
+    if (level === "alex") {
+      await ssh.putFile(join(tplDir, "agent_alex.py"), "/opt/nawa-agent/agent_alex.py")
+    }
+
+    // 4. Environnement virtuel + dépendances Python
+    await ssh.execCommand(
+      "python3 -m venv /opt/nawa-agent/venv && " +
+      "/opt/nawa-agent/venv/bin/pip install --quiet -r /opt/nawa-agent/requirements.txt",
+      { execOptions: { pty: false } }
+    )
+
+    // 5. Fichier .env
+    const envContent = [
+      `NAWA_AGENT_SECRET=${secret}`,
+      `OPENROUTER_API_KEY=${openrouterKey}`,
+      `GOOGLE_SEARCH_API_KEY=${googleApiKey}`,
+      `GOOGLE_SEARCH_ENGINE_ID=${googleCx}`,
+      `AGENT_LEVEL=${level}`,
+      `NEXT_PUBLIC_SITE_URL=${siteUrl}`,
+    ].join("\n")
+    await ssh.execCommand(`printf '%s\n' '${envContent.replace(/'/g, "'\\''")}' > /opt/nawa-agent/.env && chmod 600 /opt/nawa-agent/.env`)
+
+    // 6. Service systemd
+    const serviceUnit = `[Unit]
+Description=Nawa Agent
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/nawa-agent
+EnvironmentFile=/opt/nawa-agent/.env
+ExecStart=/opt/nawa-agent/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/nawa-agent/logs/agent.log
+StandardError=append:/opt/nawa-agent/logs/agent.log
+
+[Install]
+WantedBy=multi-user.target`
+
+    await ssh.execCommand(`cat > /etc/systemd/system/nawa-agent.service << 'SVCEOF'\n${serviceUnit}\nSVCEOF`)
+    await ssh.execCommand("systemctl daemon-reload && systemctl enable nawa-agent && systemctl start nawa-agent")
+
+    // 7. Health check
+    let healthy = false
+    for (let i = 0; i < 6; i++) {
+      await new Promise(r => setTimeout(r, 10000))
+      const { stdout } = await ssh.execCommand(
+        "curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/health || echo 000"
+      )
+      if (stdout.trim() === "200") { healthy = true; break }
+    }
+    if (!healthy) throw new Error("Agent health check failed after deployment")
+
+  } finally {
+    ssh.dispose()
+  }
+}
 
 // ── Background provisioning (called fire-and-forget from /api/subscribe) ─────
 
@@ -259,14 +353,20 @@ export async function provisionInBackground(
     if (!vpsIp) throw new Error("VPS IP not available after setup")
 
     // Step 3: SSH deploy agent files
-    // TODO: automated SSH deployment (see scripts/provision-admin.mjs for manual reference)
-    // For now we mark as "deploying" — admin must run the deploy script manually.
     await sb
       .from("profiles")
-      .update({ vps_ip: vpsIp, vps_status: "provisioning", agent_status: "not_deployed" })
+      .update({ vps_ip: vpsIp, vps_status: "provisioning", agent_status: "deploying" })
       .eq("user_id", userId)
 
-    console.log(`[vps] VPS ${vps_id} ready at ${vpsIp} — SSH deploy required`)
+    await deployAgentViaSsh(vpsIp, level)
+
+    // Step 4: Marquer comme prêt
+    await sb
+      .from("profiles")
+      .update({ vps_status: "ready", agent_status: "running" })
+      .eq("user_id", userId)
+
+    console.log(`[vps] VPS ${vps_id} déployé et opérationnel — ip=${vpsIp}`)
   } catch (err) {
     console.error("[vps] provisionInBackground error:", err)
     await sb.from("profiles").update({ vps_status: "error" }).eq("user_id", userId)
