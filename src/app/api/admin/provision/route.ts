@@ -16,9 +16,6 @@ import { waitUntil } from "@vercel/functions"
 import { provisionInBackground } from "@/lib/vps"
 import type { Database } from "@/lib/database.types"
 
-// Allow up to 800s for the background provisioning to complete (Vercel Pro)
-export const maxDuration = 800
-
 type Level = "leo" | "nora" | "alex"
 const VALID_LEVELS: Level[] = ["leo", "nora", "alex"]
 
