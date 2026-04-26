@@ -46,7 +46,8 @@ function buildCloudInit(userId: string, level: "leo" | "nora" | "alex"): string 
 
   const secret = process.env.NAWA_AGENT_SECRET!
   const openrouterKey = process.env.OPENROUTER_API_KEY!
-  const bingKey = process.env.BING_SEARCH_API_KEY!
+  const googleApiKey = process.env.GOOGLE_SEARCH_API_KEY!
+  const googleCx = process.env.GOOGLE_SEARCH_ENGINE_ID!
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL!
 
   // Note: bash $VAR refs use no braces to avoid JS template literal collision
@@ -81,7 +82,8 @@ ${alexB64 ? `echo "${alexB64}" | base64 -d > agent_alex.py` : ""}
 cat > /opt/nawa-agent/.env << 'ENVEOF'
 NAWA_AGENT_SECRET=${secret}
 OPENROUTER_API_KEY=${openrouterKey}
-BING_SEARCH_API_KEY=${bingKey}
+GOOGLE_SEARCH_API_KEY=${googleApiKey}
+GOOGLE_SEARCH_ENGINE_ID=${googleCx}
 AGENT_LEVEL=${level}
 NEXT_PUBLIC_SITE_URL=${siteUrl}
 ENVEOF

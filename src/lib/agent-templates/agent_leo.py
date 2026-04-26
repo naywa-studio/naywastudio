@@ -19,11 +19,12 @@ import pandas as pd
 
 log = logging.getLogger("nawa-agent.leo")
 
-BING_KEY       = os.environ["BING_SEARCH_API_KEY"]
-OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+GOOGLE_API_KEY    = os.environ["GOOGLE_SEARCH_API_KEY"]
+GOOGLE_CX         = os.environ["GOOGLE_SEARCH_ENGINE_ID"]
+OPENROUTER_KEY    = os.environ.get("OPENROUTER_API_KEY", "")
 
-BING_ENDPOINT = "https://api.bing.microsoft.com/v7.0/search"
-MAX_PROFILES  = 40
+GOOGLE_ENDPOINT = "https://www.googleapis.com/customsearch/v1"
+MAX_PROFILES    = 40
 
 
 # ── String helpers ─────────────────────────────────────────────────────────────
@@ -123,48 +124,49 @@ def normalize_location(loc: str) -> tuple[str, str]:
 
 # ── Bing search ────────────────────────────────────────────────────────────────
 
-async def _bing_search(query: str, client: httpx.AsyncClient) -> list[dict]:
-    """Recherche Bing avec filtre site:linkedin.com/in/"""
+async def _google_search(query: str, client: httpx.AsyncClient, start: int = 1) -> list[dict]:
+    """Recherche Google Custom Search avec filtre site:linkedin.com/in/"""
     try:
         resp = await client.get(
-            BING_ENDPOINT,
-            headers={"Ocp-Apim-Subscription-Key": BING_KEY},
+            GOOGLE_ENDPOINT,
             params={
-                "q":              f'site:linkedin.com/in/ {query}',
-                "count":          50,
-                "mkt":            "fr-FR",
-                "responseFilter": "Webpages",
-                "setLang":        "fr",
+                "key":   GOOGLE_API_KEY,
+                "cx":    GOOGLE_CX,
+                "q":     f'site:linkedin.com/in/ {query}',
+                "num":   10,      # Max par requête Google CSE
+                "start": start,   # Pagination (1, 11, 21…)
+                "hl":    "fr",
+                "gl":    "fr",
             },
             timeout=15.0,
         )
         resp.raise_for_status()
         data = resp.json()
-        return data.get("webPages", {}).get("value", [])
+        return data.get("items", [])
     except Exception as e:
-        log.warning("Bing query failed [%s]: %s", query, e)
+        log.warning("Google CSE query failed [%s]: %s", query, e)
         return []
 
 
-def _parse_bing_item(item: dict) -> dict | None:
+def _parse_google_item(item: dict) -> dict | None:
     """
-    Parse un résultat Bing en profil Nawa.
-    Format Bing : name = "Marie Dupont - Développeur React | LinkedIn"
-                  snippet = "Développeur React Senior chez Doctolib · Paris · …"
+    Parse un résultat Google CSE en profil Nawa.
+    Format : title = "Marie Dupont - Développeur React | LinkedIn"
+             snippet = "Développeur React Senior chez Doctolib · Paris · …"
+             link = "https://www.linkedin.com/in/marie-dupont"
     """
-    url = item.get("url", "")
+    url = item.get("link", "")
 
-    # Garder uniquement les URLs profil /in/{slug} — pas /search, /pub, /company, etc.
+    # Garder uniquement les URLs profil /in/{slug}
     if not re.match(r'https?://([a-z]{2}\.)?linkedin\.com/in/[^/?#\s]+/?$', url):
         return None
 
-    display_name = item.get("name", "")
+    display_name = item.get("title", "")
     snippet      = item.get("snippet", "")
 
-    # Nettoyer le titre LinkedIn : "Nom - Titre | LinkedIn" ou "Nom | LinkedIn"
+    # "Marie Dupont - Développeur React | LinkedIn" → nom + titre
     clean = re.sub(r'\s*[|]\s*LinkedIn.*$', '', display_name, flags=re.IGNORECASE).strip()
     name, title = "", ""
-    # Séparateurs possibles : " - ", " – ", " — "
     sep_match = re.search(r'\s[-–—]\s', clean)
     if sep_match:
         idx   = sep_match.start()
@@ -173,18 +175,17 @@ def _parse_bing_item(item: dict) -> dict | None:
     else:
         name = clean
 
-    # Extraction entreprise depuis snippet ("chez X", "at X", "· X ·")
+    # Entreprise depuis snippet
     company = ""
     m = re.search(r'(?:chez|at|@)\s+([A-ZÀ-Ÿ][^,\.\n·—]{2,40})', snippet)
     if not m:
-        # Bullet-point style : "Titre · Entreprise · Lieu"
         parts = [p.strip() for p in snippet.split("·") if p.strip()]
         if len(parts) >= 2:
             company = parts[1]
     else:
         company = m.group(1).strip()
 
-    # Extraction localisation depuis snippet
+    # Localisation depuis snippet
     location = ""
     loc_match = re.search(
         r'\b(Paris|Lyon|Marseille|Toulouse|Bordeaux|Lille|Nantes|Strasbourg|'
@@ -246,27 +247,33 @@ async def search_profiles(brief: dict) -> list[dict]:
         for query in queries:
             if len(all_profiles) >= MAX_PROFILES:
                 break
-            items = await _bing_search(query, client)
+            # Google CSE : 10 résultats/requête — on pagine si besoin (start=1 puis start=11)
+            for start in (1, 11):
+                if len(all_profiles) >= MAX_PROFILES:
+                    break
+                items = await _google_search(query, client, start=start)
+                if not items:
+                    break
 
-            for item in items:
-                profile = _parse_bing_item(item)
-                if not profile:
-                    continue
+                for item in items:
+                    profile = _parse_google_item(item)
+                    if not profile:
+                        continue
 
-                url_norm = normalize_url(profile["linkedin_url"])
-                if url_norm in seen_urls:
-                    continue
+                    url_norm = normalize_url(profile["linkedin_url"])
+                    if url_norm in seen_urls:
+                        continue
 
-                name_norm = normalize_name(profile["name"])
-                if name_norm and any(fuzzy_name_match(name_norm, n) for n in seen_names):
-                    continue
+                    name_norm = normalize_name(profile["name"])
+                    if name_norm and any(fuzzy_name_match(name_norm, n) for n in seen_names):
+                        continue
 
-                seen_urls.add(url_norm)
-                if name_norm:
-                    seen_names.add(name_norm)
-                all_profiles.append(profile)
+                    seen_urls.add(url_norm)
+                    if name_norm:
+                        seen_names.add(name_norm)
+                    all_profiles.append(profile)
 
-    log.info("Bing : %d profils bruts récupérés sur %d requêtes", len(all_profiles), len(queries))
+    log.info("Google CSE : %d profils bruts récupérés", len(all_profiles))
     return all_profiles[:MAX_PROFILES]
 
 
