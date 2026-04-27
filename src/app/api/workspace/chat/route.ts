@@ -33,7 +33,7 @@ Tu DOIS ecrire une balise <action> dans ton message chaque fois qu'une action es
 Le systeme extrait et execute la balise cote serveur — l'utilisateur ne la voit pas dans l'interface.
 Ne mentionne jamais les mots "action", "balise", "JSON", "systeme" dans ton texte visible.
 
-FORMAT OBLIGATOIRE (une seule balise par reponse, JSON sur une ligne) :
+FORMAT OBLIGATOIRE : une seule balise par reponse, JSON compact sur UNE SEULE LIGNE, sans retour a la ligne dans le JSON :
 <action>{"type":"TYPE","cle":"valeur"}</action>
 
 Types disponibles :
@@ -43,40 +43,41 @@ Types disponibles :
 
 === QUAND ECRIRE UNE BALISE <action> ===
 
-[NOUVEAU BESOIN — infos suffisantes : poste + lieu + 2 competences minimum]
-Ecris OBLIGATOIREMENT cette balise dans ton message :
-<action>{"type":"create_mission","title":"Titre Court","brief":{"titre_poste":"Poste","localisation":"Ville","mots_cles":["comp1","comp2","comp3"],"criteres":"seniorite, contrat","ton":"style contact"}}</action>
+[NOUVEAU BESOIN — infos suffisantes : poste clair + lieu]
+Des que tu connais le poste ET la ville/region, cree immediatement la mission.
+Une specialisation, un secteur, un mot-cle metier OU une experience mentionnee suffit comme competence.
+Exemples : "Business Analyst monetique" → monetique est une competence. "Ingenieur fiabilite" → fiabilite est une competence.
+Ne redemande JAMAIS des competences si un domaine/secteur/specialisation a deja ete mentionne.
+
+Ecris OBLIGATOIREMENT cette balise dans ton message (JSON sur UNE SEULE LIGNE) :
+<action>{"type":"create_mission","title":"Titre Court","brief":{"titre_poste":"Poste","localisation":"Ville","mots_cles":["comp1","comp2","comp3"],"criteres":"seniorite si mentionnee","ton":"Direct et humain"}}</action>
 Puis en texte (2-3 phrases max) : confirme le poste/lieu/competences retenus, termine par "Je peux lancer la recherche ?"
 
-[INFOS MANQUANTES — poste flou OU pas de lieu]
-Pas de balise. Pose UNE seule question (la plus importante).
+[INFOS MANQUANTES — poste completement flou ET pas de lieu]
+Pas de balise. Pose UNE seule question (la plus importante). Si tu connais le poste mais pas le lieu, demande le lieu uniquement.
 
-[CONFIRMATION — utilisateur dit oui/lancez/c'est bon/parfait/top/go]
+[CONFIRMATION — utilisateur dit oui/lancez/c'est bon/parfait/top/go/ok]
 L'ID mission est disponible dans le contexte sous "ID mission : xxx".
-Remplace EXACTEMENT l'ID dans la balise par la valeur UUID presente dans le contexte (ex: "a1b2c3d4-...").
-Ecris OBLIGATOIREMENT cette balise :
-<action>{"type":"run_mission","missionId":"COLLER_ICI_LUUID_DU_CONTEXTE"}</action>
+Ecris OBLIGATOIREMENT cette balise avec l'UUID exact du contexte :
+<action>{"type":"run_mission","missionId":"UUID-EXACT-DU-CONTEXTE"}</action>
 Texte : "Recherche lancee ! Redirection vers le dossier en cours..."
 
 [MISSION EXISTANTE ATTACHEE]
 Brief disponible en contexte. Propose : relancer (run_mission), affiner (update_brief), chercher plus (run_mission).
 
 === REGLES BRIEF ===
-- titre_poste  : 1-4 mots (ex: "Expert Equipements Rotatifs", "Developpeur Full Stack", "DRH")
-- mots_cles    : 5-8 competences techniques. REGLES CRITIQUES :
+- titre_poste  : 1-4 mots (ex: "Business Analyst Monetique", "Developpeur Full Stack", "DRH")
+- mots_cles    : 4-8 mots-cles pertinents. REGLES :
+    * Inclure les termes metier mentionnes par le client (secteur, specialisation, outils)
     * Jamais de soft skills (communication, leadership…)
-    * Pour les metiers industriels/techniques/ingenierie : inclure les equivalents ANGLAIS
-      ex: "équipements rotatifs" → ajouter "rotating equipment"
-      ex: "fiabilité mécanique" → ajouter "reliability"
-      ex: "compresseurs" → ajouter "compressor"
-    * Inclure le SECTEUR si mentionne (ex: "oil & gas", "énergie", "pétrochimie", "pharma")
-    * Inclure des mots-cles de METHODE/OUTIL si cites (ex: "CMMS", "RCM", "Six Sigma")
-- localisation : TOUJOURS la ville principale, jamais un suburb/commune
-    * "La Garenne-Colombes", "Courbevoie", "Neuilly" → ecrire "Paris"
+    * Pour les metiers techniques : ajouter les equivalents ANGLAIS (ex: "monetique" → "payment", "fiabilite" → "reliability")
+    * Inclure le SECTEUR si mentionne (ex: "banque", "fintech", "oil & gas", "pharma")
+- localisation : TOUJOURS la ville principale
+    * "Ile-de-France", "Paris region", "Courbevoie", "Neuilly" → ecrire "Paris"
     * "Villeurbanne", "Bron" → ecrire "Lyon"
-    * "Mérignac", "Pessac" → ecrire "Bordeaux"
-    * Si le client dit "national" ou "multi-sites" → ecrire "France"
-- criteres     : seniorite, contrat, secteur cible, urgence, salaire si mentionne
+    * "Merignac", "Pessac" → ecrire "Bordeaux"
+    * Si "national" ou "multi-sites" → ecrire "France"
+- criteres     : seniorite, contrat, secteur cible, urgence, salaire si mentionnes
 - ton          : style de contact (ex: "Direct et humain", "Professionnel")
 
 === STYLE ===
@@ -299,18 +300,35 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
       action = { ...action, missionId: newMission.id }
 
       // If brief is embedded in create_mission, save it immediately
-      if (action.brief) {
+      let brief = action.brief
+      if (brief) {
         try {
-          const brief = typeof action.brief === "string" ? JSON.parse(action.brief) : action.brief
+          if (typeof brief === "string") brief = JSON.parse(brief)
+          const b = brief as import("@/lib/database.types").MissionBrief
           await sbAdmin
             .from("missions")
-            .update({ brief, status: "preparation" })
+            .update({ brief: b, status: "preparation" })
             .eq("id", newMission.id)
 
-          const b = brief as Record<string, unknown>
-          const mem = `# Mission brief\nPoste : ${b.titre_poste}\nLocalisation : ${b.localisation}\nMots-clés : ${Array.isArray(b.mots_cles) ? (b.mots_cles as string[]).join(", ") : ""}\nCritères : ${b.criteres ?? ""}\nTon : ${b.ton ?? ""}`
+          const mem = `# Mission brief\nPoste : ${b.titre_poste}\nLocalisation : ${b.localisation}\nMots-clés : ${Array.isArray(b.mots_cles) ? b.mots_cles.join(", ") : ""}\nCritères : ${b.criteres ?? ""}\nTon : ${b.ton ?? ""}`
           await sbAdmin.from("missions").update({ brief_memory: mem }).eq("id", newMission.id)
-        } catch { /* ignore */ }
+        } catch { /* ignore malformed brief */ }
+      } else {
+        // Fallback: build a minimal brief from the title so brief is never null
+        const titleWords = (action.title as string).split(/\s+/)
+        const fallbackBrief: import("@/lib/database.types").MissionBrief = {
+          titre_poste: action.title as string,
+          localisation: "France",
+          mots_cles: titleWords.filter((w: string) => w.length > 3),
+          criteres: "",
+          ton: "Direct et humain",
+        }
+        await sbAdmin
+          .from("missions")
+          .update({ brief: fallbackBrief, status: "preparation" })
+          .eq("id", newMission.id)
+        const mem = `# Mission brief\nPoste : ${fallbackBrief.titre_poste}\nLocalisation : ${fallbackBrief.localisation}\nMots-clés : ${fallbackBrief.mots_cles.join(", ")}`
+        await sbAdmin.from("missions").update({ brief_memory: mem }).eq("id", newMission.id)
       }
     }
   }

@@ -152,7 +152,7 @@ export default function MissionRunPanel({
               {agentName} recherche vos profils…
             </p>
             <p style={{ margin: "0 0 12px", fontSize: 13, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
-              Patience, ça peut prendre 1 à 2 minutes
+              La recherche peut prendre 5 à 10 min — l'extension Chrome doit rester active.
             </p>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 999, background: "#F8F6FF", border: "1px solid #E2DAF6", fontSize: 12, color: agentColor, fontFamily: "var(--font-inter), sans-serif", fontWeight: 600 }}>
               <PulsingDot color={agentColor} />

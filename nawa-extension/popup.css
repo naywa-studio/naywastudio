@@ -105,6 +105,53 @@ body {
   border: 1px solid #E5E7EB;
 }
 
+/* Search active box */
+.search-box {
+  background: #F5F2FD;
+  border: 1px solid #E2DAF6;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.search-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #7C63C8;
+}
+
+/* Stats box */
+.stats-box {
+  display: flex;
+  gap: 12px;
+}
+.stat-item {
+  flex: 1;
+  background: #F9F8FF;
+  border: 1px solid #EEE9FB;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: #7C63C8;
+  line-height: 1;
+}
+.stat-lab {
+  font-size: 10px;
+  color: #9CA3AF;
+  text-align: center;
+  line-height: 1.3;
+}
+
 /* Loader */
 .loader {
   width: 24px;

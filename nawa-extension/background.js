@@ -1,5 +1,5 @@
 /**
- * background.js — Service Worker MV3
+ * background.js — Service Worker MV3 v1.2.0
  * Orchestre :
  *  1. Réception et stockage du token Supabase depuis content_nawa.js
  *  2. Poll périodique des jobs (/api/extension/jobs)
@@ -7,18 +7,34 @@
  *  4. [Nora N2] Ouverture des profils LinkedIn → collecte via content_linkedin.js → envoi à profile
  */
 
-const API_BASE      = "https://nawa-studio.vercel.app"
-const POLL_ALARM    = "nawa-poll-jobs"
+const API_BASE         = "https://nawa-studio.vercel.app"
+const POLL_ALARM       = "nawa-poll-jobs"
 const ENRICH_DELAY_MS  = 4000   // 4s entre chaque profil LinkedIn (humain)
-const SEARCH_DELAY_MS  = 3000   // 3s entre chaque recherche Google (humain)
+const SEARCH_DELAY_MS  = 2000   // 2s entre chaque recherche Google
 
 let isProcessing = false
 
 // ── Démarrage ────────────────────────────────────────────────────────────────
 
+function ensureAlarm() {
+  chrome.alarms.get(POLL_ALARM, alarm => {
+    if (!alarm) {
+      chrome.alarms.create(POLL_ALARM, { periodInMinutes: 1 })
+      console.log("[Nawa] Alarm (re)créée")
+    }
+  })
+}
+
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.create(POLL_ALARM, { periodInMinutes: 1 })
-  console.log("[Nawa] Extension installée v1.1.0")
+  ensureAlarm()
+  console.log("[Nawa] Extension installée v1.2.0")
+})
+
+chrome.runtime.onStartup.addListener(() => {
+  ensureAlarm()
+  console.log("[Nawa] Extension démarrée (startup)")
+  // Poll immédiatement au démarrage
+  if (!isProcessing) pollAndProcess()
 })
 
 chrome.alarms.onAlarm.addListener(alarm => {
@@ -37,8 +53,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         nawa_access_token: msg.accessToken,
         nawa_user_id:      msg.userId,
         nawa_auth_at:      Date.now(),
+      }, () => {
+        updateBadge("✓", "#22c55e")
+        console.log("[Nawa] Token mis à jour pour user:", msg.userId)
+        // Poll immédiat après reconnexion — n'attend pas l'alarm
+        if (!isProcessing) {
+          console.log("[Nawa] Déclenchement poll immédiat après SET_AUTH")
+          pollAndProcess()
+        }
       })
-      updateBadge("✓", "#22c55e")
       sendResponse({ ok: true })
       break
 
@@ -48,12 +71,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       break
 
     case "GOOGLE_RESULTS":
-      handleGoogleResults(msg.results, msg.query)
+      // Géré directement dans openGoogleTab via le listener local
+      console.log(`[Nawa] content_google → ${msg.results?.length ?? 0} résultat(s) pour "${msg.query?.slice(0,60)}"`)
       sendResponse({ ok: true })
       break
 
     case "GOOGLE_DONE":
-      handleGoogleDone(sender.tab?.id)
+      // Géré directement dans openGoogleTab via le listener local
+      console.log("[Nawa] content_google → page traitée, tabId:", sender.tab?.id)
       sendResponse({ ok: true })
       break
 
@@ -65,6 +90,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           userId:        data.nawa_user_id ?? null,
           enrichedCount: data.nawa_enriched_count ?? 0,
           searchedCount: data.nawa_searched_count ?? 0,
+          isProcessing,
         })
       )
       return true   // async sendResponse
@@ -82,7 +108,7 @@ async function pollAndProcess() {
   const { nawa_access_token: token } = await getStorage(["nawa_access_token"])
   if (!token) return
 
-  let googleJobs = []
+  let googleJobs  = []
   let linkedinJobs = []
 
   try {
@@ -91,15 +117,18 @@ async function pollAndProcess() {
     })
     if (!res.ok) {
       if (res.status === 401) {
+        console.warn("[Nawa] Token expiré (401) — reconnexion nécessaire")
         chrome.storage.local.remove(["nawa_access_token", "nawa_user_id"])
         updateBadge("!", "#ef4444")
       }
       return
     }
-    const data = await res.json()
-    googleJobs  = data.google_jobs  ?? []
+    const data  = await res.json()
+    googleJobs   = data.google_jobs  ?? []
     linkedinJobs = data.jobs ?? []  // legacy field = linkedin_enrich
-  } catch {
+    console.log(`[Nawa] Jobs: ${googleJobs.length} Google, ${linkedinJobs.length} LinkedIn`)
+  } catch (e) {
+    console.warn("[Nawa] Erreur poll jobs:", e)
     return
   }
 
@@ -142,27 +171,33 @@ async function handleGoogleSearchJob(job, token) {
   const { session_id, queries } = job
   if (!session_id || !Array.isArray(queries) || queries.length === 0) return
 
-  console.log(`[Nawa] Session ${session_id} — ${queries.length} recherche(s) Google à effectuer`)
+  console.log(`[Nawa] Session ${session_id} — ${queries.length} recherche(s) Google`)
+  updateBadge("🔍", "#7C63C8")
 
-  // Stocker la session active
+  // Marquer la session en cours côté Vercel (optionnel, pour le suivi)
   await chrome.storage.local.set({ nawa_active_search_session: session_id })
 
   const allResults = []
 
-  for (const query of queries) {
-    // Construire l'URL de recherche Google avec filtre LinkedIn
+  for (let i = 0; i < queries.length; i++) {
+    const query = queries[i]
+    // URL Google avec filtre site:linkedin.com/in/
     const searchQuery = `site:linkedin.com/in/ ${query}`
     const searchUrl   = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}&num=10&hl=fr&gl=fr`
 
+    console.log(`[Nawa] Requête ${i+1}/${queries.length}: ${query.slice(0,60)}`)
     const results = await openGoogleTab(searchUrl)
-    allResults.push(...results)
+    console.log(`[Nawa] Requête ${i+1}: ${results.length} résultat(s) trouvé(s)`)
 
-    if (allResults.length > 0) {
-      // Envoyer les résultats intermédiaires au fur et à mesure
+    if (results.length > 0) {
+      allResults.push(...results)
+      // Envoi intermédiaire au fur et à mesure
       await postSearchResults(session_id, results, token)
     }
 
-    await sleep(SEARCH_DELAY_MS)
+    if (i < queries.length - 1) {
+      await sleep(SEARCH_DELAY_MS)
+    }
   }
 
   // Marquer la session comme prête (toutes les requêtes traitées)
@@ -175,50 +210,58 @@ async function handleGoogleSearchJob(job, token) {
     nawa_active_search_session: null,
   })
 
-  console.log(`[Nawa] Session ${session_id} terminée — ${allResults.length} URL(s) trouvée(s)`)
+  console.log(`[Nawa] Session ${session_id} terminée — ${allResults.length} URL(s) trouvée(s) au total`)
 }
 
 // ── Ouvrir un onglet Google + attendre les résultats ─────────────────────────
 
 function openGoogleTab(url) {
   return new Promise(resolve => {
-    const results       = []
-    let   resolved      = false
-    let   tabId         = null
-    let   doneTimeout   = null
+    const results     = []
+    let   resolved    = false
+    let   tabId       = null
+    let   doneTimeout = null
 
-    function finish() {
+    function finish(reason) {
       if (resolved) return
       resolved = true
       clearTimeout(doneTimeout)
-      if (tabId) chrome.tabs.remove(tabId).catch(() => {})
+      console.log(`[Nawa] openGoogleTab finish (${reason}) — ${results.length} résultats`)
+      if (tabId) {
+        chrome.tabs.remove(tabId).catch(() => {})
+      }
       resolve(results)
     }
 
-    // Écouter les messages du content script
+    // Écouter les messages du content script sur cette tab spécifique
     const listener = (msg, sender) => {
+      // Ignorer les messages qui ne viennent pas de notre tab
       if (sender.tab?.id !== tabId) return
 
-      if (msg.type === "GOOGLE_RESULTS") {
-        results.push(...(msg.results ?? []))
+      if (msg.type === "GOOGLE_RESULTS" && Array.isArray(msg.results)) {
+        results.push(...msg.results)
+        console.log(`[Nawa] GOOGLE_RESULTS reçu: +${msg.results.length} (total: ${results.length})`)
       }
       if (msg.type === "GOOGLE_DONE") {
         chrome.runtime.onMessage.removeListener(listener)
         // Petit délai pour s'assurer que GOOGLE_RESULTS est arrivé avant GOOGLE_DONE
-        setTimeout(finish, 300)
+        setTimeout(() => finish("GOOGLE_DONE"), 500)
       }
     }
 
     chrome.runtime.onMessage.addListener(listener)
 
+    // Créer l'onglet — active:false pour ne pas déranger l'utilisateur
+    // Chrome charge quand même le contenu et exécute les content scripts
     chrome.tabs.create({ url, active: false }, tab => {
       tabId = tab.id
+      console.log(`[Nawa] Tab Google créée: ${tabId}`)
 
-      // Timeout de sécurité : 15 secondes
+      // Timeout de sécurité : 20 secondes (Google peut être lent)
       doneTimeout = setTimeout(() => {
         chrome.runtime.onMessage.removeListener(listener)
-        finish()
-      }, 15000)
+        finish("timeout")
+      }, 20000)
     })
   })
 }
@@ -226,9 +269,9 @@ function openGoogleTab(url) {
 // ── Envoyer résultats Google à Vercel ─────────────────────────────────────────
 
 async function postSearchResults(session_id, results, token) {
-  if (!results.length) return
+  if (!results || results.length === 0) return
   try {
-    await fetch(`${API_BASE}/api/extension/search-results`, {
+    const res = await fetch(`${API_BASE}/api/extension/search-results`, {
       method:  "POST",
       headers: {
         "Content-Type":  "application/json",
@@ -236,8 +279,15 @@ async function postSearchResults(session_id, results, token) {
       },
       body: JSON.stringify({ session_id, results }),
     })
+    if (!res.ok) {
+      const text = await res.text()
+      console.warn(`[Nawa] postSearchResults error ${res.status}: ${text.slice(0,100)}`)
+    } else {
+      const data = await res.json()
+      console.log(`[Nawa] postSearchResults: +${data.added ?? 0} URLs (total: ${data.total ?? 0})`)
+    }
   } catch (e) {
-    console.warn("[Nawa] Erreur envoi résultats Google :", e)
+    console.warn("[Nawa] Erreur envoi résultats Google:", e)
   }
 }
 
@@ -245,7 +295,7 @@ async function postSearchResults(session_id, results, token) {
 
 async function markSessionReady(session_id, token) {
   try {
-    await fetch(`${API_BASE}/api/extension/search-results`, {
+    const res = await fetch(`${API_BASE}/api/extension/search-results`, {
       method:  "PATCH",
       headers: {
         "Content-Type":  "application/json",
@@ -253,21 +303,14 @@ async function markSessionReady(session_id, token) {
       },
       body: JSON.stringify({ session_id }),
     })
+    if (res.ok) {
+      console.log(`[Nawa] Session ${session_id} marquée prête ✓`)
+    } else {
+      console.warn(`[Nawa] markSessionReady error: ${res.status}`)
+    }
   } catch (e) {
-    console.warn("[Nawa] Erreur marquage session prête :", e)
+    console.warn("[Nawa] Erreur marquage session prête:", e)
   }
-}
-
-// ── Handlers messages content scripts ─────────────────────────────────────────
-
-function handleGoogleResults(results, query) {
-  // Géré directement dans openGoogleTab via le listener
-  console.log(`[Nawa] content_google → ${results?.length ?? 0} résultat(s) pour "${query}"`)
-}
-
-function handleGoogleDone(tabId) {
-  // Géré directement dans openGoogleTab via le listener
-  console.log("[Nawa] content_google → page traitée, tabId:", tabId)
 }
 
 // ── LinkedIn enrichment (Nora) ────────────────────────────────────────────────
@@ -307,7 +350,7 @@ async function handleProfileExtracted(profile, tabId) {
       console.log("[Nawa] Profil enrichi :", profile.name || profile.linkedin_url)
     }
   } catch (e) {
-    console.warn("[Nawa] Erreur envoi profil :", e)
+    console.warn("[Nawa] Erreur envoi profil:", e)
   }
 }
 

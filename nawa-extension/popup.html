@@ -25,10 +25,30 @@
         <span class="status-text">Connecté</span>
         <span id="enriched-count" class="badge"></span>
       </div>
-      <p class="hint" id="user-email"></p>
+
+      <!-- Recherche active (affiché seulement si isProcessing) -->
+      <div id="search-active" class="search-box hidden">
+        <div class="search-row">
+          <div class="loader loader--small"></div>
+          <span class="search-label">Recherche Google en cours…</span>
+        </div>
+        <p class="hint" style="margin-top:4px;">Ne fermez pas Chrome pendant la recherche.</p>
+      </div>
+
+      <!-- Stats -->
+      <div id="stats-box" class="stats-box">
+        <div class="stat-item">
+          <span class="stat-val" id="searched-count">0</span>
+          <span class="stat-lab">URLs trouvées</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val" id="enriched-val">0</span>
+          <span class="stat-lab">Profils enrichis</span>
+        </div>
+      </div>
 
       <button id="btn-enrich" class="btn btn--primary">
-        Enrichir maintenant
+        Lancer maintenant
       </button>
       <button id="btn-disconnect" class="btn btn--ghost">
         Déconnecter
@@ -58,9 +78,9 @@
     <div id="state-enriching" class="state hidden">
       <div class="status-row">
         <div class="loader loader--small"></div>
-        <span class="status-text">Enrichissement en cours…</span>
+        <span class="status-text">Traitement en cours…</span>
       </div>
-      <p class="hint" id="enriching-detail">Ouverture des profils LinkedIn</p>
+      <p class="hint" id="enriching-detail">Ouverture des onglets LinkedIn</p>
     </div>
 
   </div>

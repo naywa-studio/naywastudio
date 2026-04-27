@@ -531,7 +531,7 @@ async def run(brief: dict) -> dict:
             "score_justification": p.get("justification", ""),
             "score_dimensions":    p.get("score_dimensions"),
             "seniority_level":     p.get("seniority", ""),
-            "source":              "leo",
+            "source":              "linkedin",
         }
         for p in profiles
     ]
