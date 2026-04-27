@@ -1,31 +1,31 @@
 /**
- * content_nawa.js — s'injecte sur nawa-studio.vercel.app
- * Récupère automatiquement la session Supabase et l'envoie au background.
- * L'utilisateur n'a rien à faire : l'extension se connecte toute seule.
+ * content_nawa.js — injecté sur nawa-studio.vercel.app
+ * Récupère la session Supabase via l'API extension/auth (cookies SSR)
+ * et l'envoie au background pour authentifier l'extension.
  */
 
 (function () {
-  // Supabase stocke la session dans localStorage avec la clé "sb-{projectRef}-auth-token"
-  const sessionKey = Object.keys(localStorage).find(
-    k => k.startsWith("sb-") && k.endsWith("-auth-token")
-  )
-  if (!sessionKey) return
+  // Appel à l'endpoint dédié — le navigateur envoie les cookies automatiquement
+  fetch("https://nawa-studio.vercel.app/api/extension/auth", {
+    credentials: "include",   // envoie les cookies de session
+    cache:       "no-store",
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.authenticated || !data.access_token || !data.user_id) {
+        console.log("[Nawa] Pas de session active sur nawa-studio.vercel.app")
+        return
+      }
 
-  try {
-    const raw = localStorage.getItem(sessionKey)
-    if (!raw) return
-    const session = JSON.parse(raw)
-    const accessToken = session?.access_token
-    const userId = session?.user?.id
+      console.log("[Nawa] Session récupérée pour user:", data.user_id.slice(0, 8) + "…")
 
-    if (!accessToken || !userId) return
-
-    chrome.runtime.sendMessage({
-      type:        "SET_AUTH",
-      accessToken: accessToken,
-      userId:      userId,
+      chrome.runtime.sendMessage({
+        type:        "SET_AUTH",
+        accessToken: data.access_token,
+        userId:      data.user_id,
+      })
     })
-  } catch {
-    // Silencieux — pas de session valide
-  }
+    .catch(err => {
+      console.warn("[Nawa] Erreur récupération session:", err)
+    })
 })()
