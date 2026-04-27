@@ -1,16 +1,18 @@
 /**
- * background.js — Service Worker MV3 v1.2.0
+ * background.js — Service Worker MV3 v1.3.0
  * Orchestre :
  *  1. Réception et stockage du token Supabase depuis content_nawa.js
  *  2. Poll périodique des jobs (/api/extension/jobs)
  *  3. [Léo N1] Recherche Google en background → collecte d'URLs LinkedIn → envoi à search-results
  *  4. [Nora N2] Ouverture des profils LinkedIn → collecte via content_linkedin.js → envoi à profile
+ *
+ * v1.3.0 — Fix token expiry: refresh token before each Google session + retry on 401
  */
 
 const API_BASE         = "https://nawa-studio.vercel.app"
 const POLL_ALARM       = "nawa-poll-jobs"
 const ENRICH_DELAY_MS  = 4000   // 4s entre chaque profil LinkedIn (humain)
-const SEARCH_DELAY_MS  = 2000   // 2s entre chaque recherche Google
+const SEARCH_DELAY_MS  = 4000   // 4s entre chaque recherche Google (réduit le risque de blocage Google)
 
 let isProcessing = false
 
@@ -27,7 +29,7 @@ function ensureAlarm() {
 
 chrome.runtime.onInstalled.addListener(() => {
   ensureAlarm()
-  console.log("[Nawa] Extension installée v1.2.0")
+  console.log("[Nawa] Extension installée v1.3.0")
 })
 
 chrome.runtime.onStartup.addListener(() => {
@@ -102,6 +104,38 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 })
 
+// ── Rafraîchissement du token Supabase ───────────────────────────────────────
+// Le token Bearer expire au bout d'une heure. On rafraîchit depuis /api/extension/auth
+// (qui lit les cookies de session Supabase, toujours valides tant que l'utilisateur est connecté).
+
+async function refreshAuthToken() {
+  try {
+    const res = await fetch(`${API_BASE}/api/extension/auth`, {
+      credentials: "include",   // envoie les cookies Supabase du navigateur
+      cache:       "no-store",
+    })
+    if (!res.ok) {
+      console.warn("[Nawa] refreshAuthToken: réponse non-ok", res.status)
+      return null
+    }
+    const data = await res.json()
+    if (!data.authenticated || !data.access_token) {
+      console.warn("[Nawa] refreshAuthToken: pas de session active")
+      return null
+    }
+    await chrome.storage.local.set({
+      nawa_access_token: data.access_token,
+      nawa_user_id:      data.user_id,
+      nawa_auth_at:      Date.now(),
+    })
+    console.log("[Nawa] Token rafraîchi pour user:", data.user_id.slice(0, 8) + "…")
+    return data.access_token
+  } catch (e) {
+    console.warn("[Nawa] Erreur refresh token:", e)
+    return null
+  }
+}
+
 // ── Poll principal ────────────────────────────────────────────────────────────
 
 async function pollAndProcess() {
@@ -167,21 +201,24 @@ async function pollAndProcess() {
 
 // ── Google search job (Léo) ───────────────────────────────────────────────────
 
-async function handleGoogleSearchJob(job, token) {
+async function handleGoogleSearchJob(job, tokenFromPoll) {
   const { session_id, queries } = job
   if (!session_id || !Array.isArray(queries) || queries.length === 0) return
 
   console.log(`[Nawa] Session ${session_id} — ${queries.length} recherche(s) Google`)
   updateBadge("🔍", "#7C63C8")
 
-  // Marquer la session en cours côté Vercel (optionnel, pour le suivi)
+  // Rafraîchir le token AVANT de commencer (il peut expirer pendant la session)
+  const freshToken = await refreshAuthToken()
+  let activeToken  = freshToken || tokenFromPoll
+  console.log(`[Nawa] Token ${freshToken ? "rafraîchi ✓" : "conservé (refresh échoué)"}`)
+
   await chrome.storage.local.set({ nawa_active_search_session: session_id })
 
   const allResults = []
 
   for (let i = 0; i < queries.length; i++) {
     const query = queries[i]
-    // URL Google avec filtre site:linkedin.com/in/
     const searchQuery = `site:linkedin.com/in/ ${query}`
     const searchUrl   = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}&num=10&hl=fr&gl=fr`
 
@@ -191,17 +228,28 @@ async function handleGoogleSearchJob(job, token) {
 
     if (results.length > 0) {
       allResults.push(...results)
-      // Envoi intermédiaire au fur et à mesure
-      await postSearchResults(session_id, results, token)
+      // Envoi intermédiaire — avec retry si 401 (token expiré entre-temps)
+      const postOk = await postSearchResults(session_id, results, activeToken)
+      if (!postOk) {
+        // Essayer de rafraîchir le token et réessayer
+        console.warn("[Nawa] postSearchResults a échoué — tentative de refresh token")
+        const retryToken = await refreshAuthToken()
+        if (retryToken) {
+          activeToken = retryToken
+          await postSearchResults(session_id, results, activeToken)
+        }
+      }
     }
 
     if (i < queries.length - 1) {
-      await sleep(SEARCH_DELAY_MS)
+      // Délai avec léger jitter pour paraître plus humain
+      const jitter = Math.floor(Math.random() * 1000)
+      await sleep(SEARCH_DELAY_MS + jitter)
     }
   }
 
   // Marquer la session comme prête (toutes les requêtes traitées)
-  await markSessionReady(session_id, token)
+  await markSessionReady(session_id, activeToken)
 
   // Stats
   const { nawa_searched_count = 0 } = await getStorage(["nawa_searched_count"])
@@ -268,8 +316,11 @@ function openGoogleTab(url) {
 
 // ── Envoyer résultats Google à Vercel ─────────────────────────────────────────
 
+/**
+ * Retourne true si l'envoi a réussi (HTTP 2xx), false sinon.
+ */
 async function postSearchResults(session_id, results, token) {
-  if (!results || results.length === 0) return
+  if (!results || results.length === 0) return true
   try {
     const res = await fetch(`${API_BASE}/api/extension/search-results`, {
       method:  "POST",
@@ -281,13 +332,15 @@ async function postSearchResults(session_id, results, token) {
     })
     if (!res.ok) {
       const text = await res.text()
-      console.warn(`[Nawa] postSearchResults error ${res.status}: ${text.slice(0,100)}`)
-    } else {
-      const data = await res.json()
-      console.log(`[Nawa] postSearchResults: +${data.added ?? 0} URLs (total: ${data.total ?? 0})`)
+      console.warn(`[Nawa] postSearchResults error HTTP ${res.status}: ${text.slice(0,200)}`)
+      return false
     }
+    const data = await res.json()
+    console.log(`[Nawa] postSearchResults: +${data.added ?? 0} URLs sauvegardées (total session: ${data.total ?? 0})`)
+    return true
   } catch (e) {
     console.warn("[Nawa] Erreur envoi résultats Google:", e)
+    return false
   }
 }
 

@@ -25,8 +25,8 @@ SITE_URL       = os.environ.get("NEXT_PUBLIC_SITE_URL", "").rstrip("/")
 AGENT_SECRET   = os.environ.get("NAWA_AGENT_SECRET", "")
 
 MAX_PROFILES       = 40
-POLL_INTERVAL_S    = 8     # secondes entre chaque poll
-POLL_TIMEOUT_S     = 360   # 6 minutes max d'attente (l'extension a 8 min de timeout)
+POLL_INTERVAL_S    = 15    # secondes entre chaque poll (réduit les requêtes VPS→Vercel)
+POLL_TIMEOUT_S     = 900   # 15 minutes max d'attente (l'extension peut prendre 10-12 min)
 
 
 # ── String helpers ─────────────────────────────────────────────────────────────
@@ -127,7 +127,11 @@ def normalize_location(loc: str) -> tuple[str, str]:
 # ── Query builder ──────────────────────────────────────────────────────────────
 
 def build_queries(brief: dict) -> list[str]:
-    """Construit les requêtes Google pour l'extension Chrome."""
+    """
+    Construit les requêtes Google pour l'extension Chrome.
+    Max 4 requêtes pour que l'extension finisse en < 5 min
+    (4 requêtes × 30s/requête max = 2 min environ).
+    """
     titre     = brief.get("titre_poste", "")
     keywords  = coerce_keywords(brief.get("mots_cles", []))
     criteres  = brief.get("criteres", "")
@@ -140,27 +144,31 @@ def build_queries(brief: dict) -> list[str]:
     seniority_kw  = {"senior": "Senior", "junior": "Junior", "confirmed": "Confirmé"}.get(seniority, "")
 
     queries: list[str] = []
+
+    # Priorité 1 : titre + ville (résultats les plus pertinents)
     queries.append(f'"{titre_court}" "{city}"')
+
+    # Priorité 2 : titre + keyword principal + ville
     if kw_str:
         queries.append(f'"{titre_court}" {kw_str} "{city}"')
+
+    # Priorité 3 : titre + séniorité + ville (si différent de P1)
     if seniority_kw:
-        queries.append(f'{seniority_kw} "{titre_court}" "{city}"')
-    if region:
-        queries.append(f'"{titre_court}" "{region}"')
+        q = f'{seniority_kw} "{titre_court}" "{city}"'
+        queries.append(q)
+
+    # Priorité 4 : titre + France (filet de sécurité)
     queries.append(f'"{titre_court}" France')
-    if kw_str:
-        queries.append(f'"{titre_court}" {kw_str} France')
 
-    for alt in brief.get("alt_titles", [])[:2]:
-        queries.append(f'"{alt}" "{city}"')
-
-    # Dédupliquer tout en conservant l'ordre
+    # Dédupliquer en conservant l'ordre, limiter à 4 requêtes
     seen: set[str] = set()
     unique: list[str] = []
     for q in queries:
         if q not in seen:
             seen.add(q)
             unique.append(q)
+        if len(unique) >= 4:
+            break
 
     return unique
 

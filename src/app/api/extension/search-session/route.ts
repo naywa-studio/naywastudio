@@ -48,8 +48,8 @@ export async function POST(req: NextRequest) {
     .from("extension_search_sessions")
     .update({ status: "timeout" })
     .eq("user_id", body.user_id)
-    .eq("status", "pending")
-    .lt("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString()) // older than 10min
+    .in("status", ["pending", "collecting"])
+    .lt("created_at", new Date(Date.now() - 30 * 60 * 1000).toISOString()) // older than 30min
 
   const { data, error } = await sbAdmin
     .from("extension_search_sessions")
@@ -94,10 +94,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 })
   }
 
-  // Auto-timeout: sessions older than 8 minutes are considered dead
+  // Auto-timeout: sessions older than 20 minutes are considered dead
+  // (Leo waits 15 min max, extension needs up to 15 min — 20 min gives margin)
   const age = Date.now() - new Date(data.created_at).getTime()
   if (data.status === "pending" || data.status === "collecting") {
-    if (age > 8 * 60 * 1000) {
+    if (age > 20 * 60 * 1000) {
       await sbAdmin
         .from("extension_search_sessions")
         .update({ status: "timeout" })
