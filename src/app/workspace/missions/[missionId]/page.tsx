@@ -72,14 +72,9 @@ function MissionEmptyState({
   const router    = useRouter()
   const [launching, setLaunching] = useState(false)
 
-  const handleLaunch = async () => {
+  const handleLaunch = () => {
     setLaunching(true)
-    try {
-      await fetch(`/api/missions/${missionId}/run`, { method: "POST" })
-      onLaunch()
-    } catch {
-      setLaunching(false)
-    }
+    onLaunch()   // MissionRunPanel handles the actual /run call — no double-fetch
   }
 
   // No brief configured yet
