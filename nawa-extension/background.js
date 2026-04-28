@@ -119,27 +119,86 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 // ── Start search ──────────────────────────────────────────────────────────────
 
-async function handleStartSearch({ raw_text, token, level }) {
-  // 1. Générer brief + requêtes via LLM
-  let brief, queries
+async function refreshTokenViaNawaTab() {
   try {
-    const res = await fetch(`${API_BASE}/api/extension/generate-queries`, {
-      method:  "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({ raw_text, level: level || "leo" }),
+    const tabs = await chrome.tabs.query({ url: `${API_BASE}/*` })
+    if (tabs.length === 0) return null
+    await chrome.scripting.executeScript({
+      target: { tabId: tabs[0].id },
+      files:  ["content_nawa.js"],
     })
-    if (!res.ok) throw new Error(`API ${res.status}`)
+    // content_nawa.js fait fetch /api/extension/auth (cookies) → SET_AUTH
+    // On attend que le storage soit mis à jour
+    for (let i = 0; i < 12; i++) {
+      await sleep(250)
+      const { nawa_access_token, nawa_auth_at } = await chrome.storage.local.get([
+        "nawa_access_token", "nawa_auth_at",
+      ])
+      if (nawa_access_token && nawa_auth_at && Date.now() - nawa_auth_at < 5000) {
+        return nawa_access_token
+      }
+    }
+    return null
+  } catch (e) {
+    console.warn("[Nawa BG] Token refresh failed:", e)
+    return null
+  }
+}
+
+async function callGenerateQueries(token, raw_text, level) {
+  const res = await fetch(`${API_BASE}/api/extension/generate-queries`, {
+    method:  "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ raw_text, level: level || "leo" }),
+  })
+  return { res, status: res.status }
+}
+
+async function handleStartSearch({ raw_text, token, level }) {
+  // 1. Générer brief + requêtes via LLM (avec retry si token expiré)
+  let brief, queries
+  let usedToken = token
+  try {
+    let { res } = await callGenerateQueries(usedToken, raw_text, level)
+
+    if (res.status === 401) {
+      console.log("[Nawa BG] Token expiré — tentative de refresh…")
+      const fresh = await refreshTokenViaNawaTab()
+      if (!fresh) {
+        return { ok: false, error: "Session expirée. Rechargez l'onglet Nawa Studio (F5), puis réessayez." }
+      }
+      usedToken = fresh
+      const retry = await callGenerateQueries(usedToken, raw_text, level)
+      res = retry.res
+    }
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "")
+      console.error("[Nawa BG] generate-queries HTTP", res.status, txt.slice(0, 200))
+      const errMsg = res.status === 401
+        ? "Session expirée. Rechargez l'onglet Nawa Studio."
+        : res.status === 404
+        ? "Endpoint introuvable — déploiement en cours ?"
+        : `Erreur serveur (${res.status})`
+      return { ok: false, error: errMsg }
+    }
+
     const data = await res.json()
-    if (!data.ok || !data.queries?.length) throw new Error(data.error || "Pas de requêtes")
+    if (!data.ok || !data.queries?.length) {
+      return { ok: false, error: data.error || "Aucune requête générée" }
+    }
     brief   = data.brief
     queries = data.queries
   } catch (e) {
     console.error("[Nawa BG] generate-queries:", e)
-    return { ok: false, error: "Impossible de générer les requêtes. Vérifiez votre connexion." }
+    return { ok: false, error: `Erreur réseau : ${e.message}` }
   }
+
+  // Sauvegarder le token éventuellement rafraîchi pour les prochains appels
+  token = usedToken
 
   // 2. Trouver ou créer l'onglet Nawa Studio
   let nawaTabId
