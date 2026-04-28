@@ -70,14 +70,55 @@ export async function POST(
 
   const { data: mission } = await sb
     .from("missions")
-    .select("brief, status, agent_level")
+    .select("brief, status, agent_level, profiles_count")
     .eq("id", missionId)
     .eq("user_id", user.id)
     .single()
 
   if (!mission) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const brief = mission.brief as ({ __agent_id?: string } | null)
+  const brief = mission.brief as ({
+    __agent_id?:  string
+    __source?:    string
+    __excel_b64?: string
+  } | null)
+
+  // ── Extension-sourced missions (LinkedIn side panel) ─────────────────────────
+  // Ces missions n'ont pas d'__agent_id car elles sont traitées directement sur Vercel.
+  // L'Excel est pré-généré et stocké dans le brief JSON.
+  if (brief?.__source === "extension_linkedin") {
+    const excelB64 = brief.__excel_b64
+
+    if (!excelB64) {
+      // Fallback : générer depuis les candidates en DB
+      const sbAdm = createClient<Database>(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+      const { data: cands } = await sbAdm
+        .from("candidates")
+        .select("*")
+        .eq("mission_id", missionId)
+        .order("relevance_score", { ascending: false })
+
+      const count = (cands ?? []).length
+      return NextResponse.json({
+        ok:               true,
+        excel_b64:        null,  // No Excel in fallback — workspace affichera les candidates depuis DB
+        candidates_count: count,
+        new_candidates:   count,
+      })
+    }
+
+    return NextResponse.json({
+      ok:               true,
+      excel_b64:        excelB64,
+      candidates_count: mission.profiles_count ?? 0,
+      new_candidates:   mission.profiles_count ?? 0,
+    })
+  }
+
+  // ── Standard VPS missions ────────────────────────────────────────────────────
   const agentMissionId = brief?.__agent_id
   if (!agentMissionId) return NextResponse.json({ error: "No agent mission id" }, { status: 400 })
 

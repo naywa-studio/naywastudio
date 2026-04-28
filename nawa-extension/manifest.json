@@ -1,21 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Nawa Studio",
-  "version": "1.3.0",
-  "description": "Sourcing LinkedIn automatique pour Nawa Studio — Léo (N1) + Nora (N2)",
+  "version": "2.0.0",
+  "description": "Sourcez LinkedIn directement depuis votre navigateur — barre latérale intelligente",
 
   "permissions": [
     "tabs",
     "storage",
-    "alarms",
-    "scripting"
+    "scripting",
+    "sidePanel"
   ],
 
   "host_permissions": [
     "https://www.linkedin.com/*",
     "https://linkedin.com/*",
-    "https://www.google.com/*",
-    "https://google.com/*",
     "https://nawa-studio.vercel.app/*",
     "https://*.vercel.app/*"
   ],
@@ -25,18 +23,28 @@
     "type": "module"
   },
 
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+
+  "action": {
+    "default_icon": {
+      "16":  "icons/16.png",
+      "48":  "icons/48.png",
+      "128": "icons/128.png"
+    },
+    "default_title": "Nawa Studio — Ouvrir"
+  },
+
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/in/*"],
-      "js": ["content_linkedin.js"],
+      "matches": ["https://www.linkedin.com/search/results/people/*"],
+      "js": ["content_linkedin_search.js"],
       "run_at": "document_idle"
     },
     {
-      "matches": [
-        "https://www.google.com/search*",
-        "https://google.com/search*"
-      ],
-      "js": ["content_google.js"],
+      "matches": ["https://www.linkedin.com/in/*"],
+      "js": ["content_linkedin.js"],
       "run_at": "document_idle"
     },
     {
@@ -48,15 +56,6 @@
       "run_at": "document_idle"
     }
   ],
-
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16":  "icons/16.png",
-      "48":  "icons/48.png",
-      "128": "icons/128.png"
-    }
-  },
 
   "icons": {
     "16":  "icons/16.png",

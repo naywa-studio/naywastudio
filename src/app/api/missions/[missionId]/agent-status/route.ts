@@ -47,7 +47,13 @@ export async function GET(
   if (mission.status === "completed") return NextResponse.json({ status: "done" })
   if (mission.status === "error") return NextResponse.json({ status: "error", error: "Mission failed" })
 
-  const brief = mission.brief as (MissionBrief & { __agent_id?: string }) | null
+  const brief = mission.brief as (MissionBrief & { __agent_id?: string; __source?: string }) | null
+
+  // Extension-sourced missions are processed entirely on Vercel — no VPS polling needed
+  if (brief?.__source === "extension_linkedin") {
+    return NextResponse.json({ status: "done" })
+  }
+
   const agentMissionId = brief?.__agent_id
   if (!agentMissionId) return NextResponse.json({ status: "error", error: "No agent mission id" })
 
