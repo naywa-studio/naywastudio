@@ -302,6 +302,13 @@ export type MissionBrief = {
   criteres?: string
   ton?: string
   nom_recruteur?: string
+  // Internal fields set by the agent/extension pipeline (prefixed __)
+  __agent_id?:   string
+  __user_id?:    string
+  __mission_id?: string
+  __source?:     string   // e.g. "extension_linkedin"
+  __excel_b64?:  string   // pre-generated Excel stored for extension-sourced missions
+  __profiles?:   unknown  // pre-extracted profiles (extension fast path)
 }
 
 export type Profile = Database['public']['Tables']['profiles']['Row']

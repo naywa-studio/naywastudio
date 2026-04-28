@@ -17,7 +17,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient }              from "@supabase/supabase-js"
 import * as XLSX                     from "xlsx"
-import type { Database }             from "@/lib/database.types"
+import type { Database, MissionBrief } from "@/lib/database.types"
 
 const sbAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -278,9 +278,18 @@ export async function POST(req: NextRequest) {
   const excelB64 = buildExcel(scored, brief)
 
   // ── Stocker l'Excel dans le brief (pour le download ultérieur) ───────────────
+  const updatedBrief: MissionBrief = {
+    titre_poste:  brief.titre_poste,
+    localisation: brief.localisation,
+    criteres:     brief.criteres || "",
+    mots_cles:    brief.mots_cles || [],
+    __source:     "extension_linkedin",
+    __user_id:    user.id,
+    __excel_b64:  excelB64,
+  }
   await sbAdmin
     .from("missions")
-    .update({ brief: { ...((mission as unknown as { brief: object }).brief || {}), __excel_b64: excelB64 } })
+    .update({ brief: updatedBrief })
     .eq("id", missionId)
 
   // Top profils pour la side panel (max 10)
