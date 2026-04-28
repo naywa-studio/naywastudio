@@ -74,8 +74,26 @@ body {
   gap: 12px;
 }
 .empty__icon {
-  font-size: 36px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: #F0ECF8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
+}
+
+/* ─── Mission label ─────────────────────────────────────────────────────── */
+.mission-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #5B3FA8;
+  background: #EEE9FB;
+  border-radius: 8px;
+  padding: 6px 10px;
+  text-align: center;
+  font-family: var(--font-inter), sans-serif;
 }
 .empty__text {
   font-size: 13px;

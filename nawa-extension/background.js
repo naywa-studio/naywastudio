@@ -1,29 +1,29 @@
 /**
- * background.js — Service Worker v3.0.0
+ * background.js — Service Worker v4.0.0
  *
- * Orchestrateur de recherche LinkedIn via Google.
- *
- * Flux :
- *  1. Popup envoie START_SEARCH { raw_text, token, level }
- *  2. Background appelle /api/extension/generate-queries → brief + queries[]
- *  3. Background trouve / crée un onglet Nawa Studio
- *  4. Pour chaque query : navigue l'onglet vers Google → content_google.js extrait les URLs
- *  5. Nora uniquement : visite les top profils LinkedIn pour enrichissement
- *  6. Revient sur l'onglet Nawa Studio → content_nawa.js prend le relais
+ * Mission-driven flow :
+ *  1. Workspace chat appelle /api/missions/[id]/launch-extension
+ *     → reçoit { missionId, brief, queries, level }
+ *  2. La page poste {source:'nawa-page', type:'RUN_SEARCH', payload}
+ *  3. content_nawa.js relaie via chrome.runtime.sendMessage
+ *  4. Background ouvre un onglet "worker" en arrière-plan (l'utilisateur reste
+ *     sur sa page mission) qui parcourt Google puis (Nora) LinkedIn
+ *  5. Profils poussés vers /api/missions/[id]/profiles → Realtime sur la page
  *
  * State (chrome.storage.local) : nawa_search_state
+ *   { phase, missionId, token, brief, queries, queryIndex, profiles,
+ *     workerTabId, level, enrichQueue?, enrichIndex?, enrichedData? }
  */
 
-const API_BASE = "https://nawa-studio.vercel.app"
-const STATE_KEY = "nawa_search_state"
-const MAX_PROFILES = 80    // profils max collectés
-const ENRICH_MAX   = 8     // profils enrichis max (Nora)
+const API_BASE   = "https://nawa-studio.vercel.app"
+const STATE_KEY  = "nawa_search_state"
+const MAX_PROFILES = 80
+const ENRICH_MAX   = 8
 
-// ── Message handler ───────────────────────────────────────────────────────────
+/* ── Message handlers ──────────────────────────────────────────────────── */
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-
-  // Auth reçue depuis content_nawa.js
+  // Auth from content_nawa.js (cookie → access_token)
   if (msg.type === "SET_AUTH") {
     chrome.storage.local.set({
       nawa_access_token: msg.accessToken,
@@ -34,7 +34,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return
   }
 
-  // Statut pour le popup
+  // Status query (popup)
   if (msg.type === "GET_STATUS") {
     chrome.storage.local.get([STATE_KEY, "nawa_access_token", "nawa_user_id"], data => {
       sendResponse({
@@ -43,73 +43,58 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         state:         data[STATE_KEY] ?? null,
       })
     })
-    return true // async
+    return true
   }
 
-  // Démarrage depuis le popup
-  if (msg.type === "START_SEARCH") {
-    handleStartSearch(msg)
+  // Mission launch from workspace chat (via content_nawa.js bridge)
+  if (msg.type === "RUN_SEARCH_FROM_PAGE") {
+    handleRunFromPage(msg.payload)
       .then(r => sendResponse(r))
       .catch(e => sendResponse({ ok: false, error: e.message }))
     return true
   }
 
-  // Résultats Google depuis content_google.js
+  // Google scrape results
   if (msg.type === "GOOGLE_RESULTS") {
     onGoogleResults(msg.results ?? [])
     sendResponse({ ok: true })
     return
   }
 
-  // Fin de page Google (0 résultat ou après GOOGLE_RESULTS)
   if (msg.type === "GOOGLE_DONE") {
     onGoogleDone()
     sendResponse({ ok: true })
     return
   }
 
-  // Profil LinkedIn enrichi depuis content_linkedin.js (Nora)
+  // LinkedIn enrichment (Nora)
   if (msg.type === "PROFILE_EXTRACTED") {
     onProfileExtracted(msg.profile)
     sendResponse({ ok: true })
     return
   }
 
-  // Annulation depuis le popup
+  // Cancel
   if (msg.type === "CANCEL_SEARCH") {
-    chrome.storage.local.remove([STATE_KEY])
-    sendResponse({ ok: true })
-    return
+    cancelSearch().then(() => sendResponse({ ok: true }))
+    return true
   }
 })
 
-// ── Tab watcher ───────────────────────────────────────────────────────────────
+/* ── Tab lifecycle ─────────────────────────────────────────────────────── */
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete") return
 
   const { [STATE_KEY]: state } = await chrome.storage.local.get([STATE_KEY])
-  if (!state || state.nawaTabId !== tabId) return
+  if (!state || state.workerTabId !== tabId) return
 
-  // Retour sur Nawa Studio après les recherches
-  if (
-    (state.phase === "returning") &&
-    tab.url?.includes("nawa-studio.vercel.app")
-  ) {
-    await chrome.storage.local.set({
-      [STATE_KEY]: { ...state, phase: "done" },
-    })
-    return
-  }
-
-  // Enrichissement Nora : profil LinkedIn chargé
+  // LinkedIn enrichment safety timeout: if content_linkedin.js doesn't fire
+  // PROFILE_EXTRACTED within 9s, advance anyway.
   if (state.phase === "enriching" && tab.url?.includes("linkedin.com/in/")) {
-    // content_linkedin.js va envoyer PROFILE_EXTRACTED
-    // Timeout de sécurité (LinkedIn lent ou bloqué)
     setTimeout(async () => {
       const { [STATE_KEY]: cur } = await chrome.storage.local.get([STATE_KEY])
-      if (!cur || cur.phase !== "enriching" || cur.nawaTabId !== tabId) return
-      // Si PROFILE_EXTRACTED n'a pas encore avancé l'index, on avance quand même
+      if (!cur || cur.phase !== "enriching" || cur.workerTabId !== tabId) return
       if (cur.enrichIndex === state.enrichIndex) {
         await advanceEnrichment(tabId, cur)
       }
@@ -117,7 +102,14 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 })
 
-// ── Start search ──────────────────────────────────────────────────────────────
+// If the user closes the worker tab manually, abort cleanly.
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  const { [STATE_KEY]: state } = await chrome.storage.local.get([STATE_KEY])
+  if (!state || state.workerTabId !== tabId) return
+  await chrome.storage.local.set({ [STATE_KEY]: { ...state, phase: "cancelled" } })
+})
+
+/* ── Auth helpers ──────────────────────────────────────────────────────── */
 
 async function refreshTokenViaNawaTab() {
   try {
@@ -127,8 +119,6 @@ async function refreshTokenViaNawaTab() {
       target: { tabId: tabs[0].id },
       files:  ["content_nawa.js"],
     })
-    // content_nawa.js fait fetch /api/extension/auth (cookies) → SET_AUTH
-    // On attend que le storage soit mis à jour
     for (let i = 0; i < 12; i++) {
       await sleep(250)
       const { nawa_access_token, nawa_auth_at } = await chrome.storage.local.get([
@@ -145,112 +135,56 @@ async function refreshTokenViaNawaTab() {
   }
 }
 
-async function callGenerateQueries(token, raw_text, level) {
-  const res = await fetch(`${API_BASE}/api/extension/generate-queries`, {
-    method:  "POST",
-    headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify({ raw_text, level: level || "leo" }),
-  })
-  return { res, status: res.status }
-}
+/* ── Mission launch (from workspace chat) ─────────────────────────────── */
 
-async function handleStartSearch({ raw_text, token, level }) {
-  // 1. Générer brief + requêtes via LLM (avec retry si token expiré)
-  let brief, queries
-  let usedToken = token
-  try {
-    let { res } = await callGenerateQueries(usedToken, raw_text, level)
-
-    if (res.status === 401) {
-      console.log("[Nawa BG] Token expiré — tentative de refresh…")
-      const fresh = await refreshTokenViaNawaTab()
-      if (!fresh) {
-        return { ok: false, error: "Session expirée. Rechargez l'onglet Nawa Studio (F5), puis réessayez." }
-      }
-      usedToken = fresh
-      const retry = await callGenerateQueries(usedToken, raw_text, level)
-      res = retry.res
-    }
-
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "")
-      console.error("[Nawa BG] generate-queries HTTP", res.status, txt.slice(0, 200))
-      const errMsg = res.status === 401
-        ? "Session expirée. Rechargez l'onglet Nawa Studio."
-        : res.status === 404
-        ? "Endpoint introuvable — déploiement en cours ?"
-        : `Erreur serveur (${res.status})`
-      return { ok: false, error: errMsg }
-    }
-
-    const data = await res.json()
-    if (!data.ok || !data.queries?.length) {
-      return { ok: false, error: data.error || "Aucune requête générée" }
-    }
-    brief   = data.brief
-    queries = data.queries
-  } catch (e) {
-    console.error("[Nawa BG] generate-queries:", e)
-    return { ok: false, error: `Erreur réseau : ${e.message}` }
+async function handleRunFromPage(payload) {
+  if (!payload?.missionId || !Array.isArray(payload?.queries) || payload.queries.length === 0) {
+    return { ok: false, error: "Payload invalide" }
   }
 
-  // Sauvegarder le token éventuellement rafraîchi pour les prochains appels
-  token = usedToken
+  const { missionId, brief, queries, level } = payload
 
-  // 2. Trouver ou créer l'onglet Nawa Studio
-  let nawaTabId
-  let nawaUrl = `${API_BASE}/workspace`
-
-  try {
-    const nawaTabs = await chrome.tabs.query({ url: `${API_BASE}/*` })
-    if (nawaTabs.length > 0) {
-      const tab = nawaTabs[0]
-      nawaTabId = tab.id
-      nawaUrl   = tab.url || nawaUrl
-      await chrome.tabs.update(nawaTabId, { active: true })
-    } else {
-      const newTab = await chrome.tabs.create({ url: nawaUrl })
-      nawaTabId = newTab.id
-      await sleep(2500) // attendre que la page charge
-    }
-  } catch (e) {
-    return { ok: false, error: "Impossible d'accéder à l'onglet Nawa Studio" }
+  // Make sure we have a fresh token (the page just authenticated us)
+  let { nawa_access_token: token } = await chrome.storage.local.get(["nawa_access_token"])
+  if (!token) token = await refreshTokenViaNawaTab()
+  if (!token) {
+    return { ok: false, error: "Token introuvable — rechargez Nawa Studio" }
   }
 
-  // 3. Sauvegarder l'état et démarrer
+  // Cancel any in-flight search before starting a new one
+  const { [STATE_KEY]: existing } = await chrome.storage.local.get([STATE_KEY])
+  if (existing?.workerTabId) {
+    try { await chrome.tabs.remove(existing.workerTabId) } catch { /* tab gone */ }
+  }
+
+  // Open a dedicated worker tab in background — user keeps their mission tab open
+  const firstUrl = `https://www.google.com/search?q=${encodeURIComponent(queries[0])}&num=10&hl=fr`
+  const workerTab = await chrome.tabs.create({ url: firstUrl, active: false })
+
   const state = {
-    phase:      "searching",
+    phase:       "searching",
+    missionId,
     token,
-    level:      level || "leo",
+    level:       level || "leo",
     brief,
     queries,
-    queryIndex: 0,
-    profiles:   [],
-    nawaTabId,
-    nawaUrl,
-    startedAt:  Date.now(),
+    queryIndex:  0,
+    profiles:    [],
+    workerTabId: workerTab.id,
+    startedAt:   Date.now(),
   }
   await chrome.storage.local.set({ [STATE_KEY]: state })
 
-  // 4. Naviguer vers la première requête Google
-  await navigateToQuery(nawaTabId, queries[0])
-
-  return { ok: true, brief, queriesCount: queries.length }
+  return { ok: true, missionId, queriesCount: queries.length }
 }
 
-// ── Google result handlers ────────────────────────────────────────────────────
+/* ── Google scraping ──────────────────────────────────────────────────── */
 
-// Guard : éviter double-advance si GOOGLE_RESULTS + GOOGLE_DONE arrivent tous les deux
 let _pendingProfiles = null
 let _pendingTimer    = null
 
 function onGoogleResults(newProfiles) {
-  // Stocker les profils reçus ; attendre GOOGLE_DONE pour avancer
   _pendingProfiles = newProfiles
-  // Fallback si GOOGLE_DONE n'arrive jamais
   clearTimeout(_pendingTimer)
   _pendingTimer = setTimeout(() => {
     if (_pendingProfiles !== null) {
@@ -258,7 +192,7 @@ function onGoogleResults(newProfiles) {
       _pendingProfiles = null
       chrome.storage.local.get([STATE_KEY], ({ [STATE_KEY]: state }) => {
         if (state?.phase === "searching") {
-          advanceSearch(state.nawaTabId, state, profiles)
+          advanceSearch(state.workerTabId, state, profiles)
         }
       })
     }
@@ -272,21 +206,17 @@ function onGoogleDone() {
 
   chrome.storage.local.get([STATE_KEY], ({ [STATE_KEY]: state }) => {
     if (!state || state.phase !== "searching") return
-    advanceSearch(state.nawaTabId, state, profiles)
+    advanceSearch(state.workerTabId, state, profiles)
   })
 }
 
 async function advanceSearch(tabId, currentState, newProfiles) {
-  // Dédupliquer
-  const seen = new Set(currentState.profiles.map(p => p.linkedin_url))
+  const seen   = new Set(currentState.profiles.map(p => p.linkedin_url))
   const unique = (newProfiles || []).filter(p => p.linkedin_url && !seen.has(p.linkedin_url))
   const merged = [...currentState.profiles, ...unique]
 
-  const nextIndex = currentState.queryIndex + 1
-
-  const updated = { ...currentState, profiles: merged, queryIndex: nextIndex }
-
-  // Condition de fin
+  const nextIndex      = currentState.queryIndex + 1
+  const updated        = { ...currentState, profiles: merged, queryIndex: nextIndex }
   const allQueriesDone = nextIndex >= currentState.queries.length
   const enoughProfiles = merged.length >= MAX_PROFILES
 
@@ -294,23 +224,19 @@ async function advanceSearch(tabId, currentState, newProfiles) {
     if (currentState.level === "nora" && merged.length > 0) {
       await startEnrichment(tabId, updated)
     } else {
-      await returnToNawa(tabId, updated)
+      await finishSearch(updated)
     }
     return
   }
 
-  // Prochaine requête
   await chrome.storage.local.set({ [STATE_KEY]: updated })
   await navigateToQuery(tabId, currentState.queries[nextIndex])
 }
 
-// ── Enrichissement Nora ───────────────────────────────────────────────────────
+/* ── Nora enrichment ──────────────────────────────────────────────────── */
 
 async function startEnrichment(tabId, state) {
-  const enrichQueue = state.profiles
-    .slice(0, ENRICH_MAX)
-    .map(p => p.linkedin_url)
-
+  const enrichQueue = state.profiles.slice(0, ENRICH_MAX).map(p => p.linkedin_url)
   const enrichState = {
     ...state,
     phase:        "enriching",
@@ -329,18 +255,16 @@ async function onProfileExtracted(profile) {
   const enrichedData = [...(state.enrichedData || []), profile]
   const updated      = { ...state, enrichedData }
   await chrome.storage.local.set({ [STATE_KEY]: updated })
-  await advanceEnrichment(state.nawaTabId, updated)
+  await advanceEnrichment(state.workerTabId, updated)
 }
 
 async function advanceEnrichment(tabId, state) {
   const nextIndex = state.enrichIndex + 1
 
   if (nextIndex >= state.enrichQueue.length) {
-    // Fusionner les données enrichies avec les profils de base
+    // Merge enrichment back into base profiles
     const enrichedByUrl = {}
-    for (const p of state.enrichedData || []) {
-      enrichedByUrl[p.linkedin_url] = p
-    }
+    for (const p of state.enrichedData || []) enrichedByUrl[p.linkedin_url] = p
     const mergedProfiles = state.profiles.map(p => {
       const e = enrichedByUrl[p.linkedin_url]
       if (!e) return p
@@ -351,10 +275,9 @@ async function advanceEnrichment(tabId, state) {
         company:  e.company  || p.company  || "",
         location: e.location || p.location || "",
         snippet:  (e.about || e.experience_summary || p.snippet || "").slice(0, 300),
-        skills:   e.skills   || [],
       }
     })
-    await returnToNawa(tabId, { ...state, profiles: mergedProfiles })
+    await finishSearch({ ...state, profiles: mergedProfiles })
     return
   }
 
@@ -363,23 +286,104 @@ async function advanceEnrichment(tabId, state) {
   await chrome.tabs.update(tabId, { url: state.enrichQueue[nextIndex] })
 }
 
-// ── Retour Nawa ───────────────────────────────────────────────────────────────
+/* ── Finish: push to API + close worker tab ──────────────────────────── */
 
-async function returnToNawa(tabId, state) {
-  await chrome.storage.local.set({
-    [STATE_KEY]: { ...state, phase: "returning" },
+async function finishSearch(state) {
+  if (!state.missionId) {
+    console.warn("[Nawa BG] finishSearch without missionId — aborting")
+    return cleanupWorkerTab(state)
+  }
+
+  await chrome.storage.local.set({ [STATE_KEY]: { ...state, phase: "pushing" } })
+
+  // Build payload : take what content scripts gave us, normalize
+  const payload = (state.profiles || []).map(p => {
+    const parsed = parseDisplayTitle(p.display_title || "")
+    return {
+      linkedin_url: p.linkedin_url,
+      name:         p.name     || parsed.name  || "",
+      title:        p.title    || parsed.title || "",
+      company:      p.company  || "",
+      location:     p.location || "",
+      snippet:      p.snippet  || p.display_title || "",
+    }
   })
-  await chrome.tabs.update(tabId, { url: state.nawaUrl, active: true })
+
+  let success = false
+  try {
+    const res = await fetch(`${API_BASE}/api/missions/${state.missionId}/profiles`, {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${state.token}`,
+      },
+      body: JSON.stringify({ profiles: payload, final: true }),
+    })
+
+    if (res.status === 401) {
+      // Token expired during the search — refresh and retry once
+      const fresh = await refreshTokenViaNawaTab()
+      if (fresh) {
+        const retry = await fetch(`${API_BASE}/api/missions/${state.missionId}/profiles`, {
+          method: "POST",
+          headers: {
+            "Content-Type":  "application/json",
+            "Authorization": `Bearer ${fresh}`,
+          },
+          body: JSON.stringify({ profiles: payload, final: true }),
+        })
+        success = retry.ok
+      }
+    } else {
+      success = res.ok
+    }
+
+    if (!success) {
+      const t = await res.text().catch(() => "")
+      console.error("[Nawa BG] Push profiles failed:", res.status, t.slice(0, 200))
+    }
+  } catch (e) {
+    console.error("[Nawa BG] Push profiles network error:", e)
+  }
+
+  await chrome.storage.local.set({
+    [STATE_KEY]: { ...state, phase: success ? "done" : "error", finishedAt: Date.now() },
+  })
+  await cleanupWorkerTab(state)
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+async function cleanupWorkerTab(state) {
+  if (state?.workerTabId) {
+    try { await chrome.tabs.remove(state.workerTabId) } catch { /* already gone */ }
+  }
+}
+
+async function cancelSearch() {
+  const { [STATE_KEY]: state } = await chrome.storage.local.get([STATE_KEY])
+  if (state?.workerTabId) {
+    try { await chrome.tabs.remove(state.workerTabId) } catch { /* ignore */ }
+  }
+  await chrome.storage.local.remove([STATE_KEY])
+}
+
+/* ── Helpers ──────────────────────────────────────────────────────────── */
 
 function navigateToQuery(tabId, query) {
   const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=10&hl=fr`
-  console.log(`[Nawa BG] Navigating to: ${url.slice(0, 100)}`)
   return chrome.tabs.update(tabId, { url })
 }
 
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms))
+function parseDisplayTitle(displayTitle) {
+  const text = (displayTitle || "")
+    .replace(/\s*[•·]\s*LinkedIn.*$/i, "")
+    .replace(/\s*\|\s*LinkedIn.*$/i, "")
+    .trim()
+  if (!text) return { name: "", title: "" }
+  const dashIdx = text.indexOf(" - ")
+  if (dashIdx > -1) {
+    return { name: text.slice(0, dashIdx).trim(), title: text.slice(dashIdx + 3).trim() }
+  }
+  return { name: text, title: "" }
 }
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }

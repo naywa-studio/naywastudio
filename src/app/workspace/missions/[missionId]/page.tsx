@@ -275,7 +275,54 @@ export default function MissionDetailPage() {
 
   useEffect(() => { fetchData(true) }, [fetchData])
 
+  /* ── Realtime : profils insérés par le worker extension ──── */
+  useEffect(() => {
+    const sb = getSupabase()
 
+    const channel = sb
+      .channel(`mission-${missionId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "candidates", filter: `mission_id=eq.${missionId}` },
+        (payload) => {
+          const c = payload.new as Candidate
+          setCandidates(prev => {
+            if (prev.some(x => x.id === c.id)) return prev
+            return [...prev, c].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0))
+          })
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "candidates", filter: `mission_id=eq.${missionId}` },
+        (payload) => {
+          const c = payload.new as Candidate
+          setCandidates(prev => prev.map(x => x.id === c.id ? c : x))
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "missions", filter: `id=eq.${missionId}` },
+        (payload) => {
+          const m = payload.new as Mission
+          setMission(m)
+          if (m.status === "completed") {
+            setIsRunning(false)
+            setRunResumed(false)
+            const eb = (m.brief as { __excel_b64?: string } | null)?.__excel_b64
+            if (eb) setExcelB64(eb)
+          } else if (m.status === "error") {
+            setIsRunning(false)
+            setRunResumed(false)
+          } else if (m.status === "in_progress") {
+            setIsRunning(true)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => { sb.removeChannel(channel) }
+  }, [missionId])
 
   /* ── Run completed ───────────────────────────────────────── */
   const handleRunCompleted = (b64: string, count: number, researchReport?: string) => {

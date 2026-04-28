@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Nawa Studio",
-  "version": "3.0.0",
-  "description": "Sourcez des profils LinkedIn via recherche Google — pilotez tout depuis le popup",
+  "version": "4.0.0",
+  "description": "Worker LinkedIn pour Nawa Studio — piloté depuis le chat du workspace",
 
   "permissions": [
     "tabs",

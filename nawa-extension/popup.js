@@ -1,224 +1,195 @@
 /**
- * popup.js — Nawa Studio Extension v3.0.0
+ * popup.js — v4.0.0
  *
- * Machine à états du popup :
- *   init → auth | idle | searching | done
+ * Le popup est un simple moniteur de l'état de la recherche.
+ * Toutes les commandes (lancement, choix du brief) viennent du chat Nawa Studio.
  *
- * Communique avec background.js via chrome.runtime.sendMessage
+ * Écrans : init → auth | idle | searching | done | error
  */
 
 const $ = id => document.getElementById(id)
-
 let pollTimer = null
 
-// ── Affichage ─────────────────────────────────────────────────────────────────
+const API_BASE = "https://nawa-studio.vercel.app"
 
 function showScreen(name) {
-  ['init', 'auth', 'idle', 'searching', 'done'].forEach(s => {
-    $(`screen-${s}`)?.classList.toggle('hidden', s !== name)
+  ["init", "auth", "idle", "searching", "done", "error"].forEach(s => {
+    $(`screen-${s}`)?.classList.toggle("hidden", s !== name)
   })
 }
 
 function setPill(text, type) {
-  const pill = $('auth-pill')
+  const pill = $("auth-pill")
   if (!pill) return
   pill.textContent = text
   pill.className = `pill pill--${type}`
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
-
-async function init() {
-  showScreen('init')
-
-  const status = await sendMsg('GET_STATUS')
-
-  if (!status?.authenticated) {
-    setPill('Non connecté', 'error')
-    showScreen('auth')
-    return
-  }
-
-  setPill('Connecté', 'ok')
-
-  const state = status.state
-  if (!state || state.phase === 'idle' || state.phase === 'error') {
-    showScreen('idle')
-    return
-  }
-
-  if (state.phase === 'done' || state.phase === 'returning') {
-    renderDone(state)
-    return
-  }
-
-  // Recherche active
-  showScreen('searching')
-  renderSearching(state)
-  startPolling()
-}
-
-// ── Render searching ──────────────────────────────────────────────────────────
-
-function renderSearching(state) {
-  const labels = {
-    searching: 'Recherche Google en cours…',
-    enriching: 'Enrichissement LinkedIn…',
-    returning: 'Retour sur Nawa Studio…',
-  }
-  $('phase-label').textContent = labels[state.phase] || 'Traitement…'
-
-  const count = state.profiles?.length ?? 0
-  $('profile-count').textContent = `${count} profil${count > 1 ? 's' : ''}`
-
-  if (state.queries?.length > 0) {
-    let progressPct
-    if (state.phase === 'enriching') {
-      const ei = state.enrichIndex ?? 0
-      const et = state.enrichQueue?.length ?? 1
-      progressPct = 80 + (ei / et) * 20  // enrichissement = 80→100%
-    } else if (state.phase === 'returning') {
-      progressPct = 100
-    } else {
-      progressPct = (state.queryIndex / state.queries.length) * 80  // recherche = 0→80%
-    }
-    $('progress-bar').style.width = `${Math.min(progressPct, 100)}%`
-    renderQueryList(state.queries, state.queryIndex, state.phase)
-  }
-
-  if (state.phase === 'enriching') {
-    const ei = (state.enrichIndex ?? 0) + 1
-    const et = state.enrichQueue?.length ?? 0
-    $('search-hint').textContent = `Enrichissement profil ${ei}/${et} sur LinkedIn…`
-  }
-}
-
-function renderQueryList(queries, currentIndex, phase) {
-  const list = $('queries-list')
-  list.innerHTML = ''
-  queries.forEach((q, i) => {
-    const el = document.createElement('div')
-    let cls = 'query-item'
-    if (phase === 'enriching' || phase === 'returning' || i < currentIndex) {
-      cls += ' query-item--done'
-    } else if (i === currentIndex) {
-      cls += ' query-item--active'
-    }
-    el.className = cls
-
-    const cleaned = q
-      .replace(/^site:linkedin\.com\/in\s*/i, '')
-      .replace(/"/g, '')
-      .trim()
-    el.textContent = cleaned.slice(0, 55) + (cleaned.length > 55 ? '…' : '')
-    list.appendChild(el)
-  })
-}
-
-// ── Render done ───────────────────────────────────────────────────────────────
-
-function renderDone(state) {
-  showScreen('done')
-  $('done-count').textContent = state.profiles?.length ?? 0
-}
-
-// ── Polling ───────────────────────────────────────────────────────────────────
-
-function startPolling() {
-  if (pollTimer) clearInterval(pollTimer)
-  pollTimer = setInterval(async () => {
-    const status = await sendMsg('GET_STATUS')
-    if (!status) return
-
-    const state = status.state
-    if (!state) {
-      stopPolling()
-      showScreen('idle')
-      return
-    }
-
-    if (state.phase === 'done') {
-      stopPolling()
-      renderDone(state)
-      return
-    }
-
-    renderSearching(state)
-  }, 1500)
-}
-
-function stopPolling() {
-  if (pollTimer) clearInterval(pollTimer)
-  pollTimer = null
-}
-
-// ── Actions ───────────────────────────────────────────────────────────────────
-
-document.addEventListener('DOMContentLoaded', () => {
-  $('btn-start')?.addEventListener('click', async () => {
-    const rawText = $('brief-input')?.value?.trim()
-    if (!rawText || rawText.length < 5) {
-      $('brief-input')?.focus()
-      return
-    }
-
-    const level = $('level-select')?.value || 'leo'
-
-    const { nawa_access_token: token } = await getStorage(['nawa_access_token'])
-    if (!token) {
-      showScreen('auth')
-      return
-    }
-
-    showScreen('searching')
-    $('phase-label').textContent = 'Génération des requêtes…'
-    $('profile-count').textContent = '0 profil'
-    $('progress-bar').style.width = '0%'
-    $('queries-list').innerHTML = ''
-
-    const result = await sendMsg({ type: 'START_SEARCH', raw_text: rawText, token, level })
-
-    if (!result?.ok) {
-      stopPolling()
-      showScreen('idle')
-      alert(result?.error || 'Erreur lors du démarrage de la recherche')
-      return
-    }
-
-    startPolling()
-  })
-
-  $('btn-cancel')?.addEventListener('click', async () => {
-    stopPolling()
-    await sendMsg('CANCEL_SEARCH')
-    showScreen('idle')
-  })
-
-  $('btn-new-search')?.addEventListener('click', async () => {
-    await sendMsg('CANCEL_SEARCH')
-    showScreen('idle')
-    $('brief-input').value = ''
-  })
-
-  init()
-})
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function sendMsg(msgOrType) {
-  const msg = typeof msgOrType === 'string' ? { type: msgOrType } : msgOrType
+  const msg = typeof msgOrType === "string" ? { type: msgOrType } : msgOrType
   return new Promise(resolve => {
     try {
       chrome.runtime.sendMessage(msg, r => {
         if (chrome.runtime.lastError) return resolve(null)
         resolve(r)
       })
-    } catch {
-      resolve(null)
-    }
+    } catch { resolve(null) }
   })
 }
 
-function getStorage(keys) {
-  return new Promise(resolve => chrome.storage.local.get(keys, resolve))
+/* ── Render ──────────────────────────────────────────────────────────── */
+
+function renderSearching(state) {
+  const labels = {
+    searching: "Recherche Google en cours…",
+    enriching: "Enrichissement LinkedIn…",
+    pushing:   "Analyse et création des candidats…",
+  }
+  $("phase-label").textContent = labels[state.phase] || "Traitement…"
+
+  const count = state.profiles?.length ?? 0
+  $("profile-count").textContent = count
+
+  // Mission label (titre du poste si dispo)
+  const titre = state.brief?.titre_poste
+  const ml    = $("mission-label")
+  if (titre) {
+    ml.textContent = `Mission : ${titre}`
+    ml.classList.remove("hidden")
+  } else {
+    ml.classList.add("hidden")
+  }
+
+  if (state.queries?.length > 0) {
+    let pct
+    if (state.phase === "enriching") {
+      const ei = state.enrichIndex ?? 0
+      const et = state.enrichQueue?.length ?? 1
+      pct = 70 + (ei / et) * 25
+    } else if (state.phase === "pushing") {
+      pct = 97
+    } else {
+      pct = (state.queryIndex / state.queries.length) * 70
+    }
+    $("progress-bar").style.width = `${Math.min(pct, 100)}%`
+    renderQueryList(state.queries, state.queryIndex, state.phase)
+  }
+
+  if (state.phase === "enriching") {
+    const ei = (state.enrichIndex ?? 0) + 1
+    const et = state.enrichQueue?.length ?? 0
+    $("search-hint").textContent = `Enrichissement profil ${ei}/${et} sur LinkedIn…`
+  } else if (state.phase === "pushing") {
+    $("search-hint").textContent = "Scoring IA et insertion dans la mission…"
+  } else {
+    $("search-hint").textContent = "Le worker tourne en arrière-plan — vous pouvez continuer à utiliser Nawa Studio."
+  }
 }
+
+function renderQueryList(queries, currentIndex, phase) {
+  const list = $("queries-list")
+  list.innerHTML = ""
+  queries.forEach((q, i) => {
+    const el = document.createElement("div")
+    let cls = "query-item"
+    if (phase === "enriching" || phase === "pushing" || i < currentIndex) {
+      cls += " query-item--done"
+    } else if (i === currentIndex) {
+      cls += " query-item--active"
+    }
+    el.className = cls
+    const cleaned = q
+      .replace(/^site:linkedin\.com\/in\s*/i, "")
+      .replace(/"/g, "")
+      .trim()
+    el.textContent = cleaned.slice(0, 55) + (cleaned.length > 55 ? "…" : "")
+    list.appendChild(el)
+  })
+}
+
+function renderDone(state) {
+  showScreen("done")
+  $("done-count").textContent = state.profiles?.length ?? 0
+  const link = $("btn-open-mission")
+  if (state.missionId) {
+    link.href = `${API_BASE}/workspace/missions/${state.missionId}`
+  } else {
+    link.href = `${API_BASE}/workspace`
+  }
+}
+
+function renderError(state) {
+  showScreen("error")
+  $("error-text").textContent = state.error || "La recherche a échoué."
+}
+
+/* ── Polling ─────────────────────────────────────────────────────────── */
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(refresh, 1200)
+}
+function stopPolling() {
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = null
+}
+
+async function refresh() {
+  const status = await sendMsg("GET_STATUS")
+  if (!status) return
+
+  if (!status.authenticated) {
+    setPill("Non connecté", "error")
+    showScreen("auth")
+    stopPolling()
+    return
+  }
+
+  setPill("Connecté", "ok")
+  const state = status.state
+
+  if (!state || state.phase === "cancelled") {
+    showScreen("idle")
+    stopPolling()
+    return
+  }
+
+  if (state.phase === "done") {
+    renderDone(state)
+    stopPolling()
+    return
+  }
+
+  if (state.phase === "error") {
+    renderError(state)
+    stopPolling()
+    return
+  }
+
+  // searching | enriching | pushing
+  showScreen("searching")
+  renderSearching(state)
+}
+
+/* ── Init ────────────────────────────────────────────────────────────── */
+
+document.addEventListener("DOMContentLoaded", () => {
+  $("btn-cancel")?.addEventListener("click", async () => {
+    stopPolling()
+    await sendMsg("CANCEL_SEARCH")
+    showScreen("idle")
+  })
+
+  $("btn-dismiss")?.addEventListener("click", async () => {
+    await sendMsg("CANCEL_SEARCH") // clears state
+    showScreen("idle")
+  })
+
+  $("btn-retry")?.addEventListener("click", async () => {
+    await sendMsg("CANCEL_SEARCH")
+    showScreen("idle")
+  })
+
+  refresh()
+  startPolling()
+})

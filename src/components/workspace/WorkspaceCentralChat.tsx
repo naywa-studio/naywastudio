@@ -407,14 +407,87 @@ export default function WorkspaceCentralChat({
     return () => document.removeEventListener("mousedown", handler)
   }, [showResetConfirm])
 
+  /* ── Extension dispatch ───────────────────────────────────── */
+  /**
+   * Tries to launch the search via the Chrome extension worker.
+   * Returns true on ACK (extension installed + accepted), false on timeout
+   * (extension not installed, blocked, or refused).
+   */
+  const launchViaExtension = useCallback(async (mId: string): Promise<boolean> => {
+    // 1. Server prepares mission + queries
+    let payload: {
+      missionId: string
+      brief: { titre_poste: string; localisation: string; criteres: string; mots_cles: string[] }
+      queries: string[]
+      level: "leo" | "nora"
+    } | null = null
+
+    try {
+      const res = await fetch(`/api/missions/${mId}/launch-extension`, { method: "POST" })
+      const data = await res.json() as {
+        ok?: boolean
+        missionId?: string
+        brief?: { titre_poste: string; localisation: string; criteres: string; mots_cles: string[] }
+        queries?: string[]
+        level?: "leo" | "nora"
+        error?: string
+      }
+      if (!res.ok || !data.ok || !data.queries?.length || !data.brief || !data.missionId) {
+        console.warn("[chat] launch-extension server error:", data.error)
+        return false
+      }
+      payload = {
+        missionId: data.missionId,
+        brief:     data.brief,
+        queries:   data.queries,
+        level:     data.level || "leo",
+      }
+    } catch (e) {
+      console.warn("[chat] launch-extension network error:", e)
+      return false
+    }
+
+    // 2. Bridge via window.postMessage → content_nawa.js → background
+    return new Promise<boolean>((resolve) => {
+      let settled = false
+      const handler = (event: MessageEvent) => {
+        if (event.source !== window) return
+        const d = event.data as { source?: string; type?: string; ok?: boolean }
+        if (d?.source !== "nawa-extension") return
+        if (d.type === "RUN_SEARCH_ACK") {
+          settled = true
+          window.removeEventListener("message", handler)
+          resolve(!!d.ok)
+        }
+      }
+      window.addEventListener("message", handler)
+
+      window.postMessage(
+        { source: "nawa-page", type: "RUN_SEARCH", payload },
+        window.location.origin
+      )
+
+      // Extension not installed → no ack within 2s
+      setTimeout(() => {
+        if (!settled) {
+          window.removeEventListener("message", handler)
+          resolve(false)
+        }
+      }, 2000)
+    })
+  }, [])
+
   /* ── Direct launch (from ActionCard CTA) ──────────────────── */
   const handleLaunch = useCallback(async (mId: string) => {
     setLaunchingMissionId(mId)
-    try {
-      await fetch(`/api/missions/${mId}/run`, { method: "POST" })
-    } catch { /* mission page will handle the state */ }
+    const ok = await launchViaExtension(mId)
+    if (!ok) {
+      // Fallback : VPS agent (or shows error if no agent)
+      try { await fetch(`/api/missions/${mId}/run`, { method: "POST" }) }
+      catch { /* mission page will surface the state */ }
+    }
     router.push(`/workspace/missions/${mId}`)
-  }, [router])
+  }, [router, launchViaExtension])
 
   const sendMessage = useCallback(async (text?: string) => {
     const content = (text ?? input).trim()
@@ -480,10 +553,13 @@ export default function WorkspaceCentralChat({
           assistantMsg.actionCard = { type: "search_launched", title: mTitle, color: "#22c55e" }
           setMessages((prev) => [...prev, assistantMsg])
           setLoading(false)
-          // Navigate AFTER API call — no setTimeout race condition
-          try {
-            await fetch(`/api/missions/${mId}/run`, { method: "POST" })
-          } catch { /* mission page will restore state */ }
+
+          // Try extension worker first (preferred) ; fall back to VPS agent.
+          const ok = await launchViaExtension(mId)
+          if (!ok) {
+            try { await fetch(`/api/missions/${mId}/run`, { method: "POST" }) }
+            catch { /* mission page will restore the state */ }
+          }
           router.push(`/workspace/missions/${mId}`)
           return
         }
@@ -511,7 +587,7 @@ export default function WorkspaceCentralChat({
     } finally {
       setLoading(false)
     }
-  }, [input, loading, attachedMission, onAttachedMissionChange, onMissionCreated, router, agentName])
+  }, [input, loading, attachedMission, onAttachedMissionChange, onMissionCreated, router, agentName, launchViaExtension])
 
   // Drag & drop handlers
   const handleDragOver  = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }
