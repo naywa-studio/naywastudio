@@ -1,17 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Nawa Studio",
-  "version": "2.0.0",
-  "description": "Sourcez LinkedIn directement depuis votre navigateur — barre latérale intelligente",
+  "version": "3.0.0",
+  "description": "Sourcez des profils LinkedIn via recherche Google — pilotez tout depuis le popup",
 
   "permissions": [
     "tabs",
     "storage",
     "scripting",
-    "sidePanel"
+    "activeTab"
   ],
 
   "host_permissions": [
+    "https://www.google.com/*",
+    "https://google.com/*",
     "https://www.linkedin.com/*",
     "https://linkedin.com/*",
     "https://nawa-studio.vercel.app/*",
@@ -23,23 +25,20 @@
     "type": "module"
   },
 
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
-
   "action": {
+    "default_popup": "popup.html",
     "default_icon": {
       "16":  "icons/16.png",
       "48":  "icons/48.png",
       "128": "icons/128.png"
     },
-    "default_title": "Nawa Studio — Ouvrir"
+    "default_title": "Nawa Studio — Recherche LinkedIn"
   },
 
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/search/results/people/*"],
-      "js": ["content_linkedin_search.js"],
+      "matches": ["https://www.google.com/search*"],
+      "js": ["content_google.js"],
       "run_at": "document_idle"
     },
     {

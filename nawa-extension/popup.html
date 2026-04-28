@@ -9,81 +9,94 @@
 <body>
   <div class="container">
 
-    <!-- Header -->
-    <div class="header">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-              stroke="#7C63C8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="brand">Nawa Studio</span>
+    <!-- Header ─────────────────────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="header__brand">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                stroke="#7C63C8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Nawa Studio</span>
+      </div>
+      <span id="auth-pill" class="pill pill--loading">…</span>
+    </header>
+
+    <!-- Init ──────────────────────────────────────────────────────────────── -->
+    <div id="screen-init" class="screen">
+      <div class="loader-ring"></div>
     </div>
 
-    <!-- État connexion -->
-    <div id="state-connected" class="state hidden">
-      <div class="status-row">
-        <span class="dot dot--green"></span>
-        <span class="status-text">Connecté</span>
-        <span id="enriched-count" class="badge"></span>
+    <!-- Non connecté ───────────────────────────────────────────────────────── -->
+    <div id="screen-auth" class="screen hidden">
+      <div class="empty">
+        <div class="empty__icon">🔒</div>
+        <p class="empty__text">Connectez-vous sur Nawa Studio pour utiliser l'extension.</p>
+        <a href="https://nawa-studio.vercel.app/workspace" target="_blank" class="btn btn--primary btn--block">
+          Ouvrir Nawa Studio →
+        </a>
       </div>
-
-      <!-- Recherche active (affiché seulement si isProcessing) -->
-      <div id="search-active" class="search-box hidden">
-        <div class="search-row">
-          <div class="loader loader--small"></div>
-          <span class="search-label">Recherche Google en cours…</span>
-        </div>
-        <p class="hint" style="margin-top:4px;">Ne fermez pas Chrome pendant la recherche.</p>
-      </div>
-
-      <!-- Stats -->
-      <div id="stats-box" class="stats-box">
-        <div class="stat-item">
-          <span class="stat-val" id="searched-count">0</span>
-          <span class="stat-lab">URLs trouvées</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-val" id="enriched-val">0</span>
-          <span class="stat-lab">Profils enrichis</span>
-        </div>
-      </div>
-
-      <button id="btn-enrich" class="btn btn--primary">
-        Lancer maintenant
-      </button>
-      <button id="btn-disconnect" class="btn btn--ghost">
-        Déconnecter
-      </button>
     </div>
 
-    <div id="state-disconnected" class="state hidden">
-      <div class="status-row">
-        <span class="dot dot--red"></span>
-        <span class="status-text">Non connecté</span>
+    <!-- Idle (saisie brief) ────────────────────────────────────────────────── -->
+    <div id="screen-idle" class="screen hidden">
+      <label for="brief-input" class="field-label">Quel profil recherchez-vous ?</label>
+      <textarea
+        id="brief-input"
+        class="textarea"
+        rows="4"
+        placeholder="Ex : Business Analyst senior spécialisé monétique, Paris, 5 ans d'expérience minimum…"
+      ></textarea>
+
+      <div class="row">
+        <select id="level-select" class="select">
+          <option value="leo">⚡ Léo — Rapide</option>
+          <option value="nora">🔬 Nora — Enrichi</option>
+        </select>
+        <button id="btn-start" class="btn btn--primary">Rechercher →</button>
       </div>
+
       <p class="hint">
-        Ouvrez <strong>nawa-studio.vercel.app</strong> dans votre navigateur — l'extension se connecte automatiquement.
+        Nawa va naviguer sur Google et collecter automatiquement des profils LinkedIn pour vous.
       </p>
-      <a href="https://nawa-studio.vercel.app/workspace"
-         target="_blank" class="btn btn--primary" id="btn-open-nawa">
-        Ouvrir Nawa Studio →
-      </a>
     </div>
 
-    <!-- Loading -->
-    <div id="state-loading" class="state">
-      <div class="loader"></div>
-    </div>
-
-    <!-- Enrichissement en cours -->
-    <div id="state-enriching" class="state hidden">
-      <div class="status-row">
-        <div class="loader loader--small"></div>
-        <span class="status-text">Traitement en cours…</span>
+    <!-- Recherche en cours ─────────────────────────────────────────────────── -->
+    <div id="screen-searching" class="screen hidden">
+      <div class="progress-head">
+        <div class="progress-head__left">
+          <div class="loader-dot"></div>
+          <span id="phase-label">Génération des requêtes…</span>
+        </div>
+        <span id="profile-count" class="count-badge">0</span>
       </div>
-      <p class="hint" id="enriching-detail">Ouverture des onglets LinkedIn</p>
+
+      <div class="progress-track">
+        <div id="progress-bar" class="progress-bar"></div>
+      </div>
+
+      <div id="queries-list" class="queries-list"></div>
+
+      <p id="search-hint" class="hint hint--small">
+        Laissez l'onglet Nawa actif. La recherche dure ~1 minute.
+      </p>
+
+      <button id="btn-cancel" class="btn btn--ghost btn--block">Annuler</button>
+    </div>
+
+    <!-- Terminé ────────────────────────────────────────────────────────────── -->
+    <div id="screen-done" class="screen hidden">
+      <div class="done">
+        <div class="done__icon">✅</div>
+        <p class="done__count">
+          <strong id="done-count">0</strong> profils trouvés
+        </p>
+        <p class="done__sub">Mission créée — ouverture en cours…</p>
+      </div>
+      <button id="btn-new-search" class="btn btn--ghost btn--block">Nouvelle recherche</button>
     </div>
 
   </div>
+
   <script src="popup.js"></script>
 </body>
 </html>
