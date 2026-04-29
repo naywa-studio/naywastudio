@@ -42,13 +42,15 @@ export async function POST(
   const user = await getUserFromBearer(req)
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let body: { profiles: RawProfile[]; final?: boolean }
+  let body: { profiles: RawProfile[]; final?: boolean; partial?: boolean; blockReason?: string | null }
   try { body = await req.json() } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
   const profiles = Array.isArray(body.profiles) ? body.profiles : []
   const final = body.final !== false // default true — extension always pushes once
+  const partial = !!body.partial
+  const blockReason = body.blockReason || null
 
   // Verify mission ownership
   const { data: mission, error: mErr } = await sbAdmin
@@ -160,12 +162,22 @@ export async function POST(
       ...brief,
       __excel_b64: excelB64,
       __source:    "extension_chat",
+      ...(partial && blockReason ? { __block_reason: blockReason } : {}),
     }
+
+    // Logique de statut :
+    // - profils trouvés → "completed" (même si partial)
+    // - 0 profil + blocage Google → "preparation" (l'utilisateur peut relancer)
+    // - 0 profil sans raison → "error"
+    let nextStatus: "completed" | "error" | "preparation"
+    if (newCount > 0) nextStatus = "completed"
+    else if (blockReason) nextStatus = "preparation"
+    else nextStatus = "error"
 
     await sbAdmin
       .from("missions")
       .update({
-        status:         newCount > 0 ? "completed" : "error",
+        status:         nextStatus,
         profiles_count: newCount,
         brief:          updatedBrief,
       })

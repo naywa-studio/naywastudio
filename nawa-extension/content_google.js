@@ -13,11 +13,36 @@
 
   console.log("[Nawa Google] Activé pour:", query.slice(0, 80))
 
+  // ── Détection blocage Google (CAPTCHA / unusual traffic) ─────────────
+  if (detectGoogleBlock()) {
+    console.warn("[Nawa Google] Blocage détecté (CAPTCHA / sorry)")
+    safeSendMessage({ type: "GOOGLE_BLOCKED", reason: "Google a affiché un CAPTCHA" })
+    return
+  }
+
+  function detectGoogleBlock() {
+    if (window.location.pathname.startsWith("/sorry")) return true
+    if (document.querySelector('form[action*="/sorry"]')) return true
+    if (document.querySelector('iframe[src*="recaptcha"]')) return true
+    const bodyText = (document.body?.innerText || "").toLowerCase()
+    if (bodyText.includes("unusual traffic") ||
+        bodyText.includes("trafic inhabituel") ||
+        bodyText.includes("notre système a détecté")) return true
+    return false
+  }
+
   let attempts    = 0
   const MAX_ATTEMPTS = 20   // ~13 secondes max de retry
   const RETRY_MS     = 650
 
   function tryExtract() {
+    // Re-check à chaque tentative : le CAPTCHA peut apparaître après chargement
+    if (detectGoogleBlock()) {
+      console.warn("[Nawa Google] Blocage détecté après chargement")
+      safeSendMessage({ type: "GOOGLE_BLOCKED", reason: "Google a affiché un CAPTCHA" })
+      return
+    }
+
     const results = extractLinkedInResults()
 
     if (results.length > 0) {

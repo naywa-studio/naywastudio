@@ -1,5 +1,5 @@
 /**
- * background.js — Service Worker v4.0.0
+ * background.js — Service Worker v4.1.0
  *
  * Mission-driven flow :
  *  1. Workspace chat appelle /api/missions/[id]/launch-extension
@@ -10,9 +10,16 @@
  *     sur sa page mission) qui parcourt Google puis (Nora) LinkedIn
  *  5. Profils poussés vers /api/missions/[id]/profiles → Realtime sur la page
  *
+ * Anti-blocking Google :
+ *  - Délai aléatoire 3–6s entre chaque navigation Google
+ *  - Pas de paramètre &num= (signal d'automatisation)
+ *  - Détection /sorry/ + formulaire reCAPTCHA → arrêt propre + erreur claire
+ *  - Tous les messages des content scripts sont filtrés par sender.tab.id :
+ *    seul l'onglet worker peut influer sur la mission en cours.
+ *
  * State (chrome.storage.local) : nawa_search_state
  *   { phase, missionId, token, brief, queries, queryIndex, profiles,
- *     workerTabId, level, enrichQueue?, enrichIndex?, enrichedData? }
+ *     workerTabId, level, enrichQueue?, enrichIndex?, enrichedData?, error? }
  */
 
 const API_BASE   = "https://nawa-studio.vercel.app"
@@ -20,10 +27,16 @@ const STATE_KEY  = "nawa_search_state"
 const MAX_PROFILES = 80
 const ENRICH_MAX   = 8
 
+// Anti-blocking : délais aléatoires entre les requêtes Google
+const GOOGLE_DELAY_MIN_MS = 3000
+const GOOGLE_DELAY_MAX_MS = 6000
+const LINKEDIN_DELAY_MIN_MS = 2500
+const LINKEDIN_DELAY_MAX_MS = 5000
+
 /* ── Message handlers ──────────────────────────────────────────────────── */
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  // Auth from content_nawa.js (cookie → access_token)
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  // Auth from content_nawa.js (cookie → access_token) — accepté de n'importe quel onglet Nawa
   if (msg.type === "SET_AUTH") {
     chrome.storage.local.set({
       nawa_access_token: msg.accessToken,
@@ -34,7 +47,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return
   }
 
-  // Status query (popup)
+  // Status query (popup) — pas un onglet web
   if (msg.type === "GET_STATUS") {
     chrome.storage.local.get([STATE_KEY, "nawa_access_token", "nawa_user_id"], data => {
       sendResponse({
@@ -46,7 +59,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true
   }
 
-  // Mission launch from workspace chat (via content_nawa.js bridge)
+  // Mission launch from workspace chat (via content_nawa.js bridge) — uniquement depuis Nawa
   if (msg.type === "RUN_SEARCH_FROM_PAGE") {
     handleRunFromPage(msg.payload)
       .then(r => sendResponse(r))
@@ -54,32 +67,55 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true
   }
 
-  // Google scrape results
+  // Cancel — accepté du popup
+  if (msg.type === "CANCEL_SEARCH") {
+    cancelSearch().then(() => sendResponse({ ok: true }))
+    return true
+  }
+
+  // ─── Messages venant de content_google.js / content_linkedin.js ──────
+  // CRITIQUE : on ne traite QUE les messages venant de l'onglet worker.
+  // Si l'utilisateur fait sa propre recherche Google, on ignore.
+  const senderTabId = sender?.tab?.id
+
   if (msg.type === "GOOGLE_RESULTS") {
-    onGoogleResults(msg.results ?? [])
+    isWorkerTab(senderTabId).then(isWorker => {
+      if (isWorker) onGoogleResults(msg.results ?? [])
+    })
     sendResponse({ ok: true })
     return
   }
 
   if (msg.type === "GOOGLE_DONE") {
-    onGoogleDone()
+    isWorkerTab(senderTabId).then(isWorker => {
+      if (isWorker) onGoogleDone()
+    })
     sendResponse({ ok: true })
     return
   }
 
-  // LinkedIn enrichment (Nora)
+  if (msg.type === "GOOGLE_BLOCKED") {
+    isWorkerTab(senderTabId).then(isWorker => {
+      if (isWorker) onGoogleBlocked(msg.reason || "Google a détecté l'automatisation")
+    })
+    sendResponse({ ok: true })
+    return
+  }
+
   if (msg.type === "PROFILE_EXTRACTED") {
-    onProfileExtracted(msg.profile)
+    isWorkerTab(senderTabId).then(isWorker => {
+      if (isWorker) onProfileExtracted(msg.profile)
+    })
     sendResponse({ ok: true })
     return
-  }
-
-  // Cancel
-  if (msg.type === "CANCEL_SEARCH") {
-    cancelSearch().then(() => sendResponse({ ok: true }))
-    return true
   }
 })
+
+async function isWorkerTab(tabId) {
+  if (!tabId) return false
+  const { [STATE_KEY]: state } = await chrome.storage.local.get([STATE_KEY])
+  return !!state && state.workerTabId === tabId
+}
 
 /* ── Tab lifecycle ─────────────────────────────────────────────────────── */
 
@@ -89,24 +125,35 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const { [STATE_KEY]: state } = await chrome.storage.local.get([STATE_KEY])
   if (!state || state.workerTabId !== tabId) return
 
-  // LinkedIn enrichment safety timeout: if content_linkedin.js doesn't fire
-  // PROFILE_EXTRACTED within 9s, advance anyway.
+  // Détection blocage Google côté URL (redirection vers /sorry/…)
+  if (tab.url && /https:\/\/(www\.)?google\.com\/sorry/i.test(tab.url)) {
+    onGoogleBlocked("Google a affiché un CAPTCHA (blocage anti-bot)")
+    return
+  }
+
+  // LinkedIn enrichment safety timeout : si content_linkedin.js ne fire pas
+  // PROFILE_EXTRACTED dans les 9s, on avance.
   if (state.phase === "enriching" && tab.url?.includes("linkedin.com/in/")) {
+    const snapshotIndex = state.enrichIndex
     setTimeout(async () => {
       const { [STATE_KEY]: cur } = await chrome.storage.local.get([STATE_KEY])
       if (!cur || cur.phase !== "enriching" || cur.workerTabId !== tabId) return
-      if (cur.enrichIndex === state.enrichIndex) {
+      if (cur.enrichIndex === snapshotIndex) {
         await advanceEnrichment(tabId, cur)
       }
     }, 9000)
   }
 })
 
-// If the user closes the worker tab manually, abort cleanly.
+// Si l'utilisateur ferme l'onglet worker manuellement, abort proprement.
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   const { [STATE_KEY]: state } = await chrome.storage.local.get([STATE_KEY])
   if (!state || state.workerTabId !== tabId) return
-  await chrome.storage.local.set({ [STATE_KEY]: { ...state, phase: "cancelled" } })
+  // Si on était sur le point de finir (pushing/done) on ne touche pas
+  if (state.phase === "done" || state.phase === "pushing") return
+  await chrome.storage.local.set({
+    [STATE_KEY]: { ...state, phase: "cancelled", workerTabId: null },
+  })
 })
 
 /* ── Auth helpers ──────────────────────────────────────────────────────── */
@@ -144,7 +191,6 @@ async function handleRunFromPage(payload) {
 
   const { missionId, brief, queries, level } = payload
 
-  // Make sure we have a fresh token (the page just authenticated us)
   let { nawa_access_token: token } = await chrome.storage.local.get(["nawa_access_token"])
   if (!token) token = await refreshTokenViaNawaTab()
   if (!token) {
@@ -157,8 +203,8 @@ async function handleRunFromPage(payload) {
     try { await chrome.tabs.remove(existing.workerTabId) } catch { /* tab gone */ }
   }
 
-  // Open a dedicated worker tab in background — user keeps their mission tab open
-  const firstUrl = `https://www.google.com/search?q=${encodeURIComponent(queries[0])}&num=10&hl=fr`
+  // Onglet worker dédié, en arrière-plan, isolé des onglets utilisateur
+  const firstUrl = buildGoogleUrl(queries[0])
   const workerTab = await chrome.tabs.create({ url: firstUrl, active: false })
 
   const state = {
@@ -210,6 +256,42 @@ function onGoogleDone() {
   })
 }
 
+async function onGoogleBlocked(reason) {
+  clearTimeout(_pendingTimer)
+  _pendingProfiles = null
+  const { [STATE_KEY]: state } = await chrome.storage.local.get([STATE_KEY])
+  if (!state) return
+  if (state.phase !== "searching" && state.phase !== "enriching") return
+
+  // Si on a déjà trouvé des profils, on essaie quand même de finaliser
+  if ((state.profiles || []).length > 0) {
+    console.warn("[Nawa BG] Google bloqué mais profils déjà collectés → finalisation")
+    if (state.level === "nora" && state.phase === "searching") {
+      // On saute l'enrichissement (LinkedIn risque aussi de bloquer)
+      await finishSearch({ ...state, _partial: true, _blockReason: reason })
+    } else {
+      await finishSearch({ ...state, _partial: true, _blockReason: reason })
+    }
+    return
+  }
+
+  // Aucun profil → erreur claire
+  await chrome.storage.local.set({
+    [STATE_KEY]: {
+      ...state,
+      phase: "error",
+      error: `${reason}. Réessayez dans quelques minutes ou changez de réseau.`,
+      finishedAt: Date.now(),
+    },
+  })
+  if (state.workerTabId) {
+    try { await chrome.tabs.remove(state.workerTabId) } catch { /* gone */ }
+  }
+  // On ne marque pas la mission en "error" côté serveur : on n'a juste rien envoyé.
+  // Le serveur la repassera elle-même en "draft" via /api/missions/[id]/profiles si besoin
+  // ou l'utilisateur peut relancer.
+}
+
 async function advanceSearch(tabId, currentState, newProfiles) {
   const seen   = new Set(currentState.profiles.map(p => p.linkedin_url))
   const unique = (newProfiles || []).filter(p => p.linkedin_url && !seen.has(p.linkedin_url))
@@ -230,7 +312,15 @@ async function advanceSearch(tabId, currentState, newProfiles) {
   }
 
   await chrome.storage.local.set({ [STATE_KEY]: updated })
-  await navigateToQuery(tabId, currentState.queries[nextIndex])
+
+  // Délai aléatoire pour échapper à la détection
+  const delay = randomBetween(GOOGLE_DELAY_MIN_MS, GOOGLE_DELAY_MAX_MS)
+  setTimeout(async () => {
+    // Re-check : la mission peut avoir été annulée pendant le délai
+    const { [STATE_KEY]: now } = await chrome.storage.local.get([STATE_KEY])
+    if (!now || now.phase !== "searching" || now.workerTabId !== tabId) return
+    await navigateToQuery(tabId, currentState.queries[nextIndex])
+  }, delay)
 }
 
 /* ── Nora enrichment ──────────────────────────────────────────────────── */
@@ -262,7 +352,6 @@ async function advanceEnrichment(tabId, state) {
   const nextIndex = state.enrichIndex + 1
 
   if (nextIndex >= state.enrichQueue.length) {
-    // Merge enrichment back into base profiles
     const enrichedByUrl = {}
     for (const p of state.enrichedData || []) enrichedByUrl[p.linkedin_url] = p
     const mergedProfiles = state.profiles.map(p => {
@@ -283,7 +372,14 @@ async function advanceEnrichment(tabId, state) {
 
   const updated = { ...state, enrichIndex: nextIndex }
   await chrome.storage.local.set({ [STATE_KEY]: updated })
-  await chrome.tabs.update(tabId, { url: state.enrichQueue[nextIndex] })
+
+  // Délai aléatoire pour LinkedIn aussi (rate-limit)
+  const delay = randomBetween(LINKEDIN_DELAY_MIN_MS, LINKEDIN_DELAY_MAX_MS)
+  setTimeout(async () => {
+    const { [STATE_KEY]: now } = await chrome.storage.local.get([STATE_KEY])
+    if (!now || now.phase !== "enriching" || now.workerTabId !== tabId) return
+    chrome.tabs.update(tabId, { url: state.enrichQueue[nextIndex] }).catch(() => {})
+  }, delay)
 }
 
 /* ── Finish: push to API + close worker tab ──────────────────────────── */
@@ -296,7 +392,6 @@ async function finishSearch(state) {
 
   await chrome.storage.local.set({ [STATE_KEY]: { ...state, phase: "pushing" } })
 
-  // Build payload : take what content scripts gave us, normalize
   const payload = (state.profiles || []).map(p => {
     const parsed = parseDisplayTitle(p.display_title || "")
     return {
@@ -310,44 +405,48 @@ async function finishSearch(state) {
   })
 
   let success = false
+  let serverMessage = ""
   try {
-    const res = await fetch(`${API_BASE}/api/missions/${state.missionId}/profiles`, {
+    const body = JSON.stringify({
+      profiles: payload,
+      final: true,
+      partial: !!state._partial,
+      blockReason: state._blockReason || null,
+    })
+    let res = await fetch(`${API_BASE}/api/missions/${state.missionId}/profiles`, {
       method: "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "Authorization": `Bearer ${state.token}`,
-      },
-      body: JSON.stringify({ profiles: payload, final: true }),
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${state.token}` },
+      body,
     })
 
     if (res.status === 401) {
-      // Token expired during the search — refresh and retry once
       const fresh = await refreshTokenViaNawaTab()
       if (fresh) {
-        const retry = await fetch(`${API_BASE}/api/missions/${state.missionId}/profiles`, {
+        res = await fetch(`${API_BASE}/api/missions/${state.missionId}/profiles`, {
           method: "POST",
-          headers: {
-            "Content-Type":  "application/json",
-            "Authorization": `Bearer ${fresh}`,
-          },
-          body: JSON.stringify({ profiles: payload, final: true }),
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${fresh}` },
+          body,
         })
-        success = retry.ok
       }
-    } else {
-      success = res.ok
     }
 
+    success = res.ok
     if (!success) {
-      const t = await res.text().catch(() => "")
-      console.error("[Nawa BG] Push profiles failed:", res.status, t.slice(0, 200))
+      serverMessage = (await res.text().catch(() => "")).slice(0, 200)
+      console.error("[Nawa BG] Push profiles failed:", res.status, serverMessage)
     }
   } catch (e) {
     console.error("[Nawa BG] Push profiles network error:", e)
+    serverMessage = String(e?.message || e)
   }
 
   await chrome.storage.local.set({
-    [STATE_KEY]: { ...state, phase: success ? "done" : "error", finishedAt: Date.now() },
+    [STATE_KEY]: {
+      ...state,
+      phase: success ? "done" : "error",
+      error: success ? null : (serverMessage || "Échec de l'envoi des profils"),
+      finishedAt: Date.now(),
+    },
   })
   await cleanupWorkerTab(state)
 }
@@ -368,9 +467,13 @@ async function cancelSearch() {
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
+function buildGoogleUrl(query) {
+  // Pas de &num= — c'est un signal d'automatisation
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}&hl=fr`
+}
+
 function navigateToQuery(tabId, query) {
-  const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=10&hl=fr`
-  return chrome.tabs.update(tabId, { url })
+  return chrome.tabs.update(tabId, { url: buildGoogleUrl(query) })
 }
 
 function parseDisplayTitle(displayTitle) {
@@ -384,6 +487,10 @@ function parseDisplayTitle(displayTitle) {
     return { name: text.slice(0, dashIdx).trim(), title: text.slice(dashIdx + 3).trim() }
   }
   return { name: text, title: "" }
+}
+
+function randomBetween(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }

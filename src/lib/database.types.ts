@@ -309,6 +309,7 @@ export type MissionBrief = {
   __source?:     string   // e.g. "extension_linkedin"
   __excel_b64?:  string   // pre-generated Excel stored for extension-sourced missions
   __profiles?:   unknown  // pre-extracted profiles (extension fast path)
+  __block_reason?: string // set when extension hit a Google CAPTCHA mid-search
 }
 
 export type Profile = Database['public']['Tables']['profiles']['Row']
