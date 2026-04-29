@@ -10,7 +10,10 @@
 const $ = id => document.getElementById(id)
 let pollTimer = null
 
-const API_BASE = "https://nawa-studio.vercel.app"
+let API_BASE = "https://nawa-studio.vercel.app"
+chrome.storage.local.get(["nawa_api_base"], ({ nawa_api_base }) => {
+  if (nawa_api_base) API_BASE = nawa_api_base
+})
 
 function showScreen(name) {
   ["init", "auth", "idle", "searching", "done", "error"].forEach(s => {

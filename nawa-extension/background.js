@@ -22,8 +22,14 @@
  *     workerTabId, level, enrichQueue?, enrichIndex?, enrichedData?, error? }
  */
 
-const API_BASE   = "https://nawa-studio.vercel.app"
+const DEFAULT_API_BASE = "https://nawa-studio.vercel.app"
 const STATE_KEY  = "nawa_search_state"
+
+async function resolveApiBase(override) {
+  if (override) return override
+  const { nawa_api_base } = await chrome.storage.local.get(["nawa_api_base"])
+  return nawa_api_base || DEFAULT_API_BASE
+}
 const MAX_PROFILES = 80
 const ENRICH_MAX   = 8
 
@@ -38,11 +44,13 @@ const LINKEDIN_DELAY_MAX_MS = 5000
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Auth from content_nawa.js (cookie → access_token) — accepté de n'importe quel onglet Nawa
   if (msg.type === "SET_AUTH") {
-    chrome.storage.local.set({
+    const patch = {
       nawa_access_token: msg.accessToken,
       nawa_user_id:      msg.userId,
       nawa_auth_at:      Date.now(),
-    })
+    }
+    if (msg.apiBase) patch.nawa_api_base = msg.apiBase
+    chrome.storage.local.set(patch)
     sendResponse({ ok: true })
     return
   }
@@ -61,6 +69,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // Mission launch from workspace chat (via content_nawa.js bridge) — uniquement depuis Nawa
   if (msg.type === "RUN_SEARCH_FROM_PAGE") {
+    if (msg.apiBase) chrome.storage.local.set({ nawa_api_base: msg.apiBase })
     handleRunFromPage(msg.payload)
       .then(r => sendResponse(r))
       .catch(e => sendResponse({ ok: false, error: e.message }))
@@ -160,7 +169,8 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 
 async function refreshTokenViaNawaTab() {
   try {
-    const tabs = await chrome.tabs.query({ url: `${API_BASE}/*` })
+    const apiBase = await resolveApiBase()
+    const tabs = await chrome.tabs.query({ url: `${apiBase}/*` })
     if (tabs.length === 0) return null
     await chrome.scripting.executeScript({
       target: { tabId: tabs[0].id },
@@ -413,7 +423,8 @@ async function finishSearch(state) {
       partial: !!state._partial,
       blockReason: state._blockReason || null,
     })
-    let res = await fetch(`${API_BASE}/api/missions/${state.missionId}/profiles`, {
+    const apiBase = await resolveApiBase()
+    let res = await fetch(`${apiBase}/api/missions/${state.missionId}/profiles`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${state.token}` },
       body,
@@ -422,7 +433,7 @@ async function finishSearch(state) {
     if (res.status === 401) {
       const fresh = await refreshTokenViaNawaTab()
       if (fresh) {
-        res = await fetch(`${API_BASE}/api/missions/${state.missionId}/profiles`, {
+        res = await fetch(`${apiBase}/api/missions/${state.missionId}/profiles`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${fresh}` },
           body,

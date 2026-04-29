@@ -546,7 +546,7 @@ export default function WorkspaceCentralChat({
       // ── run_mission ────────────────────────────────────────
       if (data.action?.type === "run_mission") {
         const rawMId      = data.action.missionId as string | undefined
-        const isPlaceholder = !rawMId || !rawMId.includes("-") || rawMId.includes("CONTEXTE") || rawMId.includes("COLLER") || rawMId === "..."
+        const isPlaceholder = !rawMId || !rawMId.includes("-") || rawMId.includes("CONTEXTE") || rawMId.includes("COLLER") || rawMId.includes("EXACT") || rawMId.includes("UUID") || rawMId === "..."
         const mId = isPlaceholder ? attachedMission?.id : rawMId
         if (mId) {
           const mTitle = attachedMission?.title ?? agentName

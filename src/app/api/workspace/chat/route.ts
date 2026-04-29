@@ -57,9 +57,10 @@ Puis en texte (2-3 phrases max) : confirme le poste/lieu/competences retenus, te
 Pas de balise. Pose UNE seule question (la plus importante). Si tu connais le poste mais pas le lieu, demande le lieu uniquement.
 
 [CONFIRMATION — utilisateur dit oui/lancez/c'est bon/parfait/top/go/ok]
-L'ID mission est disponible dans le contexte sous "ID mission : xxx".
-Ecris OBLIGATOIREMENT cette balise avec l'UUID exact du contexte :
-<action>{"type":"run_mission","missionId":"UUID-EXACT-DU-CONTEXTE"}</action>
+L'ID exact de la mission t'est donne plus bas dans le contexte sous "ID mission : <id>".
+Recopie cet UUID complet entre les guillemets de missionId (PAS le mot "id", PAS le placeholder).
+Si le contexte ne donne pas d'ID, ecris missionId:"" (chaine vide) — le serveur resoudra.
+Format : <action>{"type":"run_mission","missionId":"<uuid-du-contexte>"}</action>
 Texte : "Recherche lancee ! Redirection vers le dossier en cours..."
 
 [MISSION EXISTANTE ATTACHEE]
@@ -216,12 +217,14 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
       "X-Title": "Nawa Studio",
     },
     body: JSON.stringify({
-      model: "openai/gpt-4o-mini",
+      // gpt-4o-mini was unreliable at emitting <action> tags consistently;
+      // gpt-4o follows the structured output rule far more reliably.
+      model: "openai/gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
         ...openrouterMessages,
       ],
-      temperature: 0.4,
+      temperature: 0.3,
       max_tokens: 800,
     }),
   })
@@ -334,12 +337,42 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
   }
 
   // ── Resolve missionId for run_mission ───────────────────────────────────────
+  // gpt-4o-mini regularly copies the literal placeholder from the system prompt.
+  // We detect that and fall back, in order:
+  //   1. explicit attachedMissionId from the client
+  //   2. the user's most recent mission in `preparation` (the one we just created)
+  //   3. the freshly created mission from this very turn (newMission above)
   if (action?.type === "run_mission") {
     const mId = action.missionId as string | undefined
-    const isPlaceholder = !mId || mId === "..." || mId.includes("CONTEXTE") || mId.includes("COLLER") || mId.includes("uuid") || mId.includes("UUID") || !mId.includes("-")
-    const resolvedId = isPlaceholder ? attachedMissionId : mId
+    const isPlaceholder =
+      !mId ||
+      mId === "..." ||
+      mId.includes("CONTEXTE") ||
+      mId.includes("COLLER") ||
+      mId.includes("uuid") ||
+      mId.includes("UUID") ||
+      mId.includes("EXACT") ||
+      !mId.includes("-")
+
+    let resolvedId: string | undefined = isPlaceholder ? undefined : mId
+    if (!resolvedId) resolvedId = attachedMissionId
+    if (!resolvedId) {
+      const { data: recent } = await sbAdmin
+        .from("missions")
+        .select("id")
+        .eq("user_id", user.id)
+        .in("status", ["preparation", "in_progress"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (recent?.id) resolvedId = recent.id
+    }
+
     if (resolvedId) {
       action = { ...action, missionId: resolvedId }
+    } else {
+      // Nothing to launch — strip the action so the client doesn't redirect to a junk page.
+      action = null
     }
   }
 

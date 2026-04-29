@@ -11,7 +11,8 @@
 ;(function () {
   "use strict"
 
-  const API_BASE = "https://nawa-studio.vercel.app"
+  // API base = the page's own origin (works on prod + localhost)
+  const API_BASE = window.location.origin
 
   /* ── 1. Auth refresh ──────────────────────────────────────────────────── */
 
@@ -23,6 +24,7 @@
           type:        "SET_AUTH",
           accessToken: data.access_token,
           userId:      data.user_id,
+          apiBase:     API_BASE,
         })
       }
     })
@@ -45,7 +47,7 @@
 
     if (data.type === "RUN_SEARCH") {
       chrome.runtime.sendMessage(
-        { type: "RUN_SEARCH_FROM_PAGE", payload: data.payload },
+        { type: "RUN_SEARCH_FROM_PAGE", payload: data.payload, apiBase: API_BASE },
         (resp) => {
           window.postMessage(
             {

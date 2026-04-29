@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nawa Studio",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "description": "Worker LinkedIn pour Nawa Studio — piloté depuis le chat du workspace",
 
   "permissions": [
@@ -17,7 +17,9 @@
     "https://www.linkedin.com/*",
     "https://linkedin.com/*",
     "https://nawa-studio.vercel.app/*",
-    "https://*.vercel.app/*"
+    "https://*.vercel.app/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
   ],
 
   "background": {
@@ -49,7 +51,9 @@
     {
       "matches": [
         "https://nawa-studio.vercel.app/*",
-        "https://*.vercel.app/*"
+        "https://*.vercel.app/*",
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*"
       ],
       "js": ["content_nawa.js"],
       "run_at": "document_idle"
