@@ -413,8 +413,16 @@ export default function WorkspaceCentralChat({
    * Returns true on ACK (extension installed + accepted), false on timeout
    * (extension not installed, blocked, or refused).
    */
-  const launchViaExtension = useCallback(async (mId: string): Promise<boolean> => {
-    // 1. Server prepares mission + queries
+  /**
+   * Returns:
+   *   "ok"            — extension acked, worker tab opening Google
+   *   "no-extension"  — server prepared the mission but no extension reachable
+   *   "server-error"  — /launch-extension itself failed (quota, no brief, etc.)
+   */
+  type LaunchOutcome = "ok" | "no-extension" | "server-error"
+
+  const launchViaExtension = useCallback(async (mId: string): Promise<LaunchOutcome> => {
+    // 1. Server prepares mission + queries (sets status="in_progress")
     let payload: {
       missionId: string
       brief: { titre_poste: string; localisation: string; criteres: string; mots_cles: string[] }
@@ -434,7 +442,7 @@ export default function WorkspaceCentralChat({
       }
       if (!res.ok || !data.ok || !data.queries?.length || !data.brief || !data.missionId) {
         console.warn("[chat] launch-extension server error:", data.error)
-        return false
+        return "server-error"
       }
       payload = {
         missionId: data.missionId,
@@ -444,11 +452,11 @@ export default function WorkspaceCentralChat({
       }
     } catch (e) {
       console.warn("[chat] launch-extension network error:", e)
-      return false
+      return "server-error"
     }
 
     // 2. Bridge via window.postMessage → content_nawa.js → background
-    return new Promise<boolean>((resolve) => {
+    return new Promise<LaunchOutcome>((resolve) => {
       let settled = false
       const handler = (event: MessageEvent) => {
         if (event.source !== window) return
@@ -457,7 +465,7 @@ export default function WorkspaceCentralChat({
         if (d.type === "RUN_SEARCH_ACK") {
           settled = true
           window.removeEventListener("message", handler)
-          resolve(!!d.ok)
+          resolve(d.ok ? "ok" : "no-extension")
         }
       }
       window.addEventListener("message", handler)
@@ -467,24 +475,24 @@ export default function WorkspaceCentralChat({
         window.location.origin
       )
 
-      // Extension not installed → no ack within 2s
+      // Extension not installed / disabled → no ack within 4s
       setTimeout(() => {
         if (!settled) {
           window.removeEventListener("message", handler)
-          resolve(false)
+          resolve("no-extension")
         }
-      }, 2000)
+      }, 4000)
     })
   }, [])
 
   /* ── Direct launch (from ActionCard CTA) ──────────────────── */
   const handleLaunch = useCallback(async (mId: string) => {
     setLaunchingMissionId(mId)
-    const ok = await launchViaExtension(mId)
-    if (!ok) {
-      // Fallback : VPS agent (or shows error if no agent)
-      try { await fetch(`/api/missions/${mId}/run`, { method: "POST" }) }
-      catch { /* mission page will surface the state */ }
+    const outcome = await launchViaExtension(mId)
+    if (outcome === "no-extension") {
+      // launch-extension already set status to in_progress on the server, but
+      // no worker is running. Tell the user instead of firing /run (409).
+      alert("Extension Nawa non détectée. Recharge l'extension dans chrome://extensions et réessaie.")
     }
     router.push(`/workspace/missions/${mId}`)
   }, [router, launchViaExtension])
@@ -554,11 +562,28 @@ export default function WorkspaceCentralChat({
           setMessages((prev) => [...prev, assistantMsg])
           setLoading(false)
 
-          // Try extension worker first (preferred) ; fall back to VPS agent.
-          const ok = await launchViaExtension(mId)
-          if (!ok) {
-            try { await fetch(`/api/missions/${mId}/run`, { method: "POST" }) }
-            catch { /* mission page will restore the state */ }
+          // Try extension worker. If server prep failed → don't redirect
+          // (junk mission). If extension didn't ack → tell the user clearly
+          // (the server already set status=in_progress, calling /run would
+          // 409 — useless and confusing).
+          const outcome = await launchViaExtension(mId)
+          if (outcome === "server-error") {
+            setMessages((prev) => [...prev, {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: "❌ Impossible de lancer la recherche. Vérifie ton quota mensuel ou que la mission a bien un brief.",
+            }])
+            return
+          }
+          if (outcome === "no-extension") {
+            setMessages((prev) => [...prev, {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: "⚠️ L'extension Nawa Studio ne répond pas. Va dans **chrome://extensions**, recharge l'extension Nawa Studio puis recharge cette page (F5). Réessaie ensuite.",
+            }])
+            // Still navigate so the user can see the mission card
+            router.push(`/workspace/missions/${mId}`)
+            return
           }
           router.push(`/workspace/missions/${mId}`)
           return
