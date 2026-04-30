@@ -415,47 +415,57 @@ export default function WorkspaceCentralChat({
    */
   /**
    * Returns:
-   *   "ok"            — extension acked, worker tab opening Google
-   *   "no-extension"  — server prepared the mission but no extension reachable
+   *   "ok"            — Léo done server-side, or Nora handed off to extension
+   *   "no-extension"  — Nora needed but extension not detected
+   *   "no-results"    — search returned 0 LinkedIn profiles
    *   "server-error"  — /launch-extension itself failed (quota, no brief, etc.)
    */
-  type LaunchOutcome = "ok" | "no-extension" | "server-error"
+  type LaunchOutcome = "ok" | "no-extension" | "no-results" | "server-error"
 
-  const launchViaExtension = useCallback(async (mId: string): Promise<LaunchOutcome> => {
-    // 1. Server prepares mission + queries (sets status="in_progress")
-    let payload: {
-      missionId: string
-      brief: { titre_poste: string; localisation: string; criteres: string; mots_cles: string[] }
-      queries: string[]
-      level: "leo" | "nora"
-    } | null = null
+  interface RawProfile {
+    linkedin_url: string; name: string; title: string;
+    company: string;      location: string; snippet: string;
+  }
 
+  const launchMission = useCallback(async (mId: string): Promise<LaunchOutcome> => {
+    // 1. Server-side search (Custom Search API) + scoring
+    let data: {
+      ok?: boolean
+      missionId?: string
+      done?: boolean
+      level?: "leo" | "nora"
+      brief?: { titre_poste: string; localisation: string; criteres: string; mots_cles: string[] }
+      profiles?: RawProfile[]
+      profilesCount?: number
+      error?: string
+    }
     try {
       const res = await fetch(`/api/missions/${mId}/launch-extension`, { method: "POST" })
-      const data = await res.json() as {
-        ok?: boolean
-        missionId?: string
-        brief?: { titre_poste: string; localisation: string; criteres: string; mots_cles: string[] }
-        queries?: string[]
-        level?: "leo" | "nora"
-        error?: string
-      }
-      if (!res.ok || !data.ok || !data.queries?.length || !data.brief || !data.missionId) {
-        console.warn("[chat] launch-extension server error:", data.error)
+      data = await res.json()
+      if (!res.ok) {
+        console.warn("[chat] launch http error:", res.status, data?.error)
         return "server-error"
       }
-      payload = {
-        missionId: data.missionId,
-        brief:     data.brief,
-        queries:   data.queries,
-        level:     data.level || "leo",
-      }
     } catch (e) {
-      console.warn("[chat] launch-extension network error:", e)
+      console.warn("[chat] launch network error:", e)
       return "server-error"
     }
 
-    // 2. Bridge via window.postMessage → content_nawa.js → background
+    if (!data.ok) {
+      // No results — friendly outcome, not a server error
+      if (typeof data.error === "string" && /aucun profil/i.test(data.error)) return "no-results"
+      return "server-error"
+    }
+
+    // Léo : everything done server-side
+    if (data.level === "leo" || data.done) return "ok"
+
+    // Nora : handoff to extension for LinkedIn enrichment
+    const payload = {
+      missionId: data.missionId,
+      brief:     data.brief,
+      profiles:  data.profiles ?? [],
+    }
     return new Promise<LaunchOutcome>((resolve) => {
       let settled = false
       const handler = (event: MessageEvent) => {
@@ -469,13 +479,10 @@ export default function WorkspaceCentralChat({
         }
       }
       window.addEventListener("message", handler)
-
       window.postMessage(
         { source: "nawa-page", type: "RUN_SEARCH", payload },
         window.location.origin
       )
-
-      // Extension not installed / disabled → no ack within 4s
       setTimeout(() => {
         if (!settled) {
           window.removeEventListener("message", handler)
@@ -488,14 +495,16 @@ export default function WorkspaceCentralChat({
   /* ── Direct launch (from ActionCard CTA) ──────────────────── */
   const handleLaunch = useCallback(async (mId: string) => {
     setLaunchingMissionId(mId)
-    const outcome = await launchViaExtension(mId)
+    const outcome = await launchMission(mId)
     if (outcome === "no-extension") {
-      // launch-extension already set status to in_progress on the server, but
-      // no worker is running. Tell the user instead of firing /run (409).
-      alert("Extension Nawa non détectée. Recharge l'extension dans chrome://extensions et réessaie.")
+      alert("Extension Nawa non détectée — Nora a besoin de l'extension installée pour enrichir les profils LinkedIn.")
+    } else if (outcome === "no-results") {
+      alert("Aucun profil LinkedIn trouvé pour ce brief. Affinez les mots-clés et relancez.")
+    } else if (outcome === "server-error") {
+      alert("Erreur lors du lancement. Vérifie ton quota mensuel ou réessaie.")
     }
     router.push(`/workspace/missions/${mId}`)
-  }, [router, launchViaExtension])
+  }, [router, launchMission])
 
   const sendMessage = useCallback(async (text?: string) => {
     const content = (text ?? input).trim()
@@ -562,26 +571,32 @@ export default function WorkspaceCentralChat({
           setMessages((prev) => [...prev, assistantMsg])
           setLoading(false)
 
-          // Try extension worker. If server prep failed → don't redirect
-          // (junk mission). If extension didn't ack → tell the user clearly
-          // (the server already set status=in_progress, calling /run would
-          // 409 — useless and confusing).
-          const outcome = await launchViaExtension(mId)
+          // Server runs the search via Custom Search API; for Nora the
+          // extension is invoked afterwards to enrich LinkedIn profiles.
+          const outcome = await launchMission(mId)
           if (outcome === "server-error") {
             setMessages((prev) => [...prev, {
               id: crypto.randomUUID(),
               role: "assistant",
-              content: "❌ Impossible de lancer la recherche. Vérifie ton quota mensuel ou que la mission a bien un brief.",
+              content: "❌ Impossible de lancer la recherche. Vérifie ton quota mensuel ou réessaie.",
             }])
+            return
+          }
+          if (outcome === "no-results") {
+            setMessages((prev) => [...prev, {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: "🔍 Aucun profil LinkedIn trouvé pour ce brief. Reformule avec des mots-clés plus larges ou différents et réessaie.",
+            }])
+            router.push(`/workspace/missions/${mId}`)
             return
           }
           if (outcome === "no-extension") {
             setMessages((prev) => [...prev, {
               id: crypto.randomUUID(),
               role: "assistant",
-              content: "⚠️ L'extension Nawa Studio ne répond pas. Va dans **chrome://extensions**, recharge l'extension Nawa Studio puis recharge cette page (F5). Réessaie ensuite.",
+              content: "⚠️ Nora a besoin de l'extension Nawa Studio pour enrichir les profils LinkedIn. Recharge-la dans **chrome://extensions** puis recharge la page.",
             }])
-            // Still navigate so the user can see the mission card
             router.push(`/workspace/missions/${mId}`)
             return
           }
@@ -612,7 +627,7 @@ export default function WorkspaceCentralChat({
     } finally {
       setLoading(false)
     }
-  }, [input, loading, attachedMission, onAttachedMissionChange, onMissionCreated, router, agentName, launchViaExtension])
+  }, [input, loading, attachedMission, onAttachedMissionChange, onMissionCreated, router, agentName, launchMission])
 
   // Drag & drop handlers
   const handleDragOver  = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }

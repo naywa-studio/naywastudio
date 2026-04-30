@@ -456,7 +456,14 @@ export default function MissionDetailPage() {
                   setIsRunning(true)
                   setRunResumed(false)
                   setMission(prev => prev ? { ...prev, status: "in_progress" } : prev)
-                  try { await fetch(`/api/missions/${missionId}/run`, { method: "POST" }) }
+                  try {
+                    const r = await fetch(`/api/missions/${missionId}/launch-extension`, { method: "POST" })
+                    const d = await r.json() as { ok?: boolean; error?: string }
+                    if (!d.ok) {
+                      setIsRunning(false)
+                      setMission(prev => prev ? { ...prev, status: "error" } : prev)
+                    }
+                  }
                   catch { setIsRunning(false); setMission(prev => prev ? { ...prev, status: "error" } : prev) }
                 }}
                 style={{
@@ -486,6 +493,39 @@ export default function MissionDetailPage() {
             </span>
           </div>
         </div>
+
+        {/* Error banner: surface mission.brief.__error if status=error */}
+        {mission.status === "error" && !isRunning && (() => {
+          const err = (mission.brief as { __error?: string } | null)?.__error
+          if (!err) return null
+          // Detect URL inside the error text and turn it into a link
+          const urlMatch = err.match(/(https?:\/\/[^\s]+)/)
+          const before   = urlMatch ? err.slice(0, urlMatch.index) : err
+          const url      = urlMatch?.[1]
+          const after    = urlMatch ? err.slice((urlMatch.index ?? 0) + (urlMatch[1] ?? "").length) : ""
+          return (
+            <div style={{
+              margin: "0 20px 16px", padding: "12px 16px",
+              borderRadius: 12, background: "rgba(239,68,68,0.06)",
+              border: "1px solid rgba(239,68,68,0.20)",
+              fontFamily: "var(--font-inter), sans-serif",
+              fontSize: 13, color: "#7F1D1D", lineHeight: 1.5,
+              display: "flex", alignItems: "flex-start", gap: 10,
+            }}>
+              <span style={{ fontSize: 16, lineHeight: 1, marginTop: 1 }}>⚠️</span>
+              <span style={{ flex: 1 }}>
+                {before}
+                {url && (
+                  <a href={url} target="_blank" rel="noreferrer"
+                     style={{ color: "#B91C1C", textDecoration: "underline", fontWeight: 600 }}>
+                    {url}
+                  </a>
+                )}
+                {after}
+              </span>
+            </div>
+          )
+        })()}
 
         {/* Scrollable content */}
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>

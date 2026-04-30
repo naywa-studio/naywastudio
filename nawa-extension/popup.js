@@ -44,7 +44,6 @@ function sendMsg(msgOrType) {
 
 function renderSearching(state) {
   const labels = {
-    searching: "Recherche Google en cours…",
     enriching: "Enrichissement LinkedIn…",
     pushing:   "Analyse et création des candidats…",
   }
@@ -63,19 +62,20 @@ function renderSearching(state) {
     ml.classList.add("hidden")
   }
 
-  if (state.queries?.length > 0) {
-    let pct
-    if (state.phase === "enriching") {
-      const ei = state.enrichIndex ?? 0
-      const et = state.enrichQueue?.length ?? 1
-      pct = 70 + (ei / et) * 25
-    } else if (state.phase === "pushing") {
-      pct = 97
-    } else {
-      pct = (state.queryIndex / state.queries.length) * 70
-    }
-    $("progress-bar").style.width = `${Math.min(pct, 100)}%`
-    renderQueryList(state.queries, state.queryIndex, state.phase)
+  let pct = 5
+  if (state.phase === "enriching") {
+    const ei = state.enrichIndex ?? 0
+    const et = state.enrichQueue?.length ?? 1
+    pct = 5 + (ei / Math.max(et, 1)) * 90
+  } else if (state.phase === "pushing") {
+    pct = 97
+  }
+  $("progress-bar").style.width = `${Math.min(pct, 100)}%`
+  // Show enrichment queue items as URLs
+  if (state.enrichQueue?.length > 0) {
+    renderQueryList(state.enrichQueue, state.enrichIndex ?? 0, state.phase)
+  } else {
+    $("queries-list").innerHTML = ""
   }
 
   if (state.phase === "enriching") {
