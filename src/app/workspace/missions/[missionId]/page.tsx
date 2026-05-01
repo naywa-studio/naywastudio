@@ -1059,7 +1059,7 @@ function NoraSections({
               <div style={{ background: "white", borderRadius: 12, border: "1.5px solid #F0ECF8", padding: "14px 16px", marginBottom: 16 }}>
                 <p style={{ margin: "0 0 10px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-inter), sans-serif" }}>Sources</p>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  {(["linkedin", "malt", "apec"] as const).map(src => {
+                  {(["linkedin", "malt"] as const).map(src => {
                     const sm = SOURCE_META[src]
                     const n  = candidates.filter(c => (c.source ?? "linkedin") === src).length
                     if (!n) return null
@@ -1862,12 +1862,11 @@ function LeoSections({
 
 /* ── Tableur candidate list (Nora/Alex) ────────────────────── */
 function TableurCandidateList({ candidates, agentColor }: { candidates: Candidate[]; agentColor: string }) {
-  const [filter, setFilter] = useState<"all" | "linkedin" | "malt" | "apec">("all")
+  const [filter, setFilter] = useState<"all" | "linkedin" | "malt">("all")
   const [search, setSearch] = useState("")
 
   const liCount   = candidates.filter(c => (c.source ?? "linkedin") === "linkedin").length
   const maltCount = candidates.filter(c => c.source === "malt").length
-  const apecCount = candidates.filter(c => c.source === "apec").length
 
   const filtered = candidates.filter(c => {
     const ms = filter === "all" || (c.source ?? "linkedin") === filter
@@ -1884,9 +1883,8 @@ function TableurCandidateList({ candidates, agentColor }: { candidates: Candidat
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
           {[
             { key: "all",      label: `Tous (${candidates.length})`,  color: agentColor, bg: "#F0ECF8" },
-            ...(liCount   ? [{ key: "linkedin", label: `LinkedIn (${liCount})`,        color: "#0A66C2", bg: "rgba(10,102,194,0.08)" }] : []),
-            ...(maltCount ? [{ key: "malt",     label: `Malt (${maltCount})`,          color: "#FC5757", bg: "rgba(252,87,87,0.08)" }] : []),
-            ...(apecCount ? [{ key: "apec",     label: `APEC (${apecCount})`,          color: "#E87722", bg: "rgba(232,119,34,0.08)" }] : []),
+            ...(liCount   ? [{ key: "linkedin", label: `LinkedIn (${liCount})`, color: "#0A66C2", bg: "rgba(10,102,194,0.08)" }] : []),
+            ...(maltCount ? [{ key: "malt",     label: `Malt (${maltCount})`,   color: "#FC5757", bg: "rgba(252,87,87,0.08)" }] : []),
           ].map(({ key, label, color, bg }) => (
             <button key={key} onClick={() => setFilter(key as typeof filter)} style={{ padding: "4px 10px", borderRadius: 999, border: `1.5px solid ${filter === key ? color : "#E5E7EB"}`, background: filter === key ? bg : "white", color: filter === key ? color : "#6B7280", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-inter), sans-serif" }}>{label}</button>
           ))}
@@ -1934,13 +1932,12 @@ function TableurCandidateList({ candidates, agentColor }: { candidates: Candidat
 
 /* ── Results section (Léo) ─────────────────────────────────── */
 function ResultsSection({ candidates, onConsult, agentColor }: { candidates: Candidate[]; onConsult: (id: string) => void; agentColor: string }) {
-  const [filter, setFilter] = useState<"all" | "linkedin" | "malt" | "apec">("all")
+  const [filter, setFilter] = useState<"all" | "linkedin" | "malt">("all")
   const [search, setSearch] = useState("")
   if (candidates.length === 0) return <WaitingState label="Les profils identifiés apparaîtront ici." />
 
   const liCount   = candidates.filter(c => (c.source ?? "linkedin") === "linkedin").length
   const maltCount = candidates.filter(c => c.source === "malt").length
-  const apecCount = candidates.filter(c => c.source === "apec").length
 
   const filtered = candidates.filter(c => {
     const ms = filter === "all" || (c.source ?? "linkedin") === filter
@@ -1952,10 +1949,9 @@ function ResultsSection({ candidates, onConsult, agentColor }: { candidates: Can
     <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         {[
-          { key: "all",      label: `Tous (${candidates.length})`,  color: "#7C63C8", bg: "#F0ECF8" },
-          { key: "linkedin", label: `LinkedIn (${liCount})`,        color: "#0A66C2", bg: "rgba(10,102,194,0.08)" },
-          { key: "malt",     label: `Malt (${maltCount})`,          color: "#FC5757", bg: "rgba(252,87,87,0.08)" },
-          { key: "apec",     label: `APEC (${apecCount})`,          color: "#E87722", bg: "rgba(232,119,34,0.08)" },
+          { key: "all",      label: `Tous (${candidates.length})`, color: "#7C63C8", bg: "#F0ECF8" },
+          { key: "linkedin", label: `LinkedIn (${liCount})`,       color: "#0A66C2", bg: "rgba(10,102,194,0.08)" },
+          { key: "malt",     label: `Malt (${maltCount})`,         color: "#FC5757", bg: "rgba(252,87,87,0.08)" },
         ].map(({ key, label, color, bg }) => (
           <button key={key} onClick={() => setFilter(key as typeof filter)} style={{ padding: "5px 12px", borderRadius: 999, border: `1.5px solid ${filter === key ? color : "#E5E7EB"}`, background: filter === key ? bg : "white", color: filter === key ? color : "#6B7280", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-inter), sans-serif" }}>{label}</button>
         ))}

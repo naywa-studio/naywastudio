@@ -31,6 +31,10 @@ export interface ScoringBrief {
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
+// Max profiles per OpenRouter scoring call (output ≈ 60 tokens × N → cap to
+// keep us under max_tokens). Beyond 30 we chunk into multiple parallel calls.
+const SCORING_BATCH_SIZE = 30
+
 export async function scoreProfiles(
   brief: ScoringBrief,
   profiles: RawProfile[]
@@ -45,7 +49,21 @@ export async function scoreProfiles(
     }))
   }
 
-  const batch = profiles.slice(0, 30)
+  // Chunk profiles into batches of SCORING_BATCH_SIZE and score in parallel
+  const chunks: RawProfile[][] = []
+  for (let i = 0; i < profiles.length; i += SCORING_BATCH_SIZE) {
+    chunks.push(profiles.slice(i, i + SCORING_BATCH_SIZE))
+  }
+
+  const scoredChunks = await Promise.all(chunks.map((c) => scoreChunk(brief, c, OPENROUTER_KEY)))
+  return scoredChunks.flat().sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0))
+}
+
+async function scoreChunk(
+  brief: ScoringBrief,
+  batch: RawProfile[],
+  OPENROUTER_KEY: string
+): Promise<ScoredProfile[]> {
   const profilesForLLM = batch.map((p, i) => ({
     index:      i,
     titre:      (p.title || "").slice(0, 80),
@@ -113,11 +131,7 @@ export async function scoreProfiles(
     console.warn("[profile-pipeline] LLM scoring failed:", (e as Error).message)
   }
 
-  const rest = profiles.slice(30).map(p => ({
-    ...p, relevance_score: 50, score_justification: "", seniority_level: "",
-  })) as ScoredProfile[]
-
-  return [...scored, ...rest].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0))
+  return scored
 }
 
 export function buildExcel(profiles: ScoredProfile[], brief: ScoringBrief): string {

@@ -33,7 +33,7 @@ const DEFAULT_API_BASE   = "https://nawa-studio.vercel.app"
 const STATE_KEY          = "nawa_search_state"
 
 // Search-phase tuning
-const MAX_PROFILES        = 30
+const MAX_PROFILES        = 80
 const SEARCH_DELAY_MIN_MS = 1_500
 const SEARCH_DELAY_MAX_MS = 3_500
 
@@ -343,44 +343,52 @@ function parseGoogleResults(html) {
   const seen = new Set()
   const out = []
 
-  // Approach 1 — pull every `linkedin.com/in/<slug>` regardless of layout
-  const re = /https?:\/\/(?:[a-z]{2}\.)?linkedin\.com\/in\/([a-zA-Z0-9_\-%.~]{2,80})/g
+  // LinkedIn profile URLs
+  const liRe = /https?:\/\/(?:[a-z]{2}\.)?linkedin\.com\/in\/([a-zA-Z0-9_\-%.~]{2,80})/g
   let m
-  while ((m = re.exec(html)) !== null) {
+  while ((m = liRe.exec(html)) !== null) {
     const slug = decodeURIComponent(m[1]).replace(/[^a-zA-Z0-9_-]/g, "")
     if (slug.length < 2) continue
     const url = "https://www.linkedin.com/in/" + slug
     if (seen.has(url)) continue
     seen.add(url)
-    out.push({
-      linkedin_url: url,
-      name:         "",
-      title:        "",
-      company:      "",
-      location:     "",
-      snippet:      "",
-    })
+    out.push({ linkedin_url: url, source: "linkedin", name: "", title: "", company: "", location: "", snippet: "" })
     if (out.length >= 10) break
   }
 
-  // Approach 2 — try to capture display title + snippet for the URLs we found.
-  // We scan the surrounding markup once and attach if discoverable.
+  // Malt freelance URLs (https://www.malt.fr/profile/<slug> or .com)
+  const maltRe = /https?:\/\/(?:www\.)?malt\.(?:fr|com)\/profile\/([a-zA-Z0-9_\-%.~]{2,80})/g
+  while ((m = maltRe.exec(html)) !== null) {
+    const slug = decodeURIComponent(m[1]).replace(/[^a-zA-Z0-9_-]/g, "")
+    if (slug.length < 2) continue
+    const url = "https://www.malt.fr/profile/" + slug
+    if (seen.has(url)) continue
+    seen.add(url)
+    // We reuse `linkedin_url` as the canonical key so the rest of the
+    // pipeline (dedupe, scoring, candidates table) keeps working unchanged.
+    out.push({ linkedin_url: url, source: "malt", name: "", title: "", company: "", location: "", snippet: "" })
+    if (out.length >= 10) break
+  }
+
+  // Try to attach a display title for each URL we found.
   if (out.length > 0) {
     const titleByUrl = new Map()
-    const titleRe = /<a[^>]+href="(?:\/url\?q=)?(https?:\/\/(?:[a-z]{2}\.)?linkedin\.com\/in\/[^"&]+)[^"]*"[^>]*>(?:<[^>]+>\s*)*<h3[^>]*>([\s\S]*?)<\/h3>/g
+    const titleRe = /<a[^>]+href="(?:\/url\?q=)?(https?:\/\/(?:[a-z]{2}\.|www\.)?(?:linkedin\.com\/in|malt\.(?:fr|com)\/profile)\/[^"&]+)[^"]*"[^>]*>(?:<[^>]+>\s*)*<h3[^>]*>([\s\S]*?)<\/h3>/g
     let mm
     while ((mm = titleRe.exec(html)) !== null) {
-      const slugMatch = mm[1].match(/\/in\/([a-zA-Z0-9_\-%.~]{2,80})/)
-      if (!slugMatch) continue
-      const slug = decodeURIComponent(slugMatch[1]).replace(/[^a-zA-Z0-9_-]/g, "")
-      const url  = "https://www.linkedin.com/in/" + slug
+      const u = canonicalUrl(mm[1])
+      if (!u) continue
       const title = mm[2].replace(/<[^>]+>/g, "").trim()
-      if (title) titleByUrl.set(url, title)
+      if (title) titleByUrl.set(u, title)
     }
     for (const item of out) {
       const t = titleByUrl.get(item.linkedin_url)
       if (!t) continue
-      const cleaned = t.replace(/\s*[•·]\s*LinkedIn.*$/i, "").replace(/\s*\|\s*LinkedIn.*$/i, "").trim()
+      const cleaned = t
+        .replace(/\s*[•·]\s*LinkedIn.*$/i, "")
+        .replace(/\s*\|\s*LinkedIn.*$/i, "")
+        .replace(/\s*[-–—]\s*Malt.*$/i, "")
+        .trim()
       const dash = cleaned.indexOf(" - ")
       if (dash > -1) {
         item.name  = cleaned.slice(0, dash).trim()
@@ -394,10 +402,23 @@ function parseGoogleResults(html) {
   return out
 }
 
+function canonicalUrl(raw) {
+  const li = raw.match(/linkedin\.com\/in\/([a-zA-Z0-9_\-%.~]{2,80})/)
+  if (li) return "https://www.linkedin.com/in/" + decodeURIComponent(li[1]).replace(/[^a-zA-Z0-9_-]/g, "")
+  const ma = raw.match(/malt\.(?:fr|com)\/profile\/([a-zA-Z0-9_\-%.~]{2,80})/)
+  if (ma) return "https://www.malt.fr/profile/" + decodeURIComponent(ma[1]).replace(/[^a-zA-Z0-9_-]/g, "")
+  return null
+}
+
 /* ── Nora enrichment (LinkedIn pages, hidden worker tab) ──────────────── */
 
 async function startEnrichment(state) {
-  const enrichQueue = state.profiles.slice(0, ENRICH_MAX).map((p) => p.linkedin_url).filter(Boolean)
+  // Only enrich LinkedIn profiles via the LinkedIn worker tab.
+  // Malt profiles ride through with their Google snippet only.
+  const enrichQueue = state.profiles
+    .filter((p) => p.source !== "malt" && p.linkedin_url?.includes("linkedin.com/in/"))
+    .slice(0, ENRICH_MAX)
+    .map((p) => p.linkedin_url)
   if (enrichQueue.length === 0) return pushProfiles(state)
 
   const workerTab = await chrome.tabs.create({ url: enrichQueue[0], active: false })
@@ -455,6 +476,7 @@ async function pushProfiles(state) {
 
   const payload = (state.profiles || []).map((p) => ({
     linkedin_url: p.linkedin_url,
+    source:       p.source   || "linkedin",
     name:         p.name     || "",
     title:        p.title    || "",
     company:      p.company  || "",

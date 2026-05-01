@@ -11,6 +11,9 @@
 
 import type { RawProfile } from "@/lib/profile-pipeline"
 
+/** Internal type carrying source flag for downstream insert. */
+type SourcedProfile = RawProfile & { source?: "linkedin" | "malt" }
+
 const ENDPOINT = "https://www.googleapis.com/customsearch/v1"
 
 interface CSEItem {
@@ -68,15 +71,16 @@ export async function searchLinkedInProfiles(query: string): Promise<RawProfile[
   }
 
   const items = data.items ?? []
-  const profiles: RawProfile[] = []
+  const profiles: SourcedProfile[] = []
   for (const it of items) {
-    const url = normalizeLinkedInUrl(it.link ?? "")
-    if (!url) continue
-    const title   = stripLinkedInBoilerplate(it.pagemap?.metatags?.[0]?.["og:title"] ?? it.title ?? "")
+    const norm = normalizeProfileUrl(it.link ?? "")
+    if (!norm) continue
+    const title   = stripBoilerplate(it.pagemap?.metatags?.[0]?.["og:title"] ?? it.title ?? "")
     const snippet = (it.pagemap?.metatags?.[0]?.["og:description"] ?? it.snippet ?? "").trim()
     const { name, jobTitle } = splitTitle(title)
     profiles.push({
-      linkedin_url: url,
+      linkedin_url: norm.url,
+      source:       norm.source,
       name,
       title:    jobTitle,
       company:  guessCompany(snippet),
@@ -156,24 +160,23 @@ async function searchLinkedInViaDuckDuckGo(query: string): Promise<RawProfile[]>
   }
 }
 
-function parseDdgHtml(html: string): RawProfile[] {
-  const profiles: RawProfile[] = []
+function parseDdgHtml(html: string): SourcedProfile[] {
+  const profiles: SourcedProfile[] = []
   const seen = new Set<string>()
 
-  // DDG lite wraps each result in <a class="result__a" href="...">Title</a>
-  // followed by <a class="result__snippet">snippet</a>.
   const blockRe = /<h2[^>]*class="result__title"[^>]*>[\s\S]*?<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>)?/g
   let m: RegExpExecArray | null
   while ((m = blockRe.exec(html)) !== null) {
     const rawUrl = decodeDdgUrl(m[1])
-    const url    = normalizeLinkedInUrl(rawUrl)
-    if (!url || seen.has(url)) continue
-    seen.add(url)
-    const title   = stripLinkedInBoilerplate(stripTags(m[2] || ""))
+    const norm   = normalizeProfileUrl(rawUrl)
+    if (!norm || seen.has(norm.url)) continue
+    seen.add(norm.url)
+    const title   = stripBoilerplate(stripTags(m[2] || ""))
     const snippet = stripTags(m[3] || "").trim()
     const { name, jobTitle } = splitTitle(title)
     profiles.push({
-      linkedin_url: url,
+      linkedin_url: norm.url,
+      source:       norm.source,
       name,
       title:    jobTitle,
       company:  guessCompany(snippet),
@@ -206,18 +209,20 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms))
 }
 
-function normalizeLinkedInUrl(raw: string): string | null {
+function normalizeProfileUrl(raw: string): { url: string; source: "linkedin" | "malt" } | null {
   if (!raw) return null
-  const m = raw.match(/https?:\/\/(?:[a-z]{2}\.)?linkedin\.com\/in\/([a-zA-Z0-9_-]+)/i)
-  if (!m) return null
-  const slug = m[1].slice(0, 100)
-  return `https://www.linkedin.com/in/${slug}`
+  const li = raw.match(/https?:\/\/(?:[a-z]{2}\.)?linkedin\.com\/in\/([a-zA-Z0-9_-]+)/i)
+  if (li) return { url: `https://www.linkedin.com/in/${li[1].slice(0, 100)}`, source: "linkedin" }
+  const ma = raw.match(/https?:\/\/(?:www\.)?malt\.(?:fr|com)\/profile\/([a-zA-Z0-9_-]+)/i)
+  if (ma) return { url: `https://www.malt.fr/profile/${ma[1].slice(0, 100)}`, source: "malt" }
+  return null
 }
 
-function stripLinkedInBoilerplate(s: string): string {
+function stripBoilerplate(s: string): string {
   return s
     .replace(/\s*[•·]\s*LinkedIn.*$/i, "")
     .replace(/\s*\|\s*LinkedIn.*$/i, "")
+    .replace(/\s*[-–—]\s*Malt.*$/i, "")
     .replace(/^LinkedIn\s*[-:]\s*/i, "")
     .trim()
 }

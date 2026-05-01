@@ -19,7 +19,7 @@ import { generateQueriesFromBrief } from "@/lib/extension-queries"
 import { searchLinkedInForBrief } from "@/lib/google-cse"
 import { scoreProfiles, buildExcel } from "@/lib/profile-pipeline"
 
-const MAX_PROFILES = 30
+const MAX_PROFILES = 80
 
 export async function POST(
   _req: NextRequest,
@@ -93,21 +93,25 @@ export async function POST(
   const fresh = scored.filter((p) => !existingUrls.has(p.linkedin_url))
 
   if (fresh.length > 0) {
-    const rows = fresh.map((p) => ({
-      mission_id:          missionId,
-      user_id:             user.id,
-      linkedin_url:        p.linkedin_url,
-      name_estimated:      p.name || null,
-      title_estimated:     p.title || null,
-      company:             p.company || null,
-      keywords:            [] as string[],
-      relevance_score:     p.relevance_score ?? null,
-      score_justification: p.score_justification || null,
-      score_dimensions:    p.score_dimensions ?? null,
-      seniority_level:     p.seniority_level || null,
-      source:              "linkedin" as const,
-      status:              "raw" as const,
-    }))
+    const rows = fresh.map((p) => {
+      const source: "linkedin" | "malt" =
+        p.linkedin_url.includes("malt.fr") || p.linkedin_url.includes("malt.com") ? "malt" : "linkedin"
+      return {
+        mission_id:          missionId,
+        user_id:             user.id,
+        linkedin_url:        p.linkedin_url,
+        name_estimated:      p.name || null,
+        title_estimated:     p.title || null,
+        company:             p.company || null,
+        keywords:            [] as string[],
+        relevance_score:     p.relevance_score ?? null,
+        score_justification: p.score_justification || null,
+        score_dimensions:    p.score_dimensions ?? null,
+        seniority_level:     p.seniority_level || null,
+        source,
+        status:              "raw" as const,
+      }
+    })
     const { error: insErr } = await sb.from("candidates").insert(rows)
     if (insErr) console.error("[run-server-search] insert error:", insErr)
   }

@@ -42,12 +42,18 @@ export async function POST(
   const user = await getUserFromBearer(req)
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let body: { profiles: RawProfile[]; final?: boolean; partial?: boolean; blockReason?: string | null }
+  type IncomingProfile = RawProfile & { source?: "linkedin" | "malt" }
+  let body: { profiles: IncomingProfile[]; final?: boolean; partial?: boolean; blockReason?: string | null }
   try { body = await req.json() } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  const profiles = Array.isArray(body.profiles) ? body.profiles : []
+  const profiles: IncomingProfile[] = Array.isArray(body.profiles) ? body.profiles : []
+  // Map URL → source so we can tag the candidate row even after scoring
+  const sourceByUrl = new Map<string, "linkedin" | "malt">()
+  for (const p of profiles) {
+    if (p.linkedin_url) sourceByUrl.set(p.linkedin_url, p.source === "malt" ? "malt" : "linkedin")
+  }
   const final = body.final !== false // default true — extension always pushes once
   const partial = !!body.partial
   const blockReason = body.blockReason || null
@@ -116,7 +122,7 @@ export async function POST(
       score_justification: p.score_justification || null,
       score_dimensions:    p.score_dimensions ?? null,
       seniority_level:     p.seniority_level || null,
-      source:              "linkedin" as const,
+      source:              sourceByUrl.get(p.linkedin_url) ?? "linkedin",
       status:              "raw" as const,
     }))
     const { error: cErr } = await sbAdmin.from("candidates").insert(rows)
