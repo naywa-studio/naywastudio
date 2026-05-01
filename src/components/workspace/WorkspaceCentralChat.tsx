@@ -426,27 +426,20 @@ export default function WorkspaceCentralChat({
     | { kind: "no-results"; error?: string }
     | { kind: "server-error"; error?: string }
 
-  interface RawProfile {
-    linkedin_url: string; name: string; title: string;
-    company: string;      location: string; snippet: string;
-  }
-
   const launchMission = useCallback(async (mId: string): Promise<LaunchOutcome> => {
-    // 1. Server-side search (Custom Search API) + scoring
+    // 1. Server prepares mission + queries (sets status=in_progress)
     let data: {
       ok?: boolean
       missionId?: string
-      done?: boolean
       level?: "leo" | "nora"
       brief?: { titre_poste: string; localisation: string; criteres: string; mots_cles: string[] }
-      profiles?: RawProfile[]
-      profilesCount?: number
+      queries?: string[]
       error?: string
     }
     try {
       const res = await fetch(`/api/missions/${mId}/launch-extension`, { method: "POST" })
       data = await res.json()
-      if (!res.ok) {
+      if (!res.ok || !data.ok || !data.queries?.length || !data.brief || !data.missionId) {
         console.warn("[chat] launch http error:", res.status, data?.error)
         return { kind: "server-error", error: data?.error }
       }
@@ -455,23 +448,14 @@ export default function WorkspaceCentralChat({
       return { kind: "server-error" }
     }
 
-    if (!data.ok) {
-      if (typeof data.error === "string" && /aucun profil/i.test(data.error)) {
-        return { kind: "no-results", error: data.error }
-      }
-      return { kind: "server-error", error: data.error }
-    }
-
-    // Léo : everything done server-side
-    if (data.level === "leo" || data.done) return { kind: "ok" }
-
-    // Nora : handoff to extension for LinkedIn enrichment
-    const payload = {
+    // 2. Try extension first (silent fetch from user's browser, no tab)
+    const extPayload = {
       missionId: data.missionId,
       brief:     data.brief,
-      profiles:  data.profiles ?? [],
+      queries:   data.queries,
+      level:     data.level || "leo",
     }
-    return new Promise<LaunchOutcome>((resolve) => {
+    const extOk = await new Promise<boolean>((resolve) => {
       let settled = false
       const handler = (event: MessageEvent) => {
         if (event.source !== window) return
@@ -480,21 +464,38 @@ export default function WorkspaceCentralChat({
         if (d.type === "RUN_SEARCH_ACK") {
           settled = true
           window.removeEventListener("message", handler)
-          resolve(d.ok ? { kind: "ok" } : { kind: "no-extension" })
+          resolve(!!d.ok)
         }
       }
       window.addEventListener("message", handler)
       window.postMessage(
-        { source: "nawa-page", type: "RUN_SEARCH", payload },
+        { source: "nawa-page", type: "RUN_SEARCH", payload: extPayload },
         window.location.origin
       )
       setTimeout(() => {
         if (!settled) {
           window.removeEventListener("message", handler)
-          resolve({ kind: "no-extension" })
+          resolve(false)
         }
       }, 4000)
     })
+
+    if (extOk) return { kind: "ok" }
+
+    // 3. No extension → fall back to server-side Custom Search API
+    try {
+      const res = await fetch(`/api/missions/${mId}/run-server-search`, { method: "POST" })
+      const fb = await res.json() as { ok?: boolean; error?: string }
+      if (!res.ok) return { kind: "server-error", error: fb?.error }
+      if (!fb.ok) {
+        if (fb.error && /aucun profil/i.test(fb.error)) return { kind: "no-results", error: fb.error }
+        return { kind: "server-error", error: fb.error }
+      }
+      return { kind: "ok" }
+    } catch (e) {
+      console.warn("[chat] fallback search error:", e)
+      return { kind: "server-error" }
+    }
   }, [])
 
   /* ── Direct launch (from ActionCard CTA) ──────────────────── */

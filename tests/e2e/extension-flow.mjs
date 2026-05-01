@@ -65,15 +65,26 @@ async function run() {
   log("Extension loaded — id:", extId, "sw:", bg.url())
 
   // Capture extension service-worker logs
-  bg.on("console", (msg) => log("[SW]", msg.type(), msg.text()))
+  bg.on("console", (msg) => log("[SW]", msg.type(), msg.text().slice(0, 300)))
 
   // Capture page console + errors on every page
   context.on("page", (page) => {
-    page.on("console", (msg) => log(`[page ${page.url().slice(0,40)}]`, msg.type(), msg.text().slice(0, 200)))
+    page.on("console", (msg) => {
+      const t = msg.text()
+      // Filter out Next.js dev noise
+      if (/HMR|webpack|Fast Refresh|font|preload/.test(t)) return
+      log(`[page ${page.url().slice(0,40)}]`, msg.type(), t.slice(0, 200))
+    })
     page.on("pageerror", (err) => log(`[page-error]`, err.message))
   })
 
   const page = page0
+
+  // Pre-accept Google's EU consent banner so fetches return real SERP HTML
+  await context.addCookies([
+    { name: "CONSENT", value: "YES+1", domain: ".google.com", path: "/" },
+    { name: "SOCS",    value: "CAESHAgBEhJnd3NfMjAyNDA0MDgtMF9SQzIaAmZyIAEaBgiAi-OuBg", domain: ".google.com", path: "/" },
+  ])
 
   // 1. Authenticate via dev-login (already triggered, ensure we landed on /workspace)
   await page.waitForURL((u) => u.pathname === "/workspace", { timeout: 30000 })
@@ -129,14 +140,15 @@ async function run() {
   })
 
   // 6. Wait to land on the mission page
-  await page.waitForURL(/\/workspace\/missions\//, { timeout: 30000 })
+  await page.waitForURL(/\/workspace\/missions\//, { timeout: 90000 })
   const missionId = page.url().split("/").pop().split("?")[0]
   log("Landed on mission", missionId)
 
-  // 7. For Léo, the search runs entirely server-side. Wait for the
-  //    mission to flip to "completed" / "error" via the API, polling
-  //    every 1.5s for up to 90s.
-  log("Waiting for Léo server-side search to complete…")
+  // 7. The extension is now in charge of the search (silent fetch from
+  //    background.js). Poll until the mission flips to completed / error.
+  log("Waiting for extension-driven search to complete…")
+  // Surface ext state every 5s so we can see the search progress
+  let prevExt = ""
   const start = Date.now()
   let last = null
   const TIMEOUT_MS = 90_000
@@ -150,6 +162,13 @@ async function run() {
     const status = cur?.mission?.status
     const count  = cur?.candidatesCount ?? 0
     if (status !== last) { last = status; log("mission status →", status, "candidates:", count) }
+    // Also peek at the extension state for visibility
+    const ext = await dumpExtState(bg, true)
+    const extKey = `${ext?.phase}/${ext?.queryIndex}/${ext?.profiles?.length}/${ext?.error || ""}`
+    if (extKey !== prevExt) {
+      prevExt = extKey
+      log("ext →", `phase=${ext?.phase}`, `qIdx=${ext?.queryIndex}`, `profiles=${ext?.profiles?.length}`, ext?.error ? `err=${ext.error}` : "")
+    }
     if (status === "completed" || status === "error") break
   }
 

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Nawa Studio",
-  "version": "5.0.0",
-  "description": "Enrichissement LinkedIn pour Nora — piloté depuis le chat du workspace",
+  "version": "5.1.0",
+  "description": "Recherche LinkedIn silencieuse depuis le navigateur du client — piloté depuis le chat du workspace",
 
   "permissions": [
     "tabs",
@@ -12,6 +12,8 @@
   ],
 
   "host_permissions": [
+    "https://www.google.com/*",
+    "https://google.com/*",
     "https://www.linkedin.com/*",
     "https://linkedin.com/*",
     "https://nawa-studio.vercel.app/*",
