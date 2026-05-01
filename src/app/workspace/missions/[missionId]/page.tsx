@@ -71,10 +71,78 @@ function MissionEmptyState({
 }) {
   const router    = useRouter()
   const [launching, setLaunching] = useState(false)
+  const [launchError, setLaunchError] = useState<string | null>(null)
 
-  const handleLaunch = () => {
+  // Same launch flow as the workspace chat: try extension first (silent
+  // Google fetch), fall back to /run-server-search when there's no ack.
+  const handleLaunch = async () => {
     setLaunching(true)
-    onLaunch()   // MissionRunPanel handles the actual /run call — no double-fetch
+    setLaunchError(null)
+    onLaunch()
+
+    interface LaunchResp {
+      ok?: boolean
+      missionId?: string
+      level?: "leo" | "nora"
+      brief?: { titre_poste: string; localisation: string; criteres: string; mots_cles: string[] }
+      queries?: string[]
+      error?: string
+    }
+
+    let data: LaunchResp
+    try {
+      const res = await fetch(`/api/missions/${missionId}/launch-extension`, { method: "POST" })
+      data = await res.json()
+      if (!res.ok || !data.ok || !data.queries?.length || !data.brief || !data.missionId) {
+        setLaunchError(data.error || "Erreur au lancement")
+        setLaunching(false)
+        return
+      }
+    } catch (e) {
+      setLaunchError(e instanceof Error ? e.message : "Erreur réseau")
+      setLaunching(false)
+      return
+    }
+
+    const extPayload = {
+      missionId: data.missionId,
+      brief:     data.brief,
+      queries:   data.queries,
+      level:     data.level || "leo",
+    }
+
+    const extOk = await new Promise<boolean>((resolve) => {
+      let settled = false
+      const handler = (event: MessageEvent) => {
+        if (event.source !== window) return
+        const d = event.data as { source?: string; type?: string; ok?: boolean }
+        if (d?.source !== "nawa-extension") return
+        if (d.type === "RUN_SEARCH_ACK") {
+          settled = true
+          window.removeEventListener("message", handler)
+          resolve(!!d.ok)
+        }
+      }
+      window.addEventListener("message", handler)
+      window.postMessage({ source: "nawa-page", type: "RUN_SEARCH", payload: extPayload }, window.location.origin)
+      setTimeout(() => {
+        if (!settled) {
+          window.removeEventListener("message", handler)
+          resolve(false)
+        }
+      }, 4000)
+    })
+
+    if (extOk) return // extension is running it, Realtime will update the page
+
+    // No extension → server fallback
+    try {
+      const res = await fetch(`/api/missions/${missionId}/run-server-search`, { method: "POST" })
+      const fb = await res.json() as { ok?: boolean; error?: string }
+      if (!fb.ok) setLaunchError(fb.error || "Aucun profil trouvé.")
+    } catch (e) {
+      setLaunchError(e instanceof Error ? e.message : "Erreur réseau")
+    }
   }
 
   // No brief configured yet
