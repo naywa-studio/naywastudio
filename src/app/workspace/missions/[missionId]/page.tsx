@@ -392,6 +392,44 @@ export default function MissionDetailPage() {
     return () => { sb.removeChannel(channel) }
   }, [missionId])
 
+  /* ── Polling fallback ─────────────────────────────────────────
+   * Realtime requires `missions` and `candidates` to be added to the
+   * supabase_realtime publication. If that's not configured, the
+   * loader would spin forever. We poll the status endpoint every
+   * 4s while the mission is in_progress as a safety net.
+   */
+  useEffect(() => {
+    if (!isRunning) return
+    let cancelled = false
+
+    const tick = async () => {
+      try {
+        const r = await fetch(`/api/missions/${missionId}/status`)
+        if (!r.ok) return
+        const data = await r.json() as {
+          mission?: { id: string; status: string; profiles_count?: number }
+          candidatesCount?: number
+        }
+        if (cancelled) return
+        const status = data.mission?.status
+        if (status && status !== "in_progress") {
+          // Run finished — refetch everything and stop polling
+          await fetchData()
+          setIsRunning(false)
+          setRunResumed(false)
+        } else if ((data.candidatesCount ?? 0) > candidates.length) {
+          // Candidates landed but Realtime missed the INSERT — fetch them
+          await fetchData()
+        }
+      } catch { /* network hiccup */ }
+    }
+
+    const id = setInterval(tick, 4000)
+    // Fire one immediately to catch already-finished runs on page mount
+    tick()
+    return () => { cancelled = true; clearInterval(id) }
+  }, [isRunning, missionId, fetchData, candidates.length])
+
   /* ── Run completed ───────────────────────────────────────── */
   const handleRunCompleted = (b64: string, count: number, researchReport?: string) => {
     setExcelB64(b64)
