@@ -354,25 +354,53 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
       mId.includes("EXACT") ||
       !mId.includes("-")
 
-    let resolvedId: string | undefined = isPlaceholder ? undefined : mId
-    if (!resolvedId) resolvedId = attachedMissionId
-    if (!resolvedId) {
-      const { data: recent } = await sbAdmin
+    // Always pick the most recent launchable mission (preparation status)
+    // for this user. This sidesteps gpt-4o copying old UUIDs from the
+    // conversation history that point to already-completed or in-progress
+    // missions (which would 409 on /launch-extension).
+    const { data: latestPrep } = await sbAdmin
+      .from("missions")
+      .select("id, status, created_at")
+      .eq("user_id", user.id)
+      .eq("status", "preparation")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    let resolvedId: string | undefined
+    if (!isPlaceholder && mId) {
+      // Verify the LLM-supplied id is actually this user's AND launchable.
+      const { data: candMission } = await sbAdmin
         .from("missions")
-        .select("id")
+        .select("id, status")
+        .eq("id", mId)
         .eq("user_id", user.id)
-        .in("status", ["preparation", "in_progress"])
-        .order("created_at", { ascending: false })
-        .limit(1)
         .maybeSingle()
-      if (recent?.id) resolvedId = recent.id
+      if (candMission && candMission.status === "preparation") {
+        resolvedId = candMission.id
+      }
     }
+    if (!resolvedId && attachedMissionId) {
+      const { data: attached } = await sbAdmin
+        .from("missions")
+        .select("id, status")
+        .eq("id", attachedMissionId)
+        .eq("user_id", user.id)
+        .maybeSingle()
+      if (attached && attached.status === "preparation") resolvedId = attached.id
+    }
+    if (!resolvedId && latestPrep?.id) resolvedId = latestPrep.id
 
     if (resolvedId) {
       action = { ...action, missionId: resolvedId }
     } else {
-      // Nothing to launch — strip the action so the client doesn't redirect to a junk page.
+      // Nothing launchable — strip the action and rewrite the visible
+      // assistant message so the user knows to start a new brief.
       action = null
+      const fallbackText =
+        "Je n'ai pas trouvé de mission prête à être lancée. Décrivez-moi le poste et le lieu pour créer une nouvelle mission."
+      newAssistantMsg.content = fallbackText
+      cleanContent = fallbackText
     }
   }
 

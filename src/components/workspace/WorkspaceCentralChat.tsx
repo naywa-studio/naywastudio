@@ -420,7 +420,11 @@ export default function WorkspaceCentralChat({
    *   "no-results"    — search returned 0 LinkedIn profiles
    *   "server-error"  — /launch-extension itself failed (quota, no brief, etc.)
    */
-  type LaunchOutcome = "ok" | "no-extension" | "no-results" | "server-error"
+  type LaunchOutcome =
+    | { kind: "ok" }
+    | { kind: "no-extension" }
+    | { kind: "no-results"; error?: string }
+    | { kind: "server-error"; error?: string }
 
   interface RawProfile {
     linkedin_url: string; name: string; title: string;
@@ -444,21 +448,22 @@ export default function WorkspaceCentralChat({
       data = await res.json()
       if (!res.ok) {
         console.warn("[chat] launch http error:", res.status, data?.error)
-        return "server-error"
+        return { kind: "server-error", error: data?.error }
       }
     } catch (e) {
       console.warn("[chat] launch network error:", e)
-      return "server-error"
+      return { kind: "server-error" }
     }
 
     if (!data.ok) {
-      // No results — friendly outcome, not a server error
-      if (typeof data.error === "string" && /aucun profil/i.test(data.error)) return "no-results"
-      return "server-error"
+      if (typeof data.error === "string" && /aucun profil/i.test(data.error)) {
+        return { kind: "no-results", error: data.error }
+      }
+      return { kind: "server-error", error: data.error }
     }
 
     // Léo : everything done server-side
-    if (data.level === "leo" || data.done) return "ok"
+    if (data.level === "leo" || data.done) return { kind: "ok" }
 
     // Nora : handoff to extension for LinkedIn enrichment
     const payload = {
@@ -475,7 +480,7 @@ export default function WorkspaceCentralChat({
         if (d.type === "RUN_SEARCH_ACK") {
           settled = true
           window.removeEventListener("message", handler)
-          resolve(d.ok ? "ok" : "no-extension")
+          resolve(d.ok ? { kind: "ok" } : { kind: "no-extension" })
         }
       }
       window.addEventListener("message", handler)
@@ -486,7 +491,7 @@ export default function WorkspaceCentralChat({
       setTimeout(() => {
         if (!settled) {
           window.removeEventListener("message", handler)
-          resolve("no-extension")
+          resolve({ kind: "no-extension" })
         }
       }, 4000)
     })
@@ -496,12 +501,12 @@ export default function WorkspaceCentralChat({
   const handleLaunch = useCallback(async (mId: string) => {
     setLaunchingMissionId(mId)
     const outcome = await launchMission(mId)
-    if (outcome === "no-extension") {
+    if (outcome.kind === "no-extension") {
       alert("Extension Nawa non détectée — Nora a besoin de l'extension installée pour enrichir les profils LinkedIn.")
-    } else if (outcome === "no-results") {
-      alert("Aucun profil LinkedIn trouvé pour ce brief. Affinez les mots-clés et relancez.")
-    } else if (outcome === "server-error") {
-      alert("Erreur lors du lancement. Vérifie ton quota mensuel ou réessaie.")
+    } else if (outcome.kind === "no-results") {
+      alert(outcome.error || "Aucun profil LinkedIn trouvé pour ce brief. Affinez les mots-clés et relancez.")
+    } else if (outcome.kind === "server-error") {
+      alert(outcome.error || "Erreur lors du lancement. Vérifie ton quota mensuel ou réessaie.")
     }
     router.push(`/workspace/missions/${mId}`)
   }, [router, launchMission])
@@ -574,24 +579,24 @@ export default function WorkspaceCentralChat({
           // Server runs the search via Custom Search API; for Nora the
           // extension is invoked afterwards to enrich LinkedIn profiles.
           const outcome = await launchMission(mId)
-          if (outcome === "server-error") {
+          if (outcome.kind === "server-error") {
             setMessages((prev) => [...prev, {
               id: crypto.randomUUID(),
               role: "assistant",
-              content: "❌ Impossible de lancer la recherche. Vérifie ton quota mensuel ou réessaie.",
+              content: "❌ " + (outcome.error || "Impossible de lancer la recherche. Vérifie ton quota mensuel ou réessaie."),
             }])
             return
           }
-          if (outcome === "no-results") {
+          if (outcome.kind === "no-results") {
             setMessages((prev) => [...prev, {
               id: crypto.randomUUID(),
               role: "assistant",
-              content: "🔍 Aucun profil LinkedIn trouvé pour ce brief. Reformule avec des mots-clés plus larges ou différents et réessaie.",
+              content: "🔍 " + (outcome.error || "Aucun profil LinkedIn trouvé pour ce brief. Reformule avec des mots-clés plus larges et réessaie."),
             }])
             router.push(`/workspace/missions/${mId}`)
             return
           }
-          if (outcome === "no-extension") {
+          if (outcome.kind === "no-extension") {
             setMessages((prev) => [...prev, {
               id: crypto.randomUUID(),
               role: "assistant",
