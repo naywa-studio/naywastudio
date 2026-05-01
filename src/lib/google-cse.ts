@@ -98,9 +98,13 @@ export async function searchLinkedInForBrief(queries: string[]): Promise<RawProf
   const seen = new Set<string>()
   const all: SourcedProfile[] = []
   for (const q of queries) {
-    // Cascade: Custom Search API → DuckDuckGo → Bing.
-    // Stop at the first source that returns anything.
+    // Cascade order, stops at first source that returns anything :
+    //   1. Google Custom Search API     — paid, never blocks (need GOOGLE_SEARCH_API_KEY + ENGINE_ID + API enabled)
+    //   2. Tavily                       — paid, AI-friendly       (need TAVILY_API_KEY)
+    //   3. DuckDuckGo HTML scraping     — free but may rate-limit
+    //   4. Bing HTML scraping           — free but may rate-limit
     let found: SourcedProfile[] = await searchLinkedInProfiles(q)
+    if (found.length === 0) found = await searchLinkedInViaTavily(q)
     if (found.length === 0) found = await searchLinkedInViaDuckDuckGo(q)
     if (found.length === 0) found = await searchLinkedInViaBing(q)
     for (const p of found) {
@@ -111,6 +115,60 @@ export async function searchLinkedInForBrief(queries: string[]): Promise<RawProf
     await sleep(300)
   }
   return all
+}
+
+/**
+ * Tavily search backend. Free up to 1000 queries/month, $30/month after.
+ * Set TAVILY_API_KEY in .env.local to enable. Tavily uses rotating
+ * residential proxies, so it never gets blocked.
+ *   docs: https://docs.tavily.com/docs/rest-api/api-reference
+ */
+async function searchLinkedInViaTavily(query: string): Promise<SourcedProfile[]> {
+  const key = (process.env.TAVILY_API_KEY ?? "").trim()
+  if (!key) return []
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key:        key,
+        query,
+        search_depth:   "basic",
+        max_results:    10,
+        include_domains: ["linkedin.com", "malt.fr", "malt.com"],
+      }),
+      cache: "no-store",
+    })
+    if (!res.ok) {
+      console.warn("[tavily] HTTP", res.status, (await res.text().catch(() => "")).slice(0, 200))
+      return []
+    }
+    const data = (await res.json()) as { results?: Array<{ url?: string; title?: string; content?: string }> }
+    const results = data.results ?? []
+    const out: SourcedProfile[] = []
+    const seen = new Set<string>()
+    for (const r of results) {
+      const norm = normalizeProfileUrl(r.url ?? "")
+      if (!norm || seen.has(norm.url)) continue
+      seen.add(norm.url)
+      const title   = stripBoilerplate(r.title ?? "")
+      const snippet = (r.content ?? "").trim().slice(0, 300)
+      const { name, jobTitle } = splitTitle(title)
+      out.push({
+        linkedin_url: norm.url,
+        source:       norm.source,
+        name,
+        title:    jobTitle,
+        company:  guessCompany(snippet),
+        location: guessLocation(snippet),
+        snippet,
+      })
+    }
+    return out
+  } catch (e) {
+    console.warn("[tavily] search failed:", e)
+    return []
+  }
 }
 
 /**

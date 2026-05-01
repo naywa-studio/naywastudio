@@ -64,7 +64,24 @@ export async function POST(
   foundProfiles = foundProfiles.slice(0, MAX_PROFILES)
 
   if (foundProfiles.length === 0) {
-    const reason = "Aucun profil trouvé. Active l'API Google Custom Search (1 clic) : https://console.cloud.google.com/apis/library/customsearch.googleapis.com — ou installe l'extension Nawa Studio."
+    // Detect which backends are configured to write a precise message
+    const hasCse    = !!(process.env.GOOGLE_SEARCH_API_KEY?.trim() && process.env.GOOGLE_SEARCH_ENGINE_ID?.trim())
+    const hasTavily = !!process.env.TAVILY_API_KEY?.trim()
+    let reason: string
+    if (!hasCse && !hasTavily) {
+      reason =
+        "Aucun moteur de recherche stable configuré. Active une de ces 2 options pour des recherches fiables : " +
+        "1) Google Custom Search API (1 clic) https://console.cloud.google.com/apis/library/customsearch.googleapis.com  " +
+        "2) Tavily (créer un compte) https://tavily.com et ajouter TAVILY_API_KEY dans les variables d'environnement Vercel."
+    } else if (hasCse && !hasTavily) {
+      reason =
+        "L'API Google Custom Search est configurée mais l'API n'est pas activée sur le projet. " +
+        "Active-la en 1 clic : https://console.cloud.google.com/apis/library/customsearch.googleapis.com  " +
+        "Ou ajoute TAVILY_API_KEY (https://tavily.com) en alternative."
+    } else {
+      reason =
+        "Aucun profil trouvé. Tous les moteurs sont sollicités mais ne renvoient rien — vérifie tes mots-clés ou réessaie dans quelques minutes."
+    }
     await sb
       .from("missions")
       .update({ status: "error", brief: { ...brief, __error: reason } })
