@@ -33,7 +33,7 @@ const DEFAULT_API_BASE   = "https://nawa-studio.vercel.app"
 const STATE_KEY          = "nawa_search_state"
 
 // Search-phase tuning
-const MAX_PROFILES        = 80
+const MAX_PROFILES        = 60
 const SEARCH_DELAY_MIN_MS = 1_500
 const SEARCH_DELAY_MAX_MS = 3_500
 

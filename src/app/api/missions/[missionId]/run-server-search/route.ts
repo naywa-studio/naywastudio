@@ -19,7 +19,7 @@ import { generateQueriesFromBrief } from "@/lib/extension-queries"
 import { searchLinkedInForBrief } from "@/lib/google-cse"
 import { scoreProfiles, buildExcel } from "@/lib/profile-pipeline"
 
-const MAX_PROFILES = 80
+const MAX_PROFILES = 60
 
 export async function POST(
   _req: NextRequest,

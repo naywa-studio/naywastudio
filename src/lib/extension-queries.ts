@@ -12,11 +12,11 @@ import type { MissionBrief } from "@/lib/database.types"
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 // Total number of Google queries fired per mission.
-// Léo : 8 LinkedIn + 2 Malt (≈80 raw results, deduped down to ~80 candidates).
-// Nora : 7 LinkedIn + 1 Malt (smaller because each result is then enriched).
+// Léo : 6 LinkedIn + 1 Malt = 7 queries (≈70 raw, deduped to ≤60).
+// Nora : 6 LinkedIn + 1 Malt = 7 queries (each result is then enriched on LinkedIn).
 const QUERY_COUNTS = {
-  leo:  { linkedin: 8, malt: 2 },
-  nora: { linkedin: 7, malt: 1 },
+  leo:  { linkedin: 6, malt: 1 },
+  nora: { linkedin: 6, malt: 1 },
 } as const
 
 export async function generateQueriesFromBrief(

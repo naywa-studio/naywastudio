@@ -306,6 +306,108 @@ function MissionEmptyState({
   )
 }
 
+/* ── Permanent brief recap (always visible on the mission page) ─── */
+function BriefRecap({ brief, agentColor }: { brief: MissionBrief | null; agentColor: string }) {
+  const [open, setOpen] = useState(false)
+  if (!brief?.titre_poste) return null
+  const kw = brief.mots_cles ?? []
+
+  return (
+    <div style={{
+      margin: "0 20px 14px",
+      borderRadius: 12,
+      border: "1.5px solid #F0ECF8",
+      background: "white",
+      overflow: "hidden",
+      fontFamily: "var(--font-inter), sans-serif",
+    }}>
+      {/* Header line — always visible, click to toggle */}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex", alignItems: "center", gap: 10,
+          width: "100%", padding: "10px 14px",
+          background: "transparent", border: "none", cursor: "pointer",
+          fontFamily: "inherit", textAlign: "left",
+        }}
+      >
+        <span style={{
+          flexShrink: 0, width: 24, height: 24, borderRadius: 7,
+          background: agentColor + "15", color: agentColor,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+            <path d="M5 5h10M5 10h10M5 15h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+          Fiche de poste
+        </span>
+        <span style={{
+          fontSize: 13, fontWeight: 700, color: "#111827",
+          fontFamily: "var(--font-space-grotesk), sans-serif",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          flex: 1, minWidth: 0,
+        }}>
+          {brief.titre_poste}
+        </span>
+        {brief.localisation && (
+          <span style={{ fontSize: 12, color: "#6B7280", flexShrink: 0 }}>· {brief.localisation}</span>
+        )}
+        <span style={{ flexShrink: 0, color: "#9CA3AF", display: "flex", alignItems: "center" }}>
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="none"
+            style={{ transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 200ms" }}>
+            <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </button>
+
+      {/* Expanded body */}
+      {open && (
+        <div style={{
+          padding: "12px 14px 16px 48px",
+          borderTop: "1px solid #F0ECF8",
+          display: "flex", flexDirection: "column", gap: 10,
+        }}>
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+            {brief.localisation && (
+              <div>
+                <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Localisation</p>
+                <p style={{ margin: 0, fontSize: 13, color: "#374151" }}>{brief.localisation}</p>
+              </div>
+            )}
+            {brief.criteres && (
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Critères</p>
+                <p style={{ margin: 0, fontSize: 13, color: "#374151" }}>{brief.criteres}</p>
+              </div>
+            )}
+            {brief.ton && (
+              <div>
+                <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ton</p>
+                <p style={{ margin: 0, fontSize: 13, color: "#374151" }}>{brief.ton}</p>
+              </div>
+            )}
+          </div>
+          {kw.length > 0 && (
+            <div>
+              <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Mots-clés</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {kw.map((w) => (
+                  <span key={w} style={{
+                    fontSize: 11, padding: "2px 8px", borderRadius: 6,
+                    background: agentColor + "15", color: agentColor, fontWeight: 600,
+                  }}>{w}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function MissionDetailPage() {
   const params     = useParams()
   const missionId  = params.missionId as string
@@ -599,6 +701,13 @@ export default function MissionDetailPage() {
             </span>
           </div>
         </div>
+
+        {/* Permanent brief recap — visible during run + after completion.
+            Hidden only on the empty state, which already shows the brief
+            with a "Lancer la recherche" CTA. */}
+        {(isRunning || candidates.length > 0) && (
+          <BriefRecap brief={(mission.brief as MissionBrief | null) ?? null} agentColor={agent.color} />
+        )}
 
         {/* Error banner: surface mission.brief.__error if status=error */}
         {mission.status === "error" && !isRunning && (() => {
