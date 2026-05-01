@@ -34,7 +34,7 @@ interface CSEResponse {
 }
 
 /** Run a single CSE query and return raw LinkedIn profiles found. */
-export async function searchLinkedInProfiles(query: string): Promise<RawProfile[]> {
+export async function searchLinkedInProfiles(query: string): Promise<SourcedProfile[]> {
   const key = (process.env.GOOGLE_SEARCH_API_KEY ?? "").trim()
   const cx  = (process.env.GOOGLE_SEARCH_ENGINE_ID ?? "").trim()
   if (!key || !cx) {
@@ -96,21 +96,78 @@ export async function searchLinkedInForBrief(queries: string[]): Promise<RawProf
   if (process.env.NAWA_MOCK_SEARCH === "1") return mockProfiles(queries)
 
   const seen = new Set<string>()
-  const all: RawProfile[] = []
+  const all: SourcedProfile[] = []
   for (const q of queries) {
-    let found = await searchLinkedInProfiles(q)
-    if (found.length === 0) {
-      // Fallback: DuckDuckGo HTML (no API key, no CAPTCHA risk).
-      found = await searchLinkedInViaDuckDuckGo(q)
-    }
+    // Cascade: Custom Search API → DuckDuckGo → Bing.
+    // Stop at the first source that returns anything.
+    let found: SourcedProfile[] = await searchLinkedInProfiles(q)
+    if (found.length === 0) found = await searchLinkedInViaDuckDuckGo(q)
+    if (found.length === 0) found = await searchLinkedInViaBing(q)
     for (const p of found) {
       if (seen.has(p.linkedin_url)) continue
       seen.add(p.linkedin_url)
       all.push(p)
     }
-    await sleep(250)
+    await sleep(300)
   }
   return all
+}
+
+/**
+ * Bing HTML fallback. Bing rarely blocks server-side scraping at low
+ * volume, so it's a robust last-resort sourcing channel.
+ */
+async function searchLinkedInViaBing(query: string): Promise<SourcedProfile[]> {
+  try {
+    const res = await fetch(
+      `https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=fr&cc=fr`,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36",
+          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        },
+        cache: "no-store",
+      }
+    )
+    if (!res.ok) return []
+    const html = await res.text()
+    return parseBingHtml(html)
+  } catch (e) {
+    console.warn("[bing] search failed:", e)
+    return []
+  }
+}
+
+function parseBingHtml(html: string): SourcedProfile[] {
+  const profiles: SourcedProfile[] = []
+  const seen = new Set<string>()
+
+  // Bing wraps each organic result in <li class="b_algo">…<a href="…"><h2>…</h2></a>…<p>snippet</p>…</li>
+  const blockRe = /<li[^>]*class="[^"]*b_algo[^"]*"[^>]*>([\s\S]*?)<\/li>/g
+  let m: RegExpExecArray | null
+  while ((m = blockRe.exec(html)) !== null) {
+    const block = m[1]
+    const linkM = block.match(/<a[^>]+href="([^"]+)"[^>]*>(?:<[^>]+>\s*)*<h2[^>]*>([\s\S]*?)<\/h2>/)
+    if (!linkM) continue
+    const norm = normalizeProfileUrl(linkM[1])
+    if (!norm || seen.has(norm.url)) continue
+    seen.add(norm.url)
+    const title   = stripBoilerplate(stripTags(linkM[2] || ""))
+    const snipM   = block.match(/<p[^>]*>([\s\S]*?)<\/p>/)
+    const snippet = snipM ? stripTags(snipM[1]).trim() : ""
+    const { name, jobTitle } = splitTitle(title)
+    profiles.push({
+      linkedin_url: norm.url,
+      source:       norm.source,
+      name,
+      title:    jobTitle,
+      company:  guessCompany(snippet),
+      location: guessLocation(snippet),
+      snippet,
+    })
+  }
+  return profiles
 }
 
 /** Generate plausible-looking fake profiles for E2E and dev testing. */
@@ -138,7 +195,7 @@ function mockProfiles(queries: string[]): RawProfile[] {
  * organic result links. Used when Google Custom Search returns no items
  * (API not enabled, daily quota hit, etc.).
  */
-async function searchLinkedInViaDuckDuckGo(query: string): Promise<RawProfile[]> {
+async function searchLinkedInViaDuckDuckGo(query: string): Promise<SourcedProfile[]> {
   try {
     const res = await fetch(
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
