@@ -81,10 +81,11 @@ export function Navbar() {
           pointerEvents: "auto",
           width: "100%",
           maxWidth: 1120,
-          height: 58,
+          height: 64,
           display: "flex",
           alignItems: "center",
-          padding: "0 10px 0 22px",
+          justifyContent: "space-between",
+          padding: "0 14px 0 22px",
           borderRadius: 999,
           background: scrolled
             ? "rgba(255,255,255,0.48)"
@@ -98,12 +99,14 @@ export function Navbar() {
           transition: "background 300ms ease, box-shadow 300ms ease",
         }}
       >
-        <Link href="/" style={{ textDecoration: "none" }} onClick={() => setMobileOpen(false)}>
-          <Logo size="lg" markOnly />
-        </Link>
+        {/* LEFT: logo + nav links */}
+        <div style={{ display: "flex", alignItems: "center", gap: 24, minWidth: 0 }}>
+          <Link href="/" style={{ textDecoration: "none", display: "inline-flex" }} onClick={() => setMobileOpen(false)}>
+            <Logo size="lg" markOnly />
+          </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden lg:flex items-center gap-1 ml-8">
+          {/* Desktop nav */}
+          <nav className="nv-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 2 }}>
           {navLinks.map((link, i) => (
             <span key={link.href} style={{ display: "inline-flex", alignItems: "center" }}>
               {i > 0 && (
@@ -143,10 +146,11 @@ export function Navbar() {
               </Link>
             </span>
           ))}
-        </nav>
+          </nav>
+        </div>
 
-        {/* Desktop CTAs — auth-aware */}
-        <div className="hidden lg:flex items-center gap-2 ml-auto">
+        {/* RIGHT: desktop CTAs — auth-aware */}
+        <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {auth.loading ? (
             // Skeleton placeholder while session loads (avoids flash)
             <div style={{ width: 220, height: 38 }} />
@@ -307,7 +311,7 @@ export function Navbar() {
 
         {/* Mobile toggle */}
         <button
-          className="lg:hidden ml-auto"
+          className="nv-mobile-toggle"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Menu"
           style={{
@@ -316,7 +320,7 @@ export function Navbar() {
             cursor: "pointer",
             padding: 8,
             borderRadius: 999,
-            display: "inline-flex",
+            display: "none",
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -463,6 +467,22 @@ export function Navbar() {
           </div>
         )}
       </header>
+
+      <style jsx global>{`
+        .nv-desktop-nav,
+        .nv-desktop-cta {
+          display: flex;
+        }
+        @media (max-width: 1023px) {
+          .nv-desktop-nav,
+          .nv-desktop-cta {
+            display: none !important;
+          }
+          .nv-mobile-toggle {
+            display: inline-flex !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }
