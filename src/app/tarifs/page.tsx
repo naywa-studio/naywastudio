@@ -11,73 +11,80 @@ const PLANS = [
   {
     level: 'N1',
     agent: 'Léo',
-    role: 'Agent de tri & nettoyage',
-    price: '149',
-    color: '#22c55e',
-    colorLight: 'rgba(34,197,94,0.07)',
-    colorMid: 'rgba(34,197,94,0.14)',
-    border: 'rgba(34,197,94,0.22)',
-    badge: null,
-    description: 'Idéal pour trier et qualifier rapidement une liste de candidats existante.',
-    includes: [
-      'Upload de tableur (CSV, Excel, export jobboard)',
-      'Définition du profil cible en langage naturel',
-      'Tableur nettoyé & profils mis en évidence',
-      'Détection automatique des doublons',
-      'Export du résultat',
-    ],
-    notIncluded: ['Sourcing actif', 'Contact candidats', 'Reporting'],
-  },
-  {
-    level: 'N2',
-    agent: 'Nora',
-    role: 'Agent maître de sourcing',
-    price: '299',
-    color: '#3b82f6',
-    colorLight: 'rgba(59,130,246,0.07)',
-    colorMid: 'rgba(59,130,246,0.14)',
-    border: 'rgba(59,130,246,0.22)',
-    badge: 'Le plus demandé',
-    description: 'Automatisation complète du sourcing de A à Z, sans complexité technique.',
-    includes: [
-      'Tout ce que fait Léo',
-      'Analyse fine du besoin de recrutement',
-      'Scoring & priorisation des candidats',
-      'Shortlist priorisée avec commentaires',
-      'Rapport hebdomadaire automatique',
-    ],
-    notIncluded: ['Prise de contact candidats', 'Gestion du calendrier'],
-  },
-  {
-    level: 'N3',
-    agent: 'Alex',
-    role: 'Agent orchestrateur de recrutement',
-    price: '499',
+    role: 'Sourcing automatisé',
+    price: 'Gratuit',
+    priceSuffix: 'pendant la phase beta',
     color: '#7C63C8',
     colorLight: 'rgba(124,99,200,0.07)',
     colorMid: 'rgba(124,99,200,0.14)',
     border: 'rgba(124,99,200,0.22)',
-    badge: 'Premium',
-    description: "L'équivalent d'une équipe de recrutement complète, pilotée par IA.",
+    badge: 'Beta — Accès libre',
+    description: "Décrivez votre besoin de recrutement, Léo trouve jusqu'à 60 profils LinkedIn et Malt triés par pertinence. Tableur Excel exportable.",
     includes: [
-      'Tout ce que fait Nora',
-      "Rédaction d'offres d'emploi",
-      'Sourcing & chasse active de candidats',
-      'Prise de contact & relances automatiques',
-      "Booking d'entretiens",
-      "Transcription d'appels & synthèse candidat",
-      'Dossiers candidats complets',
-      'Dashboard temps réel',
+      "Brief en langage naturel via chat IA",
+      "Recherche multi-canal (LinkedIn + Malt)",
+      "Scoring IA par pertinence (séniorité, compétences, lieu)",
+      "Export Excel structuré",
+      "Jusqu'à 60 candidats par mission",
     ],
     notIncluded: [],
+    available: true,
+    href: '/login?mode=signup',
+    ctaLabel: 'Commencer gratuitement →',
+  },
+  {
+    level: 'N2',
+    agent: 'Nora',
+    role: 'Sourcing + enrichissement LinkedIn',
+    price: 'Bientôt',
+    priceSuffix: '',
+    color: '#3b82f6',
+    colorLight: 'rgba(59,130,246,0.07)',
+    colorMid: 'rgba(59,130,246,0.14)',
+    border: 'rgba(59,130,246,0.22)',
+    badge: 'Bientôt',
+    description: "Toutes les fonctionnalités de Léo + enrichissement automatique des profils LinkedIn (expérience complète, compétences, formations).",
+    includes: [
+      "Tout ce que fait Léo",
+      "Enrichissement automatique LinkedIn",
+      "Messages personnalisés générés par IA",
+      "Shortlist priorisée avec justifications",
+    ],
+    notIncluded: [],
+    available: false,
+    href: null,
+    ctaLabel: 'Bientôt disponible',
+  },
+  {
+    level: 'N3',
+    agent: 'Alex',
+    role: "Orchestrateur de recrutement",
+    price: 'Bientôt',
+    priceSuffix: '',
+    color: '#a78bfa',
+    colorLight: 'rgba(167,139,250,0.07)',
+    colorMid: 'rgba(167,139,250,0.14)',
+    border: 'rgba(167,139,250,0.22)',
+    badge: 'Bientôt',
+    description: "L'équivalent d'une équipe de recrutement complète, pilotée par IA — chasse active, prise de contact et booking d'entretiens.",
+    includes: [
+      "Tout ce que fait Nora",
+      "Prise de contact & relances automatiques",
+      "Booking d'entretiens",
+      "Dashboard temps réel",
+    ],
+    notIncluded: [],
+    available: false,
+    href: null,
+    ctaLabel: 'Bientôt disponible',
   },
 ]
 
 const INCLUDED_ALL = [
-  { icon: '🖥️', label: 'VPS dédié inclus', desc: '1 serveur isolé par client, géré par Nawa.' },
-  { icon: '🔑', label: 'Clé API IA incluse', desc: "Tokens IA compris dans l'abonnement." },
-  { icon: '⚡', label: 'Mise en service en 48h', desc: 'Votre agent est opérationnel sous 48h.' },
-  { icon: '🔄', label: 'Upgrade instantané', desc: 'Changez de niveau à tout moment, sans interruption.' },
+  { icon: '⚡', label: 'Mise en service immédiate', desc: 'Compte créé, recherche lancée en 30 secondes.' },
+  { icon: '🔑', label: 'IA & recherche incluses', desc: 'Aucune clé API à configurer de votre côté.' },
+  { icon: '🔒', label: 'Données privées', desc: 'Vos missions et candidats restent à vous.' },
+  { icon: '💬', label: 'Support direct', desc: 'Phase beta : feedback bienvenu, on itère vite.' },
 ]
 
 export default function TarifsPage() {
@@ -173,8 +180,7 @@ export default function TarifsPage() {
             fontFamily: 'var(--font-inter), sans-serif',
           }}
         >
-          Un abonnement mensuel fixe par agent. VPS et tokens IA inclus.
-          Changez de niveau à tout moment, sans frais.
+          Léo est <strong>gratuit pendant la phase beta</strong> — créez un compte et lancez votre première recherche en 2 minutes. Nora et Alex arrivent bientôt.
         </p>
       </section>
 
@@ -272,11 +278,12 @@ export default function TarifsPage() {
                   padding: '16px 0',
                   borderTop: `1px solid ${plan.border}`,
                   borderBottom: `1px solid ${plan.border}`,
+                  flexWrap: 'wrap',
                 }}
               >
                 <span
                   style={{
-                    fontSize: 44,
+                    fontSize: plan.price === 'Gratuit' || plan.price === 'Bientôt' ? 32 : 44,
                     fontWeight: 800,
                     color: '#111827',
                     lineHeight: 1,
@@ -284,18 +291,20 @@ export default function TarifsPage() {
                     letterSpacing: -1,
                   }}
                 >
-                  {plan.price}€
+                  {plan.price}
                 </span>
-                <span
-                  style={{
-                    fontSize: 14,
-                    color: '#9CA3AF',
-                    paddingBottom: 6,
-                    fontFamily: 'var(--font-inter), sans-serif',
-                  }}
-                >
-                  / mois
-                </span>
+                {plan.priceSuffix && (
+                  <span
+                    style={{
+                      fontSize: 13,
+                      color: '#9CA3AF',
+                      paddingBottom: 6,
+                      fontFamily: 'var(--font-inter), sans-serif',
+                    }}
+                  >
+                    {plan.priceSuffix}
+                  </span>
+                )}
               </div>
 
               {/* Description */}
@@ -350,25 +359,46 @@ export default function TarifsPage() {
               </div>
 
               {/* CTA */}
-              <Link
-                href="/catalogue"
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  textAlign: 'center',
-                  padding: '14px 24px',
-                  borderRadius: 12,
-                  fontWeight: 600,
-                  fontSize: 15,
-                  color: 'white',
-                  background: plan.color,
-                  textDecoration: 'none',
-                  fontFamily: 'var(--font-inter), sans-serif',
-                  boxSizing: 'border-box',
-                }}
-              >
-                Choisir {plan.agent} →
-              </Link>
+              {plan.available && plan.href ? (
+                <Link
+                  href={plan.href}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'center',
+                    padding: '14px 24px',
+                    borderRadius: 12,
+                    fontWeight: 600,
+                    fontSize: 15,
+                    color: 'white',
+                    background: plan.color,
+                    textDecoration: 'none',
+                    fontFamily: 'var(--font-inter), sans-serif',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {plan.ctaLabel}
+                </Link>
+              ) : (
+                <div
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'center',
+                    padding: '14px 24px',
+                    borderRadius: 12,
+                    fontWeight: 600,
+                    fontSize: 15,
+                    color: '#9CA3AF',
+                    background: '#F3F4F6',
+                    fontFamily: 'var(--font-inter), sans-serif',
+                    boxSizing: 'border-box',
+                    cursor: 'not-allowed',
+                  }}
+                >
+                  {plan.ctaLabel}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -383,7 +413,7 @@ export default function TarifsPage() {
             fontFamily: 'var(--font-inter), sans-serif',
           }}
         >
-          Pas de frais de setup. Résiliation à tout moment. Facturation mensuelle.
+          Aucune carte bancaire requise pendant la phase beta.
         </p>
       </section>
 

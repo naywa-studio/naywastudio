@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, Suspense } from "react"
+import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { m, AnimatePresence } from "framer-motion"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -312,6 +312,67 @@ function NewMissionForm({
 
 /* ── InfoRow ─────────────────────────────────────────────────── */
 
+/**
+ * Free Léo auto-grant — no payment, no VPS, instant access.
+ * Called when a logged-in user lands on /workspace without a subscription.
+ * Posts to /api/subscribe with level='leo' which marks them ready immediately.
+ */
+function AutoGrantLeoScreen({ onReady, firstName }: { onReady: () => void; firstName: string }) {
+  const fired = useRef(false)
+  useEffect(() => {
+    if (fired.current) return
+    fired.current = true
+    ;(async () => {
+      try {
+        const res = await fetch("/api/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ level: "leo" }),
+        })
+        // 409 means already subscribed — just refetch
+        if (res.ok || res.status === 409) onReady()
+      } catch (e) {
+        console.error("[auto-grant] failed:", e)
+      }
+    })()
+  }, [onReady])
+
+  return (
+    <main style={{
+      minHeight: "calc(100vh - 60px)",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: "40px 24px", textAlign: "center",
+    }}>
+      <m.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: EASE }}
+        style={{ maxWidth: 420 }}
+      >
+        <div style={{
+          width: 56, height: 56, borderRadius: 16,
+          background: "#F8F6FF", border: "1.5px solid #E2DAF6",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 24, margin: "0 auto 20px",
+        }}>👋</div>
+        <h1 style={{
+          fontSize: 22, fontWeight: 800, color: "#111827", margin: "0 0 10px",
+          fontFamily: "var(--font-space-grotesk), sans-serif",
+        }}>
+          Bienvenue{firstName ? `, ${firstName}` : ""} !
+        </h1>
+        <p style={{
+          fontSize: 14, color: "#6B7280", lineHeight: 1.6, margin: 0,
+          fontFamily: "var(--font-inter), sans-serif",
+        }}>
+          On prépare votre espace de sourcing…
+        </p>
+      </m.div>
+    </main>
+  )
+}
+
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -422,49 +483,11 @@ function WorkspacePageInner() {
     )
   }
 
-  // No subscription
+  // No subscription → auto-grant free Léo (test phase, no payment).
+  // The /api/subscribe endpoint sets subscription_level='leo' + vps_status='ready'
+  // synchronously for Léo (no VPS provisioning needed in the new architecture).
   if (!hasSubscription) {
-    return (
-      <main style={{
-        minHeight: "calc(100vh - 60px)",
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        padding: "40px 24px", textAlign: "center",
-      }}>
-        <m.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: EASE }}
-          style={{ maxWidth: 480 }}
-        >
-          <div style={{
-            width: 72, height: 72, borderRadius: 20,
-            background: "#F8F6FF", border: "1.5px solid #E2DAF6",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 32, margin: "0 auto 28px",
-          }}>🤖</div>
-          <h1 style={{ fontSize: "clamp(22px, 4vw, 32px)", fontWeight: 800, color: "#111827", margin: "0 0 12px", fontFamily: "var(--font-space-grotesk), sans-serif" }}>
-            Bonjour{firstName ? `, ${firstName}` : ""} 👋
-          </h1>
-          <p style={{ fontSize: 16, color: "#6B7280", lineHeight: 1.65, margin: "0 0 36px", fontFamily: "var(--font-inter), sans-serif" }}>
-            Votre espace est prêt. Choisissez un agent pour commencer à sourcer vos premiers candidats.
-          </p>
-          <Link href="/packages" style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            padding: "16px 32px", borderRadius: 14,
-            background: "#7C63C8", color: "white",
-            fontSize: 16, fontWeight: 700, textDecoration: "none",
-            fontFamily: "var(--font-space-grotesk), sans-serif",
-            boxShadow: "0 8px 32px rgba(124,99,200,0.28)",
-          }}>
-            Trouver mon agent !
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-              <path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </Link>
-        </m.div>
-      </main>
-    )
+    return <AutoGrantLeoScreen onReady={refetchProfile} firstName={firstName} />
   }
 
   /* ── Main workspace layout ───────────────────────────────── */

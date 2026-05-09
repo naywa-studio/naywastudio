@@ -56,15 +56,19 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // ── Update profile → mark pending ─────────────────────────────────────────
+  // ── Léo runs entirely server-side (no VPS needed) ────────────────────────
+  // Léo's flow: extension silent fetch → /run-server-search fallback → done.
+  // Skip the Hostinger VPS provisioning entirely → instant access.
+  const isLeoFreeTier = level === "leo"
+
   const now = new Date().toISOString()
   const { error: updateErr } = await sb
     .from("profiles")
     .update({
       subscription_level: level,
       subscribed_at: now,
-      vps_status: "pending",
-      agent_status: "not_deployed",
+      vps_status:    isLeoFreeTier ? "ready"   : "pending",
+      agent_status:  isLeoFreeTier ? "running" : "not_deployed",
     })
     .eq("user_id", user.id)
 
@@ -73,12 +77,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "DB error" }, { status: 500 })
   }
 
-  // ── Trigger VPS provisioning in background (non-blocking) ─────────────────
-  // We don't await — Vercel will keep the execution context alive
-  // until the response is sent; the background task continues independently.
-  provisionInBackground(user.id, level).catch((err) =>
-    console.error("[subscribe] background provision failed:", err)
-  )
+  // For Nora/Alex (legacy paid tiers), still trigger VPS provisioning.
+  if (!isLeoFreeTier) {
+    provisionInBackground(user.id, level).catch((err) =>
+      console.error("[subscribe] background provision failed:", err)
+    )
+  }
 
-  return NextResponse.json({ ok: true, level, status: "pending" })
+  return NextResponse.json({
+    ok: true,
+    level,
+    status: isLeoFreeTier ? "ready" : "pending",
+  })
 }
