@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import { getSupabase } from "@/lib/supabase"
 import { AGENT_LEVELS } from "@/lib/mock-store"
+import { ExtensionBanner } from "@/components/workspace/ExtensionBanner"
 import type { Database } from "@/lib/database.types"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
@@ -277,6 +278,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           }
         `}</style>
 
+        <ExtensionBanner />
         {children}
       </div>
     </WorkspaceContext.Provider>

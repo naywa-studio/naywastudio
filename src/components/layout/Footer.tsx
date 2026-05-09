@@ -14,6 +14,7 @@ const footerLinks: Record<string, FooterLink[]> = {
   Ressources: [
     { label: 'Comment ça marche', href: '/#how' },
     { label: 'FAQ', href: '/faq' },
+    { label: 'Extension Chrome', href: '/install' },
     { label: 'Mentions légales', href: '/mentions-legales' },
   ],
   Contact: [
