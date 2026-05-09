@@ -3,19 +3,13 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 
-interface NavbarProps {
-  onOpenOnboarding?: () => void
-  onOpenLogin?: () => void
-}
-
 const navLinks = [
-  { label: "Catalogue",      href: "/catalogue" },
-  { label: "Workspace",      href: "/workspace" },
-  { label: "À propos",       href: "/a-propos" },
-  { label: "Contact",        href: "/contact" },
+  { label: "Comment ça marche", href: "/#how" },
+  { label: "Tarifs",            href: "/tarifs" },
+  { label: "FAQ",               href: "/faq" },
 ]
 
-export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
+export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -108,8 +102,8 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
 
         {/* Desktop CTAs */}
         <div className="hidden lg:flex items-center gap-2 ml-auto">
-          <button
-            onClick={onOpenLogin}
+          <Link
+            href="/login"
             style={{
               fontSize: 13,
               fontWeight: 600,
@@ -118,7 +112,7 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
               borderRadius: 999,
               border: "1px solid rgba(124,99,200,0.25)",
               background: "rgba(255,255,255,0.4)",
-              cursor: "pointer",
+              textDecoration: "none",
               transition: "all 160ms ease",
               fontFamily: "var(--font-inter), sans-serif",
               letterSpacing: "-0.005em",
@@ -133,10 +127,10 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
             }}
           >
             Se connecter
-          </button>
+          </Link>
 
-          <button
-            onClick={onOpenOnboarding}
+          <Link
+            href="/login?mode=signup"
             style={{
               fontSize: 13,
               fontWeight: 700,
@@ -145,7 +139,7 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
               borderRadius: 999,
               background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
               border: "1px solid rgba(124,99,200,0.9)",
-              cursor: "pointer",
+              textDecoration: "none",
               transition: "transform 160ms ease, box-shadow 160ms ease, filter 160ms ease",
               fontFamily: "var(--font-inter), sans-serif",
               letterSpacing: "-0.005em",
@@ -165,8 +159,8 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
               e.currentTarget.style.filter = "brightness(1)"
             }}
           >
-            Testez votre agent
-          </button>
+            Commencer →
+          </Link>
         </div>
 
         {/* Mobile toggle */}
@@ -239,8 +233,9 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
               </Link>
             ))}
             <div style={{ height: 1, background: "rgba(240,236,248,0.8)", margin: "6px 4px" }} />
-            <button
-              onClick={() => { setMobileOpen(false); onOpenLogin?.() }}
+            <Link
+              href="/login"
+              onClick={() => setMobileOpen(false)}
               style={{
                 textAlign: "center",
                 fontSize: 13.5,
@@ -250,14 +245,15 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
                 borderRadius: 12,
                 border: "1px solid rgba(124,99,200,0.25)",
                 background: "rgba(124,99,200,0.04)",
-                cursor: "pointer",
+                textDecoration: "none",
                 fontFamily: "var(--font-inter), sans-serif",
               }}
             >
               Se connecter
-            </button>
-            <button
-              onClick={() => { setMobileOpen(false); onOpenOnboarding?.() }}
+            </Link>
+            <Link
+              href="/login?mode=signup"
+              onClick={() => setMobileOpen(false)}
               style={{
                 textAlign: "center",
                 fontSize: 13.5,
@@ -266,14 +262,13 @@ export function Navbar({ onOpenOnboarding, onOpenLogin }: NavbarProps) {
                 background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
                 padding: "12px",
                 borderRadius: 12,
-                border: "none",
-                cursor: "pointer",
+                textDecoration: "none",
                 fontFamily: "var(--font-inter), sans-serif",
                 boxShadow: "0 6px 20px -6px rgba(124,99,200,0.5)",
               }}
             >
-              Testez votre agent
-            </button>
+              Commencer →
+            </Link>
           </div>
         )}
       </header>

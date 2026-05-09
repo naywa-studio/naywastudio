@@ -15,35 +15,34 @@ const steps = [
     number: "01",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M9 12h6M9 8h4M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 11h-6M19 8v6" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
-    title: "Décrivez votre besoin",
-    subtitle: "2 minutes",
-    desc: "Répondez à 3 questions sur votre volume, votre objectif et votre niveau d'autonomie souhaité. Notre quiz guide la recommandation.",
+    title: "Créez votre compte",
+    subtitle: "30 secondes",
+    desc: "Inscrivez-vous avec Google ou par email. Aucune carte bancaire requise pendant la phase beta.",
   },
   {
     number: "02",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="3" stroke="#7C63C8" strokeWidth="1.75" />
-        <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.64 5.64l1.42 1.42M16.95 16.95l1.41 1.41M5.64 18.36l1.42-1.42M16.95 7.05l1.41-1.41" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" />
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
-    title: "Votre workspace est prêt",
-    subtitle: "< 24h",
-    desc: "Votre workspace est configuré automatiquement en moins de 24h. Aucune intégration technique requise de votre côté.",
+    title: "Décrivez votre poste",
+    subtitle: "1 minute",
+    desc: "Discutez avec Léo dans le chat. Précisez le poste, le lieu et les compétences clés — il pose des questions si besoin.",
   },
   {
     number: "03",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
-    title: "Votre agent travaille",
-    subtitle: "En continu",
-    desc: "L'agent source, trie et qualifie vos candidats 24h/24. Vous recevez une shortlist commentée, prête à l'action.",
+    title: "Recevez vos candidats",
+    subtitle: "Quelques secondes",
+    desc: "Léo vous remet jusqu'à 60 profils LinkedIn et Malt, triés par pertinence. Tableur Excel exportable en un clic.",
   },
 ]
 
@@ -102,8 +101,8 @@ export function HowItWorks() {
               margin: 0,
             }}
           >
-            Opérationnel en 48h,<br />
-            sans friction
+            Vos premiers candidats<br />
+            en quelques minutes
           </h2>
 
           <p

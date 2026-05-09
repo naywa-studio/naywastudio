@@ -1,3 +1,5 @@
+"use client"
+
 import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
 
@@ -5,12 +7,12 @@ type FooterLink = { label: string; href: string; external?: boolean }
 
 const footerLinks: Record<string, FooterLink[]> = {
   Produit: [
-    { label: 'Catalogue agents', href: '/catalogue' },
     { label: 'Tarifs', href: '/tarifs' },
-    { label: 'Espace client', href: '/workspace' },
+    { label: 'Mon espace', href: '/workspace' },
+    { label: "S'inscrire", href: '/login?mode=signup' },
   ],
   Ressources: [
-    { label: 'Comment ça marche', href: '#how' },
+    { label: 'Comment ça marche', href: '/#how' },
     { label: 'FAQ', href: '/faq' },
     { label: 'Mentions légales', href: '/mentions-legales' },
   ],
@@ -55,7 +57,7 @@ export function Footer() {
               maxWidth: '28ch',
             }}
           >
-            Des agents IA sur-mesure pour automatiser votre sourcing et recrutement.
+            Sourcing automatisé pour recruteurs. Trouvez vos meilleurs candidats LinkedIn en quelques minutes.
           </p>
         </div>
 

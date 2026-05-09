@@ -12,13 +12,13 @@ const fu = (delay: number) => ({
 })
 
 const guarantees = [
-  { icon: "⚡", label: "Déployé en 48h" },
-  { icon: "🔓", label: "Sans engagement" },
-  { icon: "🎯", label: "Résultats en 7 jours" },
-  { icon: "🛠️", label: "Support dédié inclus" },
+  { icon: "⚡", label: "Setup en 2 min" },
+  { icon: "🆓", label: "Gratuit pendant la beta" },
+  { icon: "🎯", label: "60 candidats par mission" },
+  { icon: "🛠️", label: "Sans carte bancaire" },
 ]
 
-export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
+export function FinalCTA() {
   return (
     <section
       style={{
@@ -106,7 +106,7 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
                 flexShrink: 0,
               }}
             />
-            Déployé en 48h · Sans engagement
+            Beta gratuite · Sans engagement
           </m.span>
 
           {/* Headline */}
@@ -124,8 +124,8 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
               position: "relative",
             }}
           >
-            Prêt à gagner du temps<br />
-            avec vos agents IA ?
+            Prêt à sourcer<br />
+            vos premiers candidats ?
           </m.h2>
 
           {/* Subtext */}
@@ -141,8 +141,8 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
               position: "relative",
             }}
           >
-            Découvrez quel agent correspond à votre besoin en 2 minutes.
-            Votre équipe d&apos;agents est opérationnelle sous 48h.
+            Créez votre compte et lancez votre première recherche en 2 minutes.
+            Léo trouve les profils, vous gardez la main.
           </m.p>
 
           {/* CTA buttons */}
@@ -158,8 +158,8 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
               marginBottom: 48,
             }}
           >
-            <button
-              onClick={onOpenOnboarding}
+            <Link
+              href="/login?mode=signup"
               style={{
                 background: "#FFFFFF",
                 color: "#7C63C8",
@@ -167,8 +167,7 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
                 padding: "15px 32px",
                 fontSize: 15,
                 fontWeight: 700,
-                border: "none",
-                cursor: "pointer",
+                textDecoration: "none",
                 transition: "all 200ms cubic-bezier(0.22, 1, 0.36, 1)",
                 fontFamily: "var(--font-inter), sans-serif",
                 letterSpacing: "-0.01em",
@@ -183,11 +182,11 @@ export function FinalCTA({ onOpenOnboarding }: { onOpenOnboarding: () => void })
                 e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)"
               }}
             >
-              Trouver mon agent →
-            </button>
+              Commencer gratuitement →
+            </Link>
 
             <Link
-              href="/catalogue"
+              href="/tarifs"
               style={{
                 display: "inline-flex",
                 alignItems: "center",

@@ -226,13 +226,36 @@ function ActionCard({
   )
 }
 
+const EXAMPLE_BRIEFS = [
+  {
+    icon: "📊",
+    label: "Data Engineer Senior à Paris",
+    prompt: "Je cherche un Data Engineer senior à Paris, 5 ans d'expérience, idéalement avec Spark, Python et AWS.",
+  },
+  {
+    icon: "💼",
+    label: "Business Analyst en monétique",
+    prompt: "Je cherche un Business Analyst senior spécialisé en monétique à Paris, expérience banque ou fintech.",
+  },
+  {
+    icon: "🎨",
+    label: "UX Designer freelance",
+    prompt: "Je cherche un UX Designer freelance senior à Lyon, 4 ans d'expérience minimum, à l'aise avec Figma.",
+  },
+  {
+    icon: "👨‍💻",
+    label: "Développeur Fullstack JS",
+    prompt: "Je cherche un développeur Fullstack JavaScript senior à Bordeaux, expert React et Node.js.",
+  },
+] as const
+
 /** État vide — première ouverture */
 function WelcomeState({
-  firstName, agentColor, onNewMission,
+  firstName, agentColor, onSendExample,
 }: {
   firstName: string | null
   agentColor: string
-  onNewMission: () => void
+  onSendExample: (prompt: string) => void
 }) {
   return (
     <m.div
@@ -243,9 +266,10 @@ function WelcomeState({
         flex: 1, display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
         padding: "40px 24px", textAlign: "center",
+        maxWidth: 560, margin: "0 auto",
       }}
     >
-      {/* Icon — solid, no gradient, no glow */}
+      {/* Avatar */}
       <div style={{
         width: 48, height: 48, borderRadius: 14,
         background: agentColor,
@@ -258,35 +282,76 @@ function WelcomeState({
       </div>
 
       <h2 style={{
-        fontSize: 20, fontWeight: 800, color: "#111827",
-        margin: "0 0 8px",
+        fontSize: 22, fontWeight: 800, color: "#111827",
+        margin: "0 0 10px",
         fontFamily: "var(--font-space-grotesk), sans-serif",
         letterSpacing: -0.3,
       }}>
         Bonjour{firstName ? `, ${firstName}` : ""} 👋
       </h2>
       <p style={{
-        fontSize: 14, color: "#6B7280", margin: "0 0 28px", lineHeight: 1.6,
-        maxWidth: 340, fontFamily: "var(--font-inter), sans-serif",
+        fontSize: 14.5, color: "#4B5563", margin: "0 0 8px", lineHeight: 1.6,
+        fontFamily: "var(--font-inter), sans-serif",
       }}>
-        Décrivez votre besoin de recrutement — ou attachez une mission existante depuis le panneau de droite.
+        Décrivez-moi votre poste à pourvoir, je trouve les candidats en quelques secondes.
+      </p>
+      <p style={{
+        fontSize: 12.5, color: "#9CA3AF", margin: "0 0 24px",
+        fontFamily: "var(--font-inter), sans-serif",
+      }}>
+        Plus vous précisez (lieu, séniorité, compétences clés), meilleurs sont les résultats.
       </p>
 
-      <button
-        onClick={onNewMission}
-        style={{
-          padding: "11px 24px", borderRadius: 12, border: "none",
-          background: agentColor, color: "white",
-          fontSize: 14, fontWeight: 700, cursor: "pointer",
+      {/* Example chips */}
+      <div style={{
+        display: "flex", flexDirection: "column", gap: 8, width: "100%",
+        marginBottom: 12,
+      }}>
+        <p style={{
+          fontSize: 11, fontWeight: 700, color: "#9CA3AF",
+          textTransform: "uppercase", letterSpacing: "0.07em",
+          margin: "0 0 4px", textAlign: "left",
           fontFamily: "var(--font-inter), sans-serif",
-          boxShadow: `0 4px 16px ${agentColor}35`,
-          transition: "transform 120ms, box-shadow 120ms",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 8px 24px ${agentColor}45` }}
-        onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = `0 4px 16px ${agentColor}35` }}
-      >
-        ✦ Nouvelle mission
-      </button>
+        }}>
+          Essayez avec un exemple
+        </p>
+        {EXAMPLE_BRIEFS.map((ex) => (
+          <button
+            key={ex.label}
+            onClick={() => onSendExample(ex.prompt)}
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              width: "100%", padding: "11px 14px",
+              borderRadius: 10, border: "1.5px solid #F0ECF8",
+              background: "white", cursor: "pointer",
+              fontSize: 13.5, color: "#374151", textAlign: "left",
+              fontFamily: "var(--font-inter), sans-serif",
+              transition: "border-color 150ms, background 150ms",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = agentColor
+              e.currentTarget.style.background = agentColor + "08"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "#F0ECF8"
+              e.currentTarget.style.background = "white"
+            }}
+          >
+            <span style={{ fontSize: 18, flexShrink: 0 }}>{ex.icon}</span>
+            <span style={{ flex: 1, fontWeight: 600, color: "#111827" }}>{ex.label}</span>
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, color: "#9CA3AF" }}>
+              <path d="M7 5l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        ))}
+      </div>
+
+      <p style={{
+        fontSize: 11.5, color: "#9CA3AF", margin: "8px 0 0",
+        fontFamily: "var(--font-inter), sans-serif",
+      }}>
+        Ou tapez votre brief directement dans le champ ci-dessous.
+      </p>
     </m.div>
   )
 }
@@ -774,7 +839,7 @@ export default function WorkspaceCentralChat({
           <WelcomeState
             firstName={firstName}
             agentColor={agentColor}
-            onNewMission={() => sendMessage("Je veux lancer une nouvelle recherche de profils.")}
+            onSendExample={(prompt) => sendMessage(prompt)}
           />
         ) : (
           <div style={{ maxWidth: 720, width: "100%", margin: "0 auto", padding: "0 24px" }}>

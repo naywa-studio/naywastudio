@@ -11,7 +11,7 @@ const fu = (delay: number) => ({
   transition: { duration: 0.75, delay, ease: EASE },
 })
 
-export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
+export function Hero() {
   return (
     <section
       style={{
@@ -24,7 +24,6 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
         justifyContent: 'flex-end',
       }}
     >
-      {/* ── Subtle surface gradient — top right ────────────────────────── */}
       <div
         aria-hidden
         style={{
@@ -37,7 +36,6 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
         }}
       />
 
-      {/* ── Bottom-left content ────────────────────────────────────────── */}
       <div
         style={{
           position: 'relative',
@@ -49,6 +47,31 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
         }}
         className="hero-content"
       >
+        {/* Beta pill */}
+        <m.div
+          {...fu(0.10)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'rgba(124,99,200,0.10)',
+            border: '1px solid rgba(124,99,200,0.22)',
+            borderRadius: 999,
+            padding: '5px 12px 5px 8px',
+            marginBottom: 24,
+            fontFamily: 'var(--font-inter), sans-serif',
+            fontSize: 12,
+            fontWeight: 600,
+            color: '#7C63C8',
+          }}
+        >
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: '#7C63C8', display: 'inline-block',
+          }} />
+          Beta — gratuit, sans carte bancaire
+        </m.div>
+
         {/* H1 */}
         <m.h1
           {...fu(0.18)}
@@ -63,21 +86,8 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
             maxWidth: '14ch',
           }}
         >
-          Votre équipe<br />
-          d&apos;
-          <span
-            style={{
-              fontFamily: 'var(--font-instrument-serif), ui-serif, Georgia, serif',
-              fontWeight: 400,
-              fontStyle: 'italic',
-              letterSpacing: '-0.015em',
-              color: '#7C63C8',
-            }}
-          >
-            agents&nbsp;IA
-          </span>
-          ,<br />
-          opérationnelle<br />
+          Trouvez vos<br />
+          meilleurs candidats<br />
           en&nbsp;
           <span
             style={{
@@ -91,7 +101,7 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
               backgroundClip: 'text',
             }}
           >
-            48h
+            2&nbsp;minutes
           </span>
           <span style={{ color: '#111827' }}>.</span>
         </m.h1>
@@ -108,9 +118,8 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
             margin: '0 0 40px',
           }}
         >
-          Nawa Studio déploie des agents IA sur-mesure pour automatiser
-          vos processus métier — et vous rendre du temps sur ce qui
-          compte vraiment.
+          Décrivez votre poste, Léo source jusqu&apos;à 60 profils LinkedIn et Malt
+          triés par pertinence. Tableur Excel exportable, en quelques secondes.
         </m.p>
 
         {/* CTAs */}
@@ -123,8 +132,8 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
             alignItems: 'center',
           }}
         >
-          <button
-            onClick={onOpenOnboarding}
+          <Link
+            href="/login?mode=signup"
             style={{
               background: '#7C63C8',
               color: '#FFFFFF',
@@ -132,12 +141,14 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
               padding: '14px 30px',
               fontSize: 15,
               fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
+              textDecoration: 'none',
               transition: 'all 200ms cubic-bezier(0.22, 1, 0.36, 1)',
               fontFamily: 'var(--font-inter), sans-serif',
               letterSpacing: '-0.01em',
               boxShadow: '0 4px 20px rgba(124,99,200,0.28)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-2px)'
@@ -148,11 +159,11 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
               e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,99,200,0.28)'
             }}
           >
-            Trouver mon agent →
-          </button>
+            Commencer gratuitement →
+          </Link>
 
-          <Link
-            href="/catalogue"
+          <a
+            href="#how"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -179,8 +190,8 @@ export function Hero({ onOpenOnboarding }: { onOpenOnboarding: () => void }) {
               e.currentTarget.style.color = '#4B5563'
             }}
           >
-            Voir le catalogue
-          </Link>
+            Voir comment ça marche
+          </a>
         </m.div>
 
       </div>

@@ -12,19 +12,19 @@ const fu = (delay: number) => ({
 
 const metrics = [
   {
-    value: "48h",
-    title: "Déploiement express",
-    desc: "Votre agent est opérationnel en deux jours. Sans équipe technique, sans intégration lourde.",
+    value: "2 min",
+    title: "Setup express",
+    desc: "Création de compte, premier brief, premiers candidats — tout en moins de deux minutes.",
   },
   {
-    value: "24/7",
-    title: "Toujours disponible",
-    desc: "Nuits, week-ends, jours fériés — vos agents travaillent en continu, sans interruption.",
+    value: "60",
+    title: "Profils par mission",
+    desc: "Jusqu'à 60 candidats LinkedIn et Malt sourcés, scorés par IA et triés par pertinence.",
   },
   {
-    value: "×3",
-    title: "Plus de profils qualifiés",
-    desc: "Nos clients multiplient par 3 leur productivité opérationnelle dès le premier mois.",
+    value: "Gratuit",
+    title: "Phase beta",
+    desc: "Aucune carte bancaire requise. Lancez autant de recherches que vous voulez pendant la beta.",
   },
 ]
 
