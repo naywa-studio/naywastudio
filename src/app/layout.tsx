@@ -71,19 +71,14 @@ export const metadata: Metadata = {
     },
   },
 
-  icons: {
-    icon: [
-      { url: '/icon.png', sizes: '512x512', type: 'image/png' },
-      { url: '/icon.png', sizes: '32x32',  type: 'image/png' },
-    ],
-    apple: '/apple-icon.png',
-    shortcut: '/icon.png',
-  },
+  // Icons are generated dynamically from src/app/icon.tsx and
+  // src/app/apple-icon.tsx — Next.js auto-detects them. No need to
+  // declare them explicitly here.
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0A0A0F',
-  colorScheme: 'dark',
+  themeColor: '#FAFAFA',
+  colorScheme: 'light',
   width: 'device-width',
   initialScale: 1,
 }
@@ -94,9 +89,9 @@ const organizationSchema = {
   '@type': 'Organization',
   name: 'Naywa Studio',
   url: SITE_URL,
-  logo: `${SITE_URL}/icon.png`,
+  logo: `${SITE_URL}/naywa-logo-full.svg`,
   description:
-    'Naywa Studio déploie des agents IA opérationnels pour les entreprises. Sales agent, support 24/7, création de contenu.',
+    "Naywa Studio — Sourcing automatisé pour recruteurs. Trouvez les meilleurs candidats LinkedIn et Malt en quelques minutes.",
   address: {
     '@type': 'PostalAddress',
     addressLocality: 'Paris',

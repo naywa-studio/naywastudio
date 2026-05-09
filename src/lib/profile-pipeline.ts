@@ -150,7 +150,7 @@ export function buildExcel(profiles: ScoredProfile[], brief: ScoringBrief): stri
 
   const ws = XLSX.utils.json_to_sheet(rows)
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, `${brief.titre_poste.slice(0, 25)} — Nawa`)
+  XLSX.utils.book_append_sheet(wb, ws, `${brief.titre_poste.slice(0, 25)} — Naywa`)
 
   const cols = Object.keys(rows[0] || {}).map(k => ({ wch: Math.min(Math.max(k.length + 2, 12), 50) }))
   ws["!cols"] = cols

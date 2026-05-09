@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 
-export const alt = 'Naywa Studio — Agents IA pour les entreprises'
+export const alt = 'Naywa Studio — Sourcing automatisé pour recruteurs'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -9,7 +9,7 @@ export default function OgImage() {
     (
       <div
         style={{
-          background: '#0A0A0F',
+          background: '#FAFAFA',
           width: '100%',
           height: '100%',
           display: 'flex',
@@ -21,28 +21,14 @@ export default function OgImage() {
           position: 'relative',
         }}
       >
-        {/* Grid pattern */}
+        {/* Soft violet wash */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
-
-        {/* Blue radial glow */}
-        <div
-          style={{
-            position: 'absolute',
-            right: '-100px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            width: '600px',
-            height: '600px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(0,102,255,0.18) 0%, transparent 70%)',
+            background:
+              'radial-gradient(ellipse 70% 60% at 90% 10%, rgba(124,99,200,0.10) 0%, transparent 65%),' +
+              'radial-gradient(ellipse 60% 50% at 0% 100%, rgba(184,174,222,0.10) 0%, transparent 60%)',
           }}
         />
 
@@ -50,30 +36,31 @@ export default function OgImage() {
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
+            alignItems: 'baseline',
+            gap: '14px',
             marginBottom: '48px',
+            position: 'relative',
           }}
         >
-          <div
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '14px',
-              background: '#0066FF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span style={{ color: 'white', fontWeight: 700, fontSize: '28px' }}>N</span>
-          </div>
           <span
             style={{
-              color: '#F8F8FF',
+              fontSize: '76px',
+              fontWeight: 400,
+              fontStyle: 'italic',
+              fontFamily: 'serif',
+              color: '#7C63C8',
+              lineHeight: 0.9,
+              letterSpacing: '-0.03em',
+            }}
+          >
+            N
+          </span>
+          <span
+            style={{
+              color: '#111827',
               fontWeight: 600,
-              fontSize: '28px',
-              letterSpacing: '-0.02em',
+              fontSize: '32px',
+              letterSpacing: '-0.012em',
             }}
           >
             Naywa Studio
@@ -83,45 +70,48 @@ export default function OgImage() {
         {/* Headline */}
         <div
           style={{
-            color: '#F8F8FF',
-            fontWeight: 700,
-            fontSize: '64px',
-            lineHeight: 1.1,
-            letterSpacing: '-0.03em',
-            maxWidth: '760px',
-            marginBottom: '28px',
+            color: '#111827',
+            fontWeight: 800,
+            fontSize: '74px',
+            lineHeight: 1.06,
+            letterSpacing: '-0.035em',
+            maxWidth: '880px',
+            marginBottom: '24px',
+            position: 'relative',
           }}
         >
-          Des agents IA qui travaillent pour votre business
+          Vos meilleurs candidats LinkedIn en 2 minutes.
         </div>
 
         {/* Sub */}
         <div
           style={{
-            color: '#8B8BA8',
+            color: '#4B5563',
             fontWeight: 400,
-            fontSize: '26px',
+            fontSize: '24px',
             lineHeight: 1.5,
-            maxWidth: '680px',
-            marginBottom: '48px',
+            maxWidth: '720px',
+            marginBottom: '40px',
+            position: 'relative',
           }}
         >
-          Sales · Support · Contenu · Back-office — déployés en 48h
+          Décrivez votre poste, Léo source jusqu&apos;à 60 profils triés par
+          pertinence. Tableur Excel exportable.
         </div>
 
         {/* Pills */}
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {['Déploiement 48h', '10h/sem économisées', 'Sans engagement'].map((label) => (
+        <div style={{ display: 'flex', gap: '12px', position: 'relative' }}>
+          {['Beta gratuite', 'Aucune carte bancaire', 'Setup en 2 min'].map((label) => (
             <div
               key={label}
               style={{
-                background: 'rgba(0,102,255,0.12)',
-                border: '1px solid rgba(0,102,255,0.25)',
+                background: 'rgba(124,99,200,0.08)',
+                border: '1px solid rgba(124,99,200,0.22)',
                 borderRadius: '100px',
                 padding: '10px 20px',
-                color: '#60A5FA',
-                fontSize: '18px',
-                fontWeight: 500,
+                color: '#7C63C8',
+                fontSize: '17px',
+                fontWeight: 600,
               }}
             >
               {label}

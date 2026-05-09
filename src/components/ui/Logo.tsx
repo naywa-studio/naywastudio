@@ -1,70 +1,65 @@
+import Image from 'next/image'
+
 type LogoSize = 'sm' | 'md' | 'lg'
 
 interface LogoProps {
   size?: LogoSize
-  /** light=true → white text (on dark background) */
-  light?: boolean
-  /** Hide the wordmark, keep only the italic "N" mark */
+  /** Hide the wordmark, keep only the violet "N" mark. */
   markOnly?: boolean
+  /** Reserved — kept for backward compatibility, currently unused
+   *  because the SVG palette is fixed. */
+  light?: boolean
 }
 
 /**
- * Naywa Studio wordmark — italic "N" in Instrument Serif (violet
- * gradient) followed by "Naywa Studio" in Inter weight 600.
- * Pure typography, no SVG, no PNG asset.
+ * Naywa Studio logo — bitmap rendering of the brand SVGs.
+ *
+ *  - markOnly=false (default) → /public/naywa-logo-full.svg
+ *  - markOnly=true            → /public/naywa-logo-mark.svg (the "N" only)
+ *
+ * The SVGs already have their own viewBox so we just constrain the
+ * height; width auto-scales proportionally. The flex container keeps
+ * the asset vertically centered inside its parent.
  */
-export function Logo({ size = 'md', light = false, markOnly = false }: LogoProps) {
-  const markPx   = size === 'sm' ? 30 : size === 'lg' ? 50 : 38
-  const fontSize = size === 'sm' ? 14 : size === 'lg' ? 20 : 16
-  const gap      = size === 'sm' ?  6 : size === 'lg' ? 10 :  8
-  const wordmarkColor = light ? '#FFFFFF' : '#111827'
+export function Logo({ size = 'md', markOnly = false }: LogoProps) {
+  const heightPx = markOnly
+    ? (size === 'sm' ? 26 : size === 'lg' ? 44 : 34)
+    : (size === 'sm' ? 22 : size === 'lg' ? 38 : 28)
+
+  // Original SVG aspect ratios (width / height)
+  const fullAspect = 1280 / 832
+  const markAspect = 477 / 589
+
+  const aspect    = markOnly ? markAspect : fullAspect
+  const widthPx   = Math.round(heightPx * aspect)
+
+  const src = markOnly ? '/naywa-logo-mark.svg' : '/naywa-logo-full.svg'
 
   return (
-    <div
+    <span
       style={{
-        display:    'inline-flex',
-        alignItems: 'baseline',
-        gap,
-        userSelect: 'none',
-        flexShrink: 0,
-        lineHeight: 1,
+        display:        'inline-flex',
+        alignItems:     'center',
+        justifyContent: 'center',
+        userSelect:     'none',
+        flexShrink:     0,
+        height:         heightPx,
+        lineHeight:     0,
       }}
     >
-      {/* Italic serif "N" — gradient violet */}
-      <span
-        aria-hidden
+      <Image
+        src={src}
+        alt="Naywa Studio"
+        width={widthPx}
+        height={heightPx}
+        priority
         style={{
-          fontFamily:    'var(--font-instrument-serif), ui-serif, Georgia, serif',
-          fontStyle:     'italic',
-          fontWeight:    400,
-          fontSize:      markPx,
-          lineHeight:    0.9,
-          letterSpacing: '-0.03em',
-          background:    'linear-gradient(120deg, #7C63C8 0%, #B8AEDE 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor:  'transparent',
-          backgroundClip:       'text',
-          /* Slight optical balance — italic N rises a touch on its baseline */
-          transform: 'translateY(2px)',
+          display:    'block',
+          height:     heightPx,
+          width:      'auto',
+          objectFit:  'contain',
         }}
-      >
-        N
-      </span>
-
-      {/* Wordmark */}
-      {!markOnly && (
-        <span
-          style={{
-            fontFamily:    'var(--font-inter), sans-serif',
-            fontWeight:    600,
-            fontSize,
-            color:         wordmarkColor,
-            letterSpacing: '-0.012em',
-          }}
-        >
-          Naywa Studio
-        </span>
-      )}
-    </div>
+      />
+    </span>
   )
 }

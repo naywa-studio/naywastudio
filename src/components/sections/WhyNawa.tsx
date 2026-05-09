@@ -84,7 +84,7 @@ export function WhyNawa() {
               maxWidth: "22ch",
             }}
           >
-            Ce que Nawa change<br />
+            Ce que Naywa change<br />
             pour votre équipe RH
           </h2>
 

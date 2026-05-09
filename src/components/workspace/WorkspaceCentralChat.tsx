@@ -568,7 +568,7 @@ export default function WorkspaceCentralChat({
     setLaunchingMissionId(mId)
     const outcome = await launchMission(mId)
     if (outcome.kind === "no-extension") {
-      alert("Extension Nawa non détectée — Nora a besoin de l'extension installée pour enrichir les profils LinkedIn.")
+      alert("Extension Naywa non détectée — Nora a besoin de l'extension installée pour enrichir les profils LinkedIn.")
     } else if (outcome.kind === "no-results") {
       alert(outcome.error || "Aucun profil LinkedIn trouvé pour ce brief. Affinez les mots-clés et relancez.")
     } else if (outcome.kind === "server-error") {

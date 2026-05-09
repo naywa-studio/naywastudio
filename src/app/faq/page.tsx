@@ -21,7 +21,7 @@ const CATEGORIES = [
       },
       {
         q: "En quoi est-ce différent d'un ChatGPT ou d'un outil IA classique ?",
-        a: "Contrairement à un outil généraliste, votre agent Nawa est configuré spécifiquement pour le sourcing de candidats, hébergé sur un VPS dédié qui vous appartient, et intégré dans un workspace structuré autour de vos missions. Vous ne gérez pas de prompts — l'agent fait le travail.",
+        a: "Contrairement à un outil généraliste, votre agent Naywa est configuré spécifiquement pour le sourcing de candidats, hébergé sur un VPS dédié qui vous appartient, et intégré dans un workspace structuré autour de vos missions. Vous ne gérez pas de prompts — l'agent fait le travail.",
       },
     ],
   },
@@ -38,7 +38,7 @@ const CATEGORIES = [
       },
       {
         q: 'Y a-t-il des sous-agents en coulisse ?',
-        a: "Oui. Pour les niveaux N2 et N3, l'agent que vous voyez dans votre workspace orchestre en interne plusieurs sous-agents spécialisés. Vous n'interagissez qu'avec un seul agent — la complexité est gérée côté Nawa.",
+        a: "Oui. Pour les niveaux N2 et N3, l'agent que vous voyez dans votre workspace orchestre en interne plusieurs sous-agents spécialisés. Vous n'interagissez qu'avec un seul agent — la complexité est gérée côté Naywa.",
       },
     ],
   },
@@ -85,7 +85,7 @@ const CATEGORIES = [
       },
       {
         q: 'Qui a accès à mes données candidats ?',
-        a: "Personne chez Nawa n'accède à vos données candidats en conditions normales. Votre VPS est isolé et la clé API qui s'y trouve vous appartient.",
+        a: "Personne chez Naywa n'accède à vos données candidats en conditions normales. Votre VPS est isolé et la clé API qui s'y trouve vous appartient.",
       },
       {
         q: 'Comment supprimer mon compte et mes données ?',

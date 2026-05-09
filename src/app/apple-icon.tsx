@@ -8,22 +8,26 @@ export default function AppleIcon() {
     (
       <div
         style={{
-          background: '#0066FF',
+          background: '#FFFFFF',
           width: '100%',
           height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: '40px',
+          border: '3px solid rgba(124,99,200,0.20)',
         }}
       >
         <div
           style={{
-            color: 'white',
-            fontSize: 110,
-            fontWeight: 700,
-            fontFamily: 'sans-serif',
+            color: '#7C63C8',
+            fontSize: 130,
+            fontWeight: 400,
+            fontStyle: 'italic',
+            fontFamily: 'serif',
             lineHeight: 1,
+            letterSpacing: '-0.04em',
+            transform: 'translateY(-2px)',
           }}
         >
           N
