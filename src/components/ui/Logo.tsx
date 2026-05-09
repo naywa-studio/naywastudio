@@ -27,8 +27,8 @@ export function Logo({ size = 'md', markOnly = false }: LogoProps) {
   //   reads bigger at the same height).
   // - full wordmark needs more vertical space to keep readable.
   const heightPx = markOnly
-    ? (size === 'sm' ? 24 : size === 'lg' ? 40 : 30)
-    : (size === 'sm' ? 32 : size === 'lg' ? 50 : 40)
+    ? (size === 'sm' ? 26 : size === 'lg' ? 50 : 36)
+    : (size === 'sm' ? 32 : size === 'lg' ? 52 : 42)
 
   // Original SVG aspect ratios (width / height)
   const fullAspect = 1280 / 832

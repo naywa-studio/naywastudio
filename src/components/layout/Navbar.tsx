@@ -1,7 +1,9 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Logo } from "@/components/ui/Logo"
+import { getSupabase } from "@/lib/supabase"
 
 const navLinks = [
   { label: "Comment ça marche", href: "/#how" },
@@ -9,9 +11,19 @@ const navLinks = [
   { label: "FAQ",               href: "/faq" },
 ]
 
+interface AuthState {
+  loading:   boolean
+  email:     string | null
+  initial:   string
+}
+
 export function Navbar() {
+  const router = useRouter()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [auth, setAuth] = useState<AuthState>({ loading: true, email: null, initial: "" })
+  const profileRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40)
@@ -25,6 +37,39 @@ export function Navbar() {
     mq.addEventListener("change", handler)
     return () => mq.removeEventListener("change", handler)
   }, [])
+
+  // Detect auth session + listen for sign-in/sign-out
+  useEffect(() => {
+    const sb = getSupabase()
+    const apply = (email: string | null) => {
+      setAuth({
+        loading: false,
+        email,
+        initial: email ? email.charAt(0).toUpperCase() : "",
+      })
+    }
+    sb.auth.getSession().then(({ data: { session } }) => apply(session?.user.email ?? null))
+    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => apply(session?.user.email ?? null))
+    return () => sub.subscription.unsubscribe()
+  }, [])
+
+  // Close profile menu on outside click
+  useEffect(() => {
+    if (!profileOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
+    }
+    document.addEventListener("mousedown", onClick)
+    return () => document.removeEventListener("mousedown", onClick)
+  }, [profileOpen])
+
+  const handleLogout = async () => {
+    setProfileOpen(false)
+    await getSupabase().auth.signOut()
+    router.push("/")
+  }
+
+  const isAuthed = !auth.loading && !!auth.email
 
   return (
     <div
@@ -100,67 +145,164 @@ export function Navbar() {
           ))}
         </nav>
 
-        {/* Desktop CTAs */}
+        {/* Desktop CTAs — auth-aware */}
         <div className="hidden lg:flex items-center gap-2 ml-auto">
-          <Link
-            href="/login"
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#7C63C8",
-              padding: "9px 18px",
-              borderRadius: 999,
-              border: "1px solid rgba(124,99,200,0.25)",
-              background: "rgba(255,255,255,0.4)",
-              textDecoration: "none",
-              transition: "all 160ms ease",
-              fontFamily: "var(--font-inter), sans-serif",
-              letterSpacing: "-0.005em",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(124,99,200,0.08)"
-              e.currentTarget.style.borderColor = "rgba(124,99,200,0.45)"
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.4)"
-              e.currentTarget.style.borderColor = "rgba(124,99,200,0.25)"
-            }}
-          >
-            Se connecter
-          </Link>
+          {auth.loading ? (
+            // Skeleton placeholder while session loads (avoids flash)
+            <div style={{ width: 220, height: 38 }} />
+          ) : isAuthed ? (
+            <>
+              <Link
+                href="/workspace"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#FFFFFF",
+                  padding: "10px 20px",
+                  borderRadius: 999,
+                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  border: "1px solid rgba(124,99,200,0.9)",
+                  textDecoration: "none",
+                  transition: "transform 160ms ease, box-shadow 160ms ease",
+                  fontFamily: "var(--font-inter), sans-serif",
+                  letterSpacing: "-0.005em",
+                  boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55), inset 0 1px 0 rgba(255,255,255,0.35)",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)" }}
+              >
+                Mon workspace →
+              </Link>
 
-          <Link
-            href="/login?mode=signup"
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: "#FFFFFF",
-              padding: "10px 20px",
-              borderRadius: 999,
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              border: "1px solid rgba(124,99,200,0.9)",
-              textDecoration: "none",
-              transition: "transform 160ms ease, box-shadow 160ms ease, filter 160ms ease",
-              fontFamily: "var(--font-inter), sans-serif",
-              letterSpacing: "-0.005em",
-              boxShadow:
-                "0 6px 20px -6px rgba(124,99,200,0.55), inset 0 1px 0 rgba(255,255,255,0.35)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-1px)"
-              e.currentTarget.style.boxShadow =
-                "0 10px 28px -8px rgba(124,99,200,0.65), inset 0 1px 0 rgba(255,255,255,0.4)"
-              e.currentTarget.style.filter = "brightness(1.04)"
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)"
-              e.currentTarget.style.boxShadow =
-                "0 6px 20px -6px rgba(124,99,200,0.55), inset 0 1px 0 rgba(255,255,255,0.35)"
-              e.currentTarget.style.filter = "brightness(1)"
-            }}
-          >
-            Commencer →
-          </Link>
+              <div style={{ position: "relative" }} ref={profileRef}>
+                <button
+                  onClick={() => setProfileOpen((o) => !o)}
+                  aria-label="Profil"
+                  style={{
+                    width: 38, height: 38, borderRadius: "50%",
+                    border: "1px solid rgba(124,99,200,0.30)",
+                    background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+                    color: "#7C63C8",
+                    fontSize: 14, fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "var(--font-inter), sans-serif",
+                    transition: "border-color 150ms",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(124,99,200,0.55)" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(124,99,200,0.30)" }}
+                >
+                  {auth.initial}
+                </button>
+                {profileOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 48,
+                      right: 0,
+                      minWidth: 220,
+                      background: "white",
+                      border: "1px solid #F0ECF8",
+                      borderRadius: 12,
+                      boxShadow: "0 12px 32px rgba(124,99,200,0.18)",
+                      padding: 6,
+                      fontFamily: "var(--font-inter), sans-serif",
+                    }}
+                  >
+                    <div style={{
+                      padding: "10px 12px 10px",
+                      borderBottom: "1px solid #F0ECF8",
+                      marginBottom: 4,
+                    }}>
+                      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                        Connecté en tant que
+                      </p>
+                      <p style={{
+                        margin: "2px 0 0", fontSize: 13, fontWeight: 600, color: "#111827",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {auth.email}
+                      </p>
+                    </div>
+                    <Link
+                      href="/workspace"
+                      onClick={() => setProfileOpen(false)}
+                      style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: "#374151", textDecoration: "none", transition: "background 150ms" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#F8F6FF" }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+                    >
+                      Mon workspace
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        display: "block", width: "100%", padding: "9px 12px",
+                        borderRadius: 8, fontSize: 13, fontWeight: 500,
+                        color: "#EF4444", background: "transparent", border: "none",
+                        textAlign: "left", cursor: "pointer",
+                        fontFamily: "inherit", transition: "background 150ms",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.06)" }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+                    >
+                      Se déconnecter
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#7C63C8",
+                  padding: "9px 18px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(124,99,200,0.25)",
+                  background: "rgba(255,255,255,0.4)",
+                  textDecoration: "none",
+                  transition: "all 160ms ease",
+                  fontFamily: "var(--font-inter), sans-serif",
+                  letterSpacing: "-0.005em",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(124,99,200,0.08)"
+                  e.currentTarget.style.borderColor = "rgba(124,99,200,0.45)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.4)"
+                  e.currentTarget.style.borderColor = "rgba(124,99,200,0.25)"
+                }}
+              >
+                Se connecter
+              </Link>
+
+              <Link
+                href="/login?mode=signup"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#FFFFFF",
+                  padding: "10px 20px",
+                  borderRadius: 999,
+                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  border: "1px solid rgba(124,99,200,0.9)",
+                  textDecoration: "none",
+                  transition: "transform 160ms ease, box-shadow 160ms ease",
+                  fontFamily: "var(--font-inter), sans-serif",
+                  letterSpacing: "-0.005em",
+                  boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55), inset 0 1px 0 rgba(255,255,255,0.35)",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)" }}
+              >
+                Créer un compte
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile toggle */}
@@ -233,42 +375,91 @@ export function Navbar() {
               </Link>
             ))}
             <div style={{ height: 1, background: "rgba(240,236,248,0.8)", margin: "6px 4px" }} />
-            <Link
-              href="/login"
-              onClick={() => setMobileOpen(false)}
-              style={{
-                textAlign: "center",
-                fontSize: 13.5,
-                fontWeight: 600,
-                color: "#7C63C8",
-                padding: "12px",
-                borderRadius: 12,
-                border: "1px solid rgba(124,99,200,0.25)",
-                background: "rgba(124,99,200,0.04)",
-                textDecoration: "none",
-                fontFamily: "var(--font-inter), sans-serif",
-              }}
-            >
-              Se connecter
-            </Link>
-            <Link
-              href="/login?mode=signup"
-              onClick={() => setMobileOpen(false)}
-              style={{
-                textAlign: "center",
-                fontSize: 13.5,
-                fontWeight: 700,
-                color: "white",
-                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                padding: "12px",
-                borderRadius: 12,
-                textDecoration: "none",
-                fontFamily: "var(--font-inter), sans-serif",
-                boxShadow: "0 6px 20px -6px rgba(124,99,200,0.5)",
-              }}
-            >
-              Commencer →
-            </Link>
+
+            {isAuthed ? (
+              <>
+                <Link
+                  href="/workspace"
+                  onClick={() => setMobileOpen(false)}
+                  style={{
+                    textAlign: "center",
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    color: "white",
+                    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    padding: "12px",
+                    borderRadius: 12,
+                    textDecoration: "none",
+                    fontFamily: "var(--font-inter), sans-serif",
+                    boxShadow: "0 6px 20px -6px rgba(124,99,200,0.5)",
+                  }}
+                >
+                  Mon workspace →
+                </Link>
+                <p style={{
+                  margin: "8px 4px 0", fontSize: 11, color: "#9CA3AF",
+                  fontFamily: "var(--font-inter), sans-serif",
+                }}>
+                  Connecté en tant que <strong style={{ color: "#374151" }}>{auth.email}</strong>
+                </p>
+                <button
+                  onClick={() => { setMobileOpen(false); handleLogout() }}
+                  style={{
+                    textAlign: "center",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#EF4444",
+                    padding: "10px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(239,68,68,0.20)",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-inter), sans-serif",
+                  }}
+                >
+                  Se déconnecter
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  style={{
+                    textAlign: "center",
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: "#7C63C8",
+                    padding: "12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(124,99,200,0.25)",
+                    background: "rgba(124,99,200,0.04)",
+                    textDecoration: "none",
+                    fontFamily: "var(--font-inter), sans-serif",
+                  }}
+                >
+                  Se connecter
+                </Link>
+                <Link
+                  href="/login?mode=signup"
+                  onClick={() => setMobileOpen(false)}
+                  style={{
+                    textAlign: "center",
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    color: "white",
+                    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    padding: "12px",
+                    borderRadius: 12,
+                    textDecoration: "none",
+                    fontFamily: "var(--font-inter), sans-serif",
+                    boxShadow: "0 6px 20px -6px rgba(124,99,200,0.5)",
+                  }}
+                >
+                  Créer un compte
+                </Link>
+              </>
+            )}
           </div>
         )}
       </header>
