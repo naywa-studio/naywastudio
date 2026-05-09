@@ -22,9 +22,13 @@ interface LogoProps {
  * the asset vertically centered inside its parent.
  */
 export function Logo({ size = 'md', markOnly = false }: LogoProps) {
+  // Heights tuned per size and per asset.
+  // - markOnly variant scales lower (it's just the "N" so visual weight
+  //   reads bigger at the same height).
+  // - full wordmark needs more vertical space to keep readable.
   const heightPx = markOnly
-    ? (size === 'sm' ? 26 : size === 'lg' ? 44 : 34)
-    : (size === 'sm' ? 22 : size === 'lg' ? 38 : 28)
+    ? (size === 'sm' ? 24 : size === 'lg' ? 40 : 30)
+    : (size === 'sm' ? 32 : size === 'lg' ? 50 : 40)
 
   // Original SVG aspect ratios (width / height)
   const fullAspect = 1280 / 832

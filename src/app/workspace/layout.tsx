@@ -163,7 +163,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
               </svg>
             </Link>
             <Link href="/workspace" style={{ textDecoration: "none" }}>
-              <Logo size="md" />
+              <Logo size="lg" />
             </Link>
           </div>
 
