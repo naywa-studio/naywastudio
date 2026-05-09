@@ -559,7 +559,7 @@ export default function TarifsPage() {
       >
         <Logo size="sm" />
         <span style={{ fontSize: 12, color: '#9CA3AF', fontFamily: 'var(--font-inter), sans-serif' }}>
-          © 2026 Nawa Studio
+          © 2026 Naywa Studio
         </span>
         <Link
           href="/mentions-legales"

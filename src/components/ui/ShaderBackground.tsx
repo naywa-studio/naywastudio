@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * Nawa Studio — Flowing fluid shader background.
+ * Naywa Studio — Flowing fluid shader background.
  *
  * Inspired by shader.se — a premium WebGL "fluid" layer that spans the full
  * page, reacts to mouse (spring) and scroll, and sits under the content as a

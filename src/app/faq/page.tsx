@@ -4,7 +4,7 @@ import { Logo } from '@/components/ui/Logo'
 
 export const metadata: Metadata = {
   title: 'FAQ',
-  description: 'Questions fréquentes sur Nawa Studio — agents IA, sourcing, abonnements, workspace.',
+  description: 'Questions fréquentes sur Naywa Studio — agents IA, sourcing, abonnements, workspace.',
 }
 
 const CATEGORIES = [
@@ -12,11 +12,11 @@ const CATEGORIES = [
     title: 'Le service',
     questions: [
       {
-        q: "Qu'est-ce que Nawa Studio exactement ?",
-        a: "Nawa Studio est un studio d'agents IA spécialisés dans le sourcing et recrutement. Nous déployons pour vous un agent IA dédié, opérationnel en 48h, qui automatise tout ou partie de votre processus de sourcing de candidats.",
+        q: "Qu'est-ce que Naywa Studio exactement ?",
+        a: "Naywa Studio est un studio d'agents IA spécialisés dans le sourcing et recrutement. Nous déployons pour vous un agent IA dédié, opérationnel en 48h, qui automatise tout ou partie de votre processus de sourcing de candidats.",
       },
       {
-        q: "À qui s'adresse Nawa Studio ?",
+        q: "À qui s'adresse Naywa Studio ?",
         a: "Nous ciblons les cabinets de recrutement, les freelances en recrutement et les petites agences qui veulent automatiser leur sourcing sans investir dans une infrastructure technique complexe.",
       },
       {
@@ -190,7 +190,7 @@ export default function FAQPage() {
             fontFamily: 'var(--font-inter), sans-serif',
           }}
         >
-          Tout ce que vous devez savoir sur Nawa Studio, nos agents et notre service.
+          Tout ce que vous devez savoir sur Naywa Studio, nos agents et notre service.
         </p>
       </section>
 
@@ -351,7 +351,7 @@ export default function FAQPage() {
       >
         <Logo size="sm" />
         <span style={{ fontSize: 12, color: '#9CA3AF', fontFamily: 'var(--font-inter), sans-serif' }}>
-          © 2026 Nawa Studio
+          © 2026 Naywa Studio
         </span>
         <Link
           href="/tarifs"

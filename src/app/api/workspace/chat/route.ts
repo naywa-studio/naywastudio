@@ -25,7 +25,7 @@ function countApproxTokens(msgs: WorkspaceMsg[]): number {
   return Math.round(total / 4)
 }
 
-const WORKSPACE_SYSTEM_PROMPT = `Tu es l'assistant IA central de Nawa Studio, une plateforme de sourcing LinkedIn.
+const WORKSPACE_SYSTEM_PROMPT = `Tu es l'assistant IA central de Naywa Studio, une plateforme de sourcing LinkedIn.
 Tu aides le recruteur a creer des missions et lancer des recherches depuis le chat.
 
 === SYSTEME DE COMMANDES ===
@@ -225,7 +225,7 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
       Authorization: `Bearer ${OPENROUTER_KEY}`,
       "Content-Type": "application/json",
       "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://nawastudio.com",
-      "X-Title": "Nawa Studio",
+      "X-Title": "Naywa Studio",
     },
     body: JSON.stringify({
       // gpt-4o-mini was unreliable at emitting <action> tags consistently;

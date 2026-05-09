@@ -157,7 +157,7 @@ async function handleRunFromPage(payload) {
 
   let { nawa_access_token: token } = await chrome.storage.local.get(["nawa_access_token"])
   if (!token) token = await refreshTokenViaNawaTab()
-  if (!token) return { ok: false, error: "Token introuvable — rechargez Nawa Studio" }
+  if (!token) return { ok: false, error: "Token introuvable — rechargez Naywa Studio" }
 
   // Cancel any in-flight search
   const { [STATE_KEY]: existing } = await chrome.storage.local.get([STATE_KEY])

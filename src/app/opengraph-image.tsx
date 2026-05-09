@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 
-export const alt = 'Nawa Studio — Agents IA pour les entreprises'
+export const alt = 'Naywa Studio — Agents IA pour les entreprises'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -76,7 +76,7 @@ export default function OgImage() {
               letterSpacing: '-0.02em',
             }}
           >
-            Nawa Studio
+            Naywa Studio
           </span>
         </div>
 

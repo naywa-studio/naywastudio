@@ -101,7 +101,7 @@ export default async function BookingTokenPage({
       >
         Propulsé par{" "}
         <Link href="/" style={{ color: "#7C63C8", textDecoration: "none" }}>
-          Nawa Studio
+          Naywa Studio
         </Link>
       </p>
     </div>

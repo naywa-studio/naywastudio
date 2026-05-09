@@ -666,7 +666,7 @@ export default function WorkspaceCentralChat({
             setMessages((prev) => [...prev, {
               id: crypto.randomUUID(),
               role: "assistant",
-              content: "⚠️ Nora a besoin de l'extension Nawa Studio pour enrichir les profils LinkedIn. Recharge-la dans **chrome://extensions** puis recharge la page.",
+              content: "⚠️ Nora a besoin de l'extension Naywa Studio pour enrichir les profils LinkedIn. Recharge-la dans **chrome://extensions** puis recharge la page.",
             }])
             router.push(`/workspace/missions/${mId}`)
             return

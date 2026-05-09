@@ -14,7 +14,7 @@ interface ChatMessage {
   content: string
 }
 
-const SYSTEM_PROMPT = `Tu es un consultant senior en recrutement chez Nawa Studio. Tu mènes des entretiens de cadrage pour comprendre précisément le besoin d'un recruteur, puis tu construis un brief de recherche qui permettra à notre IA de sourcer les meilleurs profils.
+const SYSTEM_PROMPT = `Tu es un consultant senior en recrutement chez Naywa Studio. Tu mènes des entretiens de cadrage pour comprendre précisément le besoin d'un recruteur, puis tu construis un brief de recherche qui permettra à notre IA de sourcer les meilleurs profils.
 
 PHILOSOPHIE FONDAMENTALE :
 Tu n'es pas un formulaire. Tu es un expert qui pose les bonnes questions, dans le bon ordre naturel d'une vraie conversation. Tu écoutes, tu reformules, tu valides ta compréhension. Tu t'adaptes au contexte de l'interlocuteur — qu'il soit DRH, fondateur de startup, ou manager opérationnel.
@@ -172,7 +172,7 @@ Si l'utilisateur demande d'affiner, d'élargir ou de relancer, utilise ce contex
       "Authorization": `Bearer ${OPENROUTER_KEY}`,
       "Content-Type": "application/json",
       "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://nawastudio.com",
-      "X-Title": "Nawa Studio",
+      "X-Title": "Naywa Studio",
     },
     body: JSON.stringify({
       model: "openai/gpt-4o-mini",

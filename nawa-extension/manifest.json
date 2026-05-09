@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Nawa Studio",
+  "name": "Naywa Studio",
   "version": "5.1.0",
   "description": "Recherche LinkedIn silencieuse depuis le navigateur du client — piloté depuis le chat du workspace",
 
@@ -34,7 +34,7 @@
       "48":  "icons/48.png",
       "128": "icons/128.png"
     },
-    "default_title": "Nawa Studio — Recherche LinkedIn"
+    "default_title": "Naywa Studio — Recherche LinkedIn"
   },
 
   "content_scripts": [

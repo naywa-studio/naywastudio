@@ -139,7 +139,7 @@ export function Footer() {
             color: '#9CA3AF',
           }}
         >
-          © 2026 Nawa Studio. Tous droits réservés.
+          © 2026 Naywa Studio. Tous droits réservés.
         </span>
         <span
           style={{

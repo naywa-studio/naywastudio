@@ -120,7 +120,7 @@ Réponds UNIQUEMENT avec le message.`
       "Authorization": `Bearer ${OPENROUTER_KEY}`,
       "Content-Type": "application/json",
       "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://nawastudio.com",
-      "X-Title": "Nawa Studio Nora",
+      "X-Title": "Naywa Studio Nora",
     },
     body: JSON.stringify({
       model: "openai/gpt-4o-mini",

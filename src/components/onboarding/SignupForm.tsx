@@ -109,7 +109,7 @@ export default function SignupForm({ answers, agentName, agentPrice, onDone, def
     >
       <p style={{ fontSize: 14, color: "#4B5563", margin: 0 }}>
         {mode === "signup"
-          ? "Créez votre espace Nawa Studio pour accéder à votre agent."
+          ? "Créez votre espace Naywa Studio pour accéder à votre agent."
           : "Connectez-vous pour accéder à votre espace."}
       </p>
 

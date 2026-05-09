@@ -66,7 +66,7 @@ export default function OnboardingFlow({ onClose, initialStep = "volume", defaul
   const [selectedAgent, setSelectedAgent] = useState<SelectedAgent>({ name: "", level: 0 })
   const [messages, setMessages] = useState(() =>
     initialStep === "signup"
-      ? [{ from: "agent", text: defaultAuthMode === "login" ? "Bon retour 👋 Connectez-vous à votre espace Nawa Studio." : "Créez votre espace Nawa Studio pour accéder à votre agent." }]
+      ? [{ from: "agent", text: defaultAuthMode === "login" ? "Bon retour 👋 Connectez-vous à votre espace Naywa Studio." : "Créez votre espace Naywa Studio pour accéder à votre agent." }]
       : [{ from: "agent", text: "Bonjour 👋 Je suis là pour vous recommander la bonne solution de sourcing. Combien de recrutements gérez-vous par mois ?" }]
   )
   const [isTyping, setIsTyping] = useState(false)

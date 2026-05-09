@@ -2,7 +2,7 @@
  * popup.js — v4.0.0
  *
  * Le popup est un simple moniteur de l'état de la recherche.
- * Toutes les commandes (lancement, choix du brief) viennent du chat Nawa Studio.
+ * Toutes les commandes (lancement, choix du brief) viennent du chat Naywa Studio.
  *
  * Écrans : init → auth | idle | searching | done | error
  */
@@ -85,7 +85,7 @@ function renderSearching(state) {
   } else if (state.phase === "pushing") {
     $("search-hint").textContent = "Scoring IA et insertion dans la mission…"
   } else {
-    $("search-hint").textContent = "Le worker tourne en arrière-plan — vous pouvez continuer à utiliser Nawa Studio."
+    $("search-hint").textContent = "Le worker tourne en arrière-plan — vous pouvez continuer à utiliser Naywa Studio."
   }
 }
 

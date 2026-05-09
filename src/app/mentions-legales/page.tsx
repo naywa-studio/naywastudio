@@ -4,7 +4,7 @@ import { Logo } from '@/components/ui/Logo'
 
 export const metadata: Metadata = {
   title: 'Mentions légales',
-  description: 'Mentions légales de Nawa Studio.',
+  description: 'Mentions légales de Naywa Studio.',
 }
 
 const SECTIONS = [
@@ -12,7 +12,7 @@ const SECTIONS = [
     title: '1. Éditeur du site',
     content: [
       'Le site nawastudio.com est édité par :',
-      '**Nawa Studio**',
+      '**Naywa Studio**',
       'Forme juridique : [À compléter]',
       'Capital social : [À compléter]',
       'RCS : [À compléter]',
@@ -24,7 +24,7 @@ const SECTIONS = [
   {
     title: '2. Directeur de la publication',
     content: [
-      'Le directeur de la publication est le représentant légal de Nawa Studio.',
+      'Le directeur de la publication est le représentant légal de Naywa Studio.',
     ],
   },
   {
@@ -40,14 +40,14 @@ const SECTIONS = [
   {
     title: '4. Propriété intellectuelle',
     content: [
-      'L\'ensemble du contenu de ce site (textes, images, graphismes, logo, icônes, vidéos, logiciels) est la propriété exclusive de Nawa Studio, sauf mention contraire.',
-      'Toute reproduction, distribution, modification, adaptation, retransmission ou publication de ces éléments est strictement interdite sans l\'accord écrit de Nawa Studio.',
+      'L\'ensemble du contenu de ce site (textes, images, graphismes, logo, icônes, vidéos, logiciels) est la propriété exclusive de Naywa Studio, sauf mention contraire.',
+      'Toute reproduction, distribution, modification, adaptation, retransmission ou publication de ces éléments est strictement interdite sans l\'accord écrit de Naywa Studio.',
     ],
   },
   {
     title: '5. Données personnelles',
     content: [
-      'Nawa Studio collecte des données personnelles dans le cadre de la création de compte et de l\'utilisation du service.',
+      'Naywa Studio collecte des données personnelles dans le cadre de la création de compte et de l\'utilisation du service.',
       'Conformément au Règlement Général sur la Protection des Données (RGPD) et à la loi Informatique et Libertés, vous disposez des droits suivants :',
       '— Droit d\'accès à vos données',
       '— Droit de rectification',
@@ -55,7 +55,7 @@ const SECTIONS = [
       '— Droit à la portabilité',
       '— Droit d\'opposition au traitement',
       'Pour exercer ces droits, contactez-nous à : contact@nawastudio.com',
-      'Responsable du traitement : Nawa Studio — contact@nawastudio.com',
+      'Responsable du traitement : Naywa Studio — contact@nawastudio.com',
       'Les données sont conservées pour la durée de la relation contractuelle puis archivées conformément aux obligations légales.',
     ],
   },
@@ -70,8 +70,8 @@ const SECTIONS = [
   {
     title: '7. Limitation de responsabilité',
     content: [
-      'Nawa Studio s\'efforce d\'assurer l\'exactitude et la mise à jour des informations diffusées sur ce site, et se réserve le droit de modifier le contenu à tout moment et sans préavis.',
-      'Nawa Studio ne peut être tenu responsable des dommages directs ou indirects résultant de l\'utilisation du site ou de l\'impossibilité d\'y accéder.',
+      'Naywa Studio s\'efforce d\'assurer l\'exactitude et la mise à jour des informations diffusées sur ce site, et se réserve le droit de modifier le contenu à tout moment et sans préavis.',
+      'Naywa Studio ne peut être tenu responsable des dommages directs ou indirects résultant de l\'utilisation du site ou de l\'impossibilité d\'y accéder.',
     ],
   },
   {
@@ -265,7 +265,7 @@ export default function MentionsLegalesPage() {
       >
         <Logo size="sm" />
         <span style={{ fontSize: 12, color: '#9CA3AF', fontFamily: 'var(--font-inter), sans-serif' }}>
-          © 2026 Nawa Studio
+          © 2026 Naywa Studio
         </span>
         <Link
           href="/tarifs"
