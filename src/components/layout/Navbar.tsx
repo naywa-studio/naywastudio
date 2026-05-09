@@ -54,7 +54,7 @@ export function Navbar() {
         }}
       >
         <Link href="/" style={{ textDecoration: "none" }} onClick={() => setMobileOpen(false)}>
-          <Logo size="md" markOnly />
+          <Logo size="lg" markOnly />
         </Link>
 
         {/* Desktop nav */}
