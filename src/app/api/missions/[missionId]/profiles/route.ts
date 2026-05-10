@@ -98,7 +98,7 @@ export async function POST(
   )
 
   // Score the fresh batch
-  const scored = await scoreProfiles(
+  const scoredAll = await scoreProfiles(
     {
       titre_poste:  brief.titre_poste,
       localisation: brief.localisation,
@@ -107,6 +107,10 @@ export async function POST(
     },
     fresh
   )
+
+  // Drop irrelevant low-score candidates so the UI stays clean.
+  const MIN_SCORE = 40
+  const scored = scoredAll.filter((p) => (p.relevance_score ?? 0) >= MIN_SCORE)
 
   // Insert candidates
   if (scored.length > 0) {

@@ -83,10 +83,15 @@ async function scoreChunk(
     `- score : pertinence globale 0-100\n` +
     `- competences : % compétences requises 0-100\n` +
     `- seniorite : niveau d'expérience vs critères 0-100\n` +
-    `- localisation : correspondance géographique 0-100\n` +
+    `- localisation : 100 si dans ${brief.localisation} ou région proche (max 50 km),\n` +
+    `   60 si même pays mais autre région,\n` +
+    `   0-30 si autre pays. C'est un critère ÉLIMINATOIRE : le score global ` +
+    `   doit être ≤ 35 si la localisation est < 50 (mauvais pays / autre région éloignée).\n` +
     `- qualite : complétude du profil 0-100\n` +
     `- seniority : Junior | Confirmé | Senior | Expert\n` +
     `- justification : 1 phrase max\n\n` +
+    `Si le profil est clairement hors localisation (ex: "Munich, Germany" alors que le brief demande "Paris"), ` +
+    `tu dois lui donner un score global < 35 même si toutes les autres dimensions sont parfaites.\n\n` +
     `Profils :\n` + JSON.stringify(profilesForLLM, null, 0)
 
   const scored = batch.map(p => ({ ...p, relevance_score: 50, score_justification: "", seniority_level: "" })) as ScoredProfile[]

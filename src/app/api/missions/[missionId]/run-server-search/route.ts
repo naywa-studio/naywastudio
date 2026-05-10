@@ -107,7 +107,13 @@ export async function POST(
     .select("linkedin_url")
     .eq("mission_id", missionId)
   const existingUrls = new Set((existing ?? []).map((r) => r.linkedin_url))
-  const fresh = scored.filter((p) => !existingUrls.has(p.linkedin_url))
+  // Drop low-relevance candidates entirely — they pollute the UI without
+  // adding value. Threshold is intentionally loose (40) to keep mid-grade
+  // matches; only the obviously-irrelevant ones are dropped.
+  const MIN_SCORE = 40
+  const fresh = scored
+    .filter((p) => !existingUrls.has(p.linkedin_url))
+    .filter((p) => (p.relevance_score ?? 0) >= MIN_SCORE)
 
   if (fresh.length > 0) {
     const rows = fresh.map((p) => {

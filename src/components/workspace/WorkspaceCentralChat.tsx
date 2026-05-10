@@ -20,6 +20,7 @@ interface Props {
   agentColor: string
   agentName: string
   firstName: string | null
+  userEmail?: string
   attachedMission: AttachedMission | null
   onAttachedMissionChange: (mission: AttachedMission | null) => void
   onMissionCreated?: (missionId: string) => void
@@ -51,26 +52,48 @@ function renderMarkdown(text: string) {
 
 /* ── Sub-components ──────────────────────────────────────────── */
 
-function Avatar({ role }: { role: "user" | "assistant" }) {
+function Avatar({
+  role, firstName, userEmail, agentColor,
+}: {
+  role: "user" | "assistant"
+  firstName?: string | null
+  userEmail?: string
+  agentColor?: string
+}) {
   if (role === "user") {
+    const initial = (
+      (firstName?.trim()?.[0] ?? userEmail?.trim()?.[0] ?? "?")
+    ).toUpperCase()
     return (
       <div style={{
-        width: 30, height: 30, borderRadius: "50%",
-        background: "#E2DAF6",
+        width: 32, height: 32, borderRadius: "50%",
+        background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+        border: "1px solid rgba(124,99,200,0.25)",
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 13, fontWeight: 700, color: "#7C63C8", flexShrink: 0,
-      }}>U</div>
+        fontFamily: "var(--font-inter), sans-serif",
+        letterSpacing: "-0.01em",
+      }}>{initial}</div>
     )
   }
+  // Assistant — soft gradient pill with a sparkle, not a letter
+  // (avoids being read as "M" or any other letter)
+  const color = agentColor || "#7C63C8"
   return (
     <div style={{
-      width: 30, height: 30, borderRadius: "50%",
-      background: "#7C63C8",
+      width: 32, height: 32, borderRadius: "50%",
+      background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
       display: "flex", alignItems: "center", justifyContent: "center",
       flexShrink: 0,
+      boxShadow: `0 2px 8px ${color}40`,
     }}>
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M2 12V2l4 7 4-7v10" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d="M12 2.5l1.6 5.4 5.4 1.6-5.4 1.6L12 16.5l-1.6-5.4-5.4-1.6 5.4-1.6L12 2.5z"
+          fill="white"
+        />
+        <circle cx="19" cy="5" r="1.4" fill="white" opacity="0.85" />
+        <circle cx="5"  cy="18" r="1"   fill="white" opacity="0.7"  />
       </svg>
     </div>
   )
@@ -269,15 +292,21 @@ function WelcomeState({
         maxWidth: 560, margin: "0 auto",
       }}
     >
-      {/* Avatar */}
+      {/* Avatar — sparkle icon, not a letter (avoids being read as "M") */}
       <div style={{
-        width: 48, height: 48, borderRadius: 14,
-        background: agentColor,
+        width: 56, height: 56, borderRadius: 16,
+        background: `linear-gradient(135deg, ${agentColor} 0%, ${agentColor}dd 100%)`,
         display: "flex", alignItems: "center", justifyContent: "center",
-        marginBottom: 20,
+        marginBottom: 22,
+        boxShadow: `0 6px 24px ${agentColor}40`,
       }}>
-        <svg width="22" height="22" viewBox="0 0 14 14" fill="none">
-          <path d="M2 12V2l4 7 4-7v10" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path
+            d="M12 2.5l1.6 5.4 5.4 1.6-5.4 1.6L12 16.5l-1.6-5.4-5.4-1.6 5.4-1.6L12 2.5z"
+            fill="white"
+          />
+          <circle cx="19" cy="5" r="1.5" fill="white" opacity="0.85" />
+          <circle cx="5"  cy="18" r="1.1" fill="white" opacity="0.7"  />
         </svg>
       </div>
 
@@ -422,7 +451,7 @@ interface UIMsg extends WorkspaceMsg {
 /* ── Main component ──────────────────────────────────────────── */
 
 export default function WorkspaceCentralChat({
-  agentColor, agentName, firstName,
+  agentColor, agentName, firstName, userEmail,
   attachedMission, onAttachedMissionChange,
   onMissionCreated,
 }: Props) {
@@ -842,7 +871,7 @@ export default function WorkspaceCentralChat({
             onSendExample={(prompt) => sendMessage(prompt)}
           />
         ) : (
-          <div style={{ maxWidth: 720, width: "100%", margin: "0 auto", padding: "0 24px" }}>
+          <div style={{ maxWidth: 920, width: "100%", margin: "0 auto", padding: "0 32px" }}>
             <AnimatePresence initial={false}>
               {messages.map((msg) => (
                 <m.div
@@ -857,8 +886,13 @@ export default function WorkspaceCentralChat({
                     flexDirection: msg.role === "user" ? "row-reverse" : "row",
                   }}
                 >
-                  <Avatar role={msg.role} />
-                  <div style={{ maxWidth: "78%", display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+                  <Avatar
+                    role={msg.role}
+                    firstName={firstName}
+                    userEmail={userEmail}
+                    agentColor={agentColor}
+                  />
+                  <div style={{ maxWidth: "82%", display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
                     {/* Mission attachment label */}
                     {msg.attachedMissionTitle && (
                       <div style={{
@@ -914,7 +948,7 @@ export default function WorkspaceCentralChat({
                 animate={{ opacity: 1, y: 0 }}
                 style={{ display: "flex", gap: 12, marginBottom: 20 }}
               >
-                <Avatar role="assistant" />
+                <Avatar role="assistant" agentColor={agentColor} />
                 <div style={{
                   background: "white", borderRadius: "18px 18px 18px 4px",
                   padding: "12px 16px",
@@ -936,7 +970,7 @@ export default function WorkspaceCentralChat({
         background: "white",
         padding: "14px 24px 18px",
       }}>
-        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <div style={{ maxWidth: 920, margin: "0 auto" }}>
           {/* Attached mission chip */}
           <AnimatePresence>
             {attachedMission && (

@@ -504,6 +504,7 @@ function WorkspacePageInner() {
         agentColor={agent.color}
         agentName={agent.agent}
         firstName={firstName}
+        userEmail={userEmail}
         attachedMission={attachedMission}
         onAttachedMissionChange={setAttachedMission}
         onMissionCreated={() => fetchMissions()}

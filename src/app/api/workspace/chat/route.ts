@@ -75,7 +75,11 @@ Format : <action>{"type":"run_mission","missionId":"<uuid-du-contexte>"}</action
 Texte : "Recherche lancee ! Redirection vers le dossier en cours..."
 
 [MISSION EXISTANTE ATTACHEE]
-Brief disponible en contexte. Propose : relancer (run_mission), affiner (update_brief), chercher plus (run_mission).
+Brief disponible en contexte. Quand l'utilisateur demande de "chercher encore", "relancer", "trouver plus de candidats", "refaire la recherche" ou similaire :
+- Si la mission attachée est OK telle quelle, emets DIRECTEMENT run_mission avec son ID (le serveur sait re-lancer une mission completed/error).
+- Si l'utilisateur veut affiner avant, emets update_brief puis suggere de relancer.
+Format strict : <action>{"type":"run_mission","missionId":"<uuid-attache>"}</action>
+Texte : "Je relance la recherche sur cette mission..."
 
 === REGLES BRIEF ===
 - titre_poste  : 1-4 mots (ex: "Business Analyst Monetique", "Developpeur Full Stack", "DRH")
@@ -378,16 +382,20 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
       .limit(1)
       .maybeSingle()
 
+    // A mission is launchable if it belongs to the user AND its status is
+    // anything but `in_progress` (re-runs allowed on completed/error/draft).
+    const isLaunchable = (status: string | null) =>
+      status !== "in_progress"
+
     let resolvedId: string | undefined
     if (!isPlaceholder && mId) {
-      // Verify the LLM-supplied id is actually this user's AND launchable.
       const { data: candMission } = await sbAdmin
         .from("missions")
         .select("id, status")
         .eq("id", mId)
         .eq("user_id", user.id)
         .maybeSingle()
-      if (candMission && candMission.status === "preparation") {
+      if (candMission && isLaunchable(candMission.status)) {
         resolvedId = candMission.id
       }
     }
@@ -398,7 +406,7 @@ ${profile?.booking_url ? `Lien booking : ${profile.booking_url}` : ""}`
         .eq("id", attachedMissionId)
         .eq("user_id", user.id)
         .maybeSingle()
-      if (attached && attached.status === "preparation") resolvedId = attached.id
+      if (attached && isLaunchable(attached.status)) resolvedId = attached.id
     }
     if (!resolvedId && latestPrep?.id) resolvedId = latestPrep.id
 

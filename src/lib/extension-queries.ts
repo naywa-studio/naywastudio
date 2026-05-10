@@ -26,25 +26,33 @@ export async function generateQueriesFromBrief(
   const counts = QUERY_COUNTS[level]
   const total  = counts.linkedin + counts.malt
 
+  // Location is non-negotiable — every query carries it. Otherwise Google
+  // returns matches from anywhere in the world.
+  const rawLoc = (brief.localisation || "").trim()
+  const isWorld = !rawLoc || /^france$/i.test(rawLoc) || /^world|monde$/i.test(rawLoc)
+  const locTokens = isWorld ? [`"France"`] : [`"${rawLoc}"`]
+
   const fallback = (): string[] => {
-    const loc = brief.localisation && brief.localisation !== "France"
-      ? ` ${brief.localisation}` : ""
+    const loc = locTokens.join(" ")
     const kw = (brief.mots_cles ?? []).slice(0, 6)
 
+    const withLoc = (extra: string) =>
+      `site:linkedin.com/in "${brief.titre_poste}" ${extra} ${loc}`.trim().replace(/\s+/g, " ")
+
     const linkedin: string[] = [
-      `site:linkedin.com/in "${brief.titre_poste}"${loc}`,
-      `site:linkedin.com/in "${brief.titre_poste}"${kw[0] ? ` "${kw[0]}"` : ""}`,
-      `site:linkedin.com/in "${brief.titre_poste}"${kw[1] ? ` "${kw[1]}"` : ""}${loc}`,
-      `site:linkedin.com/in "${brief.titre_poste}" ${kw.slice(0, 2).map(t => `"${t}"`).join(" ")}`,
-      `site:linkedin.com/in "${brief.titre_poste}"${kw[2] ? ` "${kw[2]}"` : ""}`,
-      `site:linkedin.com/in "${brief.titre_poste}"${kw[3] ? ` "${kw[3]}"` : ""}${loc}`,
-      `site:linkedin.com/in "${brief.titre_poste}"${kw[4] ? ` "${kw[4]}"` : ""}`,
-      `site:linkedin.com/in "${brief.titre_poste}"${kw[5] ? ` "${kw[5]}"` : ""}${loc}`,
+      withLoc(""),
+      withLoc(kw[0] ? `"${kw[0]}"` : ""),
+      withLoc(kw[1] ? `"${kw[1]}"` : ""),
+      withLoc(kw.slice(0, 2).map(t => `"${t}"`).join(" ")),
+      withLoc(kw[2] ? `"${kw[2]}"` : ""),
+      withLoc(kw[3] ? `"${kw[3]}"` : ""),
+      withLoc(kw[4] ? `"${kw[4]}"` : ""),
+      withLoc(kw[5] ? `"${kw[5]}"` : ""),
     ].slice(0, counts.linkedin)
 
     const malt: string[] = [
-      `site:malt.fr OR site:malt.com "${brief.titre_poste}"${loc}`,
-      `site:malt.fr "${brief.titre_poste}"${kw[0] ? ` "${kw[0]}"` : ""}`,
+      `site:malt.fr OR site:malt.com "${brief.titre_poste}" ${loc}`.trim(),
+      `site:malt.fr "${brief.titre_poste}" ${loc} ${kw[0] ? `"${kw[0]}"` : ""}`.trim(),
     ].slice(0, counts.malt)
 
     return [...linkedin, ...malt]
@@ -68,7 +76,7 @@ export async function generateQueriesFromBrief(
     `- ${counts.malt} requêtes commencent par "site:malt.fr OR site:malt.com" (profils freelance)\n` +
     `- Termes importants entre guillemets doubles\n` +
     `- Variation des angles : titre exact, synonymes anglais (ex: monétique → "payment"), compétences, secteur, séniorité\n` +
-    `- Inclure "${brief.localisation}" dans environ la moitié des requêtes\n` +
+    `- TOUTES les requêtes DOIVENT inclure "${brief.localisation}" entre guillemets — sinon Google retourne des candidats du monde entier (non négociable)\n` +
     `- Aucun doublon — chaque requête doit ramener une population distincte\n` +
     `- Exactement ${total} requêtes au total`
 
