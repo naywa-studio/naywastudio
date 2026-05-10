@@ -163,7 +163,7 @@ export function Hero() {
           </Link>
 
           <a
-            href="#how"
+            href="/comment-ca-marche"
             style={{
               display: 'inline-flex',
               alignItems: 'center',

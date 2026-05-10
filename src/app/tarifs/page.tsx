@@ -111,7 +111,7 @@ export default function TarifsPage() {
         </Link>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Link
-            href="/catalogue"
+            href="/comment-ca-marche"
             style={{
               fontSize: 14,
               fontWeight: 500,
@@ -120,7 +120,7 @@ export default function TarifsPage() {
               padding: '8px 16px',
             }}
           >
-            Catalogue
+            Comment ça marche
           </Link>
           <Link
             href="/workspace"
