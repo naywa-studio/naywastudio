@@ -293,6 +293,10 @@ export type ScoreDimensions = {
   seniorite:    number
   localisation: number
   qualite:      number
+  /** Seed candidate id when this profile was found via "lookalike". */
+  lookalike_of?: string
+  /** Display label for the seed candidate ("Mike M. — Lead DE"). */
+  lookalike_seed_label?: string
 }
 
 export type MissionBrief = {

@@ -72,7 +72,9 @@ export async function POST(
   // Identify the strongest scoring dimension to personalize the message
   let highlightReason = candidate.score_justification ?? ""
   if (dims) {
-    const topDim = Object.entries(dims).sort(([, a], [, b]) => b - a)[0]?.[0]
+    const numericDims = Object.entries(dims)
+      .filter((entry): entry is [string, number] => typeof entry[1] === "number")
+    const topDim = numericDims.sort(([, a], [, b]) => b - a)[0]?.[0]
     const dimLabels: Record<string, string> = {
       competences:  "ses compétences techniques très alignées",
       seniorite:    "son niveau d'expérience correspondant exactement",
