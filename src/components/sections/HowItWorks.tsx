@@ -18,9 +18,9 @@ const steps = [
         <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 11h-6M19 8v6" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
-    title: "Créez votre compte",
-    subtitle: "30 secondes",
-    desc: "Inscrivez-vous avec Google ou par email. Aucune carte bancaire requise pendant la phase beta.",
+    title: "Importez vos CVs",
+    subtitle: "Drag-drop",
+    desc: "PDF, DOCX, photo — Nora extrait automatiquement les compétences, l'expérience et les coordonnées. Tout est indexé dans votre vivier.",
   },
   {
     number: "02",
@@ -29,9 +29,9 @@ const steps = [
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
-    title: "Décrivez votre poste",
-    subtitle: "1 minute",
-    desc: "Discutez avec Léo dans le chat. Précisez le poste, le lieu et les compétences clés — il pose des questions si besoin.",
+    title: "Décrivez vos postes ouverts",
+    subtitle: "1 minute par poste",
+    desc: "Brief court : titre, lieu, compétences, séniorité. Nora score immédiatement tous les CVs de votre vivier contre ce poste.",
   },
   {
     number: "03",
@@ -40,9 +40,9 @@ const steps = [
         <path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
-    title: "Recevez vos candidats",
-    subtitle: "Quelques secondes",
-    desc: "Léo vous remet jusqu'à 60 profils LinkedIn et Malt, triés par pertinence. Tableur Excel exportable en un clic.",
+    title: "Présentez votre shortlist",
+    subtitle: "Anonymisée si vous voulez",
+    desc: "Pour chaque poste, votre top candidats triés et justifiés. Génère un PDF anonymisé en 1 clic pour vos clients, suit la prise de contact dans le pipeline.",
   },
 ]
 
@@ -101,8 +101,8 @@ export function HowItWorks() {
               margin: 0,
             }}
           >
-            Vos premiers candidats<br />
-            en quelques minutes
+            Votre vivier, organisé<br />
+            et matché par Nora
           </h2>
 
           <p

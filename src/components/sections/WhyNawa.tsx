@@ -12,19 +12,19 @@ const fu = (delay: number) => ({
 
 const metrics = [
   {
-    value: "2 min",
-    title: "Setup express",
-    desc: "Création de compte, premier brief, premiers candidats — tout en moins de deux minutes.",
+    value: "1 base",
+    title: "Tout votre vivier au même endroit",
+    desc: "Drop n'importe quel CV (PDF, DOCX, photo), Nora le parse et l'indexe automatiquement.",
   },
   {
-    value: "60",
-    title: "Profils par mission",
-    desc: "Jusqu'à 60 candidats LinkedIn et Malt sourcés, scorés par IA et triés par pertinence.",
+    value: "IA",
+    title: "Matching automatique avec vos postes",
+    desc: "Pour chaque poste ouvert, la shortlist se construit toute seule avec un score justifié.",
   },
   {
-    value: "Gratuit",
-    title: "Phase beta",
-    desc: "Aucune carte bancaire requise. Lancez autant de recherches que vous voulez pendant la beta.",
+    value: "1 clic",
+    title: "CVs anonymisés à présenter",
+    desc: "Génère une version anonymisée pour préserver l'identité du candidat lors de la présentation.",
   },
 ]
 

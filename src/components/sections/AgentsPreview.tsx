@@ -11,26 +11,26 @@ const fu = (delay: number) => ({
   transition: { duration: 0.65, delay, ease: EASE },
 })
 
-const LEO_FEATURES = [
-  "Brief en langage naturel via chat IA",
-  "Recherche LinkedIn + Malt en quelques secondes",
-  "Scoring IA par pertinence (séniorité, compétences, lieu)",
-  "Jusqu'à 60 candidats par mission",
-  "Export Excel structuré, prêt à utiliser",
+const NORA_FEATURES = [
+  "Ingestion CV automatique (PDF, DOCX, photo — OCR + IA)",
+  "Vivier centralisé, indexé et recherchable",
+  "Matching IA contre vos postes ouverts avec score justifié",
+  "Anonymisation 1 clic — PDF prêt à présenter au client",
+  "Pipeline candidat : Identifié → Contacté → Réponse → Entretien → Offre",
 ]
 
 const COMING_SOON = [
   {
-    name: "Nora",
-    role: "Sourcing + enrichissement LinkedIn",
-    desc: "Tout Léo + enrichissement automatique des profils LinkedIn (expérience complète, compétences) + messages personnalisés générés par IA.",
+    name: "Intégration boîte mail",
+    role: "Gmail / Outlook OAuth + BCC tracking",
+    desc: "Nora détecte automatiquement les réponses des candidats et les log dans le pipeline. BCC simple pour démarrer, OAuth complet pour les power users.",
     color: "#3B82F6",
     accent: "rgba(59,130,246,0.18)",
   },
   {
-    name: "Alex",
-    role: "Orchestrateur de recrutement",
-    desc: "Tout Nora + chasse active, prise de contact automatique, booking d'entretiens et dashboard temps réel.",
+    name: "Compose IA",
+    role: "Génération d'emails d'approche personnalisés",
+    desc: "À partir du CV + du brief, Nora rédige l'email de premier contact dans votre ton. Vous relisez, vous envoyez.",
     color: "#7C3AED",
     accent: "rgba(124,58,237,0.18)",
   },
@@ -90,7 +90,7 @@ export function AgentsPreview() {
               margin: 0,
             }}
           >
-            Faites connaissance avec <span style={{ color: "#7C63C8" }}>Léo</span>
+            Faites connaissance avec <span style={{ color: "#7C63C8" }}>Nora</span>
           </h2>
 
           <p
@@ -103,8 +103,8 @@ export function AgentsPreview() {
               maxWidth: "52ch",
             }}
           >
-            Notre agent de sourcing automatisé, gratuit pendant la phase beta.
-            Deux autres agents arrivent bientôt pour aller plus loin.
+            Votre copilote de recrutement IA — gratuit pendant la beta privée.
+            L&apos;intégration boîte mail et la rédaction d&apos;emails d&apos;approche arrivent ensuite.
           </p>
         </m.div>
 
@@ -134,30 +134,30 @@ export function AgentsPreview() {
                 fontSize: 18, fontWeight: 800, color: "#7C63C8",
                 fontFamily: "var(--font-space-grotesk), sans-serif",
               }}>
-                L
+                N
               </div>
               <div>
                 <p style={{
                   margin: 0, fontFamily: "var(--font-space-grotesk), sans-serif",
                   fontSize: 24, fontWeight: 700, color: "#111827", letterSpacing: "-0.02em",
                 }}>
-                  Léo
+                  Nora
                 </p>
                 <p style={{
                   margin: 0, fontFamily: "var(--font-inter), sans-serif",
                   fontSize: 13, color: "#7C63C8", fontWeight: 600,
                 }}>
-                  Sourcing automatisé
+                  CV management & matching IA
                 </p>
               </div>
               <span style={{
                 marginLeft: "auto",
-                background: "#22c55e", color: "white",
+                background: "#7C63C8", color: "white",
                 fontSize: 10, fontWeight: 700, padding: "4px 10px", borderRadius: 100,
                 letterSpacing: "0.04em", textTransform: "uppercase" as const,
                 fontFamily: "var(--font-inter), sans-serif",
               }}>
-                Disponible · Gratuit
+                Beta privée
               </span>
             </div>
 
@@ -165,13 +165,13 @@ export function AgentsPreview() {
               margin: 0, fontFamily: "var(--font-inter), sans-serif",
               fontSize: 15, color: "#374151", lineHeight: 1.7,
             }}>
-              Décrivez votre poste à Léo dans un chat. Il interroge le web,
-              récupère les profils LinkedIn et Malt pertinents, et vous remet
-              un tableur trié par score de pertinence.
+              Vous uploadez vos CVs et décrivez vos postes ouverts. Nora parse,
+              indexe, match et justifie ses scores. Vous obtenez des shortlists
+              prêtes à présenter — anonymisées si besoin.
             </p>
 
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-              {LEO_FEATURES.map((f) => (
+              {NORA_FEATURES.map((f) => (
                 <li key={f} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   fontFamily: "var(--font-inter), sans-serif",
@@ -201,7 +201,7 @@ export function AgentsPreview() {
               boxShadow: "0 6px 20px rgba(124,99,200,0.3)",
               fontFamily: "var(--font-inter), sans-serif",
             }}>
-              Essayer Léo gratuitement →
+              Rejoindre la beta privée →
             </Link>
           </div>
 
@@ -227,7 +227,7 @@ export function AgentsPreview() {
                 margin: "0 0 12px", fontSize: 11, fontWeight: 700,
                 color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.07em",
               }}>
-                Mission · Data Engineer Paris
+                Poste · Data Engineer Paris — 3 meilleurs
               </p>
               {[
                 { name: "Mike M.", title: "Senior Data Engineer · BNP", score: 92 },

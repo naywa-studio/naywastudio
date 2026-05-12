@@ -69,7 +69,7 @@ export function Hero() {
             width: 8, height: 8, borderRadius: '50%',
             background: '#7C63C8', display: 'inline-block',
           }} />
-          Beta — gratuit, sans carte bancaire
+          Beta privée — invitations ouvertes
         </m.div>
 
         {/* H1 */}
@@ -86,9 +86,8 @@ export function Hero() {
             maxWidth: '14ch',
           }}
         >
-          Trouvez vos<br />
-          meilleurs candidats<br />
-          en&nbsp;
+          Votre base de CV.<br />
+          Augmentée par&nbsp;
           <span
             style={{
               fontFamily: 'var(--font-instrument-serif), ui-serif, Georgia, serif',
@@ -101,7 +100,7 @@ export function Hero() {
               backgroundClip: 'text',
             }}
           >
-            2&nbsp;minutes
+            l&apos;IA
           </span>
           <span style={{ color: '#111827' }}>.</span>
         </m.h1>
@@ -118,8 +117,9 @@ export function Hero() {
             margin: '0 0 40px',
           }}
         >
-          Décrivez votre poste, Léo source jusqu&apos;à 60 profils LinkedIn et Malt
-          triés par pertinence. Tableur Excel exportable, en quelques secondes.
+          Nora range vos CVs, les matche avec vos postes ouverts, génère des
+          versions anonymisées et suit votre pipeline candidat. Vous gardez la
+          main, l&apos;IA gère la friction.
         </m.p>
 
         {/* CTAs */}
@@ -159,7 +159,7 @@ export function Hero() {
               e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,99,200,0.28)'
             }}
           >
-            Commencer gratuitement →
+            Rejoindre la beta privée →
           </Link>
 
           <a

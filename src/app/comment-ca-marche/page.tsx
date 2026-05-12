@@ -6,67 +6,67 @@ import { Footer } from "@/components/layout/Footer"
 export const metadata: Metadata = {
   title: "Comment ça marche",
   description:
-    "Comment Naywa Studio source vos meilleurs candidats LinkedIn et Malt en 2 minutes. Brief en langage naturel, scoring IA, export Excel — sans clé API à configurer.",
+    "Comment Naywa Studio (Nora) organise votre vivier de CVs, le match avec vos postes ouverts et anonymise les profils à présenter — sans clé API à configurer.",
 }
 
 const STEPS = [
   {
     n: "01",
-    title: "Crée ton compte en 30 secondes",
+    title: "Importez vos CVs dans le vivier",
     body:
-      "Inscription par email/mot de passe ou Google. Aucune carte bancaire pendant la phase beta. À la connexion tu atterris directement dans ton workspace, pas d’étape intermédiaire.",
-    visual: "👋",
+      "Drag-drop n'importe quel CV : PDF, DOCX, photo. Nora extrait automatiquement le nom, l'expérience, les compétences, la localisation et les coordonnées. Tout est indexé et recherchable dans votre vivier privé.",
+    visual: "📁",
   },
   {
     n: "02",
-    title: "Décris ton poste à pourvoir",
+    title: "Décrivez vos postes ouverts",
     body:
-      "Dans le chat central, raconte-moi le poste comme tu le ferais à un collègue : « Je cherche un Data Engineer senior à Paris avec 5 ans d’expérience Spark / Python ». Léo te pose une question si une info clé manque (séniorité, lieu, compétences).",
-    visual: "💬",
+      "Un brief court par poste (titre, lieu, séniorité, compétences clés). Nora score automatiquement TOUS les CVs du vivier contre ce poste avec une justification claire sur chaque match.",
+    visual: "📋",
   },
   {
     n: "03",
-    title: "Léo crée la mission et lance la recherche",
+    title: "Recevez vos shortlists triées",
     body:
-      "Léo structure ton brief, le scoring IA est calibré sur tes critères. Il interroge le web (LinkedIn + Malt) en parallèle et collecte jusqu’à 60 profils en quelques secondes. Tu peux confirmer le brief avant de lancer ou laisser Léo enchaîner.",
-    visual: "🔍",
+      "Pour chaque poste, vos meilleurs candidats classés. Les profils sont groupés par qualité de match (excellent / bon / moyen). Vous gagnez des heures de tri manuel.",
+    visual: "🎯",
   },
   {
     n: "04",
-    title: "Les candidats arrivent en temps réel",
+    title: "Anonymisez en 1 clic",
     body:
-      "Sur la page mission, les candidats s’ajoutent au fur et à mesure (Realtime). Chaque candidat a un score de pertinence 0-100 calculé sur 4 dimensions : compétences, séniorité, localisation, qualité du profil. Tu peux filtrer par source (LinkedIn / Malt) et trier par score.",
-    visual: "📊",
+      "Cliquez « Anonymiser » sur un candidat : Nora génère un PDF sans nom, photo, contacts ni écoles précises. Prêt à présenter à votre client pour une décision sans biais.",
+    visual: "🔒",
   },
   {
     n: "05",
-    title: "Tu shortlist et tu exportes",
+    title: "Suivez le pipeline candidat",
     body:
-      "Marque les candidats que tu retiens, télécharge le tableur Excel structuré (rang, nom, titre, entreprise, score, justification, lien LinkedIn). Le fichier est prêt pour ton ATS ou pour une session de prise de contact.",
-    visual: "📁",
+      "Identifié → Contacté → Réponse → Entretien → Offre. Nora suggère les relances au bon moment. Bientôt : connectez votre boîte mail pour log automatique des réponses.",
+    visual: "📞",
   },
 ] as const
 
 const FAQ = [
   {
-    q: "Faut-il un compte LinkedIn pour utiliser Naywa Studio ?",
-    a: "Non. Léo cherche les profils publics via le web (Google, Tavily, DuckDuckGo). Pour un sourcing avancé qui enrichit les pages LinkedIn, l’extension Chrome (optionnelle) utilise ta session LinkedIn — ton compte reste sur ta machine, on n’y a jamais accès.",
+    q: "Naywa Studio cherche-t-il les candidats à ma place ?",
+    a: "Non — vous gardez la main sur le sourcing (LinkedIn Recruiter, jobboards, votre réseau). Nora prend le relais une fois que les CVs entrent dans votre vivier : elle range, score, match, anonymise et suit. L'humain choisit, l'IA gère la friction.",
   },
   {
-    q: "Combien de candidats par mission ?",
-    a: "Jusqu’à 60 candidats triés par pertinence. Tu peux relancer la même mission avec des mots-clés affinés pour explorer d’autres angles.",
+    q: "Quels formats de CV sont supportés ?",
+    a: "PDF (le plus courant), DOCX (Word), et photos (JPG/PNG via OCR). Les CVs scannés sont supportés mais le parsing est meilleur sur les PDF natifs.",
   },
   {
-    q: "Quelle différence entre Léo, Nora et Alex ?",
-    a: "Léo (disponible) sourçe et score les profils. Nora (bientôt) ajoute l’enrichissement LinkedIn complet et les messages d’approche. Alex (bientôt) prend en charge la prise de contact et le booking d’entretiens. Tu commences sur Léo gratuit pendant la beta.",
+    q: "Combien de CVs / postes je peux gérer ?",
+    a: "Illimité pendant la beta privée. La tarification publique post-beta sera basée sur le volume mensuel parsé.",
   },
   {
-    q: "Est-ce conforme au RGPD ?",
-    a: "Oui. Naywa Studio ne collecte que les données strictement nécessaires (ton email, tes briefs, les profils publics que tu cherches). Tes missions et candidats restent à toi, pas de revente, pas de partage avec des tiers en dehors de nos providers techniques (Supabase, OpenRouter).",
+    q: "L'anonymisation est-elle réversible ?",
+    a: "Oui — le CV original reste dans votre vivier. La version anonymisée est un export PDF séparé. Vous pouvez la régénérer à tout moment.",
   },
   {
-    q: "Léo se trompe parfois sur un candidat — pourquoi ?",
-    a: "Le scoring IA travaille avec les snippets retournés par le moteur de recherche. C’est très bon dans 80-90% des cas, mais sur un poste très niché ou un profil au CV atypique, un score peut être trompeur. Le rang est indicatif, pas autoritaire — juge toujours toi-même.",
+    q: "Mes données sont-elles confidentielles ?",
+    a: "Vos CVs et candidats restent à vous. Aucune revente, aucun partage hors providers techniques (Supabase, OpenRouter pour le LLM). Vous pouvez exporter ou supprimer tout votre vivier à n'importe quel moment.",
   },
 ] as const
 
@@ -94,18 +94,18 @@ export default function HowItWorksPage() {
             fontSize: "clamp(34px, 5vw, 56px)", fontWeight: 800, color: "#111827",
             letterSpacing: "-0.03em", lineHeight: 1.06,
             margin: "0 0 18px",
-            maxWidth: "16ch",
+            maxWidth: "20ch",
             fontFamily: "var(--font-inter), sans-serif",
           }}>
-            De votre brief à vos candidats — en 2 minutes.
+            De votre vivier brut à vos shortlists, sans friction.
           </h1>
           <p style={{
             fontSize: "clamp(15px, 1.1vw, 18px)", color: "#4B5563", lineHeight: 1.7,
-            margin: "0 0 56px", maxWidth: "60ch",
+            margin: "0 0 56px", maxWidth: "62ch",
             fontFamily: "var(--font-inter), sans-serif",
           }}>
-            Cinq étapes simples entre l’ouverture de ton compte et la shortlist.
-            Pas de paramétrage, pas de clé API, pas d’intégration technique.
+            Cinq étapes. Vous gardez la main sur le sourcing, Nora gère la
+            partie cognitive lourde — parsing, matching, anonymisation, suivi.
           </p>
 
           {/* Steps */}
@@ -174,14 +174,14 @@ export default function HowItWorksPage() {
               fontSize: "clamp(22px, 2.5vw, 30px)", fontWeight: 800,
               letterSpacing: "-0.02em",
             }}>
-              Prêt à essayer ?
+              Prêt à organiser votre vivier ?
             </h2>
             <p style={{
               margin: "0 0 22px",
               fontSize: 15, color: "rgba(255,255,255,0.78)", lineHeight: 1.6,
-              maxWidth: "44ch", marginLeft: "auto", marginRight: "auto",
+              maxWidth: "46ch", marginLeft: "auto", marginRight: "auto",
             }}>
-              Crée ton compte gratuit, lance ta première recherche en 2 minutes.
+              Rejoignez la beta privée — gratuit, aucune carte bancaire.
             </p>
             <Link href="/login?mode=signup" style={{
               display: "inline-flex", alignItems: "center", gap: 7,
@@ -190,7 +190,7 @@ export default function HowItWorksPage() {
               fontSize: 15, fontWeight: 700, textDecoration: "none",
               boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
             }}>
-              Commencer gratuitement →
+              Rejoindre la beta →
             </Link>
           </div>
 
@@ -238,22 +238,10 @@ export default function HowItWorksPage() {
             display: "flex", flexWrap: "wrap", gap: 14,
             fontFamily: "var(--font-inter), sans-serif",
           }}>
-            <Link href="/tarifs" style={{
-              color: "#7C63C8", fontSize: 14, fontWeight: 600,
-              textDecoration: "none",
-            }}>
+            <Link href="/tarifs" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
               Voir les tarifs →
             </Link>
-            <Link href="/install" style={{
-              color: "#7C63C8", fontSize: 14, fontWeight: 600,
-              textDecoration: "none",
-            }}>
-              Installer l’extension Chrome →
-            </Link>
-            <Link href="/faq" style={{
-              color: "#7C63C8", fontSize: 14, fontWeight: 600,
-              textDecoration: "none",
-            }}>
+            <Link href="/faq" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
               FAQ complète →
             </Link>
           </div>

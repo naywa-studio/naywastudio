@@ -19,7 +19,7 @@ const PACKAGES = [
     name: "Package Sourcing",
     tagline: "Trouvez les bons profils, sans effort.",
     description:
-      "Léo cherche, trie et score les profils publics selon votre brief. Vous récupérez un tableur prêt à l'emploi avec les meilleurs candidats triés par pertinence.",
+      "Nora organise votre vivier de CVs, les match automatiquement avec vos postes ouverts, génère des versions anonymisées et suit votre pipeline candidat. Vous gardez la main sur le sourcing, l'IA gère le tri.",
     available: true,
     href: "/login?mode=signup",
     ctaLabel: "Essayer gratuitement →",
@@ -27,7 +27,7 @@ const PACKAGES = [
     colorLight: "rgba(124,99,200,0.06)",
     colorMid: "rgba(124,99,200,0.12)",
     borderColor: "rgba(124,99,200,0.25)",
-    highlights: ["Jusqu'à 60 profils LinkedIn + Malt par recherche", "Scoring IA par pertinence", "Export Excel structuré"],
+    highlights: ["Upload de CVs (PDF / DOCX / photo)", "Matching IA automatique contre vos postes", "Anonymisation 1 clic + suivi pipeline"],
   },
   {
     id: "support",

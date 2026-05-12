@@ -1,14 +1,15 @@
 /**
  * DELETE /api/missions/[missionId]
- * Permanently deletes a mission, its candidates, and optionally cleans up
- * the VPS agent data.
+ * Permanently deletes a mission and its candidates.
+ *
+ * The legacy VPS cleanup branch was removed when the per-client VPS
+ * architecture was retired in favour of the all-in-one Nora CRM model.
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import type { Database } from "@/lib/database.types"
-import { getAgentBaseUrl, agentHeaders } from "@/lib/agent-proxy"
 
 export async function DELETE(
   _req: NextRequest,
@@ -18,15 +19,15 @@ export async function DELETE(
   const cookieStore = await cookies()
 
   const sb = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim(),
+    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim(),
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
         setAll: (toSet) => {
           try {
             toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-          } catch {}
+          } catch { /* ignore */ }
         },
       },
     }
@@ -38,26 +39,14 @@ export async function DELETE(
   // Verify mission belongs to this user
   const { data: mission } = await sb
     .from("missions")
-    .select("id, agent_level")
+    .select("id")
     .eq("id", missionId)
     .eq("user_id", user.id)
     .single()
 
   if (!mission) return NextResponse.json({ error: "Mission not found" }, { status: 404 })
 
-  // 1. Try to notify VPS agent to clean up mission data (non-blocking)
-  try {
-    const baseUrl = await getAgentBaseUrl(user.id, mission.agent_level)
-    await fetch(`${baseUrl}/missions/${missionId}/delete`, {
-      method: "DELETE",
-      headers: agentHeaders(),
-      signal: AbortSignal.timeout(4000),
-    })
-  } catch {
-    // VPS cleanup failure is non-critical — continue with DB cleanup
-  }
-
-  // 2. Delete booking_links (cascade from candidates)
+  // Cascade: booking_links → candidates → mission
   const { data: candidateIds } = await sb
     .from("candidates")
     .select("id")
@@ -68,10 +57,7 @@ export async function DELETE(
     await sb.from("booking_links").delete().in("candidate_id", ids)
   }
 
-  // 3. Delete all candidates
   await sb.from("candidates").delete().eq("mission_id", missionId)
-
-  // 4. Delete the mission
   const { error } = await sb.from("missions").delete().eq("id", missionId).eq("user_id", user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
