@@ -100,7 +100,7 @@ export function ScrollThread() {
 
       // ── Faint full-trail (all revealed) ──────────────────────────────
       ctx.beginPath()
-      let first = toVP(pathPct[0])
+      const first = toVP(pathPct[0])
       ctx.moveTo(first.x, first.y)
       for (let i = 1; i <= headCount; i++) {
         const v = toVP(pathPct[i])

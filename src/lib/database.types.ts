@@ -1,18 +1,58 @@
 // Generated-style type definition compatible with @supabase/supabase-js v2
-
-export type ChatHistoryMsg = {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  chips?: string[]
-}
+// Sprint 1 — CV CRM (Naywa Studio / Nora)
 
 export type WorkspaceMsg = {
   id: string
   role: 'user' | 'assistant'
   content: string
-  attachedMissionId?: string
-  attachedMissionTitle?: string
+}
+
+// ── Parsed CV structure (LLM output) ──────────────────────────────────────────
+export type ParsedExperience = {
+  title: string
+  company: string
+  start?: string         // "YYYY-MM" or "YYYY"
+  end?: string | null    // null when current
+  location?: string
+  description?: string
+  highlights?: string[]
+}
+
+export type ParsedEducation = {
+  degree: string
+  school: string
+  field?: string
+  start?: string
+  end?: string
+}
+
+export type ParsedCv = {
+  full_name?: string | null
+  email?: string | null
+  phone?: string | null
+  location?: string | null
+  linkedin_url?: string | null
+  current_title?: string | null
+  current_company?: string | null
+  years_experience?: number | null
+  seniority_level?: string | null
+  summary?: string | null
+  skills?: string[]
+  languages?: string[]
+  experience?: ParsedExperience[]
+  education?: ParsedEducation[]
+  certifications?: string[]
+  // For OCR fallback / future flags
+  source_quality?: 'native' | 'scanned' | 'partial'
+}
+
+export type ScoreDimensions = {
+  skills_match?: number
+  seniority_fit?: number
+  location_fit?: number
+  experience_fit?: number
+  language_fit?: number
+  [key: string]: number | undefined
 }
 
 export type Database = {
@@ -42,66 +82,23 @@ export type Database = {
           created_at: string
           updated_at: string
         }
-        Insert: {
-          id?: string
-          user_id: string
-          first_name?: string | null
-          sector?: string | null
-          need?: string | null
-          budget?: string | null
-          agent_name?: string | null
-          agent_price?: string | null
-          subscription_level?: 'leo' | 'nora' | 'alex' | null
-          subscribed_at?: string | null
-          booking_url?: string | null
-          vps_id?: string | null
-          vps_ip?: string | null
-          vps_status?: 'pending' | 'provisioning' | 'ready' | 'error' | null
-          agent_status?: 'not_deployed' | 'deploying' | 'running' | 'error'
-          workspace_memory?: string | null
-          workspace_messages?: WorkspaceMsg[] | null
-          apify_credits_used?: number
-          apify_reset_at?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          first_name?: string | null
-          sector?: string | null
-          need?: string | null
-          budget?: string | null
-          agent_name?: string | null
-          agent_price?: string | null
-          subscription_level?: 'leo' | 'nora' | 'alex' | null
-          subscribed_at?: string | null
-          booking_url?: string | null
-          vps_id?: string | null
-          vps_ip?: string | null
-          vps_status?: 'pending' | 'provisioning' | 'ready' | 'error' | null
-          agent_status?: 'not_deployed' | 'deploying' | 'running' | 'error'
-          workspace_memory?: string | null
-          workspace_messages?: WorkspaceMsg[] | null
-          apify_credits_used?: number
-          apify_reset_at?: string
-          created_at?: string
-          updated_at?: string
-        }
+        Insert: Partial<Database['public']['Tables']['profiles']['Row']> & { user_id: string }
+        Update: Partial<Database['public']['Tables']['profiles']['Row']>
         Relationships: []
       }
-      missions: {
+      jobs: {
         Row: {
           id: string
           user_id: string
           title: string
-          status: 'preparation' | 'in_progress' | 'completed' | 'error'
-          agent_level: 'leo' | 'nora' | null
-          brief: MissionBrief | null
-          profiles_count: number
-          research_report: string | null
-          chat_history: ChatHistoryMsg[] | null
-          brief_memory: string | null
+          location: string | null
+          seniority: string | null
+          contract_type: string | null
+          required_skills: string[] | null
+          nice_to_have_skills: string[] | null
+          description: string | null
+          brief: Record<string, unknown> | null
+          status: 'draft' | 'open' | 'filled' | 'archived'
           created_at: string
           updated_at: string
         }
@@ -109,220 +106,148 @@ export type Database = {
           id?: string
           user_id: string
           title: string
-          status?: 'preparation' | 'in_progress' | 'completed' | 'error'
-          agent_level?: 'leo' | 'nora' | null
-          brief?: MissionBrief | null
-          profiles_count?: number
-          research_report?: string | null
-          chat_history?: ChatHistoryMsg[] | null
-          brief_memory?: string | null
+          location?: string | null
+          seniority?: string | null
+          contract_type?: string | null
+          required_skills?: string[] | null
+          nice_to_have_skills?: string[] | null
+          description?: string | null
+          brief?: Record<string, unknown> | null
+          status?: 'draft' | 'open' | 'filled' | 'archived'
           created_at?: string
           updated_at?: string
         }
-        Update: {
-          id?: string
-          user_id?: string
-          title?: string
-          status?: 'preparation' | 'in_progress' | 'completed' | 'error'
-          agent_level?: 'leo' | 'nora' | null
-          brief?: MissionBrief | null
-          profiles_count?: number
-          research_report?: string | null
-          chat_history?: ChatHistoryMsg[] | null
-          brief_memory?: string | null
-          created_at?: string
-          updated_at?: string
-        }
+        Update: Partial<Database['public']['Tables']['jobs']['Insert']>
         Relationships: []
       }
       candidates: {
         Row: {
           id: string
-          mission_id: string
           user_id: string
+          full_name: string | null
+          email: string | null
+          phone: string | null
+          location: string | null
           linkedin_url: string | null
-          name_estimated: string | null
-          title_estimated: string | null
-          company: string | null
-          keywords: string[] | null
-          relevance_score: number | null
-          score_justification: string | null
-          score_dimensions: ScoreDimensions | null
+          current_title: string | null
+          current_company: string | null
+          years_experience: number | null
           seniority_level: string | null
-          status: 'raw' | 'shortlisted' | 'rejected'
-          pipeline_stage: 'identified' | 'contacted' | 'replied' | 'interview' | 'offer' | null
-          message_draft: string | null
+          skills: string[] | null
+          languages: string[] | null
+          parsed_cv: ParsedCv | null
+          raw_text: string | null
+          search_tsv: unknown
+          cv_file_path: string | null
+          cv_file_name: string | null
+          cv_file_size: number | null
+          cv_mime_type: string | null
+          parse_status: 'pending' | 'parsing' | 'parsed' | 'error' | 'manual'
+          parse_error: string | null
+          parsed_at: string | null
           notes: string | null
-          consulted_at: string | null
-          contacted_at: string | null
-          source: 'linkedin' | 'malt' | 'apec' | null
+          tags: string[] | null
           created_at: string
           updated_at: string
+          consulted_at: string | null
         }
         Insert: {
           id?: string
-          mission_id: string
           user_id: string
+          full_name?: string | null
+          email?: string | null
+          phone?: string | null
+          location?: string | null
           linkedin_url?: string | null
-          name_estimated?: string | null
-          title_estimated?: string | null
-          company?: string | null
-          keywords?: string[] | null
-          relevance_score?: number | null
-          score_justification?: string | null
-          score_dimensions?: ScoreDimensions | null
+          current_title?: string | null
+          current_company?: string | null
+          years_experience?: number | null
           seniority_level?: string | null
-          status?: 'raw' | 'shortlisted' | 'rejected'
-          pipeline_stage?: 'identified' | 'contacted' | 'replied' | 'interview' | 'offer' | null
-          message_draft?: string | null
+          skills?: string[] | null
+          languages?: string[] | null
+          parsed_cv?: ParsedCv | null
+          raw_text?: string | null
+          cv_file_path?: string | null
+          cv_file_name?: string | null
+          cv_file_size?: number | null
+          cv_mime_type?: string | null
+          parse_status?: 'pending' | 'parsing' | 'parsed' | 'error' | 'manual'
+          parse_error?: string | null
+          parsed_at?: string | null
           notes?: string | null
-          consulted_at?: string | null
-          contacted_at?: string | null
-          source?: 'linkedin' | 'malt' | 'apec' | null
+          tags?: string[] | null
           created_at?: string
           updated_at?: string
-        }
-        Update: {
-          id?: string
-          mission_id?: string
-          user_id?: string
-          linkedin_url?: string | null
-          name_estimated?: string | null
-          title_estimated?: string | null
-          company?: string | null
-          keywords?: string[] | null
-          relevance_score?: number | null
-          score_justification?: string | null
-          score_dimensions?: ScoreDimensions | null
-          seniority_level?: string | null
-          status?: 'raw' | 'shortlisted' | 'rejected'
-          pipeline_stage?: 'identified' | 'contacted' | 'replied' | 'interview' | 'offer' | null
-          message_draft?: string | null
-          notes?: string | null
           consulted_at?: string | null
-          contacted_at?: string | null
-          source?: 'linkedin' | 'malt' | 'apec' | null
-          created_at?: string
-          updated_at?: string
         }
+        Update: Partial<Database['public']['Tables']['candidates']['Insert']>
         Relationships: []
       }
-      booking_links: {
+      match_assessments: {
         Row: {
           id: string
+          user_id: string
           candidate_id: string
-          mission_id: string
-          token: string
-          status: 'pending' | 'reserved' | 'done'
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          candidate_id: string
-          mission_id: string
-          token?: string
-          status?: 'pending' | 'reserved' | 'done'
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          candidate_id?: string
-          mission_id?: string
-          token?: string
-          status?: 'pending' | 'reserved' | 'done'
-          created_at?: string
-        }
-        Relationships: []
-      }
-      extension_search_sessions: {
-        Row: {
-          id:         string
-          user_id:    string
-          mission_id: string | null
-          queries:    string[]
-          results:    Array<{ linkedin_url: string; display_title: string; snippet: string }>
-          status:     'pending' | 'collecting' | 'ready' | 'timeout'
+          job_id: string
+          score: number | null
+          score_dimensions: ScoreDimensions | null
+          justification: string | null
+          match_tier: 'excellent' | 'good' | 'fair' | 'poor' | null
+          pipeline_stage: 'identified' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
+          contacted_at: string | null
+          replied_at: string | null
+          interview_at: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
-          id?:        string
-          user_id:    string
-          mission_id?: string | null
-          queries?:   string[]
-          results?:   Array<{ linkedin_url: string; display_title: string; snippet: string }>
-          status?:    'pending' | 'collecting' | 'ready' | 'timeout'
+          id?: string
+          user_id: string
+          candidate_id: string
+          job_id: string
+          score?: number | null
+          score_dimensions?: ScoreDimensions | null
+          justification?: string | null
+          match_tier?: 'excellent' | 'good' | 'fair' | 'poor' | null
+          pipeline_stage?: 'identified' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
+          contacted_at?: string | null
+          replied_at?: string | null
+          interview_at?: string | null
           created_at?: string
           updated_at?: string
         }
-        Update: {
-          queries?:   string[]
-          results?:   Array<{ linkedin_url: string; display_title: string; snippet: string }>
-          status?:    'pending' | 'collecting' | 'ready' | 'timeout'
-          updated_at?: string
+        Update: Partial<Database['public']['Tables']['match_assessments']['Insert']>
+        Relationships: []
+      }
+      cv_upload_quota: {
+        Row: {
+          user_id: string
+          day: string
+          uploads: number
         }
+        Insert: {
+          user_id: string
+          day?: string
+          uploads?: number
+        }
+        Update: Partial<Database['public']['Tables']['cv_upload_quota']['Insert']>
         Relationships: []
       }
     }
     Views: { [_ in never]: never }
-    Functions: {
-      get_booking_by_token: {
-        Args: { p_token: string }
-        Returns: Array<{
-          id: string
-          token: string
-          status: string
-          mission_id: string
-          mission_title: string
-          candidate_id: string
-          candidate_name: string | null
-          recruiter_name: string | null
-          booking_url: string | null
-        }>
-      }
-    }
+    Functions: { [_ in never]: never }
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }
   }
 }
 
-// ── Types métier dérivés ──────────────────────────────────────────────────────
-
-export type ScoreDimensions = {
-  competences:  number
-  seniorite:    number
-  localisation: number
-  qualite:      number
-  /** Seed candidate id when this profile was found via "lookalike". */
-  lookalike_of?: string
-  /** Display label for the seed candidate ("Mike M. — Lead DE"). */
-  lookalike_seed_label?: string
-}
-
-export type MissionBrief = {
-  titre_poste: string
-  mots_cles: string[]
-  localisation: string
-  criteres?: string
-  ton?: string
-  nom_recruteur?: string
-  // Internal fields set by the agent/extension pipeline (prefixed __)
-  __agent_id?:   string
-  __user_id?:    string
-  __mission_id?: string
-  __source?:     string   // e.g. "extension_linkedin"
-  __excel_b64?:  string   // pre-generated Excel stored for extension-sourced missions
-  __profiles?:   unknown  // pre-extracted profiles (extension fast path)
-  __block_reason?: string // set when extension hit a Google CAPTCHA mid-search
-}
-
+// ── Aliases métier ────────────────────────────────────────────────────────────
 export type Profile = Database['public']['Tables']['profiles']['Row']
-export type Mission = Database['public']['Tables']['missions']['Row']
+export type Job = Database['public']['Tables']['jobs']['Row']
 export type Candidate = Database['public']['Tables']['candidates']['Row']
-export type BookingLink = Database['public']['Tables']['booking_links']['Row']
+export type MatchAssessment = Database['public']['Tables']['match_assessments']['Row']
 
-export type VpsStatus = Profile['vps_status']
-export type AgentStatus = Profile['agent_status']
-export type MissionStatus = Mission['status']
-export type AgentLevel = NonNullable<Mission['agent_level']>
-export type CandidateStatus = Candidate['status']
+export type JobStatus = Job['status']
+export type ParseStatus = Candidate['parse_status']
+export type PipelineStage = MatchAssessment['pipeline_stage']
+export type MatchTier = NonNullable<MatchAssessment['match_tier']>

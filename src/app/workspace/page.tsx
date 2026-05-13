@@ -1,39 +1,34 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { m } from "framer-motion"
 import { useWorkspace } from "./layout"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
-/**
- * Transitional workspace.
- *
- * The legacy sourcing flow (Léo / Nora / Alex agents, Chrome extension,
- * Google scraping, VPS provisioning) has been retired. The product is
- * pivoting to a CV intelligence CRM built around Nora.
- *
- * This page :
- *  - silently grants the user the new "nora" subscription on first
- *    visit so the layout context doesn't break ;
- *  - shows the roadmap and a clear "coming soon" message ;
- *  - replaces the previous mission list + chat workspace.
- */
-export default function WorkspacePage() {
+const FEATURES = [
+  { done: true,  title: "Vivier de CVs",            desc: "Upload PDF, parsing IA, recherche full-text, dédup." },
+  { done: false, title: "Postes & matching",        desc: "Bientôt — décrivez vos postes, Nora score chaque CV." },
+  { done: false, title: "CVs anonymisés",           desc: "Bientôt — export PDF sans nom, photo ni contacts." },
+  { done: false, title: "Pipeline candidat",        desc: "Bientôt — Identifié → Contacté → Réponse → Entretien." },
+  { done: false, title: "Intégration boîte mail",   desc: "Bientôt — BCC tracking puis Gmail / Outlook OAuth." },
+] as const
+
+export default function WorkspaceHome() {
+  const router = useRouter()
   const { profile, hasSubscription, refetchProfile } = useWorkspace()
   const granted = useRef(false)
 
-  // Auto-grant the user the "nora" tier on first visit so the layout
-  // context stops trying to redirect them through /packages.
+  // Auto-grant nora tier on first visit
   useEffect(() => {
-    if (granted.current) return
-    if (hasSubscription) return
+    if (granted.current || hasSubscription) return
     granted.current = true
     ;(async () => {
       try {
-        const res = await fetch("/api/subscribe", { method: "POST" })
-        if (res.ok || res.status === 409) await refetchProfile()
+        const r = await fetch("/api/subscribe", { method: "POST" })
+        if (r.ok || r.status === 409) await refetchProfile()
       } catch { /* ignore */ }
     })()
   }, [hasSubscription, refetchProfile])
@@ -42,122 +37,140 @@ export default function WorkspacePage() {
 
   return (
     <main style={{
-      minHeight: "calc(100vh - 60px)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: "60px 24px",
-      background: "#FAFAFA",
+      maxWidth: 920, margin: "0 auto",
+      padding: "44px 24px 80px",
+      fontFamily: "var(--font-inter), sans-serif",
     }}>
       <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, ease: EASE }}
+      >
+        <span style={{
+          display: "inline-block",
+          fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
+          padding: "4px 11px", borderRadius: 100,
+          letterSpacing: "0.08em", textTransform: "uppercase",
+          marginBottom: 16,
+        }}>
+          Accueil
+        </span>
+        <h1 style={{
+          margin: 0, fontSize: "clamp(28px, 4vw, 38px)", fontWeight: 800,
+          color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1,
+        }}>
+          Bonjour{firstName ? `, ${firstName}` : ""} 👋
+        </h1>
+        <p style={{ margin: "10px 0 28px", fontSize: 15, color: "#4B5563", lineHeight: 1.7, maxWidth: "58ch" }}>
+          Voici votre espace Nora. Pour démarrer, alimentez votre vivier avec vos premiers CVs.
+          Le matching avec vos postes et l&apos;anonymisation arrivent dans les prochains sprints.
+        </p>
+      </m.div>
+
+      {/* CTA: vivier */}
+      <m.div
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.08, ease: EASE }}
         style={{
-          maxWidth: 720, width: "100%",
-          background: "white", borderRadius: 20,
-          border: "1px solid #F0ECF8",
-          padding: "48px 44px",
-          boxShadow: "0 14px 44px rgba(124,99,200,0.08)",
-          fontFamily: "var(--font-inter), sans-serif",
+          background: "linear-gradient(135deg, #7C63C8 0%, #6952B8 100%)",
+          borderRadius: 20,
+          padding: "28px 30px",
+          color: "white",
+          marginBottom: 32,
+          display: "grid",
+          gridTemplateColumns: "1fr auto",
+          gap: 18,
+          alignItems: "center",
+          boxShadow: "0 14px 40px -14px rgba(124,99,200,0.55)",
+        }}
+        className="ws-cta"
+      >
+        <div>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.85 }}>
+            Étape 1
+          </p>
+          <h2 style={{ margin: "6px 0 6px", fontSize: 22, fontWeight: 800, letterSpacing: "-0.015em" }}>
+            Construisez votre vivier
+          </h2>
+          <p style={{ margin: 0, fontSize: 13.5, opacity: 0.85, lineHeight: 1.6, maxWidth: "52ch" }}>
+            Glissez vos CVs PDF — Nora parse, déduplique et indexe. Tout reste privé sur votre espace.
+          </p>
+        </div>
+        <button
+          onClick={() => router.push("/workspace/vivier")}
+          style={{
+            background: "white", color: "#7C63C8",
+            padding: "12px 22px", borderRadius: 12,
+            fontSize: 14, fontWeight: 700, border: "none",
+            cursor: "pointer", fontFamily: "inherit",
+            boxShadow: "0 6px 18px rgba(0,0,0,0.15)",
+          }}
+        >
+          Ouvrir le vivier →
+        </button>
+      </m.div>
+
+      {/* Roadmap */}
+      <m.div
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.16, ease: EASE }}
+        style={{
+          background: "white", border: "1px solid #F0ECF8", borderRadius: 18,
+          padding: "24px 26px",
         }}
       >
-        {/* Beta pill */}
-        <span style={{
-          display: "inline-flex", alignItems: "center", gap: 7,
-          background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
-          borderRadius: 999, padding: "5px 13px",
-          marginBottom: 18,
-          fontSize: 11, fontWeight: 700, color: "#7C63C8",
-          letterSpacing: "0.07em", textTransform: "uppercase",
-        }}>
-          Beta privée · transition v2
-        </span>
-
-        <h1 style={{
-          margin: "0 0 14px",
-          fontSize: "clamp(26px, 3.8vw, 38px)",
-          fontWeight: 800, color: "#111827",
-          letterSpacing: "-0.025em", lineHeight: 1.1,
-        }}>
-          Bienvenue{firstName ? `, ${firstName}` : ""} 👋
-        </h1>
-
         <p style={{
-          margin: "0 0 30px",
-          fontSize: 15, color: "#4B5563", lineHeight: 1.7,
+          margin: "0 0 14px", fontSize: 11, fontWeight: 700, color: "#9CA3AF",
+          letterSpacing: "0.08em", textTransform: "uppercase",
         }}>
-          Naywa Studio évolue. La nouvelle version, <strong>Nora</strong>, est en construction
-          — un cockpit IA pour les sourceurs : upload de CVs, matching automatique avec vos
-          postes ouverts, anonymisation et suivi du pipeline candidat. Premières fonctionnalités
-          sous quelques jours.
+          Roadmap Nora
         </p>
-
-        {/* Roadmap */}
-        <div style={{ marginBottom: 28 }}>
-          <p style={{
-            margin: "0 0 12px",
-            fontSize: 11, fontWeight: 700, color: "#9CA3AF",
-            textTransform: "uppercase", letterSpacing: "0.07em",
-          }}>
-            Ce qui arrive
-          </p>
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
-            {ROADMAP.map((r) => (
-              <li key={r.title} style={{
-                display: "flex", alignItems: "flex-start", gap: 12,
-                fontSize: 14, color: "#374151", lineHeight: 1.6,
+        <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 12 }}>
+          {FEATURES.map((f) => (
+            <li key={f.title} style={{
+              display: "flex", alignItems: "flex-start", gap: 12,
+              fontSize: 14, color: "#374151", lineHeight: 1.6,
+            }}>
+              <span style={{
+                flexShrink: 0, marginTop: 2,
+                width: 22, height: 22, borderRadius: 7,
+                background: f.done ? "rgba(34,197,94,0.10)" : "rgba(124,99,200,0.08)",
+                color: f.done ? "#16a34a" : "#7C63C8",
+                fontSize: 12, fontWeight: 800,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
               }}>
-                <span style={{
-                  flexShrink: 0, marginTop: 1,
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  width: 22, height: 22, borderRadius: 7,
-                  background: r.done ? "rgba(34,197,94,0.10)" : "rgba(124,99,200,0.10)",
-                  color: r.done ? "#16a34a" : "#7C63C8",
-                  fontSize: 12, fontWeight: 800,
-                }}>
-                  {r.done ? "✓" : "•"}
-                </span>
-                <span>
-                  <strong style={{ color: "#111827" }}>{r.title}</strong>
-                  {" — "}
-                  <span style={{ color: "#6B7280" }}>{r.desc}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* CTA secondary */}
+                {f.done ? "✓" : "•"}
+              </span>
+              <span>
+                <strong style={{ color: "#111827" }}>{f.title}</strong>
+                {" — "}
+                <span style={{ color: "#6B7280" }}>{f.desc}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
         <div style={{
-          paddingTop: 20,
-          borderTop: "1px solid #F0ECF8",
-          display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center",
+          marginTop: 22, paddingTop: 18, borderTop: "1px solid #F0ECF8",
+          display: "flex", gap: 14, flexWrap: "wrap",
+          fontSize: 13,
         }}>
-          <Link href="/comment-ca-marche" style={{
-            fontSize: 13, fontWeight: 600, color: "#7C63C8",
-            textDecoration: "none",
-          }}>
-            Voir le détail du produit →
+          <Link href="/comment-ca-marche" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "none" }}>
+            Voir le détail produit →
           </Link>
-          <Link href="/tarifs" style={{
-            fontSize: 13, fontWeight: 600, color: "#7C63C8",
-            textDecoration: "none",
-          }}>
-            Voir la tarification →
+          <Link href="/tarifs" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "none" }}>
+            Voir les tarifs →
           </Link>
-          <span style={{ marginLeft: "auto", fontSize: 12, color: "#9CA3AF" }}>
-            Une question ? <a href="mailto:contact@nawastudio.com" style={{ color: "#7C63C8", textDecoration: "none" }}>contact@nawastudio.com</a>
+          <span style={{ marginLeft: "auto", color: "#9CA3AF" }}>
+            Feedback : <a href="mailto:contact@nawastudio.com" style={{ color: "#7C63C8", textDecoration: "none" }}>contact@nawastudio.com</a>
           </span>
         </div>
       </m.div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .ws-cta { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </main>
   )
 }
-
-const ROADMAP = [
-  { done: true,  title: "Comptes ouverts",           desc: "inscription email ou Google, gratuit pendant la beta" },
-  { done: false, title: "Upload de CVs",             desc: "drop PDF / DOCX / images, parsing IA structuré" },
-  { done: false, title: "Postes ouverts & matching", desc: "Nora score chaque CV contre vos postes et justifie" },
-  { done: false, title: "CV anonymisé",              desc: "génération PDF anonymisé prêt à transmettre aux clients" },
-  { done: false, title: "Pipeline & suivi",          desc: "Identifié → Contacté → Réponse → Entretien → Offre" },
-  { done: false, title: "Intégration boîte mail",    desc: "BCC tracking puis Gmail / Outlook OAuth pour auto-log" },
-] as const

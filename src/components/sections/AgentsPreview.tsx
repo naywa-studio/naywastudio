@@ -76,7 +76,7 @@ export function AgentsPreview() {
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
-            L'agent disponible
+            L&apos;agent disponible
           </span>
 
           <h2

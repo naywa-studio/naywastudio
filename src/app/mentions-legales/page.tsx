@@ -114,7 +114,7 @@ export default function MentionsLegalesPage() {
             fontFamily: 'var(--font-inter), sans-serif',
           }}
         >
-          ← Retour à l'accueil
+          ← Retour à l&apos;accueil
         </Link>
       </header>
 
@@ -224,7 +224,7 @@ export default function MentionsLegalesPage() {
               fontFamily: 'var(--font-space-grotesk), sans-serif',
             }}
           >
-            Une question d'ordre légal ?
+            Une question d&apos;ordre légal ?
           </p>
           <p
             style={{

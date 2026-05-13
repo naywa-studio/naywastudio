@@ -1,377 +1,197 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
-import { Logo } from '@/components/ui/Logo'
+import type { Metadata } from "next"
+import Link from "next/link"
+import { Navbar } from "@/components/layout/Navbar"
+import { Footer } from "@/components/layout/Footer"
 
 export const metadata: Metadata = {
-  title: 'FAQ',
-  description: 'Questions fréquentes sur Naywa Studio — agents IA, sourcing, abonnements, workspace.',
+  title: "FAQ",
+  description:
+    "Questions fréquentes sur Naywa Studio — Nora, le CRM IA pour sourceurs. Vivier de CVs, matching, anonymisation, pipeline.",
 }
 
 const CATEGORIES = [
   {
-    title: 'Le service',
+    title: "Le service",
     questions: [
       {
-        q: "Qu'est-ce que Naywa Studio exactement ?",
-        a: "Naywa Studio est un studio d'agents IA spécialisés dans le sourcing et recrutement. Nous déployons pour vous un agent IA dédié, opérationnel en 48h, qui automatise tout ou partie de votre processus de sourcing de candidats.",
+        q: "Qu'est-ce que Naywa Studio ?",
+        a: "Naywa Studio édite Nora, un CRM IA pensé pour les sourceurs et petites équipes de recrutement. Vous gardez la main sur le sourcing (LinkedIn, jobboards, réseau) ; Nora prend le relais une fois que les CVs entrent dans votre espace : parsing, matching avec vos postes, anonymisation, suivi du pipeline.",
       },
       {
-        q: "À qui s'adresse Naywa Studio ?",
-        a: "Nous ciblons les cabinets de recrutement, les freelances en recrutement et les petites agences qui veulent automatiser leur sourcing sans investir dans une infrastructure technique complexe.",
+        q: "À qui s'adresse Nora ?",
+        a: "Aux sourceurs freelance, indépendants et petites équipes RH (jusqu'à ~15 personnes). Si vous gérez quelques dizaines à quelques milliers de CVs et que vos process actuels passent par Excel + Drive, Nora vous fait gagner des heures.",
       },
       {
-        q: "En quoi est-ce différent d'un ChatGPT ou d'un outil IA classique ?",
-        a: "Contrairement à un outil généraliste, votre agent Naywa est configuré spécifiquement pour le sourcing de candidats, hébergé sur un VPS dédié qui vous appartient, et intégré dans un workspace structuré autour de vos missions. Vous ne gérez pas de prompts — l'agent fait le travail.",
+        q: "En quoi est-ce différent d'un ATS classique ?",
+        a: "Un ATS gère des candidatures entrantes. Nora gère votre vivier proactif : les CVs que vous collectez vous-même via LinkedIn, jobboards et réseau. L'IA est au cœur du produit — pas un module en option facturé en plus.",
       },
     ],
   },
   {
-    title: 'Les agents',
+    title: "Vivier & parsing",
     questions: [
       {
-        q: 'Quelle est la différence entre Léo, Nora et Alex ?',
-        a: "Les trois agents correspondent à trois niveaux d'autonomie. Léo (N1) trie et qualifie une liste que vous lui fournissez. Nora (N2) prend en charge le sourcing de A à Z — analyse du besoin, scoring, shortlist. Alex (N3) pilote l'intégralité du recrutement : rédaction d'offres, sourcing actif, contact candidats, booking d'entretiens, transcriptions et dossiers complets.",
+        q: "Quels formats de CV sont supportés ?",
+        a: "PDF natif (export Word, LinkedIn, Canva...) pendant la beta. L'OCR pour les CVs scannés ou photographiés arrive juste après. DOCX et autres formats seront ajoutés en fonction de la demande.",
       },
       {
-        q: "Puis-je changer d'agent après avoir souscrit ?",
-        a: "Oui, l'upgrade (ou downgrade) est instantané et sans interruption de service. Vos missions en cours sont conservées. Le changement s'applique immédiatement.",
+        q: "Combien de CVs je peux uploader ?",
+        a: "Pendant la beta : 50 uploads par jour et par compte, sans limite mensuelle. C'est largement suffisant pour absorber une journée complète de sourcing intensif.",
       },
       {
-        q: 'Y a-t-il des sous-agents en coulisse ?',
-        a: "Oui. Pour les niveaux N2 et N3, l'agent que vous voyez dans votre workspace orchestre en interne plusieurs sous-agents spécialisés. Vous n'interagissez qu'avec un seul agent — la complexité est gérée côté Naywa.",
+        q: "Quelles informations Nora extrait ?",
+        a: "Nom complet, email, téléphone, localisation, LinkedIn, poste actuel, entreprise, années d'expérience, séniorité, compétences techniques, langues, expériences détaillées, formations et certifications.",
+      },
+      {
+        q: "Que se passe-t-il en cas de doublon ?",
+        a: "Nora détecte automatiquement les doublons par email ou téléphone et tague le CV — vous gardez les deux versions et choisissez laquelle prime. Pas de suppression silencieuse.",
       },
     ],
   },
   {
-    title: 'Le workspace & les missions',
+    title: "Matching & pipeline",
     questions: [
       {
-        q: "Qu'est-ce qu'une mission ?",
-        a: "Une mission est l'unité de travail dans votre workspace. Elle correspond à un recrutement : vous décrivez votre besoin via le chat, et votre agent produit des livrables (tableur trié, shortlist, dossiers candidats…) accessibles dans les sections de la mission.",
+        q: "Comment fonctionne le matching ?",
+        a: "Vous décrivez vos postes ouverts (titre, séniorité, compétences clés, lieu). Nora score chaque CV du vivier contre chaque poste et justifie son score sur plusieurs dimensions. Vous voyez immédiatement vos meilleurs candidats par poste, triés et expliqués.",
       },
       {
-        q: 'Combien de missions puis-je créer ?',
-        a: "Il n'y a pas de limite au nombre de missions. Vous pouvez gérer plusieurs recrutements en parallèle depuis votre workspace.",
+        q: "L'anonymisation, ça marche comment ?",
+        a: "1 clic sur un candidat → Nora génère un PDF anonymisé : nom remplacé, photo retirée, coordonnées masquées, écoles précises rendues génériques. Prêt à transmettre à votre client pour une décision sans biais. Le CV original reste intact dans votre vivier.",
       },
       {
-        q: 'Puis-je exporter les livrables ?',
-        a: "Oui, les sections marquées comme exportables (tableurs, shortlists, dossiers candidats) peuvent être téléchargées directement depuis le workspace. Cette fonctionnalité est en cours d'activation.",
+        q: "Et le pipeline candidat ?",
+        a: "Pour chaque candidat × poste, vous suivez les étapes : Identifié → Contacté → Réponse → Entretien → Offre. Nora suggérera les relances au bon moment. L'intégration boîte mail (BCC puis OAuth Gmail/Outlook) suivra pour logger les réponses automatiquement.",
       },
     ],
   },
   {
-    title: 'Abonnement & facturation',
+    title: "Sécurité & données",
     questions: [
       {
-        q: "Qu'est-ce qui est inclus dans l'abonnement ?",
-        a: "Chaque abonnement inclut : un VPS dédié pour votre agent (hébergé sur Hostinger), une clé API IA (via OpenRouter), l'accès au workspace client et les tokens IA jusqu'à un seuil mensuel. Aucun frais de setup.",
+        q: "Mes CVs et données sont-ils confidentiels ?",
+        a: "Oui. Vos données restent dans votre espace, isolées par RLS Supabase. Aucune revente, aucun partage hors providers techniques nécessaires (Supabase pour la base et le stockage, OpenRouter pour le LLM). Pas d'entraînement de modèle sur vos CVs.",
       },
       {
-        q: 'Comment fonctionne la facturation ?',
-        a: "L'abonnement est mensuel, à date fixe. Pas d'engagement sur la durée. Résiliation possible à tout moment — votre accès reste actif jusqu'à la fin de la période en cours.",
-      },
-      {
-        q: "Comment souscrire à un abonnement ?",
-        a: "Rendez-vous sur la page Tarifs, choisissez votre agent (Léo, Nora ou Alex), puis créez votre compte. L'accès à votre workspace est activé dès la souscription.",
+        q: "Puis-je exporter ou supprimer mon vivier ?",
+        a: "Oui à tout moment. Suppression d'un CV : 1 clic (fichier + ligne DB). Export complet sur demande pendant la beta, fonctionnalité self-service prévue avant la sortie.",
       },
     ],
   },
   {
-    title: 'Données & sécurité',
+    title: "Tarification",
     questions: [
       {
-        q: 'Où sont hébergées mes données ?',
-        a: "Votre agent tourne sur un VPS dédié chez Hostinger (EU). Vos données ne sont jamais partagées avec d'autres clients — isolation totale par architecture.",
+        q: "Combien ça coûte ?",
+        a: "Gratuit pendant la beta privée — aucune carte bancaire requise. La tarification publique sera annoncée à la sortie de beta, calée sur le volume mensuel de CVs parsés.",
       },
       {
-        q: 'Qui a accès à mes données candidats ?',
-        a: "Personne chez Naywa n'accède à vos données candidats en conditions normales. Votre VPS est isolé et la clé API qui s'y trouve vous appartient.",
-      },
-      {
-        q: 'Comment supprimer mon compte et mes données ?',
-        a: "Contactez-nous à contact@nawastudio.com. Nous procédons à la suppression complète (compte, VPS, données) dans un délai de 30 jours.",
+        q: "Comment rejoindre la beta ?",
+        a: "Créez un compte (email ou Google). L'accès est immédiat. Si vous avez un retour ou un besoin spécifique, écrivez-nous à contact@nawastudio.com — nous itérons vite.",
       },
     ],
   },
-]
+] as const
 
 export default function FAQPage() {
   return (
-    <div style={{ background: '#FAFAFA', minHeight: '100vh' }}>
-      {/* Header */}
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-          background: 'rgba(255,255,255,0.92)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid #F0ECF8',
-          padding: '0 24px',
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <Logo size="md" />
-        </Link>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <Link
-            href="/tarifs"
-            style={{
-              fontSize: 14,
-              fontWeight: 500,
-              color: '#6B7280',
-              textDecoration: 'none',
-              padding: '8px 16px',
-              fontFamily: 'var(--font-inter), sans-serif',
-            }}
-          >
-            Tarifs
-          </Link>
-          <Link
-            href="/workspace"
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: '#7C63C8',
-              textDecoration: 'none',
-              padding: '8px 16px',
-              borderRadius: 8,
-              border: '1.5px solid #E2DAF6',
-              fontFamily: 'var(--font-inter), sans-serif',
-            }}
-          >
-            Mon espace
-          </Link>
-        </div>
-      </header>
+    <div style={{ background: "#FAFAFA", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <Navbar />
 
-      {/* Hero */}
-      <section style={{ padding: '72px 24px 48px', textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
-        <span
-          style={{
-            display: 'inline-block',
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: 1.5,
-            textTransform: 'uppercase',
-            color: '#7C63C8',
-            background: '#F0ECF8',
-            padding: '6px 16px',
-            borderRadius: 100,
-            marginBottom: 24,
-            fontFamily: 'var(--font-inter), sans-serif',
-          }}
-        >
-          FAQ
-        </span>
-        <h1
-          style={{
-            fontSize: 'clamp(28px, 5vw, 44px)',
-            fontWeight: 800,
-            color: '#111827',
-            lineHeight: 1.15,
-            margin: '0 0 16px',
-            letterSpacing: -0.5,
-            fontFamily: 'var(--font-space-grotesk), sans-serif',
-          }}
-        >
-          Questions fréquentes
-        </h1>
-        <p
-          style={{
-            fontSize: 16,
-            color: '#6B7280',
-            lineHeight: 1.65,
-            margin: 0,
-            fontFamily: 'var(--font-inter), sans-serif',
-          }}
-        >
-          Tout ce que vous devez savoir sur Naywa Studio, nos agents et notre service.
-        </p>
-      </section>
+      <main style={{ flex: 1, padding: "120px 24px 80px" }}>
+        <div style={{ maxWidth: 880, margin: "0 auto" }}>
+          {/* Hero */}
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 7,
+            background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
+            borderRadius: 999, padding: "5px 13px",
+            marginBottom: 22,
+            fontSize: 11, fontWeight: 700, color: "#7C63C8",
+            letterSpacing: "0.07em", textTransform: "uppercase",
+            fontFamily: "var(--font-inter), sans-serif",
+          }}>
+            Questions fréquentes
+          </span>
 
-      {/* FAQ content */}
-      <main style={{ maxWidth: 760, margin: '0 auto', padding: '0 24px 80px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 48 }}>
+          <h1 style={{
+            fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, color: "#111827",
+            letterSpacing: "-0.03em", lineHeight: 1.08,
+            margin: "0 0 18px",
+            maxWidth: "22ch",
+            fontFamily: "var(--font-inter), sans-serif",
+          }}>
+            Tout ce qu&apos;il faut savoir sur Nora.
+          </h1>
+          <p style={{
+            fontSize: "clamp(15px, 1.1vw, 17px)", color: "#4B5563", lineHeight: 1.7,
+            margin: "0 0 56px", maxWidth: "60ch",
+            fontFamily: "var(--font-inter), sans-serif",
+          }}>
+            Si une question manque,{" "}
+            <a href="mailto:contact@nawastudio.com" style={{ color: "#7C63C8", fontWeight: 600 }}>
+              écrivez-nous
+            </a>{" "}— on ajoute la réponse ici.
+          </p>
+
           {CATEGORIES.map((cat) => (
-            <section key={cat.title}>
-              {/* Category title */}
-              <h2
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  letterSpacing: 1.2,
-                  textTransform: 'uppercase',
-                  color: '#7C63C8',
-                  margin: '0 0 20px',
-                  fontFamily: 'var(--font-inter), sans-serif',
-                }}
-              >
+            <section key={cat.title} style={{ marginBottom: 44 }}>
+              <h2 style={{
+                margin: "0 0 18px",
+                fontSize: "clamp(20px, 2.2vw, 26px)",
+                fontWeight: 800, color: "#111827",
+                letterSpacing: "-0.02em",
+                fontFamily: "var(--font-inter), sans-serif",
+              }}>
                 {cat.title}
               </h2>
-
-              {/* Questions */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {cat.questions.map((item) => (
-                  <details
-                    key={item.q}
-                    style={{
-                      background: 'white',
-                      borderRadius: 12,
-                      border: '1px solid #F0ECF8',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <summary
-                      style={{
-                        padding: '18px 20px',
-                        fontSize: 15,
-                        fontWeight: 600,
-                        color: '#111827',
-                        cursor: 'pointer',
-                        listStyle: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 12,
-                        fontFamily: 'var(--font-inter), sans-serif',
-                        userSelect: 'none',
-                      }}
-                    >
-                      {item.q}
-                      <span
-                        aria-hidden
-                        style={{
-                          flexShrink: 0,
-                          width: 20,
-                          height: 20,
-                          borderRadius: '50%',
-                          background: '#F0ECF8',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 14,
-                          color: '#7C63C8',
-                          fontWeight: 400,
-                        }}
-                      >
-                        +
-                      </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {cat.questions.map((q) => (
+                  <details key={q.q} style={{
+                    background: "white", borderRadius: 14,
+                    border: "1px solid #F0ECF8",
+                    padding: "16px 20px",
+                    fontFamily: "var(--font-inter), sans-serif",
+                  }}>
+                    <summary style={{
+                      cursor: "pointer", listStyle: "none",
+                      fontSize: 15, fontWeight: 700, color: "#111827",
+                      display: "flex", alignItems: "center", gap: 10,
+                    }}>
+                      <span style={{ fontSize: 13, color: "#7C63C8" }}>›</span>
+                      {q.q}
                     </summary>
-                    <div
-                      style={{
-                        padding: '0 20px 18px',
-                        borderTop: '1px solid #F8F6FF',
-                      }}
-                    >
-                      <p
-                        style={{
-                          margin: '14px 0 0',
-                          fontSize: 14,
-                          color: '#4B5563',
-                          lineHeight: 1.7,
-                          fontFamily: 'var(--font-inter), sans-serif',
-                        }}
-                      >
-                        {item.a}
-                      </p>
-                    </div>
+                    <p style={{
+                      margin: "10px 0 0 22px",
+                      fontSize: 14, color: "#4B5563", lineHeight: 1.7,
+                    }}>
+                      {q.a}
+                    </p>
                   </details>
                 ))}
               </div>
             </section>
           ))}
-        </div>
 
-        {/* Still a question? */}
-        <div
-          style={{
-            marginTop: 56,
-            background: 'linear-gradient(135deg, #7C63C8 0%, #9B8DD4 100%)',
-            borderRadius: 20,
-            padding: '40px 32px',
-            textAlign: 'center',
-          }}
-        >
-          <p
-            style={{
-              margin: '0 0 8px',
-              fontSize: 20,
-              fontWeight: 700,
-              color: 'white',
-              fontFamily: 'var(--font-space-grotesk), sans-serif',
-            }}
-          >
-            Vous n'avez pas trouvé votre réponse ?
-          </p>
-          <p
-            style={{
-              margin: '0 0 24px',
-              fontSize: 14,
-              color: 'rgba(255,255,255,0.8)',
-              fontFamily: 'var(--font-inter), sans-serif',
-            }}
-          >
-            Notre équipe répond sous 24h ouvrées.
-          </p>
-          <a
-            href="mailto:contact@nawastudio.com"
-            style={{
-              display: 'inline-block',
-              background: 'white',
-              color: '#7C63C8',
-              padding: '13px 28px',
-              borderRadius: 10,
-              fontSize: 14,
-              fontWeight: 700,
-              textDecoration: 'none',
-              fontFamily: 'var(--font-inter), sans-serif',
-            }}
-          >
-            Nous écrire →
-          </a>
+          <div style={{
+            marginTop: 30, paddingTop: 26,
+            borderTop: "1px solid #F0ECF8",
+            display: "flex", flexWrap: "wrap", gap: 14,
+            fontFamily: "var(--font-inter), sans-serif",
+          }}>
+            <Link href="/comment-ca-marche" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+              Comment ça marche →
+            </Link>
+            <Link href="/tarifs" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+              Voir les tarifs →
+            </Link>
+            <Link href="/login?mode=signup" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+              Rejoindre la beta →
+            </Link>
+          </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer
-        style={{
-          padding: '24px',
-          borderTop: '1px solid #F0ECF8',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 16,
-          flexWrap: 'wrap',
-        }}
-      >
-        <Logo size="sm" />
-        <span style={{ fontSize: 12, color: '#9CA3AF', fontFamily: 'var(--font-inter), sans-serif' }}>
-          © 2026 Naywa Studio
-        </span>
-        <Link
-          href="/tarifs"
-          style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'none', fontFamily: 'var(--font-inter), sans-serif' }}
-        >
-          Tarifs
-        </Link>
-        <Link
-          href="/mentions-legales"
-          style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'none', fontFamily: 'var(--font-inter), sans-serif' }}
-        >
-          Mentions légales
-        </Link>
-        <a
-          href="mailto:contact@nawastudio.com"
-          style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'none', fontFamily: 'var(--font-inter), sans-serif' }}
-        >
-          contact@nawastudio.com
-        </a>
-      </footer>
+      <Footer />
     </div>
   )
 }

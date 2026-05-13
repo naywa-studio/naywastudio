@@ -12,7 +12,7 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import type { Database } from "@/lib/database.types"
 
-export async function POST(_req: NextRequest) {
+export async function POST(_req: NextRequest) { void _req;
   const cookieStore = await cookies()
   const sb = createServerClient<Database>(
     (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim(),

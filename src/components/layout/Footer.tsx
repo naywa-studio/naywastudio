@@ -12,9 +12,8 @@ const footerLinks: Record<string, FooterLink[]> = {
     { label: "S'inscrire", href: '/login?mode=signup' },
   ],
   Ressources: [
-    { label: 'Comment ça marche', href: '/#how' },
+    { label: 'Comment ça marche', href: '/comment-ca-marche' },
     { label: 'FAQ', href: '/faq' },
-    { label: 'Extension Chrome', href: '/install' },
     { label: 'Mentions légales', href: '/mentions-legales' },
   ],
   Contact: [
@@ -58,7 +57,7 @@ export function Footer() {
               maxWidth: '28ch',
             }}
           >
-            Sourcing automatisé pour recruteurs. Trouvez vos meilleurs candidats LinkedIn en quelques minutes.
+            Nora, le CRM IA pour sourceurs. Vivier de CVs, matching automatique, anonymisation, pipeline.
           </p>
         </div>
 

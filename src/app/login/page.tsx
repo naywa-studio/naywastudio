@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
@@ -9,6 +9,14 @@ import { getSupabase } from "@/lib/supabase"
 type Mode = "login" | "signup"
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", background: "#FAFAFA" }} />}>
+      <LoginInner />
+    </Suspense>
+  )
+}
+
+function LoginInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const nextPath = searchParams.get("next") ?? "/workspace"

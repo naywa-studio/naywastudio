@@ -1,32 +1,18 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { createContext, useContext, useEffect, useState } from "react"
+import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import { getSupabase } from "@/lib/supabase"
-import { AGENT_LEVELS } from "@/lib/mock-store"
 import type { Database } from "@/lib/database.types"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
-type SubscriptionLevel = NonNullable<Profile["subscription_level"]>
-
-const IS_DEV = process.env.NODE_ENV === "development"
-const ADMIN_EMAILS = ["elyas.malki1003@gmail.com"]
-const DEV_LEVELS: { level: SubscriptionLevel; label: string; color: string }[] = [
-  { level: "leo",  label: "Léo N1",  color: "#22c55e" },
-  { level: "nora", label: "Nora N2", color: "#3b82f6" },
-  { level: "alex", label: "Alex N3", color: "#7C63C8" },
-]
-
-/* ── Context ──────────────────────────────────────────────────── */
 
 interface WorkspaceCtx {
   profile: Profile | null
   userEmail: string
-  agentLevel: number
   hasSubscription: boolean
-  isProvisioning: boolean
   refetchProfile: () => Promise<void>
 }
 
@@ -38,12 +24,16 @@ export function useWorkspace() {
   return ctx
 }
 
-const LEVEL_MAP: Record<string, number> = { leo: 1, nora: 2, alex: 3 }
-
-/* ── Layout ──────────────────────────────────────────────────── */
+const TABS: { href: string; label: string; live: boolean }[] = [
+  { href: "/workspace",        label: "Accueil",  live: true  },
+  { href: "/workspace/vivier", label: "Vivier",   live: true  },
+  { href: "/workspace/postes", label: "Postes",   live: false },
+  { href: "/workspace/pipeline", label: "Pipeline", live: false },
+]
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [userEmail, setUserEmail] = useState("")
   const [ready, setReady] = useState(false)
@@ -51,11 +41,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const fetchProfile = async () => {
     const sb = getSupabase()
     const { data: { user } } = await sb.auth.getUser()
-
-    if (!user) {
-      router.replace("/login")
-      return
-    }
+    if (!user) { router.replace("/login"); return }
 
     setUserEmail(user.email ?? "")
 
@@ -65,14 +51,14 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       .eq("user_id", user.id)
       .single()
 
-    // Si le profil n'a pas de prénom (ex: Google OAuth), on le prend depuis user_metadata
+    // Auto-derive first_name from Google OAuth metadata if missing
     if (prof && !prof.first_name) {
       const meta = user.user_metadata ?? {}
       const fullName: string = meta.full_name ?? meta.name ?? ""
-      const derivedFirst = fullName.split(" ")[0] ?? ""
-      if (derivedFirst) {
-        await sb.from("profiles").update({ first_name: derivedFirst }).eq("user_id", user.id)
-        prof.first_name = derivedFirst
+      const derived = fullName.split(" ")[0] ?? ""
+      if (derived) {
+        await sb.from("profiles").update({ first_name: derived }).eq("user_id", user.id)
+        prof.first_name = derived
       }
     }
 
@@ -90,180 +76,128 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     router.replace("/")
   }
 
-  const handleDevSwitch = useCallback(async (level: SubscriptionLevel) => {
-    const sb = getSupabase()
-    const { data: { user } } = await sb.auth.getUser()
-    if (!user) return
-    await sb
-      .from("profiles")
-      .update({ subscription_level: level, vps_status: "ready", agent_status: "running" })
-      .eq("user_id", user.id)
-    await fetchProfile()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   if (!ready) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#FAFAFA",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      <div style={{
+        minHeight: "100vh", background: "#FAFAFA",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
         <Spinner />
       </div>
     )
   }
 
   const hasSubscription = !!profile?.subscription_level
-  const agentLevel = profile?.subscription_level ? (LEVEL_MAP[profile.subscription_level] ?? 1) : 0
-  const agent = AGENT_LEVELS[agentLevel] ?? AGENT_LEVELS[1]
-  const isAdmin = ADMIN_EMAILS.includes(userEmail)
+  const firstName = profile?.first_name?.trim() || null
+  const initial = (firstName?.[0] ?? userEmail[0] ?? "?").toUpperCase()
 
-  // Provisioning = subscribed but VPS not ready yet
-  const isProvisioning =
-    hasSubscription &&
-    (profile?.vps_status === "pending" || profile?.vps_status === "provisioning")
+  const isActive = (href: string) =>
+    href === "/workspace" ? pathname === "/workspace" : pathname.startsWith(href)
 
   return (
-    <WorkspaceContext.Provider value={{ profile, userEmail, agentLevel, hasSubscription, isProvisioning, refetchProfile: fetchProfile }}>
-      <div style={{ minHeight: "100vh", background: "#FAFAFA" }}>
-        {/* Header */}
+    <WorkspaceContext.Provider value={{ profile, userEmail, hasSubscription, refetchProfile: fetchProfile }}>
+      <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "var(--font-inter), sans-serif" }}>
+        {/* Top bar */}
         <header
           style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 40,
+            position: "sticky", top: 0, zIndex: 40,
             height: 60,
-            background: "rgba(255,255,255,0.92)",
-            backdropFilter: "blur(12px)",
+            background: "rgba(255,255,255,0.94)",
+            backdropFilter: "blur(14px)",
             borderBottom: "1px solid #F0ECF8",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 24px",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "0 20px",
           }}
         >
-          {/* Left */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Link href="/" style={{
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              width: 32, height: 32, borderRadius: 8,
-              border: "1.5px solid #E2DAF6", background: "white",
-              color: "#7C63C8", textDecoration: "none", flexShrink: 0,
-              transition: "background 150ms, border-color 150ms",
-            }}
-              title="Retour à l'accueil"
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <Link href="/" title="Retour au site"
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 30, height: 30, borderRadius: 8,
+                border: "1px solid #E2DAF6", background: "white",
+                color: "#7C63C8", textDecoration: "none",
+              }}
             >
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                <path d="M3 10l7-7 7 7M5 8v7a1 1 0 001 1h3v-4h2v4h3a1 1 0 001-1V8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+                <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </Link>
             <Link href="/workspace" style={{ textDecoration: "none" }}>
-              <Logo size="lg" />
+              <Logo size="md" />
             </Link>
+
+            {/* Tabs */}
+            <nav style={{ display: "flex", alignItems: "center", gap: 2, marginLeft: 18 }} className="ws-tabs">
+              {TABS.map((t) => {
+                const active = isActive(t.href)
+                const disabled = !t.live
+                return (
+                  <Link
+                    key={t.href}
+                    href={t.live ? t.href : "#"}
+                    onClick={(e) => { if (disabled) e.preventDefault() }}
+                    aria-disabled={disabled}
+                    style={{
+                      position: "relative",
+                      fontSize: 13,
+                      fontWeight: active ? 700 : 500,
+                      color: disabled ? "#C4B6E0" : active ? "#7C63C8" : "#4B5563",
+                      textDecoration: "none",
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      background: active ? "rgba(124,99,200,0.08)" : "transparent",
+                      cursor: disabled ? "not-allowed" : "pointer",
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      transition: "background 150ms, color 150ms",
+                    }}
+                  >
+                    {t.label}
+                    {disabled && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, color: "#9CA3AF",
+                        background: "#F3F4F6", border: "1px solid #E5E7EB",
+                        padding: "2px 6px", borderRadius: 100,
+                        letterSpacing: "0.04em", textTransform: "uppercase",
+                      }}>
+                        Bientôt
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
+            </nav>
           </div>
 
-          {/* Right */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* ── LEVEL SWITCHER (dev + admin emails) ─────────────── */}
-            {(IS_DEV || isAdmin) && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 3,
-                  background: "#1a1a2e",
-                  border: "1px solid #333",
-                  borderRadius: 10,
-                  padding: "3px 4px",
-                  fontFamily: "var(--font-inter), monospace",
-                }}
-              >
-                <span style={{ fontSize: 9, fontWeight: 700, color: "#666", letterSpacing: 1, padding: "0 4px", textTransform: "uppercase" }}>
-                  DEV
-                </span>
-                {DEV_LEVELS.map(({ level, label, color }) => {
-                  const active = profile?.subscription_level === level
-                  return (
-                    <button
-                      key={level}
-                      onClick={() => handleDevSwitch(level)}
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        padding: "3px 9px",
-                        borderRadius: 7,
-                        border: "none",
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                        transition: "all 0.15s",
-                        background: active ? color : "transparent",
-                        color: active ? "#fff" : "#666",
-                      }}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Agent badge — visible uniquement si abonné */}
-            {hasSubscription && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: "5px 12px",
-                  borderRadius: 999,
-                  color: agent.color,
-                  background: agent.colorLight,
-                  border: `1px solid ${agent.borderColor}`,
-                  fontFamily: "var(--font-inter), sans-serif",
-                }}
-              >
-                <span>{agent.icon}</span>
-                Mon agent&nbsp;: {agent.agent}
-              </span>
-            )}
-
-            {/* Email */}
-            <span
-              style={{
-                fontSize: 12,
-                color: "#9CA3AF",
-                fontFamily: "var(--font-inter), sans-serif",
-                maxWidth: 180,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                display: "none",
-              }}
-              className="workspace-email"
-            >
-              {userEmail}
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              fontSize: 11, fontWeight: 700, color: "#7C63C8",
+              background: "rgba(124,99,200,0.08)",
+              border: "1px solid rgba(124,99,200,0.18)",
+              padding: "4px 10px", borderRadius: 100,
+              letterSpacing: "0.08em", textTransform: "uppercase",
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#7C63C8" }} />
+              Beta
             </span>
 
-            {/* Logout */}
+            <div title={userEmail}
+              style={{
+                width: 32, height: 32, borderRadius: "50%",
+                background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+                border: "1px solid rgba(124,99,200,0.30)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#7C63C8", fontWeight: 700, fontSize: 13,
+              }}>
+              {initial}
+            </div>
+
             <button
               onClick={handleLogout}
               style={{
-                fontSize: 12,
-                fontWeight: 500,
-                color: "#9CA3AF",
-                background: "transparent",
-                border: "1px solid #E5E7EB",
-                borderRadius: 8,
-                padding: "6px 12px",
-                cursor: "pointer",
-                fontFamily: "var(--font-inter), sans-serif",
+                fontSize: 12, fontWeight: 500, color: "#6B7280",
+                background: "transparent", border: "1px solid #E5E7EB",
+                borderRadius: 8, padding: "6px 12px", cursor: "pointer",
               }}
             >
               Déconnexion
@@ -272,8 +206,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         </header>
 
         <style>{`
-          @media (min-width: 640px) {
-            .workspace-email { display: block !important; }
+          @media (max-width: 720px) {
+            .ws-tabs { display: none !important; }
           }
         `}</style>
 
@@ -288,6 +222,7 @@ function Spinner() {
     <svg width="32" height="32" viewBox="0 0 24 24" style={{ animation: "spin 0.8s linear infinite" }}>
       <circle cx="12" cy="12" r="10" stroke="#E2DAF6" strokeWidth="3" fill="none" />
       <path d="M12 2a10 10 0 0 1 10 10" stroke="#7C63C8" strokeWidth="3" fill="none" strokeLinecap="round" />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </svg>
   )
 }
