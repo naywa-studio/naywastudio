@@ -105,12 +105,13 @@ export default function VivierPage() {
     const patch = (id: string, p: Partial<UploadJob>) =>
       setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...p } : j)))
 
-    // Upload in series — gentle on LLM rate limits.
+    // Upload in series. The actual LLM parse runs in a separate, fire-and-
+    // forget call so the UI is never blocked on the LLM round-trip; the
+    // grid card updates via Realtime when parse_status flips.
     for (const { id, file } of pending) {
       try {
         const fd = new FormData()
         fd.append("file", file, file.name)
-        patch(id, { status: "parsing" })
         const res = await fetch("/api/cv/upload", { method: "POST", body: fd })
         const data = await res.json().catch(() => ({} as Record<string, unknown>))
         if (!res.ok || data?.error) {
@@ -118,14 +119,14 @@ export default function VivierPage() {
           continue
         }
         const cand = (data as { candidate?: { id?: string } }).candidate
-        if (data.ok === false) {
-          patch(id, { status: "error", error: String(data.message ?? "Parsing partiel."), candidateId: cand?.id })
-        } else {
-          patch(id, { status: "done", candidateId: cand?.id })
-          setTimeout(() => {
-            setJobs((prev) => prev.filter((j) => !(j.id === id && j.status === "done")))
-          }, 2400)
+        // Trigger parse in background — we explicitly don't await it.
+        if (cand?.id) {
+          void fetch(`/api/cv/${cand.id}/parse`, { method: "POST", keepalive: true }).catch(() => {})
         }
+        patch(id, { status: "done", candidateId: cand?.id })
+        setTimeout(() => {
+          setJobs((prev) => prev.filter((j) => !(j.id === id && j.status === "done")))
+        }, 2400)
       } catch (err) {
         patch(id, { status: "error", error: (err as Error).message ?? "Erreur réseau." })
       }

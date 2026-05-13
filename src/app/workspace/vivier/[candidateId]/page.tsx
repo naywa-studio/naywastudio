@@ -83,6 +83,13 @@ export default function CandidatePage() {
     if (res.ok) router.push("/workspace/vivier")
   }
 
+  const handleRetryParse = async () => {
+    if (!candidate) return
+    // Optimistic — Realtime will follow up
+    setCandidate((prev) => prev ? { ...prev, parse_status: "parsing", parse_error: null } : prev)
+    await fetch(`/api/cv/${candidate.id}/parse`, { method: "POST" }).catch(() => {})
+  }
+
   if (loading) {
     return <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF" }}>Chargement…</div>
   }
@@ -169,11 +176,23 @@ export default function CandidatePage() {
 
             {candidate.parse_status === "error" && (
               <div style={{
-                marginTop: 16, padding: "10px 14px",
+                marginTop: 16, padding: "12px 14px",
                 background: "#FEF2F2", border: "1px solid #FECACA",
                 borderRadius: 10, fontSize: 13, color: "#B91C1C",
+                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
               }}>
-                <strong>Parsing échoué.</strong> {candidate.parse_error}
+                <span><strong>Parsing échoué.</strong> {candidate.parse_error}</span>
+                <button
+                  onClick={handleRetryParse}
+                  style={{
+                    fontSize: 12, fontWeight: 700, color: "white",
+                    background: "#DC2626", border: "none",
+                    borderRadius: 8, padding: "7px 14px", cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Relancer le parsing
+                </button>
               </div>
             )}
             {(candidate.parse_status === "parsing" || candidate.parse_status === "pending") && (
