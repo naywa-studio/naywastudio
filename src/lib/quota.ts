@@ -12,13 +12,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "./database.types"
 
-export type QuotaAction = "upload" | "match" | "compose" | "assistant"
+export type QuotaAction = "upload" | "match" | "compose" | "assistant" | "send"
 
 export const DAILY_LIMITS: Record<QuotaAction, number> = {
   upload: 50,
   match: 40,
   compose: 80,
   assistant: 120,
+  send: 60,
 }
 
 const LABELS: Record<QuotaAction, string> = {
@@ -26,6 +27,7 @@ const LABELS: Record<QuotaAction, string> = {
   match: "lancements de matching",
   compose: "messages générés",
   assistant: "questions à l'assistant",
+  send: "emails envoyés",
 }
 
 export interface QuotaResult {

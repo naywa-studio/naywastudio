@@ -111,6 +111,8 @@ export type Database = {
           workspace_messages: WorkspaceMsg[] | null
           apify_credits_used: number
           apify_reset_at: string
+          inbox_address: string | null
+          inbox_cc_self: boolean
           created_at: string
           updated_at: string
         }
@@ -298,6 +300,63 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['daily_usage']['Insert']>
         Relationships: []
       }
+      email_messages: {
+        Row: {
+          id: string
+          user_id: string
+          candidate_id: string | null
+          job_id: string | null
+          direction: 'outbound' | 'inbound'
+          from_address: string
+          to_address: string
+          subject: string | null
+          body_text: string | null
+          body_html: string | null
+          provider_id: string | null
+          status: 'sent' | 'delivered' | 'received' | 'failed' | 'bounced'
+          error: string | null
+          ai_sentiment: 'interested' | 'not_interested' | 'question' | 'neutral' | 'negotiation' | null
+          ai_summary: string | null
+          ai_suggested_stage: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          candidate_id?: string | null
+          job_id?: string | null
+          direction: 'outbound' | 'inbound'
+          from_address: string
+          to_address: string
+          subject?: string | null
+          body_text?: string | null
+          body_html?: string | null
+          provider_id?: string | null
+          status?: 'sent' | 'delivered' | 'received' | 'failed' | 'bounced'
+          error?: string | null
+          ai_sentiment?: 'interested' | 'not_interested' | 'question' | 'neutral' | 'negotiation' | null
+          ai_summary?: string | null
+          ai_suggested_stage?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['email_messages']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'email_messages_candidate_id_fkey'
+            columns: ['candidate_id']
+            isOneToOne: false
+            referencedRelation: 'candidates'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'email_messages_job_id_fkey'
+            columns: ['job_id']
+            isOneToOne: false
+            referencedRelation: 'jobs'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: { [_ in never]: never }
     Functions: {
@@ -330,8 +389,11 @@ export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Job = Database['public']['Tables']['jobs']['Row']
 export type Candidate = Database['public']['Tables']['candidates']['Row']
 export type MatchAssessment = Database['public']['Tables']['match_assessments']['Row']
+export type EmailMessage = Database['public']['Tables']['email_messages']['Row']
 
 export type JobStatus = Job['status']
 export type ParseStatus = Candidate['parse_status']
 export type PipelineStage = MatchAssessment['pipeline_stage']
 export type MatchTier = NonNullable<MatchAssessment['match_tier']>
+export type EmailDirection = EmailMessage['direction']
+export type EmailSentiment = NonNullable<EmailMessage['ai_sentiment']>

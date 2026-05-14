@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
-import { CANDIDATE_COLUMNS, type Candidate, type ParsedCv } from "@/lib/database.types"
+import { CANDIDATE_COLUMNS, type Candidate, type ParsedCv, type EmailMessage } from "@/lib/database.types"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -397,6 +397,13 @@ export default function CandidatePage() {
             </Section>
           )}
 
+          {/* Messagerie */}
+          {candidate.parse_status === "parsed" && (
+            <Section title="Messagerie">
+              <MessagerieThread candidateId={candidate.id} />
+            </Section>
+          )}
+
           {/* Notes */}
           <Section
             title="Notes"
@@ -492,7 +499,9 @@ function ComposeBox({
   const [composing, setComposing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [sendState, setSendState] = useState<"idle" | "sending" | "sent">("idle")
   const hasDraft = bodyText.trim().length > 0
+  const canSend = channel === "email" && hasDraft && !!candidate.email
 
   const generate = async () => {
     setComposing(true); setError(null)
@@ -530,6 +539,30 @@ function ComposeBox({
       setCopied(true)
       setTimeout(() => setCopied(false), 1800)
     } catch { /* clipboard blocked — user can select manually */ }
+  }
+
+  const send = async () => {
+    if (!canSend || sendState === "sending") return
+    if (!confirm(`Envoyer cet email à ${candidate.full_name ?? candidate.email} ?`)) return
+    setSendState("sending"); setError(null)
+    try {
+      const res = await fetch(`/api/cv/${candidate.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, body: bodyText, job_id: jobId || null }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        setError(data?.message ?? data?.error ?? "L'envoi a échoué.")
+        setSendState("idle")
+        return
+      }
+      setSendState("sent")
+      setTimeout(() => setSendState("idle"), 2500)
+    } catch (err) {
+      setError((err as Error).message ?? "Erreur réseau.")
+      setSendState("idle")
+    }
   }
 
   return (
@@ -636,7 +669,7 @@ function ComposeBox({
               outline: "none", resize: "vertical", fontFamily: "inherit", lineHeight: 1.65,
             }}
           />
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button onClick={copy} style={{
               padding: "8px 14px", borderRadius: 9,
               background: copied ? "rgba(34,197,94,0.10)" : "white",
@@ -644,14 +677,213 @@ function ComposeBox({
               color: copied ? "#15803d" : "#374151",
               fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
             }}>
-              {copied ? "✓ Copié" : "Copier le message"}
+              {copied ? "✓ Copié" : "Copier"}
             </button>
+
+            {channel === "email" && (
+              <button
+                onClick={send}
+                disabled={!canSend || sendState !== "idle"}
+                title={!candidate.email ? "Ce candidat n'a pas d'adresse email" : undefined}
+                style={{
+                  padding: "8px 16px", borderRadius: 9, border: "none",
+                  background: sendState === "sent" ? "rgba(34,197,94,0.12)"
+                    : !canSend || sendState === "sending" ? "#C4B6E0"
+                    : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  color: sendState === "sent" ? "#15803d" : "white",
+                  fontSize: 12.5, fontWeight: 700,
+                  cursor: canSend && sendState === "idle" ? "pointer" : "default",
+                  fontFamily: "inherit",
+                }}
+              >
+                {sendState === "sending" ? "Envoi…"
+                  : sendState === "sent" ? "✓ Envoyé"
+                  : "Envoyer via Naywa"}
+              </button>
+            )}
+
             <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>
-              Relisez et ajustez avant d&apos;envoyer — Nora n&apos;envoie rien.
+              {channel === "linkedin"
+                ? "Copiez le message dans LinkedIn — Nora n'envoie pas sur LinkedIn."
+                : !candidate.email
+                  ? "Pas d'email pour ce candidat — copiez le message."
+                  : "Relisez avant d'envoyer. L'envoi part de votre adresse Naywa."}
             </span>
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/* ─── Messagerie ──────────────────────────────────────────── */
+
+const STAGE_LABELS: Record<string, string> = {
+  identified: "Identifié", contacted: "Contacté", replied: "Réponse",
+  interview: "Entretien", offer: "Offre", hired: "Recruté", rejected: "Écarté",
+}
+const SENTIMENT_LABELS: Record<string, { label: string; color: string }> = {
+  interested:     { label: "Intéressé",   color: "#15803d" },
+  not_interested: { label: "Pas intéressé", color: "#B91C1C" },
+  question:       { label: "Question",    color: "#7C63C8" },
+  negotiation:    { label: "Négociation", color: "#B45309" },
+  neutral:        { label: "Neutre",      color: "#6B7280" },
+}
+
+function MessagerieThread({ candidateId }: { candidateId: string }) {
+  const sb = useMemo(() => getSupabase(), [])
+  const [messages, setMessages] = useState<EmailMessage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [applying, setApplying] = useState<string | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    let channel: ReturnType<typeof sb.channel> | null = null
+    ;(async () => {
+      const { data } = await sb
+        .from("email_messages")
+        .select("*")
+        .eq("candidate_id", candidateId)
+        .order("created_at", { ascending: true })
+      if (!mounted) return
+      setMessages((data ?? []) as EmailMessage[])
+      setLoading(false)
+
+      channel = sb
+        .channel(`emails:${candidateId}`)
+        .on("postgres_changes",
+          { event: "*", schema: "public", table: "email_messages", filter: `candidate_id=eq.${candidateId}` },
+          (payload) => {
+            setMessages((prev) => {
+              if (payload.eventType === "DELETE") return prev.filter((m) => m.id !== (payload.old as EmailMessage).id)
+              const next = payload.new as EmailMessage
+              const idx = prev.findIndex((m) => m.id === next.id)
+              if (idx === -1) return [...prev, next].sort((a, b) => a.created_at.localeCompare(b.created_at))
+              const copy = [...prev]; copy[idx] = next; return copy
+            })
+          },
+        )
+        .subscribe()
+    })()
+    return () => { mounted = false; if (channel) sb.removeChannel(channel) }
+  }, [candidateId, sb])
+
+  const applyStage = async (msg: EmailMessage) => {
+    if (!msg.job_id || !msg.ai_suggested_stage) return
+    setApplying(msg.id)
+    try {
+      const { data: assessment } = await sb
+        .from("match_assessments")
+        .select("id")
+        .eq("candidate_id", candidateId)
+        .eq("job_id", msg.job_id)
+        .maybeSingle()
+      if (assessment) {
+        await fetch(`/api/match/${assessment.id}/stage`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pipeline_stage: msg.ai_suggested_stage }),
+        })
+      }
+    } finally {
+      setApplying(null)
+    }
+  }
+
+  if (loading) {
+    return <p style={{ margin: 0, fontSize: 13, color: "#9CA3AF" }}>Chargement…</p>
+  }
+  if (messages.length === 0) {
+    return (
+      <p style={{ margin: 0, fontSize: 13, color: "#6B7280", lineHeight: 1.6 }}>
+        Aucun échange pour l&apos;instant. Utilisez « Message d&apos;approche » ci-dessus
+        pour écrire au candidat — les réponses apparaîtront ici automatiquement.
+      </p>
+    )
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {messages.map((msg) => {
+        const out = msg.direction === "outbound"
+        return (
+          <div key={msg.id} style={{
+            alignSelf: out ? "flex-end" : "flex-start",
+            maxWidth: "88%",
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            <div style={{
+              background: out ? "rgba(124,99,200,0.07)" : "#F4F1FB",
+              border: `1px solid ${out ? "rgba(124,99,200,0.18)" : "#E2DAF6"}`,
+              borderRadius: out ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+              padding: "11px 13px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: out ? "#7C63C8" : "#6B7280" }}>
+                  {out ? "Vous" : "Candidat"}
+                </span>
+                {msg.status === "failed" && <span style={{ fontSize: 10, fontWeight: 700, color: "#B91C1C" }}>échec d&apos;envoi</span>}
+                {msg.status === "bounced" && <span style={{ fontSize: 10, fontWeight: 700, color: "#B91C1C" }}>rejeté</span>}
+                <span style={{ marginLeft: "auto", fontSize: 10.5, color: "#9CA3AF" }}>
+                  {new Date(msg.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                </span>
+              </div>
+              {msg.subject && (
+                <p style={{ margin: "0 0 4px", fontSize: 12.5, fontWeight: 700, color: "#111827" }}>{msg.subject}</p>
+              )}
+              <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {msg.body_text ?? "(message vide)"}
+              </p>
+            </div>
+
+            {/* AI suggestion on inbound replies — never auto-applied */}
+            {!out && (msg.ai_summary || msg.ai_suggested_stage) && (
+              <div style={{
+                background: "white", border: "1px solid #E2DAF6", borderRadius: 10,
+                padding: "9px 12px", display: "flex", flexDirection: "column", gap: 7,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                    ✦ Analyse Nora
+                  </span>
+                  {msg.ai_sentiment && SENTIMENT_LABELS[msg.ai_sentiment] && (
+                    <span style={{
+                      fontSize: 10.5, fontWeight: 700,
+                      color: SENTIMENT_LABELS[msg.ai_sentiment].color,
+                      background: `${SENTIMENT_LABELS[msg.ai_sentiment].color}15`,
+                      padding: "1px 7px", borderRadius: 100,
+                    }}>
+                      {SENTIMENT_LABELS[msg.ai_sentiment].label}
+                    </span>
+                  )}
+                </div>
+                {msg.ai_summary && (
+                  <p style={{ margin: 0, fontSize: 12.5, color: "#4B5563", lineHeight: 1.55 }}>{msg.ai_summary}</p>
+                )}
+                {msg.ai_suggested_stage && msg.job_id && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, color: "#6B7280" }}>
+                      Suggestion : passer en <strong>{STAGE_LABELS[msg.ai_suggested_stage] ?? msg.ai_suggested_stage}</strong>
+                    </span>
+                    <button
+                      onClick={() => applyStage(msg)}
+                      disabled={applying === msg.id}
+                      style={{
+                        fontSize: 11.5, fontWeight: 700, color: "white",
+                        background: applying === msg.id ? "#C4B6E0" : "#7C63C8",
+                        border: "none", borderRadius: 7, padding: "5px 11px",
+                        cursor: applying === msg.id ? "default" : "pointer", fontFamily: "inherit",
+                      }}
+                    >
+                      {applying === msg.id ? "…" : "Appliquer"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
