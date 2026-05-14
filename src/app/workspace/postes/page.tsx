@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
@@ -233,9 +233,20 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   )
 }
 
-/* ─── Create form (slide-in panel) ─────────────────────────────── */
+/* ─── Create panel (slide-in: form OR chat with Nora) ──────────── */
+
+interface JobDraft {
+  title: string
+  location: string | null
+  seniority: string | null
+  contract_type: string | null
+  required_skills: string[]
+  nice_to_have_skills: string[]
+  description: string
+}
 
 function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: Job) => void }) {
+  const [tab, setTab] = useState<"form" | "chat">("form")
   const [title, setTitle] = useState("")
   const [location, setLocation] = useState("")
   const [seniority, setSeniority] = useState("")
@@ -246,30 +257,59 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const submit = async () => {
-    if (!title.trim()) { setError("Le titre est requis."); return }
+  const createJob = async (values: {
+    title: string; location: string; seniority: string; contract_type: string
+    required_skills: string[]; nice_to_have_skills: string[]; description: string
+  }): Promise<boolean> => {
+    if (!values.title.trim()) { setError("Le titre est requis."); return false }
     setSubmitting(true); setError(null)
     try {
       const res = await fetch("/api/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title, location, seniority, contract_type: contractType,
-          required_skills: reqSkills, nice_to_have_skills: niceSkills, description,
-        }),
+        body: JSON.stringify(values),
       })
       const data = await res.json()
       if (!res.ok || !data.job) {
         setError(data.message ?? data.error ?? "Erreur de création.")
         setSubmitting(false)
-        return
+        return false
       }
       onCreated(data.job as Job)
+      return true
     } catch (err) {
       setError((err as Error).message ?? "Erreur réseau.")
       setSubmitting(false)
+      return false
     }
   }
+
+  const submitForm = () => createJob({
+    title, location, seniority, contract_type: contractType,
+    required_skills: reqSkills, nice_to_have_skills: niceSkills, description,
+  })
+
+  const applyDraft = (d: JobDraft) => {
+    setTitle(d.title)
+    setLocation(d.location ?? "")
+    setSeniority(d.seniority ?? "")
+    setContractType(d.contract_type ?? "")
+    setReqSkills(d.required_skills)
+    setNiceSkills(d.nice_to_have_skills)
+    setDescription(d.description ?? "")
+    setError(null)
+    setTab("form")
+  }
+
+  const createFromDraft = (d: JobDraft) => createJob({
+    title: d.title,
+    location: d.location ?? "",
+    seniority: d.seniority ?? "",
+    contract_type: d.contract_type ?? "",
+    required_skills: d.required_skills,
+    nice_to_have_skills: d.nice_to_have_skills,
+    description: d.description ?? "",
+  })
 
   return (
     <>
@@ -291,80 +331,274 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
         }}
       >
         <div style={{
-          padding: "18px 24px", borderBottom: "1px solid #F0ECF8",
-          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "18px 24px 0", borderBottom: "1px solid #F0ECF8",
         }}>
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827" }}>Nouveau poste</h2>
-          <button onClick={onClose} style={{
-            background: "transparent", border: "none", cursor: "pointer",
-            fontSize: 20, color: "#9CA3AF", lineHeight: 1,
-          }}>✕</button>
-        </div>
-
-        <div style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-          <Field label="Intitulé du poste *">
-            <input value={title} onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex : Senior Data Engineer" style={inputStyle} autoFocus />
-          </Field>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Field label="Localisation">
-              <input value={location} onChange={(e) => setLocation(e.target.value)}
-                placeholder="Paris, remote…" style={inputStyle} />
-            </Field>
-            <Field label="Séniorité">
-              <select value={seniority} onChange={(e) => setSeniority(e.target.value)} style={inputStyle}>
-                <option value="">—</option>
-                {SENIORITIES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </Field>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827" }}>Nouveau poste</h2>
+            <button onClick={onClose} style={{
+              background: "transparent", border: "none", cursor: "pointer",
+              fontSize: 20, color: "#9CA3AF", lineHeight: 1,
+            }}>✕</button>
           </div>
-
-          <Field label="Type de contrat">
-            <select value={contractType} onChange={(e) => setContractType(e.target.value)} style={inputStyle}>
-              <option value="">—</option>
-              {CONTRACTS.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </Field>
-
-          <Field label="Compétences requises" hint="Entrée ou virgule pour ajouter">
-            <TagInput tags={reqSkills} onChange={setReqSkills} placeholder="Python, Spark, AWS…" />
-          </Field>
-
-          <Field label="Compétences souhaitées" hint="Bonus, non bloquant">
-            <TagInput tags={niceSkills} onChange={setNiceSkills} placeholder="Kafka, dbt…" />
-          </Field>
-
-          <Field label="Description du besoin">
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)}
-              rows={5} placeholder="Contexte, missions, contraintes…"
-              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
-          </Field>
-
-          {error && (
-            <div style={{
-              padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA",
-              borderRadius: 10, fontSize: 13, color: "#B91C1C",
-            }}>{error}</div>
-          )}
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: 4, marginTop: 14 }}>
+            {([["form", "Formulaire"], ["chat", "Avec Nora"]] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                style={{
+                  position: "relative",
+                  fontSize: 13, fontWeight: tab === key ? 700 : 500,
+                  color: tab === key ? "#7C63C8" : "#9CA3AF",
+                  background: "transparent", border: "none", cursor: "pointer",
+                  padding: "8px 10px 12px", fontFamily: "inherit",
+                  borderBottom: tab === key ? "2px solid #7C63C8" : "2px solid transparent",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div style={{ padding: "16px 24px", borderTop: "1px solid #F0ECF8", display: "flex", gap: 10 }}>
-          <button onClick={onClose} style={{
-            flex: "0 0 auto", padding: "11px 18px", borderRadius: 10,
-            background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
-            fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-          }}>Annuler</button>
-          <button onClick={submit} disabled={submitting} style={{
-            flex: 1, padding: "11px 18px", borderRadius: 10, border: "none",
-            background: submitting ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            color: "white", fontSize: 13, fontWeight: 700,
-            cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
-          }}>
-            {submitting ? "Création + analyse…" : "Créer le poste"}
-          </button>
-        </div>
+        {tab === "form" ? (
+          <>
+            <div style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+              <Field label="Intitulé du poste *">
+                <input value={title} onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ex : Senior Data Engineer" style={inputStyle} autoFocus />
+              </Field>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <Field label="Localisation">
+                  <input value={location} onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Paris, remote…" style={inputStyle} />
+                </Field>
+                <Field label="Séniorité">
+                  <select value={seniority} onChange={(e) => setSeniority(e.target.value)} style={inputStyle}>
+                    <option value="">—</option>
+                    {SENIORITIES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </Field>
+              </div>
+
+              <Field label="Type de contrat">
+                <select value={contractType} onChange={(e) => setContractType(e.target.value)} style={inputStyle}>
+                  <option value="">—</option>
+                  {CONTRACTS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </Field>
+
+              <Field label="Compétences requises" hint="Entrée ou virgule pour ajouter">
+                <TagInput tags={reqSkills} onChange={setReqSkills} placeholder="Python, Spark, AWS…" />
+              </Field>
+
+              <Field label="Compétences souhaitées" hint="Bonus, non bloquant">
+                <TagInput tags={niceSkills} onChange={setNiceSkills} placeholder="Kafka, dbt…" />
+              </Field>
+
+              <Field label="Description du besoin">
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                  rows={5} placeholder="Contexte, missions, contraintes…"
+                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
+              </Field>
+
+              {error && (
+                <div style={{
+                  padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA",
+                  borderRadius: 10, fontSize: 13, color: "#B91C1C",
+                }}>{error}</div>
+              )}
+            </div>
+
+            <div style={{ padding: "16px 24px", borderTop: "1px solid #F0ECF8", display: "flex", gap: 10 }}>
+              <button onClick={onClose} style={{
+                flex: "0 0 auto", padding: "11px 18px", borderRadius: 10,
+                background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
+                fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              }}>Annuler</button>
+              <button onClick={submitForm} disabled={submitting} style={{
+                flex: 1, padding: "11px 18px", borderRadius: 10, border: "none",
+                background: submitting ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                color: "white", fontSize: 13, fontWeight: 700,
+                cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
+              }}>
+                {submitting ? "Création + analyse…" : "Créer le poste"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <ChatBrief
+            submitting={submitting}
+            onApplyDraft={applyDraft}
+            onCreateDraft={createFromDraft}
+          />
+        )}
       </m.div>
+    </>
+  )
+}
+
+/* ─── Chat brief builder ───────────────────────────────────────── */
+
+interface ChatMsg { role: "user" | "assistant"; content: string }
+
+function ChatBrief({
+  submitting,
+  onApplyDraft,
+  onCreateDraft,
+}: {
+  submitting: boolean
+  onApplyDraft: (d: JobDraft) => void
+  onCreateDraft: (d: JobDraft) => void
+}) {
+  const [messages, setMessages] = useState<ChatMsg[]>([{
+    role: "assistant",
+    content: "Décris-moi le besoin du client en quelques mots — le poste, le niveau, les compétences clés. Je m'occupe de structurer.",
+  }])
+  const [input, setInput] = useState("")
+  const [thinking, setThinking] = useState(false)
+  const [draft, setDraft] = useState<JobDraft | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
+  }, [messages, thinking, draft])
+
+  const send = async () => {
+    const text = input.trim()
+    if (!text || thinking) return
+    const next: ChatMsg[] = [...messages, { role: "user", content: text }]
+    setMessages(next)
+    setInput("")
+    setThinking(true)
+    setError(null)
+    setDraft(null)
+    try {
+      const res = await fetch("/api/jobs/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: next }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data?.detail ?? data?.error ?? "Nora n'a pas pu répondre.")
+        setThinking(false)
+        return
+      }
+      setMessages((prev) => [...prev, { role: "assistant", content: String(data.reply ?? "…") }])
+      if (data.ready && data.draft) setDraft(data.draft as JobDraft)
+    } catch (err) {
+      setError((err as Error).message ?? "Erreur réseau.")
+    } finally {
+      setThinking(false)
+    }
+  }
+
+  return (
+    <>
+      <div ref={scrollRef} style={{
+        flex: 1, overflowY: "auto", padding: 20,
+        display: "flex", flexDirection: "column", gap: 12,
+      }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{
+            alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+            maxWidth: "84%",
+            background: m.role === "user" ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)" : "#F4F1FB",
+            color: m.role === "user" ? "white" : "#374151",
+            fontSize: 13.5, lineHeight: 1.55,
+            padding: "10px 13px",
+            borderRadius: m.role === "user" ? "13px 13px 4px 13px" : "13px 13px 13px 4px",
+          }}>
+            {m.content}
+          </div>
+        ))}
+        {thinking && (
+          <div style={{
+            alignSelf: "flex-start", fontSize: 13, color: "#9CA3AF",
+            padding: "8px 13px", background: "#F4F1FB", borderRadius: "13px 13px 13px 4px",
+          }}>
+            Nora réfléchit…
+          </div>
+        )}
+
+        {draft && (
+          <m.div
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            style={{
+              background: "white", border: "1.5px solid rgba(124,99,200,0.30)",
+              borderRadius: 14, padding: 16, marginTop: 4,
+            }}
+          >
+            <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Proposition de poste
+            </p>
+            <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{draft.title}</p>
+            <p style={{ margin: "0 0 10px", fontSize: 12, color: "#6B7280" }}>
+              {[draft.seniority, draft.location, draft.contract_type].filter(Boolean).join(" · ") || "—"}
+            </p>
+            {draft.required_skills.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+                {draft.required_skills.map((s) => (
+                  <span key={s} style={{
+                    fontSize: 11, color: "#4B5563", background: "#F8F6FF",
+                    border: "1px solid #F0ECF8", padding: "3px 8px", borderRadius: 6,
+                  }}>{s}</span>
+                ))}
+              </div>
+            )}
+            {draft.description && (
+              <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#4B5563", lineHeight: 1.6 }}>
+                {draft.description}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => onApplyDraft(draft)} disabled={submitting} style={{
+                flex: "0 0 auto", padding: "9px 14px", borderRadius: 9,
+                background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
+                fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              }}>Ajuster</button>
+              <button onClick={() => onCreateDraft(draft)} disabled={submitting} style={{
+                flex: 1, padding: "9px 14px", borderRadius: 9, border: "none",
+                background: submitting ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                color: "white", fontSize: 12.5, fontWeight: 700,
+                cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
+              }}>
+                {submitting ? "Création…" : "Créer ce poste"}
+              </button>
+            </div>
+          </m.div>
+        )}
+
+        {error && (
+          <div style={{
+            padding: "9px 12px", background: "#FEF2F2", border: "1px solid #FECACA",
+            borderRadius: 10, fontSize: 12.5, color: "#B91C1C",
+          }}>{error}</div>
+        )}
+      </div>
+
+      <div style={{ padding: "14px 20px", borderTop: "1px solid #F0ECF8", display: "flex", gap: 8 }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send() } }}
+          placeholder="Décris le besoin…"
+          disabled={thinking}
+          style={{ ...inputStyle, flex: 1 }}
+          autoFocus
+        />
+        <button onClick={send} disabled={thinking || !input.trim()} style={{
+          flexShrink: 0, padding: "0 16px", borderRadius: 9, border: "none",
+          background: thinking || !input.trim() ? "#E2DAF6" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          color: "white", fontSize: 13, fontWeight: 700,
+          cursor: thinking || !input.trim() ? "default" : "pointer", fontFamily: "inherit",
+        }}>
+          →
+        </button>
+      </div>
     </>
   )
 }

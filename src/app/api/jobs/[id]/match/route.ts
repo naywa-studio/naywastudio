@@ -32,10 +32,10 @@ type MatchInsert = Database["public"]["Tables"]["match_assessments"]["Insert"]
 export const runtime = "nodejs"
 export const maxDuration = 60
 
-// Hard ceiling per run so a huge vivier can't blow the function budget.
-// The pre-filter sorts by relevance signal, so the best candidates are
-// always covered first; the user can re-run for the rest.
-const MAX_SCORED_PER_RUN = 120
+// Hard ceiling per run so a huge vivier can't blow the 60s function budget
+// (≈10 LLM batches + DB writes). The pre-filter sorts by relevance signal,
+// so the best candidates are always covered first; the user can re-run.
+const MAX_SCORED_PER_RUN = 80
 
 export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
@@ -92,15 +92,18 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     const existingByCand = new Map((existingRows ?? []).map((r) => [r.candidate_id, r.id]))
 
     const toInsert: MatchInsert[] = []
+    const updates: PromiseLike<unknown>[] = []
     for (const r of results) {
       const existingId = existingByCand.get(r.candidate_id)
       if (existingId) {
-        await admin.from("match_assessments").update({
-          score: r.score,
-          score_dimensions: r.dimensions,
-          justification: r.justification,
-          match_tier: r.tier,
-        }).eq("id", existingId)
+        updates.push(
+          admin.from("match_assessments").update({
+            score: r.score,
+            score_dimensions: r.dimensions,
+            justification: r.justification,
+            match_tier: r.tier,
+          }).eq("id", existingId),
+        )
       } else {
         toInsert.push({
           user_id: user.id,
@@ -114,6 +117,10 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
         })
       }
     }
+    // Run the existing-row updates concurrently in bounded chunks.
+    for (let i = 0; i < updates.length; i += 12) {
+      await Promise.all(updates.slice(i, i + 12))
+    }
     if (toInsert.length > 0) {
       await admin.from("match_assessments").insert(toInsert)
     }
@@ -121,14 +128,18 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     // 5. Mission-tag write-back onto well-matched candidates' taxonomy.
     const tag = missionTagFor(job as Job)
     const winners = results.filter((r) => r.tier === "excellent" || r.tier === "good")
+    const tagWrites: PromiseLike<unknown>[] = []
     for (const w of winners) {
       const cand = pool.find((c) => c.id === w.candidate_id)
       if (!cand) continue
       const nextTax = withMissionTag(cand.taxonomy, tag)
       // Only write if it actually changed (avoid useless updates / realtime noise).
       if (nextTax !== cand.taxonomy) {
-        await admin.from("candidates").update({ taxonomy: nextTax }).eq("id", cand.id)
+        tagWrites.push(admin.from("candidates").update({ taxonomy: nextTax }).eq("id", cand.id))
       }
+    }
+    for (let i = 0; i < tagWrites.length; i += 12) {
+      await Promise.all(tagWrites.slice(i, i + 12))
     }
 
     await admin.from("jobs").update({
