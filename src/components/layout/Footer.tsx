@@ -17,8 +17,8 @@ const footerLinks: Record<string, FooterLink[]> = {
     { label: 'Mentions légales', href: '/mentions-legales' },
   ],
   Contact: [
-    { label: 'LinkedIn', href: 'https://linkedin.com/company/nawastudio', external: true },
-    { label: 'contact@nawastudio.com', href: 'mailto:contact@nawastudio.com' },
+    { label: 'LinkedIn', href: 'https://linkedin.com/company/naywastudio', external: true },
+    { label: 'contact@naywastudio.com', href: 'mailto:contact@naywastudio.com' },
   ],
 }
 

@@ -46,7 +46,7 @@ export async function openrouterChat(opts: ORChatOptions): Promise<ORChatResult>
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${key}`,
-        "HTTP-Referer": "https://nawastudio.com",
+        "HTTP-Referer": "https://naywastudio.com",
         "X-Title": "Naywa Studio",
       },
       signal: ctrl.signal,

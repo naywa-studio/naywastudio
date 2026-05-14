@@ -87,7 +87,7 @@ const CATEGORIES = [
       },
       {
         q: "Comment rejoindre la beta ?",
-        a: "Créez un compte (email ou Google). L'accès est immédiat. Si vous avez un retour ou un besoin spécifique, écrivez-nous à contact@nawastudio.com — nous itérons vite.",
+        a: "Créez un compte (email ou Google). L'accès est immédiat. Si vous avez un retour ou un besoin spécifique, écrivez-nous à contact@naywastudio.com — nous itérons vite.",
       },
     ],
   },
@@ -128,7 +128,7 @@ export default function FAQPage() {
             fontFamily: "var(--font-inter), sans-serif",
           }}>
             Si une question manque,{" "}
-            <a href="mailto:contact@nawastudio.com" style={{ color: "#7C63C8", fontWeight: 600 }}>
+            <a href="mailto:contact@naywastudio.com" style={{ color: "#7C63C8", fontWeight: 600 }}>
               écrivez-nous
             </a>{" "}— on ajoute la réponse ici.
           </p>

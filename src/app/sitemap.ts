@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 
-const SITE_URL = 'https://nawastudio.com'
+const SITE_URL = 'https://naywastudio.com'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [

@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/', '/_next/'],
     },
-    sitemap: 'https://nawastudio.com/sitemap.xml',
-    host: 'https://nawastudio.com',
+    sitemap: 'https://naywastudio.com/sitemap.xml',
+    host: 'https://naywastudio.com',
   }
 }

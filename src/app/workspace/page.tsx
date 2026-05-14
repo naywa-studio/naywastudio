@@ -161,7 +161,7 @@ export default function WorkspaceHome() {
             Voir les tarifs →
           </Link>
           <span style={{ marginLeft: "auto", color: "#9CA3AF" }}>
-            Feedback : <a href="mailto:contact@nawastudio.com" style={{ color: "#7C63C8", textDecoration: "none" }}>contact@nawastudio.com</a>
+            Feedback : <a href="mailto:contact@naywastudio.com" style={{ color: "#7C63C8", textDecoration: "none" }}>contact@naywastudio.com</a>
           </span>
         </div>
       </m.div>

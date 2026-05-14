@@ -11,14 +11,14 @@ const SECTIONS = [
   {
     title: '1. Éditeur du site',
     content: [
-      'Le site nawastudio.com est édité par :',
+      'Le site naywastudio.com est édité par :',
       '**Naywa Studio**',
       'Forme juridique : [À compléter]',
       'Capital social : [À compléter]',
       'RCS : [À compléter]',
       'SIRET : [À compléter]',
       'Siège social : Paris, France',
-      'Email : contact@nawastudio.com',
+      'Email : contact@naywastudio.com',
     ],
   },
   {
@@ -54,8 +54,8 @@ const SECTIONS = [
       '— Droit à l\'effacement',
       '— Droit à la portabilité',
       '— Droit d\'opposition au traitement',
-      'Pour exercer ces droits, contactez-nous à : contact@nawastudio.com',
-      'Responsable du traitement : Naywa Studio — contact@nawastudio.com',
+      'Pour exercer ces droits, contactez-nous à : contact@naywastudio.com',
+      'Responsable du traitement : Naywa Studio — contact@naywastudio.com',
       'Les données sont conservées pour la durée de la relation contractuelle puis archivées conformément aux obligations légales.',
     ],
   },
@@ -237,7 +237,7 @@ export default function MentionsLegalesPage() {
             Écrivez-nous, nous répondons sous 48h ouvrées.
           </p>
           <a
-            href="mailto:contact@nawastudio.com"
+            href="mailto:contact@naywastudio.com"
             style={{
               fontSize: 14,
               fontWeight: 600,
@@ -246,7 +246,7 @@ export default function MentionsLegalesPage() {
               fontFamily: 'var(--font-inter), sans-serif',
             }}
           >
-            contact@nawastudio.com →
+            contact@naywastudio.com →
           </a>
         </div>
       </main>
@@ -274,10 +274,10 @@ export default function MentionsLegalesPage() {
           Tarifs
         </Link>
         <a
-          href="mailto:contact@nawastudio.com"
+          href="mailto:contact@naywastudio.com"
           style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'none', fontFamily: 'var(--font-inter), sans-serif' }}
         >
-          contact@nawastudio.com
+          contact@naywastudio.com
         </a>
       </footer>
     </div>

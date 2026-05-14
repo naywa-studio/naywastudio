@@ -4,7 +4,7 @@ import { spaceGrotesk, inter, instrumentSerif } from '@/lib/fonts'
 import { MotionProvider } from '@/components/providers/MotionProvider'
 import './globals.css'
 
-const SITE_URL = 'https://nawastudio.com'
+const SITE_URL = 'https://naywastudio.com'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     description:
       'Nora organise votre vivier de CVs, match avec vos postes, anonymise et suit votre pipeline.',
     images: ['/og-image.jpg'],
-    creator: '@nawastudio',
+    creator: '@naywastudio',
   },
 
   robots: {
@@ -96,11 +96,11 @@ const organizationSchema = {
     addressLocality: 'Paris',
     addressCountry: 'FR',
   },
-  sameAs: ['https://www.linkedin.com/company/nawastudio', 'https://x.com/nawastudio'],
+  sameAs: ['https://www.linkedin.com/company/naywastudio', 'https://x.com/naywastudio'],
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'sales',
-    email: 'hello@nawastudio.com',
+    email: 'hello@naywastudio.com',
     availableLanguage: ['French', 'English'],
   },
 }
