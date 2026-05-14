@@ -20,6 +20,9 @@ export default function CandidatePage() {
   const [notFound, setNotFound] = useState(false)
   const [notes, setNotes] = useState("")
   const [savingNotes, setSavingNotes] = useState<"idle" | "saving" | "saved">("idle")
+  const [anonState, setAnonState] = useState<"idle" | "working" | "ready" | "error">("idle")
+  const [anonUrl, setAnonUrl] = useState<string | null>(null)
+  const [anonError, setAnonError] = useState<string | null>(null)
   const notesRef = useRef(notes)
   useEffect(() => { notesRef.current = notes }, [notes])
 
@@ -44,6 +47,15 @@ export default function CandidatePage() {
         if (r.ok) {
           const j = await r.json()
           if (mounted) setSignedUrl(j.url)
+        }
+      }
+
+      // Existing anonymized PDF, if any
+      if (c.anonymized_pdf_path) {
+        const r = await fetch(`/api/cv/${c.id}/anonymize`)
+        if (r.ok) {
+          const j = await r.json()
+          if (mounted && j.url) { setAnonUrl(j.url); setAnonState("ready") }
         }
       }
 
@@ -88,6 +100,25 @@ export default function CandidatePage() {
     // Optimistic — Realtime will follow up
     setCandidate((prev) => prev ? { ...prev, parse_status: "parsing", parse_error: null } : prev)
     await fetch(`/api/cv/${candidate.id}/parse`, { method: "POST" }).catch(() => {})
+  }
+
+  const handleAnonymize = async () => {
+    if (!candidate) return
+    setAnonState("working"); setAnonError(null)
+    try {
+      const res = await fetch(`/api/cv/${candidate.id}/anonymize`, { method: "POST" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        setAnonError(data?.message ?? data?.error ?? "Échec de l'anonymisation.")
+        setAnonState("error")
+        return
+      }
+      setAnonUrl(data.url ?? null)
+      setAnonState("ready")
+    } catch (err) {
+      setAnonError((err as Error).message ?? "Erreur réseau.")
+      setAnonState("error")
+    }
   }
 
   if (loading) {
@@ -173,6 +204,59 @@ export default function CandidatePage() {
                 Supprimer
               </button>
             </div>
+
+            {/* Anonymisation */}
+            {candidate.parse_status === "parsed" && (
+              <div style={{
+                marginTop: 16, padding: "14px 16px",
+                background: "rgba(124,99,200,0.05)",
+                border: "1px solid rgba(124,99,200,0.16)",
+                borderRadius: 12,
+                display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+              }}>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#111827" }}>
+                    CV anonymisé
+                  </p>
+                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+                    {anonState === "ready"
+                      ? "PDF prêt — sans nom, photo, contacts ni école précise."
+                      : "Génère un PDF présentable à votre client, identité retirée."}
+                  </p>
+                  {anonError && (
+                    <p style={{ margin: "4px 0 0", fontSize: 12, color: "#B91C1C" }}>{anonError}</p>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {anonState === "ready" && anonUrl && (
+                    <a href={anonUrl} target="_blank" rel="noreferrer" style={{
+                      fontSize: 12, fontWeight: 700, color: "#7C63C8",
+                      background: "white", border: "1px solid rgba(124,99,200,0.25)",
+                      borderRadius: 8, padding: "8px 14px", textDecoration: "none",
+                    }}>
+                      Télécharger ↓
+                    </a>
+                  )}
+                  <button
+                    onClick={handleAnonymize}
+                    disabled={anonState === "working"}
+                    style={{
+                      fontSize: 12, fontWeight: 700, color: "white",
+                      background: anonState === "working"
+                        ? "#C4B6E0"
+                        : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                      border: "none", borderRadius: 8, padding: "8px 14px",
+                      cursor: anonState === "working" ? "default" : "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {anonState === "working" ? "Génération…"
+                      : anonState === "ready" ? "Régénérer"
+                      : "Anonymiser"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {candidate.parse_status === "error" && (
               <div style={{

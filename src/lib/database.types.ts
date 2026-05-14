@@ -55,6 +55,27 @@ export type ScoreDimensions = {
   [key: string]: number | undefined
 }
 
+// ── Taxonomy: multi-axis tag set produced at parse time, enriched by matching ──
+export type CandidateTaxonomy = {
+  role_family?: string[]      // ["Data Engineer", "ML Engineer"]
+  domains?: string[]          // ["fintech", "e-commerce"]
+  industries?: string[]       // ["banque", "retail"]
+  tools?: string[]            // ["AWS", "Spark", "Airflow"]
+  core_skills?: string[]      // matching-relevant skills (noise removed)
+  seniority?: string | null   // "junior" | "mid" | "senior" | "lead" | "principal"
+  mission_tags?: string[]     // normalized concepts from matched jobs, accumulates
+}
+
+// ── Job normalized shape — matching-ready, LLM-extracted at job creation ──
+export type JobNormalized = {
+  role_family?: string[]
+  must_have_skills?: string[]
+  nice_to_have_skills?: string[]
+  domains?: string[]
+  seniority?: string | null
+  summary?: string | null
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -98,7 +119,10 @@ export type Database = {
           nice_to_have_skills: string[] | null
           description: string | null
           brief: Record<string, unknown> | null
+          normalized: JobNormalized | null
           status: 'draft' | 'open' | 'filled' | 'archived'
+          match_status: 'idle' | 'matching' | 'done' | 'error'
+          matched_at: string | null
           created_at: string
           updated_at: string
         }
@@ -113,7 +137,10 @@ export type Database = {
           nice_to_have_skills?: string[] | null
           description?: string | null
           brief?: Record<string, unknown> | null
+          normalized?: JobNormalized | null
           status?: 'draft' | 'open' | 'filled' | 'archived'
+          match_status?: 'idle' | 'matching' | 'done' | 'error'
+          matched_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -136,12 +163,15 @@ export type Database = {
           skills: string[] | null
           languages: string[] | null
           parsed_cv: ParsedCv | null
+          taxonomy: CandidateTaxonomy | null
           raw_text: string | null
           search_tsv: unknown
           cv_file_path: string | null
           cv_file_name: string | null
           cv_file_size: number | null
           cv_mime_type: string | null
+          anonymized_pdf_path: string | null
+          anonymized_at: string | null
           parse_status: 'pending' | 'parsing' | 'parsed' | 'error' | 'manual'
           parse_error: string | null
           parsed_at: string | null
@@ -166,11 +196,14 @@ export type Database = {
           skills?: string[] | null
           languages?: string[] | null
           parsed_cv?: ParsedCv | null
+          taxonomy?: CandidateTaxonomy | null
           raw_text?: string | null
           cv_file_path?: string | null
           cv_file_name?: string | null
           cv_file_size?: number | null
           cv_mime_type?: string | null
+          anonymized_pdf_path?: string | null
+          anonymized_at?: string | null
           parse_status?: 'pending' | 'parsing' | 'parsed' | 'error' | 'manual'
           parse_error?: string | null
           parsed_at?: string | null

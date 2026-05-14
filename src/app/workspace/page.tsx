@@ -9,9 +9,9 @@ import { useWorkspace } from "./layout"
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 const FEATURES = [
-  { done: true,  title: "Vivier de CVs",            desc: "Upload PDF, parsing IA, recherche full-text, dédup." },
-  { done: false, title: "Postes & matching",        desc: "Bientôt — décrivez vos postes, Nora score chaque CV." },
-  { done: false, title: "CVs anonymisés",           desc: "Bientôt — export PDF sans nom, photo ni contacts." },
+  { done: true,  title: "Vivier de CVs",            desc: "Upload PDF, parsing IA, taxonomie de tags, recherche, dédup." },
+  { done: true,  title: "Postes & matching",        desc: "Décrivez vos postes — Nora score le vivier et justifie." },
+  { done: true,  title: "CVs anonymisés",           desc: "Export PDF sans nom, photo, contacts ni école précise." },
   { done: false, title: "Pipeline candidat",        desc: "Bientôt — Identifié → Contacté → Réponse → Entretien." },
   { done: false, title: "Intégration boîte mail",   desc: "Bientôt — BCC tracking puis Gmail / Outlook OAuth." },
 ] as const

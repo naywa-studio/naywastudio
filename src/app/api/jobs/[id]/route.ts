@@ -1,0 +1,107 @@
+/**
+ * GET    /api/jobs/:id  — job + its match assessments (joined candidates).
+ * PATCH  /api/jobs/:id  — update job fields; re-normalize if matching inputs change.
+ * DELETE /api/jobs/:id  — delete job (match_assessments cascade via FK).
+ */
+
+import { NextRequest, NextResponse } from "next/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { normalizeJob } from "@/lib/matching"
+import type { Database } from "@/lib/database.types"
+
+type JobUpdate = Database["public"]["Tables"]["jobs"]["Update"]
+
+export const runtime = "nodejs"
+export const maxDuration = 30
+
+const clean = (v: unknown): string | null => {
+  if (typeof v !== "string") return null
+  const t = v.trim()
+  return t.length ? t : null
+}
+const cleanArr = (v: unknown): string[] => {
+  if (!Array.isArray(v)) return []
+  return v.map((x) => String(x).trim()).filter(Boolean).slice(0, 30)
+}
+
+export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params
+  const sb = await createSupabaseServerClient()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+
+  const { data: job, error } = await sb.from("jobs").select("*").eq("id", id).single()
+  if (error || !job) return NextResponse.json({ error: "not_found" }, { status: 404 })
+
+  const { data: assessments } = await sb
+    .from("match_assessments")
+    .select("*, candidate:candidates(*)")
+    .eq("job_id", id)
+    .order("score", { ascending: false, nullsFirst: false })
+
+  return NextResponse.json({ job, assessments: assessments ?? [] })
+}
+
+export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params
+  const sb = await createSupabaseServerClient()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+
+  const { data: job, error: fetchErr } = await sb.from("jobs").select("*").eq("id", id).single()
+  if (fetchErr || !job) return NextResponse.json({ error: "not_found" }, { status: 404 })
+
+  const body = await req.json().catch(() => null) as Record<string, unknown> | null
+  if (!body) return NextResponse.json({ error: "bad_body" }, { status: 400 })
+
+  const update: JobUpdate = {}
+  let matchingInputsChanged = false
+
+  if ("title" in body)               { update.title = clean(body.title) ?? job.title; matchingInputsChanged = true }
+  if ("location" in body)            { update.location = clean(body.location) }
+  if ("seniority" in body)           { update.seniority = clean(body.seniority); matchingInputsChanged = true }
+  if ("contract_type" in body)       { update.contract_type = clean(body.contract_type) }
+  if ("required_skills" in body)     { update.required_skills = cleanArr(body.required_skills); matchingInputsChanged = true }
+  if ("nice_to_have_skills" in body) { update.nice_to_have_skills = cleanArr(body.nice_to_have_skills); matchingInputsChanged = true }
+  if ("description" in body)         { update.description = clean(body.description); matchingInputsChanged = true }
+  if ("status" in body && ["draft", "open", "filled", "archived"].includes(String(body.status))) {
+    update.status = body.status as JobUpdate["status"]
+  }
+
+  if (matchingInputsChanged) {
+    try {
+      update.normalized = await normalizeJob({
+        title: update.title ?? job.title,
+        location: update.location ?? job.location,
+        seniority: update.seniority ?? job.seniority,
+        contract_type: update.contract_type ?? job.contract_type,
+        required_skills: update.required_skills ?? job.required_skills,
+        nice_to_have_skills: update.nice_to_have_skills ?? job.nice_to_have_skills,
+        description: update.description ?? job.description,
+      })
+    } catch (err) {
+      console.error("[jobs] re-normalize failed:", (err as Error).message)
+    }
+  }
+
+  const { data: updated, error: updateErr } = await sb
+    .from("jobs")
+    .update(update)
+    .eq("id", id)
+    .select("*")
+    .single()
+
+  if (updateErr) return NextResponse.json({ error: "db_update_failed", detail: updateErr.message }, { status: 500 })
+  return NextResponse.json({ ok: true, job: updated })
+}
+
+export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params
+  const sb = await createSupabaseServerClient()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+
+  const { error } = await sb.from("jobs").delete().eq("id", id)
+  if (error) return NextResponse.json({ error: "db_delete_failed", detail: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}

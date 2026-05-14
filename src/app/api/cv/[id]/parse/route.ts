@@ -18,7 +18,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { CvParseError, extractPdfText, parseCvWithLlm } from "@/lib/cv-parser"
-import type { ParsedCv } from "@/lib/database.types"
+import type { ParsedCv, CandidateTaxonomy } from "@/lib/database.types"
 
 export const runtime = "nodejs"
 export const maxDuration = 60 // pdf-parse + LLM round-trip
@@ -66,11 +66,14 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
 
   // Parse
   let parsedCv: ParsedCv | null = null
+  let taxonomy: CandidateTaxonomy | null = null
   let rawText = ""
   let parseError: { code: string; message: string } | null = null
   try {
     rawText = await extractPdfText(buf)
-    parsedCv = await parseCvWithLlm(rawText)
+    const out = await parseCvWithLlm(rawText)
+    parsedCv = out.cv
+    taxonomy = out.taxonomy
   } catch (err) {
     parseError = err instanceof CvParseError
       ? { code: err.code, message: err.message }
@@ -112,6 +115,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       parse_error: null,
       parsed_at: new Date().toISOString(),
       parsed_cv: parsedCv,
+      taxonomy,
       raw_text: rawText,
       full_name:        parsedCv?.full_name ?? null,
       email:            parsedCv?.email ?? null,
