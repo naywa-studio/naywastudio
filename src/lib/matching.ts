@@ -33,12 +33,14 @@ Tu réponds UNIQUEMENT en JSON valide :
   "must_have_skills":     string[],   // compétences/technos indispensables, max 12
   "nice_to_have_skills":  string[],   // compétences appréciées mais non bloquantes, max 10
   "domains":              string[],   // domaines fonctionnels visés, max 6
-  "seniority":            "junior" | "mid" | "senior" | "lead" | "principal" | null,
+  "seniority":            "etudiant" | "stagiaire" | "junior" | "mid" | "senior" | "lead" | "principal" | null,
   "summary":              string      // 1 phrase neutre résumant le besoin
 }
 
 Règles : minuscules sauf noms propres/acronymes, déduplique, pas de markdown, JSON pur.
-Déduis les infos depuis le titre + la description, ne sur-invente pas.`
+Déduis les infos depuis le titre + la description, ne sur-invente pas.
+Séniorité : "etudiant" pour un job étudiant / alternance / poste ouvert aux étudiants ;
+"stagiaire" pour un stage ; sinon junior→principal selon l'expérience attendue.`
 
 export async function normalizeJob(input: {
   title: string
@@ -113,12 +115,18 @@ export interface PrefilterHit {
   signal: number          // 0..1 rough relevance — used only to order the LLM queue
 }
 
+// Entry-level bands where a CV is naturally thin on skills — for these,
+// a seniority match alone is enough to keep the candidate in the pool.
+const ENTRY_LEVELS = new Set(["etudiant", "stagiaire", "junior"])
+
 /**
- * Keep only candidates with a plausible overlap. A candidate passes if EITHER:
+ * Keep only candidates with a plausible overlap. A candidate passes if:
  *   - a role_family matches, OR
- *   - at least 1 must-have skill / tool overlaps.
- * Candidates with no taxonomy at all are kept (can't pre-filter blindly) and
- * rely on the LLM step + their parsed skills.
+ *   - at least 1 must-have skill / tool overlaps, OR
+ *   - the job AND the candidate are both entry-level (étudiant/stagiaire/
+ *     junior) — student & internship jobs are about level + availability,
+ *     not a long skill list, so skill overlap would wrongly drop them.
+ * Candidates with no taxonomy at all are kept (can't pre-filter blindly).
  */
 export function prefilterCandidates(job: JobNormalized, candidates: Candidate[]): PrefilterHit[] {
   const jobRoles = job.role_family ?? []
@@ -126,6 +134,8 @@ export function prefilterCandidates(job: JobNormalized, candidates: Candidate[])
   const jobNice = job.nice_to_have_skills ?? []
   const jobDomains = job.domains ?? []
   const jobSkillPool = [...jobMust, ...jobNice]
+  const jobSeniority = (job.seniority ?? "").toLowerCase()
+  const jobIsEntry = ENTRY_LEVELS.has(jobSeniority)
 
   const hits: PrefilterHit[] = []
   for (const c of candidates) {
@@ -138,14 +148,16 @@ export function prefilterCandidates(job: JobNormalized, candidates: Candidate[])
       ...(c.skills ?? []),
     ]
     const candDomains = [...(tax?.domains ?? []), ...(tax?.industries ?? [])]
+    const candSeniority = (c.seniority_level ?? tax?.seniority ?? "").toLowerCase()
 
     const roleHit = overlapCount(jobRoles, candRoles)
     const mustHit = overlapCount(jobMust, candSkills)
     const niceHit = overlapCount(jobNice, candSkills)
     const domainHit = overlapCount(jobDomains, candDomains)
+    const seniorityBridge = jobIsEntry && ENTRY_LEVELS.has(candSeniority)
 
     const noTaxonomy = !tax || (!candRoles.length && !(tax?.core_skills?.length))
-    const plausible = noTaxonomy || roleHit > 0 || mustHit > 0
+    const plausible = noTaxonomy || roleHit > 0 || mustHit > 0 || seniorityBridge
 
     if (!plausible) continue
 
@@ -155,7 +167,8 @@ export function prefilterCandidates(job: JobNormalized, candidates: Candidate[])
       roleHit * 0.5 +
       (jobMust.length ? (mustHit / jobMust.length) * 0.35 : 0) +
       (jobSkillPool.length ? (niceHit / Math.max(1, jobNice.length)) * 0.1 : 0) +
-      (jobDomains.length ? (domainHit / jobDomains.length) * 0.05 : 0),
+      (jobDomains.length ? (domainHit / jobDomains.length) * 0.05 : 0) +
+      (seniorityBridge ? 0.2 : 0),
     )
     hits.push({ candidate: c, signal: noTaxonomy ? Math.max(signal, 0.15) : signal })
   }

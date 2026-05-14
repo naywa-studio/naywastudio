@@ -8,7 +8,7 @@ import type { Job } from "@/lib/database.types"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
-const SENIORITIES = ["junior", "mid", "senior", "lead", "principal"]
+const SENIORITIES = ["etudiant", "stagiaire", "junior", "mid", "senior", "lead", "principal"]
 const CONTRACTS = ["CDI", "CDD", "Freelance", "Stage", "Alternance"]
 
 export default function PostesPage() {
