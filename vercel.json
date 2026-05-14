@@ -2,27 +2,6 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "regions": ["cdg1"],
-  "crons": [
-    {
-      "path": "/api/cron/deploy-agents",
-      "schedule": "0 3 * * *"
-    }
-  ],
-  "functions": {
-    "src/app/api/subscribe/route.ts": {
-      "maxDuration": 30,
-      "includeFiles": "src/lib/agent-templates/**"
-    },
-    "src/app/api/admin/provision/route.ts": {
-      "maxDuration": 30
-    },
-    "src/app/api/cron/deploy-agents/route.ts": {
-      "maxDuration": 55,
-      "includeFiles": "src/lib/agent-templates/**"
-    },
-    "src/app/api/provisioning-webhook/route.ts": { "maxDuration": 10 },
-    "src/app/api/provisioning-status/route.ts": { "maxDuration": 10 }
-  },
   "headers": [
     {
       "source": "/(.*)",
