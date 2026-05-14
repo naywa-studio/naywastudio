@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
+import { NoraAssistant } from "@/components/workspace/NoraAssistant"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 
@@ -212,6 +213,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         `}</style>
 
         {children}
+
+        <NoraAssistant />
       </div>
     </WorkspaceContext.Provider>
   )

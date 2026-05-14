@@ -76,6 +76,17 @@ export type JobNormalized = {
   summary?: string | null
 }
 
+// ── Compose IA: metadata for the persisted outreach draft ──
+export type OutreachChannel = "email" | "linkedin"
+export type OutreachMeta = {
+  channel: OutreachChannel
+  job_id?: string | null
+  job_title?: string | null
+  instruction?: string | null
+  subject?: string | null
+  generated_at: string
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -172,6 +183,8 @@ export type Database = {
           cv_mime_type: string | null
           anonymized_pdf_path: string | null
           anonymized_at: string | null
+          outreach_draft: string | null
+          outreach_meta: OutreachMeta | null
           parse_status: 'pending' | 'parsing' | 'parsed' | 'error' | 'manual'
           parse_error: string | null
           parsed_at: string | null
@@ -204,6 +217,8 @@ export type Database = {
           cv_mime_type?: string | null
           anonymized_pdf_path?: string | null
           anonymized_at?: string | null
+          outreach_draft?: string | null
+          outreach_meta?: OutreachMeta | null
           parse_status?: 'pending' | 'parsing' | 'parsed' | 'error' | 'manual'
           parse_error?: string | null
           parsed_at?: string | null

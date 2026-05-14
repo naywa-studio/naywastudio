@@ -23,6 +23,7 @@ export default function CandidatePage() {
   const [anonState, setAnonState] = useState<"idle" | "working" | "ready" | "error">("idle")
   const [anonUrl, setAnonUrl] = useState<string | null>(null)
   const [anonError, setAnonError] = useState<string | null>(null)
+  const [jobChoices, setJobChoices] = useState<{ id: string; title: string }[]>([])
   const notesRef = useRef(notes)
   useEffect(() => { notesRef.current = notes }, [notes])
 
@@ -57,6 +58,21 @@ export default function CandidatePage() {
           const j = await r.json()
           if (mounted && j.url) { setAnonUrl(j.url); setAnonState("ready") }
         }
+      }
+
+      // Matched jobs — to offer as context for the outreach draft
+      const { data: matches } = await sb
+        .from("match_assessments")
+        .select("job:jobs(id, title)")
+        .eq("candidate_id", c.id)
+      if (mounted && matches) {
+        const seen = new Set<string>()
+        const choices: { id: string; title: string }[] = []
+        for (const m of matches) {
+          const j = m.job as { id: string; title: string } | null
+          if (j && !seen.has(j.id)) { seen.add(j.id); choices.push(j) }
+        }
+        setJobChoices(choices)
       }
 
       setLoading(false)
@@ -371,6 +387,13 @@ export default function CandidatePage() {
             </Section>
           )}
 
+          {/* Message d'approche */}
+          {candidate.parse_status === "parsed" && (
+            <Section title="Message d'approche">
+              <ComposeBox candidate={candidate} jobChoices={jobChoices} />
+            </Section>
+          )}
+
           {/* Notes */}
           <Section
             title="Notes"
@@ -445,6 +468,188 @@ export default function CandidatePage() {
         }
       `}</style>
     </main>
+  )
+}
+
+/* ─── Compose IA ──────────────────────────────────────────── */
+
+function ComposeBox({
+  candidate,
+  jobChoices,
+}: {
+  candidate: Candidate
+  jobChoices: { id: string; title: string }[]
+}) {
+  const existing = candidate.outreach_meta
+  const [channel, setChannel] = useState<"email" | "linkedin">(existing?.channel ?? "email")
+  const [jobId, setJobId] = useState<string>(existing?.job_id ?? (jobChoices[0]?.id ?? ""))
+  const [instruction, setInstruction] = useState(existing?.instruction ?? "")
+  const [subject, setSubject] = useState(existing?.subject ?? "")
+  const [bodyText, setBodyText] = useState(candidate.outreach_draft ?? "")
+  const [composing, setComposing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const hasDraft = bodyText.trim().length > 0
+
+  const generate = async () => {
+    setComposing(true); setError(null)
+    try {
+      const res = await fetch(`/api/cv/${candidate.id}/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel,
+          job_id: jobId || null,
+          instruction: instruction.trim() || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        setError(data?.message ?? data?.error ?? "Échec de la génération.")
+        setComposing(false)
+        return
+      }
+      setSubject(data.subject ?? "")
+      setBodyText(data.body ?? "")
+    } catch (err) {
+      setError((err as Error).message ?? "Erreur réseau.")
+    } finally {
+      setComposing(false)
+    }
+  }
+
+  const copy = async () => {
+    const text = channel === "email" && subject
+      ? `Objet : ${subject}\n\n${bodyText}`
+      : bodyText
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch { /* clipboard blocked — user can select manually */ }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Controls */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+        {/* Channel toggle */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase" }}>Canal</span>
+          <div style={{ display: "flex", gap: 0, border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
+            {(["email", "linkedin"] as const).map((ch) => (
+              <button
+                key={ch}
+                onClick={() => setChannel(ch)}
+                style={{
+                  fontSize: 12.5, fontWeight: 600, padding: "7px 14px",
+                  border: "none", cursor: "pointer", fontFamily: "inherit",
+                  background: channel === ch ? "#7C63C8" : "white",
+                  color: channel === ch ? "white" : "#6B7280",
+                }}
+              >
+                {ch === "email" ? "Email" : "LinkedIn"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Job context */}
+        {jobChoices.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: 1, minWidth: 180 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase" }}>Poste lié</span>
+            <select value={jobId} onChange={(e) => setJobId(e.target.value)} style={{
+              fontSize: 13, color: "#111827", padding: "8px 10px",
+              background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
+              outline: "none", fontFamily: "inherit",
+            }}>
+              <option value="">Aucun poste précis</option>
+              {jobChoices.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Instruction */}
+      <input
+        value={instruction}
+        onChange={(e) => setInstruction(e.target.value)}
+        placeholder="Consigne optionnelle — ex : insiste sur le télétravail, ton très direct…"
+        style={{
+          width: "100%", boxSizing: "border-box",
+          fontSize: 13, color: "#111827", padding: "9px 12px",
+          background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
+          outline: "none", fontFamily: "inherit",
+        }}
+      />
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <button onClick={generate} disabled={composing} style={{
+          padding: "9px 16px", borderRadius: 9, border: "none",
+          background: composing ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          color: "white", fontSize: 13, fontWeight: 700,
+          cursor: composing ? "default" : "pointer", fontFamily: "inherit",
+        }}>
+          {composing ? "Nora rédige…" : hasDraft ? "Régénérer" : "Rédiger avec Nora"}
+        </button>
+        {existing?.generated_at && !composing && (
+          <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>
+            Dernière version : {new Date(existing.generated_at).toLocaleDateString("fr-FR")}
+          </span>
+        )}
+      </div>
+
+      {error && (
+        <div style={{
+          padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA",
+          borderRadius: 10, fontSize: 13, color: "#B91C1C",
+        }}>{error}</div>
+      )}
+
+      {/* Draft */}
+      {hasDraft && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {channel === "email" && (
+            <input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Objet de l'email"
+              style={{
+                width: "100%", boxSizing: "border-box",
+                fontSize: 13.5, fontWeight: 600, color: "#111827", padding: "9px 12px",
+                background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 10,
+                outline: "none", fontFamily: "inherit",
+              }}
+            />
+          )}
+          <textarea
+            value={bodyText}
+            onChange={(e) => setBodyText(e.target.value)}
+            rows={9}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              fontSize: 13.5, color: "#111827", padding: 12,
+              background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 10,
+              outline: "none", resize: "vertical", fontFamily: "inherit", lineHeight: 1.65,
+            }}
+          />
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={copy} style={{
+              padding: "8px 14px", borderRadius: 9,
+              background: copied ? "rgba(34,197,94,0.10)" : "white",
+              border: `1px solid ${copied ? "rgba(34,197,94,0.3)" : "#E5E7EB"}`,
+              color: copied ? "#15803d" : "#374151",
+              fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+            }}>
+              {copied ? "✓ Copié" : "Copier le message"}
+            </button>
+            <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>
+              Relisez et ajustez avant d&apos;envoyer — Nora n&apos;envoie rien.
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
