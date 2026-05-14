@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
-import type { Candidate } from "@/lib/database.types"
+import { CANDIDATE_COLUMNS, type Candidate } from "@/lib/database.types"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const MAX_BYTES = 10 * 1024 * 1024
@@ -40,11 +40,12 @@ export default function VivierPage() {
 
       const { data } = await sb
         .from("candidates")
-        .select("*")
+        .select(CANDIDATE_COLUMNS)
         .order("created_at", { ascending: false })
         .limit(200)
       if (!mounted) return
-      setCandidates((data ?? []) as Candidate[])
+      // raw_text / search_tsv are intentionally not selected — unused in the UI.
+      setCandidates((data ?? []) as unknown as Candidate[])
       setLoading(false)
 
       channel = sb

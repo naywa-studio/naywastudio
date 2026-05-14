@@ -8,6 +8,8 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { getAdminSupabase } from "@/lib/admin-supabase"
+import { consumeQuota } from "@/lib/quota"
 import { openrouterChat, type ORMessage } from "@/lib/openrouter"
 
 export const runtime = "nodejs"
@@ -45,6 +47,11 @@ export async function POST(req: NextRequest) {
   }
   if (history.length === 0) {
     return NextResponse.json({ error: "empty_conversation" }, { status: 400 })
+  }
+
+  const quota = await consumeQuota(getAdminSupabase(), user.id, "assistant")
+  if (!quota.ok) {
+    return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
   }
 
   // Compact snapshot of the user's data (RLS-scoped reads).

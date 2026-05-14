@@ -95,6 +95,45 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const isActive = (href: string) =>
     href === "/workspace" ? pathname === "/workspace" : pathname.startsWith(href)
 
+  const tabLinks = TABS.map((t) => {
+    const active = isActive(t.href)
+    const disabled = !t.live
+    return (
+      <Link
+        key={t.href}
+        href={t.live ? t.href : "#"}
+        onClick={(e) => { if (disabled) e.preventDefault() }}
+        aria-disabled={disabled}
+        style={{
+          position: "relative",
+          fontSize: 13,
+          fontWeight: active ? 700 : 500,
+          color: disabled ? "#C4B6E0" : active ? "#7C63C8" : "#4B5563",
+          textDecoration: "none",
+          padding: "8px 12px",
+          borderRadius: 8,
+          background: active ? "rgba(124,99,200,0.08)" : "transparent",
+          cursor: disabled ? "not-allowed" : "pointer",
+          display: "inline-flex", alignItems: "center", gap: 6,
+          whiteSpace: "nowrap",
+          transition: "background 150ms, color 150ms",
+        }}
+      >
+        {t.label}
+        {disabled && (
+          <span style={{
+            fontSize: 9, fontWeight: 700, color: "#9CA3AF",
+            background: "#F3F4F6", border: "1px solid #E5E7EB",
+            padding: "2px 6px", borderRadius: 100,
+            letterSpacing: "0.04em", textTransform: "uppercase",
+          }}>
+            Bientôt
+          </span>
+        )}
+      </Link>
+    )
+  })
+
   return (
     <WorkspaceContext.Provider value={{ profile, userEmail, hasSubscription, refetchProfile: fetchProfile }}>
       <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "var(--font-inter), sans-serif" }}>
@@ -127,45 +166,9 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
               <Logo size="md" />
             </Link>
 
-            {/* Tabs */}
+            {/* Tabs — desktop (in header) */}
             <nav style={{ display: "flex", alignItems: "center", gap: 2, marginLeft: 18 }} className="ws-tabs">
-              {TABS.map((t) => {
-                const active = isActive(t.href)
-                const disabled = !t.live
-                return (
-                  <Link
-                    key={t.href}
-                    href={t.live ? t.href : "#"}
-                    onClick={(e) => { if (disabled) e.preventDefault() }}
-                    aria-disabled={disabled}
-                    style={{
-                      position: "relative",
-                      fontSize: 13,
-                      fontWeight: active ? 700 : 500,
-                      color: disabled ? "#C4B6E0" : active ? "#7C63C8" : "#4B5563",
-                      textDecoration: "none",
-                      padding: "8px 12px",
-                      borderRadius: 8,
-                      background: active ? "rgba(124,99,200,0.08)" : "transparent",
-                      cursor: disabled ? "not-allowed" : "pointer",
-                      display: "inline-flex", alignItems: "center", gap: 6,
-                      transition: "background 150ms, color 150ms",
-                    }}
-                  >
-                    {t.label}
-                    {disabled && (
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, color: "#9CA3AF",
-                        background: "#F3F4F6", border: "1px solid #E5E7EB",
-                        padding: "2px 6px", borderRadius: 100,
-                        letterSpacing: "0.04em", textTransform: "uppercase",
-                      }}>
-                        Bientôt
-                      </span>
-                    )}
-                  </Link>
-                )
-              })}
+              {tabLinks}
             </nav>
           </div>
 
@@ -206,9 +209,24 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
+        {/* Tabs — mobile (second sticky row, horizontally scrollable) */}
+        <nav className="ws-tabs-mobile" style={{
+          display: "none",
+          position: "sticky", top: 60, zIndex: 39,
+          background: "rgba(255,255,255,0.94)",
+          backdropFilter: "blur(14px)",
+          borderBottom: "1px solid #F0ECF8",
+          padding: "6px 12px",
+          gap: 2,
+          overflowX: "auto",
+        }}>
+          {tabLinks}
+        </nav>
+
         <style>{`
           @media (max-width: 720px) {
             .ws-tabs { display: none !important; }
+            .ws-tabs-mobile { display: flex !important; }
           }
         `}</style>
 

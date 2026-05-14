@@ -25,7 +25,8 @@ import {
   MATCH_BATCH_SIZE,
   type MatchResult,
 } from "@/lib/matching"
-import type { Candidate, Job, Database } from "@/lib/database.types"
+import { consumeQuota } from "@/lib/quota"
+import { CANDIDATE_COLUMNS, type Candidate, type Job, type Database } from "@/lib/database.types"
 
 type MatchInsert = Database["public"]["Tables"]["match_assessments"]["Insert"]
 
@@ -47,16 +48,23 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   if (jobErr || !job) return NextResponse.json({ error: "not_found" }, { status: 404 })
 
   const admin = getAdminSupabase()
+
+  const quota = await consumeQuota(admin, user.id, "match")
+  if (!quota.ok) {
+    return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
+  }
+
   await admin.from("jobs").update({ match_status: "matching" }).eq("id", job.id)
 
   try {
     // 1. Candidates — only successfully parsed ones can be matched.
     const { data: candRows } = await sb
       .from("candidates")
-      .select("*")
+      .select(CANDIDATE_COLUMNS)
       .eq("parse_status", "parsed")
       .limit(1000)
-    const candidates = (candRows ?? []) as Candidate[]
+    // raw_text isn't needed for matching — it works on taxonomy + summary.
+    const candidates = (candRows ?? []) as unknown as Candidate[]
 
     if (candidates.length === 0) {
       await admin.from("jobs").update({

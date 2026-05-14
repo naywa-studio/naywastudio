@@ -3,7 +3,7 @@
  *
  *   1. Auth check
  *   2. Validate (PDF, ≤10 MB)
- *   3. Enforce daily quota (cv_upload_quota)
+ *   3. Enforce daily quota (consumeQuota — daily_usage)
  *   4. Insert candidate row (parse_status = "parsing")
  *   5. Upload PDF to Storage at {user_id}/{candidate_id}/{filename}
  *   6. Return the candidate row immediately.
@@ -16,12 +16,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { consumeQuota } from "@/lib/quota"
 
 export const runtime = "nodejs"
 export const maxDuration = 30 // upload + storage write — plenty even on Hobby
 
-const DAILY_QUOTA = 50
-const MAX_BYTES   = 10 * 1024 * 1024
+const MAX_BYTES = 10 * 1024 * 1024
 
 export async function POST(req: NextRequest) {
   const sb = await createSupabaseServerClient()
@@ -44,20 +44,9 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = getAdminSupabase()
-  const today = new Date().toISOString().slice(0, 10)
-  const { data: quotaRow } = await admin
-    .from("cv_upload_quota")
-    .select("uploads")
-    .eq("user_id", user.id)
-    .eq("day", today)
-    .maybeSingle()
-
-  const used = quotaRow?.uploads ?? 0
-  if (used >= DAILY_QUOTA) {
-    return NextResponse.json(
-      { error: "quota_exceeded", message: `Limite ${DAILY_QUOTA} CV/jour atteinte. Reset à minuit.` },
-      { status: 429 },
-    )
+  const quota = await consumeQuota(admin, user.id, "upload")
+  if (!quota.ok) {
+    return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
   }
 
   const { data: created, error: insertErr } = await admin
@@ -99,12 +88,6 @@ export async function POST(req: NextRequest) {
     .eq("id", created.id)
     .select("*")
     .single()
-
-  await admin.from("cv_upload_quota")
-    .upsert(
-      { user_id: user.id, day: today, uploads: used + 1 },
-      { onConflict: "user_id,day" },
-    )
 
   return NextResponse.json({
     ok: true,

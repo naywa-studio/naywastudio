@@ -282,27 +282,48 @@ export type Database = {
           },
         ]
       }
-      cv_upload_quota: {
+      daily_usage: {
         Row: {
           user_id: string
           day: string
-          uploads: number
+          action: string
+          count: number
         }
         Insert: {
           user_id: string
           day?: string
-          uploads?: number
+          action: string
+          count?: number
         }
-        Update: Partial<Database['public']['Tables']['cv_upload_quota']['Insert']>
+        Update: Partial<Database['public']['Tables']['daily_usage']['Insert']>
         Relationships: []
       }
     }
     Views: { [_ in never]: never }
-    Functions: { [_ in never]: never }
+    Functions: {
+      bump_usage: {
+        Args: { p_user: string; p_action: string }
+        Returns: number
+      }
+    }
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }
   }
 }
+
+// ── Query helpers ─────────────────────────────────────────────────────────────
+/**
+ * Every candidate column EXCEPT `raw_text` (the full extracted PDF text,
+ * ~24 KB/row) and `search_tsv` — neither is ever rendered client-side.
+ * Use this instead of `select("*")` on candidate reads to keep payloads small.
+ */
+export const CANDIDATE_COLUMNS =
+  "id, user_id, full_name, email, phone, location, linkedin_url, " +
+  "current_title, current_company, years_experience, seniority_level, " +
+  "skills, languages, parsed_cv, taxonomy, cv_file_path, cv_file_name, " +
+  "cv_file_size, cv_mime_type, anonymized_pdf_path, anonymized_at, " +
+  "outreach_draft, outreach_meta, parse_status, parse_error, parsed_at, " +
+  "notes, tags, created_at, updated_at, consulted_at"
 
 // ── Aliases métier ────────────────────────────────────────────────────────────
 export type Profile = Database['public']['Tables']['profiles']['Row']

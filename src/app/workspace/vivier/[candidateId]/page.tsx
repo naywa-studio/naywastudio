@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
-import type { Candidate, ParsedCv } from "@/lib/database.types"
+import { CANDIDATE_COLUMNS, type Candidate, type ParsedCv } from "@/lib/database.types"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -32,40 +32,43 @@ export default function CandidatePage() {
     let channel: ReturnType<typeof sb.channel> | null = null
 
     ;(async () => {
-      const { data, error } = await sb.from("candidates").select("*").eq("id", candidateId).single()
+      // raw_text / search_tsv are intentionally not selected — unused here.
+      const { data, error } = await sb
+        .from("candidates")
+        .select(CANDIDATE_COLUMNS)
+        .eq("id", candidateId)
+        .single()
       if (!mounted) return
       if (error || !data) { setNotFound(true); setLoading(false); return }
-      const c = data as Candidate
+      const c = data as unknown as Candidate
       setCandidate(c)
       setNotes(c.notes ?? "")
+      setLoading(false)
 
-      // Mark consulted
+      // Mark consulted — fire and forget.
       sb.from("candidates").update({ consulted_at: new Date().toISOString() }).eq("id", c.id).then(() => {})
 
-      // Signed URL for PDF preview
+      // Secondary data — fetched in parallel, none blocks the initial render.
+      const tasks: Promise<void>[] = []
+
       if (c.cv_file_path) {
-        const r = await fetch(`/api/cv/${c.id}/signed-url`)
-        if (r.ok) {
-          const j = await r.json()
-          if (mounted) setSignedUrl(j.url)
-        }
+        tasks.push((async () => {
+          const r = await fetch(`/api/cv/${c.id}/signed-url`)
+          if (r.ok) { const j = await r.json(); if (mounted) setSignedUrl(j.url) }
+        })())
       }
-
-      // Existing anonymized PDF, if any
       if (c.anonymized_pdf_path) {
-        const r = await fetch(`/api/cv/${c.id}/anonymize`)
-        if (r.ok) {
-          const j = await r.json()
-          if (mounted && j.url) { setAnonUrl(j.url); setAnonState("ready") }
-        }
+        tasks.push((async () => {
+          const r = await fetch(`/api/cv/${c.id}/anonymize`)
+          if (r.ok) { const j = await r.json(); if (mounted && j.url) { setAnonUrl(j.url); setAnonState("ready") } }
+        })())
       }
-
-      // Matched jobs — to offer as context for the outreach draft
-      const { data: matches } = await sb
-        .from("match_assessments")
-        .select("job:jobs(id, title)")
-        .eq("candidate_id", c.id)
-      if (mounted && matches) {
+      tasks.push((async () => {
+        const { data: matches } = await sb
+          .from("match_assessments")
+          .select("job:jobs(id, title)")
+          .eq("candidate_id", c.id)
+        if (!mounted || !matches) return
         const seen = new Set<string>()
         const choices: { id: string; title: string }[] = []
         for (const m of matches) {
@@ -73,9 +76,9 @@ export default function CandidatePage() {
           if (j && !seen.has(j.id)) { seen.add(j.id); choices.push(j) }
         }
         setJobChoices(choices)
-      }
+      })())
 
-      setLoading(false)
+      void Promise.allSettled(tasks)
 
       // Realtime: react to parse completion
       channel = sb

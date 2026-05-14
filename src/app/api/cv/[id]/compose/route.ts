@@ -9,6 +9,8 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { getAdminSupabase } from "@/lib/admin-supabase"
+import { consumeQuota } from "@/lib/quota"
 import { openrouterChat, safeJsonParse } from "@/lib/openrouter"
 import type { OutreachChannel, OutreachMeta, ParsedCv } from "@/lib/database.types"
 
@@ -50,6 +52,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       { error: "not_parsed", message: "Le CV doit être parsé avant de rédiger un message." },
       { status: 400 },
     )
+  }
+
+  const quota = await consumeQuota(getAdminSupabase(), user.id, "compose")
+  if (!quota.ok) {
+    return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
   }
 
   // Optional job context
