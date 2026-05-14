@@ -17,7 +17,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { CvParseError, extractPdfText, parseCvWithLlm } from "@/lib/cv-parser"
+import { CvParseError, extractPdfText, parseCvWithLlm, parseCvViaOcr } from "@/lib/cv-parser"
 import type { ParsedCv, CandidateTaxonomy } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -64,7 +64,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   }
   const buf = Buffer.from(await blob.arrayBuffer())
 
-  // Parse
+  // Parse — text path first; fall back to OCR for scanned / empty-text PDFs.
   let parsedCv: ParsedCv | null = null
   let taxonomy: CandidateTaxonomy | null = null
   let rawText = ""
@@ -75,9 +75,25 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     parsedCv = out.cv
     taxonomy = out.taxonomy
   } catch (err) {
-    parseError = err instanceof CvParseError
-      ? { code: err.code, message: err.message }
-      : { code: "llm_failed", message: (err as Error).message ?? "Erreur de parsing." }
+    const isScanned = err instanceof CvParseError &&
+      (err.code === "scanned_pdf" || err.code === "empty_pdf")
+    if (isScanned) {
+      // OCR fallback (mistral-ocr via OpenRouter).
+      try {
+        const out = await parseCvViaOcr(buf)
+        parsedCv = out.cv
+        taxonomy = out.taxonomy
+        parseError = null
+      } catch (ocrErr) {
+        parseError = ocrErr instanceof CvParseError
+          ? { code: ocrErr.code, message: ocrErr.message }
+          : { code: "ocr_failed", message: (ocrErr as Error).message ?? "L'OCR a échoué." }
+      }
+    } else {
+      parseError = err instanceof CvParseError
+        ? { code: err.code, message: err.message }
+        : { code: "llm_failed", message: (err as Error).message ?? "Erreur de parsing." }
+    }
   }
 
   if (parseError) {

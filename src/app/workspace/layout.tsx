@@ -28,7 +28,7 @@ const TABS: { href: string; label: string; live: boolean }[] = [
   { href: "/workspace",        label: "Accueil",  live: true  },
   { href: "/workspace/vivier", label: "Vivier",   live: true  },
   { href: "/workspace/postes", label: "Postes",   live: true  },
-  { href: "/workspace/pipeline", label: "Pipeline", live: false },
+  { href: "/workspace/pipeline", label: "Pipeline", live: true  },
 ]
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {

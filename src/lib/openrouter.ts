@@ -5,8 +5,15 @@
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
+/** A multimodal content part — text, an inline file (PDF), or an image. */
+export type ORContentPart =
+  | { type: "text"; text: string }
+  | { type: "file"; file: { filename: string; file_data: string } }
+  | { type: "image_url"; image_url: { url: string } }
+
 export type ORMessage =
-  | { role: "system" | "user" | "assistant"; content: string }
+  | { role: "system" | "assistant"; content: string }
+  | { role: "user"; content: string | ORContentPart[] }
 
 export interface ORChatOptions {
   model?: string
@@ -16,6 +23,8 @@ export interface ORChatOptions {
   maxTokens?: number
   /** Soft timeout in ms (default 45s). */
   timeoutMs?: number
+  /** OpenRouter plugins, e.g. the file-parser/OCR engine. */
+  plugins?: unknown[]
 }
 
 export interface ORChatResult {
@@ -49,6 +58,7 @@ export async function openrouterChat(opts: ORChatOptions): Promise<ORChatResult>
         ...(opts.responseFormat === "json_object"
           ? { response_format: { type: "json_object" } }
           : {}),
+        ...(opts.plugins ? { plugins: opts.plugins } : {}),
       }),
     })
   } finally {

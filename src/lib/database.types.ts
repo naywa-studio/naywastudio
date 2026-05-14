@@ -250,7 +250,22 @@ export type Database = {
           updated_at?: string
         }
         Update: Partial<Database['public']['Tables']['match_assessments']['Insert']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'match_assessments_candidate_id_fkey'
+            columns: ['candidate_id']
+            isOneToOne: false
+            referencedRelation: 'candidates'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'match_assessments_job_id_fkey'
+            columns: ['job_id']
+            isOneToOne: false
+            referencedRelation: 'jobs'
+            referencedColumns: ['id']
+          },
+        ]
       }
       cv_upload_quota: {
         Row: {
