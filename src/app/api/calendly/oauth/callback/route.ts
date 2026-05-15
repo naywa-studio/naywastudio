@@ -8,10 +8,13 @@
  *   4. Persist everything on the profile.
  *   5. Best-effort: create the invitee webhook subscription (needs a paid
  *      Calendly plan — failure here doesn't block the connection).
+ *
+ * Refreshed Supabase auth cookies are written directly onto the redirect
+ * response so the session survives the OAuth round-trip.
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
   exchangeCodeForToken,
@@ -36,7 +39,9 @@ export async function GET(req: NextRequest) {
     return back("error")
   }
 
-  const sb = await createSupabaseServerClient()
+  // Build the response upfront so Supabase refresh cookies land on it.
+  const successResponse = back("connected")
+  const sb = await createSupabaseRouteHandlerClient(successResponse)
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.redirect(`${SITE_URL}/login?next=/workspace`)
 
@@ -69,9 +74,15 @@ export async function GET(req: NextRequest) {
       calendly_connected_at: new Date().toISOString(),
     }).eq("user_id", user.id)
 
-    const res = back(webhookUri ? "connected" : "connected_no_webhook")
-    res.cookies.delete("calendly_oauth_state")
-    return res
+    // Redirect URL depends on whether the webhook subscription succeeded.
+    // We can't change the URL on `successResponse` after construction, so
+    // build a new redirect (carrying the refreshed auth cookies).
+    const finalResponse = back(webhookUri ? "connected" : "connected_no_webhook")
+    successResponse.cookies.getAll().forEach((c) => {
+      finalResponse.cookies.set(c.name, c.value, c)
+    })
+    finalResponse.cookies.delete("calendly_oauth_state")
+    return finalResponse
   } catch (err) {
     console.error("[calendly callback]", (err as Error).message)
     return back("error")
