@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { Suspense, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { m } from "framer-motion"
 import { useWorkspace } from "./layout"
+import CalendlyCard from "@/components/workspace/CalendlyCard"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -109,6 +110,11 @@ export default function WorkspaceHome() {
           Ouvrir le vivier →
         </button>
       </m.div>
+
+      {/* Calendly connection */}
+      <Suspense fallback={null}>
+        <CalendlyCard />
+      </Suspense>
 
       {/* Roadmap */}
       <m.div

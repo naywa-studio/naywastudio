@@ -113,6 +113,15 @@ export type Database = {
           apify_reset_at: string
           inbox_address: string | null
           inbox_cc_self: boolean
+          calendly_access_token: string | null
+          calendly_refresh_token: string | null
+          calendly_token_expires_at: string | null
+          calendly_user_uri: string | null
+          calendly_org_uri: string | null
+          calendly_event_type_uri: string | null
+          calendly_scheduling_url: string | null
+          calendly_webhook_uri: string | null
+          calendly_connected_at: string | null
           created_at: string
           updated_at: string
         }
@@ -247,6 +256,7 @@ export type Database = {
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
+          booking_token: string
           created_at: string
           updated_at: string
         }
@@ -263,6 +273,7 @@ export type Database = {
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null
+          booking_token?: string
           created_at?: string
           updated_at?: string
         }
@@ -357,6 +368,74 @@ export type Database = {
           },
         ]
       }
+      interviews: {
+        Row: {
+          id: string
+          user_id: string
+          candidate_id: string | null
+          job_id: string | null
+          match_id: string | null
+          calendly_event_uri: string
+          calendly_invitee_uri: string | null
+          status: 'scheduled' | 'canceled'
+          start_time: string
+          end_time: string
+          location_type: string | null
+          join_url: string | null
+          location_text: string | null
+          invitee_name: string | null
+          invitee_email: string | null
+          canceled_at: string | null
+          cancel_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          candidate_id?: string | null
+          job_id?: string | null
+          match_id?: string | null
+          calendly_event_uri: string
+          calendly_invitee_uri?: string | null
+          status?: 'scheduled' | 'canceled'
+          start_time: string
+          end_time: string
+          location_type?: string | null
+          join_url?: string | null
+          location_text?: string | null
+          invitee_name?: string | null
+          invitee_email?: string | null
+          canceled_at?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['interviews']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'interviews_candidate_id_fkey'
+            columns: ['candidate_id']
+            isOneToOne: false
+            referencedRelation: 'candidates'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'interviews_job_id_fkey'
+            columns: ['job_id']
+            isOneToOne: false
+            referencedRelation: 'jobs'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'interviews_match_id_fkey'
+            columns: ['match_id']
+            isOneToOne: false
+            referencedRelation: 'match_assessments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: { [_ in never]: never }
     Functions: {
@@ -390,6 +469,7 @@ export type Job = Database['public']['Tables']['jobs']['Row']
 export type Candidate = Database['public']['Tables']['candidates']['Row']
 export type MatchAssessment = Database['public']['Tables']['match_assessments']['Row']
 export type EmailMessage = Database['public']['Tables']['email_messages']['Row']
+export type Interview = Database['public']['Tables']['interviews']['Row']
 
 export type JobStatus = Job['status']
 export type ParseStatus = Candidate['parse_status']
@@ -397,3 +477,4 @@ export type PipelineStage = MatchAssessment['pipeline_stage']
 export type MatchTier = NonNullable<MatchAssessment['match_tier']>
 export type EmailDirection = EmailMessage['direction']
 export type EmailSentiment = NonNullable<EmailMessage['ai_sentiment']>
+export type InterviewStatus = Interview['status']
