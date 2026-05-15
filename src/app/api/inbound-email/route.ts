@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { Webhook } from "svix"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { getInboundEmail } from "@/lib/resend"
 import { openrouterChat, safeJsonParse } from "@/lib/openrouter"
 import type { EmailSentiment } from "@/lib/database.types"
 
@@ -107,9 +108,6 @@ export async function POST(req: NextRequest) {
   const data = event.data ?? {}
   const admin = getAdminSupabase()
 
-  // TEMP DEBUG — remove after diagnosing inbound body shape
-  const debugPayload = JSON.stringify(data).slice(0, 8000)
-
   // ── Delivery / bounce tracking for our OUTBOUND messages ──
   if (type === "email.delivered" || type === "email.bounced" || type === "email.delivery_delayed") {
     const providerId = typeof data.email_id === "string" ? data.email_id
@@ -136,11 +134,21 @@ export async function POST(req: NextRequest) {
   }
 
   const subject = typeof data.subject === "string" ? data.subject : null
-  const bodyText = typeof data.text === "string" ? data.text
-    : typeof data.body === "string" ? data.body : null
-  const bodyHtml = typeof data.html === "string" ? data.html : null
-  const providerId = typeof data.id === "string" ? data.id
-    : typeof data.email_id === "string" ? data.email_id : null
+  const providerId = typeof data.email_id === "string" ? data.email_id
+    : typeof data.id === "string" ? data.id : null
+
+  // The webhook carries metadata only — fetch the body separately.
+  let bodyText: string | null = null
+  let bodyHtml: string | null = null
+  if (providerId) {
+    try {
+      const content = await getInboundEmail(providerId)
+      bodyText = content.text
+      bodyHtml = content.html
+    } catch (err) {
+      console.error("[inbound-email] body fetch failed:", (err as Error).message)
+    }
+  }
 
   // 2. Match: to-address → owning profile
   const { data: profile } = await admin
@@ -190,7 +198,7 @@ export async function POST(req: NextRequest) {
     to_address: toAddr,
     subject,
     body_text: bodyText,
-    body_html: bodyHtml ?? debugPayload,
+    body_html: bodyHtml,
     provider_id: providerId,
     status: "received",
     ai_sentiment: analysis.sentiment,

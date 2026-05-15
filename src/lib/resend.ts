@@ -60,6 +60,38 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   return { id: data.id }
 }
 
+/* ─────────────────────────── Receiving ─────────────────────────── */
+
+export interface InboundEmailContent {
+  text: string | null
+  html: string | null
+}
+
+/**
+ * Fetch the body of an inbound email. The `email.received` webhook only
+ * carries metadata (from/to/subject) — the body must be retrieved here,
+ * by design, to keep webhook payloads small for serverless endpoints.
+ */
+export async function getInboundEmail(emailId: string): Promise<InboundEmailContent> {
+  const key = (process.env.RESEND_API_KEY ?? "").trim()
+  if (!key) throw new Error("RESEND_API_KEY missing")
+
+  const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
+    headers: { Authorization: `Bearer ${key}` },
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "")
+    throw new Error(`Resend receiving ${res.status}: ${detail.slice(0, 240)}`)
+  }
+  const json = await res.json() as Record<string, unknown>
+  // The API may return the email object directly or wrapped in `data`.
+  const email = (json.data && typeof json.data === "object" ? json.data : json) as Record<string, unknown>
+  return {
+    text: typeof email.text === "string" ? email.text : null,
+    html: typeof email.html === "string" ? email.html : null,
+  }
+}
+
 /* ──────────────────── Inbox address provisioning ──────────────────── */
 
 /** Turn a name (or email local part) into a safe email local part. */
