@@ -8,15 +8,22 @@
  */
 
 import { NextResponse } from "next/server"
-import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase-server"
 import { buildOAuthState, getAuthorizeUrl, SITE_URL } from "@/lib/calendly"
 
 export const runtime = "nodejs"
 
 export async function GET() {
-  const sb = await createSupabaseServerClient()
+  // We build the response upfront so any refreshed Supabase auth cookies land
+  // on it — otherwise the browser would keep stale tokens, and after the
+  // OAuth round-trip the Naywa session would appear expired.
+  const response = NextResponse.redirect(SITE_URL) // overwritten below
+  const sb = await createSupabaseRouteHandlerClient(response)
   const { data: { user } } = await sb.auth.getUser()
-  if (!user) return NextResponse.redirect(`${SITE_URL}/login?next=/workspace`)
-
-  return NextResponse.redirect(getAuthorizeUrl(buildOAuthState(user.id)))
+  if (!user) {
+    response.headers.set("location", `${SITE_URL}/login?next=/workspace`)
+    return response
+  }
+  response.headers.set("location", getAuthorizeUrl(buildOAuthState(user.id)))
+  return response
 }
