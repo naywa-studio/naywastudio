@@ -107,9 +107,8 @@ export async function POST(req: NextRequest) {
   const data = event.data ?? {}
   const admin = getAdminSupabase()
 
-  // TEMP DEBUG — remove after diagnosing inbound matching
-  console.log("[inbound-email] type=", type, "dataKeys=", Object.keys(data),
-    "from=", JSON.stringify(data.from), "to=", JSON.stringify(data.to))
+  // TEMP DEBUG — remove after diagnosing inbound body shape
+  const debugPayload = JSON.stringify(data).slice(0, 8000)
 
   // ── Delivery / bounce tracking for our OUTBOUND messages ──
   if (type === "email.delivered" || type === "email.bounced" || type === "email.delivery_delayed") {
@@ -191,7 +190,7 @@ export async function POST(req: NextRequest) {
     to_address: toAddr,
     subject,
     body_text: bodyText,
-    body_html: bodyHtml,
+    body_html: bodyHtml ?? debugPayload,
     provider_id: providerId,
     status: "received",
     ai_sentiment: analysis.sentiment,
