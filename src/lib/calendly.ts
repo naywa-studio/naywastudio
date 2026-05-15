@@ -9,7 +9,7 @@
  * candidate books through the embedded widget, and Calendly notifies us.
  */
 
-import { createHmac, timingSafeEqual } from "crypto"
+import { createHmac, randomBytes, timingSafeEqual } from "crypto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "./database.types"
 
@@ -42,6 +42,40 @@ export function getAuthorizeUrl(state: string): string {
     state,
   })
   return `${AUTH_BASE}/oauth/authorize?${params.toString()}`
+}
+
+/* ─────── OAuth state (HMAC-signed, no cookie) ─────── */
+
+function stateSecret(): string {
+  // Reuse the service-role key as the HMAC secret — already required, server-only.
+  const v = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim()
+  if (!v) throw new Error("SUPABASE_SERVICE_ROLE_KEY missing")
+  return v
+}
+
+/** Build a tamper-proof, time-bound state string. */
+export function buildOAuthState(): string {
+  const payload = `${Date.now()}.${randomBytes(8).toString("hex")}`
+  const sig = createHmac("sha256", stateSecret()).update(payload).digest("hex")
+  return `${payload}.${sig}`
+}
+
+/** Verify a state string. Rejects malformed, forged, or stale (>10min) states. */
+export function verifyOAuthState(state: string): boolean {
+  const parts = state.split(".")
+  if (parts.length !== 3) return false
+  const [ts, nonce, sig] = parts
+  const expected = createHmac("sha256", stateSecret()).update(`${ts}.${nonce}`).digest("hex")
+  try {
+    const a = Buffer.from(sig, "hex")
+    const b = Buffer.from(expected, "hex")
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return false
+  } catch {
+    return false
+  }
+  const tsNum = Number(ts)
+  if (!Number.isFinite(tsNum)) return false
+  return Date.now() - tsNum < 10 * 60 * 1000
 }
 
 export interface CalendlyToken {

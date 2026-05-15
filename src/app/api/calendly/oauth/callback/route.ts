@@ -20,6 +20,7 @@ import {
   exchangeCodeForToken,
   getCurrentUser,
   createWebhookSubscription,
+  verifyOAuthState,
   SITE_URL,
 } from "@/lib/calendly"
 
@@ -33,12 +34,10 @@ function back(status: string) {
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code")
   const state = req.nextUrl.searchParams.get("state")
-  const cookieState = req.cookies.get("calendly_oauth_state")?.value
 
-  if (!code || !state || !cookieState || state !== cookieState) {
-    console.error("[calendly callback] state check failed:",
-      "hasCode=", !!code, "hasState=", !!state, "hasCookie=", !!cookieState,
-      "match=", state === cookieState)
+  if (!code || !state || !verifyOAuthState(state)) {
+    console.error("[calendly callback] state verification failed",
+      "hasCode=", !!code, "hasState=", !!state)
     return back("error_state")
   }
 
@@ -90,7 +89,6 @@ export async function GET(req: NextRequest) {
     successResponse.cookies.getAll().forEach((c) => {
       finalResponse.cookies.set(c.name, c.value, c)
     })
-    finalResponse.cookies.delete("calendly_oauth_state")
     return finalResponse
   } catch (err) {
     console.error("[calendly callback]", (err as Error).message)
