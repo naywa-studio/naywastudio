@@ -37,6 +37,28 @@ function bareAddress(v: unknown): string | null {
   return addr.includes("@") ? addr : null
 }
 
+/**
+ * Strip the quoted original message from a reply, keeping only the new text.
+ * Cuts at the first quoted line (`>`) or attribution line ("Le … a écrit :").
+ */
+function stripQuotedReply(text: string): string {
+  const lines = text.split(/\r?\n/)
+  const attribution = [
+    /^\s*>?\s*Le .+ a écrit\s*:/i,                  // Apple Mail / Gmail FR
+    /^\s*>?\s*On .+ wrote:\s*$/i,                    // Apple Mail / Gmail EN
+    /^\s*-{2,}\s*(Original Message|Message d'origine)\s*-{2,}/i,
+    /^\s*_{5,}\s*$/,                                 // Outlook divider
+  ]
+  let cut = lines.length
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*>/.test(lines[i]) || attribution.some((re) => re.test(lines[i]))) {
+      cut = i
+      break
+    }
+  }
+  return lines.slice(0, cut).join("\n").replace(/\s+$/, "")
+}
+
 const ANALYSIS_PROMPT = `Tu analyses la réponse d'un candidat à un message de recrutement.
 Réponds UNIQUEMENT en JSON :
 {
@@ -143,7 +165,7 @@ export async function POST(req: NextRequest) {
   if (providerId) {
     try {
       const content = await getInboundEmail(providerId)
-      bodyText = content.text
+      bodyText = content.text ? stripQuotedReply(content.text) : null
       bodyHtml = content.html
     } catch (err) {
       console.error("[inbound-email] body fetch failed:", (err as Error).message)
