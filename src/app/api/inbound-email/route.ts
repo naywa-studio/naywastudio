@@ -25,11 +25,11 @@ export const maxDuration = 30
 /** Extract a bare email address from "Name <addr>" / "addr" / { address }. */
 function bareAddress(v: unknown): string | null {
   if (!v) return null
+  if (Array.isArray(v)) return bareAddress(v[0])
   if (typeof v === "object") {
     const o = v as Record<string, unknown>
     return bareAddress(o.address ?? o.email ?? o.value)
   }
-  if (Array.isArray(v)) return bareAddress(v[0])
   if (typeof v !== "string") return null
   const m = v.match(/<([^>]+)>/)
   const addr = (m ? m[1] : v).trim().toLowerCase()
