@@ -36,14 +36,23 @@ export async function GET(req: NextRequest) {
   const cookieState = req.cookies.get("calendly_oauth_state")?.value
 
   if (!code || !state || !cookieState || state !== cookieState) {
-    return back("error")
+    console.error("[calendly callback] state check failed:",
+      "hasCode=", !!code, "hasState=", !!state, "hasCookie=", !!cookieState,
+      "match=", state === cookieState)
+    return back("error_state")
   }
 
   // Build the response upfront so Supabase refresh cookies land on it.
   const successResponse = back("connected")
   const sb = await createSupabaseRouteHandlerClient(successResponse)
   const { data: { user } } = await sb.auth.getUser()
-  if (!user) return NextResponse.redirect(`${SITE_URL}/login?next=/workspace`)
+  if (!user) {
+    console.error("[calendly callback] no session after Calendly round-trip")
+    // Reuse successResponse so refreshed Supabase cookies (if any) land on the
+    // /login redirect — otherwise the browser keeps stale tokens.
+    successResponse.headers.set("location", `${SITE_URL}/login?next=/workspace`)
+    return successResponse
+  }
 
   try {
     const token = await exchangeCodeForToken(code)
