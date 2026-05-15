@@ -1,20 +1,19 @@
 /**
  * GET /api/calendly/oauth/callback?code=…&state=…
  *
- * Calendly redirects here after the client authorizes. We:
- *   1. Verify the CSRF state cookie.
+ * Calendly redirects here after the client authorizes. The state token carries
+ * the initiating user id (signed by us), so we don't depend on the browser
+ * still sending the Supabase auth cookie after the cross-site round-trip.
+ *
+ *   1. Verify the HMAC state, recover the user id.
  *   2. Exchange the code for tokens.
- *   3. Fetch the client's Calendly identity (user + org + scheduling URL).
- *   4. Persist everything on the profile.
+ *   3. Fetch the Calendly identity (user + org + scheduling URL).
+ *   4. Persist on the profile via the admin client.
  *   5. Best-effort: create the invitee webhook subscription (needs a paid
  *      Calendly plan — failure here doesn't block the connection).
- *
- * Refreshed Supabase auth cookies are written directly onto the redirect
- * response so the session survives the OAuth round-trip.
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseRouteHandlerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
   exchangeCodeForToken,
@@ -34,23 +33,12 @@ function back(status: string) {
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code")
   const state = req.nextUrl.searchParams.get("state")
+  const userId = state ? verifyOAuthState(state) : null
 
-  if (!code || !state || !verifyOAuthState(state)) {
+  if (!code || !userId) {
     console.error("[calendly callback] state verification failed",
       "hasCode=", !!code, "hasState=", !!state)
     return back("error_state")
-  }
-
-  // Build the response upfront so Supabase refresh cookies land on it.
-  const successResponse = back("connected")
-  const sb = await createSupabaseRouteHandlerClient(successResponse)
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) {
-    console.error("[calendly callback] no session after Calendly round-trip")
-    // Reuse successResponse so refreshed Supabase cookies (if any) land on the
-    // /login redirect — otherwise the browser keeps stale tokens.
-    successResponse.headers.set("location", `${SITE_URL}/login?next=/workspace`)
-    return successResponse
   }
 
   try {
@@ -80,16 +68,9 @@ export async function GET(req: NextRequest) {
       calendly_scheduling_url: me.schedulingUrl,
       calendly_webhook_uri: webhookUri,
       calendly_connected_at: new Date().toISOString(),
-    }).eq("user_id", user.id)
+    }).eq("user_id", userId)
 
-    // Redirect URL depends on whether the webhook subscription succeeded.
-    // We can't change the URL on `successResponse` after construction, so
-    // build a new redirect (carrying the refreshed auth cookies).
-    const finalResponse = back(webhookUri ? "connected" : "connected_no_webhook")
-    successResponse.cookies.getAll().forEach((c) => {
-      finalResponse.cookies.set(c.name, c.value, c)
-    })
-    return finalResponse
+    return back(webhookUri ? "connected" : "connected_no_webhook")
   } catch (err) {
     console.error("[calendly callback]", (err as Error).message)
     return back("error")

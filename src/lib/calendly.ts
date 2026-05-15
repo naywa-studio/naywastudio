@@ -53,29 +53,34 @@ function stateSecret(): string {
   return v
 }
 
-/** Build a tamper-proof, time-bound state string. */
-export function buildOAuthState(): string {
-  const payload = `${Date.now()}.${randomBytes(8).toString("hex")}`
+/**
+ * Build a tamper-proof, time-bound state that carries the initiating
+ * Naywa user id. The callback can then identify the user even if the
+ * browser dropped the session cookie during the cross-site round-trip.
+ */
+export function buildOAuthState(userId: string): string {
+  const payload = `${userId}.${Date.now()}.${randomBytes(8).toString("hex")}`
   const sig = createHmac("sha256", stateSecret()).update(payload).digest("hex")
   return `${payload}.${sig}`
 }
 
-/** Verify a state string. Rejects malformed, forged, or stale (>10min) states. */
-export function verifyOAuthState(state: string): boolean {
+/** Verify a state string and return the embedded userId, or null if invalid. */
+export function verifyOAuthState(state: string): string | null {
   const parts = state.split(".")
-  if (parts.length !== 3) return false
-  const [ts, nonce, sig] = parts
-  const expected = createHmac("sha256", stateSecret()).update(`${ts}.${nonce}`).digest("hex")
+  if (parts.length !== 4) return null
+  const [userId, ts, nonce, sig] = parts
+  const expected = createHmac("sha256", stateSecret()).update(`${userId}.${ts}.${nonce}`).digest("hex")
   try {
     const a = Buffer.from(sig, "hex")
     const b = Buffer.from(expected, "hex")
-    if (a.length !== b.length || !timingSafeEqual(a, b)) return false
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null
   } catch {
-    return false
+    return null
   }
   const tsNum = Number(ts)
-  if (!Number.isFinite(tsNum)) return false
-  return Date.now() - tsNum < 10 * 60 * 1000
+  if (!Number.isFinite(tsNum)) return null
+  if (Date.now() - tsNum >= 10 * 60 * 1000) return null
+  return userId
 }
 
 export interface CalendlyToken {
