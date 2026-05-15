@@ -18,10 +18,12 @@ export const runtime = "nodejs"
 export async function GET() {
   const state = randomBytes(16).toString("hex")
   const response = NextResponse.redirect(getAuthorizeUrl(state))
+  // sameSite "none" so the cookie is transmitted on the cross-site redirect
+  // back from Calendly. Requires `secure: true`.
   response.cookies.set("calendly_oauth_state", state, {
     httpOnly: true,
     secure: true,
-    sameSite: "lax",
+    sameSite: "none",
     path: "/",
     maxAge: 600, // 10 minutes
   })
