@@ -107,21 +107,42 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     }, { status: 200 })
   }
 
-  // Dedup (two safe .eq() queries — see route comment for rationale)
-  let duplicateOf: string | null = null
-  if (parsedCv?.email) {
-    const { data: hit } = await admin
-      .from("candidates").select("id")
-      .eq("user_id", user.id).eq("email", parsedCv.email).neq("id", candidate.id)
-      .limit(1).maybeSingle()
-    if (hit) duplicateOf = hit.id
-  }
-  if (!duplicateOf && parsedCv?.phone) {
-    const { data: hit } = await admin
-      .from("candidates").select("id")
-      .eq("user_id", user.id).eq("phone", parsedCv.phone).neq("id", candidate.id)
-      .limit(1).maybeSingle()
-    if (hit) duplicateOf = hit.id
+  // Dedup → silent supersede: the version with the most recent experience
+  // end-date is kept canonical; the other is tagged "ancien" and hidden from
+  // the default vivier. No banner, no manual action.
+  let supersededOldId: string | null = null
+  let currentIsAncien = false
+  {
+    type DupHit = { id: string; parsed_cv: ParsedCv | null; created_at: string; tags: string[] | null }
+    let dupHit: DupHit | null = null
+    if (parsedCv?.email) {
+      const { data } = await admin
+        .from("candidates").select("id, parsed_cv, created_at, tags")
+        .eq("user_id", user.id).eq("email", parsedCv.email).neq("id", candidate.id)
+        .limit(1).maybeSingle()
+      if (data) dupHit = data as unknown as DupHit
+    }
+    if (!dupHit && parsedCv?.phone) {
+      const { data } = await admin
+        .from("candidates").select("id, parsed_cv, created_at, tags")
+        .eq("user_id", user.id).eq("phone", parsedCv.phone).neq("id", candidate.id)
+        .limit(1).maybeSingle()
+      if (data) dupHit = data as unknown as DupHit
+    }
+    if (dupHit) {
+      const newScore = freshnessTimestamp(parsedCv, new Date().toISOString())
+      const oldScore = freshnessTimestamp(dupHit.parsed_cv, dupHit.created_at)
+      if (newScore >= oldScore) {
+        // The new upload wins → mark the old one as superseded.
+        const cleaned = (dupHit.tags ?? []).filter((t) => t !== "doublon")
+        if (!cleaned.includes("ancien")) cleaned.push("ancien")
+        await admin.from("candidates").update({ tags: cleaned }).eq("id", dupHit.id)
+        supersededOldId = dupHit.id
+      } else {
+        // The existing one is fresher → this upload is the old version.
+        currentIsAncien = true
+      }
+    }
   }
 
   const { data: updated, error: updateErr } = await admin
@@ -144,7 +165,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       seniority_level:  parsedCv?.seniority_level ?? null,
       skills:           parsedCv?.skills ?? [],
       languages:        parsedCv?.languages ?? [],
-      tags: duplicateOf ? ["doublon"] : [],
+      tags: currentIsAncien ? ["ancien"] : [],
     })
     .eq("id", candidate.id)
     .select("*")
@@ -154,5 +175,34 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: "db_update_failed", detail: updateErr.message }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, candidate: updated, duplicate_of: duplicateOf })
+  return NextResponse.json({
+    ok: true,
+    candidate: updated,
+    superseded: supersededOldId,
+    current_is_old_version: currentIsAncien,
+  })
+}
+
+/**
+ * Most recent timestamp the CV describes: latest experience end-date (or now
+ * for a still-current role), falling back to the candidate row's created_at
+ * when no usable dates exist.
+ */
+function freshnessTimestamp(cv: ParsedCv | null, fallbackIso: string): number {
+  const now = Date.now()
+  const exps = cv?.experience ?? []
+  let latest = 0
+  for (const e of exps) {
+    if (e?.end === null) return now // still in role → freshest possible
+    const s = typeof e?.end === "string" ? e.end : null
+    if (!s) continue
+    const m = s.match(/^(\d{4})(?:-(\d{1,2}))?/)
+    if (!m) continue
+    const y = parseInt(m[1], 10)
+    if (y < 1950 || y > 2100) continue
+    const mo = m[2] ? Math.max(1, Math.min(12, parseInt(m[2], 10))) - 1 : 11
+    const t = Date.UTC(y, mo, 28)
+    if (t > latest) latest = t
+  }
+  return latest || new Date(fallbackIso).getTime()
 }

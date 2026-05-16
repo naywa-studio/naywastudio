@@ -41,6 +41,9 @@ export default function VivierPage() {
       const { data } = await sb
         .from("candidates")
         .select(CANDIDATE_COLUMNS)
+        // Hide superseded duplicates — only the freshest version of each
+        // candidate appears by default.
+        .not("tags", "cs", "{ancien}")
         .order("created_at", { ascending: false })
         .limit(200)
       if (!mounted) return
@@ -471,17 +474,6 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#9CA3AF" }}>
           {c.location ?? "—"}
           {c.years_experience != null && <span>· {c.years_experience}a</span>}
-          {c.tags?.includes("doublon") && (
-            <span style={{
-              background: "#FEF3C7", color: "#92400E",
-              border: "1px solid #FDE68A",
-              padding: "2px 7px", borderRadius: 100,
-              fontSize: 10, fontWeight: 700,
-              letterSpacing: "0.04em", textTransform: "uppercase",
-            }}>
-              Doublon
-            </span>
-          )}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <Link

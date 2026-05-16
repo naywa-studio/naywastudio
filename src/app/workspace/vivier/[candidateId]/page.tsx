@@ -24,7 +24,6 @@ export default function CandidatePage() {
   const [anonUrl, setAnonUrl] = useState<string | null>(null)
   const [anonError, setAnonError] = useState<string | null>(null)
   const [jobChoices, setJobChoices] = useState<{ id: string; title: string }[]>([])
-  const [duplicates, setDuplicates] = useState<Candidate[]>([])
   const notesRef = useRef(notes)
   useEffect(() => { notesRef.current = notes }, [notes])
 
@@ -79,20 +78,6 @@ export default function CandidatePage() {
         setJobChoices(choices)
       })())
 
-      // Doublons — query by email (preferred, unique-ish) then phone.
-      if (c.tags?.includes("doublon") && (c.email || c.phone)) {
-        tasks.push((async () => {
-          let q = sb
-            .from("candidates")
-            .select(CANDIDATE_COLUMNS)
-            .neq("id", c.id)
-            .limit(5)
-          q = c.email ? q.eq("email", c.email) : q.eq("phone", c.phone!)
-          const { data: dupes } = await q
-          if (!mounted) return
-          setDuplicates((dupes ?? []) as unknown as Candidate[])
-        })())
-      }
 
       void Promise.allSettled(tasks)
 
@@ -132,22 +117,6 @@ export default function CandidatePage() {
     if (!confirm("Supprimer ce candidat ? Cette action est définitive.")) return
     const res = await fetch(`/api/cv/${candidate.id}`, { method: "DELETE" })
     if (res.ok) router.push("/workspace/vivier")
-  }
-
-  const handleDeleteDuplicate = async (dupId: string) => {
-    if (!candidate) return
-    if (!confirm("Supprimer ce doublon ? Cette action est définitive.")) return
-    const res = await fetch(`/api/cv/${dupId}`, { method: "DELETE" })
-    if (!res.ok) return
-    // Remove it from the local list.
-    const remaining = duplicates.filter((d) => d.id !== dupId)
-    setDuplicates(remaining)
-    // If no doublons left, drop the tag on this candidate.
-    if (remaining.length === 0 && candidate.tags?.includes("doublon")) {
-      const cleanedTags = (candidate.tags ?? []).filter((t) => t !== "doublon")
-      await sb.from("candidates").update({ tags: cleanedTags }).eq("id", candidate.id)
-      setCandidate((prev) => prev ? { ...prev, tags: cleanedTags } : prev)
-    }
   }
 
   const handleRetryParse = async () => {
@@ -219,14 +188,6 @@ export default function CandidatePage() {
       >
         {/* Left: content */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {duplicates.length > 0 && (
-            <DuplicateBanner
-              duplicates={duplicates}
-              onDeleteThis={handleDelete}
-              onDeleteOther={handleDeleteDuplicate}
-            />
-          )}
-
           {/* Header card */}
           <section style={{
             background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
@@ -1116,101 +1077,6 @@ function ExperienceItem({ e }: { e: NonNullable<ParsedCv["experience"]>[number] 
       {e.description && (
         <p style={{ margin: 0, fontSize: 13, color: "#4B5563", lineHeight: 1.6 }}>{e.description}</p>
       )}
-    </div>
-  )
-}
-
-/* ─── Doublon banner ─── */
-
-function DuplicateBanner({
-  duplicates, onDeleteThis, onDeleteOther,
-}: {
-  duplicates: Candidate[]
-  onDeleteThis: () => void
-  onDeleteOther: (id: string) => void
-}) {
-  return (
-    <div style={{
-      background: "rgba(245,158,11,0.07)",
-      border: "1px solid rgba(245,158,11,0.3)",
-      borderRadius: 14,
-      padding: "14px 16px",
-      display: "flex", flexDirection: "column", gap: 10,
-    }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 800, color: "#92400E" }}>
-          ⚠ Doublon détecté
-        </span>
-        <span style={{ fontSize: 12, color: "#92400E" }}>
-          {duplicates.length === 1
-            ? "Un autre candidat partage le même email/téléphone."
-            : `${duplicates.length} autres candidats partagent le même email/téléphone.`}
-        </span>
-      </div>
-
-      {duplicates.map((d) => {
-        const created = new Date(d.created_at).toLocaleDateString("fr-FR")
-        return (
-          <div key={d.id} style={{
-            background: "white", border: "1px solid #FDE68A",
-            borderRadius: 10, padding: "10px 12px",
-            display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10,
-          }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
-                {d.full_name ?? d.cv_file_name ?? "Candidat"}
-              </p>
-              <p style={{
-                margin: "2px 0 0", fontSize: 12, color: "#6B7280",
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>
-                {d.current_title ?? "—"}
-                {d.current_company ? <> · {d.current_company}</> : null}
-                <span style={{ color: "#9CA3AF" }}> · ajouté le {created}</span>
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <Link
-                href={`/workspace/vivier/${d.id}`}
-                style={{
-                  fontSize: 11.5, fontWeight: 700, color: "#7C63C8",
-                  padding: "6px 11px", borderRadius: 8,
-                  background: "rgba(124,99,200,0.08)",
-                  border: "1px solid rgba(124,99,200,0.18)",
-                  textDecoration: "none",
-                }}
-              >
-                Voir →
-              </Link>
-              <button
-                onClick={() => onDeleteOther(d.id)}
-                style={{
-                  fontSize: 11.5, fontWeight: 700, color: "#DC2626",
-                  background: "white", border: "1px solid #FCA5A5",
-                  borderRadius: 8, padding: "6px 11px",
-                  cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                Supprimer cet autre
-              </button>
-            </div>
-          </div>
-        )
-      })}
-
-      <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 4 }}>
-        <button
-          onClick={onDeleteThis}
-          style={{
-            fontSize: 11.5, fontWeight: 700, color: "#DC2626",
-            background: "transparent", border: "1px solid #FCA5A5",
-            borderRadius: 8, padding: "6px 11px",
-            cursor: "pointer", fontFamily: "inherit",
-          }}
-        >
-          Supprimer ce candidat-ci à la place
-        </button>
-      </div>
     </div>
   )
 }
