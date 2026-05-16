@@ -12,6 +12,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeQuota } from "@/lib/quota"
 import { openrouterChat, safeJsonParse } from "@/lib/openrouter"
+import { SITE_URL } from "@/lib/calendly"
 import type { OutreachChannel, OutreachMeta, ParsedCv } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -30,7 +31,8 @@ Règles :
 - Canal "email" : "subject" = objet court et accrocheur ; "body" = 90-150 mots, salutation + corps + appel à l'action léger + signature.
 - Canal "linkedin" : "subject" = null ; "body" = 60-110 mots, plus direct et informel, pas de signature lourde.
 - Termine par une signature au prénom du sourceur s'il est fourni, sinon "[Votre prénom]".
-- Pas de markdown, pas de placeholders inutiles. Le candidat est nommé par son prénom si on le connaît.`
+- Pas de markdown, pas de placeholders inutiles. Le candidat est nommé par son prénom si on le connaît.
+- Si un LIEN DE RÉSERVATION est fourni dans la consigne, intègre-le naturellement comme appel à l'action ("réservez un créneau ici : <URL>"). Si pas de lien, propose de discuter sans URL inventée.`
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
@@ -81,13 +83,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
   }
 
-  // Recruiter first name for the sign-off
+  // Recruiter first name for the sign-off + Calendly status for the CTA
   const { data: profile } = await sb
     .from("profiles")
-    .select("first_name")
+    .select("first_name, calendly_connected_at, calendly_event_type_uri")
     .eq("user_id", user.id)
     .single()
   const recruiterName = profile?.first_name?.trim() || null
+
+  // Booking link — only when Calendly is connected, a type of meeting is
+  // selected, and we have a match (i.e. a job context for this candidate).
+  let bookingUrl: string | null = null
+  if (jobId && profile?.calendly_connected_at && profile.calendly_event_type_uri) {
+    const { data: match } = await sb
+      .from("match_assessments")
+      .select("booking_token")
+      .eq("candidate_id", candidate.id)
+      .eq("job_id", jobId)
+      .maybeSingle()
+    if (match?.booking_token) bookingUrl = `${SITE_URL}/book/${match.booking_token}`
+  }
 
   const cv: ParsedCv = candidate.parsed_cv ?? {}
   const candidateBlock = JSON.stringify({
@@ -107,6 +122,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     recruiterName ? `Prénom du sourceur (pour signer) : ${recruiterName}` : "Prénom du sourceur : inconnu",
     `CANDIDAT :\n${candidateBlock}`,
     jobBlock,
+    bookingUrl ? `\nLIEN DE RÉSERVATION (à intégrer comme appel à l'action) : ${bookingUrl}` : "",
     instruction ? `\n\nCONSIGNE DU SOURCEUR : ${instruction}` : "",
   ].filter(Boolean).join("\n")
 

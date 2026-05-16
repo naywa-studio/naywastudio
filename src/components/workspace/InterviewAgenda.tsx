@@ -211,7 +211,7 @@ export default function InterviewAgenda() {
                 <div key={dayKey(d)} style={{
                   background: isToday ? "rgba(124,99,200,0.05)" : "#FAFAFC",
                   border: `1px solid ${isToday ? "rgba(124,99,200,0.25)" : "#F0ECF8"}`,
-                  borderRadius: 10, padding: 8, minHeight: 130,
+                  borderRadius: 10, padding: 8, minHeight: 360,
                   display: "flex", flexDirection: "column", gap: 6,
                 }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 5, padding: "0 2px 4px" }}>
