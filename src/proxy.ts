@@ -41,5 +41,8 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/workspace/:path*"],
+  // /api/calendly/oauth/start needs the proxy too: it ensures Supabase auth
+  // cookies are refreshed and propagated to the response, so the session
+  // survives the cross-site round-trip through Calendly.
+  matcher: ["/workspace/:path*", "/api/calendly/oauth/start"],
 }
