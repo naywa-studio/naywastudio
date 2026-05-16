@@ -61,6 +61,10 @@ export default function VivierPage() {
                 return prev.filter((c) => c.id !== (payload.old as Candidate).id)
               }
               const next = payload.new as Candidate
+              // Hide rows that became "ancien" (e.g. via the dedup endpoint).
+              if (next.tags?.includes("ancien")) {
+                return prev.filter((c) => c.id !== next.id)
+              }
               const idx = prev.findIndex((c) => c.id === next.id)
               if (idx === -1) return [next, ...prev]
               const copy = [...prev]
