@@ -8,6 +8,8 @@ export type WorkspaceMsg = {
 }
 
 // ── Parsed CV structure (LLM output) ──────────────────────────────────────────
+export type ExperienceSeniority = 'stage' | 'junior' | 'mid' | 'senior' | 'lead' | 'principal'
+
 export type ParsedExperience = {
   title: string
   company: string
@@ -16,6 +18,7 @@ export type ParsedExperience = {
   location?: string
   description?: string
   highlights?: string[]
+  seniority?: ExperienceSeniority | null   // seniority held during this specific role
 }
 
 export type ParsedEducation = {
@@ -32,16 +35,30 @@ export type ParsedCv = {
   phone?: string | null
   location?: string | null
   linkedin_url?: string | null
+  github_url?: string | null
+  portfolio_url?: string | null
+  malt_url?: string | null
   current_title?: string | null
   current_company?: string | null
   years_experience?: number | null
   seniority_level?: string | null
+  /** Dominant role family the seniority applies to (e.g. "Data Engineer"). */
+  seniority_role?: string | null
   summary?: string | null
+  /** Technical / verifiable skills (SQL, Agile, AWS…). Max 30. */
   skills?: string[]
+  /** Human traits / soft skills (rigueur, leadership…). Max 15. */
+  qualities?: string[]
   languages?: string[]
   experience?: ParsedExperience[]
   education?: ParsedEducation[]
   certifications?: string[]
+  /** Detected primary language of the CV (ISO 639-1: "fr", "en", "es", …). */
+  language?: string | null
+  /** 0-100 — how complete the CV looks (based on filled fields). */
+  completeness?: number | null
+  /** Free-form alerts surfaced to the sourcer (gaps, contradictions…). */
+  warnings?: string[]
   // For OCR fallback / future flags
   source_quality?: 'native' | 'scanned' | 'partial'
 }

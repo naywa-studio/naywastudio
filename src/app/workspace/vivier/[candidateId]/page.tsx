@@ -215,26 +215,12 @@ export default function CandidatePage() {
                   {candidate.current_company ? <> · <span>{candidate.current_company}</span></> : null}
                 </p>
               </div>
-              {(candidate.linkedin_url || cv?.linkedin_url) && (
-                <a
-                  href={candidate.linkedin_url ?? cv?.linkedin_url ?? "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Ouvrir le profil LinkedIn"
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    fontSize: 12, fontWeight: 700, color: "white",
-                    background: "#0A66C2", border: "1px solid #0A66C2",
-                    borderRadius: 8, padding: "7px 12px", textDecoration: "none",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                    <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.72C24 .77 23.2 0 22.22 0z" />
-                  </svg>
-                  LinkedIn
-                </a>
-              )}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <ProfileButton href={candidate.linkedin_url ?? cv?.linkedin_url ?? null} brand="linkedin" />
+                <ProfileButton href={cv?.github_url ?? null} brand="github" />
+                <ProfileButton href={cv?.malt_url ?? null} brand="malt" />
+                <ProfileButton href={cv?.portfolio_url ?? null} brand="portfolio" />
+              </div>
               <button
                 onClick={handleDelete}
                 style={{
@@ -341,8 +327,18 @@ export default function CandidatePage() {
               <InfoChip label="Téléphone"    value={candidate.phone} />
               <InfoChip label="Localisation" value={candidate.location} />
               <InfoChip label="Expérience"   value={candidate.years_experience != null ? `${candidate.years_experience} ans` : null} />
-              <InfoChip label="Séniorité"    value={candidate.seniority_level} />
+              <InfoChip
+                label="Séniorité"
+                value={candidate.seniority_level
+                  ? cv?.seniority_role
+                    ? `${candidate.seniority_level} · ${cv.seniority_role}`
+                    : candidate.seniority_level
+                  : null}
+              />
             </div>
+
+            {/* CV health badges + warnings */}
+            <CvHealthBar cv={cv} />
           </section>
 
           {/* Summary */}
@@ -365,18 +361,47 @@ export default function CandidatePage() {
             </Section>
           )}
 
-          {/* Skills */}
-          {candidate.skills && candidate.skills.length > 0 && (
+          {/* Skills & Qualities — split into two pill groups */}
+          {((candidate.skills && candidate.skills.length > 0) || (cv?.qualities && cv.qualities.length > 0)) && (
             <Section title="Compétences">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {candidate.skills.map((s) => (
-                  <span key={s} style={{
-                    fontSize: 12, color: "#4B5563",
-                    background: "#F8F6FF", border: "1px solid #F0ECF8",
-                    padding: "5px 10px", borderRadius: 7,
-                  }}>{s}</span>
-                ))}
-              </div>
+              {candidate.skills && candidate.skills.length > 0 && (
+                <div>
+                  <p style={{
+                    margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                    letterSpacing: "0.06em", textTransform: "uppercase",
+                  }}>
+                    Techniques & méthodes
+                  </p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {candidate.skills.map((s) => (
+                      <span key={s} style={{
+                        fontSize: 12, color: "#4B5563",
+                        background: "#F8F6FF", border: "1px solid #F0ECF8",
+                        padding: "5px 10px", borderRadius: 7,
+                      }}>{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {cv?.qualities && cv.qualities.length > 0 && (
+                <div style={{ marginTop: candidate.skills && candidate.skills.length > 0 ? 16 : 0 }}>
+                  <p style={{
+                    margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#16a34a",
+                    letterSpacing: "0.06em", textTransform: "uppercase",
+                  }}>
+                    Qualités
+                  </p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {cv.qualities.map((q) => (
+                      <span key={q} style={{
+                        fontSize: 12, color: "#15803d",
+                        background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)",
+                        padding: "5px 10px", borderRadius: 7,
+                      }}>{q}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Section>
           )}
 
@@ -934,6 +959,55 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
   )
 }
 
+type ProfileBrand = "linkedin" | "github" | "malt" | "portfolio"
+
+const PROFILE_BRANDS: Record<ProfileBrand, {
+  label: string; color: string; path: string; viewBox?: string
+}> = {
+  linkedin: {
+    label: "LinkedIn", color: "#0A66C2",
+    path: "M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.72C24 .77 23.2 0 22.22 0z",
+  },
+  github: {
+    label: "GitHub", color: "#181717",
+    path: "M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.2-.7.1-.7.1-.7 1.3.1 2 1.3 2 1.3 1.1 2 3 1.4 3.7 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.3-3.2-.1-.3-.6-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.6.2 2.9.1 3.2.8.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.9 1.1.9 2.3v3.4c0 .3.2.7.8.6A12 12 0 0 0 12 .3",
+  },
+  malt: {
+    label: "Malt", color: "#FF5158",
+    // Simplified "M" mark.
+    path: "M3 19h3v-9.5L11 19h2l5-9.5V19h3V5h-4l-5 9.5L7 5H3v14z",
+  },
+  portfolio: {
+    label: "Site", color: "#7C63C8",
+    path: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm6.93 6h-2.95a15.65 15.65 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.92 8zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.08 16zm2.95-8H5.08a7.99 7.99 0 0 1 4.33-3.56A15.65 15.65 0 0 0 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z",
+  },
+}
+
+function ProfileButton({ href, brand }: { href: string | null; brand: ProfileBrand }) {
+  if (!href) return null
+  const b = PROFILE_BRANDS[brand]
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`Ouvrir le profil ${b.label}`}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        fontSize: 12, fontWeight: 700, color: b.color,
+        background: "white", border: `1px solid ${b.color}`,
+        borderRadius: 8, padding: "7px 12px", textDecoration: "none",
+        fontFamily: "inherit",
+      }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <path d={b.path} />
+      </svg>
+      {b.label}
+    </a>
+  )
+}
+
 function InfoChip({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null
   return (
@@ -960,15 +1034,89 @@ function ExperienceItem({ e }: { e: NonNullable<ParsedCv["experience"]>[number] 
         width: 8, height: 8, borderRadius: "50%",
         background: "#7C63C8", boxShadow: "0 0 0 3px white",
       }} />
-      <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>
-        {e.title}
-        {e.company ? <span style={{ fontWeight: 500, color: "#6B7280" }}> — {e.company}</span> : null}
-      </p>
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>
+          {e.title}
+          {e.company ? <span style={{ fontWeight: 500, color: "#6B7280" }}> — {e.company}</span> : null}
+        </p>
+        {e.seniority && (
+          <span style={{
+            fontSize: 10, fontWeight: 700, color: "#7C63C8",
+            background: "rgba(124,99,200,0.08)",
+            border: "1px solid rgba(124,99,200,0.2)",
+            borderRadius: 100, padding: "1px 7px",
+            textTransform: "capitalize", letterSpacing: "0.02em",
+          }}>
+            {e.seniority}
+          </span>
+        )}
+      </div>
       <p style={{ margin: "2px 0 6px", fontSize: 11.5, color: "#9CA3AF" }}>
         {dateLabel}{e.location ? ` · ${e.location}` : ""}
       </p>
       {e.description && (
         <p style={{ margin: 0, fontSize: 13, color: "#4B5563", lineHeight: 1.6 }}>{e.description}</p>
+      )}
+    </div>
+  )
+}
+
+/* ─── CV health (completeness + language + warnings) ─── */
+
+const LANGUAGE_LABEL: Record<string, string> = {
+  fr: "Français", en: "Anglais", es: "Espagnol", de: "Allemand",
+  it: "Italien", pt: "Portugais", nl: "Néerlandais",
+}
+
+function CvHealthBar({ cv }: { cv: ParsedCv | null }) {
+  if (!cv) return null
+  const score = typeof cv.completeness === "number" ? cv.completeness : null
+  const lang = cv.language ?? null
+  const warnings = Array.isArray(cv.warnings) ? cv.warnings : []
+  if (score == null && !lang && warnings.length === 0) return null
+
+  const tier = score == null ? null
+    : score >= 75 ? { label: "CV complet",  fg: "#15803d", bg: "rgba(34,197,94,0.10)", bd: "rgba(34,197,94,0.3)" }
+    : score >= 40 ? { label: "CV partiel",  fg: "#B45309", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" }
+    :               { label: "CV pauvre",   fg: "#B91C1C", bg: "rgba(220,38,38,0.10)", bd: "rgba(220,38,38,0.3)" }
+
+  return (
+    <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {tier && (
+          <span title={`Score de complétude : ${score}/100`} style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 11, fontWeight: 700, color: tier.fg,
+            background: tier.bg, border: `1px solid ${tier.bd}`,
+            borderRadius: 100, padding: "3px 9px",
+          }}>
+            {tier.label} <span style={{ opacity: 0.7 }}>· {score}/100</span>
+          </span>
+        )}
+        {lang && (
+          <span style={{
+            fontSize: 11, fontWeight: 700, color: "#4B5563",
+            background: "#F3F4F6", border: "1px solid #E5E7EB",
+            borderRadius: 100, padding: "3px 9px",
+          }}>
+            CV en {LANGUAGE_LABEL[lang] ?? lang.toUpperCase()}
+          </span>
+        )}
+      </div>
+      {warnings.length > 0 && (
+        <ul style={{
+          margin: 0, padding: "8px 12px", listStyle: "none",
+          background: "rgba(245,158,11,0.06)",
+          border: "1px solid rgba(245,158,11,0.22)",
+          borderRadius: 9,
+          display: "flex", flexDirection: "column", gap: 3,
+        }}>
+          {warnings.map((w, i) => (
+            <li key={i} style={{ fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
+              ⚠ {w}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
