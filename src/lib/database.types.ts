@@ -19,6 +19,9 @@ export type ParsedExperience = {
   description?: string
   highlights?: string[]
   seniority?: ExperienceSeniority | null   // seniority held during this specific role
+  /** True if this experience is in the same role family as the dominant role.
+   *  Used to compute "seniority in the dominant role" rather than absolute years. */
+  counts_toward_role?: boolean
 }
 
 export type ParsedEducation = {

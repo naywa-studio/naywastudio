@@ -339,6 +339,25 @@ export default function CandidatePage() {
 
             {/* CV health badges + warnings */}
             <CvHealthBar cv={cv} />
+
+            {/* Re-parse trigger — always available once parsing has completed. */}
+            {candidate.parse_status === "parsed" && (
+              <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={handleRetryParse}
+                  title="Re-soumettre le CV au parsing — utile après une mise à jour de l'analyse Nora"
+                  style={{
+                    fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
+                    background: "transparent", border: "1px solid rgba(124,99,200,0.3)",
+                    borderRadius: 8, padding: "5px 11px", cursor: "pointer",
+                    fontFamily: "inherit",
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                  }}
+                >
+                  ⟳ Relancer le parsing
+                </button>
+              </div>
+            )}
           </section>
 
           {/* Summary */}
