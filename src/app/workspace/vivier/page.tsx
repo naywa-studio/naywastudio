@@ -182,6 +182,31 @@ export default function VivierPage() {
     }
   }
 
+  // 6. Doublon detection + manual dedup trigger
+  const doublonCount = useMemo(
+    () => candidates.filter((c) => c.tags?.includes("doublon")).length,
+    [candidates],
+  )
+  const [dedupRunning, setDedupRunning] = useState(false)
+  const runDedup = useCallback(async () => {
+    setDedupRunning(true)
+    try {
+      const res = await fetch("/api/candidates/dedup", { method: "POST" })
+      if (res.ok) {
+        // Refetch — Realtime may miss bulk tag changes done via admin client.
+        const { data } = await sb
+          .from("candidates")
+          .select(CANDIDATE_COLUMNS)
+          .not("tags", "cs", "{ancien}")
+          .order("created_at", { ascending: false })
+          .limit(200)
+        setCandidates((data ?? []) as unknown as Candidate[])
+      }
+    } finally {
+      setDedupRunning(false)
+    }
+  }, [sb])
+
   if (!userId && loading) {
     return (
       <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF" }}>
@@ -340,6 +365,35 @@ export default function VivierPage() {
         )}
       </AnimatePresence>
 
+      {/* Doublon banner — Nora a trouvé X doublons, "Lancer le tri" */}
+      {doublonCount > 0 && (
+        <div style={{
+          marginBottom: 20, padding: "12px 16px",
+          background: "rgba(245,158,11,0.07)",
+          border: "1px solid rgba(245,158,11,0.3)",
+          borderRadius: 12,
+          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+        }}>
+          <span style={{ fontSize: 13.5, color: "#92400E", flex: 1, minWidth: 240 }}>
+            <strong>✦ Nora a trouvé {doublonCount} doublon{doublonCount > 1 ? "s" : ""} potentiel{doublonCount > 1 ? "s" : ""}.</strong>
+            {" "}Elle peut garder la version la plus à jour de chaque candidat et masquer les autres.
+          </span>
+          <button
+            onClick={runDedup}
+            disabled={dedupRunning}
+            style={{
+              fontSize: 12.5, fontWeight: 700, color: "white",
+              background: dedupRunning ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              border: "none", borderRadius: 9, padding: "8px 14px",
+              cursor: dedupRunning ? "default" : "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {dedupRunning ? "Tri en cours…" : "Lancer le tri"}
+          </button>
+        </div>
+      )}
+
       {/* Grid / empty state */}
       {empty ? (
         <EmptyDropZone onPick={() => inputRef.current?.click()} />
@@ -474,6 +528,17 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#9CA3AF" }}>
           {c.location ?? "—"}
           {c.years_experience != null && <span>· {c.years_experience}a</span>}
+          {c.tags?.includes("doublon") && (
+            <span style={{
+              background: "#FEF3C7", color: "#92400E",
+              border: "1px solid #FDE68A",
+              padding: "2px 7px", borderRadius: 100,
+              fontSize: 10, fontWeight: 700,
+              letterSpacing: "0.04em", textTransform: "uppercase",
+            }}>
+              Doublon
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <Link
