@@ -43,7 +43,9 @@ function hhmm(iso: string): string {
   return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
 }
 
-const VIDEO_TYPES = new Set(["google_meet", "zoom", "microsoft_teams", "gotomeeting", "webex"])
+// The presence of a `join_url` is the source of truth — Calendly uses many
+// type labels (google_conference, zoom_conference, …) and we'd rather not
+// chase every variant.
 
 export default function InterviewAgenda() {
   const sb = useMemo(() => getSupabase(), [])
@@ -240,7 +242,7 @@ export default function InterviewAgenda() {
 }
 
 function AgendaCard({ iv }: { iv: Interview }) {
-  const isVideo = iv.location_type ? VIDEO_TYPES.has(iv.location_type) : !!iv.join_url
+  const isVideo = !!iv.join_url
   const name = iv.invitee_name?.trim() || iv.invitee_email || "Candidat"
 
   return (
