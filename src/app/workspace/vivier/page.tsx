@@ -6,6 +6,7 @@ import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import { CANDIDATE_COLUMNS, type Candidate } from "@/lib/database.types"
 import { customTagsOf } from "@/lib/tags"
+import Select from "@/components/ui/Select"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const MAX_BYTES = 10 * 1024 * 1024
@@ -58,8 +59,9 @@ export default function VivierPage() {
   const [isDragging, setIsDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Filters & view
-  const [viewMode, setViewMode] = useState<ViewMode>("flat")
+  // Filters & view — default to sector grouping with everything collapsed
+  // so the page lands as a tidy overview, not a wall of cards.
+  const [viewMode, setViewMode] = useState<ViewMode>("by-sector")
   const [seniorityFilter, setSeniorityFilter] = useState<string>("")
   const [locationFilter, setLocationFilter] = useState<string>("")
   const [skillFilter, setSkillFilter] = useState<string>("")
@@ -67,8 +69,10 @@ export default function VivierPage() {
   const [sectorFilter, setSectorFilter] = useState<string>("")
   const [tagFilter, setTagFilter] = useState<string>("")
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [collapsedSectors, setCollapsedSectors] = useState<Set<string>>(new Set())
-  const toggleSector = (s: string) => setCollapsedSectors((prev) => {
+  // Sectors are collapsed by default. Tracking the OPEN ones (rather than
+  // the closed ones) means new sectors appear closed automatically.
+  const [openSectors, setOpenSectors] = useState<Set<string>>(new Set())
+  const toggleSector = (s: string) => setOpenSectors((prev) => {
     const next = new Set(prev); if (next.has(s)) next.delete(s); else next.add(s); return next
   })
 
@@ -521,16 +525,24 @@ export default function VivierPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
             }}>
               <FilterField label="Séniorité">
-                <select value={seniorityFilter} onChange={(e) => setSeniorityFilter(e.target.value)} style={filterInputStyle}>
-                  <option value="">Toutes</option>
-                  {SENIORITY_OPTIONS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                </select>
+                <Select
+                  value={seniorityFilter}
+                  onChange={setSeniorityFilter}
+                  options={[
+                    { value: "", label: "Toutes" },
+                    ...SENIORITY_OPTIONS.map((s) => ({ value: s.key, label: s.label })),
+                  ]}
+                />
               </FilterField>
               <FilterField label="Secteur">
-                <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} style={filterInputStyle}>
-                  <option value="">Tous</option>
-                  {SECTOR_ORDER.map((s) => <option key={s} value={s}>{SECTOR_META[s].label}</option>)}
-                </select>
+                <Select
+                  value={sectorFilter}
+                  onChange={setSectorFilter}
+                  options={[
+                    { value: "", label: "Tous" },
+                    ...SECTOR_ORDER.map((s) => ({ value: s, label: SECTOR_META[s].label })),
+                  ]}
+                />
               </FilterField>
               <FilterField label="Localisation">
                 <input
@@ -549,18 +561,26 @@ export default function VivierPage() {
                 />
               </FilterField>
               <FilterField label="Complétude CV">
-                <select value={completenessFilter} onChange={(e) => setCompletenessFilter(e.target.value as typeof completenessFilter)} style={filterInputStyle}>
-                  <option value="any">Indifférent</option>
-                  <option value="complete">CV complet (≥75)</option>
-                  <option value="partial">CV partiel (&lt;75)</option>
-                </select>
+                <Select
+                  value={completenessFilter}
+                  onChange={(v) => setCompletenessFilter(v as typeof completenessFilter)}
+                  options={[
+                    { value: "any",      label: "Indifférent" },
+                    { value: "complete", label: "CV complet (≥75)" },
+                    { value: "partial",  label: "CV partiel (<75)" },
+                  ]}
+                />
               </FilterField>
               {allCustomTags.length > 0 && (
                 <FilterField label="Tag">
-                  <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} style={filterInputStyle}>
-                    <option value="">Tous</option>
-                    {allCustomTags.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  <Select
+                    value={tagFilter}
+                    onChange={setTagFilter}
+                    options={[
+                      { value: "", label: "Tous" },
+                      ...allCustomTags.map((t) => ({ value: t, label: t })),
+                    ]}
+                  />
                 </FilterField>
               )}
             </div>
@@ -609,7 +629,7 @@ export default function VivierPage() {
           ) : (
             bySector.map(({ sector, items }) => {
               const meta = SECTOR_META[sector]
-              const open = !collapsedSectors.has(sector)
+              const open = openSectors.has(sector)
               return (
                 <section key={sector} style={{
                   background: "white", border: `1px solid ${meta.bd}`, borderRadius: 14,
