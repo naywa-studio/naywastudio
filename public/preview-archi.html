@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Naywa · Preview architecture</title>
+<style>
+  :root {
+    --purple: #7C63C8;
+    --purple-deep: #5B45A3;
+    --purple-soft: #EEE9FB;
+    --purple-tint: #F8F6FF;
+    --border: #F0ECF8;
+    --ink: #111827;
+    --muted: #6B7280;
+    --muted-light: #9CA3AF;
+    --bg: #FAFAFA;
+    --green: #15803d;
+    --amber: #B45309;
+    --red: #B91C1C;
+    --new-bg: rgba(34,197,94,0.07);
+    --new-bd: rgba(34,197,94,0.25);
+    --gone-bg: rgba(220,38,38,0.06);
+    --gone-bd: rgba(220,38,38,0.25);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+    line-height: 1.55;
+    font-size: 14px;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 40px 24px 100px; }
+  header.hero { margin-bottom: 36px; }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 700; color: var(--purple);
+    background: rgba(124,99,200,0.08); border: 1px solid rgba(124,99,200,0.18);
+    padding: 4px 11px; border-radius: 100px; letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  h1 { margin: 0 0 10px; font-size: 34px; letter-spacing: -0.025em; font-weight: 800; line-height: 1.1; }
+  h2 { margin: 48px 0 18px; font-size: 22px; font-weight: 800; letter-spacing: -0.015em; }
+  h3 { margin: 28px 0 10px; font-size: 15px; font-weight: 700; color: var(--purple); letter-spacing: 0.02em; }
+  p.lead { font-size: 15px; color: var(--muted); max-width: 70ch; }
+  p { margin: 0 0 12px; color: #374151; }
+  code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; background: var(--purple-soft); color: var(--purple-deep); padding: 1px 6px; border-radius: 4px; }
+
+  /* Route tree */
+  .routes {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    background: white; border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12.5px;
+  }
+  .routes .col h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-light); font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .route-line { padding: 3px 0; color: var(--ink); }
+  .route-line.new { background: var(--new-bg); border-left: 3px solid var(--green); padding-left: 8px; }
+  .route-line.changed { background: rgba(245,158,11,0.08); border-left: 3px solid var(--amber); padding-left: 8px; color: var(--amber); }
+  .route-line .tag { float: right; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 100px; }
+  .route-line.new .tag { background: var(--green); color: white; }
+  .route-line.changed .tag { background: var(--amber); color: white; }
+
+  /* Wireframes */
+  .wires { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .wires.single { grid-template-columns: 1fr; }
+  .wire {
+    background: white; border-radius: 16px; border: 1px solid var(--border);
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .wire-head {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    background: var(--purple-tint);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .wire-head .url {
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    color: var(--purple-deep); background: white; padding: 3px 8px; border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .wire-head .pill {
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 100px;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .pill.new { background: var(--green); color: white; }
+  .pill.changed { background: var(--amber); color: white; }
+  .pill.kept { background: #E5E7EB; color: var(--muted); }
+  .wire-body { padding: 14px; flex: 1; }
+  .wire-grid { display: grid; gap: 10px; }
+  .wire-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 12px;
+  }
+  .wire-card .title { font-weight: 700; color: var(--ink); font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted-light); margin-bottom: 4px; }
+  .wire-card .row { color: var(--muted); font-size: 11.5px; }
+  .wire-card.action { background: var(--purple-tint); border-color: rgba(124,99,200,0.2); }
+  .wire-card.action .title { color: var(--purple); }
+  .wire-card.removed { background: var(--gone-bg); border-color: var(--gone-bd); opacity: 0.6; text-decoration: line-through; }
+  .wire-card.added { background: var(--new-bg); border-color: var(--new-bd); }
+  .wire-card.added .title { color: var(--green); }
+
+  .ban {
+    background: linear-gradient(120deg, var(--purple) 0%, var(--purple-deep) 100%);
+    color: white; padding: 14px 18px; border-radius: 10px; margin-bottom: 14px;
+  }
+  .ban .t1 { font-size: 11px; opacity: 0.8; letter-spacing: 0.06em; text-transform: uppercase; }
+  .ban .t2 { font-size: 17px; font-weight: 800; margin-top: 2px; }
+  .ban .t3 { font-size: 12px; opacity: 0.9; margin-top: 4px; }
+  .meta-row { display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 0 12px; }
+  .meta-row span { font-size: 11px; color: var(--muted); background: white; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); }
+
+  /* Recap table */
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  th, td { padding: 11px 14px; font-size: 13px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--purple-tint); font-weight: 700; color: var(--purple-deep); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+  td.before { color: var(--muted); }
+  td.after { color: var(--ink); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.same { color: var(--muted-light); font-style: italic; }
+  td.move { color: var(--purple); font-weight: 700; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0 24px; font-size: 12px; color: var(--muted); }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  .dot-new { background: var(--green); }
+  .dot-changed { background: var(--amber); }
+  .dot-removed { background: var(--red); }
+  .dot-added { background: var(--green); }
+  .dot-action { background: var(--purple); }
+  .dot-kept { background: #D1D5DB; }
+
+  .flow {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: white; border: 1px dashed var(--border); border-radius: 10px;
+    padding: 14px 16px; font-size: 13px;
+  }
+  .flow .step { background: var(--purple-tint); padding: 6px 10px; border-radius: 6px; font-weight: 600; color: var(--purple-deep); }
+  .flow .arrow { color: var(--purple); font-weight: 800; }
+
+  details { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+  summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+  details[open] { background: var(--purple-tint); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <span class="badge">Preview · Refonte architecture</span>
+    <h1>Trois écrans pour trois questions</h1>
+    <p class="lead">
+      Ce document est une preview <em>visuelle</em> de la nouvelle organisation
+      du workspace, avant que je commence à coder. Le but : sortir du piège
+      "tout-sur-la-fiche-candidat" sans casser ce qui marche déjà.
+    </p>
+
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot dot-new"></span> Page nouvelle</div>
+      <div class="legend-item"><span class="legend-dot dot-changed"></span> Page modifiée</div>
+      <div class="legend-item"><span class="legend-dot dot-action"></span> Zone d'action</div>
+      <div class="legend-item"><span class="legend-dot dot-added"></span> Élément ajouté</div>
+      <div class="legend-item"><span class="legend-dot dot-removed"></span> Élément retiré</div>
+      <div class="legend-item"><span class="legend-dot dot-kept"></span> Élément conservé</div>
+    </div>
+  </header>
+
+  <!-- ── ROUTES ─────────────────────────────────────────────── -->
+  <section>
+    <h2>1. Routes — ce qui change</h2>
+    <div class="routes">
+      <div class="col">
+        <h4>Avant</h4>
+        <div class="route-line">/workspace</div>
+        <div class="route-line">/workspace/vivier</div>
+        <div class="route-line">/workspace/vivier/[candidateId]</div>
+        <div class="route-line">/workspace/postes</div>
+        <div class="route-line">/workspace/postes/[jobId]</div>
+        <div class="route-line">/workspace/pipeline</div>
+      </div>
+      <div class="col">
+        <h4>Après</h4>
+        <div class="route-line">/workspace</div>
+        <div class="route-line">/workspace/vivier</div>
+        <div class="route-line changed">/workspace/vivier/[candidateId] <span class="tag">allégé</span></div>
+        <div class="route-line">/workspace/postes</div>
+        <div class="route-line">/workspace/postes/[jobId]</div>
+        <div class="route-line new">/workspace/match/[matchId] <span class="tag">nouveau</span></div>
+        <div class="route-line">/workspace/pipeline</div>
+      </div>
+    </div>
+    <p style="margin-top:14px;">
+      <strong>Une seule URL nouvelle</strong> : <code>/workspace/match/[matchId]</code>.
+      Pas d'onglet ajouté dans la nav — on y accède toujours depuis le Pipeline
+      ou la fiche poste (jamais "dans l'abstrait").
+    </p>
+  </section>
+
+  <!-- ── FLOW ──────────────────────────────────────────────── -->
+  <section>
+    <h2>2. Parcours sourceur — typique</h2>
+    <div class="flow">
+      <span class="step">Pipeline</span>
+      <span class="arrow">→</span>
+      <span class="step">Clic carte Kenza × Ingé Data Carrefour</span>
+      <span class="arrow">→</span>
+      <span class="step">/workspace/match/[matchId]</span>
+      <span class="arrow">→</span>
+      <span class="step">Rédige le message</span>
+      <span class="arrow">→</span>
+      <span class="step">Génère PDF anonyme</span>
+      <span class="arrow">→</span>
+      <span class="step">Avance le stage</span>
+    </div>
+    <p style="margin-top:14px;">
+      Le sourceur passe 80 % de son temps sur la <strong>fiche match</strong>.
+      C'est l'écran où il bosse, pas un écran de consultation. La fiche
+      candidat devient un endroit où on va consulter une identité, pas où
+      on agit.
+    </p>
+  </section>
+
+  <!-- ── WIREFRAMES AVANT/APRÈS ─────────────────────────────── -->
+  <section>
+    <h2>3. Fiche candidat — avant / après</h2>
+
+    <div class="wires">
+      <!-- AVANT -->
+      <div class="wire">
+        <div class="wire-head">
+          <span class="url">/workspace/vivier/[candidateId]</span>
+          <span class="pill kept">Avant</span>
+        </div>
+        <div class="wire-body">
+          <div class="wire-grid" style="grid-template-columns: 1fr 360px;">
+            <div class="wire-grid">
+              <div class="wire-card">
+                <div class="title">Header</div>
+                <div class="row">Avatar · Nom · Titre · LinkedIn</div>
+                <div class="row">Email · Tel · Lieu · Séniorité</div>
+              </div>
+              <div class="wire-card">
+                <div class="title">Tags</div>
+                <div class="row">[chips éditables]</div>
+              </div>
+              <div class="wire-card">
+                <div class="title">CV parsé</div>
+                <div class="row">Résumé · Expérience · Skills · Formation</div>
+              </div>
+              <div class="wire-card">
+                <div class="title">CV original</div>
+                <div class="row">(déployable)</div>
+              </div>
+              <div class="wire-card">
+                <div class="title">Notes</div>
+                <div class="row">[textarea]</div>
+              </div>
+            </div>
+            <div class="wire-grid">
+              <div class="wire-card action">
+                <div class="title">🎯 Job picker</div>
+                <div class="row">Sélection du poste matché</div>
+              </div>
+              <div class="wire-card action">
+                <div class="title">✉ Message d'approche</div>
+                <div class="row">Compose IA full</div>
+              </div>
+              <div class="wire-card action">
+                <div class="title">🔒 Anonymisation</div>
+                <div class="row">Bouton + état</div>
+              </div>
+            </div>
+          </div>
+          <p style="margin-top: 12px; font-size: 12px; color: var(--muted); font-style: italic;">
+            Une seule URL fait à la fois fiche d'identité ET poste de travail.
+            Compose + Anonymize s'appliquent toujours à un poste précis, donc
+            ils n'ont pas leur place ici — c'est l'origine du sentiment "trop
+            de boutons".
+          </p>
+        </div>
+      </div>
+
+      <!-- APRÈS -->
+      <div class="wire">
+        <div class="wire-head">
+          <span class="url">/workspace/vivier/[candidateId]</span>
+          <span class="pill changed">Après · allégé</span>
+        </div>
+        <div class="wire-body">
+          <div class="wire-grid" style="grid-template-columns: 1fr 280px;">
+            <div class="wire-grid">
+              <div class="wire-card">
+                <div class="title">Header</div>
+                <div class="row">Avatar · Nom · Titre · LinkedIn</div>
+                <div class="row">Email · Tel · Lieu · Séniorité</div>
+              </div>
+              <div class="wire-card">
+                <div class="title">Tags</div>
+                <div class="row">[chips éditables]</div>
+              </div>
+              <div class="wire-card">
+                <div class="title">CV parsé</div>
+                <div class="row">Résumé · Expérience · Skills · Formation</div>
+              </div>
+              <div class="wire-card">
+                <div class="title">CV original</div>
+                <div class="row">(déployable)</div>
+              </div>
+              <div class="wire-card">
+                <div class="title">Notes</div>
+                <div class="row">[textarea]</div>
+              </div>
+            </div>
+            <div class="wire-grid">
+              <div class="wire-card added">
+                <div class="title">📌 Postes matchés</div>
+                <div class="row">Ingé Data · 87 · Contacté</div>
+                <div class="row" style="color: var(--purple); font-weight: 600;">[Ouvrir ▶]</div>
+                <div class="row" style="margin-top: 6px;">Data Eng · 75 · Identifié</div>
+                <div class="row" style="color: var(--purple); font-weight: 600;">[Ouvrir ▶]</div>
+              </div>
+              <div class="wire-card removed">
+                <div class="title">Compose</div>
+                <div class="row">déplacé sur /match</div>
+              </div>
+              <div class="wire-card removed">
+                <div class="title">Anonymisation</div>
+                <div class="row">déplacée sur /match</div>
+              </div>
+            </div>
+          </div>
+          <p style="margin-top: 12px; font-size: 12px; color: var(--green); font-style: italic;">
+            Lecture seule. La page répond à <em>"qui est cette personne ?"</em>.
+            La liste "Postes matchés" sert de tremplin vers les fiches match.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FICHE MATCH ────────────────────────────────────────── -->
+  <section>
+    <h2>4. Nouvelle fiche match — le vrai poste de travail</h2>
+
+    <div class="wires single">
+      <div class="wire">
+        <div class="wire-head">
+          <span class="url">/workspace/match/[matchId]</span>
+          <span class="pill new">Nouvelle page</span>
+        </div>
+        <div class="wire-body">
+          <div class="ban">
+            <div class="t1">← Pipeline / Poste</div>
+            <div class="t2">Kenza Oulmou · Ingénieur Data — Carrefour</div>
+            <div class="t3">Score 87 · Bon match · junior · Data Engineer</div>
+          </div>
+          <div class="meta-row">
+            <span><strong>Stage :</strong> Contacté ▾</span>
+            <span>→ Fiche candidat</span>
+            <span>→ Fiche poste</span>
+          </div>
+
+          <div class="wire-grid" style="grid-template-columns: 1fr 1fr;">
+            <!-- LEFT: candidate summary + match reason -->
+            <div class="wire-grid">
+              <div class="wire-card">
+                <div class="title">Résumé candidat</div>
+                <div class="row">5 ans XP · Python, SQL, Spark</div>
+                <div class="row">2 dernières missions (titre · entreprise)</div>
+              </div>
+              <div class="wire-card added">
+                <div class="title">✦ Pourquoi ça matche</div>
+                <div class="row">Skills 92 · Séniorité 80 · Domaine 75</div>
+                <div class="row" style="font-style: italic; margin-top: 4px;">
+                  "Profil très aligné sur les besoins data du retail.
+                  Maîtrise Spark + AWS confirmée sur 2 missions."
+                </div>
+              </div>
+              <div class="wire-card">
+                <div class="title">CV anonymisé (preview)</div>
+                <div class="row">Aperçu compact du PDF orienté poste</div>
+              </div>
+            </div>
+
+            <!-- RIGHT: actions -->
+            <div class="wire-grid">
+              <div class="wire-card action">
+                <div class="title">✉ Message d'approche</div>
+                <div class="row">Canal · Consigne · [Rédiger avec Nora]</div>
+                <div class="row">Subject + body editable</div>
+                <div class="row">Post-it Nora si édité · [Copier]</div>
+              </div>
+              <div class="wire-card action">
+                <div class="title">🔒 CV anonymisé pour ce poste</div>
+                <div class="row">[Générer / Régénérer] [Télécharger ↓]</div>
+              </div>
+              <div class="wire-card added">
+                <div class="title">💰 Pricing <em>(futur)</em></div>
+                <div class="row">Coût candidat · marge · TJM client</div>
+                <div class="row">Sauvegarder l'estimation</div>
+              </div>
+            </div>
+          </div>
+
+          <p style="margin-top: 14px; font-size: 12px; color: var(--muted); font-style: italic;">
+            Une URL = un couple candidat × poste. Le sourceur a tout ce qu'il
+            faut pour agir, sans naviguer. Quand on réactive le mailing, la
+            conversation s'ajoute en 4ème section sans casser le layout.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FICHE POSTE / PIPELINE ─────────────────────────────── -->
+  <section>
+    <h2>5. Postes et Pipeline — ce qui change</h2>
+
+    <div class="wires">
+      <div class="wire">
+        <div class="wire-head">
+          <span class="url">/workspace/postes/[jobId]</span>
+          <span class="pill changed">Liens modifiés</span>
+        </div>
+        <div class="wire-body">
+          <div class="wire-grid">
+            <div class="wire-card">
+              <div class="title">Header poste (inchangé)</div>
+              <div class="row">Titre · location · contrat · brief · briefing</div>
+              <div class="row">[+ Assigner un candidat]</div>
+            </div>
+            <div class="wire-card">
+              <div class="title">Matches groupés par tier</div>
+              <div class="row">Kenza Oulmou · 87 · "Excellent match" → <strong style="color: var(--purple)">[Ouvrir ▶]</strong></div>
+              <div class="row">Ahmed Souici · 78 · "Bon match" → <strong style="color: var(--purple)">[Ouvrir ▶]</strong></div>
+              <div class="row" style="color: var(--muted-light); margin-top: 4px;">Le bouton "Fiche →" devient "Ouvrir ▶" et mène vers la fiche match.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wire">
+        <div class="wire-head">
+          <span class="url">/workspace/pipeline</span>
+          <span class="pill changed">Liens modifiés</span>
+        </div>
+        <div class="wire-body">
+          <div class="wire-grid">
+            <div class="wire-card">
+              <div class="title">Kanban (inchangé)</div>
+              <div class="row">7 colonnes · Drag & drop · Groupé par poste</div>
+              <div class="row">Filtre poste + seuil score &gt;60</div>
+            </div>
+            <div class="wire-card">
+              <div class="title">Cards</div>
+              <div class="row">Lien "Ouvrir ▶" → <code>/match/[id]</code></div>
+              <div class="row">Petit 👤 secondaire → fiche candidat brute</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── RECAP TABLE ────────────────────────────────────────── -->
+  <section>
+    <h2>6. Où vit quoi — récap</h2>
+    <table>
+      <thead>
+        <tr><th>Fonctionnalité</th><th>Avant</th><th>Après</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Identité · contact · CV parsé</td><td class="before">Fiche candidat</td><td class="same">Idem</td></tr>
+        <tr><td>CV original PDF déployable</td><td class="before">Fiche candidat</td><td class="same">Idem</td></tr>
+        <tr><td>Tags · Notes</td><td class="before">Fiche candidat</td><td class="same">Idem</td></tr>
+        <tr><td>Liste postes matchés</td><td class="before">Fiche candidat (job picker)</td><td class="after">Fiche candidat (section dédiée)</td></tr>
+        <tr><td>Message d'approche</td><td class="before">Fiche candidat</td><td class="move">Fiche match</td></tr>
+        <tr><td>Anonymisation</td><td class="before">Fiche candidat</td><td class="move">Fiche match</td></tr>
+        <tr><td>Justification du match</td><td class="before">(cachée en DB)</td><td class="move">Fiche match · mise en avant</td></tr>
+        <tr><td>Changer le stage (rapide)</td><td class="before">Drag pipeline</td><td class="after">Pipeline + dropdown sur fiche match</td></tr>
+        <tr><td>Pricing (futur)</td><td class="before">—</td><td class="move">Fiche match</td></tr>
+        <tr><td>Conversation (à réactiver)</td><td class="before">Fiche candidat</td><td class="move">Fiche match</td></tr>
+        <tr><td>Assigner un candidat manuellement</td><td class="before">Fiche poste</td><td class="same">Idem</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── PLAN ───────────────────────────────────────────────── -->
+  <section>
+    <h2>7. Plan de migration — par étape</h2>
+    <details>
+      <summary>Étape 1 · Créer la fiche match (~1h)</summary>
+      <p>Nouveau fichier <code>src/app/workspace/match/[matchId]/page.tsx</code>. Récupère le match + candidat + poste joints en un seul appel.</p>
+    </details>
+    <details>
+      <summary>Étape 2 · Extraire ComposeBox et AnonymizeForJob en composants partagés (~30min)</summary>
+      <p>Ils vivent encore dans la fiche candidat. Je les déplace dans <code>src/components/workspace/</code> pour les réutiliser dans la fiche match.</p>
+    </details>
+    <details>
+      <summary>Étape 3 · Alléger la fiche candidat (~30min)</summary>
+      <p>Retire le job picker, le compose, l'anonymize. Ajoute la section "Postes matchés" avec liens vers <code>/match/[id]</code>.</p>
+    </details>
+    <details>
+      <summary>Étape 4 · Rediriger les liens existants (~15min)</summary>
+      <p>Pipeline cards et fiche poste : "Fiche →" devient "Ouvrir ▶" vers <code>/match/[id]</code>. Lien secondaire 👤 vers la fiche candidat brute.</p>
+    </details>
+    <details>
+      <summary>Étape 5 · Endpoint <code>GET /api/match/[id]</code> (~20min)</summary>
+      <p>Un seul appel récupère le match + candidat + poste joints, plus rapide que 3 fetches séparés côté client.</p>
+    </details>
+    <details>
+      <summary>Total estimé · ~3h en 2-3 commits</summary>
+      <p>Chaque commit teste sur Vercel indépendamment. Aucune URL existante ne casse — les vieux bookmarks de fiche candidat continuent de fonctionner, juste avec moins de boutons.</p>
+    </details>
+  </section>
+
+  <footer style="margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted-light); font-size: 12px;">
+    Preview · Naywa Studio · Architecture refactor proposal
+  </footer>
+
+</div>
+</body>
+</html>

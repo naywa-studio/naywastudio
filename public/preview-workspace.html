@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Naywa · Preview workspace</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FFFFFF;
+  --surface: #F8F6FF;
+  --border: #F0ECF8;
+  --ink: #111827;
+  --ink-soft: #374151;
+  --muted: #6B7280;
+  --muted-light: #9CA3AF;
+  --purple: #7C63C8;
+  --purple-deep: #6B54B2;
+  --purple-soft: #EEE9FB;
+  --purple-tint: #F8F6FF;
+  --green: #15803d;
+  --green-bg: rgba(34,197,94,0.07);
+  --green-bd: rgba(34,197,94,0.25);
+  --amber: #B45309;
+  --amber-bg: rgba(245,158,11,0.07);
+  --amber-bd: rgba(245,158,11,0.22);
+  --red: #B91C1C;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; background: #FAFAFA; color: var(--ink);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 14px; line-height: 1.5;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* ── Fake top navigation that mimics the workspace ── */
+.navbar {
+  position: sticky; top: 0; z-index: 50;
+  background: white; border-bottom: 1px solid var(--border);
+  padding: 0 24px; height: 60px;
+  display: flex; align-items: center; gap: 24px;
+}
+.brand {
+  font-family: "Space Grotesk", sans-serif; font-weight: 800;
+  font-size: 22px; color: var(--ink); letter-spacing: -0.02em;
+}
+.brand-sub { font-size: 10px; color: var(--muted-light); font-weight: 600; margin-left: -2px; }
+.nav-tabs { display: flex; gap: 4px; margin-left: 12px; }
+.nav-tab {
+  padding: 8px 14px; border-radius: 8px; font-weight: 600;
+  font-size: 13.5px; color: var(--muted); transition: all 0.15s;
+  background: transparent; border: none;
+}
+.nav-tab:hover { background: var(--purple-tint); color: var(--ink); }
+.nav-tab.active { background: var(--purple-soft); color: var(--purple); }
+.nav-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.beta-pill {
+  font-size: 11px; font-weight: 700; color: var(--purple);
+  background: var(--purple-soft); border: 1px solid rgba(124,99,200,0.25);
+  padding: 3px 9px; border-radius: 100px;
+}
+.user-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: var(--purple); font-size: 12px;
+}
+
+/* ── Preview switcher banner ── */
+.preview-bar {
+  background: #1F1A36; color: white;
+  padding: 10px 24px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-size: 12.5px;
+}
+.preview-bar strong { color: #FFD27A; }
+.preview-bar .switcher {
+  display: flex; gap: 4px; margin-left: auto; background: rgba(255,255,255,0.08); padding: 3px; border-radius: 7px;
+}
+.preview-bar .switcher button {
+  background: transparent; border: none; color: rgba(255,255,255,0.7);
+  font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 5px;
+}
+.preview-bar .switcher button.active { background: white; color: #1F1A36; }
+.preview-bar .switcher button:hover:not(.active) { color: white; }
+
+/* ── Pages container ── */
+.page { display: none; }
+.page.visible { display: block; }
+.page-inner { max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; }
+.page-back {
+  font-size: 13px; color: var(--purple); margin-bottom: 22px; display: inline-flex; gap: 6px;
+}
+
+/* ── Cards / Sections ── */
+.card {
+  background: white; border-radius: 18px; border: 1px solid var(--border);
+  padding: 20px;
+}
+.card-tight { padding: 16px; }
+.section-title {
+  margin: 0 0 12px; font-size: 12px; font-weight: 700; color: var(--muted-light);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+h1.page-title { font-size: 26px; font-weight: 800; letter-spacing: -0.025em; margin: 0; }
+h2.subtitle { font-size: 14px; color: var(--muted); margin: 8px 0 0; font-weight: 400; }
+
+/* ── Chips ── */
+.chip {
+  display: inline-block; font-size: 11.5px; padding: 4px 9px; border-radius: 7px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--ink-soft);
+  margin: 0 4px 4px 0;
+}
+.chip.solid { background: var(--purple); color: white; border-color: var(--purple); font-weight: 600; }
+.chip.green { color: var(--green); background: var(--green-bg); border-color: var(--green-bd); }
+.chip.amber { color: var(--amber); background: var(--amber-bg); border-color: var(--amber-bd); }
+.chip.purple { color: var(--purple); background: var(--purple-soft); border-color: rgba(124,99,200,0.2); }
+
+/* ── Pill / Tag ── */
+.tag-purple {
+  display: inline-block; font-size: 11px; font-weight: 700; color: var(--purple);
+  background: var(--purple-soft); border: 1px solid rgba(124,99,200,0.18);
+  padding: 4px 11px; border-radius: 100px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 9px; font-weight: 700; font-size: 12.5px;
+  border: 1px solid transparent; cursor: pointer;
+}
+.btn-primary { background: linear-gradient(120deg, var(--purple) 0%, var(--purple-deep) 100%); color: white; border: none; }
+.btn-ghost { background: var(--purple-soft); color: var(--purple); border-color: rgba(124,99,200,0.16); }
+.btn-outline { background: white; color: var(--ink-soft); border-color: #E5E7EB; }
+
+/* ── Info chips (header) ── */
+.info-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.info-chip {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px;
+}
+.info-chip .label { font-size: 10px; font-weight: 700; color: var(--muted-light); text-transform: uppercase; letter-spacing: 0.06em; }
+.info-chip .value { font-size: 12.5px; color: var(--ink); font-weight: 600; }
+
+/* ── Profile buttons row ── */
+.profile-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.profile-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 700; padding: 6px 11px;
+  border-radius: 7px; background: white;
+}
+.profile-btn.li { color: #0A66C2; border: 1px solid #0A66C2; }
+.profile-btn.gh { color: #181717; border: 1px solid #181717; }
+
+/* ── Wireframe-y avatars ── */
+.avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; color: var(--purple);
+  flex-shrink: 0;
+}
+.avatar-sm { width: 36px; height: 36px; font-size: 13px; }
+
+/* ── Page-specific layouts ── */
+
+/* Vivier candidate (light) — 2 columns */
+.cand-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px;
+}
+
+/* Match page — sticky header band + 2 columns */
+.match-band {
+  background: white; border-radius: 16px; border: 1px solid var(--border);
+  padding: 18px 22px; margin-bottom: 18px;
+  display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center;
+}
+.match-band .who { display: flex; flex-direction: column; gap: 6px; }
+.match-band h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+.match-band .for { font-size: 13px; color: var(--muted); }
+.match-band .right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.score-badge {
+  font-size: 14px; font-weight: 800; color: var(--green);
+  background: var(--green-bg); border: 1px solid var(--green-bd);
+  border-radius: 10px; padding: 8px 14px;
+}
+
+.match-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+}
+
+/* Match reason highlighted */
+.reason {
+  background: var(--green-bg); border: 1px solid var(--green-bd);
+  border-radius: 12px; padding: 14px;
+}
+.reason .dims { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+.reason .dim { font-size: 11px; color: var(--green); font-weight: 700; }
+.reason .dim strong { font-size: 16px; }
+.reason p { margin: 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; font-style: italic; }
+
+/* Posted matches block (on candidate fiche) */
+.matched-jobs { display: flex; flex-direction: column; gap: 8px; }
+.matched-row {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px;
+}
+.matched-row .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.matched-row .top .title { font-weight: 700; font-size: 13.5px; }
+.matched-row .stage { font-size: 11px; color: var(--muted); }
+.matched-row .open-link { color: var(--purple); font-weight: 700; font-size: 11.5px; }
+
+/* Compose / action cards */
+.action-block { display: flex; flex-direction: column; gap: 12px; }
+.input-fake, .textarea-fake {
+  background: #FAFAFA; border: 1px solid #E5E7EB; border-radius: 9px;
+  padding: 10px 12px; font-size: 13px; color: var(--muted); width: 100%;
+}
+.textarea-fake { min-height: 80px; }
+.compose-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.chan-toggle { display: inline-flex; border: 1px solid #E5E7EB; border-radius: 9px; overflow: hidden; }
+.chan-toggle button { background: white; color: var(--muted); border: none; padding: 6px 12px; font-size: 12px; font-weight: 600; }
+.chan-toggle button.on { background: var(--purple); color: white; }
+
+/* Postit Nora */
+.postit {
+  background: #FFFAEB; border: 1px solid #FCD34D;
+  border-radius: 10px; padding: 9px 12px;
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 600; color: #92400E;
+}
+
+/* Pipeline simulated cards / job page row */
+.kanban-col {
+  flex: 0 0 240px;
+  background: #F9FAFB; border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px;
+}
+.kanban-col-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 4px; }
+.kanban-col-head strong { font-size: 12.5px; color: var(--ink); letter-spacing: 0.02em; }
+.kanban-col-head .count { font-size: 11px; color: var(--muted); background: white; border-radius: 100px; padding: 1px 7px; border: 1px solid var(--border); }
+.kanban-card {
+  background: white; border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px; margin-bottom: 8px;
+}
+.kanban-card .row1 { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 4px; }
+.kanban-card .row1 .name { font-weight: 700; font-size: 12.5px; }
+.kanban-card .row1 .score { font-size: 10.5px; font-weight: 800; color: var(--green); background: var(--green-bg); border: 1px solid var(--green-bd); padding: 1px 7px; border-radius: 100px; }
+.kanban-card .role { font-size: 11px; color: var(--muted-light); margin-bottom: 5px; }
+.kanban-card .footer-row { display: flex; justify-content: space-between; align-items: center; }
+.kanban-card .open-link { font-size: 11px; font-weight: 700; color: var(--purple); }
+
+/* Job page rows */
+.match-row {
+  display: flex; gap: 14px; padding: 12px 14px;
+  background: var(--green-bg); border: 1px solid var(--green-bd);
+  border-radius: 13px; margin-bottom: 10px; align-items: center;
+}
+.match-row .open-action {
+  margin-left: auto; padding: 6px 12px; border-radius: 8px;
+  background: white; border: 1px solid var(--green-bd); color: var(--green);
+  font-size: 11.5px; font-weight: 700;
+}
+.match-row .why { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; line-height: 1.5; }
+
+/* Section header inside cards */
+.sub-section + .sub-section { margin-top: 18px; }
+.sub-section h3 {
+  margin: 0 0 8px; font-size: 11px; font-weight: 700; color: var(--purple);
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+/* Job dropdown badge */
+.stage-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 700; color: var(--ink);
+  background: white; border: 1px solid #E5E7EB; border-radius: 8px;
+  padding: 6px 10px;
+}
+.stage-pill::after { content: "▾"; color: var(--purple); font-size: 10px; margin-left: 2px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .cand-grid, .match-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── PREVIEW SWITCHER BAR ── -->
+<div class="preview-bar">
+  <strong>PREVIEW · maquette</strong> · La nav du workspace au-dessus est cosmétique, les pages ci-dessous sont des mockups statiques pour visualiser le résultat final.
+  <div class="switcher">
+    <button data-page="candidat" class="active">1. Fiche candidat (allégée)</button>
+    <button data-page="match">2. Fiche match (NOUVELLE)</button>
+    <button data-page="poste">3. Fiche poste</button>
+    <button data-page="pipeline">4. Pipeline</button>
+  </div>
+</div>
+
+<!-- ── FAKE WORKSPACE NAVBAR ── -->
+<nav class="navbar">
+  <div>
+    <div class="brand">Naywa</div>
+    <div class="brand-sub">studio</div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab">Accueil</button>
+    <button class="nav-tab" data-tab="candidat">Vivier</button>
+    <button class="nav-tab" data-tab="poste">Postes</button>
+    <button class="nav-tab" data-tab="pipeline">Pipeline</button>
+  </div>
+  <div class="nav-right">
+    <span class="beta-pill">● BETA</span>
+    <div class="user-avatar">E</div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE 1 — FICHE CANDIDAT ALLÉGÉE
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="page visible" id="page-candidat">
+  <div class="page-inner">
+    <a class="page-back">← Retour au vivier</a>
+
+    <div class="cand-grid">
+
+      <!-- LEFT : identité + CV -->
+      <div style="display:flex; flex-direction:column; gap:18px;">
+        <div class="card">
+          <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+            <div class="avatar">KO</div>
+            <div style="flex:1; min-width:0;">
+              <h1 class="page-title">Kenza Oulmou</h1>
+              <h2 class="subtitle">Data Scientist | Engineer Junior · Sisley Paris</h2>
+            </div>
+            <div class="profile-btns">
+              <a class="profile-btn li">in LinkedIn</a>
+              <a class="profile-btn gh">⌥ GitHub</a>
+            </div>
+            <button class="btn btn-outline" style="color: var(--red); border-color: #FCA5A5;">Supprimer</button>
+          </div>
+
+          <div class="info-grid" style="margin-top: 18px;">
+            <div class="info-chip"><span class="label">Email</span><span class="value">kenza.oulmou@example.com</span></div>
+            <div class="info-chip"><span class="label">Téléphone</span><span class="value">+33 6 12 34 56 78</span></div>
+            <div class="info-chip"><span class="label">Localisation</span><span class="value">Paris, France</span></div>
+            <div class="info-chip"><span class="label">Expérience</span><span class="value">1 an</span></div>
+            <div class="info-chip"><span class="label">Séniorité</span><span class="value">junior · Data Engineer</span></div>
+          </div>
+
+          <div style="margin-top: 14px; display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="chip green">CV complet · 95/100</span>
+            <span class="chip" style="background: #F3F4F6; border-color: #E5E7EB;">CV en Français</span>
+          </div>
+        </div>
+
+        <!-- Tags -->
+        <div class="card">
+          <h3 class="section-title">Tags</h3>
+          <div>
+            <span class="chip purple">à recontacter ×</span>
+            <span class="chip purple">freelance ×</span>
+            <span class="chip purple">client Sisley ×</span>
+            <span class="chip" style="color: var(--muted); background: white; border-color: #E5E7EB;">+ Ajouter un tag…</span>
+          </div>
+        </div>
+
+        <!-- Parsed CV -->
+        <div class="card">
+          <div class="sub-section">
+            <h3>Résumé</h3>
+            <p style="margin:0; font-size:13.5px; color: var(--ink-soft); line-height:1.65;">
+              Data Scientist junior avec 1 an d'expérience, spécialisée en machine learning et systèmes
+              de recommandation. Compétences en Python, R, et SQL, avec une expérience dans l'analyse de
+              données et la détection d'anomalies. Formation en informatique et data science.
+            </p>
+          </div>
+          <div class="sub-section">
+            <h3>Expérience</h3>
+            <div style="padding-left:12px; border-left: 2px solid var(--border);">
+              <p style="margin:0; font-weight: 700;">Data Scientist <span style="color:var(--muted); font-weight:500;">— Sisley Paris</span></p>
+              <p style="margin: 2px 0 6px; font-size: 11.5px; color: var(--muted-light);">2023-06 – 2023-09 · Paris</p>
+              <p style="margin:0; font-size: 13px; color: var(--ink-soft);">
+                Amélioration d'un système de recommandation produits Sisley…
+              </p>
+            </div>
+          </div>
+          <div class="sub-section">
+            <h3>Techniques &amp; méthodes</h3>
+            <div>
+              <span class="chip">Python</span><span class="chip">SQL</span><span class="chip">R</span>
+              <span class="chip">Machine Learning</span><span class="chip">Pandas</span><span class="chip">Scikit-learn</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="card">
+          <h3 class="section-title">Notes</h3>
+          <div class="textarea-fake">Profil intéressant pour les missions data du retail. À recontacter en septembre.</div>
+        </div>
+      </div>
+
+      <!-- RIGHT : postes matchés -->
+      <aside style="display:flex; flex-direction:column; gap:14px;">
+        <div class="card card-tight" style="background: linear-gradient(180deg, var(--purple-soft) 0%, white 60%);">
+          <h3 class="section-title" style="color: var(--purple);">📌 Postes matchés</h3>
+          <div class="matched-jobs">
+
+            <div class="matched-row" style="background: var(--green-bg); border-color: var(--green-bd);">
+              <div class="top">
+                <span class="title">Ingénieur Data</span>
+                <span class="chip green" style="margin:0;">87 · Excellent</span>
+              </div>
+              <div style="display:flex; justify-content: space-between; align-items: center;">
+                <span class="stage">Stage : Contacté · Carrefour</span>
+                <a class="open-link">Ouvrir ▶</a>
+              </div>
+            </div>
+
+            <div class="matched-row" style="background: rgba(124,99,200,0.06); border-color: rgba(124,99,200,0.2);">
+              <div class="top">
+                <span class="title">Data Engineer</span>
+                <span class="chip purple" style="margin:0;">75 · Bon</span>
+              </div>
+              <div style="display:flex; justify-content: space-between; align-items: center;">
+                <span class="stage">Stage : Identifié · BNP Paribas</span>
+                <a class="open-link">Ouvrir ▶</a>
+              </div>
+            </div>
+
+            <div class="matched-row">
+              <div class="top">
+                <span class="title">Data Scientist Senior</span>
+                <span class="chip amber" style="margin:0;">62 · Bon</span>
+              </div>
+              <div style="display:flex; justify-content: space-between; align-items: center;">
+                <span class="stage">Stage : Identifié · L'Oréal</span>
+                <a class="open-link">Ouvrir ▶</a>
+              </div>
+            </div>
+
+          </div>
+          <button class="btn btn-ghost" style="margin-top: 12px; width: 100%; justify-content: center;">+ Assigner à un poste</button>
+        </div>
+
+        <div class="card card-tight" style="opacity:0.6; border-style:dashed;">
+          <p style="margin:0; font-size:12px; color: var(--muted); line-height: 1.55;">
+            ❌ <strong>Disparu d'ici</strong> : "Message d'approche", "CV anonymisé pour ce poste",
+            "Conversation". Tout ce qui dépend d'un couple candidat × poste s'ouvre dans la
+            fiche match en cliquant sur "Ouvrir ▶".
+          </p>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE 2 — FICHE MATCH (NOUVELLE)
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-match">
+  <div class="page-inner">
+    <a class="page-back">← Pipeline · Carrefour / Ingénieur Data</a>
+
+    <!-- Header band -->
+    <div class="match-band">
+      <div class="who">
+        <h1>Kenza Oulmou <span style="font-weight: 500; color: var(--muted); font-size: 16px;">— pour le poste</span> Ingénieur Data</h1>
+        <div class="for">Carrefour · Île-de-France · Mid · CDI &nbsp; · &nbsp; junior · Data Engineer</div>
+      </div>
+      <div class="right">
+        <span class="score-badge">87 · Bon match</span>
+        <span class="stage-pill">Stage : Contacté</span>
+        <a class="btn btn-outline" style="text-decoration:none;">→ Fiche candidat</a>
+      </div>
+    </div>
+
+    <div class="match-grid">
+
+      <!-- LEFT col : candidat + raison du match + CV anonyme -->
+      <div style="display:flex; flex-direction:column; gap:16px;">
+
+        <div class="card">
+          <h3 class="section-title">Résumé candidat</h3>
+          <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 12px;">
+            <div class="avatar avatar-sm">KO</div>
+            <div>
+              <div style="font-weight: 700;">Data Scientist | Engineer Junior</div>
+              <div style="font-size: 12px; color: var(--muted);">Sisley Paris · Paris · 1 an XP</div>
+            </div>
+          </div>
+          <p style="margin: 0 0 10px; font-size: 13px; color: var(--ink-soft); line-height: 1.6;">
+            Spécialisée ML + systèmes de recommandation. Python, R, SQL, Spark.
+            Expérience en analyse de données et détection d'anomalies sur retail
+            et énergie.
+          </p>
+          <div>
+            <span class="chip">Python</span><span class="chip">SQL</span>
+            <span class="chip">Spark</span><span class="chip">ML</span>
+            <span class="chip">Recommandation</span>
+          </div>
+        </div>
+
+        <div class="reason">
+          <h3 style="margin:0 0 8px; font-size: 11px; font-weight: 800; color: var(--green); letter-spacing:0.06em; text-transform:uppercase;">
+            ✦ Pourquoi ça matche
+          </h3>
+          <div class="dims">
+            <span class="dim">Skills <strong>92</strong></span>
+            <span class="dim">Séniorité <strong>80</strong></span>
+            <span class="dim">Domaine <strong>75</strong></span>
+            <span class="dim">XP <strong>70</strong></span>
+          </div>
+          <p>"Profil très aligné sur les besoins data du retail. Maîtrise Spark + Python
+            confirmée sur 2 missions. Séniorité légèrement en-dessous du brief mais le
+            socle technique est solide — bon candidat à former rapidement."</p>
+        </div>
+
+        <div class="card">
+          <h3 class="section-title">CV anonymisé (orienté ce poste)</h3>
+          <div style="background: var(--surface); padding: 14px; border-radius: 10px; border: 1px dashed var(--border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong style="font-size: 11px; color: var(--purple); letter-spacing: 0.06em; text-transform: uppercase;">[LOGO] CABINET DUPONT</strong>
+              <span style="font-size: 11px; color: var(--muted);">Réf. 99E901DB</span>
+            </div>
+            <hr style="border:none; border-top: 1.4px solid var(--purple); margin: 6px 0 12px;">
+            <p style="margin:0; font-size: 16px; font-weight: 800; color: var(--ink);">Ingénieur data / Data engineer</p>
+            <p style="margin: 6px 0 0; font-size: 11.5px; color: var(--muted);">junior · 1 an · Paris</p>
+          </div>
+          <div style="display:flex; gap:8px; margin-top: 12px;">
+            <button class="btn btn-primary">Régénérer pour ce poste</button>
+            <button class="btn btn-outline">Télécharger ↓</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT col : actions -->
+      <div style="display:flex; flex-direction:column; gap:16px;">
+
+        <!-- Compose -->
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+            <h3 class="section-title" style="margin:0;">✉ Message d'approche</h3>
+            <span class="chip purple" style="margin:0;">Pour : Ingénieur Data</span>
+          </div>
+          <div class="action-block">
+            <div class="compose-controls">
+              <div class="chan-toggle">
+                <button class="on">Email</button>
+                <button>LinkedIn</button>
+              </div>
+              <button class="btn btn-primary" style="margin-left:auto;">Rédiger avec Nora</button>
+            </div>
+            <div class="input-fake">Consigne optionnelle — ex : insiste sur le télétravail, ton très direct…</div>
+            <div class="input-fake" style="font-weight: 700; color: var(--ink);">Bonjour Kenza, on a remarqué votre parcours data…</div>
+            <div class="textarea-fake" style="color: var(--ink-soft); min-height: 120px; font-size: 13px; line-height: 1.65;">
+              Bonjour Kenza,<br><br>
+              Votre expérience récente sur Sisley Paris autour des systèmes de recommandation
+              a attiré notre attention pour un poste d'Ingénieur Data chez Carrefour.<br><br>
+              Le rôle implique un volume data important, sur la chaîne logistique retail —
+              ce qui croise vos missions précédentes. Disponible pour en discuter cette semaine ?<br><br>
+              À très vite,<br>
+              [Votre prénom]
+            </div>
+            <div class="postit">✦ Une révision Nora ?</div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-outline">Copier</button>
+              <span style="font-size: 11px; color: var(--muted); align-self: center;">
+                Copiez et envoyez depuis Gmail / LinkedIn.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pricing (futur) -->
+        <div class="card" style="border-style: dashed; opacity: 0.85;">
+          <h3 class="section-title">💰 Pricing <span style="color: var(--purple); font-style: italic; font-weight: 600; text-transform: none; letter-spacing: 0;">— à venir</span></h3>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12.5px;">
+            <div>
+              <div style="font-size: 10px; color: var(--muted-light); letter-spacing: 0.06em; text-transform: uppercase;">Coût candidat / jour</div>
+              <div class="input-fake" style="padding: 6px 10px;">450 €</div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: var(--muted-light); letter-spacing: 0.06em; text-transform: uppercase;">Marge cabinet</div>
+              <div class="input-fake" style="padding: 6px 10px;">35 %</div>
+            </div>
+          </div>
+          <div style="margin-top: 12px; padding: 12px; background: var(--green-bg); border: 1px solid var(--green-bd); border-radius: 8px; font-size: 12.5px;">
+            <strong style="color: var(--green);">TJM client suggéré : 695 €</strong>
+            · marge nette 245 € / jour · sur 120 j = 29 400 €
+          </div>
+        </div>
+
+        <!-- Conversation (placeholder caché) -->
+        <div class="card" style="border-style: dashed; opacity: 0.5;">
+          <h3 class="section-title">💬 Conversation</h3>
+          <p style="margin:0; font-size: 12.5px; color: var(--muted);">
+            Réactivée quand le mailing multi-domaine sera prêt.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE 3 — FICHE POSTE
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-poste">
+  <div class="page-inner">
+    <a class="page-back">← Retour aux postes</a>
+
+    <div class="card" style="margin-bottom: 18px;">
+      <div style="display:flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
+        <div style="flex:1; min-width: 240px;">
+          <h1 class="page-title">Ingénieur Data</h1>
+          <div style="display: flex; gap: 6px; margin-top: 10px;">
+            <span class="chip" style="background: #F9FAFB;">Île-de-France</span>
+            <span class="chip" style="background: #F9FAFB;">Mid</span>
+            <span class="chip" style="background: #F9FAFB;">CDI</span>
+          </div>
+        </div>
+        <button class="btn btn-outline" style="color: var(--red); border-color: #FCA5A5;">Supprimer</button>
+      </div>
+
+      <div style="margin-top: 18px;">
+        <div style="font-size: 11px; font-weight: 700; color: var(--purple); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 6px;">Briefing / contraintes</div>
+        <div class="textarea-fake" style="color: var(--ink-soft); min-height: 0; padding: 11px;">
+          Pas de profils &lt; 3 ans XP. Démarrage souhaité septembre. Pas d'ESN.
+          Client préfère un profil hybride Paris.
+        </div>
+      </div>
+
+      <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); display:flex; gap: 12px; flex-wrap: wrap;">
+        <button class="btn btn-primary">Relancer le matching</button>
+        <button class="btn btn-outline">+ Assigner un candidat</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 14px;">
+      <strong>5</strong> candidats pertinents · 4 autres à plus faible affinité
+    </div>
+
+    <section style="margin-bottom: 22px;">
+      <div style="font-size: 11px; font-weight: 800; color: var(--green); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 10px;">Excellent match · 2</div>
+
+      <div class="match-row">
+        <div class="avatar avatar-sm">KO</div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <strong>Kenza Oulmou</strong>
+            <span class="chip green" style="margin:0;">87</span>
+          </div>
+          <div class="why">Profil très aligné sur le retail data. Maîtrise Spark + Python sur 2 missions précédentes.</div>
+        </div>
+        <a class="open-action">Ouvrir ▶</a>
+      </div>
+
+      <div class="match-row">
+        <div class="avatar avatar-sm">AB</div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <strong>Achraf Balij</strong>
+            <span class="chip green" style="margin:0;">85</span>
+          </div>
+          <div class="why">Profil Consultant Data / DevOps. Très solide sur l'infra data. Doit confirmer son intérêt sur le retail.</div>
+        </div>
+        <a class="open-action">Ouvrir ▶</a>
+      </div>
+    </section>
+
+    <section>
+      <div style="font-size: 11px; font-weight: 800; color: var(--purple); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 10px;">Bon match · 3</div>
+
+      <div class="match-row" style="background: rgba(124,99,200,0.06); border-color: rgba(124,99,200,0.2);">
+        <div class="avatar avatar-sm">FK</div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <strong>Firas Kahia</strong>
+            <span class="chip purple" style="margin:0;">75</span>
+          </div>
+          <div class="why">Junior Data Engineer. Stack proche, profil junior — à challenger sur l'expérience retail.</div>
+        </div>
+        <a class="open-action" style="border-color: rgba(124,99,200,0.25); color: var(--purple);">Ouvrir ▶</a>
+      </div>
+    </section>
+
+    <p style="margin-top: 20px; font-size: 12px; color: var(--muted); font-style: italic;">
+      Le bouton "Fiche →" devient "Ouvrir ▶" et mène vers la fiche match (pas la fiche candidat).
+      Le clic ouvre le couple candidat × ce poste précis.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE 4 — PIPELINE
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-pipeline">
+  <div class="page-inner">
+    <span class="tag-purple">Pipeline</span>
+    <h1 class="page-title">Suivi candidat</h1>
+    <h2 class="subtitle">Glissez une carte d'une colonne à l'autre pour faire avancer un candidat. Cliquez sur "Ouvrir ▶" pour le workspace candidat × poste.</h2>
+
+    <div style="margin-top: 22px; display: flex; gap: 14px; overflow-x: auto; padding-bottom: 16px;">
+      <div class="kanban-col">
+        <div class="kanban-col-head"><strong style="color: #6B7280;">Identifié</strong><span class="count">12</span></div>
+
+        <div style="font-size: 10.5px; font-weight: 700; color: var(--muted-light); padding: 4px 6px; margin-bottom: 4px;">▾ Ingénieur Data <span style="float:right; background:white; border:1px solid var(--border); border-radius:100px; padding: 0 6px;">5</span></div>
+        <div class="kanban-card">
+          <div class="row1"><span class="name">Achraf Balij</span><span class="score">85</span></div>
+          <div class="role">Consultant Data / DevOps</div>
+          <div class="footer-row">
+            <span style="font-size:10.5px; color:var(--muted-light);">aujourd'hui</span>
+            <a class="open-link">Ouvrir ▶</a>
+          </div>
+        </div>
+        <div class="kanban-card">
+          <div class="row1"><span class="name">Firas Kahia</span><span class="score" style="background: var(--amber-bg); border-color: var(--amber-bd); color: var(--amber);">62</span></div>
+          <div class="role">Junior Data Engineer</div>
+          <div class="footer-row">
+            <span style="font-size:10.5px; color:var(--muted-light);">aujourd'hui</span>
+            <a class="open-link">Ouvrir ▶</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="kanban-col" style="background: rgba(37,99,235,0.05);">
+        <div class="kanban-col-head"><strong style="color: #2563EB;">Contacté</strong><span class="count">3</span></div>
+        <div class="kanban-card">
+          <div class="row1"><span class="name">Kenza Oulmou</span><span class="score">87</span></div>
+          <div class="role">Data Scientist | Junior · Ingénieur Data</div>
+          <div class="footer-row">
+            <span style="font-size:10.5px; color:var(--muted-light);">il y a 2 j</span>
+            <a class="open-link">Ouvrir ▶</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="kanban-col" style="background: rgba(124,99,200,0.05);">
+        <div class="kanban-col-head"><strong style="color: var(--purple);">Réponse</strong><span class="count">0</span></div>
+        <div style="padding: 16px; text-align: center; font-size: 11.5px; color: #C4B6E0;">Déposez ici</div>
+      </div>
+
+      <div class="kanban-col" style="background: rgba(245,158,11,0.06);">
+        <div class="kanban-col-head"><strong style="color: var(--amber);">Entretien</strong><span class="count">0</span></div>
+        <div style="padding: 16px; text-align: center; font-size: 11.5px; color: #C4B6E0;">Déposez ici</div>
+      </div>
+
+      <div class="kanban-col" style="background: rgba(34,197,94,0.06);">
+        <div class="kanban-col-head"><strong style="color: var(--green);">Offre</strong><span class="count">0</span></div>
+        <div style="padding: 16px; text-align: center; font-size: 11.5px; color: #C4B6E0;">Déposez ici</div>
+      </div>
+    </div>
+
+    <p style="margin-top: 16px; font-size: 12px; color: var(--muted); font-style: italic;">
+      Les cards du kanban → "Ouvrir ▶" → ouvrent la fiche match correspondante (avec compose, anonymize, pricing).
+      Le clic n'amène plus sur la fiche candidat brute.
+    </p>
+  </div>
+</div>
+
+<script>
+  const switcher = document.querySelectorAll(".switcher button");
+  const pages = document.querySelectorAll(".page");
+  const navTabs = document.querySelectorAll(".nav-tab[data-tab]");
+
+  function show(name) {
+    pages.forEach(p => p.classList.toggle("visible", p.id === "page-" + name));
+    switcher.forEach(b => b.classList.toggle("active", b.dataset.page === name));
+    navTabs.forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  switcher.forEach(b => b.addEventListener("click", () => show(b.dataset.page)));
+  navTabs.forEach(t => t.addEventListener("click", () => show(t.dataset.tab)));
+</script>
+
+</body>
+</html>
