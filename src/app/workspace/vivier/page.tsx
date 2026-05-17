@@ -18,6 +18,35 @@ interface UploadJob {
   candidateId?: string
 }
 
+type ViewMode = "flat" | "by-sector"
+
+const SECTOR_META: Record<NonNullable<NonNullable<Candidate["parsed_cv"]>["sector"]>, { label: string; fg: string; bg: string; bd: string }> = {
+  tech:       { label: "Tech",         fg: "#2563EB", bg: "rgba(37,99,235,0.07)",  bd: "rgba(37,99,235,0.22)" },
+  finance:    { label: "Finance",      fg: "#0F766E", bg: "rgba(15,118,110,0.07)", bd: "rgba(15,118,110,0.22)" },
+  retail:     { label: "Retail",       fg: "#B45309", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
+  sante:      { label: "Santé",        fg: "#DC2626", bg: "rgba(220,38,38,0.06)",  bd: "rgba(220,38,38,0.22)" },
+  industrie:  { label: "Industrie",    fg: "#4B5563", bg: "rgba(75,85,99,0.07)",   bd: "rgba(75,85,99,0.22)" },
+  conseil:    { label: "Conseil",      fg: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.22)" },
+  marketing:  { label: "Marketing",    fg: "#DB2777", bg: "rgba(219,39,119,0.06)", bd: "rgba(219,39,119,0.22)" },
+  rh:         { label: "RH",           fg: "#0891B2", bg: "rgba(8,145,178,0.07)",  bd: "rgba(8,145,178,0.22)" },
+  public:     { label: "Public",       fg: "#1E40AF", bg: "rgba(30,64,175,0.06)",  bd: "rgba(30,64,175,0.22)" },
+  education:  { label: "Éducation",    fg: "#16a34a", bg: "rgba(34,197,94,0.07)",  bd: "rgba(34,197,94,0.25)" },
+  autre:      { label: "Autre",        fg: "#6B7280", bg: "#F9FAFB",               bd: "#E5E7EB" },
+}
+const SECTOR_ORDER: NonNullable<NonNullable<Candidate["parsed_cv"]>["sector"]>[] = [
+  "tech", "finance", "conseil", "marketing", "retail", "sante", "industrie", "rh", "public", "education", "autre",
+]
+
+const SENIORITY_OPTIONS = [
+  { key: "etudiant",  label: "Étudiant" },
+  { key: "stagiaire", label: "Stagiaire" },
+  { key: "junior",    label: "Junior" },
+  { key: "mid",       label: "Mid" },
+  { key: "senior",    label: "Senior" },
+  { key: "lead",      label: "Lead" },
+  { key: "principal", label: "Principal" },
+] as const
+
 export default function VivierPage() {
   const sb = useMemo(() => getSupabase(), [])
   const [userId, setUserId] = useState<string | null>(null)
@@ -27,6 +56,19 @@ export default function VivierPage() {
   const [jobs, setJobs] = useState<UploadJob[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Filters & view
+  const [viewMode, setViewMode] = useState<ViewMode>("flat")
+  const [seniorityFilter, setSeniorityFilter] = useState<string>("")
+  const [locationFilter, setLocationFilter] = useState<string>("")
+  const [skillFilter, setSkillFilter] = useState<string>("")
+  const [completenessFilter, setCompletenessFilter] = useState<"any" | "complete" | "partial">("any")
+  const [sectorFilter, setSectorFilter] = useState<string>("")
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [collapsedSectors, setCollapsedSectors] = useState<Set<string>>(new Set())
+  const toggleSector = (s: string) => setCollapsedSectors((prev) => {
+    const next = new Set(prev); if (next.has(s)) next.delete(s); else next.add(s); return next
+  })
 
   // 1. Initial load + realtime
   useEffect(() => {
@@ -165,15 +207,55 @@ export default function VivierPage() {
   // 4. Filtering
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return candidates
+    const locQ = locationFilter.trim().toLowerCase()
+    const skillQ = skillFilter.trim().toLowerCase()
     return candidates.filter((c) => {
-      const hay = [
-        c.full_name, c.current_title, c.current_company, c.location, c.email,
-        ...(c.skills ?? []),
-      ].filter(Boolean).join(" ").toLowerCase()
-      return hay.includes(q)
+      if (q) {
+        const hay = [
+          c.full_name, c.current_title, c.current_company, c.location, c.email,
+          ...(c.skills ?? []),
+        ].filter(Boolean).join(" ").toLowerCase()
+        if (!hay.includes(q)) return false
+      }
+      if (seniorityFilter && (c.seniority_level ?? "") !== seniorityFilter) return false
+      if (locQ && !(c.location ?? "").toLowerCase().includes(locQ)) return false
+      if (skillQ) {
+        const skills = (c.skills ?? []).map((s) => s.toLowerCase())
+        if (!skills.some((s) => s.includes(skillQ))) return false
+      }
+      if (completenessFilter !== "any") {
+        const score = c.parsed_cv?.completeness ?? 0
+        if (completenessFilter === "complete" && score < 75) return false
+        if (completenessFilter === "partial"  && score >= 75) return false
+      }
+      if (sectorFilter && (c.parsed_cv?.sector ?? "autre") !== sectorFilter) return false
+      return true
     })
-  }, [candidates, query])
+  }, [candidates, query, seniorityFilter, locationFilter, skillFilter, completenessFilter, sectorFilter])
+
+  // Group by sector (for the "by-sector" view).
+  const bySector = useMemo(() => {
+    const map = new Map<string, Candidate[]>()
+    for (const c of filtered) {
+      const s = c.parsed_cv?.sector ?? "autre"
+      const arr = map.get(s); if (arr) arr.push(c); else map.set(s, [c])
+    }
+    return SECTOR_ORDER
+      .map((s) => ({ sector: s, items: map.get(s) ?? [] }))
+      .filter((g) => g.items.length > 0)
+  }, [filtered])
+
+  const activeFilters =
+    (seniorityFilter ? 1 : 0) +
+    (locationFilter.trim() ? 1 : 0) +
+    (skillFilter.trim() ? 1 : 0) +
+    (completenessFilter !== "any" ? 1 : 0) +
+    (sectorFilter ? 1 : 0)
+
+  const resetFilters = () => {
+    setSeniorityFilter(""); setLocationFilter(""); setSkillFilter("")
+    setCompletenessFilter("any"); setSectorFilter("")
+  }
 
   // 5. Deletion
   const handleDelete = async (id: string) => {
@@ -369,6 +451,101 @@ export default function VivierPage() {
         )}
       </AnimatePresence>
 
+      {/* Filters + view toggle */}
+      {candidates.length > 0 && (
+        <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              onClick={() => setFiltersOpen((v) => !v)}
+              style={{
+                fontSize: 12.5, fontWeight: 600,
+                color: activeFilters > 0 ? "#7C63C8" : "#6B7280",
+                background: activeFilters > 0 ? "rgba(124,99,200,0.08)" : "white",
+                border: `1px solid ${activeFilters > 0 ? "rgba(124,99,200,0.25)" : "#E5E7EB"}`,
+                borderRadius: 9, padding: "7px 12px",
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              {filtersOpen ? "▾" : "▸"} Filtres{activeFilters > 0 ? ` · ${activeFilters}` : ""}
+            </button>
+            <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
+              {([
+                { key: "flat" as ViewMode,      label: "Vue à plat" },
+                { key: "by-sector" as ViewMode, label: "Par secteur" },
+              ]).map((m) => (
+                <button
+                  key={m.key}
+                  onClick={() => setViewMode(m.key)}
+                  style={{
+                    fontSize: 12, fontWeight: 600, padding: "7px 12px",
+                    border: "none", cursor: "pointer", fontFamily: "inherit",
+                    background: viewMode === m.key ? "#7C63C8" : "white",
+                    color: viewMode === m.key ? "white" : "#6B7280",
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <span style={{ fontSize: 12, color: "#9CA3AF" }}>
+              {filtered.length}{filtered.length !== candidates.length ? ` / ${candidates.length}` : ""} candidat{filtered.length > 1 ? "s" : ""}
+            </span>
+            {activeFilters > 0 && (
+              <button onClick={resetFilters} style={{
+                fontSize: 11.5, color: "#9CA3AF", background: "transparent",
+                border: "none", cursor: "pointer", fontFamily: "inherit",
+                textDecoration: "underline",
+              }}>
+                Tout effacer
+              </button>
+            )}
+          </div>
+          {filtersOpen && (
+            <div style={{
+              padding: 14, background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
+              display: "grid", gap: 12,
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            }}>
+              <FilterField label="Séniorité">
+                <select value={seniorityFilter} onChange={(e) => setSeniorityFilter(e.target.value)} style={filterInputStyle}>
+                  <option value="">Toutes</option>
+                  {SENIORITY_OPTIONS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                </select>
+              </FilterField>
+              <FilterField label="Secteur">
+                <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} style={filterInputStyle}>
+                  <option value="">Tous</option>
+                  {SECTOR_ORDER.map((s) => <option key={s} value={s}>{SECTOR_META[s].label}</option>)}
+                </select>
+              </FilterField>
+              <FilterField label="Localisation">
+                <input
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  placeholder="Paris, Lyon…"
+                  style={filterInputStyle}
+                />
+              </FilterField>
+              <FilterField label="Skill">
+                <input
+                  value={skillFilter}
+                  onChange={(e) => setSkillFilter(e.target.value)}
+                  placeholder="Python, SQL…"
+                  style={filterInputStyle}
+                />
+              </FilterField>
+              <FilterField label="Complétude CV">
+                <select value={completenessFilter} onChange={(e) => setCompletenessFilter(e.target.value as typeof completenessFilter)} style={filterInputStyle}>
+                  <option value="any">Indifférent</option>
+                  <option value="complete">CV complet (≥75)</option>
+                  <option value="partial">CV partiel (&lt;75)</option>
+                </select>
+              </FilterField>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Doublon banner — Nora a trouvé X doublons, "Lancer le tri" */}
       {doublonCount > 0 && (
         <div style={{
@@ -401,6 +578,59 @@ export default function VivierPage() {
       {/* Grid / empty state */}
       {empty ? (
         <EmptyDropZone onPick={() => inputRef.current?.click()} />
+      ) : viewMode === "by-sector" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          {bySector.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
+              Aucun candidat ne correspond aux filtres.
+            </div>
+          ) : (
+            bySector.map(({ sector, items }) => {
+              const meta = SECTOR_META[sector]
+              const open = !collapsedSectors.has(sector)
+              return (
+                <section key={sector} style={{
+                  background: "white", border: `1px solid ${meta.bd}`, borderRadius: 14,
+                  overflow: "hidden",
+                }}>
+                  <button
+                    onClick={() => toggleSector(sector)}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 10,
+                      padding: "12px 16px", background: meta.bg, border: "none",
+                      cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                    }}
+                  >
+                    <span style={{ fontSize: 12, color: meta.fg, transform: open ? "rotate(90deg)" : "none", transition: "transform 140ms", display: "inline-block", width: 10 }}>›</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: meta.fg, letterSpacing: "0.02em" }}>
+                      {meta.label}
+                    </span>
+                    <span style={{
+                      marginLeft: "auto",
+                      fontSize: 11, fontWeight: 700, color: meta.fg,
+                      background: "white", border: `1px solid ${meta.bd}`,
+                      borderRadius: 100, padding: "1px 8px",
+                    }}>
+                      {items.length}
+                    </span>
+                  </button>
+                  {open && (
+                    <div style={{
+                      padding: 14,
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                      gap: 14,
+                    }}>
+                      {items.map((c, i) => (
+                        <CandidateCard key={c.id} c={c} delay={Math.min(i * 0.02, 0.15)} onDelete={() => handleDelete(c.id)} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )
+            })
+          )}
+        </div>
       ) : (
         <div style={{
           display: "grid",
@@ -412,7 +642,7 @@ export default function VivierPage() {
           ))}
           {filtered.length === 0 && candidates.length > 0 && (
             <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
-              Aucun candidat ne correspond à « {query} »
+              Aucun candidat ne correspond aux filtres.
             </div>
           )}
         </div>
@@ -422,6 +652,24 @@ export default function VivierPage() {
 }
 
 /* ─── Sub-components ──────────────────────────────────────────────── */
+
+const filterInputStyle: React.CSSProperties = {
+  width: "100%", boxSizing: "border-box",
+  fontSize: 13, color: "#111827", padding: "8px 10px",
+  background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 8,
+  outline: "none", fontFamily: "inherit",
+}
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span style={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+        {label}
+      </span>
+      {children}
+    </label>
+  )
+}
 
 function JobIcon({ status }: { status: UploadJob["status"] }) {
   const map = {
@@ -529,9 +777,20 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between", marginTop: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#9CA3AF" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#9CA3AF", flexWrap: "wrap" }}>
           {c.location ?? "—"}
           {c.years_experience != null && <span>· {c.years_experience}a</span>}
+          {c.parsed_cv?.sector && SECTOR_META[c.parsed_cv.sector] && (
+            <span style={{
+              fontSize: 10, fontWeight: 700,
+              color: SECTOR_META[c.parsed_cv.sector].fg,
+              background: SECTOR_META[c.parsed_cv.sector].bg,
+              border: `1px solid ${SECTOR_META[c.parsed_cv.sector].bd}`,
+              borderRadius: 100, padding: "1px 7px",
+            }}>
+              {SECTOR_META[c.parsed_cv.sector].label}
+            </span>
+          )}
           {c.tags?.includes("doublon") && (
             <span style={{
               background: "#FEF3C7", color: "#92400E",

@@ -58,6 +58,8 @@ export type ParsedCv = {
   certifications?: string[]
   /** Detected primary language of the CV (ISO 639-1: "fr", "en", "es", …). */
   language?: string | null
+  /** High-level industry/sector the candidate belongs to (closed list). */
+  sector?: 'tech' | 'finance' | 'retail' | 'sante' | 'industrie' | 'conseil' | 'marketing' | 'rh' | 'public' | 'education' | 'autre' | null
   /** 0-100 — how complete the CV looks (based on filled fields). */
   completeness?: number | null
   /** Free-form alerts surfaced to the sourcer (gaps, contradictions…). */
