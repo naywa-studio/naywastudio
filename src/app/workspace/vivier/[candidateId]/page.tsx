@@ -697,8 +697,17 @@ function ComposeBox({
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [sendState, setSendState] = useState<"idle" | "sending" | "sent">("idle")
+
+  // Track the last AI-generated body verbatim. If the textarea content
+  // differs, the sourcer has hand-edited it → Nora can review.
+  const [aiBody, setAiBody] = useState(candidate.outreach_draft ?? "")
+  const [aiSubject, setAiSubject] = useState(existing?.subject ?? "")
+  const [critiqueState, setCritiqueState] = useState<"idle" | "running">("idle")
+  const [critique, setCritique] = useState<{ verdict: "ok" | "warn"; flags: { level: "info" | "warn"; text: string }[] } | null>(null)
+
   const hasDraft = bodyText.trim().length > 0
   const canSend = channel === "email" && hasDraft && !!candidate.email
+  const edited = hasDraft && (bodyText.trim() !== aiBody.trim() || subject.trim() !== aiSubject.trim())
 
   const generate = async () => {
     setComposing(true); setError(null)
@@ -720,10 +729,35 @@ function ComposeBox({
       }
       setSubject(data.subject ?? "")
       setBodyText(data.body ?? "")
+      setAiSubject(data.subject ?? "")
+      setAiBody(data.body ?? "")
+      setCritique(null)
     } catch (err) {
       setError((err as Error).message ?? "Erreur réseau.")
     } finally {
       setComposing(false)
+    }
+  }
+
+  const runCritique = async () => {
+    if (!edited || critiqueState === "running") return
+    setCritiqueState("running"); setError(null)
+    try {
+      const res = await fetch(`/api/cv/${candidate.id}/critique`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, body: bodyText, channel, job_id: selectedJobId || null }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        setError(data?.message ?? data?.error ?? "Nora n'a pas pu relire le message.")
+      } else {
+        setCritique({ verdict: data.verdict, flags: data.flags ?? [] })
+      }
+    } catch (err) {
+      setError((err as Error).message ?? "Erreur réseau.")
+    } finally {
+      setCritiqueState("idle")
     }
   }
 
@@ -853,6 +887,78 @@ function ComposeBox({
               outline: "none", resize: "vertical", fontFamily: "inherit", lineHeight: 1.65,
             }}
           />
+
+          {/* Post-it Nora — only shown when the sourcer has edited the draft.
+              Pure suggestion, never blocking. */}
+          {edited && !critique && (
+            <button
+              onClick={runCritique}
+              disabled={critiqueState === "running"}
+              style={{
+                alignSelf: "flex-start",
+                background: "#FFFAEB",
+                border: "1px solid #FCD34D",
+                borderRadius: 10,
+                padding: "8px 12px",
+                fontSize: 12.5, fontWeight: 600, color: "#92400E",
+                cursor: critiqueState === "running" ? "default" : "pointer",
+                fontFamily: "inherit",
+                display: "inline-flex", alignItems: "center", gap: 7,
+                boxShadow: "0 2px 6px rgba(252,211,77,0.25)",
+              }}
+            >
+              {critiqueState === "running" ? "✦ Nora relit…" : "✦ Une révision Nora ?"}
+            </button>
+          )}
+          {critique && (
+            <div style={{
+              background: critique.verdict === "ok" ? "rgba(34,197,94,0.06)" : "#FFFAEB",
+              border: `1px solid ${critique.verdict === "ok" ? "rgba(34,197,94,0.3)" : "#FCD34D"}`,
+              borderRadius: 10,
+              padding: "10px 12px",
+              display: "flex", flexDirection: "column", gap: 6,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 800,
+                  color: critique.verdict === "ok" ? "#15803d" : "#92400E",
+                  letterSpacing: "0.04em", textTransform: "uppercase",
+                }}>
+                  ✦ {critique.verdict === "ok" ? "Nora approuve" : "Nora suggère"}
+                </span>
+                <button onClick={() => setCritique(null)} style={{
+                  marginLeft: "auto", fontSize: 11, color: "#9CA3AF",
+                  background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit",
+                }}>
+                  Masquer
+                </button>
+              </div>
+              {critique.verdict === "ok" && critique.flags.length === 0 ? (
+                <p style={{ margin: 0, fontSize: 12.5, color: "#374151" }}>
+                  Le message est prêt à être envoyé.
+                </p>
+              ) : (
+                <ul style={{ margin: 0, padding: "0 0 0 16px", display: "flex", flexDirection: "column", gap: 3 }}>
+                  {critique.flags.map((f, i) => (
+                    <li key={i} style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.5 }}>
+                      {f.text}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {edited && (
+                <button onClick={runCritique} disabled={critiqueState === "running"} style={{
+                  alignSelf: "flex-start", marginTop: 2,
+                  background: "transparent", border: "none", padding: 0,
+                  fontSize: 11.5, fontWeight: 700, color: "#7C63C8",
+                  cursor: critiqueState === "running" ? "default" : "pointer", fontFamily: "inherit",
+                }}>
+                  {critiqueState === "running" ? "Relecture…" : "Relire à nouveau"}
+                </button>
+              )}
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button onClick={copy} style={{
               padding: "7px 12px", borderRadius: 9,

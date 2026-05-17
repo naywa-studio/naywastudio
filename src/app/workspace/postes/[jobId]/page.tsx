@@ -30,6 +30,7 @@ export default function JobDetailPage() {
   const [notFound, setNotFound] = useState(false)
   const [matchError, setMatchError] = useState<string | null>(null)
   const [showWeak, setShowWeak] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
 
   const loadAll = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`)
@@ -182,6 +183,14 @@ export default function JobDetailPage() {
           }}>
             {matching ? "✦ Matching en cours…" : rows.length > 0 ? "Relancer le matching" : "Matcher le vivier"}
           </button>
+          <button onClick={() => setAssignOpen(true)} disabled={matching} style={{
+            padding: "10px 16px", borderRadius: 11,
+            background: "white", border: "1px solid rgba(124,99,200,0.3)",
+            color: "#7C63C8", fontSize: 13, fontWeight: 700,
+            cursor: matching ? "default" : "pointer", fontFamily: "inherit",
+          }}>
+            + Assigner un candidat
+          </button>
           <span style={{ fontSize: 12.5, color: "#9CA3AF" }}>
             {matching
               ? "Nora compare votre vivier au poste…"
@@ -250,7 +259,190 @@ export default function JobDetailPage() {
           )}
         </>
       )}
+
+      {assignOpen && (
+        <AssignModal
+          jobId={job.id}
+          existingCandidateIds={new Set(rows.map((r) => r.candidate?.id).filter((x): x is string => !!x))}
+          onClose={() => setAssignOpen(false)}
+          onAssigned={() => { setAssignOpen(false); loadAll() }}
+        />
+      )}
     </main>
+  )
+}
+
+/* ─── Assign modal ─────────────────────────────────────────────── */
+
+function AssignModal({
+  jobId, existingCandidateIds, onClose, onAssigned,
+}: {
+  jobId: string
+  existingCandidateIds: Set<string>
+  onClose: () => void
+  onAssigned: () => void
+}) {
+  const sb = useMemo(() => getSupabase(), [])
+  const [query, setQuery] = useState("")
+  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [loadingList, setLoadingList] = useState(true)
+  const [assigning, setAssigning] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      const { data } = await sb
+        .from("candidates")
+        .select("id, full_name, current_title, current_company, cv_file_name, location, seniority_level")
+        .eq("parse_status", "parsed")
+        .order("created_at", { ascending: false })
+        .limit(200)
+      if (!mounted) return
+      setCandidates((data ?? []) as unknown as Candidate[])
+      setLoadingList(false)
+    })()
+    return () => { mounted = false }
+  }, [sb])
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return candidates
+      .filter((c) => !existingCandidateIds.has(c.id))
+      .filter((c) => {
+        if (!q) return true
+        const hay = [c.full_name, c.current_title, c.current_company, c.location, c.cv_file_name]
+          .filter(Boolean).join(" ").toLowerCase()
+        return hay.includes(q)
+      })
+      .slice(0, 50)
+  }, [candidates, query, existingCandidateIds])
+
+  const assign = async (candidateId: string) => {
+    setAssigning(candidateId); setErr(null)
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_id: candidateId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErr(data?.detail ?? data?.error ?? "L'assignation a échoué.")
+        setAssigning(null)
+        return
+      }
+      onAssigned()
+    } catch (e) {
+      setErr((e as Error).message ?? "Erreur réseau.")
+      setAssigning(null)
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 60,
+        background: "rgba(17,24,39,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "white", borderRadius: 18,
+          width: "100%", maxWidth: 560,
+          maxHeight: "85vh", display: "flex", flexDirection: "column",
+          boxShadow: "0 24px 60px rgba(17,24,39,0.25)",
+        }}
+      >
+        <div style={{ padding: "18px 22px", borderBottom: "1px solid #F0ECF8" }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Assigner manuellement
+          </p>
+          <h3 style={{ margin: "4px 0 10px", fontSize: 17, fontWeight: 800, color: "#111827" }}>
+            Choisir un candidat
+          </h3>
+          <input
+            autoFocus
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Chercher par nom, poste, entreprise…"
+            style={{
+              width: "100%", boxSizing: "border-box",
+              fontSize: 13.5, color: "#111827", padding: "10px 12px",
+              background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 10,
+              outline: "none", fontFamily: "inherit",
+            }}
+          />
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+          {loadingList ? (
+            <p style={{ padding: 20, fontSize: 13, color: "#9CA3AF", textAlign: "center" }}>Chargement…</p>
+          ) : filtered.length === 0 ? (
+            <p style={{ padding: 20, fontSize: 13, color: "#9CA3AF", textAlign: "center" }}>
+              {query ? "Aucun candidat ne correspond." : "Tous les candidats du vivier sont déjà matchés."}
+            </p>
+          ) : (
+            filtered.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => assign(c.id)}
+                disabled={assigning !== null}
+                style={{
+                  width: "100%", textAlign: "left",
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "10px 12px", borderRadius: 10,
+                  background: "transparent", border: "1px solid transparent",
+                  cursor: assigning === c.id ? "default" : "pointer",
+                  fontFamily: "inherit",
+                  opacity: assigning && assigning !== c.id ? 0.4 : 1,
+                }}
+                onMouseEnter={(e) => { if (!assigning) e.currentTarget.style.background = "#F8F6FF" }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {c.full_name ?? c.cv_file_name ?? "Sans nom"}
+                  </p>
+                  <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {c.current_title ?? "—"}
+                    {c.current_company ? ` · ${c.current_company}` : ""}
+                    {c.location ? ` · ${c.location}` : ""}
+                  </p>
+                </div>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                  background: "rgba(124,99,200,0.08)",
+                  border: "1px solid rgba(124,99,200,0.18)",
+                  borderRadius: 8, padding: "4px 10px",
+                  flexShrink: 0,
+                }}>
+                  {assigning === c.id ? "…" : "Assigner"}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+        {err && (
+          <div style={{ padding: "10px 16px", fontSize: 12.5, color: "#B91C1C", background: "#FEF2F2", borderTop: "1px solid #FECACA" }}>
+            {err}
+          </div>
+        )}
+        <div style={{ padding: "12px 16px", borderTop: "1px solid #F0ECF8", display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{
+            fontSize: 12.5, fontWeight: 700, color: "#6B7280",
+            background: "white", border: "1px solid #E5E7EB",
+            borderRadius: 9, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit",
+          }}>
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 

@@ -57,7 +57,12 @@ export default function PipelinePage() {
   const [overStage, setOverStage] = useState<PipelineStage | null>(null)
   const [groupMode, setGroupMode] = useState<GroupMode>("by-job")
   const [jobFilter, setJobFilter] = useState<string>("")
+  const [showWeak, setShowWeak] = useState(false)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+
+  /** Below-threshold matches clutter the pipeline. Manually assigned
+   *  candidates (score === null) are always kept visible. */
+  const SCORE_THRESHOLD = 60
 
   const toggleCollapsed = (key: string) => {
     setCollapsed((prev) => {
@@ -119,9 +124,19 @@ export default function PipelinePage() {
       .sort((a, b) => a.title.localeCompare(b.title))
   }, [rows])
 
-  // Filter by job (if user selected one), then bucket by stage.
-  const filteredRows = useMemo(
-    () => jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows,
+  // Filter by job (if user selected one), then by score, then bucket by stage.
+  // Manually assigned matches have score === null and are always kept.
+  const filteredRows = useMemo(() => {
+    let out = jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows
+    if (!showWeak) {
+      out = out.filter((r) => r.score == null || r.score >= SCORE_THRESHOLD)
+    }
+    return out
+  }, [rows, jobFilter, showWeak])
+
+  const weakCount = useMemo(
+    () => (jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows)
+      .filter((r) => r.score != null && r.score < SCORE_THRESHOLD).length,
     [rows, jobFilter],
   )
 
@@ -209,6 +224,22 @@ export default function PipelinePage() {
                 </button>
               ))}
             </div>
+            {weakCount > 0 && (
+              <button
+                onClick={() => setShowWeak((v) => !v)}
+                title="Les matches < 60 sont masqués par défaut pour ne pas parasiter le pipeline"
+                style={{
+                  fontSize: 12, fontWeight: 600,
+                  color: showWeak ? "#7C63C8" : "#9CA3AF",
+                  background: showWeak ? "rgba(124,99,200,0.08)" : "white",
+                  border: `1px solid ${showWeak ? "rgba(124,99,200,0.25)" : "#E5E7EB"}`,
+                  borderRadius: 9, padding: "7px 12px",
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                {showWeak ? "✓ " : ""}Inclure les {weakCount} match{weakCount > 1 ? "s" : ""} faible{weakCount > 1 ? "s" : ""} (&lt;60)
+              </button>
+            )}
           </div>
         )}
 
