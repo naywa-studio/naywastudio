@@ -32,7 +32,8 @@ Règles :
 - Canal "linkedin" : "subject" = null ; "body" = 60-110 mots, plus direct et informel, pas de signature lourde.
 - Termine par une signature au prénom du sourceur s'il est fourni, sinon "[Votre prénom]".
 - Pas de markdown, pas de placeholders inutiles. Le candidat est nommé par son prénom si on le connaît.
-- Si un LIEN DE RÉSERVATION est fourni dans la consigne, intègre-le naturellement comme appel à l'action ("réservez un créneau ici : <URL>"). Si pas de lien, propose de discuter sans URL inventée.`
+- Si un LIEN DE RÉSERVATION est fourni dans la consigne, intègre-le naturellement comme appel à l'action ("réservez un créneau ici : <URL>"). Si pas de lien, propose de discuter sans URL inventée.
+- Si le poste contient un champ "briefing", il liste les contraintes/préférences du client (budget, démarrage, profils à éviter, etc.). Tiens-en compte sans le citer brut au candidat : adapte le ton, les détails évoqués et la promesse. NE révèle PAS le budget ni les info confidentielles du briefing au candidat.`
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (jobId) {
     const { data: job } = await sb
       .from("jobs")
-      .select("title, location, seniority, contract_type, description, required_skills")
+      .select("title, location, seniority, contract_type, description, required_skills, briefing")
       .eq("id", jobId)
       .single()
     if (job) {
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         contract_type: job.contract_type,
         required_skills: job.required_skills,
         description: job.description,
+        briefing: job.briefing,
       })}`
     }
   }

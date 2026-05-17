@@ -64,6 +64,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if ("required_skills" in body)     { update.required_skills = cleanArr(body.required_skills); matchingInputsChanged = true }
   if ("nice_to_have_skills" in body) { update.nice_to_have_skills = cleanArr(body.nice_to_have_skills); matchingInputsChanged = true }
   if ("description" in body)         { update.description = clean(body.description); matchingInputsChanged = true }
+  if ("briefing" in body)            { update.briefing = clean(body.briefing) }
   if ("status" in body && ["draft", "open", "filled", "archived"].includes(String(body.status))) {
     update.status = body.status as JobUpdate["status"]
   }

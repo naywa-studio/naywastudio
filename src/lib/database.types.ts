@@ -163,6 +163,7 @@ export type Database = {
           nice_to_have_skills: string[] | null
           description: string | null
           brief: Record<string, unknown> | null
+          briefing: string | null
           normalized: JobNormalized | null
           status: 'draft' | 'open' | 'filled' | 'archived'
           match_status: 'idle' | 'matching' | 'done' | 'error'
@@ -181,6 +182,7 @@ export type Database = {
           nice_to_have_skills?: string[] | null
           description?: string | null
           brief?: Record<string, unknown> | null
+          briefing?: string | null
           normalized?: JobNormalized | null
           status?: 'draft' | 'open' | 'filled' | 'archived'
           match_status?: 'idle' | 'matching' | 'done' | 'error'

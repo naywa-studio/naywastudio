@@ -31,16 +31,38 @@ export default function JobDetailPage() {
   const [matchError, setMatchError] = useState<string | null>(null)
   const [showWeak, setShowWeak] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
+  const [briefing, setBriefing] = useState("")
+  const [briefingSaving, setBriefingSaving] = useState<"idle" | "saving" | "saved">("idle")
 
   const loadAll = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`)
     if (res.status === 404) { setNotFound(true); setLoading(false); return }
     if (!res.ok) { setLoading(false); return }
     const data = await res.json()
-    setJob(data.job as Job)
+    const j = data.job as Job
+    setJob(j)
+    setBriefing(j.briefing ?? "")
     setRows((data.assessments ?? []) as AssessmentRow[])
     setLoading(false)
   }, [jobId])
+
+  const saveBriefing = async () => {
+    if (!job) return
+    if ((briefing ?? "") === (job.briefing ?? "")) return
+    setBriefingSaving("saving")
+    const res = await fetch(`/api/jobs/${job.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ briefing }),
+    })
+    if (res.ok) {
+      setJob((prev) => prev ? { ...prev, briefing } : prev)
+      setBriefingSaving("saved")
+      setTimeout(() => setBriefingSaving("idle"), 1600)
+    } else {
+      setBriefingSaving("idle")
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -168,6 +190,36 @@ export default function JobDetailPage() {
             {job.description}
           </p>
         )}
+
+        {/* Briefing / contraintes — injected into matching + compose */}
+        <div style={{ marginTop: 18 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              Briefing / contraintes
+            </p>
+            <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+              — pris en compte par Nora pour le matching et les messages
+            </span>
+            {briefingSaving === "saving" && <span style={{ fontSize: 11, color: "#7C63C8", marginLeft: "auto" }}>Enregistrement…</span>}
+            {briefingSaving === "saved"   && <span style={{ fontSize: 11, color: "#16a34a", marginLeft: "auto" }}>✓ Sauvegardé</span>}
+          </div>
+          <textarea
+            value={briefing}
+            onChange={(e) => setBriefing(e.target.value)}
+            onBlur={saveBriefing}
+            placeholder="Ex : pas de profils <3 ans XP, démarrage septembre, budget max 55k, pas d'ESN, client préfère un profil hybride Paris…"
+            rows={3}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              fontSize: 13, color: "#111827",
+              padding: 11,
+              background: "#FAFAFA",
+              border: "1px solid #F0ECF8", borderRadius: 10,
+              outline: "none", resize: "vertical",
+              fontFamily: "inherit", lineHeight: 1.6,
+            }}
+          />
+        </div>
 
         {/* Match action */}
         <div style={{

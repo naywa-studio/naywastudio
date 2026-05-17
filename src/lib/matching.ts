@@ -201,7 +201,9 @@ Réponds UNIQUEMENT en JSON valide :
 
 Barème tiers : excellent 80-100, good 60-79, fair 40-59, poor 0-39.
 Sois honnête et discriminant — ne gonfle pas les scores. Base-toi sur les tags fournis.
-Justification : factuelle, cite les points forts/faibles réels. Pas de markdown, JSON pur.`
+Justification : factuelle, cite les points forts/faibles réels. Pas de markdown, JSON pur.
+
+Si un champ "briefing" est présent sur le poste, il contient des contraintes EXPLICITES du client (budget, démarrage, anti-patterns, deal-breakers, etc.). Tu DOIS les respecter : un candidat qui viole un deal-breaker du briefing perd au moins 30 points, et la justification doit mentionner la contrainte concernée.`
 
 export interface MatchResult {
   candidate_id: string
@@ -253,6 +255,7 @@ export async function scoreBatch(job: Job, candidates: Candidate[]): Promise<Mat
     required_skills: job.required_skills ?? [],
     nice_to_have_skills: job.nice_to_have_skills ?? [],
     description: job.description ?? null,
+    briefing: job.briefing ?? null,
   }
   const candPayload = candidates.map(compactCandidate)
 
