@@ -83,9 +83,19 @@ export async function POST() {
 
   let archived = 0
   let kept = 0
+  let cleaned = 0
 
   for (const [, group] of groups) {
-    if (group.length < 2) continue
+    // Solo "doublon" — siblings were already archived, tag is stale. Clean it.
+    if (group.length < 2) {
+      const lone = group[0]
+      if ((lone.tags ?? []).includes("doublon")) {
+        const next = (lone.tags ?? []).filter((t) => t !== "doublon")
+        await admin.from("candidates").update({ tags: next }).eq("id", lone.id)
+        cleaned += 1
+      }
+      continue
+    }
     // Pick the freshest as the survivor.
     const sorted = [...group].sort((a, b) => {
       const fa = freshnessTimestamp(a.parsed_cv, a.created_at)
@@ -112,5 +122,5 @@ export async function POST() {
     }
   }
 
-  return NextResponse.json({ ok: true, archived, kept })
+  return NextResponse.json({ ok: true, archived, kept, cleaned })
 }

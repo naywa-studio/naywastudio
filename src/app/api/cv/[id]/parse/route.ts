@@ -126,13 +126,15 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
         .eq("user_id", user.id).eq("phone", parsedCv.phone).neq("id", candidate.id)
       if (Array.isArray(data)) siblings.push(...(data as DupRow[]))
     }
-    // Tag any sibling that isn't already "doublon" or "ancien".
-    for (const s of siblings) {
+    // A sibling already archived ("ancien") is not a live duplicate — it has
+    // been superseded. Only siblings still visible in the vivier matter.
+    const liveSiblings = siblings.filter((s) => !(s.tags ?? []).includes("ancien"))
+    for (const s of liveSiblings) {
       const t = s.tags ?? []
-      if (t.includes("ancien") || t.includes("doublon")) continue
+      if (t.includes("doublon")) continue
       await admin.from("candidates").update({ tags: [...t, "doublon"] }).eq("id", s.id)
     }
-    hasDoublon = siblings.length > 0
+    hasDoublon = liveSiblings.length > 0
   }
 
   const { data: updated, error: updateErr } = await admin
