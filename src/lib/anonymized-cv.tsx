@@ -166,9 +166,12 @@ export function AnonymizedCv({
         <View style={s.brandRow}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             {brandLogo && (
+              // Fixed height (so tiny source logos scale UP instead of staying
+              // 22px wide) + a generous max-width cap for very wide / banner
+              // style logos. objectFit:contain preserves the aspect ratio.
               // @react-pdf Image doesn't expose alt; jsx-a11y rule is irrelevant here.
               // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={brandLogo} style={{ maxHeight: 40, maxWidth: 130, marginRight: 10, objectFit: "contain" }} />
+              <Image src={brandLogo} style={{ height: 56, maxWidth: 200, marginRight: 12, objectFit: "contain" }} />
             )}
             <Text style={s.brand}>{brandName.toUpperCase()}</Text>
           </View>
