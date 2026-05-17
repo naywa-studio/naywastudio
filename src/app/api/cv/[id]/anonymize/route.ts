@@ -71,14 +71,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .eq("id", jobId)
       .single()
     if (job) {
+      // Formal title for the client : prefer the LLM-normalised role_family
+      // (joined with " / " when there's a FR/EN pair) so the PDF says
+      // "Ingénieur data / Data engineer" instead of whatever the sourcer
+      // typed in the form ("Ingénieur en Data"). Falls back to the raw
+      // title when no normalised role is available.
+      const rf = job.normalized?.role_family ?? []
+      const formalTitle = rf.length > 0 ? rf.slice(0, 2).join(" / ") : job.title
+
       jobContext = {
-        title: job.title,
+        title: formalTitle,
         seniority: job.seniority,
         location: job.location,
         required_skills: job.required_skills ?? [],
         nice_to_have_skills: job.nice_to_have_skills ?? [],
         must_have_skills: job.normalized?.must_have_skills ?? [],
-        role_family: job.normalized?.role_family?.[0] ?? null,
+        role_family: rf[0] ?? null,
       }
     }
   }

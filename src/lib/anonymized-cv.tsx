@@ -23,11 +23,9 @@ import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/render
 import type { ParsedCv, ParsedExperience, Candidate } from "./database.types"
 
 const PURPLE = "#7C63C8"
-const PURPLE_DEEP = "#5B45A3"
 const INK = "#1F2937"
 const MUTED = "#6B7280"
 const LINE = "#E5E1F2"
-const SOFT_HL = "#EEE9FB"
 
 const DEFAULT_BRAND = "NAYWA STUDIO"
 
@@ -39,13 +37,7 @@ const s = StyleSheet.create({
   brandTag: { fontSize: 8, color: MUTED, letterSpacing: 0.5 },
   rule: { borderBottomWidth: 1.4, borderBottomColor: PURPLE, marginTop: 8, marginBottom: 18 },
 
-  pitchBlock: { marginBottom: 16, backgroundColor: SOFT_HL, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 14 },
-  pitchLabel: { fontSize: 7.5, color: PURPLE_DEEP, letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 },
-  pitchTitle: { fontSize: 16, fontFamily: "Helvetica-Bold", color: INK },
-  pitchMeta: { fontSize: 9, color: MUTED, marginTop: 2 },
-
-  headline: { fontSize: 18, fontFamily: "Helvetica-Bold", color: INK, marginBottom: 4 },
-  subline: { fontSize: 10.5, color: PURPLE, fontFamily: "Helvetica-Bold", marginBottom: 14 },
+  headline: { fontSize: 22, fontFamily: "Helvetica-Bold", color: INK, marginBottom: 14, marginTop: 4 },
 
   metaRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
   metaItem: { marginRight: 22, marginBottom: 4 },
@@ -157,18 +149,14 @@ export function AnonymizedCv({
     ? candidate.taxonomy.core_skills
     : (candidate.skills ?? []))
   const { ordered: skills, highlighted } = pickAndOrderSkills(candSkills, job)
-  const { items: experience, relevantCount } = orderExperiences(cv.experience ?? [])
+  const { items: experience } = orderExperiences(cv.experience ?? [])
   const education = cv.education ?? []
   const languages = cv.languages ?? candidate.languages ?? []
 
-  // Headline strategy:
-  //  - If a job is passed: the dominant headline is the JOB title, with
-  //    the candidate's current role as a discreet subtitle context.
-  //  - Otherwise: the candidate's current title (or their role family).
+  // Headline = formal job title (from normalised role_family) when oriented,
+  // else the candidate's own current title. No subtitle: the client cares
+  // about fit, not about what the candidate is doing right now.
   const headline = job ? job.title : (candidate.current_title ?? roleFamily ?? "Profil professionnel")
-  const subline = job
-    ? (candidate.current_title ? `Profil actuel : ${candidate.current_title}` : (roleFamily ?? null))
-    : (roleFamily && roleFamily !== headline ? roleFamily : null)
 
   return (
     <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
@@ -180,30 +168,18 @@ export function AnonymizedCv({
             {brandLogo && (
               // @react-pdf Image doesn't expose alt; jsx-a11y rule is irrelevant here.
               // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={brandLogo} style={{ maxHeight: 22, maxWidth: 80, marginRight: 8, objectFit: "contain" }} />
+              <Image src={brandLogo} style={{ maxHeight: 40, maxWidth: 130, marginRight: 10, objectFit: "contain" }} />
             )}
             <Text style={s.brand}>{brandName.toUpperCase()}</Text>
           </View>
-          <Text style={s.brandTag}>Profil anonymisé · Réf. {reference}</Text>
+          <Text style={s.brandTag}>Réf. {reference}</Text>
         </View>
         <View style={s.rule} />
 
-        {/* Job pitch banner — only when oriented to a specific job */}
-        {job && (
-          <View style={s.pitchBlock}>
-            <Text style={s.pitchLabel}>Profil présenté pour le poste</Text>
-            <Text style={s.pitchTitle}>{job.title}</Text>
-            {(job.seniority || job.location) && (
-              <Text style={s.pitchMeta}>
-                {[job.seniority, job.location].filter(Boolean).join(" · ")}
-              </Text>
-            )}
-          </View>
-        )}
-
-        {/* Headline + subline */}
+        {/* Headline — job title (normalised), used as the dominant heading.
+            No pitch banner anymore: the title speaks for itself, the doc
+            structure already says "this is what we're presenting for". */}
         <Text style={s.headline}>{headline}</Text>
-        {subline && <Text style={s.subline}>{subline}</Text>}
 
         {/* Meta row — keep only what's not already obvious from the pitch */}
         <View style={s.metaRow}>
@@ -241,12 +217,12 @@ export function AnonymizedCv({
           </>
         )}
 
-        {/* Skills — job-relevant ones first, highlighted */}
+        {/* Skills — job-relevant ones still pinned first + highlighted, but
+            the section title stays neutral. The client doesn't need the
+            "alignées au poste" tag; the visual sorting does the talking. */}
         {skills.length > 0 && (
           <>
-            <Text style={s.sectionTitle}>
-              {job ? "Compétences clés (alignées au poste)" : "Compétences clés"}
-            </Text>
+            <Text style={s.sectionTitle}>Compétences clés</Text>
             <View style={s.chipRow}>
               {skills.map((sk, i) => (
                 <Text key={i} style={highlighted.has(norm(sk)) ? s.chipHL : s.chip}>
@@ -257,14 +233,11 @@ export function AnonymizedCv({
           </>
         )}
 
-        {/* Experience — relevant-to-role first */}
+        {/* Experience — relevant-to-role pinned first via the thicker purple
+            border; section title stays neutral. */}
         {experience.length > 0 && (
           <>
-            <Text style={s.sectionTitle}>
-              {job && relevantCount > 0 && relevantCount < experience.length
-                ? "Parcours (expériences les plus pertinentes en premier)"
-                : "Parcours"}
-            </Text>
+            <Text style={s.sectionTitle}>Parcours</Text>
             {experience.map((e, i) => {
               const dates = [e.start, e.end ?? "présent"].filter(Boolean).join(" – ")
               const isRelevant = e.counts_toward_role !== false
@@ -301,9 +274,11 @@ export function AnonymizedCv({
           </>
         )}
 
-        {/* Footer */}
+        {/* Footer — brand on the left, reference on the right. The
+            "identité retirée" mention was dropped: the client doesn't
+            need the reminder, the absence of contact info is obvious. */}
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>Document généré par {brandName} — identité retirée</Text>
+          <Text style={s.footerText}>{brandName}</Text>
           <Text style={s.footerText}>Réf. {reference}</Text>
         </View>
       </Page>
