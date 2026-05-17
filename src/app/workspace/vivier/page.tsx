@@ -488,8 +488,8 @@ export default function VivierPage() {
             </button>
             <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
               {([
-                { key: "flat" as ViewMode,      label: "Vue à plat" },
                 { key: "by-sector" as ViewMode, label: "Par secteur" },
+                { key: "flat" as ViewMode,      label: "Vue à plat" },
               ]).map((m) => (
                 <button
                   key={m.key}
