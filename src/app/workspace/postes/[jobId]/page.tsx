@@ -127,9 +127,15 @@ export default function JobDetailPage() {
   }
 
   const matching = job.match_status === "matching"
+  // Manually assigned matches have score === null. Pinned at the top of
+  // the page so the sourcer never loses track of who they pushed in by hand.
+  const manualRows = rows
+    .filter((r) => r.score == null)
+    .sort((a, b) => (a.candidate?.full_name ?? "").localeCompare(b.candidate?.full_name ?? ""))
+  const scoredRows = rows.filter((r) => r.score != null)
   const grouped = TIER_ORDER.map((tier) => ({
     tier,
-    rows: rows
+    rows: scoredRows
       .filter((r) => (r.match_tier ?? "poor") === tier)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0)),
   }))
@@ -284,8 +290,14 @@ export default function JobDetailPage() {
         <>
           <div style={{ marginBottom: 16, fontSize: 13, color: "#6B7280" }}>
             <strong style={{ color: "#111827" }}>{strongCount}</strong> candidat{strongCount > 1 ? "s" : ""} pertinent{strongCount > 1 ? "s" : ""}
+            {manualRows.length > 0 && <> · <strong style={{ color: "#7C63C8" }}>{manualRows.length}</strong> assigné{manualRows.length > 1 ? "s" : ""} manuellement</>}
             {weakCount > 0 && <> · {weakCount} autre{weakCount > 1 ? "s" : ""} à plus faible affinité</>}
           </div>
+
+          {/* Manually assigned — always first, no score by definition */}
+          {manualRows.length > 0 && (
+            <ManualBlock rows={manualRows} />
+          )}
 
           {strong.map((g) => g.rows.length > 0 && (
             <TierBlock key={g.tier} tier={g.tier} rows={g.rows} />
@@ -562,18 +574,104 @@ function MatchRow({ row, tier, delay }: { row: AssessmentRow; tier: MatchTier; d
         )}
       </div>
 
-      {c && (
-        <Link href={`/workspace/vivier/${c.id}`} style={{
-          flexShrink: 0, alignSelf: "center",
-          fontSize: 12, fontWeight: 600, color: meta.color,
+      <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end", flexShrink: 0, alignSelf: "center" }}>
+        <Link href={`/workspace/match/${row.id}`} style={{
+          fontSize: 12, fontWeight: 700, color: "white",
           padding: "6px 12px", borderRadius: 8,
-          background: "white", border: `1px solid ${meta.bd}`,
+          background: `linear-gradient(120deg, ${meta.color} 0%, ${meta.color} 100%)`,
           textDecoration: "none",
         }}>
-          Fiche →
+          Ouvrir ▶
         </Link>
-      )}
+        {c && (
+          <Link href={`/workspace/vivier/${c.id}`} title="Fiche candidat (identité)" style={{
+            fontSize: 11, color: "#9CA3AF", textDecoration: "none",
+          }}>
+            👤 Fiche
+          </Link>
+        )}
+      </div>
     </m.div>
+  )
+}
+
+/* ─── Manual block ─────────────────────────────────────────────── */
+
+function ManualBlock({ rows }: { rows: AssessmentRow[] }) {
+  return (
+    <section style={{ marginBottom: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <span style={{
+          fontSize: 11, fontWeight: 800, color: "#7C63C8",
+          letterSpacing: "0.04em", textTransform: "uppercase",
+        }}>
+          ✋ Assignés manuellement
+        </span>
+        <span style={{ fontSize: 11, color: "#9CA3AF" }}>· {rows.length}</span>
+        <span style={{ fontSize: 11, color: "#9CA3AF", fontStyle: "italic" }}>
+          — en dehors du matching auto
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {rows.map((r) => {
+          const c = r.candidate
+          const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
+          const init = name.split(/\s+/).slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase() || "?"
+          return (
+            <div key={r.id} style={{
+              background: "rgba(124,99,200,0.07)",
+              border: "1px solid rgba(124,99,200,0.25)",
+              borderRadius: 13, padding: "14px 16px",
+              display: "flex", gap: 14, alignItems: "flex-start",
+            }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                background: "white", border: "1px solid rgba(124,99,200,0.25)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#7C63C8", fontWeight: 800, fontSize: 13,
+              }}>{init}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "#111827" }}>{name}</p>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                    background: "white", border: "1px solid rgba(124,99,200,0.25)",
+                    padding: "1px 8px", borderRadius: 100,
+                  }}>Manuel</span>
+                </div>
+                {c?.current_title && (
+                  <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#6B7280" }}>
+                    {c.current_title}{c.current_company ? ` · ${c.current_company}` : ""}
+                  </p>
+                )}
+                {r.justification && (
+                  <p style={{ margin: "8px 0 0", fontSize: 13, color: "#4B5563", lineHeight: 1.6 }}>
+                    {r.justification}
+                  </p>
+                )}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end", flexShrink: 0, alignSelf: "center" }}>
+                <Link href={`/workspace/match/${r.id}`} style={{
+                  fontSize: 12, fontWeight: 700, color: "white",
+                  padding: "6px 12px", borderRadius: 8,
+                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  textDecoration: "none",
+                }}>
+                  Ouvrir ▶
+                </Link>
+                {c && (
+                  <Link href={`/workspace/vivier/${c.id}`} title="Fiche candidat (identité)" style={{
+                    fontSize: 11, color: "#9CA3AF", textDecoration: "none",
+                  }}>
+                    👤 Fiche
+                  </Link>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 

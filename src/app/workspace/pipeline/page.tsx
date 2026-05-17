@@ -486,11 +486,18 @@ function Card({
               ⏰ à relancer
             </span>
           )}
+          {/* Primary: open the match workspace for this candidate × job */}
+          <Link href={`/workspace/match/${row.id}`} style={{
+            fontSize: 10.5, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
+          }}>
+            Ouvrir ▶
+          </Link>
+          {/* Secondary: discreet shortcut to the bare candidate identity */}
           {c && (
-            <Link href={`/workspace/vivier/${c.id}`} style={{
-              fontSize: 10.5, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
+            <Link href={`/workspace/vivier/${c.id}`} title="Fiche candidat (identité)" style={{
+              fontSize: 12, color: "#9CA3AF", textDecoration: "none",
             }}>
-              Fiche →
+              👤
             </Link>
           )}
         </div>
