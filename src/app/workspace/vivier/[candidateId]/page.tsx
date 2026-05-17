@@ -17,8 +17,6 @@ interface JobMatch {
   match_tier: MatchTier | null
 }
 
-type CvTab = "parsed" | "original"
-
 export default function CandidatePage() {
   const router = useRouter()
   const { candidateId } = useParams<{ candidateId: string }>()
@@ -39,9 +37,6 @@ export default function CandidatePage() {
   // Job matches + active selection — drives compose AND anonymize.
   const [jobMatches, setJobMatches] = useState<JobMatch[]>([])
   const [selectedJobId, setSelectedJobId] = useState<string>("")
-
-  // CV view tabs
-  const [cvTab, setCvTab] = useState<CvTab>("parsed")
 
   const notesRef = useRef(notes)
   useEffect(() => { notesRef.current = notes }, [notes])
@@ -193,7 +188,7 @@ export default function CandidatePage() {
   return (
     <main style={{
       padding: "32px 24px 80px",
-      maxWidth: 1400, margin: "0 auto",
+      maxWidth: 1680, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
       <Link href="/workspace/vivier" style={{
@@ -207,15 +202,10 @@ export default function CandidatePage() {
       <m.div
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(380px, 460px)",
-          gap: 22,
-        }}
         className="cand-grid"
       >
-        {/* ─── LEFT: CV (parsed + original) ─── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        {/* ─── LEFT: parsed CV sections ─── */}
+        <div className="cand-parsed" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {/* Header */}
           <section style={{
             background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
@@ -328,34 +318,12 @@ export default function CandidatePage() {
             )}
           </section>
 
-          {/* CV body — tabs to switch between parsed view and original PDF */}
+          {/* Parsed CV sections */}
           <section style={{
             background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
             overflow: "hidden",
           }}>
-            <div style={{
-              display: "flex", borderBottom: "1px solid #F0ECF8",
-              padding: "0 8px",
-            }}>
-              <TabBtn active={cvTab === "parsed"} onClick={() => setCvTab("parsed")}>
-                CV parsé
-              </TabBtn>
-              <TabBtn active={cvTab === "original"} onClick={() => setCvTab("original")}>
-                CV original {signedUrl ? "" : "(indispo)"}
-              </TabBtn>
-              {cvTab === "original" && signedUrl && (
-                <a href={signedUrl} target="_blank" rel="noreferrer" style={{
-                  marginLeft: "auto", alignSelf: "center",
-                  fontSize: 11.5, fontWeight: 700, color: "#7C63C8",
-                  textDecoration: "none", padding: "0 14px",
-                }}>
-                  Ouvrir le PDF ↗
-                </a>
-              )}
-            </div>
-
-            {cvTab === "parsed" ? (
-              <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 22 }}>
+            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 22 }}>
                 {cv?.summary && (
                   <SubSection title="Résumé">
                     <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.7 }}>{cv.summary}</p>
@@ -438,22 +406,7 @@ export default function CandidatePage() {
                     )}
                   </SubSection>
                 )}
-              </div>
-            ) : (
-              <div style={{ minHeight: 720, background: "#FAFAFA" }}>
-                {signedUrl ? (
-                  <iframe
-                    src={signedUrl}
-                    title={candidate.cv_file_name ?? "CV"}
-                    style={{ width: "100%", height: 720, border: "none", display: "block" }}
-                  />
-                ) : (
-                  <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
-                    {candidate.cv_file_path ? "Préparation de l'aperçu…" : "Aucun fichier PDF."}
-                  </div>
-                )}
-              </div>
-            )}
+            </div>
           </section>
 
           {/* Notes */}
@@ -483,6 +436,44 @@ export default function CandidatePage() {
             />
           </Section>
         </div>
+
+        {/* ─── MIDDLE: original PDF preview (sticky) ─── */}
+        <aside className="cand-pdf" style={{
+          background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
+          overflow: "hidden",
+          position: "sticky", top: 80, alignSelf: "flex-start",
+          display: "flex", flexDirection: "column",
+          height: "calc(100vh - 100px)",
+        }}>
+          <div style={{
+            padding: "10px 14px",
+            borderBottom: "1px solid #F0ECF8",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            fontSize: 11.5, fontWeight: 700, color: "#9CA3AF",
+            letterSpacing: "0.08em", textTransform: "uppercase",
+          }}>
+            <span>CV original</span>
+            {signedUrl && (
+              <a href={signedUrl} target="_blank" rel="noreferrer" style={{
+                fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                textDecoration: "none", textTransform: "none", letterSpacing: 0,
+              }}>
+                Ouvrir ↗
+              </a>
+            )}
+          </div>
+          {signedUrl ? (
+            <iframe
+              src={signedUrl}
+              title={candidate.cv_file_name ?? "CV"}
+              style={{ flex: 1, width: "100%", border: "none" }}
+            />
+          ) : (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
+              {candidate.cv_file_path ? "Préparation de l'aperçu…" : "Aucun fichier PDF."}
+            </div>
+          )}
+        </aside>
 
         {/* ─── RIGHT: workflow ─── */}
         <aside style={{
@@ -536,9 +527,35 @@ export default function CandidatePage() {
       </m.div>
 
       <style>{`
+        .cand-grid {
+          display: grid;
+          gap: 22px;
+          grid-template-columns: minmax(0, 1fr) 380px 420px;
+          grid-template-areas: "parsed pdf side";
+        }
+        .cand-parsed { grid-area: parsed; }
+        .cand-pdf    { grid-area: pdf; }
+        .cand-aside  { grid-area: side; }
+
+        @media (max-width: 1480px) {
+          .cand-grid {
+            grid-template-columns: minmax(0, 1fr) 420px;
+            grid-template-areas:
+              "parsed side"
+              "pdf    pdf";
+          }
+          .cand-pdf { position: static !important; height: 720px !important; }
+        }
         @media (max-width: 1000px) {
-          .cand-grid { grid-template-columns: 1fr !important; }
+          .cand-grid {
+            grid-template-columns: 1fr;
+            grid-template-areas:
+              "parsed"
+              "side"
+              "pdf";
+          }
           .cand-aside { position: static !important; max-height: none !important; overflow: visible !important; }
+          .cand-pdf   { height: 640px !important; }
         }
       `}</style>
     </main>
@@ -1161,27 +1178,6 @@ function SubSection({ title, children }: { title: string; children: React.ReactN
       </h3>
       {children}
     </div>
-  )
-}
-
-function TabBtn({ active, onClick, children }: {
-  active: boolean; onClick: () => void; children: React.ReactNode
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: "transparent",
-        border: "none", borderBottom: active ? "2px solid #7C63C8" : "2px solid transparent",
-        padding: "12px 16px",
-        fontSize: 12.5, fontWeight: 700,
-        color: active ? "#7C63C8" : "#9CA3AF",
-        cursor: "pointer", fontFamily: "inherit",
-        marginBottom: -1,
-      }}
-    >
-      {children}
-    </button>
   )
 }
 
