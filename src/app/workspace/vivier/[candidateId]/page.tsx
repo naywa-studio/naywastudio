@@ -188,7 +188,7 @@ export default function CandidatePage() {
   return (
     <main style={{
       padding: "32px 24px 80px",
-      maxWidth: 1680, margin: "0 auto",
+      maxWidth: 1400, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
       <Link href="/workspace/vivier" style={{
@@ -409,6 +409,33 @@ export default function CandidatePage() {
             </div>
           </section>
 
+          {/* CV original — collapsible, kept low on the page since the parsed
+              view is the working surface; the PDF is just the reference. */}
+          <CollapsibleSection
+            title={signedUrl ? "CV original (PDF)" : "CV original (indisponible)"}
+            defaultOpen={false}
+            right={signedUrl ? (
+              <a href={signedUrl} target="_blank" rel="noreferrer" style={{
+                fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                textDecoration: "none",
+              }} onClick={(e) => e.stopPropagation()}>
+                Ouvrir ↗
+              </a>
+            ) : null}
+          >
+            {signedUrl ? (
+              <iframe
+                src={signedUrl}
+                title={candidate.cv_file_name ?? "CV"}
+                style={{ width: "100%", height: 720, border: "1px solid #F0ECF8", borderRadius: 10, display: "block" }}
+              />
+            ) : (
+              <p style={{ margin: 0, fontSize: 13, color: "#9CA3AF" }}>
+                {candidate.cv_file_path ? "Préparation de l'aperçu…" : "Aucun fichier PDF."}
+              </p>
+            )}
+          </CollapsibleSection>
+
           {/* Notes */}
           <Section
             title="Notes"
@@ -436,44 +463,6 @@ export default function CandidatePage() {
             />
           </Section>
         </div>
-
-        {/* ─── MIDDLE: original PDF preview (sticky) ─── */}
-        <aside className="cand-pdf" style={{
-          background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
-          overflow: "hidden",
-          position: "sticky", top: 80, alignSelf: "flex-start",
-          display: "flex", flexDirection: "column",
-          height: "calc(100vh - 100px)",
-        }}>
-          <div style={{
-            padding: "10px 14px",
-            borderBottom: "1px solid #F0ECF8",
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            fontSize: 11.5, fontWeight: 700, color: "#9CA3AF",
-            letterSpacing: "0.08em", textTransform: "uppercase",
-          }}>
-            <span>CV original</span>
-            {signedUrl && (
-              <a href={signedUrl} target="_blank" rel="noreferrer" style={{
-                fontSize: 11, fontWeight: 700, color: "#7C63C8",
-                textDecoration: "none", textTransform: "none", letterSpacing: 0,
-              }}>
-                Ouvrir ↗
-              </a>
-            )}
-          </div>
-          {signedUrl ? (
-            <iframe
-              src={signedUrl}
-              title={candidate.cv_file_name ?? "CV"}
-              style={{ flex: 1, width: "100%", border: "none" }}
-            />
-          ) : (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
-              {candidate.cv_file_path ? "Préparation de l'aperçu…" : "Aucun fichier PDF."}
-            </div>
-          )}
-        </aside>
 
         {/* ─── RIGHT: workflow ─── */}
         <aside style={{
@@ -530,32 +519,11 @@ export default function CandidatePage() {
         .cand-grid {
           display: grid;
           gap: 22px;
-          grid-template-columns: minmax(0, 1fr) 380px 420px;
-          grid-template-areas: "parsed pdf side";
-        }
-        .cand-parsed { grid-area: parsed; }
-        .cand-pdf    { grid-area: pdf; }
-        .cand-aside  { grid-area: side; }
-
-        @media (max-width: 1480px) {
-          .cand-grid {
-            grid-template-columns: minmax(0, 1fr) 420px;
-            grid-template-areas:
-              "parsed side"
-              "pdf    pdf";
-          }
-          .cand-pdf { position: static !important; height: 720px !important; }
+          grid-template-columns: minmax(0, 1fr) minmax(380px, 460px);
         }
         @media (max-width: 1000px) {
-          .cand-grid {
-            grid-template-columns: 1fr;
-            grid-template-areas:
-              "parsed"
-              "side"
-              "pdf";
-          }
+          .cand-grid { grid-template-columns: 1fr !important; }
           .cand-aside { position: static !important; max-height: none !important; overflow: visible !important; }
-          .cand-pdf   { height: 640px !important; }
         }
       `}</style>
     </main>
@@ -1123,8 +1091,8 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
   )
 }
 
-function CollapsibleSection({ title, defaultOpen = true, children }: {
-  title: string; defaultOpen?: boolean; children: React.ReactNode
+function CollapsibleSection({ title, defaultOpen = true, right, children }: {
+  title: string; defaultOpen?: boolean; right?: React.ReactNode; children: React.ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
@@ -1136,6 +1104,7 @@ function CollapsibleSection({ title, defaultOpen = true, children }: {
         onClick={() => setOpen((v) => !v)}
         style={{
           width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 12,
           padding: "14px 20px", background: "transparent", border: "none",
           cursor: "pointer", fontFamily: "inherit",
         }}
@@ -1146,8 +1115,11 @@ function CollapsibleSection({ title, defaultOpen = true, children }: {
         }}>
           {title}
         </span>
-        <span style={{ fontSize: 14, color: "#7C63C8", transform: open ? "rotate(90deg)" : "none", transition: "transform 160ms" }}>
-          ›
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
+          {right}
+          <span style={{ fontSize: 14, color: "#7C63C8", transform: open ? "rotate(90deg)" : "none", transition: "transform 160ms" }}>
+            ›
+          </span>
         </span>
       </button>
       <AnimatePresence initial={false}>
