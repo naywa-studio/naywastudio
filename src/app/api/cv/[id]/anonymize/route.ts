@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { renderToBuffer } from "@react-pdf/renderer"
-import { AnonymizedCv } from "@/lib/anonymized-cv"
+import { AnonymizedCv, type AnonymizedJobContext } from "@/lib/anonymized-cv"
 import type { Candidate } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -25,11 +25,14 @@ function refFor(id: string): string {
   return id.replace(/-/g, "").slice(0, 8).toUpperCase()
 }
 
-export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+
+  const body = await req.json().catch(() => null) as { job_id?: unknown } | null
+  const jobId = typeof body?.job_id === "string" ? body.job_id : null
 
   const { data: candidate, error } = await sb.from("candidates").select("*").eq("id", id).single()
   if (error || !candidate) return NextResponse.json({ error: "not_found" }, { status: 404 })
@@ -40,12 +43,36 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     )
   }
 
+  // Pull the job to orient the PDF — title, must-have skills, briefing.
+  // Optional: a job-less anonymisation falls back to the generic template.
+  let jobContext: AnonymizedJobContext | null = null
+  if (jobId) {
+    const { data: job } = await sb
+      .from("jobs")
+      .select("id, title, location, seniority, required_skills, nice_to_have_skills, normalized, briefing")
+      .eq("id", jobId)
+      .single()
+    if (job) {
+      jobContext = {
+        title: job.title,
+        seniority: job.seniority,
+        location: job.location,
+        required_skills: job.required_skills ?? [],
+        nice_to_have_skills: job.nice_to_have_skills ?? [],
+        must_have_skills: job.normalized?.must_have_skills ?? [],
+        role_family: job.normalized?.role_family?.[0] ?? null,
+      }
+    }
+  }
+
   const reference = refFor(candidate.id)
 
   let buffer: Buffer
   try {
     buffer = Buffer.from(
-      await renderToBuffer(AnonymizedCv({ candidate: candidate as Candidate, reference })),
+      await renderToBuffer(
+        AnonymizedCv({ candidate: candidate as Candidate, reference, job: jobContext }),
+      ),
     )
   } catch (err) {
     return NextResponse.json(

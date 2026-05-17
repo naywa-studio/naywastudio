@@ -6,6 +6,7 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { MatchAssessment, PipelineStage } from "@/lib/database.types"
 import InterviewAgenda from "@/components/workspace/InterviewAgenda"
+import Select from "@/components/ui/Select"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -192,18 +193,15 @@ export default function PipelinePage() {
               <label style={{ fontSize: 11.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                 Poste
               </label>
-              <select
+              <Select
                 value={jobFilter}
-                onChange={(e) => setJobFilter(e.target.value)}
-                style={{
-                  fontSize: 13, color: "#111827", padding: "7px 10px",
-                  background: "white", border: "1px solid #E5E7EB", borderRadius: 9,
-                  outline: "none", fontFamily: "inherit", minWidth: 180,
-                }}
-              >
-                <option value="">Tous les postes ({allJobs.length})</option>
-                {allJobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
-              </select>
+                onChange={setJobFilter}
+                options={[
+                  { value: "", label: `Tous les postes (${allJobs.length})` },
+                  ...allJobs.map((j) => ({ value: j.id, label: j.title })),
+                ]}
+                style={{ minWidth: 220 }}
+              />
             </div>
             <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
               {([
