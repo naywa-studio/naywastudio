@@ -297,8 +297,8 @@ h2.subtitle { font-size: 14px; color: var(--muted); margin: 8px 0 0; font-weight
   <strong>PREVIEW · maquette</strong> · La nav du workspace au-dessus est cosmétique, les pages ci-dessous sont des mockups statiques pour visualiser le résultat final.
   <div class="switcher">
     <button data-page="candidat" class="active">1. Fiche candidat (allégée)</button>
-    <button data-page="match">2. Fiche match (NOUVELLE)</button>
-    <button data-page="poste">3. Fiche poste</button>
+    <button data-page="poste">2. Fiche poste</button>
+    <button data-page="match">3. Fiche match (NOUVELLE · ouverte depuis Postes ou Pipeline)</button>
     <button data-page="pipeline">4. Pipeline</button>
   </div>
 </div>
@@ -478,8 +478,59 @@ h2.subtitle { font-size: 14px; color: var(--muted); margin: 8px 0 0; font-weight
       </div>
       <div class="right">
         <span class="score-badge">87 · Bon match</span>
-        <span class="stage-pill">Stage : Contacté</span>
         <a class="btn btn-outline" style="text-decoration:none;">→ Fiche candidat</a>
+      </div>
+    </div>
+
+    <!-- Mini pipeline stepper — current match progression -->
+    <div class="card" style="margin-bottom: 18px; padding: 14px 18px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+        <h3 class="section-title" style="margin:0;">Progression pour ce poste</h3>
+        <span style="font-size: 11px; color: var(--muted); font-style: italic;">Cliquez une étape pour avancer / reculer</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:0; flex-wrap:wrap;">
+
+        <!-- Step 1 done -->
+        <div style="display:flex; align-items:center; gap:6px;">
+          <div style="width:24px; height:24px; border-radius:50%; background:var(--green); color:white; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;">✓</div>
+          <span style="font-size: 12.5px; font-weight: 700; color: var(--green);">Identifié</span>
+        </div>
+        <div style="flex:1; height:2px; background: var(--green); min-width:30px; margin: 0 8px;"></div>
+
+        <!-- Step 2 current -->
+        <div style="display:flex; align-items:center; gap:6px;">
+          <div style="width:26px; height:26px; border-radius:50%; background:white; border:2px solid var(--purple); color:var(--purple); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;">●</div>
+          <span style="font-size: 12.5px; font-weight: 800; color: var(--purple);">Contacté</span>
+        </div>
+        <div style="flex:1; height:2px; background: linear-gradient(to right, var(--purple), #E5E7EB); min-width:30px; margin: 0 8px;"></div>
+
+        <!-- Steps 3+ pending -->
+        <div style="display:flex; align-items:center; gap:6px; opacity: 0.5;">
+          <div style="width:24px; height:24px; border-radius:50%; background:white; border:1.5px solid #D1D5DB; color:#9CA3AF; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;">3</div>
+          <span style="font-size: 12.5px; font-weight: 600; color: var(--muted);">Réponse</span>
+        </div>
+        <div style="flex:1; height:2px; background: #E5E7EB; min-width:20px; margin: 0 8px;"></div>
+
+        <div style="display:flex; align-items:center; gap:6px; opacity: 0.5;">
+          <div style="width:24px; height:24px; border-radius:50%; background:white; border:1.5px solid #D1D5DB; color:#9CA3AF; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;">4</div>
+          <span style="font-size: 12.5px; font-weight: 600; color: var(--muted);">Entretien</span>
+        </div>
+        <div style="flex:1; height:2px; background: #E5E7EB; min-width:20px; margin: 0 8px;"></div>
+
+        <div style="display:flex; align-items:center; gap:6px; opacity: 0.5;">
+          <div style="width:24px; height:24px; border-radius:50%; background:white; border:1.5px solid #D1D5DB; color:#9CA3AF; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;">5</div>
+          <span style="font-size: 12.5px; font-weight: 600; color: var(--muted);">Offre</span>
+        </div>
+        <div style="flex:1; height:2px; background: #E5E7EB; min-width:20px; margin: 0 8px;"></div>
+
+        <div style="display:flex; align-items:center; gap:6px; opacity: 0.5;">
+          <div style="width:24px; height:24px; border-radius:50%; background:white; border:1.5px solid #D1D5DB; color:#9CA3AF; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;">6</div>
+          <span style="font-size: 12.5px; font-weight: 600; color: var(--muted);">Recruté</span>
+        </div>
+
+      </div>
+      <div style="margin-top: 10px; font-size: 11.5px; color: var(--muted);">
+        Contacté il y a 2 jours · Dernière relance suggérée dans 3 jours
       </div>
     </div>
 
@@ -581,26 +632,7 @@ h2.subtitle { font-size: 14px; color: var(--muted); margin: 8px 0 0; font-weight
           </div>
         </div>
 
-        <!-- Pricing (futur) -->
-        <div class="card" style="border-style: dashed; opacity: 0.85;">
-          <h3 class="section-title">💰 Pricing <span style="color: var(--purple); font-style: italic; font-weight: 600; text-transform: none; letter-spacing: 0;">— à venir</span></h3>
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12.5px;">
-            <div>
-              <div style="font-size: 10px; color: var(--muted-light); letter-spacing: 0.06em; text-transform: uppercase;">Coût candidat / jour</div>
-              <div class="input-fake" style="padding: 6px 10px;">450 €</div>
-            </div>
-            <div>
-              <div style="font-size: 10px; color: var(--muted-light); letter-spacing: 0.06em; text-transform: uppercase;">Marge cabinet</div>
-              <div class="input-fake" style="padding: 6px 10px;">35 %</div>
-            </div>
-          </div>
-          <div style="margin-top: 12px; padding: 12px; background: var(--green-bg); border: 1px solid var(--green-bd); border-radius: 8px; font-size: 12.5px;">
-            <strong style="color: var(--green);">TJM client suggéré : 695 €</strong>
-            · marge nette 245 € / jour · sur 120 j = 29 400 €
-          </div>
-        </div>
-
-        <!-- Conversation (placeholder caché) -->
+        <!-- Conversation placeholder (réactivé plus tard) -->
         <div class="card" style="border-style: dashed; opacity: 0.5;">
           <h3 class="section-title">💬 Conversation</h3>
           <p style="margin:0; font-size: 12.5px; color: var(--muted);">
