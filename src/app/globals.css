@@ -57,6 +57,39 @@ body {
 /* ── Selection ── */
 ::selection { background: #DDD8F5; color: #7C63C8; }
 
+/* ── Native form controls — unified styling across the app.
+   Inline `style={{}}` on individual inputs already handles colors/padding;
+   this overrides the chevron, the native widget look, and forces the
+   same focus ring everywhere. ── */
+select, input[type="text"], input[type="search"], input[type="email"],
+input[type="tel"], input[type="url"], input[type="password"],
+input[type="number"], input[type="date"], input[type="time"],
+input[type="datetime-local"], textarea {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  color: #111827;
+}
+select {
+  /* Custom chevron — purple, simple, matches the design system. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1.5L6 6.5L11 1.5' stroke='%237C63C8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 11px 7px;
+  padding-right: 32px !important;
+  cursor: pointer;
+}
+select::-ms-expand { display: none; }
+select:focus, input:focus, textarea:focus {
+  border-color: #C4B6E0 !important;
+  box-shadow: 0 0 0 3px rgba(124, 99, 200, 0.10) !important;
+}
+/* The native option list can't be fully restyled cross-browser, but we
+   can at least tone down the highlight color on browsers that respect it. */
+option { color: #111827; background: white; padding: 8px; }
+option:checked { background: rgba(124, 99, 200, 0.10); color: #7C63C8; }
+
 /* ── Hero background blob animations ── */
 @keyframes heroBlob1 {
   0%,  100% { transform: translate(0, 0)    scale(1);    }
