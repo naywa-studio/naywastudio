@@ -23,7 +23,7 @@ import type { ParsedCv, CandidateTaxonomy } from "@/lib/database.types"
 export const runtime = "nodejs"
 export const maxDuration = 60 // pdf-parse + LLM round-trip
 
-export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
 
   const sb = await createSupabaseServerClient()
@@ -166,6 +166,19 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   if (updateErr) {
     return NextResponse.json({ error: "db_update_failed", detail: updateErr.message }, { status: 500 })
   }
+
+  // Auto-matching against open jobs — fire-and-forget, don't block the
+  // parse response. The vivier UI picks up the new match_assessment rows
+  // via the pipeline's realtime subscription.
+  try {
+    const origin = new URL(req.url).origin
+    const cookieHeader = req.headers.get("cookie") ?? ""
+    void fetch(`${origin}/api/candidates/${candidate.id}/match-all`, {
+      method: "POST",
+      headers: { cookie: cookieHeader },
+      keepalive: true,
+    }).catch(() => { /* fire and forget */ })
+  } catch { /* ignore */ }
 
   return NextResponse.json({ ok: true, candidate: updated, has_doublon: hasDoublon })
 }

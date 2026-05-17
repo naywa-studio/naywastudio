@@ -47,12 +47,25 @@ function needsRelance(row: Row): boolean {
   return daysSince(row.updated_at) >= threshold
 }
 
+type GroupMode = "by-job" | "flat"
+
 export default function PipelinePage() {
   const sb = useMemo(() => getSupabase(), [])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overStage, setOverStage] = useState<PipelineStage | null>(null)
+  const [groupMode, setGroupMode] = useState<GroupMode>("by-job")
+  const [jobFilter, setJobFilter] = useState<string>("")
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+
+  const toggleCollapsed = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
+  }
 
   const load = useCallback(async () => {
     const { data } = await sb
@@ -96,17 +109,33 @@ export default function PipelinePage() {
     if (!res.ok) load() // revert via re-fetch on failure
   }
 
+  // Unique jobs across all rows — used by the filter selector.
+  const allJobs = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const r of rows) {
+      if (r.job && !seen.has(r.job.id)) seen.set(r.job.id, r.job.title)
+    }
+    return Array.from(seen, ([id, title]) => ({ id, title }))
+      .sort((a, b) => a.title.localeCompare(b.title))
+  }, [rows])
+
+  // Filter by job (if user selected one), then bucket by stage.
+  const filteredRows = useMemo(
+    () => jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows,
+    [rows, jobFilter],
+  )
+
   const byStage = useMemo(() => {
     const map = new Map<PipelineStage, Row[]>()
     for (const s of STAGES) map.set(s.key, [])
-    for (const r of rows) {
+    for (const r of filteredRows) {
       const arr = map.get(r.pipeline_stage)
       if (arr) arr.push(r)
     }
     return map
-  }, [rows])
+  }, [filteredRows])
 
-  const relanceCount = useMemo(() => rows.filter(needsRelance).length, [rows])
+  const relanceCount = useMemo(() => filteredRows.filter(needsRelance).length, [filteredRows])
 
   if (loading) {
     return <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF" }}>Chargement…</div>
@@ -138,6 +167,50 @@ export default function PipelinePage() {
               : "Glissez une carte d'une colonne à l'autre pour faire avancer un candidat."}
           </p>
         </div>
+
+        {/* Controls: filter + grouping toggle */}
+        {rows.length > 0 && allJobs.length > 0 && (
+          <div style={{
+            marginTop: 18, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ fontSize: 11.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                Poste
+              </label>
+              <select
+                value={jobFilter}
+                onChange={(e) => setJobFilter(e.target.value)}
+                style={{
+                  fontSize: 13, color: "#111827", padding: "7px 10px",
+                  background: "white", border: "1px solid #E5E7EB", borderRadius: 9,
+                  outline: "none", fontFamily: "inherit", minWidth: 180,
+                }}
+              >
+                <option value="">Tous les postes ({allJobs.length})</option>
+                {allJobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
+              {([
+                { key: "by-job" as GroupMode, label: "Groupé par poste" },
+                { key: "flat"   as GroupMode, label: "Vue à plat" },
+              ]).map((m) => (
+                <button
+                  key={m.key}
+                  onClick={() => setGroupMode(m.key)}
+                  style={{
+                    fontSize: 12, fontWeight: 600, padding: "7px 12px",
+                    border: "none", cursor: "pointer", fontFamily: "inherit",
+                    background: groupMode === m.key ? "#7C63C8" : "white",
+                    color: groupMode === m.key ? "white" : "#6B7280",
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {relanceCount > 0 && (
           <m.div
@@ -205,15 +278,67 @@ export default function PipelinePage() {
                     </span>
                   </div>
 
-                  {cards.map((row) => (
-                    <Card
-                      key={row.id}
-                      row={row}
-                      dragging={dragId === row.id}
-                      onDragStart={() => setDragId(row.id)}
-                      onDragEnd={() => { setDragId(null); setOverStage(null) }}
-                    />
-                  ))}
+                  {groupMode === "by-job" ? (
+                    groupByJob(cards).map(({ jobId, jobTitle, jobCards }) => {
+                      const key = `${stage.key}:${jobId}`
+                      const open = !collapsed.has(key)
+                      return (
+                        <div key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <button
+                            onClick={() => toggleCollapsed(key)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 6,
+                              background: "transparent", border: "none",
+                              padding: "4px 6px", cursor: "pointer", fontFamily: "inherit",
+                              textAlign: "left",
+                            }}
+                          >
+                            <span style={{
+                              fontSize: 10, color: "#7C63C8",
+                              transform: open ? "rotate(90deg)" : "none",
+                              transition: "transform 140ms",
+                              display: "inline-block", width: 8,
+                            }}>
+                              ›
+                            </span>
+                            <span style={{
+                              fontSize: 10.5, fontWeight: 700, color: "#4B5563",
+                              flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            }}>
+                              {jobTitle}
+                            </span>
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+                              background: "white", border: "1px solid #F0ECF8",
+                              borderRadius: 100, padding: "0 6px",
+                            }}>
+                              {jobCards.length}
+                            </span>
+                          </button>
+                          {open && jobCards.map((row) => (
+                            <Card
+                              key={row.id}
+                              row={row}
+                              dragging={dragId === row.id}
+                              onDragStart={() => setDragId(row.id)}
+                              onDragEnd={() => { setDragId(null); setOverStage(null) }}
+                              hideJobBadge
+                            />
+                          ))}
+                        </div>
+                      )
+                    })
+                  ) : (
+                    cards.map((row) => (
+                      <Card
+                        key={row.id}
+                        row={row}
+                        dragging={dragId === row.id}
+                        onDragStart={() => setDragId(row.id)}
+                        onDragEnd={() => { setDragId(null); setOverStage(null) }}
+                      />
+                    ))
+                  )}
 
                   {cards.length === 0 && (
                     <div style={{
@@ -235,15 +360,32 @@ export default function PipelinePage() {
   )
 }
 
+/* ─── Grouping helpers ──────────────────────────────────────────── */
+
+function groupByJob(rows: Row[]): { jobId: string; jobTitle: string; jobCards: Row[] }[] {
+  const map = new Map<string, { jobTitle: string; jobCards: Row[] }>()
+  for (const r of rows) {
+    const id = r.job?.id ?? "_none"
+    const title = r.job?.title ?? "Sans poste"
+    const entry = map.get(id)
+    if (entry) entry.jobCards.push(r)
+    else map.set(id, { jobTitle: title, jobCards: [r] })
+  }
+  // Stable order: most cards first, then alphabetical.
+  return Array.from(map, ([jobId, v]) => ({ jobId, jobTitle: v.jobTitle, jobCards: v.jobCards }))
+    .sort((a, b) => b.jobCards.length - a.jobCards.length || a.jobTitle.localeCompare(b.jobTitle))
+}
+
 /* ─── Card ─────────────────────────────────────────────────────── */
 
 function Card({
-  row, dragging, onDragStart, onDragEnd,
+  row, dragging, onDragStart, onDragEnd, hideJobBadge = false,
 }: {
   row: Row
   dragging: boolean
   onDragStart: () => void
   onDragEnd: () => void
+  hideJobBadge?: boolean
 }) {
   const c = row.candidate
   const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
@@ -303,7 +445,7 @@ function Card({
         </p>
       )}
 
-      {row.job && (
+      {row.job && !hideJobBadge && (
         <span style={{
           alignSelf: "flex-start",
           fontSize: 10.5, color: "#6B7280",
