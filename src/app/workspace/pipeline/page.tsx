@@ -5,7 +5,6 @@ import Link from "next/link"
 import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { MatchAssessment, PipelineStage } from "@/lib/database.types"
-import InterviewAgenda from "@/components/workspace/InterviewAgenda"
 import Select from "@/components/ui/Select"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -383,7 +382,6 @@ export default function PipelinePage() {
           </div>
         )}
 
-        <InterviewAgenda />
       </div>
     </main>
   )
@@ -420,16 +418,6 @@ function Card({
   const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
   const relance = needsRelance(row)
   const scoreColor = (row.score ?? 0) >= 80 ? "#15803d" : (row.score ?? 0) >= 60 ? "#7C63C8" : "#B45309"
-  const [copied, setCopied] = useState(false)
-
-  const copyBookingLink = async () => {
-    const url = `${window.location.origin}/book/${row.booking_token}`
-    try {
-      await navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch { /* clipboard unavailable */ }
-  }
 
   return (
     <div
@@ -508,21 +496,6 @@ function Card({
         </div>
       </div>
 
-      <button
-        onClick={copyBookingLink}
-        title="Copier le lien de réservation à envoyer au candidat"
-        style={{
-          marginTop: 2, width: "100%",
-          background: copied ? "rgba(34,197,94,0.10)" : "#F8F6FF",
-          border: `1px solid ${copied ? "rgba(34,197,94,0.3)" : "#F0ECF8"}`,
-          borderRadius: 8, padding: "5px 8px",
-          fontSize: 10.5, fontWeight: 700, fontFamily: "inherit",
-          color: copied ? "#15803d" : "#7C63C8",
-          cursor: "pointer",
-        }}
-      >
-        {copied ? "✓ Lien copié" : "🔗 Lien de réservation"}
-      </button>
     </div>
   )
 }

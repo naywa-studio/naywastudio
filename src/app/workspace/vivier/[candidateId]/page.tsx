@@ -537,14 +537,11 @@ export default function CandidatePage() {
             </Section>
           )}
 
-          {/* 3. Conversation (collapsible) */}
-          {candidate.parse_status === "parsed" && (
-            <CollapsibleSection title="Conversation" defaultOpen={false}>
-              <MessagerieThread candidateId={candidate.id} />
-            </CollapsibleSection>
-          )}
+          {/* Conversation hidden — l'inbound email et l'envoi sortant
+              sont mis de côté en attendant la refonte mailing multi-domaine.
+              Le composant MessagerieThread reste en place pour réactivation. */}
 
-          {/* 4. Anonymisation orientée poste */}
+          {/* Anonymisation orientée poste */}
           {candidate.parse_status === "parsed" && (
             <AnonymizeForJob
               jobTitle={selectedJob?.job_title ?? null}
@@ -739,7 +736,6 @@ function ComposeBox({
   const [composing, setComposing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [sendState, setSendState] = useState<"idle" | "sending" | "sent">("idle")
 
   // Track the last AI-generated body verbatim. If the textarea content
   // differs, the sourcer has hand-edited it → Nora can review.
@@ -749,7 +745,6 @@ function ComposeBox({
   const [critique, setCritique] = useState<{ verdict: "ok" | "warn"; flags: { level: "info" | "warn"; text: string }[] } | null>(null)
 
   const hasDraft = bodyText.trim().length > 0
-  const canSend = channel === "email" && hasDraft && !!candidate.email
   const edited = hasDraft && (bodyText.trim() !== aiBody.trim() || subject.trim() !== aiSubject.trim())
 
   const generate = async () => {
@@ -813,29 +808,6 @@ function ComposeBox({
     } catch { /* clipboard blocked */ }
   }
 
-  const send = async () => {
-    if (!canSend || sendState === "sending") return
-    if (!confirm(`Envoyer cet email à ${candidate.full_name ?? candidate.email} ?`)) return
-    setSendState("sending"); setError(null)
-    try {
-      const res = await fetch(`/api/cv/${candidate.id}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, body: bodyText, job_id: selectedJobId || null }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok || !data.ok) {
-        setError(data?.message ?? data?.error ?? "L'envoi a échoué.")
-        setSendState("idle")
-        return
-      }
-      setSendState("sent")
-      setTimeout(() => setSendState("idle"), 2500)
-    } catch (err) {
-      setError((err as Error).message ?? "Erreur réseau.")
-      setSendState("idle")
-    }
-  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1013,34 +985,10 @@ function ComposeBox({
               {copied ? "✓ Copié" : "Copier"}
             </button>
 
-            {channel === "email" && (
-              <button
-                onClick={send}
-                disabled={!canSend || sendState !== "idle"}
-                title={!candidate.email ? "Ce candidat n'a pas d'adresse email" : undefined}
-                style={{
-                  padding: "7px 14px", borderRadius: 9, border: "none",
-                  background: sendState === "sent" ? "rgba(34,197,94,0.12)"
-                    : !canSend || sendState === "sending" ? "#C4B6E0"
-                    : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                  color: sendState === "sent" ? "#15803d" : "white",
-                  fontSize: 12, fontWeight: 700,
-                  cursor: canSend && sendState === "idle" ? "pointer" : "default",
-                  fontFamily: "inherit",
-                }}
-              >
-                {sendState === "sending" ? "Envoi…"
-                  : sendState === "sent" ? "✓ Envoyé"
-                  : "Envoyer via Naywa"}
-              </button>
-            )}
           </div>
           <span style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
-            {channel === "linkedin"
-              ? "Copiez le message dans LinkedIn — Nora n'envoie pas sur LinkedIn."
-              : !candidate.email
-                ? "Pas d'email pour ce candidat — copiez le message."
-                : "Relisez avant d'envoyer. L'envoi part de votre adresse Naywa."}
+            Copiez le message et envoyez-le depuis votre outil habituel
+            (Gmail, LinkedIn, etc.).
           </span>
         </div>
       )}
@@ -1062,6 +1010,9 @@ const SENTIMENT_LABELS: Record<string, { label: string; color: string }> = {
   neutral:        { label: "Neutre",      color: "#6B7280" },
 }
 
+// Kept in place for the upcoming mail rework — currently unmounted from the
+// fiche so the conversation surface is hidden along with send/inbound.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function MessagerieThread({ candidateId }: { candidateId: string }) {
   const sb = useMemo(() => getSupabase(), [])
   const [messages, setMessages] = useState<EmailMessage[]>([])

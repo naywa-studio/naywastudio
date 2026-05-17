@@ -135,6 +135,8 @@ export type Database = {
           apify_reset_at: string
           inbox_address: string | null
           inbox_cc_self: boolean
+          brand_name: string | null
+          brand_logo_path: string | null
           calendly_access_token: string | null
           calendly_refresh_token: string | null
           calendly_token_expires_at: string | null

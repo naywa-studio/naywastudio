@@ -19,7 +19,7 @@
  * are isolated in BRAND_NAME below — swap when ready.
  */
 
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
+import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 import type { ParsedCv, ParsedExperience, Candidate } from "./database.types"
 
 const PURPLE = "#7C63C8"
@@ -29,7 +29,7 @@ const MUTED = "#6B7280"
 const LINE = "#E5E1F2"
 const SOFT_HL = "#EEE9FB"
 
-const BRAND_NAME = "NAYWA STUDIO" // TODO: per-client brand once profiles.brand_name is wired.
+const DEFAULT_BRAND = "NAYWA STUDIO"
 
 const s = StyleSheet.create({
   page: { paddingTop: 44, paddingBottom: 56, paddingHorizontal: 52, fontSize: 10, color: INK, fontFamily: "Helvetica" },
@@ -84,6 +84,13 @@ export interface AnonymizedJobContext {
   role_family: string | null
 }
 
+export interface AnonymizedBrand {
+  /** Cabinet / client name. Falls back to "NAYWA STUDIO" when null. */
+  name: string | null
+  /** Signed URL to the brand logo PNG/JPG. Optional — text-only fallback works. */
+  logoUrl: string | null
+}
+
 const norm = (s: string) => s.toLowerCase().trim()
 
 /** Order skills by job relevance: must-have first, then required, then
@@ -133,11 +140,15 @@ export function AnonymizedCv({
   candidate,
   reference,
   job = null,
+  brand = null,
 }: {
   candidate: Candidate
   reference: string
   job?: AnonymizedJobContext | null
+  brand?: AnonymizedBrand | null
 }) {
+  const brandName = (brand?.name ?? "").trim() || DEFAULT_BRAND
+  const brandLogo = brand?.logoUrl ?? null
   const cv: ParsedCv = candidate.parsed_cv ?? {}
   const roleFamily = candidate.taxonomy?.role_family?.[0] ?? null
   const seniority = candidate.seniority_level ?? cv.seniority_level ?? null
@@ -160,11 +171,19 @@ export function AnonymizedCv({
     : (roleFamily && roleFamily !== headline ? roleFamily : null)
 
   return (
-    <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author="Naywa Studio">
+    <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
       <Page size="A4" style={s.page}>
-        {/* Brand header */}
+        {/* Brand header — logo (if set) + cabinet name on the left,
+            reference + "anonymised profile" tag on the right. */}
         <View style={s.brandRow}>
-          <Text style={s.brand}>{BRAND_NAME}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {brandLogo && (
+              // @react-pdf Image doesn't expose alt; jsx-a11y rule is irrelevant here.
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image src={brandLogo} style={{ maxHeight: 22, maxWidth: 80, marginRight: 8, objectFit: "contain" }} />
+            )}
+            <Text style={s.brand}>{brandName.toUpperCase()}</Text>
+          </View>
           <Text style={s.brandTag}>Profil anonymisé · Réf. {reference}</Text>
         </View>
         <View style={s.rule} />
@@ -284,7 +303,7 @@ export function AnonymizedCv({
 
         {/* Footer */}
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>Document généré par {BRAND_NAME} — identité retirée</Text>
+          <Text style={s.footerText}>Document généré par {brandName} — identité retirée</Text>
           <Text style={s.footerText}>Réf. {reference}</Text>
         </View>
       </Page>

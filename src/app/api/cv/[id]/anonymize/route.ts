@@ -43,6 +43,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     )
   }
 
+  // Per-client brand — name + signed logo URL (1h) so the PDF carries
+  // the cabinet's identity instead of Naywa's by default.
+  const { data: profile } = await sb
+    .from("profiles").select("brand_name, brand_logo_path").eq("user_id", user.id).maybeSingle()
+
+  let brandLogoUrl: string | null = null
+  if (profile?.brand_logo_path) {
+    const adminTmp = getAdminSupabase()
+    const { data: signed } = await adminTmp.storage
+      .from("brand-logos")
+      .createSignedUrl(profile.brand_logo_path, 60 * 60)
+    brandLogoUrl = signed?.signedUrl ?? null
+  }
+  const brand = {
+    name: profile?.brand_name?.trim() || null,
+    logoUrl: brandLogoUrl,
+  }
+
   // Pull the job to orient the PDF — title, must-have skills, briefing.
   // Optional: a job-less anonymisation falls back to the generic template.
   let jobContext: AnonymizedJobContext | null = null
@@ -71,7 +89,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     buffer = Buffer.from(
       await renderToBuffer(
-        AnonymizedCv({ candidate: candidate as Candidate, reference, job: jobContext }),
+        AnonymizedCv({ candidate: candidate as Candidate, reference, job: jobContext, brand }),
       ),
     )
   } catch (err) {
