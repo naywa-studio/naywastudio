@@ -6,6 +6,8 @@ import Link from "next/link"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import { CANDIDATE_COLUMNS, type Candidate, type ParsedCv, type EmailMessage, type MatchTier } from "@/lib/database.types"
+import { customTagsOf, SYSTEM_TAGS } from "@/lib/tags"
+import TagPicker from "@/components/workspace/TagPicker"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -37,6 +39,11 @@ export default function CandidatePage() {
   // Job matches + active selection — drives compose AND anonymize.
   const [jobMatches, setJobMatches] = useState<JobMatch[]>([])
   const [selectedJobId, setSelectedJobId] = useState<string>("")
+
+  // Custom tags — suggestions pulled from the rest of the vivier so the
+  // sourcer reuses vocabulary instead of inventing dialects.
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
+  const [tagsSaving, setTagsSaving] = useState(false)
 
   const notesRef = useRef(notes)
   useEffect(() => { notesRef.current = notes }, [notes])
@@ -75,6 +82,20 @@ export default function CandidatePage() {
           if (r.ok) { const j = await r.json(); if (mounted && j.url) { setAnonUrl(j.url); setAnonState("ready") } }
         })())
       }
+      tasks.push((async () => {
+        // Custom-tag vocabulary — fetched once, refreshed only on reload.
+        const { data: allTags } = await sb
+          .from("candidates").select("tags").not("tags", "is", null).limit(400)
+        if (!mounted || !allTags) return
+        const seen = new Set<string>()
+        for (const row of allTags) {
+          for (const t of (row.tags ?? [])) {
+            if (typeof t === "string" && !SYSTEM_TAGS.has(t)) seen.add(t)
+          }
+        }
+        setTagSuggestions(Array.from(seen).sort((a, b) => a.localeCompare(b)))
+      })())
+
       tasks.push((async () => {
         const { data: matches } = await sb
           .from("match_assessments")
@@ -143,6 +164,17 @@ export default function CandidatePage() {
     if (!candidate) return
     setCandidate((prev) => prev ? { ...prev, parse_status: "parsing", parse_error: null } : prev)
     await fetch(`/api/cv/${candidate.id}/parse`, { method: "POST" }).catch(() => {})
+  }
+
+  const saveTags = async (nextCustom: string[]) => {
+    if (!candidate) return
+    // Merge custom tags with system flags we never touch from the UI.
+    const systemFlags = (candidate.tags ?? []).filter((t) => SYSTEM_TAGS.has(t))
+    const next = [...systemFlags, ...nextCustom]
+    setCandidate((prev) => prev ? { ...prev, tags: next } : prev)
+    setTagsSaving(true)
+    await sb.from("candidates").update({ tags: next }).eq("id", candidate.id)
+    setTagsSaving(false)
   }
 
   const handleAnonymize = async () => {
@@ -317,6 +349,17 @@ export default function CandidatePage() {
               </div>
             )}
           </section>
+
+          {/* Custom tags */}
+          <Section title="Tags">
+            <TagPicker
+              value={customTagsOf(candidate.tags)}
+              suggestions={tagSuggestions}
+              onChange={saveTags}
+              saving={tagsSaving}
+              placeholder="ex : à recontacter, freelance, client X…"
+            />
+          </Section>
 
           {/* Parsed CV sections */}
           <section style={{

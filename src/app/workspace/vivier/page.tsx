@@ -5,6 +5,7 @@ import Link from "next/link"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import { CANDIDATE_COLUMNS, type Candidate } from "@/lib/database.types"
+import { customTagsOf } from "@/lib/tags"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const MAX_BYTES = 10 * 1024 * 1024
@@ -64,6 +65,7 @@ export default function VivierPage() {
   const [skillFilter, setSkillFilter] = useState<string>("")
   const [completenessFilter, setCompletenessFilter] = useState<"any" | "complete" | "partial">("any")
   const [sectorFilter, setSectorFilter] = useState<string>("")
+  const [tagFilter, setTagFilter] = useState<string>("")
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [collapsedSectors, setCollapsedSectors] = useState<Set<string>>(new Set())
   const toggleSector = (s: string) => setCollapsedSectors((prev) => {
@@ -229,9 +231,20 @@ export default function VivierPage() {
         if (completenessFilter === "partial"  && score >= 75) return false
       }
       if (sectorFilter && (c.parsed_cv?.sector ?? "autre") !== sectorFilter) return false
+      if (tagFilter) {
+        const ct = customTagsOf(c.tags).map((t) => t.toLowerCase())
+        if (!ct.includes(tagFilter.toLowerCase())) return false
+      }
       return true
     })
-  }, [candidates, query, seniorityFilter, locationFilter, skillFilter, completenessFilter, sectorFilter])
+  }, [candidates, query, seniorityFilter, locationFilter, skillFilter, completenessFilter, sectorFilter, tagFilter])
+
+  // Distinct custom tags across the vivier — drives the filter dropdown.
+  const allCustomTags = useMemo(() => {
+    const seen = new Set<string>()
+    for (const c of candidates) for (const t of customTagsOf(c.tags)) seen.add(t)
+    return Array.from(seen).sort((a, b) => a.localeCompare(b))
+  }, [candidates])
 
   // Group by sector (for the "by-sector" view).
   const bySector = useMemo(() => {
@@ -250,11 +263,12 @@ export default function VivierPage() {
     (locationFilter.trim() ? 1 : 0) +
     (skillFilter.trim() ? 1 : 0) +
     (completenessFilter !== "any" ? 1 : 0) +
-    (sectorFilter ? 1 : 0)
+    (sectorFilter ? 1 : 0) +
+    (tagFilter ? 1 : 0)
 
   const resetFilters = () => {
     setSeniorityFilter(""); setLocationFilter(""); setSkillFilter("")
-    setCompletenessFilter("any"); setSectorFilter("")
+    setCompletenessFilter("any"); setSectorFilter(""); setTagFilter("")
   }
 
   // 5. Deletion
@@ -541,6 +555,14 @@ export default function VivierPage() {
                   <option value="partial">CV partiel (&lt;75)</option>
                 </select>
               </FilterField>
+              {allCustomTags.length > 0 && (
+                <FilterField label="Tag">
+                  <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} style={filterInputStyle}>
+                    <option value="">Tous</option>
+                    {allCustomTags.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </FilterField>
+              )}
             </div>
           )}
         </div>
@@ -790,6 +812,18 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
             }}>
               {SECTOR_META[c.parsed_cv.sector].label}
             </span>
+          )}
+          {customTagsOf(c.tags).slice(0, 2).map((t) => (
+            <span key={t} style={{
+              fontSize: 10, fontWeight: 600, color: "#4B5563",
+              background: "white", border: "1px solid #E2DAF6",
+              borderRadius: 100, padding: "1px 8px",
+            }}>
+              {t}
+            </span>
+          ))}
+          {customTagsOf(c.tags).length > 2 && (
+            <span style={{ fontSize: 10, color: "#9CA3AF" }}>+{customTagsOf(c.tags).length - 2}</span>
           )}
           {c.tags?.includes("doublon") && (
             <span style={{
