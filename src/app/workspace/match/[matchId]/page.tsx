@@ -387,6 +387,7 @@ export default function MatchPage() {
             candidateId={candidate.id}
             highlightMatchId={match.id}
             layout="vertical"
+            onlyMatchId={match.id}
           />
         </aside>
       </div>

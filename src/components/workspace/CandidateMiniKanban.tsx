@@ -35,6 +35,7 @@ export default function CandidateMiniKanban({
   candidateId,
   highlightMatchId,
   layout = "horizontal",
+  onlyMatchId,
 }: {
   candidateId: string
   /** The current match's id — that card gets the purple "vous êtes ici" treatment. */
@@ -42,6 +43,10 @@ export default function CandidateMiniKanban({
   /** "horizontal" = column-per-stage scrolling row (default).
    *  "vertical"   = stages stacked top-to-bottom, fits a sidebar. */
   layout?: "horizontal" | "vertical"
+  /** When set, only the card for this match id is shown — the other
+   *  matches the candidate has are hidden so the rail mirrors the job
+   *  picker upstream. */
+  onlyMatchId?: string
 }) {
   const sb = useMemo(() => getSupabase(), [])
   const [rows, setRows] = useState<Row[]>([])
@@ -84,15 +89,20 @@ export default function CandidateMiniKanban({
     }
   }
 
+  const visibleRows = useMemo(
+    () => onlyMatchId ? rows.filter((r) => r.id === onlyMatchId) : rows,
+    [rows, onlyMatchId],
+  )
+
   const byStage = useMemo(() => {
     const map = new Map<PipelineStage, Row[]>()
     for (const s of STAGES) map.set(s.key, [])
-    for (const r of rows) {
+    for (const r of visibleRows) {
       const arr = map.get(r.pipeline_stage)
       if (arr) arr.push(r)
     }
     return map
-  }, [rows])
+  }, [visibleRows])
 
   if (loading) {
     return <div style={{ padding: 14, fontSize: 12, color: "#9CA3AF" }}>Chargement du pipeline…</div>
@@ -114,7 +124,9 @@ export default function CandidateMiniKanban({
         marginBottom: 10, padding: "0 4px",
       }}>
         <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-          Dans le pipeline · {rows.length} poste{rows.length > 1 ? "s" : ""}
+          {onlyMatchId
+            ? "Pipeline de ce match"
+            : `Dans le pipeline · ${rows.length} poste${rows.length > 1 ? "s" : ""}`}
         </h3>
         <span style={{ fontSize: 10.5, color: "#9CA3AF", fontStyle: "italic" }}>
           {vertical ? "Glissez pour avancer" : "Glissez une carte pour avancer / reculer"}
