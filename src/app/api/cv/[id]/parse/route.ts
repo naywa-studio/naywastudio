@@ -30,10 +30,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
-  // Verify ownership via RLS-scoped client
+  // Verify ownership via RLS-scoped client. We also pull `tags` so the
+  // final update can MERGE the doublon flag instead of overwriting custom
+  // tags + "ancien" — that overwrite was the root cause of the doublon
+  // detection failing on re-parses of an archived candidate.
   const { data: candidate, error: fetchErr } = await sb
     .from("candidates")
-    .select("id, user_id, cv_file_path, parse_status")
+    .select("id, user_id, cv_file_path, parse_status, tags")
     .eq("id", id)
     .single()
   if (fetchErr || !candidate) {
@@ -157,7 +160,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       seniority_level:  parsedCv?.seniority_level ?? null,
       skills:           parsedCv?.skills ?? [],
       languages:        parsedCv?.languages ?? [],
-      tags: hasDoublon ? ["doublon"] : [],
+      // Preserve every existing tag (custom + "ancien") and only flip the
+      // "doublon" flag based on the fresh detection. Previously this row
+      // was set to `hasDoublon ? ["doublon"] : []` which wiped "ancien"
+      // and any custom tag on every re-parse.
+      tags: (() => {
+        const existing = (candidate.tags ?? []).filter((t) => t !== "doublon")
+        return hasDoublon ? [...existing, "doublon"] : existing
+      })(),
     })
     .eq("id", candidate.id)
     .select("*")

@@ -177,16 +177,14 @@ export default function MatchPage() {
         </div>
       </m.section>
 
-      {/* Mini kanban — this candidate across all their matches */}
-      <div style={{ marginBottom: 16 }}>
-        <CandidateMiniKanban candidateId={candidate.id} highlightMatchId={match.id} />
-      </div>
-
-      {/* Two columns: candidate summary + match reason / actions */}
+      {/* Two columns: left = résumé + raison + anonymisation (toutes les
+          choses qu'on veut voir sans scroller). Right = message d'approche.
+          Le mini-kanban du candidat passe en bas, c'est de la consultation
+          pas une action prioritaire. */}
       <div className="match-grid" style={{
         display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18,
       }}>
-        {/* LEFT — candidat + raison du match */}
+        {/* LEFT — candidat, raison du match, anonymisation */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <section style={{ background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -250,9 +248,16 @@ export default function MatchPage() {
               </p>
             </section>
           )}
+
+          <AnonymizeForJob
+            candidateId={candidate.id}
+            jobId={job?.id ?? null}
+            jobTitle={job?.title ?? null}
+            candidateParsed={candidate.parse_status === "parsed"}
+          />
         </div>
 
-        {/* RIGHT — actions */}
+        {/* RIGHT — message d'approche */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <section style={{ background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -272,13 +277,6 @@ export default function MatchPage() {
             )}
           </section>
 
-          <AnonymizeForJob
-            candidateId={candidate.id}
-            jobId={job?.id ?? null}
-            jobTitle={job?.title ?? null}
-            candidateParsed={candidate.parse_status === "parsed"}
-          />
-
           {/* Conversation placeholder — réactivée quand le mailing revient */}
           <section style={{
             background: "white", border: "1px dashed #F0ECF8", borderRadius: 16, padding: 16,
@@ -292,6 +290,13 @@ export default function MatchPage() {
             </p>
           </section>
         </div>
+      </div>
+
+      {/* Mini kanban — ce candidat à travers tous ses postes. Placé en bas
+          parce que c'est de la consultation ("où en est-il ailleurs ?"),
+          pas une action prioritaire pour le poste affiché ici. */}
+      <div style={{ marginTop: 18 }}>
+        <CandidateMiniKanban candidateId={candidate.id} highlightMatchId={match.id} />
       </div>
 
       <style>{`
