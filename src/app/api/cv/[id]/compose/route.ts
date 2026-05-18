@@ -12,7 +12,6 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeQuota } from "@/lib/quota"
 import { openrouterChat, safeJsonParse } from "@/lib/openrouter"
-import { SITE_URL } from "@/lib/calendly"
 import type { OutreachChannel, OutreachMeta, ParsedCv } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -32,7 +31,7 @@ Règles :
 - Canal "linkedin" : "subject" = null ; "body" = 60-110 mots, plus direct et informel, pas de signature lourde.
 - Termine par une signature au prénom du sourceur s'il est fourni, sinon "[Votre prénom]".
 - Pas de markdown, pas de placeholders inutiles. Le candidat est nommé par son prénom si on le connaît.
-- Si un LIEN DE RÉSERVATION est fourni dans la consigne, intègre-le naturellement comme appel à l'action ("réservez un créneau ici : <URL>"). Si pas de lien, propose de discuter sans URL inventée.
+- Propose un échange / un appel pour la suite sans inventer de lien ou de créneau spécifique : on laisse le sourceur cadrer la logistique dans son échange suivant.
 - Si le poste contient un champ "briefing", il liste les contraintes/préférences du client (budget, démarrage, profils à éviter, etc.). Tiens-en compte sans le citer brut au candidat : adapte le ton, les détails évoqués et la promesse. NE révèle PAS le budget ni les info confidentielles du briefing au candidat.`
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -85,26 +84,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
   }
 
-  // Recruiter first name for the sign-off + Calendly status for the CTA
+  // Recruiter first name for the sign-off. Calendly booking link is
+  // intentionally NOT pulled here — the calendar / visio feature is parked
+  // and we don't want the LLM to surface a booking CTA in the outreach.
   const { data: profile } = await sb
     .from("profiles")
-    .select("first_name, calendly_connected_at, calendly_event_type_uri")
+    .select("first_name")
     .eq("user_id", user.id)
     .single()
   const recruiterName = profile?.first_name?.trim() || null
-
-  // Booking link — only when Calendly is connected, a type of meeting is
-  // selected, and we have a match (i.e. a job context for this candidate).
-  let bookingUrl: string | null = null
-  if (jobId && profile?.calendly_connected_at && profile.calendly_event_type_uri) {
-    const { data: match } = await sb
-      .from("match_assessments")
-      .select("booking_token")
-      .eq("candidate_id", candidate.id)
-      .eq("job_id", jobId)
-      .maybeSingle()
-    if (match?.booking_token) bookingUrl = `${SITE_URL}/book/${match.booking_token}`
-  }
 
   const cv: ParsedCv = candidate.parsed_cv ?? {}
   const candidateBlock = JSON.stringify({
@@ -124,7 +112,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     recruiterName ? `Prénom du sourceur (pour signer) : ${recruiterName}` : "Prénom du sourceur : inconnu",
     `CANDIDAT :\n${candidateBlock}`,
     jobBlock,
-    bookingUrl ? `\nLIEN DE RÉSERVATION (à intégrer comme appel à l'action) : ${bookingUrl}` : "",
     instruction ? `\n\nCONSIGNE DU SOURCEUR : ${instruction}` : "",
   ].filter(Boolean).join("\n")
 
