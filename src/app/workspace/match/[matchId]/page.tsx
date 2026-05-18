@@ -4,11 +4,10 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { m } from "framer-motion"
-import type { Candidate, MatchAssessment, Job, PipelineStage, MatchTier, ScoreDimensions } from "@/lib/database.types"
+import type { Candidate, MatchAssessment, Job, MatchTier, ScoreDimensions } from "@/lib/database.types"
 import ComposeBox from "@/components/workspace/ComposeBox"
 import AnonymizeForJob from "@/components/workspace/AnonymizeForJob"
 import CandidateMiniKanban from "@/components/workspace/CandidateMiniKanban"
-import Select from "@/components/ui/Select"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -20,16 +19,6 @@ const TIER_META: Record<MatchTier, { label: string; fg: string; bg: string; bd: 
   fair:      { label: "Match moyen",     fg: "#B45309", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
   poor:      { label: "Match faible",    fg: "#6B7280", bg: "#F9FAFB", bd: "#E5E7EB" },
 }
-
-const STAGE_OPTIONS: { value: PipelineStage; label: string }[] = [
-  { value: "identified", label: "Identifié" },
-  { value: "contacted",  label: "Contacté" },
-  { value: "replied",    label: "Réponse reçue" },
-  { value: "interview",  label: "Entretien" },
-  { value: "offer",      label: "Offre" },
-  { value: "hired",      label: "Recruté" },
-  { value: "rejected",   label: "Écarté" },
-]
 
 const SCORE_DIM_LABELS: Record<keyof ScoreDimensions, string> = {
   skills_match:   "Skills",
@@ -67,18 +56,6 @@ export default function MatchPage() {
     return () => { mounted = false }
   }, [matchId])
 
-  const updateStage = async (next: string) => {
-    if (!match) return
-    const stage = next as PipelineStage
-    if (match.pipeline_stage === stage) return
-    setMatch({ ...match, pipeline_stage: stage })
-    await fetch(`/api/match/${match.id}/stage`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pipeline_stage: stage }),
-    })
-  }
-
   if (loading) {
     return <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF" }}>Chargement…</div>
   }
@@ -103,7 +80,7 @@ export default function MatchPage() {
   return (
     <main style={{
       padding: "32px 24px 80px",
-      maxWidth: 1280, margin: "0 auto",
+      maxWidth: 1440, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
       <div style={{ marginBottom: 18, display: "flex", gap: 14, fontSize: 12.5 }}>
@@ -160,13 +137,6 @@ export default function MatchPage() {
               {match.score} · {tier.label}
             </span>
           )}
-          <div style={{ minWidth: 180 }}>
-            <Select
-              value={match.pipeline_stage}
-              onChange={updateStage}
-              options={STAGE_OPTIONS}
-            />
-          </div>
           <Link href={`/workspace/vivier/${candidate.id}`} style={{
             fontSize: 12, fontWeight: 700, color: "#7C63C8",
             background: "white", border: "1px solid rgba(124,99,200,0.25)",
@@ -177,12 +147,15 @@ export default function MatchPage() {
         </div>
       </m.section>
 
-      {/* Two columns: left = résumé + raison + anonymisation (toutes les
-          choses qu'on veut voir sans scroller). Right = message d'approche.
-          Le mini-kanban du candidat passe en bas, c'est de la consultation
-          pas une action prioritaire. */}
+      {/* Three-column layout:
+         - left  : résumé candidat, pourquoi ça matche, CV anonymisé
+         - mid   : message d'approche, conversation placeholder
+         - right : vertical mini-kanban (sticky, the only place to change
+                   stage now that the header dropdown is gone) */}
       <div className="match-grid" style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18,
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) 240px",
+        gap: 18,
       }}>
         {/* LEFT — candidat, raison du match, anonymisation */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -290,19 +263,25 @@ export default function MatchPage() {
             </p>
           </section>
         </div>
-      </div>
 
-      {/* Mini kanban — ce candidat à travers tous ses postes. Placé en bas
-          parce que c'est de la consultation ("où en est-il ailleurs ?"),
-          pas une action prioritaire pour le poste affiché ici. */}
-      <div style={{ marginTop: 18 }}>
-        <CandidateMiniKanban candidateId={candidate.id} highlightMatchId={match.id} />
+        {/* Right rail — vertical mini-kanban, sticky. Only place to advance
+            the stage now that the header dropdown is gone. */}
+        <aside className="match-rail" style={{
+          position: "sticky", top: 80, alignSelf: "flex-start",
+        }}>
+          <CandidateMiniKanban
+            candidateId={candidate.id}
+            highlightMatchId={match.id}
+            layout="vertical"
+          />
+        </aside>
       </div>
 
       <style>{`
-        @media (max-width: 980px) {
+        @media (max-width: 1180px) {
           .match-band { grid-template-columns: 1fr !important; }
           .match-grid { grid-template-columns: 1fr !important; }
+          .match-rail { position: static !important; }
         }
       `}</style>
     </main>

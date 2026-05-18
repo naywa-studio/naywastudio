@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { m, AnimatePresence } from "framer-motion"
+import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import { CANDIDATE_COLUMNS, type Candidate, type ParsedCv, type MatchTier } from "@/lib/database.types"
 import { customTagsOf, SYSTEM_TAGS } from "@/lib/tags"
@@ -428,31 +428,6 @@ export default function CandidatePage() {
             </div>
           </section>
 
-          {/* CV original (collapsible) */}
-          <CollapsibleSection
-            title={signedUrl ? "CV original (PDF)" : "CV original (indisponible)"}
-            defaultOpen={false}
-            right={signedUrl ? (
-              <a href={signedUrl} target="_blank" rel="noreferrer" style={{
-                fontSize: 11, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
-              }} onClick={(e) => e.stopPropagation()}>
-                Ouvrir ↗
-              </a>
-            ) : null}
-          >
-            {signedUrl ? (
-              <iframe
-                src={signedUrl}
-                title={candidate.cv_file_name ?? "CV"}
-                style={{ width: "100%", height: 720, border: "1px solid #F0ECF8", borderRadius: 10, display: "block" }}
-              />
-            ) : (
-              <p style={{ margin: 0, fontSize: 13, color: "#9CA3AF" }}>
-                {candidate.cv_file_path ? "Préparation de l'aperçu…" : "Aucun fichier PDF."}
-              </p>
-            )}
-          </CollapsibleSection>
-
           {/* Notes */}
           <Section
             title="Notes"
@@ -481,10 +456,11 @@ export default function CandidatePage() {
           </Section>
         </div>
 
-        {/* RIGHT — Postes matchés (tremplin vers fiche match) */}
+        {/* RIGHT — Postes matchés + CV original. Not sticky anymore — the
+            PDF iframe makes the column taller than the viewport, so it
+            scrolls along with the left content. */}
         <aside style={{
           display: "flex", flexDirection: "column", gap: 14,
-          position: "sticky", top: 80, alignSelf: "flex-start",
         }} className="cand-aside">
           <section style={{
             background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
@@ -555,6 +531,45 @@ export default function CandidatePage() {
               depuis chaque fiche match — un message par poste pitché.
             </p>
           </section>
+
+          {/* CV original — colonne droite, juste sous les postes matchés.
+              La fiche étant maintenant légère, l'aperçu PDF ne pollue
+              plus la page principale. */}
+          <section style={{
+            background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
+            overflow: "hidden",
+          }}>
+            <div style={{
+              padding: "12px 16px", borderBottom: "1px solid #F0ECF8",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+            }}>
+              <h3 style={{
+                margin: 0, fontSize: 12, fontWeight: 700, color: "#9CA3AF",
+                letterSpacing: "0.08em", textTransform: "uppercase",
+              }}>
+                CV original
+              </h3>
+              {signedUrl && (
+                <a href={signedUrl} target="_blank" rel="noreferrer" style={{
+                  fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                  textDecoration: "none",
+                }}>
+                  Ouvrir ↗
+                </a>
+              )}
+            </div>
+            {signedUrl ? (
+              <iframe
+                src={signedUrl}
+                title={candidate.cv_file_name ?? "CV"}
+                style={{ width: "100%", height: 600, border: "none", display: "block" }}
+              />
+            ) : (
+              <p style={{ margin: 0, padding: 24, fontSize: 13, color: "#9CA3AF" }}>
+                {candidate.cv_file_path ? "Préparation de l'aperçu…" : "Aucun fichier PDF."}
+              </p>
+            )}
+          </section>
         </aside>
       </m.div>
 
@@ -591,52 +606,6 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
         {right}
       </div>
       {children}
-    </section>
-  )
-}
-
-function CollapsibleSection({ title, defaultOpen = true, right, children }: {
-  title: string; defaultOpen?: boolean; right?: React.ReactNode; children: React.ReactNode
-}) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <section style={{
-      background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
-      overflow: "hidden",
-    }}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-          gap: 12,
-          padding: "14px 20px", background: "transparent", border: "none",
-          cursor: "pointer", fontFamily: "inherit",
-        }}
-      >
-        <span style={{
-          fontSize: 12, fontWeight: 700, color: "#9CA3AF",
-          letterSpacing: "0.08em", textTransform: "uppercase",
-        }}>
-          {title}
-        </span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
-          {right}
-          <span style={{ fontSize: 14, color: "#7C63C8", transform: open ? "rotate(90deg)" : "none", transition: "transform 160ms" }}>
-            ›
-          </span>
-        </span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <m.div
-            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: EASE }}
-            style={{ overflow: "hidden" }}
-          >
-            <div style={{ padding: "0 20px 20px" }}>{children}</div>
-          </m.div>
-        )}
-      </AnimatePresence>
     </section>
   )
 }

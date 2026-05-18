@@ -34,10 +34,14 @@ const STAGES: { key: PipelineStage; label: string; color: string; bg: string }[]
 export default function CandidateMiniKanban({
   candidateId,
   highlightMatchId,
+  layout = "horizontal",
 }: {
   candidateId: string
   /** The current match's id — that card gets the purple "vous êtes ici" treatment. */
   highlightMatchId: string
+  /** "horizontal" = column-per-stage scrolling row (default).
+   *  "vertical"   = stages stacked top-to-bottom, fits a sidebar. */
+  layout?: "horizontal" | "vertical"
 }) {
   const sb = useMemo(() => getSupabase(), [])
   const [rows, setRows] = useState<Row[]>([])
@@ -94,20 +98,35 @@ export default function CandidateMiniKanban({
     return <div style={{ padding: 14, fontSize: 12, color: "#9CA3AF" }}>Chargement du pipeline…</div>
   }
 
+  const vertical = layout === "vertical"
+
   return (
     <section style={{
       background: "white", borderRadius: 14, border: "1px solid #F0ECF8",
-      padding: 14,
+      padding: vertical ? 12 : 14,
     }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, padding: "0 4px" }}>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: vertical ? "flex-start" : "center",
+        flexDirection: vertical ? "column" : "row",
+        gap: vertical ? 4 : 0,
+        marginBottom: 10, padding: "0 4px",
+      }}>
         <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
           Dans le pipeline · {rows.length} poste{rows.length > 1 ? "s" : ""}
         </h3>
-        <span style={{ fontSize: 11, color: "#9CA3AF", fontStyle: "italic" }}>
-          Glissez une carte pour avancer / reculer
+        <span style={{ fontSize: 10.5, color: "#9CA3AF", fontStyle: "italic" }}>
+          {vertical ? "Glissez pour avancer" : "Glissez une carte pour avancer / reculer"}
         </span>
       </div>
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+      <div style={{
+        display: "flex",
+        gap: vertical ? 6 : 8,
+        overflowX: vertical ? "visible" : "auto",
+        flexDirection: vertical ? "column" : "row",
+        paddingBottom: vertical ? 0 : 4,
+      }}>
         {STAGES.map((stage) => {
           const cards = byStage.get(stage.key) ?? []
           const isOver = overStage === stage.key
@@ -122,12 +141,12 @@ export default function CandidateMiniKanban({
                 setDragId(null); setOverStage(null)
               }}
               style={{
-                flex: "0 0 168px",
+                flex: vertical ? "0 0 auto" : "0 0 168px",
                 background: isOver ? "rgba(124,99,200,0.08)" : stage.bg,
                 border: isOver ? "1.5px dashed #7C63C8" : "1px solid #F0ECF8",
-                borderRadius: 9, padding: 8,
+                borderRadius: 9, padding: vertical ? 7 : 8,
                 display: "flex", flexDirection: "column", gap: 6,
-                minHeight: 90,
+                minHeight: vertical ? 0 : 90,
                 transition: "background 120ms, border-color 120ms",
               }}
             >
