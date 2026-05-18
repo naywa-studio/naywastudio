@@ -1,0 +1,207 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { getSupabase } from "@/lib/supabase"
+import type { MatchAssessment, PipelineStage } from "@/lib/database.types"
+
+/**
+ * Mini horizontal kanban scoped to one candidate.
+ *
+ * Renders every match the candidate has against any job, distributed across
+ * the 6 pipeline stages so the sourcer can see "where is this person in
+ * every pipeline at a glance" — and drag cards to advance / rewind, just
+ * like the main /pipeline view. The currently-open match (the one whose
+ * page hosts this kanban) is visually highlighted.
+ *
+ * Drag-and-drop reuses the same PATCH /api/match/:id/stage endpoint used
+ * elsewhere; we update local state optimistically.
+ */
+
+type Row = Pick<MatchAssessment, "id" | "job_id" | "score" | "match_tier" | "pipeline_stage" | "updated_at"> & {
+  job: { id: string; title: string } | null
+}
+
+const STAGES: { key: PipelineStage; label: string; color: string; bg: string }[] = [
+  { key: "identified", label: "Identifié", color: "#6B7280", bg: "#F9FAFB" },
+  { key: "contacted",  label: "Contacté",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
+  { key: "replied",    label: "Réponse",   color: "#7C63C8", bg: "rgba(124,99,200,0.05)" },
+  { key: "interview",  label: "Entretien", color: "#B45309", bg: "rgba(245,158,11,0.06)" },
+  { key: "offer",      label: "Offre",     color: "#15803d", bg: "rgba(34,197,94,0.06)" },
+  { key: "hired",      label: "Recruté",   color: "#0F766E", bg: "rgba(15,118,110,0.06)" },
+]
+
+export default function CandidateMiniKanban({
+  candidateId,
+  highlightMatchId,
+  layout = "horizontal",
+}: {
+  candidateId: string
+  /** The current match's id — that card gets the purple "vous êtes ici" treatment. */
+  highlightMatchId: string
+  /** "horizontal" = column-per-stage scrolling row (default).
+   *  "vertical"   = stages stacked top-to-bottom, fits a sidebar. */
+  layout?: "horizontal" | "vertical"
+}) {
+  const sb = useMemo(() => getSupabase(), [])
+  const [rows, setRows] = useState<Row[]>([])
+  const [loading, setLoading] = useState(true)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [overStage, setOverStage] = useState<PipelineStage | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      const { data } = await sb
+        .from("match_assessments")
+        .select("id, job_id, score, match_tier, pipeline_stage, updated_at, job:jobs(id, title)")
+        .eq("candidate_id", candidateId)
+      if (!mounted) return
+      setRows((data ?? []) as unknown as Row[])
+      setLoading(false)
+    })()
+    return () => { mounted = false }
+  }, [candidateId, sb])
+
+  const moveCard = async (rowId: string, stage: PipelineStage) => {
+    const row = rows.find((r) => r.id === rowId)
+    if (!row || row.pipeline_stage === stage) return
+    setRows((prev) => prev.map((r) =>
+      r.id === rowId ? { ...r, pipeline_stage: stage, updated_at: new Date().toISOString() } : r,
+    ))
+    const res = await fetch(`/api/match/${rowId}/stage`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pipeline_stage: stage }),
+    })
+    if (!res.ok) {
+      // Re-fetch on failure to revert.
+      const { data } = await sb
+        .from("match_assessments")
+        .select("id, job_id, score, match_tier, pipeline_stage, updated_at, job:jobs(id, title)")
+        .eq("candidate_id", candidateId)
+      setRows((data ?? []) as unknown as Row[])
+    }
+  }
+
+  const byStage = useMemo(() => {
+    const map = new Map<PipelineStage, Row[]>()
+    for (const s of STAGES) map.set(s.key, [])
+    for (const r of rows) {
+      const arr = map.get(r.pipeline_stage)
+      if (arr) arr.push(r)
+    }
+    return map
+  }, [rows])
+
+  if (loading) {
+    return <div style={{ padding: 14, fontSize: 12, color: "#9CA3AF" }}>Chargement du pipeline…</div>
+  }
+
+  const vertical = layout === "vertical"
+
+  return (
+    <section style={{
+      background: "white", borderRadius: 14, border: "1px solid #F0ECF8",
+      padding: vertical ? 12 : 14,
+    }}>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: vertical ? "flex-start" : "center",
+        flexDirection: vertical ? "column" : "row",
+        gap: vertical ? 4 : 0,
+        marginBottom: 10, padding: "0 4px",
+      }}>
+        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          Dans le pipeline · {rows.length} poste{rows.length > 1 ? "s" : ""}
+        </h3>
+        <span style={{ fontSize: 10.5, color: "#9CA3AF", fontStyle: "italic" }}>
+          {vertical ? "Glissez pour avancer" : "Glissez une carte pour avancer / reculer"}
+        </span>
+      </div>
+      <div style={{
+        display: "flex",
+        gap: vertical ? 6 : 8,
+        overflowX: vertical ? "visible" : "auto",
+        flexDirection: vertical ? "column" : "row",
+        paddingBottom: vertical ? 0 : 4,
+      }}>
+        {STAGES.map((stage) => {
+          const cards = byStage.get(stage.key) ?? []
+          const isOver = overStage === stage.key
+          return (
+            <div
+              key={stage.key}
+              onDragOver={(e) => { e.preventDefault(); if (overStage !== stage.key) setOverStage(stage.key) }}
+              onDragLeave={(e) => { if (e.currentTarget === e.target) setOverStage(null) }}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (dragId) moveCard(dragId, stage.key)
+                setDragId(null); setOverStage(null)
+              }}
+              style={{
+                flex: vertical ? "0 0 auto" : "0 0 168px",
+                background: isOver ? "rgba(124,99,200,0.08)" : stage.bg,
+                border: isOver ? "1.5px dashed #7C63C8" : "1px solid #F0ECF8",
+                borderRadius: 9, padding: vertical ? 7 : 8,
+                display: "flex", flexDirection: "column", gap: 6,
+                minHeight: vertical ? 0 : 90,
+                transition: "background 120ms, border-color 120ms",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px" }}>
+                <span style={{ fontSize: 11.5, fontWeight: 800, color: stage.color }}>{stage.label}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+                  background: "white", borderRadius: 100, padding: "0 6px", border: "1px solid #F0ECF8",
+                }}>
+                  {cards.length}
+                </span>
+              </div>
+              {cards.map((r) => {
+                const isCurrent = r.id === highlightMatchId
+                return (
+                  <div
+                    key={r.id}
+                    draggable
+                    onDragStart={() => setDragId(r.id)}
+                    onDragEnd={() => { setDragId(null); setOverStage(null) }}
+                    style={{
+                      background: isCurrent ? "rgba(124,99,200,0.10)" : "white",
+                      border: isCurrent ? "1px solid #7C63C8" : "1px solid #F0ECF8",
+                      borderRadius: 7,
+                      padding: "7px 9px",
+                      cursor: "grab",
+                      opacity: dragId === r.id ? 0.5 : 1,
+                      boxShadow: isCurrent ? "0 2px 8px -2px rgba(124,99,200,0.25)" : "none",
+                    }}
+                  >
+                    {isCurrent ? (
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.04em", marginBottom: 2 }}>● ICI</div>
+                    ) : null}
+                    <div style={{
+                      fontSize: 11.5, fontWeight: 700, color: "#111827",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {r.job?.title ?? "Sans poste"}
+                    </div>
+                    <div style={{
+                      fontSize: 10.5, color: "#9CA3AF", marginTop: 1,
+                      display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6,
+                    }}>
+                      <span>{r.score != null ? `${r.score}` : "manuel"}</span>
+                      {!isCurrent && r.id && (
+                        <Link href={`/workspace/match/${r.id}`} style={{ color: "#7C63C8", fontWeight: 700 }}>→</Link>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}

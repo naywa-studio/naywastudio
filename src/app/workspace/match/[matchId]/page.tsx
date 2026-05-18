@@ -8,6 +8,7 @@ import { getSupabase } from "@/lib/supabase"
 import type { Candidate, MatchAssessment, Job, MatchTier, PipelineStage, ScoreDimensions } from "@/lib/database.types"
 import ComposeBox from "@/components/workspace/ComposeBox"
 import AnonymizeForJob from "@/components/workspace/AnonymizeForJob"
+import CandidateMiniKanban from "@/components/workspace/CandidateMiniKanban"
 import Select from "@/components/ui/Select"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -133,7 +134,7 @@ export default function MatchPage() {
   return (
     <main style={{
       padding: "32px 24px 80px",
-      maxWidth: 1280, margin: "0 auto",
+      maxWidth: 1440, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
       <div style={{ marginBottom: 18, display: "flex", gap: 14, fontSize: 12.5 }}>
@@ -257,12 +258,16 @@ export default function MatchPage() {
         })}
       </div>
 
-      {/* Two-column layout:
+      {/* Three-column layout:
          - left : résumé candidat, pourquoi ça matche, CV anonymisé
-         - right: message d'approche, conversation placeholder */}
+         - mid  : message d'approche, conversation placeholder
+         - right: vertical kanban — view of where this candidate sits
+                  across ALL their matched jobs (not the same role as the
+                  header dropdown: dropdown switches focus, kanban gives
+                  context "où en est-il ailleurs ?"). */}
       <div className="match-grid" style={{
         display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) 240px",
         gap: 18,
       }}>
         {/* LEFT — candidat, raison du match, anonymisation */}
@@ -371,12 +376,26 @@ export default function MatchPage() {
             </p>
           </section>
         </div>
+
+        {/* Right rail — vertical mini-kanban (sticky). Stays here on top
+            of the dropdown because it gives the at-a-glance view of where
+            this candidate is across every job they're matched to. */}
+        <aside className="match-rail" style={{
+          position: "sticky", top: 80, alignSelf: "flex-start",
+        }}>
+          <CandidateMiniKanban
+            candidateId={candidate.id}
+            highlightMatchId={match.id}
+            layout="vertical"
+          />
+        </aside>
       </div>
 
       <style>{`
-        @media (max-width: 980px) {
+        @media (max-width: 1180px) {
           .match-band { grid-template-columns: 1fr !important; }
           .match-grid { grid-template-columns: 1fr !important; }
+          .match-rail { position: static !important; }
         }
       `}</style>
     </main>
