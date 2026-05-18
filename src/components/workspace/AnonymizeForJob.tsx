@@ -26,6 +26,9 @@ export default function AnonymizeForJob({
   const [state, setState] = useState<"idle" | "working" | "ready" | "error">("idle")
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Inline preview is open by default once a PDF is ready — saves a
+  // round-trip through the browser's download UI to check the result.
+  const [previewOpen, setPreviewOpen] = useState(true)
 
   const hasJob = !!jobId
 
@@ -67,7 +70,7 @@ export default function AnonymizeForJob({
 
   return (
     <section style={{
-      background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
+      background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
       padding: 18,
     }}>
       <h2 style={{
@@ -86,7 +89,7 @@ export default function AnonymizeForJob({
       {error && (
         <p style={{ margin: "0 0 8px", fontSize: 12, color: "#B91C1C" }}>{error}</p>
       )}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <button
           onClick={generate}
           disabled={!candidateParsed || !hasJob || state === "working"}
@@ -107,16 +110,41 @@ export default function AnonymizeForJob({
             : "Anonymiser pour ce poste"}
         </button>
         {state === "ready" && url && (
-          <a href={url} target="_blank" rel="noreferrer" style={{
-            fontSize: 12.5, fontWeight: 700, color: "#7C63C8",
-            background: "white", border: "1px solid rgba(124,99,200,0.25)",
-            borderRadius: 9, padding: "9px 14px", textDecoration: "none",
-            display: "inline-flex", alignItems: "center",
-          }}>
-            Télécharger ↓
-          </a>
+          <>
+            <a href={url} target="_blank" rel="noreferrer" style={{
+              fontSize: 12.5, fontWeight: 700, color: "#7C63C8",
+              background: "white", border: "1px solid rgba(124,99,200,0.25)",
+              borderRadius: 9, padding: "9px 14px", textDecoration: "none",
+              display: "inline-flex", alignItems: "center",
+            }}>
+              Télécharger ↓
+            </a>
+            <button
+              onClick={() => setPreviewOpen((v) => !v)}
+              style={{
+                fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
+                background: "transparent", border: "none", padding: "9px 4px",
+                cursor: "pointer", fontFamily: "inherit", marginLeft: "auto",
+              }}
+            >
+              {previewOpen ? "Masquer l'aperçu" : "Voir l'aperçu"}
+            </button>
+          </>
         )}
       </div>
+
+      {state === "ready" && url && previewOpen && (
+        <div style={{
+          marginTop: 14, borderRadius: 12, overflow: "hidden",
+          border: "1px solid #F0ECF8", background: "#FAFAFA",
+        }}>
+          <iframe
+            src={url}
+            title="CV anonymisé"
+            style={{ width: "100%", height: 520, border: "none", display: "block" }}
+          />
+        </div>
+      )}
     </section>
   )
 }

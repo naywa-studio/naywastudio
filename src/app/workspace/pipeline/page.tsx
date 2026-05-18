@@ -6,6 +6,7 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { MatchAssessment, PipelineStage } from "@/lib/database.types"
 import Select from "@/components/ui/Select"
+import NoraLoader from "@/components/workspace/NoraLoader"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -153,7 +154,7 @@ export default function PipelinePage() {
   const relanceCount = useMemo(() => filteredRows.filter(needsRelance).length, [filteredRows])
 
   if (loading) {
-    return <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF" }}>Chargement…</div>
+    return <NoraLoader />
   }
 
   return (

@@ -8,6 +8,8 @@ import { getSupabase } from "@/lib/supabase"
 import { CANDIDATE_COLUMNS, type Candidate, type ParsedCv, type MatchTier } from "@/lib/database.types"
 import { customTagsOf, SYSTEM_TAGS } from "@/lib/tags"
 import TagPicker from "@/components/workspace/TagPicker"
+import NoraLoader from "@/components/workspace/NoraLoader"
+import { showUndoToast } from "@/components/ui/UndoToast"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -157,9 +159,16 @@ export default function CandidatePage() {
 
   const handleDelete = async () => {
     if (!candidate) return
-    if (!confirm("Supprimer ce candidat ? Cette action est définitive.")) return
-    const res = await fetch(`/api/cv/${candidate.id}`, { method: "DELETE" })
-    if (res.ok) router.push("/workspace/vivier")
+    const label = candidate.full_name?.trim() || "Candidat"
+    // Send the sourcer back to the vivier first so the candidate vanishes
+    // visually; the actual deletion is held by the undo toast.
+    router.push("/workspace/vivier")
+    const { cancelled } = await showUndoToast(`${label} supprimé`)
+    if (cancelled) {
+      router.push(`/workspace/vivier/${candidate.id}`)
+      return
+    }
+    await fetch(`/api/cv/${candidate.id}`, { method: "DELETE" })
   }
 
   const handleRetryParse = async () => {
@@ -179,7 +188,7 @@ export default function CandidatePage() {
   }
 
   if (loading) {
-    return <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF" }}>Chargement…</div>
+    return <NoraLoader />
   }
   if (notFound || !candidate) {
     return (
@@ -216,7 +225,7 @@ export default function CandidatePage() {
         {/* LEFT — identité + CV parsé + CV original + notes */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <section style={{
-            background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
+            background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
             padding: 24,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -339,7 +348,7 @@ export default function CandidatePage() {
 
           {/* Parsed CV */}
           <section style={{
-            background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
+            background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
             overflow: "hidden",
           }}>
             <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 22 }}>
@@ -463,7 +472,7 @@ export default function CandidatePage() {
           display: "flex", flexDirection: "column", gap: 14,
         }} className="cand-aside">
           <section style={{
-            background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
+            background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
             padding: 18,
           }}>
             <h3 style={{
@@ -536,7 +545,7 @@ export default function CandidatePage() {
               La fiche étant maintenant légère, l'aperçu PDF ne pollue
               plus la page principale. */}
           <section style={{
-            background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
+            background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
             overflow: "hidden",
           }}>
             <div style={{
@@ -593,7 +602,7 @@ export default function CandidatePage() {
 function Section({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section style={{
-      background: "white", borderRadius: 18, border: "1px solid #F0ECF8",
+      background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
       padding: 20,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Job } from "@/lib/database.types"
+import NoraLoader from "@/components/workspace/NoraLoader"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -97,7 +98,7 @@ export default function PostesPage() {
       </AnimatePresence>
 
       {loading ? (
-        <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF" }}>Chargement…</div>
+        <NoraLoader />
       ) : jobs.length === 0 ? (
         <EmptyState onCreate={() => setFormOpen(true)} />
       ) : (

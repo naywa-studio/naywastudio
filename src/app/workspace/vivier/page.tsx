@@ -7,6 +7,8 @@ import { getSupabase } from "@/lib/supabase"
 import { CANDIDATE_COLUMNS, type Candidate } from "@/lib/database.types"
 import { customTagsOf } from "@/lib/tags"
 import Select from "@/components/ui/Select"
+import NoraLoader from "@/components/workspace/NoraLoader"
+import { showUndoToast } from "@/components/ui/UndoToast"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const MAX_BYTES = 10 * 1024 * 1024
@@ -275,14 +277,24 @@ export default function VivierPage() {
     setCompletenessFilter("any"); setSectorFilter(""); setTagFilter("")
   }
 
-  // 5. Deletion
+  // 5. Deletion — optimistic UI + undo toast (5 sec). The actual API
+  // call only fires if the sourcer doesn't click "Annuler" in the toast.
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer ce candidat du vivier ? Cette action est définitive.")) return
+    const removed = candidates.find((c) => c.id === id)
+    if (!removed) return
     setCandidates((prev) => prev.filter((c) => c.id !== id))
+    const label = removed.full_name?.trim() || "Candidat"
+    const { cancelled } = await showUndoToast(`${label} supprimé`)
+    if (cancelled) {
+      // Realtime resync would also bring it back, but instant local restore
+      // feels less janky.
+      setCandidates((prev) => prev.some((c) => c.id === id) ? prev : [removed, ...prev])
+      return
+    }
     const res = await fetch(`/api/cv/${id}`, { method: "DELETE" })
     if (!res.ok) {
-      // Realtime will re-sync, but show a soft alert
       console.error("Delete failed")
+      setCandidates((prev) => prev.some((c) => c.id === id) ? prev : [removed, ...prev])
     }
   }
 
@@ -312,11 +324,7 @@ export default function VivierPage() {
   }, [sb])
 
   if (!userId && loading) {
-    return (
-      <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF" }}>
-        Chargement…
-      </div>
-    )
+    return <NoraLoader />
   }
 
   const hasActiveJobs = jobs.some((j) => j.status === "uploading" || j.status === "parsing")

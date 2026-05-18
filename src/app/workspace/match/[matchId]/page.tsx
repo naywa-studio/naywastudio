@@ -10,6 +10,7 @@ import ComposeBox from "@/components/workspace/ComposeBox"
 import AnonymizeForJob from "@/components/workspace/AnonymizeForJob"
 import CandidateMiniKanban from "@/components/workspace/CandidateMiniKanban"
 import Select from "@/components/ui/Select"
+import NoraLoader from "@/components/workspace/NoraLoader"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -111,7 +112,7 @@ export default function MatchPage() {
   }
 
   if (loading) {
-    return <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF" }}>Chargement…</div>
+    return <NoraLoader />
   }
   if (notFound || !match || !candidate) {
     return (
@@ -363,18 +364,6 @@ export default function MatchPage() {
             )}
           </section>
 
-          {/* Conversation placeholder — réactivée quand le mailing revient */}
-          <section style={{
-            background: "white", border: "1px dashed #F0ECF8", borderRadius: 16, padding: 16,
-            opacity: 0.6,
-          }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              💬 Conversation
-            </h3>
-            <p style={{ margin: 0, fontSize: 12, color: "#9CA3AF" }}>
-              Réactivée quand le mailing multi-domaine sera en place.
-            </p>
-          </section>
         </div>
 
         {/* Right rail — vertical mini-kanban (sticky). Stays here on top

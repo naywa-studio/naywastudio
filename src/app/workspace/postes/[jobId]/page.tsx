@@ -6,6 +6,7 @@ import Link from "next/link"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Job, Candidate, MatchAssessment, MatchTier } from "@/lib/database.types"
+import NoraLoader from "@/components/workspace/NoraLoader"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -114,7 +115,7 @@ export default function JobDetailPage() {
     if (res.ok) router.push("/workspace/postes")
   }
 
-  if (loading) return <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF" }}>Chargement…</div>
+  if (loading) return <NoraLoader />
   if (notFound || !job) {
     return (
       <div style={{ padding: "60px 24px", textAlign: "center", color: "#6B7280" }}>
@@ -158,7 +159,7 @@ export default function JobDetailPage() {
       <m.section
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        style={{ background: "white", borderRadius: 18, border: "1px solid #F0ECF8", padding: 24, marginBottom: 20 }}
+        style={{ background: "white", borderRadius: 16, border: "1px solid #F0ECF8", padding: 24, marginBottom: 20 }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 240 }}>
@@ -270,7 +271,7 @@ export default function JobDetailPage() {
       {rows.length === 0 ? (
         <div style={{
           padding: "56px 24px", textAlign: "center",
-          background: "white", border: "1px dashed #E2DAF6", borderRadius: 18,
+          background: "white", border: "1px dashed #E2DAF6", borderRadius: 16,
           color: "#6B7280",
         }}>
           {matching ? (
@@ -416,7 +417,7 @@ function AssignModal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "white", borderRadius: 18,
+          background: "white", borderRadius: 16,
           width: "100%", maxWidth: 560,
           maxHeight: "85vh", display: "flex", flexDirection: "column",
           boxShadow: "0 24px 60px rgba(17,24,39,0.25)",
@@ -445,7 +446,7 @@ function AssignModal({
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
           {loadingList ? (
-            <p style={{ padding: 20, fontSize: 13, color: "#9CA3AF", textAlign: "center" }}>Chargement…</p>
+            <div style={{ padding: 20 }}><NoraLoader inline /></div>
           ) : filtered.length === 0 ? (
             <p style={{ padding: 20, fontSize: 13, color: "#9CA3AF", textAlign: "center" }}>
               {query ? "Aucun candidat ne correspond." : "Tous les candidats du vivier sont déjà matchés."}
