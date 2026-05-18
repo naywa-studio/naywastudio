@@ -31,16 +31,6 @@ const SCORE_DIM_LABELS: Record<keyof ScoreDimensions, string> = {
   language_fit:   "Langue",
 }
 
-const STAGE_STEPS: { key: PipelineStage; label: string; fg: string; bg: string }[] = [
-  { key: "identified", label: "Identifié", fg: "#6B7280", bg: "rgba(107,114,128,0.10)" },
-  { key: "contacted",  label: "Contacté",  fg: "#2563EB", bg: "rgba(37,99,235,0.10)" },
-  { key: "replied",    label: "Réponse",   fg: "#7C63C8", bg: "rgba(124,99,200,0.10)" },
-  { key: "interview",  label: "Entretien", fg: "#B45309", bg: "rgba(245,158,11,0.12)" },
-  { key: "offer",      label: "Offre",     fg: "#15803d", bg: "rgba(34,197,94,0.10)" },
-  { key: "hired",      label: "Recruté",   fg: "#0F766E", bg: "rgba(15,118,110,0.10)" },
-  { key: "rejected",   label: "Écarté",    fg: "#9CA3AF", bg: "#F3F4F6" },
-]
-
 interface MatchSummary {
   id: string
   job_id: string
@@ -98,18 +88,6 @@ export default function MatchPage() {
     return () => { mounted = false }
   }, [candidate, sb])
 
-  const updateStage = async (next: PipelineStage) => {
-    if (!match || match.pipeline_stage === next) return
-    setMatch({ ...match, pipeline_stage: next })
-    setSiblingMatches((prev) => prev.map((m) =>
-      m.id === match.id ? { ...m, pipeline_stage: next } : m,
-    ))
-    await fetch(`/api/match/${match.id}/stage`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pipeline_stage: next }),
-    })
-  }
 
   if (loading) {
     return <NoraLoader />
@@ -220,44 +198,6 @@ export default function MatchPage() {
           </Link>
         </div>
       </m.section>
-
-      {/* Stage stepper — horizontal pills, click to advance / rewind the
-          current match. Replaces the vertical kanban now that the job
-          picker handles multi-match navigation. */}
-      <div style={{
-        background: "white", borderRadius: 14, border: "1px solid #F0ECF8",
-        padding: "12px 16px", marginBottom: 18,
-        display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-      }}>
-        <span style={{
-          fontSize: 11, fontWeight: 700, color: "#9CA3AF",
-          letterSpacing: "0.07em", textTransform: "uppercase", marginRight: 4,
-        }}>
-          Stage
-        </span>
-        {STAGE_STEPS.map((s) => {
-          const active = match.pipeline_stage === s.key
-          return (
-            <button
-              key={s.key}
-              onClick={() => updateStage(s.key)}
-              style={{
-                fontSize: 12, fontWeight: active ? 800 : 600,
-                color: active ? "white" : s.fg,
-                background: active
-                  ? `linear-gradient(120deg, ${s.fg} 0%, ${s.fg} 100%)`
-                  : s.bg,
-                border: `1px solid ${active ? s.fg : "transparent"}`,
-                borderRadius: 100, padding: "5px 12px",
-                cursor: "pointer", fontFamily: "inherit",
-                transition: "all 140ms",
-              }}
-            >
-              {s.label}
-            </button>
-          )
-        })}
-      </div>
 
       {/* Three-column layout:
          - left : résumé candidat, pourquoi ça matche, CV anonymisé

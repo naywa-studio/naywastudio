@@ -121,11 +121,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     anonymized_at: new Date().toISOString(),
   }).eq("id", candidate.id)
 
-  const { data: signed } = await admin.storage
-    .from("cv-uploads")
-    .createSignedUrl(path, TTL_SECONDS, { download: `profil-anonymise-${reference}.pdf` })
+  // Two signed URLs so the UI can both PREVIEW the PDF (inline iframe,
+  // no Content-Disposition: attachment) AND offer a one-click download.
+  // The download URL forces the browser to save instead of preview by
+  // setting the attachment header.
+  const [{ data: previewSigned }, { data: downloadSigned }] = await Promise.all([
+    admin.storage.from("cv-uploads").createSignedUrl(path, TTL_SECONDS),
+    admin.storage.from("cv-uploads").createSignedUrl(path, TTL_SECONDS, {
+      download: `profil-anonymise-${reference}.pdf`,
+    }),
+  ])
 
-  return NextResponse.json({ ok: true, url: signed?.signedUrl ?? null, reference })
+  return NextResponse.json({
+    ok: true,
+    url: previewSigned?.signedUrl ?? null,            // backward compat: still the preview URL
+    preview_url: previewSigned?.signedUrl ?? null,
+    download_url: downloadSigned?.signedUrl ?? null,
+    reference,
+  })
 }
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -144,13 +157,19 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   if (!candidate.anonymized_pdf_path) return NextResponse.json({ error: "no_file" }, { status: 404 })
 
   const admin = getAdminSupabase()
-  const { data: signed, error: signErr } = await admin.storage
-    .from("cv-uploads")
-    .createSignedUrl(candidate.anonymized_pdf_path, TTL_SECONDS, {
+  const [{ data: previewSigned, error: pErr }, { data: downloadSigned }] = await Promise.all([
+    admin.storage.from("cv-uploads").createSignedUrl(candidate.anonymized_pdf_path, TTL_SECONDS),
+    admin.storage.from("cv-uploads").createSignedUrl(candidate.anonymized_pdf_path, TTL_SECONDS, {
       download: `profil-anonymise-${refFor(candidate.id)}.pdf`,
-    })
-  if (signErr || !signed) {
-    return NextResponse.json({ error: "sign_failed", detail: signErr?.message }, { status: 500 })
+    }),
+  ])
+  if (pErr || !previewSigned) {
+    return NextResponse.json({ error: "sign_failed", detail: pErr?.message }, { status: 500 })
   }
-  return NextResponse.json({ url: signed.signedUrl, expires_in: TTL_SECONDS })
+  return NextResponse.json({
+    url: previewSigned.signedUrl,                       // backward compat: preview
+    preview_url: previewSigned.signedUrl,
+    download_url: downloadSigned?.signedUrl ?? previewSigned.signedUrl,
+    expires_in: TTL_SECONDS,
+  })
 }
