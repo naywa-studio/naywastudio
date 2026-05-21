@@ -418,8 +418,117 @@
       { "de_mois": 24, "a_mois": 72, "abattement_pct": 30 }
     ],
     "indemnites_kilometriques": {
-      "_status": "bareme_a_recuperer_pdf_urssaf",
-      "_source": "https://www.urssaf.fr/accueil/outils-documentation/taux-baremes/frais-professionnels.html"
+      "_source": "URSSAF / impots.gouv.fr — Barème kilométrique 2026",
+      "_status": "confirmé",
+      "_legende": "d = distance parcourue à titre professionnel en km. Formule donne le montant annuel total.",
+      "voitures": {
+        "thermique_hybride_hydrogene": {
+          "3_cv_et_moins": {
+            "jusqu_a_5000_km":         { "formule": "d * 0.529",            "coef_d": 0.529 },
+            "de_5001_a_20000_km":      { "formule": "(d * 0.316) + 1065",   "coef_d": 0.316, "constante": 1065 },
+            "au_dela_20000_km":        { "formule": "d * 0.370",            "coef_d": 0.370 }
+          },
+          "4_cv": {
+            "jusqu_a_5000_km":         { "formule": "d * 0.606",            "coef_d": 0.606 },
+            "de_5001_a_20000_km":      { "formule": "(d * 0.340) + 1330",   "coef_d": 0.340, "constante": 1330 },
+            "au_dela_20000_km":        { "formule": "d * 0.407",            "coef_d": 0.407 }
+          },
+          "5_cv": {
+            "jusqu_a_5000_km":         { "formule": "d * 0.636",            "coef_d": 0.636 },
+            "de_5001_a_20000_km":      { "formule": "(d * 0.357) + 1395",   "coef_d": 0.357, "constante": 1395 },
+            "au_dela_20000_km":        { "formule": "d * 0.427",            "coef_d": 0.427 }
+          },
+          "6_cv": {
+            "jusqu_a_5000_km":         { "formule": "d * 0.665",            "coef_d": 0.665 },
+            "de_5001_a_20000_km":      { "formule": "(d * 0.374) + 1457",   "coef_d": 0.374, "constante": 1457 },
+            "au_dela_20000_km":        { "formule": "d * 0.447",            "coef_d": 0.447 }
+          },
+          "7_cv_et_plus": {
+            "jusqu_a_5000_km":         { "formule": "d * 0.697",            "coef_d": 0.697 },
+            "de_5001_a_20000_km":      { "formule": "(d * 0.394) + 1515",   "coef_d": 0.394, "constante": 1515 },
+            "au_dela_20000_km":        { "formule": "d * 0.470",            "coef_d": 0.470 }
+          }
+        },
+        "electrique_100": {
+          "_note": "Barème majoré de +20% par rapport au thermique pour les véhicules 100% électriques",
+          "3_cv_et_moins": {
+            "jusqu_a_5000_km":         { "formule": "d * 0.635",            "coef_d": 0.635 },
+            "de_5001_a_20000_km":      { "formule": "(d * 0.379) + 1278",   "coef_d": 0.379, "constante": 1278 },
+            "au_dela_20000_km":        { "formule": "d * 0.444",            "coef_d": 0.444 }
+          },
+          "4_cv": {
+            "jusqu_a_5000_km":         { "formule": "d * 0.727",            "coef_d": 0.727 },
+            "de_5001_a_20000_km":      { "formule": "(d * 0.408) + 1596",   "coef_d": 0.408, "constante": 1596 },
+            "au_dela_20000_km":        { "formule": "d * 0.488",            "coef_d": 0.488 }
+          },
+          "5_cv": {
+            "jusqu_a_5000_km":         { "formule": "d * 0.763",            "coef_d": 0.763 },
+            "de_5001_a_20000_km":      { "formule": "(d * 0.428) + 1674",   "coef_d": 0.428, "constante": 1674 },
+            "au_dela_20000_km":        { "formule": "d * 0.512",            "coef_d": 0.512 }
+          },
+          "6_cv": {
+            "jusqu_a_5000_km":         { "formule": "d * 0.798",            "coef_d": 0.798 },
+            "de_5001_a_20000_km":      { "formule": "(d * 0.449) + 1748",   "coef_d": 0.449, "constante": 1748 },
+            "au_dela_20000_km":        { "formule": "d * 0.536",            "coef_d": 0.536 }
+          },
+          "7_cv_et_plus": {
+            "jusqu_a_5000_km":         { "formule": "d * 0.836",            "coef_d": 0.836 },
+            "de_5001_a_20000_km":      { "formule": "(d * 0.473) + 1818",   "coef_d": 0.473, "constante": 1818 },
+            "au_dela_20000_km":        { "formule": "d * 0.564",            "coef_d": 0.564 }
+          }
+        }
+      },
+      "motos_scooters_plus_de_50cm3": {
+        "_libelle": "Moto et scooter de plus de 50 cm³",
+        "deux_roues_thermiques": {
+          "1_a_2_cv": {
+            "jusqu_a_3000_km":         { "formule": "d * 0.395",            "coef_d": 0.395 },
+            "de_3001_a_6000_km":       { "formule": "(d * 0.099) + 891",    "coef_d": 0.099, "constante": 891 },
+            "au_dela_6000_km":         { "formule": "d * 0.248",            "coef_d": 0.248 }
+          },
+          "3_a_5_cv": {
+            "jusqu_a_3000_km":         { "formule": "d * 0.468",            "coef_d": 0.468 },
+            "de_3001_a_6000_km":       { "formule": "(d * 0.082) + 1158",   "coef_d": 0.082, "constante": 1158 },
+            "au_dela_6000_km":         { "formule": "d * 0.275",            "coef_d": 0.275 }
+          },
+          "plus_de_5_cv": {
+            "jusqu_a_3000_km":         { "formule": "d * 0.606",            "coef_d": 0.606 },
+            "de_3001_a_6000_km":       { "formule": "(d * 0.079) + 1583",   "coef_d": 0.079, "constante": 1583 },
+            "au_dela_6000_km":         { "formule": "d * 0.343",            "coef_d": 0.343 }
+          }
+        },
+        "deux_roues_electriques_100": {
+          "_note": "Barème majoré pour deux-roues 100% électriques",
+          "1_a_2_cv": {
+            "jusqu_a_3000_km":         { "formule": "d * 0.474",            "coef_d": 0.474 },
+            "de_3001_a_6000_km":       { "formule": "(d * 0.119) + 1069",   "coef_d": 0.119, "constante": 1069 },
+            "au_dela_6000_km":         { "formule": "d * 0.298",            "coef_d": 0.298 }
+          },
+          "3_a_5_cv": {
+            "jusqu_a_3000_km":         { "formule": "d * 0.562",            "coef_d": 0.562 },
+            "de_3001_a_6000_km":       { "formule": "(d * 0.098) + 1390",   "coef_d": 0.098, "constante": 1390 },
+            "au_dela_6000_km":         { "formule": "d * 0.330",            "coef_d": 0.330 }
+          },
+          "plus_de_5_cv": {
+            "jusqu_a_3000_km":         { "formule": "d * 0.727",            "coef_d": 0.727 },
+            "de_3001_a_6000_km":       { "formule": "(d * 0.095) + 1900",   "coef_d": 0.095, "constante": 1900 },
+            "au_dela_6000_km":         { "formule": "d * 0.412",            "coef_d": 0.412 }
+          }
+        }
+      },
+      "cyclomoteurs_moins_de_50cm3": {
+        "_libelle": "Cyclomoteur (moins de 50 cm³) — vélomoteur, scooter ≤ 50 cm³",
+        "thermique": {
+          "jusqu_a_3000_km":           { "formule": "d * 0.315",            "coef_d": 0.315 },
+          "de_3001_a_6000_km":         { "formule": "(d * 0.079) + 711",    "coef_d": 0.079, "constante": 711 },
+          "au_dela_6000_km":           { "formule": "d * 0.198",            "coef_d": 0.198 }
+        },
+        "electrique_100": {
+          "jusqu_a_3000_km":           { "formule": "d * 0.378",            "coef_d": 0.378 },
+          "de_3001_a_6000_km":         { "formule": "(d * 0.095) + 853",    "coef_d": 0.095, "constante": 853 },
+          "au_dela_6000_km":           { "formule": "d * 0.238",            "coef_d": 0.238 }
+        }
+      }
     }
   },
   "tickets_restaurant_2026": {
@@ -487,9 +596,9 @@
     "FAIT — APEC 2026 confirmé : 0,036% employeur sur T1+T2 (max 4 PASS)",
     "FAIT — Barème URSSAF déplacements 2026 : repas 20,70€, hébergement Paris 74,30€/jour, province 55,10€/jour",
     "FAIT — Versement mobilité 2026 : Paris jusqu'à 3,20%, Lyon 2,00%, province 0,2-1,75% (outil URSSAF par commune)",
+    "FAIT — Barème indemnités kilométriques URSSAF 2026 complet (voitures thermique + électrique, motos 2-roues thermique + électrique, cyclomoteurs)",
     "Confirmer ETAM Assimilé Cadre n'est PAS une catégorie Syntec — c'est une catégorie sociale (cotisations) liée aux ETAM coefs élevés 400/450/500 — voir réponse Culture RH",
     "Confirmer ou retirer du périmètre : CDI de chantier Syntec (accord branche 2018 séparé) — pas dans le texte de base de la convention",
-    "Récupérer barème indemnités kilométriques URSSAF 2026 PDF officiel",
     "Récupérer table complète versement mobilité par commune (intégration outil URSSAF par code INSEE) — actuellement valeurs moyennes par zone",
     "Vérifier valeurs du point Cadres 2026 (divergence sources 22,84 vs 20,43)"
   ]
