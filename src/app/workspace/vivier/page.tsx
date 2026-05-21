@@ -926,7 +926,7 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
       </h2>
       <p style={{ margin: "0 auto 18px", maxWidth: 480, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
         Glissez vos CVs PDF ici (ou cliquez). Nora extrait nom, expérience, compétences
-        et coordonnées. Une fois votre vivier en place, vous pourrez créer des postes
+        et coordonnées. Une fois votre vivier en place, vous pourrez créer des missions
         et obtenir vos shortlists automatiques.
       </p>
       <span style={{

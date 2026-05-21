@@ -119,8 +119,8 @@ export default function MatchPage() {
       <div style={{ marginBottom: 18, display: "flex", gap: 14, fontSize: 12.5 }}>
         <Link href="/workspace/pipeline" style={{ color: "#7C63C8", textDecoration: "none" }}>← Pipeline</Link>
         {job && (
-          <Link href={`/workspace/postes/${job.id}`} style={{ color: "#7C63C8", textDecoration: "none" }}>
-            ← Poste : {job.title}
+          <Link href={`/workspace/missions/${job.id}`} style={{ color: "#7C63C8", textDecoration: "none" }}>
+            ← Mission : {job.title}
           </Link>
         )}
       </div>
@@ -153,12 +153,12 @@ export default function MatchPage() {
                 options={siblingMatches.length > 0
                   ? siblingMatches.map((m) => ({
                       value: m.id,
-                      label: m.job?.title ?? "Sans poste",
+                      label: m.job?.title ?? "Sans mission",
                       hint: m.score != null
                         ? `${m.score} · ${m.match_tier ?? ""}`.trim()
                         : "manuel",
                     }))
-                  : [{ value: match.id, label: job?.title ?? "Sans poste" }]
+                  : [{ value: match.id, label: job?.title ?? "Sans mission" }]
                 }
               />
             </div>

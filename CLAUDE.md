@@ -17,7 +17,7 @@ du traitement dès qu'un CV entre dans l'espace.
 
 ### Fonctionnalités actives (sprints 0 → 6)
 - **Vivier** — upload CVs PDF, parsing IA (OCR + LLM), taxonomy de tags, dédup, recherche full-text
-- **Postes** — création (formulaire ou chat IA), normalisation LLM pour le matching
+- **Missions** (ex-Postes — orienté ESN / appel d'offre) — création (formulaire ou chat IA), normalisation LLM pour le matching, **TJM client + marge min + durée prévue** pour le pricing
 - **Matching** — pré-filtre déterministe sur tags + scoring LLM (jamais sur le CV brut)
 - **Anonymisation** — PDF régénéré sans identité via `@react-pdf/renderer`
 - **Pipeline** — Kanban : Identifié → Contacté → Réponse → Entretien → Offre → Recruté
@@ -80,8 +80,8 @@ npm run lint     # ESLint --max-warnings=0
 - `/workspace` — dashboard accueil
 - `/workspace/vivier` — liste candidats
 - `/workspace/vivier/[candidateId]` — fiche candidat complète
-- `/workspace/postes` — liste postes
-- `/workspace/postes/[jobId]` — fiche poste + matching
+- `/workspace/missions` — liste missions (anciennement "postes")
+- `/workspace/missions/[jobId]` — fiche mission + matching
 - `/workspace/pipeline` — kanban pipeline
 
 ## Architecture — API Routes
@@ -123,7 +123,7 @@ npm run lint     # ESLint --max-warnings=0
 ### Tables
 - `profiles` — compte client (`subscription_level: 'leo'|'nora'|'alex'|null`, `inbox_address`, `inbox_cc_self`, `workspace_memory`, etc.)
 - `candidates` — le vivier (`parsed_cv: ParsedCv`, `taxonomy: CandidateTaxonomy`, `parse_status`, `anonymized_pdf_path`, `outreach_draft`, `outreach_meta`)
-- `jobs` — postes (`normalized: JobNormalized`, `match_status: 'idle'|'matching'|'done'|'error'`)
+- `jobs` — missions (`normalized: JobNormalized`, `match_status`, **pricing**: `client_tjm_min`/`client_tjm_max`/`margin_min_pct`/`duration_months`)
 - `match_assessments` — candidat × poste (`score`, `score_dimensions`, `match_tier`, `pipeline_stage`)
 - `daily_usage` — quota LLM par user/jour/action
 - `email_messages` — emails outbound + inbound (`ai_sentiment`, `ai_summary`, `ai_suggested_stage`)
@@ -151,7 +151,7 @@ interface WorkspaceCtx {
   refetchProfile: () => Promise<void>
 }
 // Hook : useWorkspace()
-// Tabs : Accueil | Vivier | Postes | Pipeline
+// Tabs : Accueil | Vivier | Missions | Pipeline
 ```
 
 ## Règles de développement

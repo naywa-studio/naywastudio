@@ -14,7 +14,7 @@ const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 /**
  * Workspace home — overview centred on the three things that actually
  * matter day-to-day with the current scope (mail + calendar are parked):
- *   - 3 stat tiles  : candidats au vivier, postes ouverts, matches forts
+ *   - 3 stat tiles  : candidats au vivier, missions ouvertes, matches forts
  *   - "Récemment ajoutés" : the last 5 parsed CVs
  *   - "Meilleurs matches récents" : the last 5 high-tier matches
  *
@@ -143,7 +143,7 @@ export default function WorkspaceHome() {
           Bonjour{firstName ? `, ${firstName}` : ""} 👋
         </h1>
         <p style={{ margin: "10px 0 28px", fontSize: 14.5, color: "#6B7280", lineHeight: 1.65, maxWidth: "58ch" }}>
-          Votre espace Nora en un coup d&apos;œil — vivier, postes ouverts, matches récents.
+          Votre espace Nora en un coup d&apos;œil — vivier, missions ouvertes, matches récents.
         </p>
       </m.div>
 
@@ -159,8 +159,8 @@ export default function WorkspaceHome() {
           loading={loading}
           tint="#7C63C8"
         />
-        <StatTile href="/workspace/postes"
-          label="Postes ouverts"
+        <StatTile href="/workspace/missions"
+          label="Missions ouvertes"
           value={stats?.openJobs ?? null}
           loading={loading}
           tint="#2563EB"

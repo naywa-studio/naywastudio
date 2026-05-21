@@ -41,7 +41,7 @@ const STAGE_LABELS: Record<string, string> = {
  * Post-refactor : this page answers "qui est cette personne ?" only.
  * Compose, anonymisation et conversation ont déménagé dans la fiche match
  * (/workspace/match/[matchId]) parce qu'ils dépendent d'un couple
- * candidat × poste. La section "Postes matchés" sert de tremplin.
+ * candidat × mission. La section "Missions matchées" sert de tremplin.
  */
 export default function CandidatePage() {
   const router = useRouter()
@@ -465,7 +465,7 @@ export default function CandidatePage() {
           </Section>
         </div>
 
-        {/* RIGHT — Postes matchés + CV original. Not sticky anymore — the
+        {/* RIGHT — Missions matchées + CV original. Not sticky anymore — the
             PDF iframe makes the column taller than the viewport, so it
             scrolls along with the left content. */}
         <aside style={{
@@ -479,12 +479,12 @@ export default function CandidatePage() {
               margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "#9CA3AF",
               letterSpacing: "0.08em", textTransform: "uppercase",
             }}>
-              📌 Postes matchés
+              📌 Missions matchées
             </h3>
             {jobMatches.length === 0 ? (
               <p style={{ margin: 0, fontSize: 13, color: "#6B7280", lineHeight: 1.6 }}>
-                Ce candidat n&apos;est associé à aucun poste pour l&apos;instant.
-                {" "}<Link href="/workspace/postes" style={{ color: "#7C63C8", textDecoration: "none", fontWeight: 600 }}>
+                Ce candidat n&apos;est associé à aucune mission pour l&apos;instant.
+                {" "}<Link href="/workspace/missions" style={{ color: "#7C63C8", textDecoration: "none", fontWeight: 600 }}>
                   Lancez un matching →
                 </Link>
               </p>
@@ -537,11 +537,11 @@ export default function CandidatePage() {
               lineHeight: 1.55, fontStyle: "italic",
             }}>
               Le message d&apos;approche et la version anonymisée du CV se font
-              depuis chaque fiche match — un message par poste pitché.
+              depuis chaque fiche match — un message par mission pitchée.
             </p>
           </section>
 
-          {/* CV original — colonne droite, juste sous les postes matchés.
+          {/* CV original — colonne droite, juste sous les missions matchées.
               La fiche étant maintenant légère, l'aperçu PDF ne pollue
               plus la page principale. */}
           <section style={{

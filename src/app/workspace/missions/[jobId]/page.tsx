@@ -110,18 +110,18 @@ export default function JobDetailPage() {
 
   const handleDelete = async () => {
     if (!job) return
-    if (!confirm("Supprimer ce poste ? Les matchs associés seront perdus.")) return
+    if (!confirm("Supprimer cette mission ? Les matchs associés seront perdus.")) return
     const res = await fetch(`/api/jobs/${job.id}`, { method: "DELETE" })
-    if (res.ok) router.push("/workspace/postes")
+    if (res.ok) router.push("/workspace/missions")
   }
 
   if (loading) return <NoraLoader />
   if (notFound || !job) {
     return (
       <div style={{ padding: "60px 24px", textAlign: "center", color: "#6B7280" }}>
-        <p style={{ fontSize: 16, fontWeight: 600 }}>Poste introuvable.</p>
-        <Link href="/workspace/postes" style={{ color: "#7C63C8", textDecoration: "none", fontSize: 14 }}>
-          ← Retour aux postes
+        <p style={{ fontSize: 16, fontWeight: 600 }}>Mission introuvable.</p>
+        <Link href="/workspace/missions" style={{ color: "#7C63C8", textDecoration: "none", fontSize: 14 }}>
+          ← Retour aux missions
         </Link>
       </div>
     )
@@ -150,10 +150,10 @@ export default function JobDetailPage() {
       padding: "32px 24px 80px", maxWidth: 1040, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
-      <Link href="/workspace/postes" style={{
+      <Link href="/workspace/missions" style={{
         display: "inline-flex", alignItems: "center", gap: 6,
         fontSize: 13, color: "#7C63C8", textDecoration: "none", marginBottom: 22,
-      }}>← Retour aux postes</Link>
+      }}>← Retour aux missions</Link>
 
       {/* Header */}
       <m.section
@@ -252,7 +252,7 @@ export default function JobDetailPage() {
           </button>
           <span style={{ fontSize: 12.5, color: "#9CA3AF" }}>
             {matching
-              ? "Nora compare votre vivier au poste…"
+              ? "Nora compare votre vivier à la mission…"
               : job.matched_at
                 ? `Dernier matching : ${new Date(job.matched_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`
                 : "Lancez le matching pour voir les candidats pertinents."}

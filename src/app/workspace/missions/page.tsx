@@ -12,7 +12,7 @@ const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const SENIORITIES = ["etudiant", "stagiaire", "junior", "mid", "senior", "lead", "principal"]
 const CONTRACTS = ["CDI", "CDD", "Freelance", "Stage", "Alternance"]
 
-export default function PostesPage() {
+export default function MissionsPage() {
   const sb = useMemo(() => getSupabase(), [])
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,15 +69,15 @@ export default function PostesPage() {
             padding: "4px 11px", borderRadius: 100,
             letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
           }}>
-            Postes
+            Missions
           </span>
           <h1 style={{ margin: 0, fontSize: "clamp(26px, 3vw, 34px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
-            Vos postes ouverts
+            Vos missions ouvertes
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
             {jobs.length === 0
-              ? "Décrivez un poste — Nora le matche avec votre vivier."
-              : `${jobs.length} poste${jobs.length > 1 ? "s" : ""}.`}
+              ? "Décrivez une mission — Nora la matche avec votre vivier."
+              : `${jobs.length} mission${jobs.length > 1 ? "s" : ""}.`}
           </p>
         </div>
         <button
@@ -89,7 +89,7 @@ export default function PostesPage() {
             boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)", fontFamily: "inherit",
           }}
         >
-          + Créer un poste
+          + Créer une mission
         </button>
       </div>
 
@@ -163,7 +163,7 @@ function JobCard({ job, delay }: { job: Job; delay: number }) {
             : ms === "error" ? "Erreur matching"
             : "Pas encore matché"}
         </span>
-        <Link href={`/workspace/postes/${job.id}`} style={{
+        <Link href={`/workspace/missions/${job.id}`} style={{
           fontSize: 12, fontWeight: 600, color: "#7C63C8",
           padding: "6px 12px", borderRadius: 8,
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.16)",
@@ -216,11 +216,11 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
     >
       <div style={{ fontSize: 56, marginBottom: 16 }}>📋</div>
       <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.015em" }}>
-        Créez votre premier poste
+        Créez votre première mission
       </h2>
       <p style={{ margin: "0 auto 18px", maxWidth: 460, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
-        Décrivez un besoin (titre, séniorité, compétences). Nora le compare à tout
-        votre vivier et vous sort les candidats pertinents, classés et justifiés.
+        Décrivez le besoin (titre, séniorité, compétences). Nora compare la mission
+        à tout votre vivier et vous sort les candidats pertinents, classés et justifiés.
       </p>
       <button onClick={onCreate} style={{
         padding: "11px 22px", borderRadius: 12, border: "none", cursor: "pointer",
@@ -228,7 +228,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         color: "white", fontWeight: 700, fontSize: 14, fontFamily: "inherit",
         boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
-        Créer un poste
+        Créer une mission
       </button>
     </m.div>
   )
@@ -335,7 +335,7 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
           padding: "18px 24px 0", borderBottom: "1px solid #F0ECF8",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827" }}>Nouveau poste</h2>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827" }}>Nouvelle mission</h2>
             <button onClick={onClose} style={{
               background: "transparent", border: "none", cursor: "pointer",
               fontSize: 20, color: "#9CA3AF", lineHeight: 1,
@@ -365,7 +365,7 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
         {tab === "form" ? (
           <>
             <div style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-              <Field label="Intitulé du poste *">
+              <Field label="Intitulé de la mission *">
                 <input value={title} onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex : Senior Data Engineer" style={inputStyle} autoFocus />
               </Field>
@@ -424,7 +424,7 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
                 color: "white", fontSize: 13, fontWeight: 700,
                 cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
               }}>
-                {submitting ? "Création + analyse…" : "Créer le poste"}
+                {submitting ? "Création + analyse…" : "Créer la mission"}
               </button>
             </div>
           </>
@@ -534,7 +534,7 @@ function ChatBrief({
             }}
           >
             <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-              Proposition de poste
+              Proposition de mission
             </p>
             <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{draft.title}</p>
             <p style={{ margin: "0 0 10px", fontSize: 12, color: "#6B7280" }}>
@@ -567,7 +567,7 @@ function ChatBrief({
                 color: "white", fontSize: 12.5, fontWeight: 700,
                 cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
               }}>
-                {submitting ? "Création…" : "Créer ce poste"}
+                {submitting ? "Création…" : "Créer cette mission"}
               </button>
             </div>
           </m.div>

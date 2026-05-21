@@ -170,6 +170,13 @@ export type Database = {
           status: 'draft' | 'open' | 'filled' | 'archived'
           match_status: 'idle' | 'matching' | 'done' | 'error'
           matched_at: string | null
+          // Mission pricing — client-side commercial inputs (sprint Pricing).
+          // `location` and `contract_type` above already carry the "lieu de
+          // mission" and "type de contrat" so we don't duplicate them here.
+          client_tjm_min: number | null
+          client_tjm_max: number | null
+          margin_min_pct: number | null
+          duration_months: number | null
           created_at: string
           updated_at: string
         }
@@ -189,6 +196,10 @@ export type Database = {
           status?: 'draft' | 'open' | 'filled' | 'archived'
           match_status?: 'idle' | 'matching' | 'done' | 'error'
           matched_at?: string | null
+          client_tjm_min?: number | null
+          client_tjm_max?: number | null
+          margin_min_pct?: number | null
+          duration_months?: number | null
           created_at?: string
           updated_at?: string
         }

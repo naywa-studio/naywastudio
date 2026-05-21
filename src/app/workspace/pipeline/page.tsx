@@ -191,13 +191,13 @@ export default function PipelinePage() {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <label style={{ fontSize: 11.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                Poste
+                Mission
               </label>
               <Select
                 value={jobFilter}
                 onChange={setJobFilter}
                 options={[
-                  { value: "", label: `Tous les postes (${allJobs.length})` },
+                  { value: "", label: `Toutes les missions (${allJobs.length})` },
                   ...allJobs.map((j) => ({ value: j.id, label: j.title })),
                 ]}
                 style={{ minWidth: 220 }}
@@ -205,7 +205,7 @@ export default function PipelinePage() {
             </div>
             <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
               {([
-                { key: "by-job" as GroupMode, label: "Groupé par poste" },
+                { key: "by-job" as GroupMode, label: "Groupé par mission" },
                 { key: "flat"   as GroupMode, label: "Vue à plat" },
               ]).map((m) => (
                 <button
@@ -394,7 +394,7 @@ function groupByJob(rows: Row[]): { jobId: string; jobTitle: string; jobCards: R
   const map = new Map<string, { jobTitle: string; jobCards: Row[] }>()
   for (const r of rows) {
     const id = r.job?.id ?? "_none"
-    const title = r.job?.title ?? "Sans poste"
+    const title = r.job?.title ?? "Sans mission"
     const entry = map.get(id)
     if (entry) entry.jobCards.push(r)
     else map.set(id, { jobTitle: title, jobCards: [r] })
@@ -524,17 +524,17 @@ function EmptyState() {
         Votre pipeline est vide
       </h2>
       <p style={{ margin: "0 auto 18px", maxWidth: 460, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
-        Les candidats apparaissent ici dès qu&apos;ils sont matchés à un poste.
-        Créez un poste et lancez le matching pour démarrer.
+        Les candidats apparaissent ici dès qu&apos;ils sont matchés à une mission.
+        Créez une mission et lancez le matching pour démarrer.
       </p>
-      <Link href="/workspace/postes" style={{
+      <Link href="/workspace/missions" style={{
         display: "inline-block",
         padding: "11px 22px", borderRadius: 12,
         background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
         color: "white", fontWeight: 700, fontSize: 14, textDecoration: "none",
         boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
-        Aller aux postes
+        Aller aux missions
       </Link>
     </m.div>
   )

@@ -29,7 +29,7 @@ export function useWorkspace() {
 const TABS: { href: string; label: string; live: boolean }[] = [
   { href: "/workspace",        label: "Accueil",  live: true  },
   { href: "/workspace/vivier", label: "Vivier",   live: true  },
-  { href: "/workspace/postes", label: "Postes",   live: true  },
+  { href: "/workspace/missions", label: "Missions", live: true  },
   { href: "/workspace/pipeline", label: "Pipeline", live: true  },
 ]
 
