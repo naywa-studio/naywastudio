@@ -98,6 +98,17 @@ export type JobNormalized = {
   summary?: string | null
 }
 
+// ── Pricing defaults stored on profiles.pricing_default_avantages ──
+export type PricingDefaultAvantages = {
+  ticketsResto?: number
+  mutuellePremium?: number
+  transport?: number
+  forfaitMobilite?: number
+  treiziemeMois?: boolean
+  primeCooptationAnnuelle?: number
+  autresMensuels?: number
+}
+
 // ── Compose IA: metadata for the persisted outreach draft ──
 export type OutreachChannel = "email" | "linkedin"
 export type OutreachMeta = {
@@ -146,6 +157,15 @@ export type Database = {
           calendly_scheduling_url: string | null
           calendly_webhook_uri: string | null
           calendly_connected_at: string | null
+          // Pricing defaults — pre-fill every chiffrage on the fiche match.
+          pricing_billable_days_per_month: number | null
+          pricing_margin_min_pct: number | null
+          pricing_margin_target_pct: number | null
+          /** Decimal 0.00-1.00 (e.g. 0.43 = 43%). NULL → computed from lieu. */
+          pricing_charges_rate_override: number | null
+          pricing_default_lieu: 'paris_petite_couronne' | 'idf_grande_couronne' | 'lyon' | 'province' | null
+          pricing_default_modalite: 'modalite_1' | 'modalite_2' | 'modalite_3' | null
+          pricing_default_avantages: PricingDefaultAvantages | null
           created_at: string
           updated_at: string
         }
