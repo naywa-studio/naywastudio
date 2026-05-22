@@ -15,6 +15,13 @@ const clean = (v: unknown): string | null => {
   const t = v.trim()
   return t.length ? t : null
 }
+/** Parses optional numeric fields from the form (TJM, marge %, durée mois).
+ *  Empty string / null / NaN → null so the column stays nullable in DB. */
+const cleanNumber = (v: unknown): number | null => {
+  if (v === null || v === undefined || v === "") return null
+  const n = typeof v === "number" ? v : Number(v)
+  return Number.isFinite(n) ? n : null
+}
 const cleanArr = (v: unknown): string[] => {
   if (!Array.isArray(v)) return []
   const seen = new Set<string>()
@@ -66,6 +73,11 @@ export async function POST(req: NextRequest) {
     nice_to_have_skills: cleanArr(body?.nice_to_have_skills),
     description: clean(body?.description),
     status: "open" as const,
+    // Pricing — all optional, sourceur can fill them at creation or later.
+    client_tjm_min: cleanNumber(body?.client_tjm_min),
+    client_tjm_max: cleanNumber(body?.client_tjm_max),
+    margin_min_pct: cleanNumber(body?.margin_min_pct),
+    duration_months: cleanNumber(body?.duration_months),
   }
 
   const { data: created, error: insertErr } = await sb

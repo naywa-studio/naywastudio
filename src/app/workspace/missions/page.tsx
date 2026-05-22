@@ -6,6 +6,7 @@ import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Job } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import Select from "@/components/ui/Select"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -255,12 +256,19 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
   const [reqSkills, setReqSkills] = useState<string[]>([])
   const [niceSkills, setNiceSkills] = useState<string[]>([])
   const [description, setDescription] = useState("")
+  // Pricing — all optional. The sourceur can fill them now or come back later.
+  const [tjmMin, setTjmMin] = useState<string>("")
+  const [tjmMax, setTjmMax] = useState<string>("")
+  const [marginMin, setMarginMin] = useState<string>("")
+  const [duration, setDuration] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const createJob = async (values: {
     title: string; location: string; seniority: string; contract_type: string
     required_skills: string[]; nice_to_have_skills: string[]; description: string
+    client_tjm_min?: number | null; client_tjm_max?: number | null
+    margin_min_pct?: number | null; duration_months?: number | null
   }): Promise<boolean> => {
     if (!values.title.trim()) { setError("Le titre est requis."); return false }
     setSubmitting(true); setError(null)
@@ -285,9 +293,18 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
     }
   }
 
+  const parseNum = (s: string): number | null => {
+    if (!s.trim()) return null
+    const n = Number(s.replace(",", "."))
+    return Number.isFinite(n) ? n : null
+  }
   const submitForm = () => createJob({
     title, location, seniority, contract_type: contractType,
     required_skills: reqSkills, nice_to_have_skills: niceSkills, description,
+    client_tjm_min: parseNum(tjmMin),
+    client_tjm_max: parseNum(tjmMax),
+    margin_min_pct: parseNum(marginMin),
+    duration_months: parseNum(duration),
   })
 
   const applyDraft = (d: JobDraft) => {
@@ -376,18 +393,22 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
                     placeholder="Paris, remote…" style={inputStyle} />
                 </Field>
                 <Field label="Séniorité">
-                  <select value={seniority} onChange={(e) => setSeniority(e.target.value)} style={inputStyle}>
-                    <option value="">—</option>
-                    {SENIORITIES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <Select
+                    value={seniority}
+                    onChange={setSeniority}
+                    placeholder="—"
+                    options={SENIORITIES.map((s) => ({ value: s, label: s }))}
+                  />
                 </Field>
               </div>
 
               <Field label="Type de contrat">
-                <select value={contractType} onChange={(e) => setContractType(e.target.value)} style={inputStyle}>
-                  <option value="">—</option>
-                  {CONTRACTS.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <Select
+                  value={contractType}
+                  onChange={setContractType}
+                  placeholder="—"
+                  options={CONTRACTS.map((c) => ({ value: c, label: c }))}
+                />
               </Field>
 
               <Field label="Compétences requises" hint="Entrée ou virgule pour ajouter">
@@ -403,6 +424,58 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
                   rows={5} placeholder="Contexte, missions, contraintes…"
                   style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
               </Field>
+
+              {/* Pricing block — optional, used by the Pricing tab later.
+                  Pre-collected here so the sourceur doesn't have to re-open the
+                  mission later when moving a candidate into the pricing stage. */}
+              <div style={{
+                background: "rgba(217,119,6,0.04)", border: "1px solid rgba(217,119,6,0.18)",
+                borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 10,
+              }}>
+                <div style={{
+                  fontSize: 11.5, fontWeight: 700, color: "#B45309",
+                  letterSpacing: "0.06em", textTransform: "uppercase",
+                  display: "flex", alignItems: "center", gap: 6,
+                }}>
+                  💰 Pricing <span style={{ fontWeight: 500, color: "#9CA3AF", textTransform: "none", letterSpacing: 0 }}>
+                    · optionnel, complétez plus tard si besoin
+                  </span>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <Field label="TJM client min (€/j)">
+                    <input
+                      type="number" inputMode="decimal" min={0} step={10}
+                      value={tjmMin} onChange={(e) => setTjmMin(e.target.value)}
+                      placeholder="500" style={inputStyle}
+                    />
+                  </Field>
+                  <Field label="TJM client max (€/j)">
+                    <input
+                      type="number" inputMode="decimal" min={0} step={10}
+                      value={tjmMax} onChange={(e) => setTjmMax(e.target.value)}
+                      placeholder="650" style={inputStyle}
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <Field label="Marge minimum (%)">
+                    <input
+                      type="number" inputMode="decimal" min={0} max={100} step={1}
+                      value={marginMin} onChange={(e) => setMarginMin(e.target.value)}
+                      placeholder="15" style={inputStyle}
+                    />
+                  </Field>
+                  <Field label="Durée prévue (mois)">
+                    <input
+                      type="number" inputMode="numeric" min={1} max={120} step={1}
+                      value={duration} onChange={(e) => setDuration(e.target.value)}
+                      placeholder="12" style={inputStyle}
+                    />
+                  </Field>
+                </div>
+              </div>
 
               {error && (
                 <div style={{
