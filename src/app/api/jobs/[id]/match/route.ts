@@ -34,9 +34,19 @@ export const runtime = "nodejs"
 export const maxDuration = 60
 
 // Hard ceiling per run so a huge vivier can't blow the 60s function budget
-// (≈10 LLM batches + DB writes). The pre-filter sorts by relevance signal,
-// so the best candidates are always covered first; the user can re-run.
-const MAX_SCORED_PER_RUN = 80
+// (≈ batches * 5-8s LLM call + DB writes). The pre-filter sorts by relevance
+// signal, so the best candidates are always covered first; the user can re-run.
+// 40 / MATCH_BATCH_SIZE(8) = 5 LLM round-trips, which leaves margin even when
+// OpenRouter is slow.
+const MAX_SCORED_PER_RUN = 40
+
+/**
+ * If a previous run was killed mid-flight by Vercel (timeout, OOM, deploy),
+ * the `match_status='matching'` flag is never cleared because no catch block
+ * runs on a hard kill. We treat any "matching" older than 2 minutes as stale
+ * and reset it so the sourceur can retry without manual DB surgery.
+ */
+const STALE_MATCHING_AFTER_MS = 2 * 60_000
 
 export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
@@ -49,12 +59,30 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
 
   const admin = getAdminSupabase()
 
+  // Recover from a previous run killed by Vercel mid-flight. Without this,
+  // the job would stay "matching" forever and the UI's spinner never stops.
+  if (job.match_status === "matching") {
+    const lastUpdate = new Date(job.updated_at).getTime()
+    if (Date.now() - lastUpdate < STALE_MATCHING_AFTER_MS) {
+      return NextResponse.json(
+        {
+          error: "already_matching",
+          message: "Un matching est déjà en cours pour cette mission, patientez quelques instants.",
+        },
+        { status: 409 },
+      )
+    }
+    // Stale — fall through and reset below.
+  }
+
   const quota = await consumeQuota(admin, user.id, "match")
   if (!quota.ok) {
     return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
   }
 
-  await admin.from("jobs").update({ match_status: "matching" }).eq("id", job.id)
+  await admin.from("jobs")
+    .update({ match_status: "matching", updated_at: new Date().toISOString() })
+    .eq("id", job.id)
 
   try {
     // 1. Candidates — only successfully parsed ones can be matched.
@@ -79,58 +107,76 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     const pool = hits.slice(0, MAX_SCORED_PER_RUN).map((h) => h.candidate)
     const prefilteredOut = candidates.length - hits.length
 
-    // 3. Score in batches
-    const results: MatchResult[] = []
-    for (let i = 0; i < pool.length; i += MATCH_BATCH_SIZE) {
-      const batch = pool.slice(i, i + MATCH_BATCH_SIZE)
-      try {
-        const scored = await scoreBatch(job as Job, batch)
-        results.push(...scored)
-      } catch (err) {
-        console.error("[match] batch failed:", (err as Error).message)
-        // Don't abort the whole run — skip this batch.
-      }
-    }
-
-    // 4. Upsert assessments, preserving pipeline_stage on existing rows.
+    // 3. Score in batches AND persist progressively. If the Vercel runtime
+    //    is killed mid-flight (timeout, OOM, deploy), every batch that has
+    //    already been written stays committed — the next retry skips them.
     const { data: existingRows } = await admin
       .from("match_assessments")
       .select("id, candidate_id")
       .eq("job_id", job.id)
     const existingByCand = new Map((existingRows ?? []).map((r) => [r.candidate_id, r.id]))
 
-    const toInsert: MatchInsert[] = []
-    const updates: PromiseLike<unknown>[] = []
-    for (const r of results) {
-      const existingId = existingByCand.get(r.candidate_id)
-      if (existingId) {
-        updates.push(
-          admin.from("match_assessments").update({
+    const results: MatchResult[] = []
+    for (let i = 0; i < pool.length; i += MATCH_BATCH_SIZE) {
+      const batch = pool.slice(i, i + MATCH_BATCH_SIZE)
+      let scored: MatchResult[] = []
+      try {
+        scored = await scoreBatch(job as Job, batch)
+      } catch (err) {
+        console.error("[match] batch failed:", (err as Error).message)
+        continue  // Skip this batch but keep going.
+      }
+      results.push(...scored)
+
+      // Persist this batch immediately so a later timeout doesn't lose it.
+      const batchInserts: MatchInsert[] = []
+      const batchUpdates: PromiseLike<unknown>[] = []
+      for (const r of scored) {
+        const existingId = existingByCand.get(r.candidate_id)
+        if (existingId) {
+          batchUpdates.push(
+            admin.from("match_assessments").update({
+              score: r.score,
+              score_dimensions: r.dimensions,
+              justification: r.justification,
+              match_tier: r.tier,
+            }).eq("id", existingId),
+          )
+        } else {
+          batchInserts.push({
+            user_id: user.id,
+            job_id: job.id,
+            candidate_id: r.candidate_id,
             score: r.score,
             score_dimensions: r.dimensions,
             justification: r.justification,
             match_tier: r.tier,
-          }).eq("id", existingId),
-        )
-      } else {
-        toInsert.push({
-          user_id: user.id,
-          job_id: job.id,
-          candidate_id: r.candidate_id,
-          score: r.score,
-          score_dimensions: r.dimensions,
-          justification: r.justification,
-          match_tier: r.tier,
-          pipeline_stage: "identified",
-        })
+            pipeline_stage: "identified",
+          })
+        }
       }
-    }
-    // Run the existing-row updates concurrently in bounded chunks.
-    for (let i = 0; i < updates.length; i += 12) {
-      await Promise.all(updates.slice(i, i + 12))
-    }
-    if (toInsert.length > 0) {
-      await admin.from("match_assessments").insert(toInsert)
+      try {
+        if (batchUpdates.length > 0) await Promise.all(batchUpdates)
+        if (batchInserts.length > 0) {
+          const { data: inserted } = await admin
+            .from("match_assessments")
+            .insert(batchInserts)
+            .select("id, candidate_id")
+          // Remember newly-inserted rows so a future re-score of the same
+          // run (shouldn't happen, but defensive) hits the update branch.
+          for (const row of inserted ?? []) {
+            existingByCand.set(row.candidate_id, row.id)
+          }
+        }
+      } catch (err) {
+        console.error("[match] batch persist failed:", (err as Error).message)
+      }
+
+      // Heartbeat — refresh updated_at so the stale-recovery doesn't kick in
+      // for a slow but progressing run.
+      await admin.from("jobs")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", job.id)
     }
 
     // 5. Mission-tag write-back onto well-matched candidates' taxonomy.
