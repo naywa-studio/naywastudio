@@ -119,13 +119,14 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
           }}>
             Évolution de la marge — 3 scénarios
           </h4>
-          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 540 }}>
+          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 560 }}>
             Pour chaque mois X, marge <strong>mensuelle effective</strong> du
             projet <strong>si le contrat est rompu à ce mois-là</strong>.
-            Pendant la période d&apos;essai, pas d&apos;indemnité — les courbes
-            sont confondues. À la <strong>fin de l&apos;essai</strong>, chute
-            visible : préavis et indemnités Syntec deviennent payables et
-            grèvent la marge le temps d&apos;être amortis.
+            Le revenu varie avec les <strong>jours facturables réels</strong> du
+            mois (creux en juillet-août pour les CP, autour des fériés de
+            mai/novembre). Pendant l&apos;essai, pas d&apos;indemnité. À la fin
+            de l&apos;essai, chute visible : préavis et indemnités Syntec
+            deviennent payables et grèvent la marge le temps d&apos;être amortis.
             {dureeMois > 0 && <> Ligne violette : fin prévue ({dureeMois} mois).</>}
           </p>
         </div>
@@ -278,9 +279,9 @@ function Legend({ preavisMois }: { preavisMois: number }) {
       display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center",
       fontSize: 11, color: "#6B7280",
     }}>
-      <LegendDot color="#16A34A" label="Sans intercontrat" />
-      <LegendDot color="#D97706" label="+1 mois intercontrat" />
-      <LegendDot color="#DC2626" label={`+préavis (${preavisMois} mois)`} />
+      <LegendDot color="#16A34A" label="Marge sans intercontrat" />
+      <LegendDot color="#D97706" label="Marge +1 mois" />
+      <LegendDot color="#DC2626" label={`Marge préavis max (${preavisMois}m)`} />
     </div>
   )
 }
@@ -331,9 +332,9 @@ function ScenarioSummary({
     v >= 0 ? "#15803d" : "#B91C1C"
 
   const rows = [
-    { color: "#16A34A", label: "Best case — rupture amiable à 24 mois", value: endNomi, pct: endNomiPct },
-    { color: "#D97706", label: "Réaliste — 1 mois d'intercontrat à 24 mois", value: end1m, pct: end1mPct },
-    { color: "#DC2626", label: `Worst case — licenciement + ${preavisMois}m préavis à 24 mois`, value: endPreavis, pct: endPreavisPct },
+    { color: "#16A34A", label: "Marge sans intercontrat — fin d'horizon (24m)", value: endNomi, pct: endNomiPct },
+    { color: "#D97706", label: "Marge +1 mois — fin d'horizon (24m)", value: end1m, pct: end1mPct },
+    { color: "#DC2626", label: `Marge préavis max (${preavisMois}m) — fin d'horizon (24m)`, value: endPreavis, pct: endPreavisPct },
   ]
 
   return (

@@ -154,6 +154,51 @@ export interface RuptureScenarios {
   finEssaiMois: number
 }
 
+/**
+ * Typical French calendar profile — billable days per calendar month for a
+ * Syntec cadre on modalité 1 (35h). Built from:
+ *   - Working days per month (Mon-Fri)
+ *   - Average French public holidays falling on a weekday
+ *   - 25 paid leave days/year, concentrated in summer + late December
+ *   - ~10 RTT days/year, spread across the year
+ *
+ * Total ≈ 214 facturable days/year. The sourceur's per-cabinet "average
+ * billable days" setting (paramétrage) is used as a scale factor so the
+ * shape is preserved but the absolute level matches their reality.
+ *
+ * Indexed from 0 (January) to 11 (December).
+ */
+const TYPICAL_BILLABLE_DAYS_BY_MONTH: number[] = [
+  20, // Jan — quiet, 1 férié (1er janvier), 1 RTT
+  19, // Fév
+  20, // Mar
+  20, // Avr — 1 férié (lundi de Pâques selon année)
+  18, // Mai — 3 fériés (1er, 8, Ascension) + 1 CP
+  17, // Juin — 1 férié (Pentecôte), début CP
+  15, // Juil — 7 CP, pic départ
+  10, // Août — 10 CP, congés massifs
+  20, // Sep — rentrée, plein temps
+  22, // Oct — gros mois facturable
+  17, // Nov — 2 fériés (Toussaint, Armistice)
+  16, // Déc — 5 CP fin d'année, 1 férié (Noël)
+]
+const TYPICAL_YEARLY_BILLABLE = TYPICAL_BILLABLE_DAYS_BY_MONTH.reduce((a, b) => a + b, 0) // ≈ 214
+
+/**
+ * Return the billable-days profile for `mois` months ahead, scaled to match
+ * the cabinet's configured monthly average. Month 1 = January by convention
+ * (we don't ask for a start date — V1 keeps the cycle generic).
+ */
+function billableDaysProfile(monthCount: number, configuredAvgDays: number): number[] {
+  const scale = (configuredAvgDays * 12) / TYPICAL_YEARLY_BILLABLE
+  const out: number[] = []
+  for (let i = 0; i < monthCount; i++) {
+    const calendarMonth = i % 12 // wrap around for multi-year horizons
+    out.push(TYPICAL_BILLABLE_DAYS_BY_MONTH[calendarMonth] * scale)
+  }
+  return out
+}
+
 /** Verdict of the conventional-minimum sanity check. */
 export interface MinimumCheck {
   ok: boolean
@@ -447,9 +492,18 @@ export function computeRuptureScenarios(
   tjm: number,
 ): RuptureScenarios {
   const cost = computeEmployerCost(input)
-  const revenuMensuel = tjm * input.joursFacturablesParMois
-  const margeNominaleMensuelle = revenuMensuel - cost.coutTotalMensuel
   const brutMensuel = input.brutAnnuel / 12
+
+  // Calendar-aware billable days for each month of the horizon. Total stays
+  // aligned with input.joursFacturablesParMois × 12 so the cabinet's average
+  // is respected, but the per-month profile follows a typical French year :
+  //  - August dips to ~10 days (5 weeks of paid leave concentrated there)
+  //  - May / November lose 2-3 days to public holidays
+  //  - October peaks at ~22 days (no holidays, no leave)
+  //  - December dips to ~16 days (end-of-year leave + Christmas)
+  // This makes nominal margin wave naturally month after month — exactly the
+  // pattern the sourceur expects to see in their Excel.
+  const billableDays = billableDaysProfile(dureeMois, input.joursFacturablesParMois)
 
   const preavisM = preavisMois(input.statut, dureeMois / 12, input.coefficient)
   const finEssai = finPeriodeEssaiMois(input.statut, input.coefficient)
@@ -458,25 +512,33 @@ export function computeRuptureScenarios(
   const avec1Mois: MarginPoint[] = []
   const avecPreavis: MarginPoint[] = []
 
-  const pctOf = (m: number): number =>
-    revenuMensuel <= 0 ? 0 : (m / revenuMensuel) * 100
-
   for (let t = 1; t <= dureeMois; t++) {
     const inEssai = t <= finEssai
     const ancienneteAnnees = t / 12
 
-    // 1) Sans intercontrat — flat plateau, the candidate moves on instantly,
-    //    no rupture cost ever lands on the ESN.
+    // Revenue scales with the actual billable days of month t. Employer cost
+    // stays constant (gross + charges + benefits are payable whether the
+    // candidate is invoicing or on leave — that's precisely why August is
+    // painful for ESNs).
+    const joursDuMois = billableDays[t - 1] ?? input.joursFacturablesParMois
+    const revenuDuMois = tjm * joursDuMois
+    const margeNominaleDuMois = revenuDuMois - cost.coutTotalMensuel
+    const pctOf = (m: number): number =>
+      revenuDuMois <= 0 ? 0 : (m / revenuDuMois) * 100
+
+    // 1) Sans intercontrat — no rupture cost ever lands on the ESN. The
+    //    curve still ripples because the nominal margin varies with the
+    //    monthly billable days.
     sansIntercontrat.push({
       mois: t,
-      margeMois: margeNominaleMensuelle,
-      margePct: pctOf(margeNominaleMensuelle),
+      margeMois: margeNominaleDuMois,
+      margePct: pctOf(margeNominaleDuMois),
     })
 
-    // 2) +1 mois intercontrat — applies only after essai. During essai,
-    //    rupture is costless so the margin sits at the nominal level.
+    // 2) +1 mois intercontrat — only after essai. The extra month of
+    //    payroll without billing is amortised over the t months elapsed.
     const cost1m = inEssai ? 0 : (cost.coutTotalMensuel * 1) / t
-    const marge1m = margeNominaleMensuelle - cost1m
+    const marge1m = margeNominaleDuMois - cost1m
     avec1Mois.push({
       mois: t,
       margeMois: marge1m,
@@ -491,7 +553,7 @@ export function computeRuptureScenarios(
       const indemniteEuros = indemniteMois * brutMensuel
       costPreavis = (preavisM * cost.coutTotalMensuel + indemniteEuros) / t
     }
-    const margePreavis = margeNominaleMensuelle - costPreavis
+    const margePreavis = margeNominaleDuMois - costPreavis
     avecPreavis.push({
       mois: t,
       margeMois: margePreavis,
