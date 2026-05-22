@@ -17,6 +17,7 @@ type Row = MatchAssessment & {
 
 const STAGES: { key: PipelineStage; label: string; color: string; bg: string }[] = [
   { key: "identified", label: "Identifié", color: "#6B7280", bg: "#F9FAFB" },
+  { key: "pricing",    label: "Pricing",   color: "#D97706", bg: "rgba(217,119,6,0.06)" },
   { key: "contacted",  label: "Contacté",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
   { key: "replied",    label: "Réponse",   color: "#7C63C8", bg: "rgba(124,99,200,0.05)" },
   { key: "interview",  label: "Entretien", color: "#B45309", bg: "rgba(245,158,11,0.06)" },

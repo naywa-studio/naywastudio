@@ -309,7 +309,7 @@ export type Database = {
           score_dimensions: ScoreDimensions | null
           justification: string | null
           match_tier: 'excellent' | 'good' | 'fair' | 'poor' | null
-          pipeline_stage: 'identified' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
+          pipeline_stage: 'identified' | 'pricing' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -326,7 +326,7 @@ export type Database = {
           score_dimensions?: ScoreDimensions | null
           justification?: string | null
           match_tier?: 'excellent' | 'good' | 'fair' | 'poor' | null
-          pipeline_stage?: 'identified' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
+          pipeline_stage?: 'identified' | 'pricing' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null
