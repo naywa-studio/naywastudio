@@ -106,6 +106,9 @@ export type PricingDefaultAvantages = {
   forfaitMobilite?: number
   treiziemeMois?: boolean
   primeCooptationAnnuelle?: number
+  /** URSSAF indemnité grand déplacement, €/jour travaillé. Plafonds 2026 :
+   *  Paris+PC ≈ 115,70 €/j, autres zones ≈ 96,50 €/j. */
+  urssafIndemniteJour?: number
   autresMensuels?: number
 }
 
@@ -197,6 +200,7 @@ export type Database = {
           client_tjm_max: number | null
           margin_min_pct: number | null
           duration_months: number | null
+          target_gross_salary: number | null
           created_at: string
           updated_at: string
         }
@@ -220,6 +224,7 @@ export type Database = {
           client_tjm_max?: number | null
           margin_min_pct?: number | null
           duration_months?: number | null
+          target_gross_salary?: number | null
           created_at?: string
           updated_at?: string
         }

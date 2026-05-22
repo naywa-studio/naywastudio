@@ -228,6 +228,12 @@ export default function JobDetailPage() {
           />
         </div>
 
+        {/* Pricing — paramètres commerciaux entrés à la création.
+            Affichage en lecture seule pour V1 ; l'édition inline viendra plus
+            tard. Le bloc se rend en jaune amber, cohérent avec le stage Pricing
+            et le ruban de l'onglet Pricing. */}
+        <MissionPricingBlock job={job} />
+
         {/* Match action */}
         <div style={{
           marginTop: 20, paddingTop: 18, borderTop: "1px solid #F0ECF8",
@@ -681,5 +687,100 @@ function Meta({ children }: { children: React.ReactNode }) {
     <span style={{ background: "#F9FAFB", border: "1px solid #F0ECF8", padding: "3px 8px", borderRadius: 6 }}>
       {children}
     </span>
+  )
+}
+
+/* ───────────────────────── Pricing summary block ─────────────────────────
+ * Shows the commercial inputs captured when the mission was created. If
+ * everything is blank, the block prompts the sourceur to complete them so
+ * the pricing tab can produce accurate numbers.
+ */
+function MissionPricingBlock({ job }: { job: Job }) {
+  const hasTjm = job.client_tjm_min != null || job.client_tjm_max != null
+  const hasMargin = job.margin_min_pct != null
+  const hasDuration = job.duration_months != null
+  const hasTarget = job.target_gross_salary != null
+  const hasAny = hasTjm || hasMargin || hasDuration || hasTarget
+
+  const fmtEur = (n: number | null | undefined): string =>
+    n == null ? "—" : `${Math.round(n).toLocaleString("fr-FR")} €`
+
+  const tjmLabel = job.client_tjm_min != null && job.client_tjm_max != null
+    ? `${fmtEur(job.client_tjm_min)} → ${fmtEur(job.client_tjm_max)}`
+    : job.client_tjm_min != null
+      ? `≥ ${fmtEur(job.client_tjm_min)}`
+      : job.client_tjm_max != null
+        ? `≤ ${fmtEur(job.client_tjm_max)}`
+        : "—"
+
+  return (
+    <div style={{
+      marginTop: 18,
+      background: hasAny ? "rgba(217,119,6,0.04)" : "#FAFAFA",
+      border: `1px solid ${hasAny ? "rgba(217,119,6,0.20)" : "#F0ECF8"}`,
+      borderRadius: 12, padding: 14,
+    }}>
+      <div style={{
+        display: "flex", alignItems: "baseline", gap: 8, marginBottom: hasAny ? 12 : 0,
+        flexWrap: "wrap",
+      }}>
+        <p style={{
+          margin: 0, fontSize: 11, fontWeight: 700, color: "#B45309",
+          letterSpacing: "0.07em", textTransform: "uppercase",
+        }}>
+          💰 Pricing
+        </p>
+        <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+          {hasAny
+            ? "— alimente l'onglet Pricing pour le chiffrage candidat"
+            : "— non renseigné. À compléter pour un chiffrage précis."}
+        </span>
+      </div>
+
+      {hasAny && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+          gap: 10,
+        }}>
+          <PricingMetric label="TJM client" value={tjmLabel} />
+          <PricingMetric
+            label="Marge minimum"
+            value={hasMargin ? `${job.margin_min_pct}%` : "—"}
+          />
+          <PricingMetric
+            label="Durée prévue"
+            value={hasDuration ? `${job.duration_months} mois` : "—"}
+          />
+          <PricingMetric
+            label="Brut annuel ciblé"
+            value={fmtEur(job.target_gross_salary)}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PricingMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{
+      background: "white", border: "1px solid rgba(217,119,6,0.18)",
+      borderRadius: 9, padding: "8px 11px",
+      display: "flex", flexDirection: "column", gap: 2,
+    }}>
+      <span style={{
+        fontSize: 10, fontWeight: 700, color: "#92400E",
+        letterSpacing: "0.05em", textTransform: "uppercase",
+      }}>
+        {label}
+      </span>
+      <span style={{
+        fontSize: 13.5, fontWeight: 700, color: "#111827",
+        fontVariantNumeric: "tabular-nums",
+      }}>
+        {value}
+      </span>
+    </div>
   )
 }

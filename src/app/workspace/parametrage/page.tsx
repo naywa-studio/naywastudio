@@ -52,6 +52,7 @@ const DEFAULT_FORM: Form = {
     forfaitMobilite: 0,
     treiziemeMois: false,
     primeCooptationAnnuelle: 0,
+    urssafIndemniteJour: 0,
     autresMensuels: 0,
   },
 }
@@ -338,6 +339,16 @@ export default function ParametragePage() {
           value={form.pricing_default_avantages.forfaitMobilite ?? 0}
           onValueChange={(v) => updateAvantage("forfaitMobilite", v)}
           suffix="€/mois"
+        />
+
+        <AvantageRow
+          label="Indemnité URSSAF (grand déplacement)"
+          hint="€/jour travaillé. Plafonds 2026 : Paris+PC 115,70 €/j · autres zones 96,50 €/j"
+          enabled={(form.pricing_default_avantages.urssafIndemniteJour ?? 0) > 0}
+          onToggle={(on) => updateAvantage("urssafIndemniteJour", on ? 96.50 : 0)}
+          value={form.pricing_default_avantages.urssafIndemniteJour ?? 0}
+          onValueChange={(v) => updateAvantage("urssafIndemniteJour", v)}
+          suffix="€/jour"
         />
 
         <AvantageRow

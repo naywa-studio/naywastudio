@@ -74,10 +74,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     update.status = body.status as JobUpdate["status"]
   }
   // Pricing fields — pure passthrough, no impact on matching normalization.
-  if ("client_tjm_min" in body)  { update.client_tjm_min = cleanNumber(body.client_tjm_min) }
-  if ("client_tjm_max" in body)  { update.client_tjm_max = cleanNumber(body.client_tjm_max) }
-  if ("margin_min_pct" in body)  { update.margin_min_pct = cleanNumber(body.margin_min_pct) }
-  if ("duration_months" in body) { update.duration_months = cleanNumber(body.duration_months) }
+  if ("client_tjm_min" in body)      { update.client_tjm_min = cleanNumber(body.client_tjm_min) }
+  if ("client_tjm_max" in body)      { update.client_tjm_max = cleanNumber(body.client_tjm_max) }
+  if ("margin_min_pct" in body)      { update.margin_min_pct = cleanNumber(body.margin_min_pct) }
+  if ("duration_months" in body)     { update.duration_months = cleanNumber(body.duration_months) }
+  if ("target_gross_salary" in body) { update.target_gross_salary = cleanNumber(body.target_gross_salary) }
 
   if (matchingInputsChanged) {
     try {

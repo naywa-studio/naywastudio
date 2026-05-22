@@ -261,6 +261,7 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
   const [tjmMax, setTjmMax] = useState<string>("")
   const [marginMin, setMarginMin] = useState<string>("")
   const [duration, setDuration] = useState<string>("")
+  const [targetGross, setTargetGross] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -269,6 +270,7 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
     required_skills: string[]; nice_to_have_skills: string[]; description: string
     client_tjm_min?: number | null; client_tjm_max?: number | null
     margin_min_pct?: number | null; duration_months?: number | null
+    target_gross_salary?: number | null
   }): Promise<boolean> => {
     if (!values.title.trim()) { setError("Le titre est requis."); return false }
     setSubmitting(true); setError(null)
@@ -305,6 +307,7 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
     client_tjm_max: parseNum(tjmMax),
     margin_min_pct: parseNum(marginMin),
     duration_months: parseNum(duration),
+    target_gross_salary: parseNum(targetGross),
   })
 
   const applyDraft = (d: JobDraft) => {
@@ -475,6 +478,17 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
                     />
                   </Field>
                 </div>
+
+                <Field
+                  label="Salaire brut annuel ciblé (si communiqué par le client)"
+                  hint="Avec 2 valeurs du triangle (TJM + brut), la marge est déduite automatiquement"
+                >
+                  <input
+                    type="number" inputMode="decimal" min={0} step={500}
+                    value={targetGross} onChange={(e) => setTargetGross(e.target.value)}
+                    placeholder="45000" style={inputStyle}
+                  />
+                </Field>
               </div>
 
               {error && (

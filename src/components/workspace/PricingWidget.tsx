@@ -156,13 +156,6 @@ function PricingWidgetInner({
   const [seniority, setSeniority] = useState<SenioritePreset>(detectedPreset)
   const preset = PRESETS[seniority]
 
-  // Inputs the sourceur can edit. The triangle has a "pivot" — the field
-  // we SOLVE for; the two others are entered by the sourceur.
-  const [pivot, setPivot] = useState<TrianglePivot>("marge")
-  const [tjm, setTjm] = useState<number>(550)
-  const [brutAnnuel, setBrutAnnuel] = useState<number>(45000)
-  const [margeMensuelle, setMargeMensuelle] = useState<number>(2000)
-
   // Mission-context defaults pre-filled from the job + profile
   const lieu: Lieu = (job?.location?.toLowerCase().includes("paris")
     ? "paris_petite_couronne"
@@ -172,6 +165,28 @@ function PricingWidgetInner({
 
   const modalite: Modalite = preset.modalite
   const joursParMois = profile?.pricing_billable_days_per_month ?? 18
+
+  // Inputs the sourceur can edit — initial values derived from the mission so
+  // the calculator is immediately useful. The triangle has a "pivot" — the
+  // field we SOLVE for; the two others are entered by the sourceur.
+  // - TJM : mid of client_tjm_min/max if both exist, else either one, else 550
+  // - Brut : target_gross_salary if set, else 45 000 €/an placeholder
+  // - Marge : becomes the default pivot so we surface the value the sourceur
+  //   actually needs to decide.
+  const initialTjm = useMemo(() => {
+    const min = job?.client_tjm_min
+    const max = job?.client_tjm_max
+    if (min != null && max != null) return Math.round((min + max) / 2)
+    if (min != null) return min
+    if (max != null) return max
+    return 550
+  }, [job?.client_tjm_min, job?.client_tjm_max])
+  const initialBrut = job?.target_gross_salary ?? 45000
+
+  const [pivot, setPivot] = useState<TrianglePivot>("marge")
+  const [tjm, setTjm] = useState<number>(initialTjm)
+  const [brutAnnuel, setBrutAnnuel] = useState<number>(initialBrut)
+  const [margeMensuelle, setMargeMensuelle] = useState<number>(2000)
 
   // Initialise avantages from the profile defaults at mount. Subsequent
   // edits stay local — the paramétrage page is the only place where the
@@ -224,6 +239,34 @@ function PricingWidgetInner({
     const finalBrut = triangle?.brutAnnuel ?? brutAnnuel
     return validateAgainstMinimum(buildInputs(finalBrut))
   }, [triangle, brutAnnuel, buildInputs])
+
+  // "Brut maximum proposable" — la plus haute rémunération brute qu'on peut
+  // proposer au candidat tout en préservant la marge minimum du cabinet.
+  // Inversion du triangle : on fixe TJM + marge_min et on résout le brut.
+  // Calculé uniquement quand le pivot N'EST PAS le brut (sinon doublon).
+  const margeMinPct = profile?.pricing_margin_min_pct ?? 15
+  const margeTargetPct = profile?.pricing_margin_target_pct ?? 22
+  const limits = useMemo(() => {
+    try {
+      const baseInputs = (() => {
+        const inputs = buildInputs(brutAnnuel)
+        const { brutAnnuel: _b, ...rest } = inputs
+        void _b
+        return rest
+      })()
+      const revenuMensuel = tjm * joursParMois
+      const margeMinMensuelle = revenuMensuel * (margeMinPct / 100)
+      const margeTargetMensuelle = revenuMensuel * (margeTargetPct / 100)
+      const brutMaxResult = computeTriangle("brut", { tjm, margeMensuelle: margeMinMensuelle }, baseInputs)
+      const brutIdealResult = computeTriangle("brut", { tjm, margeMensuelle: margeTargetMensuelle }, baseInputs)
+      return {
+        brutMax: brutMaxResult.brutAnnuel,
+        brutIdeal: brutIdealResult.brutAnnuel,
+      }
+    } catch {
+      return null
+    }
+  }, [tjm, brutAnnuel, buildInputs, joursParMois, margeMinPct, margeTargetPct])
 
   const [showDetail, setShowDetail] = useState(false)
 
@@ -329,12 +372,24 @@ function PricingWidgetInner({
         />
       </div>
 
+      {/* Brut limits — what the sourceur can actually propose */}
+      {limits && tjm > 0 && (
+        <BrutLimits
+          brutMax={limits.brutMax}
+          brutIdeal={limits.brutIdeal}
+          margeMinPct={margeMinPct}
+          margeTargetPct={margeTargetPct}
+          onApplyIdeal={() => { setPivot("marge"); setBrutAnnuel(Math.round(limits.brutIdeal)) }}
+          onApplyMax={() => { setPivot("marge"); setBrutAnnuel(Math.round(limits.brutMax)) }}
+        />
+      )}
+
       {/* Margin verdict */}
       {triangle && (
         <MarginVerdict
           margePct={triangle.margePct}
-          margeMin={profile?.pricing_margin_min_pct ?? 15}
-          margeCible={profile?.pricing_margin_target_pct ?? 22}
+          margeMin={margeMinPct}
+          margeCible={margeTargetPct}
         />
       )}
 
@@ -463,6 +518,69 @@ function TriangleCard({
       )}
     </div>
   )
+}
+
+function BrutLimits({
+  brutMax, brutIdeal, margeMinPct, margeTargetPct, onApplyIdeal, onApplyMax,
+}: {
+  brutMax: number
+  brutIdeal: number
+  margeMinPct: number
+  margeTargetPct: number
+  onApplyIdeal: () => void
+  onApplyMax: () => void
+}) {
+  const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR") + " €"
+  return (
+    <div style={{
+      marginBottom: 10,
+      padding: "10px 12px",
+      background: "linear-gradient(135deg, rgba(124,99,200,0.05), rgba(217,119,6,0.04))",
+      border: "1px solid rgba(124,99,200,0.18)",
+      borderRadius: 12,
+      display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+    }}>
+      <button
+        onClick={onApplyIdeal}
+        title={`Applique ${fmt(brutIdeal)} comme brut candidat`}
+        style={limitChipStyle("ideal")}
+      >
+        <span style={limitLabelStyle}>💎 Brut idéal</span>
+        <span style={limitValueStyle}>{fmt(brutIdeal)}</span>
+        <span style={limitHintStyle}>marge cible {margeTargetPct}%</span>
+      </button>
+      <button
+        onClick={onApplyMax}
+        title={`Applique ${fmt(brutMax)} comme brut candidat — plafond`}
+        style={limitChipStyle("max")}
+      >
+        <span style={limitLabelStyle}>🎯 Brut max proposable</span>
+        <span style={limitValueStyle}>{fmt(brutMax)}</span>
+        <span style={limitHintStyle}>marge mini {margeMinPct}%</span>
+      </button>
+    </div>
+  )
+}
+
+const limitLabelStyle: React.CSSProperties = {
+  fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+  letterSpacing: "0.04em", textTransform: "uppercase",
+}
+const limitValueStyle: React.CSSProperties = {
+  fontSize: 16, fontWeight: 800, color: "#111827",
+  fontVariantNumeric: "tabular-nums",
+}
+const limitHintStyle: React.CSSProperties = {
+  fontSize: 10.5, color: "#9CA3AF",
+}
+function limitChipStyle(kind: "ideal" | "max"): React.CSSProperties {
+  return {
+    cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+    background: "white",
+    border: `1px solid ${kind === "ideal" ? "rgba(34,197,94,0.25)" : "rgba(217,119,6,0.30)"}`,
+    borderRadius: 9, padding: "8px 11px",
+    display: "flex", flexDirection: "column", gap: 1,
+  }
 }
 
 function MarginVerdict({ margePct, margeMin, margeCible }: { margePct: number; margeMin: number; margeCible: number }) {

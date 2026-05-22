@@ -55,8 +55,28 @@ export interface Avantages {
   treiziemeMois?: boolean
   /** Coopting bonus, amortised over the mission duration (€/year). */
   primeCooptationAnnuelle?: number
+  /**
+   * Indemnité URSSAF grand déplacement (forfait journalier, exonéré de
+   * charges). Le sourceur saisit ici le montant € par jour travaillé qu'il
+   * souhaite proposer au candidat. La mensualisation se fait via
+   * joursFacturablesParMois. Plafonds URSSAF 2026 par lieu :
+   *   - Paris + petite couronne : 115,70 €/j (2 repas + hébergement)
+   *   - Autres départements métropole : 96,50 €/j
+   *   - Le calcul ignore ce plafond et fait juste la multiplication — c'est
+   *     au sourceur de respecter le barème pour rester en exonération.
+   */
+  urssafIndemniteJour?: number
   /** Catch-all field for anything else — monthly employer cost (€). */
   autresMensuels?: number
+}
+
+/** URSSAF 2026 daily allowance ceilings per location — surfaced in UI as
+ *  hints so the sourceur knows the exonération threshold for their mission. */
+export const URSSAF_INDEMNITE_PLAFOND_JOUR: Record<Lieu, number> = {
+  paris_petite_couronne: 115.70,
+  idf_grande_couronne: 96.50,
+  lyon: 96.50,
+  province: 96.50,
 }
 
 /** Everything we need to compute a pricing scenario. */
@@ -264,11 +284,18 @@ export function computeEmployerCost(input: PricingInputs): EmployerCostBreakdown
 
   const treiziemeMoisMensualise = input.avantages.treiziemeMois ? brutMensuel / 12 : 0
 
+  // URSSAF indemnité = montant journalier × jours facturables ; reste exonéré
+  // de charges (c'est l'intérêt URSSAF), donc on l'agrège aux avantages plutôt
+  // qu'à la rémunération cotisable.
+  const urssafIndemniteMensuelle =
+    (input.avantages.urssafIndemniteJour ?? 0) * input.joursFacturablesParMois
+
   const avantagesMensuels =
     (input.avantages.ticketsResto ?? 0) +
     (input.avantages.mutuellePremium ?? 0) +
     (input.avantages.transport ?? 0) +
     (input.avantages.forfaitMobilite ?? 0) +
+    urssafIndemniteMensuelle +
     (input.avantages.autresMensuels ?? 0)
 
   const primeCooptationMensualisee = (input.avantages.primeCooptationAnnuelle ?? 0) / 12

@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
     client_tjm_max: cleanNumber(body?.client_tjm_max),
     margin_min_pct: cleanNumber(body?.margin_min_pct),
     duration_months: cleanNumber(body?.duration_months),
+    target_gross_salary: cleanNumber(body?.target_gross_salary),
   }
 
   const { data: created, error: insertErr } = await sb
