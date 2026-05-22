@@ -9,7 +9,6 @@ import type { Candidate, MatchAssessment, Job, MatchTier, PipelineStage, ScoreDi
 import ComposeBox from "@/components/workspace/ComposeBox"
 import AnonymizeForJob from "@/components/workspace/AnonymizeForJob"
 import CandidateMiniKanban from "@/components/workspace/CandidateMiniKanban"
-import PricingWidget from "@/components/workspace/PricingWidget"
 import Select from "@/components/ui/Select"
 import NoraLoader from "@/components/workspace/NoraLoader"
 
@@ -283,10 +282,6 @@ export default function MatchPage() {
             jobTitle={job?.title ?? null}
             candidateParsed={candidate.parse_status === "parsed"}
           />
-
-          {/* Pricing widget — live chiffrage for this candidate × mission.
-              Reads its defaults from profiles.pricing_* (paramétrage page). */}
-          <PricingWidget candidate={candidate} job={job} />
         </div>
 
         {/* RIGHT — message d'approche */}
