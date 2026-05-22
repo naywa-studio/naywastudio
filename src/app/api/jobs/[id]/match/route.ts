@@ -172,11 +172,16 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
         console.error("[match] batch persist failed:", (err as Error).message)
       }
 
-      // Heartbeat — refresh updated_at so the stale-recovery doesn't kick in
-      // for a slow but progressing run.
-      await admin.from("jobs")
-        .update({ updated_at: new Date().toISOString() })
-        .eq("id", job.id)
+      // Mark the job as "done" after every persisted batch instead of only
+      // at the end. If the runtime is killed mid-flight by a Vercel timeout,
+      // the UI still sees a coherent "done" status with the partial results
+      // already in DB. The user can re-launch to score the remaining pool.
+      // (Without this, match_status stays at "matching" forever even though
+      // results are visible — exactly what bit us on Consultant Devops.)
+      await admin.from("jobs").update({
+        match_status: "done",
+        matched_at: new Date().toISOString(),
+      }).eq("id", job.id)
     }
 
     // 5. Mission-tag write-back onto well-matched candidates' taxonomy.

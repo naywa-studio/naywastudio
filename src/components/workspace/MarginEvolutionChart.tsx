@@ -1,21 +1,26 @@
 "use client"
 
 /**
- * MarginEvolutionChart — visualises the cumulative margin a mission yields
- * across three rupture scenarios. Plain SVG, no chart library.
+ * MarginEvolutionChart — pour chaque mois entre 0 et 24, montre la marge
+ * cumulée nette si le contrat est rompu À CE MOIS-LÀ. C'est un graphique
+ * de RISQUE, pas un graphique de revenu réel.
  *
- * Three curves (ordered from "best case" to "worst case") :
- *   1. sansIntercontrat       — mission goes to term, no break (best case)
- *   2. avec1MoisIntercontrat  — 1 paid idle month (realistic mid-case)
- *   3. avecPreavisMax         — full Syntec préavis paid by employer (worst)
+ * On fixe l'axe X à 24 mois indépendamment de la durée de mission parce
+ * que les seuils Syntec qui rendent la courbe parlante (8 mois pour
+ * l'indemnité Article 4.5, 24 mois pour le passage 1/4 → 1/3 mois/an cadre)
+ * tombent dans cette fenêtre. La durée de mission est marquée par une
+ * ligne verticale "fin prévue".
  *
- * Visual cues :
- *   - 🟥 Red band covering the période d'essai (employer carries the
- *     recruitment + onboarding sunk cost; rupture is least costly here)
- *   - Zero line for visibility (when a curve dips into negative margin)
- *   - Hover-tooltip on the X axis isn't worth the JS for V1 — labels
- *     under the curve endpoints give the key "at-the-end-of-mission"
- *     reading directly.
+ * Trois scénarios (du plus optimiste au plus pessimiste) :
+ *   1. Sans intercontrat (rupture amiable, le candidat reprend ailleurs
+ *      immédiatement) — quasi-linéaire, juste la marge nominale
+ *   2. +1 mois intercontrat — l'ESN paye 1 mois sans facturer
+ *   3. +préavis Syntec — licenciement employeur (préavis 3 mois cadre)
+ *      + indemnité Article 4.5 (saute à 8 mois puis à 2 ans pour cadres)
+ *
+ * Pour les scénarios 2 et 3, la marge est NÉGATIVE en début de mission
+ * parce que le coût de rupture dépasse la marge accumulée — c'est tout
+ * l'intérêt du graphique : visualiser la zone à risque.
  */
 
 import { useMemo } from "react"
@@ -28,26 +33,31 @@ interface Props {
   /** Same payload used to drive the live triangle, minus the brut field
    *  (caller injects the active brut at render time). */
   inputs: PricingInputs
-  /** Mission duration in months — the chart's X range. */
+  /** Mission duration in months — drawn as a vertical "fin prévue" marker.
+   *  The chart itself always spans 24 months for risk-horizon consistency. */
   dureeMois: number
   /** Daily rate billed to the client. Drives the revenue side of margin. */
   tjm: number
 }
 
 const W = 720          // viewBox width — scales fluidly via 100% width
-const H = 320          // viewBox height
+const H = 340          // viewBox height
 const PAD_L = 64       // left axis label
 const PAD_R = 16
 const PAD_T = 28       // legend
-const PAD_B = 36       // X axis labels
+const PAD_B = 48       // X axis labels + month/year row
 
 const PLOT_W = W - PAD_L - PAD_R
 const PLOT_H = H - PAD_T - PAD_B
 
+/** Risk horizon — 24 months covers both seniority thresholds (8 mois and
+ *  2 ans) where Article 4.5 indemnity formula changes for cadres. */
+const HORIZON_MOIS = 24
+
 export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) {
   const scenarios = useMemo(
-    () => computeRuptureScenarios(inputs, Math.max(1, dureeMois), tjm),
-    [inputs, dureeMois, tjm],
+    () => computeRuptureScenarios(inputs, HORIZON_MOIS, tjm),
+    [inputs, tjm],
   )
 
   // Compute Y range — include 0 so the zero line is always visible.
@@ -61,9 +71,9 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
   const yMax = Math.max(...allValues)
   const yRange = yMax - yMin || 1
 
-  // Coordinate mappers — bake the padding so callers see plot-space coords.
+  // Coordinate mappers — X axis is the 24-month risk horizon, fixed.
   const xOf = (mois: number): number =>
-    PAD_L + (mois / Math.max(1, dureeMois)) * PLOT_W
+    PAD_L + (mois / HORIZON_MOIS) * PLOT_W
   const yOf = (margin: number): number =>
     PAD_T + (1 - (margin - yMin) / yRange) * PLOT_H
 
@@ -73,13 +83,11 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
       .join(" ")
 
   const zeroY = yOf(0)
-  const finEssaiX = xOf(Math.min(scenarios.finEssaiMois, dureeMois))
+  const finEssaiX = xOf(Math.min(scenarios.finEssaiMois, HORIZON_MOIS))
+  const finMissionX = dureeMois > 0 && dureeMois < HORIZON_MOIS ? xOf(dureeMois) : null
 
-  // Pick ~5 X ticks evenly spaced
-  const xTickCount = Math.min(6, dureeMois + 1)
-  const xTicks = Array.from({ length: xTickCount }, (_, i) =>
-    Math.round((i / (xTickCount - 1)) * dureeMois),
-  )
+  // X ticks every 3 months (0, 3, 6, 9, 12, 15, 18, 21, 24)
+  const xTicks = [0, 3, 6, 9, 12, 15, 18, 21, 24]
 
   // 4 Y ticks evenly spaced
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => yMin + t * yRange)
@@ -103,9 +111,11 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
           }}>
             Évolution de la marge — 3 scénarios
           </h4>
-          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280" }}>
-            Marge cumulée €, du jour 0 à la fin de la mission ({dureeMois} mois).
-            Zone rouge : période d&apos;essai · zone verte : mission rentabilisée
+          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 520 }}>
+            Pour chaque mois X, voici la marge cumulée nette <strong>si le contrat
+            est rompu à ce moment-là</strong>. Horizon 24 mois (les seuils Syntec
+            tombent dans cette fenêtre). Zone rouge : période d&apos;essai.
+            {dureeMois > 0 && <> Ligne violette : fin de mission prévue ({dureeMois} mois).</>}
           </p>
         </div>
         <Legend preavisMois={scenarios.preavisMois} />
@@ -156,7 +166,7 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
           </g>
         ))}
 
-        {/* X ticks */}
+        {/* X ticks — every 3 months, with year labels at 12 and 24 */}
         {xTicks.map((m) => (
           <g key={`x-${m}`}>
             <line
@@ -169,8 +179,44 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
             >
               {m === 0 ? "0" : `${m}m`}
             </text>
+            {(m === 12 || m === 24) && (
+              <text
+                x={xOf(m)} y={PAD_T + PLOT_H + 32}
+                fontSize={10} fill="#9CA3AF" textAnchor="middle" fontStyle="italic"
+              >
+                {m === 12 ? "1 an" : "2 ans"}
+              </text>
+            )}
           </g>
         ))}
+
+        {/* Seuil indemnité Article 4.5 — 8 mois (entrée du droit à indemnité) */}
+        <line
+          x1={xOf(8)} y1={PAD_T} x2={xOf(8)} y2={PAD_T + PLOT_H}
+          stroke="#9CA3AF" strokeWidth={1} strokeDasharray="3 3" opacity={0.6}
+        />
+        <text
+          x={xOf(8)} y={PAD_T - 4}
+          fontSize={9} fill="#6B7280" textAnchor="middle"
+        >
+          ┐ 8m
+        </text>
+
+        {/* Fin de mission prévue — ligne pointillée violette */}
+        {finMissionX !== null && (
+          <>
+            <line
+              x1={finMissionX} y1={PAD_T} x2={finMissionX} y2={PAD_T + PLOT_H}
+              stroke="#7C63C8" strokeWidth={1.5} strokeDasharray="5 4"
+            />
+            <text
+              x={finMissionX} y={PAD_T - 4}
+              fontSize={10} fill="#7C63C8" textAnchor="middle" fontWeight={700}
+            >
+              fin prévue
+            </text>
+          </>
+        )}
 
         {/* Curves — order matters for hover ordering */}
         <path d={pathFor(scenarios.avecPreavisMax)}
@@ -266,9 +312,9 @@ function ScenarioSummary({
     v >= 0 ? "#15803d" : "#B91C1C"
 
   const rows = [
-    { color: "#16A34A", label: "Best case — mission au terme, replacement immédiat", value: endNomi },
-    { color: "#D97706", label: "Réaliste — 1 mois d'intercontrat avant replacement", value: end1m },
-    { color: "#DC2626", label: `Worst case — licenciement employeur + ${preavisMois}m préavis`, value: endPreavis },
+    { color: "#16A34A", label: "Best case — rupture amiable, replacement immédiat (24 mois)", value: endNomi },
+    { color: "#D97706", label: "Réaliste — 1 mois d'intercontrat avant replacement (24 mois)", value: end1m },
+    { color: "#DC2626", label: `Worst case — licenciement employeur + ${preavisMois}m préavis (24 mois)`, value: endPreavis },
   ]
 
   return (
