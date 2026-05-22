@@ -131,10 +131,16 @@ export interface TriangleValues {
 
 /** Single point on a margin-evolution curve. */
 export interface MarginPoint {
-  /** Months since mission start, 0..duration. */
+  /** Months since mission start, 1..duration (we skip month 0). */
   mois: number
-  /** Cumulative margin €, after all costs incurred up to this month. */
-  margeCumulee: number
+  /** Effective monthly margin €, assuming rupture at this exact month.
+   *  Computed as: revenu_mensuel − coût_employeur − (coût_rupture / mois).
+   *  During the période d'essai, coût_rupture = 0 (no severance payable),
+   *  so the curve sits at the nominal margin. After essai it drops and
+   *  recovers as the rupture cost is amortised over more months. */
+  margeMois: number
+  /** Same margin expressed as a % of monthly revenue. */
+  margePct: number
 }
 
 /** Three rupture scenarios drawn on the chart. */
@@ -410,18 +416,30 @@ function mustHaveNumber(v: number | undefined, name: string): number {
 /**
  * Compute the three margin-vs-time curves displayed on the fiche match chart.
  *
- * Scenario 1 (sansIntercontrat) :
- *   Mission goes to its term, no break, no waste.
- *   marge_cumulée(t) = (revenu - cost) × t   — linear, best case.
+ * For each month t in [1..dureeMois], we report the EFFECTIVE monthly
+ * margin assuming the contract would be ruptured exactly at month t :
  *
- * Scenario 2 (avec1MoisIntercontrat) :
- *   At month t the contract ends but we eat 1 paid month with no client.
- *   marge_cumulée(t) = revenu × t − cost × (t + 1) − indemnité_licenciement(t)
+ *     marge_mensuelle_effective(t) = revenu_mensuel − coût_employeur
+ *                                    − ( coût_rupture(t) / t )
  *
- * Scenario 3 (avecPreavisMax) :
- *   Employer-initiated rupture at month t; full Syntec préavis paid without
- *   billing the client; plus conventional indemnité de licenciement.
- *   marge_cumulée(t) = revenu × t − cost × (t + préavis) − indemnité(t)
+ * Critically, `coût_rupture(t)` is ZERO while we are still within the
+ * période d'essai (the Syntec préavis and the Article 4.5 indemnity only
+ * become payable AFTER essai). That's why the curves stay at the nominal
+ * margin during the first months, then PLUNGE the moment the essai ends
+ * (every euro of préavis + severance suddenly enters the cost), then
+ * recover progressively as that fixed rupture cost is amortised over an
+ * ever-growing t.
+ *
+ * Scenario 1 — sans intercontrat  : coût_rupture(t) = 0 always (rupture
+ *   amiable, candidate immediately placed elsewhere). Curve is a flat
+ *   plateau at the nominal margin.
+ * Scenario 2 — +1 mois intercontrat : coût_rupture(t) = coût × 1 (one
+ *   paid idle month) once t > finEssai, 0 otherwise.
+ * Scenario 3 — préavis Syntec : coût_rupture(t) = coût × préavis +
+ *   indemnité_licenciement(t) once t > finEssai, 0 otherwise.
+ *
+ * The candidate is assumed to be billable from day 1 — we never start
+ * with a negative margin during essai, only after.
  */
 export function computeRuptureScenarios(
   input: PricingInputs,
@@ -430,6 +448,7 @@ export function computeRuptureScenarios(
 ): RuptureScenarios {
   const cost = computeEmployerCost(input)
   const revenuMensuel = tjm * input.joursFacturablesParMois
+  const margeNominaleMensuelle = revenuMensuel - cost.coutTotalMensuel
   const brutMensuel = input.brutAnnuel / 12
 
   const preavisM = preavisMois(input.statut, dureeMois / 12, input.coefficient)
@@ -439,26 +458,44 @@ export function computeRuptureScenarios(
   const avec1Mois: MarginPoint[] = []
   const avecPreavis: MarginPoint[] = []
 
-  for (let t = 0; t <= dureeMois; t++) {
-    const ancienneteAnnees = t / 12
-    const indemniteMois = indemniteLicenciementMois(input.statut, ancienneteAnnees)
-    const indemniteEuros = indemniteMois * brutMensuel
+  const pctOf = (m: number): number =>
+    revenuMensuel <= 0 ? 0 : (m / revenuMensuel) * 100
 
+  for (let t = 1; t <= dureeMois; t++) {
+    const inEssai = t <= finEssai
+    const ancienneteAnnees = t / 12
+
+    // 1) Sans intercontrat — flat plateau, the candidate moves on instantly,
+    //    no rupture cost ever lands on the ESN.
     sansIntercontrat.push({
       mois: t,
-      margeCumulee: (revenuMensuel - cost.coutTotalMensuel) * t,
+      margeMois: margeNominaleMensuelle,
+      margePct: pctOf(margeNominaleMensuelle),
     })
 
+    // 2) +1 mois intercontrat — applies only after essai. During essai,
+    //    rupture is costless so the margin sits at the nominal level.
+    const cost1m = inEssai ? 0 : (cost.coutTotalMensuel * 1) / t
+    const marge1m = margeNominaleMensuelle - cost1m
     avec1Mois.push({
       mois: t,
-      margeCumulee:
-        revenuMensuel * t - cost.coutTotalMensuel * (t + 1) - indemniteEuros,
+      margeMois: marge1m,
+      margePct: pctOf(marge1m),
     })
 
+    // 3) Préavis Syntec — préavis non facturé + indemnité Article 4.5
+    //    amortised over t. Only kicks in once essai is over.
+    let costPreavis = 0
+    if (!inEssai) {
+      const indemniteMois = indemniteLicenciementMois(input.statut, ancienneteAnnees)
+      const indemniteEuros = indemniteMois * brutMensuel
+      costPreavis = (preavisM * cost.coutTotalMensuel + indemniteEuros) / t
+    }
+    const margePreavis = margeNominaleMensuelle - costPreavis
     avecPreavis.push({
       mois: t,
-      margeCumulee:
-        revenuMensuel * t - cost.coutTotalMensuel * (t + preavisM) - indemniteEuros,
+      margeMois: margePreavis,
+      margePct: pctOf(margePreavis),
     })
   }
 

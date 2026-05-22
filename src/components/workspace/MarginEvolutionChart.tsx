@@ -1,26 +1,25 @@
 "use client"
 
 /**
- * MarginEvolutionChart — pour chaque mois X entre 1 et 24, montre la
- * marge JOURNALIÈRE moyenne effective qu'aura généré la mission si le
- * contrat est rompu à ce mois-là. C'est un graphique de RISQUE.
+ * MarginEvolutionChart — pour chaque mois X entre 1 et 24, marge
+ * MENSUELLE effective générée par la mission si rupture à ce mois-là.
  *
- * Formule : marge_jour(X) = marge_cumulée_nette(X) / jours_écoulés(X)
+ *   marge_mensuelle(X) = revenu_mensuel − coût_employeur
+ *                        − ( coût_rupture(X) / X )
  *
- * Sur l'horizon 24 mois (fixé pour cadrer les deux seuils Syntec :
- * 8 mois entrée indemnité Article 4.5, 24 mois saut 1/4→1/3 cadre).
+ * Comportement attendu :
+ * - Pendant la période d'essai : pas d'indemnité légalement payable
+ *   → les trois courbes se confondent sur le plateau nominal
+ * - À la fin de la période d'essai : CHUTE brutale des courbes 2/3
+ *   (le préavis et l'indemnité Article 4.5 deviennent payables, et
+ *   amortis sur encore peu de mois → impact maximum)
+ * - Mois suivants : remontée progressive — le même coût de rupture
+ *   amorti sur de plus en plus de mois pèse moins lourd mensuellement
+ * - Petits sauts visibles aux mois 8 (entrée indemnité Art. 4.5) et
+ *   24 (cadre : 1/4 → 1/3 mois/année d'ancienneté)
  *
- * Trois scénarios :
- *   1. Sans intercontrat (rupture amiable) — converge vers la marge
- *      nominale (TJM − coût employeur / jours) quasi instantanément
- *   2. +1 mois intercontrat — démarrage négatif, remonte vers le
- *      plateau nominal en quelques mois
- *   3. +préavis Syntec — plongeon initial le plus profond (préavis
- *      3 mois cadre + indemnité Article 4.5 qui croît avec
- *      l'ancienneté), remontée plus lente, cassures aux seuils
- *
- * Au mois 1, les courbes 2 et 3 sont très négatives — c'est
- * exactement la zone de risque que le sourceur doit voir.
+ * Le candidat est en mission dès le jour 1 → revenu plein, jamais
+ * de zone négative initiale.
  */
 
 import { useMemo } from "react"
@@ -60,34 +59,24 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
     [inputs, tjm],
   )
 
-  // Convert cumulative euros → daily margin € (over elapsed worked days).
-  // Skip month 0 (division by zero) and start at month 1 instead.
-  const joursParMois = inputs.joursFacturablesParMois
-  const toDaily = (points: { mois: number; margeCumulee: number }[]) =>
-    points
-      .filter((p) => p.mois >= 1)
-      .map((p) => ({
-        mois: p.mois,
-        margeJour: p.margeCumulee / (p.mois * joursParMois),
-      }))
-  const sansDaily = toDaily(scenarios.sansIntercontrat)
-  const oneMoDaily = toDaily(scenarios.avec1MoisIntercontrat)
-  const preavisDaily = toDaily(scenarios.avecPreavisMax)
+  const sans = scenarios.sansIntercontrat
+  const oneMo = scenarios.avec1MoisIntercontrat
+  const preavis = scenarios.avecPreavisMax
 
-  // Compute Y range — include 0 so the zero line is always visible.
+  // Compute Y range — include 0 so the zero line is always visible if the
+  // worst case dips into the red, but keep a comfortable top margin so the
+  // nominal plateau doesn't sit right at the edge.
   const allValues = [
-    ...sansDaily.map((p) => p.margeJour),
-    ...oneMoDaily.map((p) => p.margeJour),
-    ...preavisDaily.map((p) => p.margeJour),
+    ...sans.map((p) => p.margeMois),
+    ...oneMo.map((p) => p.margeMois),
+    ...preavis.map((p) => p.margeMois),
     0,
   ]
-  // Clip absurd outliers from very-low-month divisions — keep within ±2× the
-  // max stable margin so the curve readability isn't ruined by month-1 noise.
-  const stableMax = Math.max(...sansDaily.map((p) => p.margeJour), 0)
-  const clipMin = -2 * Math.abs(stableMax || 1000)
-  const clamped = allValues.map((v) => Math.max(v, clipMin))
-  const yMin = Math.min(...clamped)
-  const yMax = Math.max(...clamped)
+  const yMinRaw = Math.min(...allValues)
+  const yMaxRaw = Math.max(...allValues)
+  // Give 8% headroom above the nominal plateau and below the cliff trough.
+  const yMin = yMinRaw - Math.abs(yMaxRaw - yMinRaw) * 0.08
+  const yMax = yMaxRaw + Math.abs(yMaxRaw - yMinRaw) * 0.08
   const yRange = yMax - yMin || 1
 
   // Coordinate mappers — X axis is the 24-month risk horizon, fixed.
@@ -96,9 +85,9 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
   const yOf = (margin: number): number =>
     PAD_T + (1 - (margin - yMin) / yRange) * PLOT_H
 
-  const pathFor = (points: { mois: number; margeJour: number }[]): string =>
+  const pathFor = (points: { mois: number; margeMois: number }[]): string =>
     points
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${xOf(p.mois).toFixed(2)} ${yOf(Math.max(p.margeJour, clipMin)).toFixed(2)}`)
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${xOf(p.mois).toFixed(2)} ${yOf(p.margeMois).toFixed(2)}`)
       .join(" ")
 
   const zeroY = yOf(0)
@@ -111,9 +100,9 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
   // 4 Y ticks evenly spaced
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => yMin + t * yRange)
 
-  const endNomi = sansDaily.at(-1)
-  const end1m = oneMoDaily.at(-1)
-  const endPreavis = preavisDaily.at(-1)
+  const endNomi = sans.at(-1)
+  const end1m = oneMo.at(-1)
+  const endPreavis = preavis.at(-1)
 
   return (
     <div style={{
@@ -131,10 +120,12 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
             Évolution de la marge — 3 scénarios
           </h4>
           <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 540 }}>
-            Pour chaque mois X, marge <strong>journalière moyenne</strong> que vous
-            auriez générée <strong>si le contrat est rompu à ce moment-là</strong>.
-            Au début, les scénarios coûteux plongent en négatif (les indemnités
-            n&apos;ont pas encore été amorties).
+            Pour chaque mois X, marge <strong>mensuelle effective</strong> du
+            projet <strong>si le contrat est rompu à ce mois-là</strong>.
+            Pendant la période d&apos;essai, pas d&apos;indemnité — les courbes
+            sont confondues. À la <strong>fin de l&apos;essai</strong>, chute
+            visible : préavis et indemnités Syntec deviennent payables et
+            grèvent la marge le temps d&apos;être amortis.
             {dureeMois > 0 && <> Ligne violette : fin prévue ({dureeMois} mois).</>}
           </p>
         </div>
@@ -239,23 +230,23 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
         )}
 
         {/* Curves — paint worst-case first so best-case stays on top */}
-        <path d={pathFor(preavisDaily)}
+        <path d={pathFor(preavis)}
           fill="none" stroke="#DC2626" strokeWidth={2.5}
           strokeLinejoin="round" strokeLinecap="round"
         />
-        <path d={pathFor(oneMoDaily)}
+        <path d={pathFor(oneMo)}
           fill="none" stroke="#D97706" strokeWidth={2.5}
           strokeLinejoin="round" strokeLinecap="round"
         />
-        <path d={pathFor(sansDaily)}
+        <path d={pathFor(sans)}
           fill="none" stroke="#16A34A" strokeWidth={2.5}
           strokeLinejoin="round" strokeLinecap="round"
         />
 
-        {/* Endpoints at month 24 — daily margin labels */}
-        {endNomi && <EndDot color="#16A34A" x={xOf(endNomi.mois)} y={yOf(endNomi.margeJour)} label={`${Math.round(endNomi.margeJour)} €/j`} />}
-        {end1m && <EndDot color="#D97706" x={xOf(end1m.mois)} y={yOf(end1m.margeJour)} label={`${Math.round(end1m.margeJour)} €/j`} />}
-        {endPreavis && <EndDot color="#DC2626" x={xOf(endPreavis.mois)} y={yOf(Math.max(endPreavis.margeJour, clipMin))} label={`${Math.round(endPreavis.margeJour)} €/j`} />}
+        {/* Endpoints at month 24 — monthly margin labels */}
+        {endNomi && <EndDot color="#16A34A" x={xOf(endNomi.mois)} y={yOf(endNomi.margeMois)} label={`${Math.round(endNomi.margeMois).toLocaleString("fr-FR")} €/mois`} />}
+        {end1m && <EndDot color="#D97706" x={xOf(end1m.mois)} y={yOf(end1m.margeMois)} label={`${Math.round(end1m.margeMois).toLocaleString("fr-FR")} €/mois`} />}
+        {endPreavis && <EndDot color="#DC2626" x={xOf(endPreavis.mois)} y={yOf(endPreavis.margeMois)} label={`${Math.round(endPreavis.margeMois).toLocaleString("fr-FR")} €/mois`} />}
 
         {/* Zero line — repaint on top of the bands */}
         {yMin < 0 && yMax > 0 && (
@@ -267,9 +258,12 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
       </svg>
 
       <ScenarioSummary
-        endNomi={endNomi?.margeJour ?? 0}
-        end1m={end1m?.margeJour ?? 0}
-        endPreavis={endPreavis?.margeJour ?? 0}
+        endNomi={endNomi?.margeMois ?? 0}
+        end1m={end1m?.margeMois ?? 0}
+        endPreavis={endPreavis?.margeMois ?? 0}
+        endNomiPct={endNomi?.margePct ?? 0}
+        end1mPct={end1m?.margePct ?? 0}
+        endPreavisPct={endPreavis?.margePct ?? 0}
         preavisMois={scenarios.preavisMois}
       />
     </div>
@@ -319,22 +313,27 @@ function EndDot({ color, x, y, label }: { color: string; x: number; y: number; l
 }
 
 function ScenarioSummary({
-  endNomi, end1m, endPreavis, preavisMois,
+  endNomi, end1m, endPreavis,
+  endNomiPct, end1mPct, endPreavisPct,
+  preavisMois,
 }: {
   endNomi: number
   end1m: number
   endPreavis: number
+  endNomiPct: number
+  end1mPct: number
+  endPreavisPct: number
   preavisMois: number
 }) {
-  const fmt = (v: number) =>
-    `${v < 0 ? "−" : ""}${Math.abs(Math.round(v)).toLocaleString("fr-FR")} €/j`
+  const fmt = (v: number, pct: number) =>
+    `${v < 0 ? "−" : ""}${Math.abs(Math.round(v)).toLocaleString("fr-FR")} €/mois · ${pct.toFixed(1)} %`
   const tone = (v: number) =>
     v >= 0 ? "#15803d" : "#B91C1C"
 
   const rows = [
-    { color: "#16A34A", label: "Best case — rupture amiable à 24 mois", value: endNomi },
-    { color: "#D97706", label: "Réaliste — 1 mois d'intercontrat à 24 mois", value: end1m },
-    { color: "#DC2626", label: `Worst case — licenciement + ${preavisMois}m préavis à 24 mois`, value: endPreavis },
+    { color: "#16A34A", label: "Best case — rupture amiable à 24 mois", value: endNomi, pct: endNomiPct },
+    { color: "#D97706", label: "Réaliste — 1 mois d'intercontrat à 24 mois", value: end1m, pct: end1mPct },
+    { color: "#DC2626", label: `Worst case — licenciement + ${preavisMois}m préavis à 24 mois`, value: endPreavis, pct: endPreavisPct },
   ]
 
   return (
@@ -358,7 +357,7 @@ function ScenarioSummary({
             fontWeight: 800, color: tone(r.value),
             fontVariantNumeric: "tabular-nums",
           }}>
-            {fmt(r.value)}
+            {fmt(r.value, r.pct)}
           </span>
         </div>
       ))}
@@ -366,9 +365,12 @@ function ScenarioSummary({
   )
 }
 
-/** Daily-rate-style formatter — values typically range -300 € to +250 €/jour. */
+/** Monthly margin — values typically range from a few hundred € to ~5k €/mois.
+ *  Use compact "k" notation above 1 000 to keep Y-axis legible. */
 function formatEurPerDay(v: number): string {
   const sign = v < 0 ? "−" : ""
   const a = Math.abs(v)
+  if (a >= 10_000) return `${sign}${(a / 1_000).toFixed(0)} k €`
+  if (a >= 1_000) return `${sign}${(a / 1_000).toFixed(1)} k €`
   return `${sign}${Math.round(a)} €`
 }
