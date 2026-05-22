@@ -154,50 +154,13 @@ export interface RuptureScenarios {
   finEssaiMois: number
 }
 
-/**
- * Typical French calendar profile — billable days per calendar month for a
- * Syntec cadre on modalité 1 (35h). Built from:
- *   - Working days per month (Mon-Fri)
- *   - Average French public holidays falling on a weekday
- *   - 25 paid leave days/year, concentrated in summer + late December
- *   - ~10 RTT days/year, spread across the year
- *
- * Total ≈ 214 facturable days/year. The sourceur's per-cabinet "average
- * billable days" setting (paramétrage) is used as a scale factor so the
- * shape is preserved but the absolute level matches their reality.
- *
- * Indexed from 0 (January) to 11 (December).
- */
-const TYPICAL_BILLABLE_DAYS_BY_MONTH: number[] = [
-  20, // Jan — quiet, 1 férié (1er janvier), 1 RTT
-  19, // Fév
-  20, // Mar
-  20, // Avr — 1 férié (lundi de Pâques selon année)
-  18, // Mai — 3 fériés (1er, 8, Ascension) + 1 CP
-  17, // Juin — 1 férié (Pentecôte), début CP
-  15, // Juil — 7 CP, pic départ
-  10, // Août — 10 CP, congés massifs
-  20, // Sep — rentrée, plein temps
-  22, // Oct — gros mois facturable
-  17, // Nov — 2 fériés (Toussaint, Armistice)
-  16, // Déc — 5 CP fin d'année, 1 férié (Noël)
-]
-const TYPICAL_YEARLY_BILLABLE = TYPICAL_BILLABLE_DAYS_BY_MONTH.reduce((a, b) => a + b, 0) // ≈ 214
-
-/**
- * Return the billable-days profile for `mois` months ahead, scaled to match
- * the cabinet's configured monthly average. Month 1 = January by convention
- * (we don't ask for a start date — V1 keeps the cycle generic).
- */
-function billableDaysProfile(monthCount: number, configuredAvgDays: number): number[] {
-  const scale = (configuredAvgDays * 12) / TYPICAL_YEARLY_BILLABLE
-  const out: number[] = []
-  for (let i = 0; i < monthCount; i++) {
-    const calendarMonth = i % 12 // wrap around for multi-year horizons
-    out.push(TYPICAL_BILLABLE_DAYS_BY_MONTH[calendarMonth] * scale)
-  }
-  return out
-}
+// NOTE — a calendar-aware billable-days profile (August dips for CP, May
+// fériés, October peaks…) was prototyped here but removed in favor of a
+// constant value, because the dips collided with the end-of-essai cliff
+// and made the chart confusing. The risk indicators expose the actionable
+// numbers separately. If we want a calendar view back later, it'll come
+// as an opt-in toggle that uses a real mission start date — see RiskPanel
+// in PricingWidget.tsx for the synthesis side of the equation.
 
 /** Verdict of the conventional-minimum sanity check. */
 export interface MinimumCheck {
@@ -494,16 +457,13 @@ export function computeRuptureScenarios(
   const cost = computeEmployerCost(input)
   const brutMensuel = input.brutAnnuel / 12
 
-  // Calendar-aware billable days for each month of the horizon. Total stays
-  // aligned with input.joursFacturablesParMois × 12 so the cabinet's average
-  // is respected, but the per-month profile follows a typical French year :
-  //  - August dips to ~10 days (5 weeks of paid leave concentrated there)
-  //  - May / November lose 2-3 days to public holidays
-  //  - October peaks at ~22 days (no holidays, no leave)
-  //  - December dips to ~16 days (end-of-year leave + Christmas)
-  // This makes nominal margin wave naturally month after month — exactly the
-  // pattern the sourceur expects to see in their Excel.
-  const billableDays = billableDaysProfile(dureeMois, input.joursFacturablesParMois)
+  // V1 choice — keep the chart readable by using a constant monthly billable
+  // days value (the cabinet's configured average). A calendar-aware version
+  // is implemented in billableDaysProfile() but creates visual confusion when
+  // two unrelated dips coincide (e.g. August + end of essai). The risk
+  // indicators below give the actionable numbers separately.
+  const revenuMensuel = tjm * input.joursFacturablesParMois
+  const margeNominaleMensuelle = revenuMensuel - cost.coutTotalMensuel
 
   const preavisM = preavisMois(input.statut, dureeMois / 12, input.coefficient)
   const finEssai = finPeriodeEssaiMois(input.statut, input.coefficient)
@@ -512,33 +472,25 @@ export function computeRuptureScenarios(
   const avec1Mois: MarginPoint[] = []
   const avecPreavis: MarginPoint[] = []
 
+  const pctOf = (m: number): number =>
+    revenuMensuel <= 0 ? 0 : (m / revenuMensuel) * 100
+
   for (let t = 1; t <= dureeMois; t++) {
     const inEssai = t <= finEssai
     const ancienneteAnnees = t / 12
 
-    // Revenue scales with the actual billable days of month t. Employer cost
-    // stays constant (gross + charges + benefits are payable whether the
-    // candidate is invoicing or on leave — that's precisely why August is
-    // painful for ESNs).
-    const joursDuMois = billableDays[t - 1] ?? input.joursFacturablesParMois
-    const revenuDuMois = tjm * joursDuMois
-    const margeNominaleDuMois = revenuDuMois - cost.coutTotalMensuel
-    const pctOf = (m: number): number =>
-      revenuDuMois <= 0 ? 0 : (m / revenuDuMois) * 100
-
-    // 1) Sans intercontrat — no rupture cost ever lands on the ESN. The
-    //    curve still ripples because the nominal margin varies with the
-    //    monthly billable days.
+    // 1) Sans intercontrat — flat plateau at the nominal margin (no rupture
+    //    cost will ever land on the ESN).
     sansIntercontrat.push({
       mois: t,
-      margeMois: margeNominaleDuMois,
-      margePct: pctOf(margeNominaleDuMois),
+      margeMois: margeNominaleMensuelle,
+      margePct: pctOf(margeNominaleMensuelle),
     })
 
     // 2) +1 mois intercontrat — only after essai. The extra month of
-    //    payroll without billing is amortised over the t months elapsed.
+    //    payroll without billing is amortised over t months elapsed.
     const cost1m = inEssai ? 0 : (cost.coutTotalMensuel * 1) / t
-    const marge1m = margeNominaleDuMois - cost1m
+    const marge1m = margeNominaleMensuelle - cost1m
     avec1Mois.push({
       mois: t,
       margeMois: marge1m,
@@ -553,7 +505,7 @@ export function computeRuptureScenarios(
       const indemniteEuros = indemniteMois * brutMensuel
       costPreavis = (preavisM * cost.coutTotalMensuel + indemniteEuros) / t
     }
-    const margePreavis = margeNominaleDuMois - costPreavis
+    const margePreavis = margeNominaleMensuelle - costPreavis
     avecPreavis.push({
       mois: t,
       margeMois: margePreavis,
@@ -567,6 +519,96 @@ export function computeRuptureScenarios(
     avecPreavisMax: avecPreavis,
     preavisMois: preavisM,
     finEssaiMois: finEssai,
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Risk indicators — the actionable side of the chart
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/** A score for "how risky is it to hire this profile given the rupture
+ *  exposure ?" — derived from the worst-case scenario (préavis max). */
+export type RiskLevel = 'low' | 'medium' | 'high'
+
+export interface RiskIndicators {
+  /** Pire marge mensuelle sur l'horizon en € (worst-case scenario). */
+  margeMinMensuelle: number
+  /** Idem en % du revenu mensuel. */
+  margeMinPct: number
+  /** Mois où cette marge minimale se produit (1..24). */
+  moisCritique: number
+  /** Premier mois où le worst-case repasse au-dessus du seuil de marge
+   *  minimum du cabinet. NULL si jamais atteint sur l'horizon. */
+  breakEvenMois: number | null
+  /** Marge cumulative perdue (cumul des marges sous le seuil sur les
+   *  premiers mois post-essai) — c'est le coût total "à essuyer". */
+  coutRupturePire: number
+  /** Niveau de risque global. */
+  level: RiskLevel
+  /** Phrase explicative à afficher à côté du badge. */
+  message: string
+}
+
+/**
+ * Synthétise les 3 courbes en 4 indicateurs actionables pour décider.
+ * Tous basés sur le worst-case (avecPreavisMax) car c'est lui qui mange
+ * la marge dans la vraie vie quand le contrat se rompt mal.
+ */
+export function computeRiskIndicators(
+  scenarios: RuptureScenarios,
+  margeMinPct: number,
+  revenuMensuel: number,
+): RiskIndicators {
+  const worst = scenarios.avecPreavisMax
+  const seuilMinEuros = revenuMensuel * (margeMinPct / 100)
+
+  // Pire point sur la courbe préavis max
+  let worstPoint = worst[0]
+  for (const p of worst) {
+    if (p.margeMois < worstPoint.margeMois) worstPoint = p
+  }
+
+  // Premier mois post-cliff où on revient au-dessus du seuil mini
+  const finEssai = scenarios.finEssaiMois
+  let breakEvenMois: number | null = null
+  for (const p of worst) {
+    if (p.mois <= finEssai) continue // ignore le plateau d'essai
+    if (p.margeMois >= seuilMinEuros) { breakEvenMois = p.mois; break }
+  }
+
+  // Coût total à essuyer = somme des écarts négatifs (sous seuil) après cliff
+  let coutRupture = 0
+  for (const p of worst) {
+    if (p.mois <= finEssai) continue
+    const ecart = seuilMinEuros - p.margeMois
+    if (ecart > 0) coutRupture += ecart
+  }
+
+  // Score
+  let level: RiskLevel = 'low'
+  let message = ''
+  const margeMinNeg = worstPoint.margeMois < 0
+  if (margeMinNeg || breakEvenMois === null) {
+    level = 'high'
+    message = breakEvenMois === null
+      ? `Le worst-case ne repasse jamais au-dessus du seuil (${margeMinPct}%) sur 24 mois.`
+      : `Marge négative au pire mois — mission très risquée.`
+  } else if (worstPoint.margePct < margeMinPct || (breakEvenMois ?? 0) > 12) {
+    level = 'medium'
+    message = `Marge sous le seuil ${margeMinPct}% pendant ~${breakEvenMois! - finEssai} mois après l'essai.`
+  } else {
+    level = 'low'
+    message = `Worst-case reste au-dessus du seuil dès le mois ${breakEvenMois}, risque maîtrisé.`
+  }
+
+  return {
+    margeMinMensuelle: worstPoint.margeMois,
+    margeMinPct: worstPoint.margePct,
+    moisCritique: worstPoint.mois,
+    breakEvenMois,
+    coutRupturePire: coutRupture,
+    level,
+    message,
   }
 }
 

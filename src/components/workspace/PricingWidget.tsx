@@ -19,6 +19,8 @@ import Link from "next/link"
 import {
   computeEmployerCost,
   computeTriangle,
+  computeRuptureScenarios,
+  computeRiskIndicators,
   validateAgainstMinimum,
   type PricingInputs,
   type TrianglePivot,
@@ -26,6 +28,7 @@ import {
   type Modalite,
   type Lieu,
   type Avantages,
+  type RiskIndicators,
 } from "@/lib/pricing/syntec"
 import MarginEvolutionChart from "@/components/workspace/MarginEvolutionChart"
 import type { Candidate, Job, ParsedCv, Profile } from "@/lib/database.types"
@@ -419,6 +422,15 @@ function PricingWidgetInner({
       </button>
       {showDetail && <CostBreakdown cost={cost} />}
 
+      {/* Risk indicators — the actionable readout of the rupture-margin
+          curves. Read these to know "where the candidate becomes expensive
+          if rupture happens" without having to interpret the chart. */}
+      <RiskPanel
+        inputs={buildInputs(triangle?.brutAnnuel ?? brutAnnuel)}
+        tjm={triangle?.tjm ?? tjm}
+        margeMinPct={margeMinPct}
+      />
+
       {/* Margin evolution chart — always shown, runs on a fixed 24-month
           horizon. When duration_months is set on the mission, it's drawn as
           a vertical "fin prévue" marker but doesn't constrain the X axis. */}
@@ -430,6 +442,118 @@ function PricingWidgetInner({
         />
       </div>
     </section>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Risk panel — 4 KPI cards above the chart
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function RiskPanel({
+  inputs, tjm, margeMinPct,
+}: {
+  inputs: PricingInputs
+  tjm: number
+  margeMinPct: number
+}) {
+  const indicators = useMemo<RiskIndicators>(() => {
+    const scenarios = computeRuptureScenarios(inputs, 24, tjm)
+    const revenuMensuel = tjm * inputs.joursFacturablesParMois
+    return computeRiskIndicators(scenarios, margeMinPct, revenuMensuel)
+  }, [inputs, tjm, margeMinPct])
+
+  const tone =
+    indicators.level === "high"   ? { fg: "#B91C1C", bg: "rgba(220,38,38,0.06)",  bd: "rgba(220,38,38,0.25)",  label: "🚨 Risque élevé" } :
+    indicators.level === "medium" ? { fg: "#B45309", bg: "rgba(217,119,6,0.07)",  bd: "rgba(217,119,6,0.25)",  label: "⚠ Risque modéré" } :
+                                    { fg: "#15803d", bg: "rgba(34,197,94,0.07)",  bd: "rgba(34,197,94,0.25)",  label: "✓ Risque maîtrisé" }
+
+  const fmtEur = (n: number) => `${n < 0 ? "−" : ""}${Math.abs(Math.round(n)).toLocaleString("fr-FR")} €`
+  const fmtPct = (n: number) => `${n.toFixed(1)} %`
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{
+        background: tone.bg, border: `1px solid ${tone.bd}`,
+        borderRadius: 12, padding: "10px 14px", marginBottom: 8,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        gap: 10, flexWrap: "wrap",
+      }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: tone.fg }}>
+          {tone.label}
+        </span>
+        <span style={{ fontSize: 12, color: "#4B5563", lineHeight: 1.5 }}>
+          {indicators.message}
+        </span>
+      </div>
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+        gap: 8,
+      }}>
+        <RiskCard
+          icon="🚨"
+          label="Marge mensuelle minimale"
+          value={fmtEur(indicators.margeMinMensuelle)}
+          hint={`${fmtPct(indicators.margeMinPct)} du revenu · worst case`}
+          negative={indicators.margeMinMensuelle < 0}
+        />
+        <RiskCard
+          icon="⏱"
+          label="Mois critique"
+          value={`Mois ${indicators.moisCritique}`}
+          hint="Le pire passage à anticiper"
+        />
+        <RiskCard
+          icon="🎯"
+          label="Retour au seuil"
+          value={indicators.breakEvenMois !== null ? `Mois ${indicators.breakEvenMois}` : "Jamais"}
+          hint={indicators.breakEvenMois !== null
+            ? `Worst-case ≥ ${margeMinPct}% à partir d'ici`
+            : `Worst-case reste sous ${margeMinPct}% sur 24m`}
+          negative={indicators.breakEvenMois === null}
+        />
+        <RiskCard
+          icon="💸"
+          label="Coût rupture total"
+          value={fmtEur(indicators.coutRupturePire)}
+          hint="Manque à gagner cumulé worst-case"
+        />
+      </div>
+    </div>
+  )
+}
+
+function RiskCard({
+  icon, label, value, hint, negative,
+}: {
+  icon: string
+  label: string
+  value: string
+  hint: string
+  negative?: boolean
+}) {
+  return (
+    <div style={{
+      background: "white",
+      border: `1px solid ${negative ? "rgba(220,38,38,0.20)" : "#F0ECF8"}`,
+      borderRadius: 10, padding: "10px 12px",
+      display: "flex", flexDirection: "column", gap: 2,
+    }}>
+      <span style={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+        {icon} {label}
+      </span>
+      <span style={{
+        fontSize: 15, fontWeight: 800,
+        color: negative ? "#B91C1C" : "#111827",
+        fontVariantNumeric: "tabular-nums",
+      }}>
+        {value}
+      </span>
+      <span style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>
+        {hint}
+      </span>
+    </div>
   )
 }
 
