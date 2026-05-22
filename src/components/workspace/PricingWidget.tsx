@@ -27,6 +27,7 @@ import {
   type Lieu,
   type Avantages,
 } from "@/lib/pricing/syntec"
+import MarginEvolutionChart from "@/components/workspace/MarginEvolutionChart"
 import type { Candidate, Job, ParsedCv, Profile } from "@/lib/database.types"
 import { getSupabase } from "@/lib/supabase"
 
@@ -417,6 +418,30 @@ function PricingWidgetInner({
         {showDetail ? "▼ Masquer le détail coût employeur" : "▶ Voir le détail coût employeur"}
       </button>
       {showDetail && <CostBreakdown cost={cost} />}
+
+      {/* Margin evolution chart — needs a mission duration to be meaningful.
+          When the mission has no duration set, we surface a small hint so the
+          sourceur knows to go back and fill it in (the MissionIncompleteBanner
+          on the pricing tab already nudges them too). */}
+      <div style={{ marginTop: 16 }}>
+        {job?.duration_months ? (
+          <MarginEvolutionChart
+            inputs={buildInputs(triangle?.brutAnnuel ?? brutAnnuel)}
+            dureeMois={job.duration_months}
+            tjm={triangle?.tjm ?? tjm}
+          />
+        ) : (
+          <div style={{
+            padding: "12px 14px",
+            background: "#FAFAFA", border: "1px dashed #E5E7EB",
+            borderRadius: 10, fontSize: 12, color: "#6B7280", lineHeight: 1.55,
+          }}>
+            📈 Le graphique d&apos;évolution de la marge apparaît une fois la{" "}
+            <strong>durée prévue</strong> renseignée sur la mission. Cela
+            permet de voir la rentabilité réelle selon 3 scénarios de rupture.
+          </div>
+        )}
+      </div>
     </section>
   )
 }
