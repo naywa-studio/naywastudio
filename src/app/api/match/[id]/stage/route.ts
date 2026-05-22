@@ -14,8 +14,13 @@ export const runtime = "nodejs"
 
 type MatchUpdate = Database["public"]["Tables"]["match_assessments"]["Update"]
 
+// Order matters — used below to decide which milestone timestamps to stamp
+// when a card jumps forward through the pipeline. 'pricing' sits between
+// 'identified' and 'contacted'; it has no dedicated timestamp because the
+// chiffrage doesn't need one (the data lives on the upcoming match_pricing
+// table). 'rejected' is terminal, reachable from any stage.
 const STAGES: PipelineStage[] = [
-  "identified", "contacted", "replied", "interview", "offer", "hired", "rejected",
+  "identified", "pricing", "contacted", "replied", "interview", "offer", "hired", "rejected",
 ]
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
