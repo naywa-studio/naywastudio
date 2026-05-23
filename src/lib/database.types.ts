@@ -107,8 +107,16 @@ export type PricingDefaultAvantages = {
   treiziemeMois?: boolean
   primeCooptationAnnuelle?: number
   /** URSSAF indemnité grand déplacement, €/jour travaillé. Plafonds 2026 :
-   *  Paris+PC ≈ 115,70 €/j, autres zones ≈ 96,50 €/j. */
+   *  Paris+PC ≈ 117,10 €/j, autres zones ≈ 97,90 €/j. */
   urssafIndemniteJour?: number
+  /** Médecine du travail — forfait annuel cotisation SST (obligation légale).
+   *  Coût typique 80-150 €/an/salarié, mensualisé /12. */
+  medecineDuTravailAnnuel?: number
+  /** Indemnité kilométrique annuelle estimée — si véhicule personnel pour
+   *  déplacements pro. Mensualisé /12. */
+  indemniteKilometriqueAnnuelle?: number
+  /** Indemnité d'expatriation mensuelle — pour mission expatrié. */
+  expatriationMensuelle?: number
   autresMensuels?: number
 }
 

@@ -51,6 +51,9 @@ const DEFAULT_FORM: Form = {
     treiziemeMois: false,
     primeCooptationAnnuelle: 0,
     urssafIndemniteJour: 0,
+    medecineDuTravailAnnuel: 100,
+    indemniteKilometriqueAnnuelle: 0,
+    expatriationMensuelle: 0,
     autresMensuels: 0,
   },
 }
@@ -319,12 +322,42 @@ export default function ParametragePage() {
 
         <AvantageRow
           label="Indemnité URSSAF (grand déplacement)"
-          hint="€/jour travaillé. Plafonds 2026 : Paris+PC 115,70 €/j · autres zones 96,50 €/j"
+          hint="€/jour travaillé. Plafonds 2026 : Paris+PC 117,10 €/j · autres zones 97,90 €/j"
           enabled={(form.pricing_default_avantages.urssafIndemniteJour ?? 0) > 0}
-          onToggle={(on) => updateAvantage("urssafIndemniteJour", on ? 96.50 : 0)}
+          onToggle={(on) => updateAvantage("urssafIndemniteJour", on ? 97.90 : 0)}
           value={form.pricing_default_avantages.urssafIndemniteJour ?? 0}
           onValueChange={(v) => updateAvantage("urssafIndemniteJour", v)}
           suffix="€/jour"
+        />
+
+        <AvantageRow
+          label="Médecine du travail (obligatoire)"
+          hint="Cotisation annuelle au Service de Santé au Travail. Coût typique 80-150 €/an/salarié"
+          enabled={(form.pricing_default_avantages.medecineDuTravailAnnuel ?? 0) > 0}
+          onToggle={(on) => updateAvantage("medecineDuTravailAnnuel", on ? 100 : 0)}
+          value={form.pricing_default_avantages.medecineDuTravailAnnuel ?? 0}
+          onValueChange={(v) => updateAvantage("medecineDuTravailAnnuel", v)}
+          suffix="€/an"
+        />
+
+        <AvantageRow
+          label="Indemnité kilométrique (annuelle estimée)"
+          hint="Si véhicule perso pour déplacements pro. Barème URSSAF 2026 dans la page Pricing"
+          enabled={(form.pricing_default_avantages.indemniteKilometriqueAnnuelle ?? 0) > 0}
+          onToggle={(on) => updateAvantage("indemniteKilometriqueAnnuelle", on ? 1200 : 0)}
+          value={form.pricing_default_avantages.indemniteKilometriqueAnnuelle ?? 0}
+          onValueChange={(v) => updateAvantage("indemniteKilometriqueAnnuelle", v)}
+          suffix="€/an"
+        />
+
+        <AvantageRow
+          label="Indemnité d'expatriation (mensuelle)"
+          hint="Si mission expatrié. Calcul simplifié V1 — à valider expert paie pour conventions bilatérales et CFE"
+          enabled={(form.pricing_default_avantages.expatriationMensuelle ?? 0) > 0}
+          onToggle={(on) => updateAvantage("expatriationMensuelle", on ? 2000 : 0)}
+          value={form.pricing_default_avantages.expatriationMensuelle ?? 0}
+          onValueChange={(v) => updateAvantage("expatriationMensuelle", v)}
+          suffix="€/mois"
         />
 
         <AvantageRow

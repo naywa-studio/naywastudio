@@ -60,12 +60,33 @@ export interface Avantages {
    * charges). Le sourceur saisit ici le montant € par jour travaillé qu'il
    * souhaite proposer au candidat. La mensualisation se fait via
    * joursFacturablesParMois. Plafonds URSSAF 2026 par lieu :
-   *   - Paris + petite couronne : 115,70 €/j (2 repas + hébergement)
-   *   - Autres départements métropole : 96,50 €/j
+   *   - Paris + petite couronne : 117,10 €/j (2 repas 21,40 + hébergement 74,30)
+   *   - Autres départements métropole : 97,90 €/j (2 repas + 55,10)
    *   - Le calcul ignore ce plafond et fait juste la multiplication — c'est
    *     au sourceur de respecter le barème pour rester en exonération.
    */
   urssafIndemniteJour?: number
+  /**
+   * Médecine du travail — cotisation obligatoire à un Service de Santé au
+   * Travail (SST/AIST). Forfait annuel, mensualisé (forfait / 12). Coût
+   * typique 80-150 €/an/salarié. Pas exonéré de charges (forfait fixe).
+   */
+  medecineDuTravailAnnuel?: number
+  /**
+   * Indemnité kilométrique annuelle estimée — si le candidat utilise son
+   * véhicule personnel pour des déplacements pro (rare en ESN sur site
+   * client, mais ponctuel). Mensualisé (annuel / 12). Exonéré de charges
+   * tant que le barème URSSAF est respecté (voir sidebar Pricing).
+   */
+  indemniteKilometriqueAnnuelle?: number
+  /**
+   * Mission expatrié — coût mensuel supplémentaire spécifique : indemnité
+   * d'expatriation versée au candidat (cotise selon régime), pas exonéré
+   * de charges. À renseigner par mission. Note V1 : calcul simplifié,
+   * vérifier avec un expert paie pour les conventions bilatérales et
+   * la Caisse des Français de l'Étranger (CFE).
+   */
+  expatriationMensuelle?: number
   /** Catch-all field for anything else — monthly employer cost (€). */
   autresMensuels?: number
 }
@@ -320,12 +341,24 @@ export function computeEmployerCost(input: PricingInputs): EmployerCostBreakdown
   const urssafIndemniteMensuelle =
     (input.avantages.urssafIndemniteJour ?? 0) * input.joursFacturablesParMois
 
+  // Médecine du travail — forfait annuel obligatoire, mensualisé.
+  const medecineDuTravailMensuelle = (input.avantages.medecineDuTravailAnnuel ?? 0) / 12
+
+  // Indemnité kilométrique — annuelle estimée, mensualisée.
+  const indemniteKmMensuelle = (input.avantages.indemniteKilometriqueAnnuelle ?? 0) / 12
+
+  // Expatriation — montant mensuel direct.
+  const expatriationMensuelle = input.avantages.expatriationMensuelle ?? 0
+
   const avantagesMensuels =
     (input.avantages.ticketsResto ?? 0) +
     (input.avantages.mutuellePremium ?? 0) +
     (input.avantages.transport ?? 0) +
     (input.avantages.forfaitMobilite ?? 0) +
     urssafIndemniteMensuelle +
+    medecineDuTravailMensuelle +
+    indemniteKmMensuelle +
+    expatriationMensuelle +
     (input.avantages.autresMensuels ?? 0)
 
   const primeCooptationMensualisee = (input.avantages.primeCooptationAnnuelle ?? 0) / 12
