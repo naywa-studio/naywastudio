@@ -93,8 +93,10 @@ export interface PricingInputs {
   avantages: Avantages
   /** Average billable days per month (default 18 in this codebase). */
   joursFacturablesParMois: number
-  /** Optional override of the employer-charges effective rate (0.0–1.0).
-   *  When undefined, computed from the cotisations table for the given lieu. */
+  /** @deprecated Le taux est fixé par la loi (par statut), pas par
+   *  l'employeur. Champ conservé pour ne pas casser les callsites
+   *  historiques, mais ignoré dans le nouveau code. À retirer dans une
+   *  version future. */
   tauxChargesPatronalesOverride?: number
 }
 
@@ -332,7 +334,9 @@ export function computeEmployerCost(input: PricingInputs): EmployerCostBreakdown
   // that's part of the contractual remuneration). Avantages en nature
   // (tickets resto, mutuelle, transport) are partially exonérés so we don't
   // apply charges on top — they're already net cost to the employer.
-  const tauxCharges = input.tauxChargesPatronalesOverride ?? TAUX_CHARGES_BY_LIEU[input.lieu]
+  // Le taux est fixé par la loi (statut + lieu pour le versement mobilité),
+  // pas par l'employeur. L'ancien override est ignoré dans le nouveau code.
+  const tauxCharges = TAUX_CHARGES_BY_LIEU[input.lieu]
   const remunerationCotisable = brutMensuel + treiziemeMoisMensualise + primeVacancesMensualisee
   const chargesPatronales = remunerationCotisable * tauxCharges
 

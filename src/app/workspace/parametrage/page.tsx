@@ -32,7 +32,6 @@ interface Form {
   pricing_billable_days_per_month: number
   pricing_margin_min_pct: number
   pricing_margin_target_pct: number
-  pricing_charges_rate_override: number | null
   pricing_default_lieu: Lieu
   pricing_default_modalite: Modalite
   pricing_default_avantages: PricingDefaultAvantages
@@ -42,7 +41,6 @@ const DEFAULT_FORM: Form = {
   pricing_billable_days_per_month: 18,
   pricing_margin_min_pct: 15,
   pricing_margin_target_pct: 22,
-  pricing_charges_rate_override: null,
   pricing_default_lieu: "paris_petite_couronne",
   pricing_default_modalite: "modalite_1",
   pricing_default_avantages: {
@@ -92,7 +90,7 @@ export default function ParametragePage() {
       const { data } = await sb
         .from("profiles")
         .select(
-          "pricing_billable_days_per_month, pricing_margin_min_pct, pricing_margin_target_pct, pricing_charges_rate_override, pricing_default_lieu, pricing_default_modalite, pricing_default_avantages",
+          "pricing_billable_days_per_month, pricing_margin_min_pct, pricing_margin_target_pct, pricing_default_lieu, pricing_default_modalite, pricing_default_avantages",
         )
         .eq("user_id", user.id)
         .maybeSingle()
@@ -105,8 +103,6 @@ export default function ParametragePage() {
           profile?.pricing_margin_min_pct ?? DEFAULT_FORM.pricing_margin_min_pct,
         pricing_margin_target_pct:
           profile?.pricing_margin_target_pct ?? DEFAULT_FORM.pricing_margin_target_pct,
-        pricing_charges_rate_override:
-          profile?.pricing_charges_rate_override ?? null,
         pricing_default_lieu:
           (profile?.pricing_default_lieu as Lieu) ?? DEFAULT_FORM.pricing_default_lieu,
         pricing_default_modalite:
@@ -132,7 +128,6 @@ export default function ParametragePage() {
             pricing_billable_days_per_month: next.pricing_billable_days_per_month,
             pricing_margin_min_pct: next.pricing_margin_min_pct,
             pricing_margin_target_pct: next.pricing_margin_target_pct,
-            pricing_charges_rate_override: next.pricing_charges_rate_override,
             pricing_default_lieu: next.pricing_default_lieu,
             pricing_default_modalite: next.pricing_default_modalite,
             pricing_default_avantages: next.pricing_default_avantages,
@@ -271,25 +266,6 @@ export default function ParametragePage() {
             value={form.pricing_default_modalite}
             onChange={(v) => update("pricing_default_modalite", v as Modalite)}
             options={Object.entries(MODALITE_LABELS).map(([value, label]) => ({ value, label }))}
-          />
-        </Field>
-      </Section>
-
-      {/* Section 3 — Charges patronales */}
-      <Section title="Charges patronales" icon="💰">
-        <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-          Par défaut, Naywa calcule le taux selon le lieu de mission (≈ 42-44% pour un cadre Syntec).
-          Si votre ESN a négocié un taux différent (mutuelle premium, prévoyance étendue…), vous
-          pouvez l&apos;imposer ici.
-        </p>
-        <Field label="Override du taux patronal effectif" hint="Laisser vide pour le calcul automatique">
-          <PercentInput
-            value={form.pricing_charges_rate_override === null
-              ? null
-              : form.pricing_charges_rate_override * 100}
-            onChange={(v) =>
-              update("pricing_charges_rate_override", v === null ? null : v / 100)
-            }
           />
         </Field>
       </Section>
@@ -467,38 +443,6 @@ function NumberInput({
         style={inputInnerStyle}
       />
       <span style={{ fontSize: 12.5, color: "#9CA3AF", paddingRight: 12 }}>{suffix}</span>
-    </div>
-  )
-}
-
-function PercentInput({
-  value, onChange,
-}: {
-  value: number | null
-  onChange: (v: number | null) => void
-}) {
-  // Local input state keeps intermediate strings ("2.", "2,5"…) typeable.
-  // We don't sync from `value` after mount: this widget is always the source
-  // of truth for the field while it's mounted, so a useEffect sync would
-  // cascade renders without buying anything. The form-level update flow
-  // calls onChange whenever the parsed number changes.
-  const [text, setText] = useState<string>(value === null ? "" : String(value))
-  return (
-    <div style={inputBoxStyle}>
-      <input
-        type="text"
-        placeholder="Auto"
-        value={text}
-        onChange={(e) => {
-          const v = e.target.value
-          setText(v)
-          if (v.trim() === "") { onChange(null); return }
-          const n = Number(v.replace(",", "."))
-          if (Number.isFinite(n)) onChange(n)
-        }}
-        style={inputInnerStyle}
-      />
-      <span style={{ fontSize: 12.5, color: "#9CA3AF", paddingRight: 12 }}>%</span>
     </div>
   )
 }

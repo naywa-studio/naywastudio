@@ -99,7 +99,6 @@ type PricingProfile = Pick<Profile,
   | "pricing_billable_days_per_month"
   | "pricing_margin_min_pct"
   | "pricing_margin_target_pct"
-  | "pricing_charges_rate_override"
   | "pricing_default_lieu"
   | "pricing_default_modalite"
   | "pricing_default_avantages"
@@ -121,7 +120,7 @@ export default function PricingWidget({
       if (!user || !mounted) return
       const { data } = await sb
         .from("profiles")
-        .select("pricing_billable_days_per_month, pricing_margin_min_pct, pricing_margin_target_pct, pricing_charges_rate_override, pricing_default_lieu, pricing_default_modalite, pricing_default_avantages")
+        .select("pricing_billable_days_per_month, pricing_margin_min_pct, pricing_margin_target_pct, pricing_default_lieu, pricing_default_modalite, pricing_default_avantages")
         .eq("user_id", user.id)
         .maybeSingle()
       if (mounted) setProfile(data ?? null)
@@ -211,10 +210,8 @@ function PricingWidgetInner({
       lieu,
       avantages,
       joursFacturablesParMois: joursParMois,
-      tauxChargesPatronalesOverride:
-        profile?.pricing_charges_rate_override ?? undefined,
     }),
-    [preset, modalite, lieu, avantages, joursParMois, profile?.pricing_charges_rate_override],
+    [preset, modalite, lieu, avantages, joursParMois],
   )
 
   // Live triangle computation — re-runs whenever any pinned input changes
