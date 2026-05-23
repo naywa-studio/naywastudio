@@ -308,13 +308,13 @@ Important : si activée, c'est un coût lourd pour l'ESN en cas de rupture. Souv
 | Chômage | 4,05% | T1+T2 (plafond 4 PASS) | Tous |
 | AGS | 0,15% | T1+T2 | Tous |
 | CUFPA (contribution unique formation/apprentissage) | 1,68% | Totalité | Tous |
-| Versement mobilité Paris | ~2,95% | Totalité | Tous (≥ 11 salariés en zone) |
+| Versement mobilité Paris (Grand Paris) | **3,05%** (2026, +0,10 vs 2025) | Totalité | Tous (≥ 11 salariés en zone) |
 | Versement mobilité Lyon | ~1,95% | Totalité | Tous |
 | Versement mobilité Province (autres) | 0% à 2% | Totalité | Variable par commune |
 | Forfait social (intéressement, PEE) | 20% (8% si CSE+PEE) | Sur sommes versées | Tous |
 | Médecine du travail (cotisation forfaitaire) | ~80-120 € | Par salarié/an | Tous |
 
-**PASS 2026** ⚠ : à confirmer, généralement ~3 925 €/mois (47 100 €/an). T1 = jusqu'à 1 PASS, T2 = 1 à 8 PASS.
+**PASS 2026** ✅ confirmé arrêté du 22/12/2025 : **4 005 €/mois · 48 060 €/an** (revalorisation +2 % vs 2025). Plafond journalier 220 €. T1 = jusqu'à 1 PASS, T2 = 1 à 8 PASS.
 
 ### Total approximatif pour un cadre Syntec Paris
 
@@ -347,16 +347,16 @@ Barème URSSAF (s'applique à tous, pas spécifique Syntec) — chiffres génér
 
 | Cas | Montant 2026 ⚠ |
 |---|---|
-| Repas sur le lieu de travail (panier) | 7,40 €/repas |
+| Repas sur le lieu de travail (panier) | 7,50 €/repas (était 7,40 € en 2025) |
 | Repas hors entreprise (restaurant) | 21,10 €/repas |
-| Repas hors entreprise (panier) | 10,30 €/repas |
+| Repas hors entreprise (panier) | 10,40 €/repas (était 10,30 € en 2025) |
 
 ### Grands déplacements (salarié hébergé hors domicile)
 
-| Zone | Hébergement + petit-déj (€/jour) | Repas (€/repas) | Total/jour ⚠ |
+| Zone | Hébergement + petit-déj (€/jour) | Repas (€/repas) | Total/jour ✅ |
 |---|---|---|---|
-| Paris + petite couronne (75, 92, 93, 94) | 75,30 | 21,10 | ~117 |
-| Autres départements métropole | 55,90 | 21,10 | ~98 |
+| Paris + petite couronne (75, 92, 93, 94) | 74,30 | 21,40 | **117,10** |
+| Autres départements métropole | 55,10 | 21,40 | **97,90** |
 
 ### Abattements pour mission longue durée
 
@@ -399,7 +399,7 @@ Variables selon puissance fiscale du véhicule (3 CV à 7 CV+) et kilométrage a
 ### Tickets restaurant ✅ (cadre légal 2026)
 - Valeur faciale : 9-13 € typiquement
 - **Part employeur** : 50% à 60% (exonération sociale et fiscale)
-- ⚠ Plafond exonération URSSAF 2026 : à confirmer, ~7,18 €/jour part employeur.
+- ✅ Plafond exonération URSSAF 2026 confirmé : **7,32 €/jour part employeur** (était 7,26 € en 2025, 7,18 € en 2024).
 
 ### Mutuelle ✅
 - **Obligation Syntec** : part employeur ≥ 50% (minimum légal)

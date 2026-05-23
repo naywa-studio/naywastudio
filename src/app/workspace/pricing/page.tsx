@@ -140,7 +140,7 @@ export default function PricingPage() {
             <Table
               headers={["Lieu", "Taux 2026 (% du brut)", "Condition"]}
               rows={[
-                ["Paris intra-muros + petite couronne (75/92/93/94)", "jusqu'à 3,20 %", "Effectif ≥ 11"],
+                ["Paris intra-muros + petite couronne (75/92/93/94)", "3,05 % (Grand Paris 2026)", "Effectif ≥ 11"],
                 ["Île-de-France grande couronne", "≈ 1,80 %", "Effectif ≥ 11"],
                 ["Lyon métropole", "≈ 2,00 %", "Effectif ≥ 11"],
                 ["Province (autres communes)", "0,20 % à 1,75 %", "Variable par commune"],
@@ -168,7 +168,7 @@ export default function PricingPage() {
               rows={[
                 ["Valeur faciale ticket", "À compléter par l'employeur (9 € à 13 €)"],
                 ["Part employeur", "Entre 50 % et 60 % (à compléter)"],
-                ["Plafond exonération URSSAF 2026", "7,18 €/jour part employeur"],
+                ["Plafond exonération URSSAF 2026", "7,32 €/jour part employeur"],
                 ["Coût mensuel employeur", "Valeur × part employeur × jours travaillés"],
               ]}
             />
@@ -476,7 +476,7 @@ function FormulasPanel() {
           "  + Tickets resto (valeur × part empl. × jours travaillés)",
           "  + 13ᵉ mois ÷ 12 (si pratiqué)",
           "  + Médecine du travail (forfait annuel ÷ 12)",
-          "  + Indemnité URSSAF déplacement (115,70 €/j Paris, 96,50 €/j province)",
+          "  + Indemnité URSSAF déplacement (117,10 €/j Paris+PC, 97,90 €/j province)",
         ]}
         note="Constante quel que soit t. C'est la base que paye l'employeur chaque mois."
       />
