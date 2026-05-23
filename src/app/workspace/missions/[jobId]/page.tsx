@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { m, AnimatePresence } from "framer-motion"
@@ -232,7 +232,10 @@ export default function JobDetailPage() {
             Affichage en lecture seule pour V1 ; l'édition inline viendra plus
             tard. Le bloc se rend en jaune amber, cohérent avec le stage Pricing
             et le ruban de l'onglet Pricing. */}
-        <MissionPricingBlock job={job} />
+        <MissionPricingBlock
+          job={job}
+          onPatched={(next) => setJob(next)}
+        />
 
         {/* Match action */}
         <div style={{
@@ -690,84 +693,160 @@ function Meta({ children }: { children: React.ReactNode }) {
   )
 }
 
-/* ───────────────────────── Pricing summary block ─────────────────────────
- * Shows the commercial inputs captured when the mission was created. If
- * everything is blank, the block prompts the sourceur to complete them so
- * the pricing tab can produce accurate numbers.
+/* ───────────────────────── Pricing inline editor ─────────────────────────
+ * Inline-editable pricing inputs directly on the mission detail page.
+ * Auto-save debounced (800 ms) so the sourceur doesn't have to click
+ * any save button — the badge confirms persistence. Calls back to the
+ * parent so the cached `job` state stays in sync after each save.
  */
-function MissionPricingBlock({ job }: { job: Job }) {
-  const hasTjm = job.client_tjm_min != null || job.client_tjm_max != null
-  const hasMargin = job.margin_min_pct != null
-  const hasDuration = job.duration_months != null
-  const hasTarget = job.target_gross_salary != null
-  const hasAny = hasTjm || hasMargin || hasDuration || hasTarget
+function MissionPricingBlock({
+  job,
+  onPatched,
+}: {
+  job: Job
+  onPatched: (next: Job) => void
+}) {
+  // String values keep intermediate edits typeable (e.g. "5." before "5.5").
+  // Empty string = field cleared = null in DB.
+  const numToStr = (n: number | null | undefined): string =>
+    n == null ? "" : String(n)
 
-  const fmtEur = (n: number | null | undefined): string =>
-    n == null ? "—" : `${Math.round(n).toLocaleString("fr-FR")} €`
+  const [tjmMin, setTjmMin] = useState<string>(numToStr(job.client_tjm_min))
+  const [tjmMax, setTjmMax] = useState<string>(numToStr(job.client_tjm_max))
+  const [marginMin, setMarginMin] = useState<string>(numToStr(job.margin_min_pct))
+  const [duration, setDuration] = useState<string>(numToStr(job.duration_months))
+  const [targetGross, setTargetGross] = useState<string>(numToStr(job.target_gross_salary))
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const saveTimerRef = useRef<number | null>(null)
 
-  const tjmLabel = job.client_tjm_min != null && job.client_tjm_max != null
-    ? `${fmtEur(job.client_tjm_min)} → ${fmtEur(job.client_tjm_max)}`
-    : job.client_tjm_min != null
-      ? `≥ ${fmtEur(job.client_tjm_min)}`
-      : job.client_tjm_max != null
-        ? `≤ ${fmtEur(job.client_tjm_max)}`
-        : "—"
+  const parseNum = (s: string): number | null => {
+    if (!s.trim()) return null
+    const n = Number(s.replace(",", "."))
+    return Number.isFinite(n) ? n : null
+  }
+
+  const schedulePatch = useCallback(
+    (patch: Partial<Job>) => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
+      setSaveState("saving")
+      saveTimerRef.current = window.setTimeout(async () => {
+        const res = await fetch(`/api/jobs/${job.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const next = data.job as Job
+          onPatched(next)
+          setSaveState("saved")
+          window.setTimeout(() => setSaveState("idle"), 1800)
+        } else {
+          setSaveState("error")
+        }
+      }, 800)
+    },
+    [job.id, onPatched],
+  )
+
+  const updateField = useCallback(
+    (key: keyof Job, raw: string, setter: (s: string) => void) => {
+      setter(raw)
+      schedulePatch({ [key]: parseNum(raw) } as Partial<Job>)
+    },
+    [schedulePatch],
+  )
 
   return (
     <div style={{
       marginTop: 18,
-      background: hasAny ? "rgba(217,119,6,0.04)" : "#FAFAFA",
-      border: `1px solid ${hasAny ? "rgba(217,119,6,0.20)" : "#F0ECF8"}`,
+      background: "rgba(217,119,6,0.04)",
+      border: "1px solid rgba(217,119,6,0.20)",
       borderRadius: 12, padding: 14,
     }}>
       <div style={{
-        display: "flex", alignItems: "baseline", gap: 8, marginBottom: hasAny ? 12 : 0,
-        flexWrap: "wrap",
+        display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12,
+        flexWrap: "wrap", justifyContent: "space-between",
       }}>
-        <p style={{
-          margin: 0, fontSize: 11, fontWeight: 700, color: "#B45309",
-          letterSpacing: "0.07em", textTransform: "uppercase",
-        }}>
-          💰 Pricing
-        </p>
-        <span style={{ fontSize: 11, color: "#9CA3AF" }}>
-          {hasAny
-            ? "— alimente l'onglet Pricing pour le chiffrage candidat"
-            : "— non renseigné. À compléter pour un chiffrage précis."}
-        </span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <p style={{
+            margin: 0, fontSize: 11, fontWeight: 700, color: "#B45309",
+            letterSpacing: "0.07em", textTransform: "uppercase",
+          }}>
+            💰 Pricing
+          </p>
+          <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+            — édition en direct, sauvegarde automatique
+          </span>
+        </div>
+        <SaveBadge state={saveState} />
       </div>
 
-      {hasAny && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-          gap: 10,
-        }}>
-          <PricingMetric label="TJM client" value={tjmLabel} />
-          <PricingMetric
-            label="Marge minimum"
-            value={hasMargin ? `${job.margin_min_pct}%` : "—"}
-          />
-          <PricingMetric
-            label="Durée prévue"
-            value={hasDuration ? `${job.duration_months} mois` : "—"}
-          />
-          <PricingMetric
-            label="Brut annuel ciblé"
-            value={fmtEur(job.target_gross_salary)}
-          />
-        </div>
-      )}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+        gap: 10,
+      }}>
+        <PricingField
+          label="TJM client min"
+          value={tjmMin}
+          onChange={(v) => updateField("client_tjm_min", v, setTjmMin)}
+          suffix="€/j"
+          placeholder="500"
+        />
+        <PricingField
+          label="TJM client max"
+          value={tjmMax}
+          onChange={(v) => updateField("client_tjm_max", v, setTjmMax)}
+          suffix="€/j"
+          placeholder="650"
+        />
+        <PricingField
+          label="Marge minimum"
+          value={marginMin}
+          onChange={(v) => updateField("margin_min_pct", v, setMarginMin)}
+          suffix="%"
+          placeholder="15"
+          max={100}
+        />
+        <PricingField
+          label="Durée prévue"
+          value={duration}
+          onChange={(v) => updateField("duration_months", v, setDuration)}
+          suffix="mois"
+          placeholder="12"
+          max={120}
+        />
+        <PricingField
+          label="Brut annuel ciblé"
+          value={targetGross}
+          onChange={(v) => updateField("target_gross_salary", v, setTargetGross)}
+          suffix="€/an"
+          placeholder="45000"
+          step={500}
+        />
+      </div>
     </div>
   )
 }
 
-function PricingMetric({ label, value }: { label: string; value: string }) {
+function PricingField({
+  label, value, onChange, suffix, placeholder, max, step,
+}: {
+  label: string
+  value: string
+  onChange: (next: string) => void
+  suffix: string
+  placeholder?: string
+  max?: number
+  step?: number
+}) {
   return (
-    <div style={{
+    <label style={{
       background: "white", border: "1px solid rgba(217,119,6,0.18)",
       borderRadius: 9, padding: "8px 11px",
-      display: "flex", flexDirection: "column", gap: 2,
+      display: "flex", flexDirection: "column", gap: 4,
+      cursor: "text",
     }}>
       <span style={{
         fontSize: 10, fontWeight: 700, color: "#92400E",
@@ -775,12 +854,49 @@ function PricingMetric({ label, value }: { label: string; value: string }) {
       }}>
         {label}
       </span>
-      <span style={{
-        fontSize: 13.5, fontWeight: 700, color: "#111827",
-        fontVariantNumeric: "tabular-nums",
-      }}>
-        {value}
-      </span>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+        <input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          max={max}
+          step={step ?? 1}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{
+            flex: 1, minWidth: 0,
+            fontSize: 13.5, fontWeight: 700, color: "#111827",
+            background: "transparent", border: "none", outline: "none",
+            padding: 0, fontFamily: "inherit",
+            fontVariantNumeric: "tabular-nums",
+            appearance: "textfield",
+          }}
+        />
+        <span style={{ fontSize: 11, color: "#9CA3AF", flexShrink: 0 }}>
+          {suffix}
+        </span>
+      </div>
+    </label>
+  )
+}
+
+function SaveBadge({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
+  if (state === "idle") return null
+  const styles: Record<string, React.CSSProperties> = {
+    saving: { background: "#F3F4F6", color: "#6B7280" },
+    saved: { background: "rgba(34,197,94,0.10)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.22)" },
+    error: { background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA" },
+  }
+  return (
+    <div style={{
+      ...styles[state],
+      display: "inline-flex", alignItems: "center", gap: 6,
+      fontSize: 10.5, fontWeight: 600, padding: "3px 9px", borderRadius: 100,
+    }}>
+      {state === "saving" ? "Enregistrement…"
+        : state === "saved" ? "✓ Enregistré"
+        : "⚠ Erreur"}
     </div>
   )
 }
