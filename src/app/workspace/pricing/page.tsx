@@ -436,31 +436,30 @@ function FormulasPanel() {
         </p>
       </header>
 
-      {/* Inputs requis — paramètres statiques. La date de rupture N'EST PAS
-          un input : c'est l'axe X du graphique. Pour chaque valeur de t
-          (ancienneté en mois) entre 1 et 24, on évalue le coût total. */}
+      {/* Postulats du calculateur. L'objectif est de montrer le PIRE CAS
+          RÉALISTE — celui où l'employeur subit la rupture, pas celui où
+          il l'orchestre. */}
       <div style={{
         background: "white", border: "1px solid rgba(124,99,200,0.25)",
         borderRadius: 10, padding: "10px 12px",
       }}>
         <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "#7C63C8",
           letterSpacing: "0.04em", textTransform: "uppercase" }}>
-          📅 Inputs du calculateur
+          🎯 Postulats du calculateur
         </p>
         <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3, fontSize: 11.5, color: "#374151" }}>
-          <li>• <strong>Brut mensuel</strong> du candidat</li>
-          <li>• <strong>Statut + coefficient</strong> (essai, préavis, charges en dépendent)</li>
-          <li>• <strong>Type de contrat</strong> (CDI / CDD)</li>
-          <li>• <strong>Si CDD : durée prévue</strong> (en mois)</li>
-          <li>• <strong>Avantages activés</strong> (tickets, mutuelle, transport, etc.)</li>
-          <li>• <strong>Lieu de mission</strong> (versement mobilité, URSSAF déplacement)</li>
+          <li>• Worflow exécuté en arrière-plan, <strong>l&apos;utilisateur ne répond à aucune question</strong></li>
+          <li>• Rupture <strong>toujours initiée par l&apos;employeur</strong> (seul cas qui impacte la marge)</li>
+          <li>• Motif = licenciement standard (CDI) ou rupture anticipée hors faute (CDD)</li>
+          <li>• <strong>Préavis respecté</strong> — pas d&apos;indemnité compensatrice volontaire</li>
+          <li>• Cas exclus : démission, rupture conventionnelle, faute grave, inaptitude, FM</li>
         </ul>
         <p style={{ margin: "8px 0 0", fontSize: 10.5, color: "#6B7280", fontStyle: "italic", lineHeight: 1.5 }}>
-          ⚠ <strong>La date de rupture n&apos;est pas un input</strong> — c&apos;est l&apos;axe X
-          du graphique. Pour chaque <strong>t</strong> (ancienneté en mois) entre 1 et 24, le
-          calculateur évalue le coût total selon le motif choisi. Les seuils Syntec qui font
-          basculer les formules : fin_essai (selon coef), 8 mois (indemnité 4.5 ouverte),
-          2 ans cadre (1/4 → 1/3), 10 ans ETAM (1/4 → 1/3).
+          ⚠ La date de rupture n&apos;est pas un input — c&apos;est l&apos;axe X du graphique. Pour
+          chaque <strong>t</strong> (ancienneté en mois) entre 1 et 24, on évalue ce que
+          l&apos;employeur payerait au total. Les seuils Syntec qui font basculer les formules :
+          fin_essai (selon coef), 8 mois (indemnité 4.5 ouverte), 2 ans cadre (1/4 → 1/3),
+          10 ans ETAM (1/4 → 1/3).
         </p>
       </div>
 
@@ -482,99 +481,64 @@ function FormulasPanel() {
         note="Constante quel que soit t. C'est la base que paye l'employeur chaque mois."
       />
 
-      {/* CDI — 5 motifs, chaque formule est coût_total(t) */}
+      {/* CDI — 2 cas (pendant essai / post-essai). Motif fixé à
+          "licenciement standard par employeur, préavis respecté". */}
       <FormulaCard
         title="🚪 CDI · t ≤ fin_essai(coef) — pendant essai"
         color="#16A34A"
         lines={[
           "coût_total(t) = C × t",
-          "              + indemnité_compensatrice_prévenance (si délai non respecté)",
           "",
           "fin_essai(coef) :",
           "  ETAM coef 240–250  → 4 mois max",
           "  ETAM coef 275–500  → 6 mois max",
           "  Cadre coef 95–270  → 8 mois max",
         ]}
-        note="Pas d'indemnité licenciement, pas de préavis classique. Coût quasi linéaire en t."
+        note="Pas d'indemnité, pas de préavis classique. Coût strictement linéaire en t."
       />
 
       <FormulaCard
-        title="⚠ CDI · t > fin_essai — licenciement"
+        title="⚠ CDI · t > fin_essai — licenciement par employeur"
         color="#DC2626"
         lines={[
           "coût_total(t) = C × t",
           "              + préavis(statut, coef) × C",
           "              + indemnité_4.5(statut, t)",
           "              + indemnité_CP_non_pris(t)",
-          "              + indemnité_non_concurrence (optionnel)",
           "",
-          "préavis(statut, coef) :",
+          "préavis(statut, coef) — Article 4.2 :",
           "  ETAM coef < 400, t < 24 mois → 1 mois",
           "  ETAM coef < 400, t ≥ 24 mois → 2 mois",
-          "  ETAM coef 400/450/500        → 2 mois",
+          "  ETAM coef 400 / 450 / 500    → 2 mois",
           "  Cadre                        → 3 mois",
           "",
-          "indemnité_4.5(statut, t) si t ≥ 8 mois, sinon 0 :",
-          "  ETAM t ≤ 120 mois  → (1/4) × (t/12) × salaire_réf",
-          "  ETAM t > 120 mois  → ((1/4)×10 + (1/3)×(t/12 − 10)) × salaire_réf",
-          "  Cadre t < 24 mois  → (1/4) × (t/12) × salaire_réf",
-          "  Cadre t ≥ 24 mois  → (1/3) × (t/12) × salaire_réf",
+          "indemnité_4.5(statut, t) — Article 4.5 :",
+          "  Si t < 8 mois                → 0 (condition non remplie)",
+          "  ETAM, t ≤ 120 mois           → (1/4) × (t/12) × salaire_réf",
+          "  ETAM, t > 120 mois           → ((1/4)×10 + (1/3)×(t/12 − 10)) × salaire_réf",
+          "  Cadre, t < 24 mois           → (1/4) × (t/12) × salaire_réf",
+          "  Cadre, t ≥ 24 mois           → (1/3) × (t/12) × salaire_réf",
           "",
           "L'employeur verse MAX(formule Syntec, formule légale R1234-2).",
           "salaire_réf = 1/12 des 12 derniers mois bruts.",
         ]}
-        note="Toutes les composantes sauf C dépendent de t. C'est ce qui crée le cliff à t = fin_essai."
+        note="Worst case réaliste : préavis payé sans facturer + indemnité Syntec. C'est ce que coûte vraiment une rupture."
       />
 
+      {/* CDD — 3 cas : essai / au terme / rupture anticipée par employeur */}
       <FormulaCard
-        title="🤝 CDI · t > fin_essai — rupture conventionnelle"
-        color="#DC2626"
-        lines={[
-          "coût_total(t) = C × t",
-          "              + indemnité_4.5(statut, t)",
-          "              + indemnité_CP_non_pris(t)",
-          "",
-          "Indemnité ≥ MAX(légale, conventionnelle Syntec)",
-          "Pas de préavis (rupture amiable).",
-          "En pratique négociée à +20–30 % pour éviter Prud'hommes :",
-          "  indemnité_4.5(t) × 1,20 à 1,30",
-        ]}
-        note="≈ licenciement sans le préavis. Si t < 8 mois → seulement indemnité négociée libre."
-      />
-
-      <FormulaCard
-        title="👋 CDI · t > fin_essai — démission (salarié)"
+        title="📄 CDD · t ≤ essai_CDD — pendant essai"
         color="#16A34A"
         lines={[
           "coût_total(t) = C × t",
-          "              + préavis(statut, coef) × C  (sauf dispense employeur)",
-          "              + indemnité_CP_non_pris(t)",
           "",
-          "Pas d'indemnité licenciement (initiative salarié).",
-          "Si dispense préavis demandée par salarié et acceptée → pas d'indemnité due.",
+          "essai_CDD(durée_CDD) — Code du travail L1242-10 :",
+          "  durée ≤ 6 mois  → 1 j/semaine, max 2 semaines",
+          "  durée > 6 mois  → 1 j/semaine, max 1 mois",
         ]}
-        note="Cas le moins coûteux pour l'employeur. Indépendant des seuils 8 mois / 2 ans."
+        note="Pas d'indemnité fin CDD (contrat non mené à terme). Coût strictement linéaire."
       />
 
-      <FormulaCard
-        title="🏥 CDI · t > fin_essai — inaptitude / faute grave"
-        color="#B45309"
-        lines={[
-          "Motif = faute grave/lourde :",
-          "  coût_total(t) = C × t  (pas de préavis, pas d'indemnité)",
-          "",
-          "Motif = inaptitude non professionnelle :",
-          "  coût_total(t) = C × t + indemnité_4.5(statut, t)",
-          "  (pas de préavis si reclassement impossible)",
-          "",
-          "Motif = inaptitude professionnelle :",
-          "  coût_total(t) = C × t + 2 × indemnité_légale_4.5(t)",
-          "                + préavis × C  (même si non effectué)",
-        ]}
-        note="3 sous-cas selon le motif. Inaptitude pro = le plus coûteux (double indemnité)."
-      />
-
-      {/* CDD — toutes les fonctions de t, plafonnées à durée_CDD */}
       <FormulaCard
         title="📄 CDD · t = durée_CDD — terme normal"
         color="#D97706"
@@ -587,77 +551,19 @@ function FormulasPanel() {
           "  - CDD jeune saisonnier",
           "  - CDD avec formation diplômante",
         ]}
-        note="Cas terminal du CDD. Le graphique le visualise au point t = durée_CDD."
+        note="Cas terminal — le CDD se finit naturellement. Indemnité 10 % due (sauf exceptions)."
       />
 
       <FormulaCard
-        title="📄 CDD · t ≤ essai_CDD — pendant essai"
-        color="#16A34A"
-        lines={[
-          "coût_total(t) = C × t",
-          "              + indemnité_compensatrice_prévenance (si non respecté)",
-          "",
-          "essai_CDD(durée) — Code du travail L1242-10 :",
-          "  durée ≤ 6 mois  → 1 j/semaine, max 2 semaines",
-          "  durée > 6 mois  → 1 j/semaine, max 1 mois",
-        ]}
-        note="Pas d'indemnité fin CDD (le contrat n'arrive pas à terme)."
-      />
-
-      <FormulaCard
-        title="📄 CDD · essai_CDD < t < durée_CDD — rupture anticipée employeur"
+        title="⚠ CDD · essai_CDD < t < durée_CDD — rupture anticipée par employeur"
         color="#DC2626"
         lines={[
-          "Motif = hors faute grave / FM / inaptitude :",
-          "  coût_total(t) = C × t",
-          "                + Brut × (durée_CDD − t) × (1 + charges)  (dommages)",
-          "                + 0,10 × Brut × t  (indemnité fin CDD due)",
-          "",
-          "Motif = faute grave ou lourde salarié :",
-          "  coût_total(t) = C × t  (aucune indemnité due)",
-          "",
-          "Motif = force majeure :",
-          "  coût_total(t) = C × t",
-          "                + Brut × (durée_CDD − t) × (1 + charges)",
-          "                + 0,10 × Brut × t",
-          "",
-          "Motif = inaptitude médicale :",
-          "  coût_total(t) = C × t",
-          "                + indemnité_légale_4.5(t)",
-          "                + 0,10 × Brut × t",
-        ]}
-        note="Cas 1 le plus fréquent et le plus coûteux. Le coût explose avec (durée_CDD − t) restant."
-      />
-
-      <FormulaCard
-        title="📄 CDD · essai_CDD < t < durée_CDD — rupture anticipée salarié"
-        color="#D97706"
-        lines={[
-          "Motif = embauche CDI ailleurs :",
-          "  coût_total(t) = C × t",
-          "                + préavis_court × C/22  (1 j/sem max 2 semaines)",
-          "  Pas d'indemnité fin CDD (initiative salarié).",
-          "",
-          "Motif = sans motif valable :",
-          "  coût_total(t) = C × t",
-          "  Le salarié peut être condamné à payer des dommages à l'employeur",
-          "  (équivalent au préjudice — hors scope calculateur).",
-          "",
-          "Motif = faute grave employeur :",
-          "  coût_total(t) = C × t + 0,10 × Brut × t  (indemnité fin CDD due)",
-        ]}
-        note="Coût employeur quasi nul dans le cas 1 (CDI ailleurs, le plus fréquent)."
-      />
-
-      <FormulaCard
-        title="📄 CDD · essai_CDD < t < durée_CDD — commun accord"
-        color="#16A34A"
-        lines={[
           "coût_total(t) = C × t",
-          "              + indemnité_négociée (libre)",
+          "              + Brut × (durée_CDD − t) × (1 + charges)  (dommages-intérêts)",
+          "              + 0,10 × Brut × t  (indemnité fin CDD due quand même)",
           "              + indemnité_CP_non_pris(t)",
         ]}
-        note="Pas de formalisme imposé. Coût négocié au cas par cas — paramètre saisi par le sourceur."
+        note="Worst case réaliste CDD : l'employeur doit payer les salaires restants jusqu'au terme + indemnité fin CDD. Coût lourd, croît avec (durée_CDD − t) restant."
       />
 
       <div style={{
