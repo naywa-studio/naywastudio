@@ -59,17 +59,17 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
     [inputs, tjm],
   )
 
-  const sans = scenarios.sansIntercontrat
-  const oneMo = scenarios.avec1MoisIntercontrat
-  const preavis = scenarios.avecPreavisMax
+  // Nouvelle structure : 2 courbes (nominal + worstCase). Le worst case
+  // intègre toute la logique de l'arbre selon (typeContrat, t).
+  const nominal = scenarios.nominal
+  const worst = scenarios.worstCase
 
   // Compute Y range — include 0 so the zero line is always visible if the
   // worst case dips into the red, but keep a comfortable top margin so the
   // nominal plateau doesn't sit right at the edge.
   const allValues = [
-    ...sans.map((p) => p.margeMois),
-    ...oneMo.map((p) => p.margeMois),
-    ...preavis.map((p) => p.margeMois),
+    ...nominal.map((p) => p.margeMois),
+    ...worst.map((p) => p.margeMois),
     0,
   ]
   const yMinRaw = Math.min(...allValues)
@@ -100,9 +100,8 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
   // 4 Y ticks evenly spaced
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => yMin + t * yRange)
 
-  const endNomi = sans.at(-1)
-  const end1m = oneMo.at(-1)
-  const endPreavis = preavis.at(-1)
+  const endNomi = nominal.at(-1)
+  const endWorst = worst.at(-1)
 
   return (
     <div style={{
@@ -229,24 +228,19 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
           </>
         )}
 
-        {/* Curves — paint worst-case first so best-case stays on top */}
-        <path d={pathFor(preavis)}
+        {/* Curves — paint worst-case first so the nominal plateau stays on top */}
+        <path d={pathFor(worst)}
           fill="none" stroke="#DC2626" strokeWidth={2.5}
           strokeLinejoin="round" strokeLinecap="round"
         />
-        <path d={pathFor(oneMo)}
-          fill="none" stroke="#D97706" strokeWidth={2.5}
-          strokeLinejoin="round" strokeLinecap="round"
-        />
-        <path d={pathFor(sans)}
+        <path d={pathFor(nominal)}
           fill="none" stroke="#16A34A" strokeWidth={2.5}
           strokeLinejoin="round" strokeLinecap="round"
         />
 
         {/* Endpoints at month 24 — monthly margin labels */}
         {endNomi && <EndDot color="#16A34A" x={xOf(endNomi.mois)} y={yOf(endNomi.margeMois)} label={`${Math.round(endNomi.margeMois).toLocaleString("fr-FR")} €/mois`} />}
-        {end1m && <EndDot color="#D97706" x={xOf(end1m.mois)} y={yOf(end1m.margeMois)} label={`${Math.round(end1m.margeMois).toLocaleString("fr-FR")} €/mois`} />}
-        {endPreavis && <EndDot color="#DC2626" x={xOf(endPreavis.mois)} y={yOf(endPreavis.margeMois)} label={`${Math.round(endPreavis.margeMois).toLocaleString("fr-FR")} €/mois`} />}
+        {endWorst && <EndDot color="#DC2626" x={xOf(endWorst.mois)} y={yOf(endWorst.margeMois)} label={`${Math.round(endWorst.margeMois).toLocaleString("fr-FR")} €/mois`} />}
 
         {/* Zero line — repaint on top of the bands */}
         {yMin < 0 && yMax > 0 && (
@@ -259,11 +253,9 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
 
       <ScenarioSummary
         endNomi={endNomi?.margeMois ?? 0}
-        end1m={end1m?.margeMois ?? 0}
-        endPreavis={endPreavis?.margeMois ?? 0}
+        endWorst={endWorst?.margeMois ?? 0}
         endNomiPct={endNomi?.margePct ?? 0}
-        end1mPct={end1m?.margePct ?? 0}
-        endPreavisPct={endPreavis?.margePct ?? 0}
+        endWorstPct={endWorst?.margePct ?? 0}
         preavisMois={scenarios.preavisMois}
       />
     </div>
@@ -272,15 +264,15 @@ export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) 
 
 /* ──────────────────────────────────────────────────────────────────────── */
 
-function Legend({ preavisMois }: { preavisMois: number }) {
+function Legend({ preavisMois: _preavisMois }: { preavisMois: number }) {
+  void _preavisMois
   return (
     <div style={{
       display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center",
       fontSize: 11, color: "#6B7280",
     }}>
-      <LegendDot color="#16A34A" label="Marge sans intercontrat" />
-      <LegendDot color="#D97706" label="Marge +1 mois" />
-      <LegendDot color="#DC2626" label={`Marge préavis max (${preavisMois}m)`} />
+      <LegendDot color="#16A34A" label="Marge nominale (sans rupture)" />
+      <LegendDot color="#DC2626" label="Marge effective si rupture employeur" />
     </div>
   )
 }
@@ -313,16 +305,14 @@ function EndDot({ color, x, y, label }: { color: string; x: number; y: number; l
 }
 
 function ScenarioSummary({
-  endNomi, end1m, endPreavis,
-  endNomiPct, end1mPct, endPreavisPct,
+  endNomi, endWorst,
+  endNomiPct, endWorstPct,
   preavisMois,
 }: {
   endNomi: number
-  end1m: number
-  endPreavis: number
+  endWorst: number
   endNomiPct: number
-  end1mPct: number
-  endPreavisPct: number
+  endWorstPct: number
   preavisMois: number
 }) {
   const fmt = (v: number, pct: number) =>
@@ -331,9 +321,8 @@ function ScenarioSummary({
     v >= 0 ? "#15803d" : "#B91C1C"
 
   const rows = [
-    { color: "#16A34A", label: "Marge sans intercontrat — fin d'horizon (24m)", value: endNomi, pct: endNomiPct },
-    { color: "#D97706", label: "Marge +1 mois — fin d'horizon (24m)", value: end1m, pct: end1mPct },
-    { color: "#DC2626", label: `Marge préavis max (${preavisMois}m) — fin d'horizon (24m)`, value: endPreavis, pct: endPreavisPct },
+    { color: "#16A34A", label: "Marge nominale — fin d'horizon (24m)", value: endNomi, pct: endNomiPct },
+    { color: "#DC2626", label: `Marge worst case — rupture employeur (préavis ${preavisMois}m) à 24m`, value: endWorst, pct: endWorstPct },
   ]
 
   return (

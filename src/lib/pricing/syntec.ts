@@ -143,14 +143,28 @@ export interface MarginPoint {
   margePct: number
 }
 
-/** Three rupture scenarios drawn on the chart. */
+/** Identifie quelle branche de l'arbre s'applique à un mois t donné.
+ *  Sert au tooltip / annotations du graphique. */
+export type RuptureBranche =
+  | 'cdi_essai'              // t ≤ fin_essai
+  | 'cdi_post_essai'         // t > fin_essai
+  | 'cdd_essai'              // t ≤ essai_CDD
+  | 'cdd_terme'              // t = durée_CDD
+  | 'cdd_rupture_anticipee'  // essai_CDD < t < durée_CDD
+
+/** Worst-case rupture curves drawn on the chart.
+ *  - `nominal` : plateau plat de la marge mensuelle sans aucune rupture
+ *  - `worstCase` : marge mensuelle effective si l'employeur subit la
+ *    rupture à chaque t (pendant essai = nominale, post-essai = chute
+ *    cliff puis remontée asymptotique). */
 export interface RuptureScenarios {
-  sansIntercontrat: MarginPoint[]
-  avec1MoisIntercontrat: MarginPoint[]
-  avecPreavisMax: MarginPoint[]
-  /** Convention-defined notice period (months) used in scenario 3. */
+  nominal: MarginPoint[]
+  worstCase: MarginPoint[]
+  /** Branche de l'arbre active à chaque mois — pour annotations / tooltips. */
+  branches: { mois: number; branche: RuptureBranche }[]
+  /** Préavis Syntec applicable post-essai (mois). */
   preavisMois: number
-  /** End of essai period (months), for the chart's red-zone highlight. */
+  /** Fin de période d'essai Syntec / Code du travail (mois). */
   finEssaiMois: number
 }
 
@@ -422,101 +436,137 @@ function mustHaveNumber(v: number | undefined, name: string): number {
  * ────────────────────────────────────────────────────────────────────────── */
 
 /**
- * Compute the three margin-vs-time curves displayed on the fiche match chart.
+ * Compute the rupture scenarios for the margin chart.
  *
- * For each month t in [1..dureeMois], we report the EFFECTIVE monthly
- * margin assuming the contract would be ruptured exactly at month t :
+ * Implémente l'arbre décisionnel validé avec le sourceur :
  *
- *     marge_mensuelle_effective(t) = revenu_mensuel − coût_employeur
- *                                    − ( coût_rupture(t) / t )
+ *   1. Type de contrat ?
+ *      ├── CDI
+ *      │   2. t ≤ fin_essai(coef) ?
+ *      │     ├── OUI → coût_total(t) = C × t                         (cdi_essai)
+ *      │     └── NON → coût_total(t) = C × t + préavis × C
+ *      │              + indemnité_4.5(statut, t)                    (cdi_post_essai)
+ *      │
+ *      └── CDD
+ *          2. t ≤ essai_CDD(durée) ?
+ *            ├── OUI → coût_total(t) = C × t                         (cdd_essai)
+ *            └── NON
+ *                3. t = durée_CDD ?
+ *                  ├── OUI → coût_total(t) = C × t + 0,10 × Brut × t (cdd_terme)
+ *                  └── NON → coût_total(t) = C × t
+ *                            + Brut × (durée − t) × (1 + charges)
+ *                            + 0,10 × Brut × t              (cdd_rupture_anticipee)
  *
- * Critically, `coût_rupture(t)` is ZERO while we are still within the
- * période d'essai (the Syntec préavis and the Article 4.5 indemnity only
- * become payable AFTER essai). That's why the curves stay at the nominal
- * margin during the first months, then PLUNGE the moment the essai ends
- * (every euro of préavis + severance suddenly enters the cost), then
- * recover progressively as that fixed rupture cost is amortised over an
- * ever-growing t.
+ * Postulats :
+ *   - Rupture toujours initiée par l'employeur (seul cas qui impacte sa marge).
+ *   - Préavis toujours respecté (l'employeur n'a pas intérêt à le dispenser
+ *     et payer l'indemnité compensatrice en plus).
+ *   - Cas exclus : démission, rupture conventionnelle, faute grave, inaptitude,
+ *     force majeure (cf. arbre dans la page Pricing).
  *
- * Scenario 1 — sans intercontrat  : coût_rupture(t) = 0 always (rupture
- *   amiable, candidate immediately placed elsewhere). Curve is a flat
- *   plateau at the nominal margin.
- * Scenario 2 — +1 mois intercontrat : coût_rupture(t) = coût × 1 (one
- *   paid idle month) once t > finEssai, 0 otherwise.
- * Scenario 3 — préavis Syntec : coût_rupture(t) = coût × préavis +
- *   indemnité_licenciement(t) once t > finEssai, 0 otherwise.
- *
- * The candidate is assumed to be billable from day 1 — we never start
- * with a negative margin during essai, only after.
+ * Sortie : 2 courbes
+ *   - nominal   : plateau plat à la marge nominale (sans aucune rupture)
+ *   - worstCase : marge mensuelle effective si rupture employeur à chaque t
+ *                 = (revenu × t − coût_total(t)) ÷ t
  */
 export function computeRuptureScenarios(
   input: PricingInputs,
   dureeMois: number,
   tjm: number,
+  options: {
+    typeContrat: TypeContrat
+    /** Durée prévue du CDD en mois — requise si typeContrat === 'cdd'. */
+    dureeCDD?: number
+  } = { typeContrat: 'cdi' },
 ): RuptureScenarios {
   const cost = computeEmployerCost(input)
   const brutMensuel = input.brutAnnuel / 12
 
-  // V1 choice — keep the chart readable by using a constant monthly billable
-  // days value (the cabinet's configured average). A calendar-aware version
-  // is implemented in billableDaysProfile() but creates visual confusion when
-  // two unrelated dips coincide (e.g. August + end of essai). The risk
-  // indicators below give the actionable numbers separately.
   const revenuMensuel = tjm * input.joursFacturablesParMois
   const margeNominaleMensuelle = revenuMensuel - cost.coutTotalMensuel
+
+  // Taux charges patronales effectif — sert au calcul des dommages-intérêts
+  // CDD (salaires restants × (1 + charges)).
+  const tauxCharges = cost.brutMensuel > 0
+    ? cost.chargesPatronales / cost.brutMensuel
+    : 0.43
 
   const preavisM = preavisMois(input.statut, dureeMois / 12, input.coefficient)
   const finEssai = finPeriodeEssaiMois(input.statut, input.coefficient)
 
-  const sansIntercontrat: MarginPoint[] = []
-  const avec1Mois: MarginPoint[] = []
-  const avecPreavis: MarginPoint[] = []
+  // Période d'essai CDD — Code du travail L1242-10 : 1 jour ouvré par
+  // semaine de contrat, plafonné à 2 semaines (CDD ≤ 6 mois) ou 1 mois
+  // (CDD > 6 mois). Convertie en mois pour le seuil de notre arbre.
+  const essaiCddMois = options.typeContrat === 'cdd' && options.dureeCDD
+    ? options.dureeCDD <= 6 ? 0.5 : 1.0
+    : 0
 
   const pctOf = (m: number): number =>
     revenuMensuel <= 0 ? 0 : (m / revenuMensuel) * 100
 
-  for (let t = 1; t <= dureeMois; t++) {
-    const inEssai = t <= finEssai
-    const ancienneteAnnees = t / 12
+  const nominal: MarginPoint[] = []
+  const worstCase: MarginPoint[] = []
+  const branches: { mois: number; branche: RuptureBranche }[] = []
 
-    // 1) Sans intercontrat — flat plateau at the nominal margin (no rupture
-    //    cost will ever land on the ESN).
-    sansIntercontrat.push({
+  for (let t = 1; t <= dureeMois; t++) {
+    // Nominal — toujours la marge constante, c'est le repère visuel.
+    nominal.push({
       mois: t,
       margeMois: margeNominaleMensuelle,
       margePct: pctOf(margeNominaleMensuelle),
     })
 
-    // 2) +1 mois intercontrat — only after essai. The extra month of
-    //    payroll without billing is amortised over t months elapsed.
-    const cost1m = inEssai ? 0 : (cost.coutTotalMensuel * 1) / t
-    const marge1m = margeNominaleMensuelle - cost1m
-    avec1Mois.push({
-      mois: t,
-      margeMois: marge1m,
-      margePct: pctOf(marge1m),
-    })
+    // Worst-case : on parcourt l'arbre selon (typeContrat, t).
+    let coutRupture = 0
+    let branche: RuptureBranche = 'cdi_essai'
 
-    // 3) Préavis Syntec — préavis non facturé + indemnité Article 4.5
-    //    amortised over t. Only kicks in once essai is over.
-    let costPreavis = 0
-    if (!inEssai) {
-      const indemniteMois = indemniteLicenciementMois(input.statut, ancienneteAnnees)
-      const indemniteEuros = indemniteMois * brutMensuel
-      costPreavis = (preavisM * cost.coutTotalMensuel + indemniteEuros) / t
+    if (options.typeContrat === 'cdi') {
+      if (t <= finEssai) {
+        // Branche cdi_essai : aucun coût de rupture.
+        branche = 'cdi_essai'
+        coutRupture = 0
+      } else {
+        // Branche cdi_post_essai : préavis × coût + indemnité Art. 4.5.
+        branche = 'cdi_post_essai'
+        const ancienneteAnnees = t / 12
+        const indemniteMois = indemniteLicenciementMois(input.statut, ancienneteAnnees)
+        const indemniteEuros = indemniteMois * brutMensuel
+        coutRupture = preavisM * cost.coutTotalMensuel + indemniteEuros
+      }
+    } else {
+      // CDD — 3 branches selon t vs essai_CDD vs durée_CDD.
+      const dureeCDD = options.dureeCDD ?? dureeMois
+      if (t <= essaiCddMois) {
+        branche = 'cdd_essai'
+        coutRupture = 0
+      } else if (t >= dureeCDD) {
+        // Atteint le terme : indemnité fin CDD 10 % de la rémunération totale.
+        branche = 'cdd_terme'
+        coutRupture = 0.10 * brutMensuel * t
+      } else {
+        // Rupture anticipée par l'employeur (worst case du CDD).
+        branche = 'cdd_rupture_anticipee'
+        const moisRestants = dureeCDD - t
+        const dommagesInterets = brutMensuel * moisRestants * (1 + tauxCharges)
+        const indemniteFinCDD = 0.10 * brutMensuel * t
+        coutRupture = dommagesInterets + indemniteFinCDD
+      }
     }
-    const margePreavis = margeNominaleMensuelle - costPreavis
-    avecPreavis.push({
+
+    // Mensualisation : on étale le coût de rupture sur t mois écoulés.
+    const margeWorst = margeNominaleMensuelle - coutRupture / t
+    worstCase.push({
       mois: t,
-      margeMois: margePreavis,
-      margePct: pctOf(margePreavis),
+      margeMois: margeWorst,
+      margePct: pctOf(margeWorst),
     })
+    branches.push({ mois: t, branche })
   }
 
   return {
-    sansIntercontrat,
-    avec1MoisIntercontrat: avec1Mois,
-    avecPreavisMax: avecPreavis,
+    nominal,
+    worstCase,
+    branches,
     preavisMois: preavisM,
     finEssaiMois: finEssai,
   }
@@ -550,16 +600,27 @@ export interface RiskIndicators {
 }
 
 /**
- * Synthétise les 3 courbes en 4 indicateurs actionables pour décider.
- * Tous basés sur le worst-case (avecPreavisMax) car c'est lui qui mange
- * la marge dans la vraie vie quand le contrat se rompt mal.
+ * Synthétise la courbe worst-case en 4 indicateurs actionnables pour
+ * décider. La nouvelle structure expose directement `worstCase` (rupture
+ * employeur), ce qui correspond exactement à ce qu'on veut analyser.
  */
 export function computeRiskIndicators(
   scenarios: RuptureScenarios,
   margeMinPct: number,
   revenuMensuel: number,
 ): RiskIndicators {
-  const worst = scenarios.avecPreavisMax
+  const worst = scenarios.worstCase
+  if (worst.length === 0) {
+    return {
+      margeMinMensuelle: 0,
+      margeMinPct: 0,
+      moisCritique: 0,
+      breakEvenMois: null,
+      coutRupturePire: 0,
+      level: 'low',
+      message: 'Aucune donnée disponible.',
+    }
+  }
   const seuilMinEuros = revenuMensuel * (margeMinPct / 100)
 
   // Pire point sur la courbe préavis max
