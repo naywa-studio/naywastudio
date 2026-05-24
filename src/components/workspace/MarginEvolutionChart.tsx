@@ -79,20 +79,20 @@ export default function MarginEvolutionChart({
   const mild = scenarios.mild
   const worst = scenarios.worstCase
 
-  // Y range in PERCENT — include 0 always, include the seuil if defined
-  const pctValues = [
-    ...nominal.map((p) => p.margePct),
-    ...mild.map((p) => p.margePct),
-    ...worst.map((p) => p.margePct),
-    0,
-    ...(margeMinPct !== undefined ? [margeMinPct] : []),
-  ]
-  const yMinRaw = Math.min(...pctValues)
-  const yMaxRaw = Math.max(...pctValues)
-  const span = Math.max(yMaxRaw - yMinRaw, 1)
-  const yMin = yMinRaw - span * 0.10
-  const yMax = yMaxRaw + span * 0.10
-  const yRange = yMax - yMin || 1
+  // Y range FIXE pour comparabilité d'une mission à l'autre. Si le worst
+  // case descend sous −50%, on l'écrête visuellement (la valeur reste
+  // calculée et est signalée dans un badge dédié) — sinon les missions
+  // pathologiques (TJM bas par rapport au brut) écrasent visuellement
+  // toutes les courbes utiles entre 0 et 50%.
+  const Y_FLOOR = -50
+  const Y_CEIL = 80
+  const yMin = Y_FLOOR
+  const yMax = Y_CEIL
+  const yRange = yMax - yMin
+  const clampPct = (v: number): number => Math.max(yMin, Math.min(yMax, v))
+
+  // Détection des dépassements pour le badge d'alerte sous le chart
+  const offScaleWorst = worst.find((p) => p.margePct < Y_FLOOR)
 
   const xOf = (mois: number): number =>
     PAD_L + (mois / HORIZON_MOIS) * PLOT_W
@@ -101,7 +101,7 @@ export default function MarginEvolutionChart({
 
   const pathFor = (points: { mois: number; margePct: number }[]): string =>
     points
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${xOf(p.mois).toFixed(2)} ${yOf(p.margePct).toFixed(2)}`)
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${xOf(p.mois).toFixed(2)} ${yOf(clampPct(p.margePct)).toFixed(2)}`)
       .join(" ")
 
   const zeroY = yOf(0)
@@ -111,8 +111,8 @@ export default function MarginEvolutionChart({
 
   // X ticks every 3 months
   const xTicks = [0, 3, 6, 9, 12, 15, 18, 21, 24]
-  // 5 Y ticks evenly spaced (always integer percents)
-  const yTickVals = [0, 0.25, 0.5, 0.75, 1].map((t) => yMin + t * yRange)
+  // Y ticks fixes — alignés sur la plage clampée [−50%, +80%]
+  const yTickVals = [-50, -25, 0, 25, 50, 80]
 
   const endNomi = nominal.at(-1)
   const endMild = mild.at(-1)
@@ -291,10 +291,10 @@ export default function MarginEvolutionChart({
           strokeLinejoin="round" strokeLinecap="round"
         />
 
-        {/* Endpoints */}
-        {endNomi && <EndDot color="#2563EB" x={xOf(endNomi.mois)} y={yOf(endNomi.margePct)} label={`${endNomi.margePct.toFixed(1)} %`} />}
-        {endMild && <EndDot color="#16A34A" x={xOf(endMild.mois)} y={yOf(endMild.margePct)} label={`${endMild.margePct.toFixed(1)} %`} />}
-        {endWorst && <EndDot color="#DC2626" x={xOf(endWorst.mois)} y={yOf(endWorst.margePct)} label={`${endWorst.margePct.toFixed(1)} %`} />}
+        {/* Endpoints (clamp Y pour rester sur l'aire visible) */}
+        {endNomi && <EndDot color="#2563EB" x={xOf(endNomi.mois)} y={yOf(clampPct(endNomi.margePct))} label={`${endNomi.margePct.toFixed(1)} %`} />}
+        {endMild && <EndDot color="#16A34A" x={xOf(endMild.mois)} y={yOf(clampPct(endMild.margePct))} label={`${endMild.margePct.toFixed(1)} %`} />}
+        {endWorst && <EndDot color="#DC2626" x={xOf(endWorst.mois)} y={yOf(clampPct(endWorst.margePct))} label={`${endWorst.margePct.toFixed(1)} %`} />}
 
         {/* Zero line — always paint on top so it's visible */}
         {yMin < 0 && yMax > 0 && (
@@ -304,6 +304,22 @@ export default function MarginEvolutionChart({
           />
         )}
       </svg>
+
+      {/* Badge d'alerte : worst case sorti de l'aire visible vers le bas */}
+      {offScaleWorst && (
+        <div style={{
+          marginTop: 10, padding: "8px 12px",
+          background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9,
+          fontSize: 11.5, color: "#B91C1C", lineHeight: 1.5,
+        }}>
+          ⚠ <strong>Worst case hors échelle</strong> — marge à{" "}
+          <strong>{offScaleWorst.margePct.toFixed(0)} %</strong> au mois{" "}
+          <strong>{offScaleWorst.mois}</strong>. Le candidat est structurellement
+          déficitaire en cas de rupture rapide (TJM trop bas par rapport au brut /
+          coût employeur). À examiner : remonter le TJM client, baisser le brut
+          candidat, ou refuser le candidat sur cette mission.
+        </div>
+      )}
     </div>
   )
 }
