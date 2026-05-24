@@ -317,6 +317,14 @@ export function executeToolCall(
 
     case 'compute_employer_cost': {
       const rawInputs = parsePricingInputs(args)
+      if (!Number.isFinite(rawInputs.brutAnnuel) || rawInputs.brutAnnuel <= 0) {
+        return {
+          content: JSON.stringify({
+            error: 'INVALID_INPUT',
+            message: "brutAnnuel doit être > 0. Tu m'as passé " + rawInputs.brutAnnuel + ". Re-propose des déductions avec un brut annuel réaliste (estimation marché si la mission n'a pas de target_gross_salary).",
+          }),
+        }
+      }
       const inputs = mergeWithCabinetDefaults(rawInputs, ctx)
       const cost = computeEmployerCost(inputs)
       const injectedDefaults = JSON.stringify(rawInputs.avantages) !== JSON.stringify(inputs.avantages)
@@ -334,8 +342,16 @@ export function executeToolCall(
     case 'compute_rupture_scenarios': {
       const raw = asRecord(args)
       const rawInputs = parsePricingInputs(raw.pricingInputs)
-      const inputs = mergeWithCabinetDefaults(rawInputs, ctx)
       const tjm = Number(raw.tjm ?? 0)
+      if (!Number.isFinite(rawInputs.brutAnnuel) || rawInputs.brutAnnuel <= 0 || !Number.isFinite(tjm) || tjm <= 0) {
+        return {
+          content: JSON.stringify({
+            error: 'INVALID_INPUT',
+            message: `brutAnnuel et tjm doivent être > 0. Reçu : brutAnnuel=${rawInputs.brutAnnuel}, tjm=${tjm}. Re-propose des déductions valides.`,
+          }),
+        }
+      }
+      const inputs = mergeWithCabinetDefaults(rawInputs, ctx)
       const typeContrat = (raw.typeContrat ?? 'cdi') as TypeContrat
       const dureeCDD = raw.dureeCDD != null ? Number(raw.dureeCDD) : undefined
       const startMonthIndex = raw.startMonthIndex != null ? Number(raw.startMonthIndex) : undefined
@@ -450,7 +466,7 @@ Déductions à proposer systématiquement (en analysant le contexte mission+cand
 - \`lieu\` : depuis mission.location ('paris_petite_couronne' si Paris, 'lyon' si Lyon, 'province' sinon) — fallback paramètres cabinet
 - \`typeContrat\` : 'cdi' ou 'cdd' depuis mission.contract_type
 - \`dureeMois\` : depuis mission.duration_months
-- \`brutAnnuel\` : depuis mission.target_gross_salary (si rempli), sinon estimation selon position/coef × 12 + 20% (à valider !)
+- \`brutAnnuel\` : depuis mission.target_gross_salary (si rempli). Si VIDE ou 0, tu DOIS proposer une estimation marché réaliste basée sur position/coef et years_experience. Estimations indicatives Paris ESN tech 2026 : Junior 1.2 = 38-42k, Confirmé 2.1 = 45-52k, Senior 2.2 = 52-65k, Lead 3.1 = 65-85k. **Ne propose JAMAIS brutAnnuel = 0** — sans brut on ne peut pas calculer la marge.
 - \`tjm\` : milieu de [client_tjm_min, client_tjm_max] depuis la mission
 - \`treiziemeMois\` : depuis paramètres cabinet
 - \`startMonthIndex\` : mois calendaire de mission.start_date (0-11), ou mois courant

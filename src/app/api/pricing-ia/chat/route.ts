@@ -46,6 +46,23 @@ type AgentEvent =
   | { type: 'error'; message: string }
 
 export async function POST(req: NextRequest) {
+  // Outer try/catch — on garantit qu'on ne renvoie JAMAIS un 500 nu :
+  // toute exception est convertie en event 'error' affiché dans le chat.
+  try {
+    return await handle(req)
+  } catch (err) {
+    console.error('[pricing-ia/chat] unhandled error:', err)
+    return NextResponse.json({
+      events: [{
+        type: 'error',
+        message: `Erreur serveur inattendue : ${(err as Error).message ?? String(err)}. Si ça persiste, recharge la page.`,
+      }],
+      persisted_messages: [],
+    })
+  }
+}
+
+async function handle(req: NextRequest) {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
@@ -207,7 +224,23 @@ export async function POST(req: NextRequest) {
 
     let askedUser = false
     for (const call of toolCalls) {
-      const result = executeToolCall(call.function.name, call.function.arguments, toolCtx)
+      let result
+      try {
+        result = executeToolCall(call.function.name, call.function.arguments, toolCtx)
+      } catch (err) {
+        const errMsg = (err as Error).message ?? String(err)
+        console.error(`[pricing-ia] tool ${call.function.name} threw:`, errMsg, 'args:', call.function.arguments.slice(0, 200))
+        // Surface l'erreur comme tool result pour que le LLM puisse continuer
+        result = {
+          content: JSON.stringify({
+            error: `Tool ${call.function.name} a échoué : ${errMsg}. Vérifie les inputs et réessaye.`,
+          }),
+        } as ReturnType<typeof executeToolCall>
+        events.push({
+          type: 'error',
+          message: `Tool ${call.function.name} a planté : ${errMsg}`,
+        })
+      }
 
       // Summarise the tool result for the client UI (short string, not full JSON)
       let argsParsed: unknown = null
