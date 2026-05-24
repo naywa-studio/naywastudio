@@ -11,9 +11,27 @@ export type ORContentPart =
   | { type: "file"; file: { filename: string; file_data: string } }
   | { type: "image_url"; image_url: { url: string } }
 
+/** A tool call emitted by the assistant, OpenAI-style. */
+export interface ORToolCall {
+  id: string
+  type: "function"
+  function: { name: string; arguments: string }
+}
+
 export type ORMessage =
-  | { role: "system" | "assistant"; content: string }
+  | { role: "system" | "assistant"; content: string; tool_calls?: ORToolCall[] }
   | { role: "user"; content: string | ORContentPart[] }
+  | { role: "tool"; content: string; tool_call_id: string }
+
+/** Tool definition surfaced to the LLM. */
+export interface ORTool {
+  type: "function"
+  function: {
+    name: string
+    description: string
+    parameters: Record<string, unknown>   // JSON Schema
+  }
+}
 
 export interface ORChatOptions {
   model?: string
@@ -25,10 +43,16 @@ export interface ORChatOptions {
   timeoutMs?: number
   /** OpenRouter plugins, e.g. the file-parser/OCR engine. */
   plugins?: unknown[]
+  /** Tools the assistant may call. */
+  tools?: ORTool[]
+  /** "auto" lets the LLM choose; "none" disables tools; or a specific tool name. */
+  toolChoice?: "auto" | "none" | { type: "function"; function: { name: string } }
 }
 
 export interface ORChatResult {
   content: string
+  toolCalls?: ORToolCall[]
+  finishReason?: string
   usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
 }
 
@@ -59,6 +83,8 @@ export async function openrouterChat(opts: ORChatOptions): Promise<ORChatResult>
           ? { response_format: { type: "json_object" } }
           : {}),
         ...(opts.plugins ? { plugins: opts.plugins } : {}),
+        ...(opts.tools && opts.tools.length > 0 ? { tools: opts.tools } : {}),
+        ...(opts.toolChoice ? { tool_choice: opts.toolChoice } : {}),
       }),
     })
   } finally {
@@ -71,14 +97,22 @@ export async function openrouterChat(opts: ORChatOptions): Promise<ORChatResult>
   }
 
   const data = await res.json() as {
-    choices?: { message?: { content?: string } }[]
+    choices?: {
+      message?: { content?: string | null; tool_calls?: ORToolCall[] }
+      finish_reason?: string
+    }[]
     usage?: ORChatResult["usage"]
     error?: { message?: string }
   }
   if (data.error?.message) throw new Error(`OpenRouter: ${data.error.message}`)
 
-  const content = data.choices?.[0]?.message?.content ?? ""
-  return { content, usage: data.usage }
+  const msg = data.choices?.[0]?.message
+  return {
+    content: (msg?.content ?? "") || "",
+    toolCalls: msg?.tool_calls,
+    finishReason: data.choices?.[0]?.finish_reason,
+    usage: data.usage,
+  }
 }
 
 /** Best-effort JSON extraction from an LLM response. */
