@@ -191,13 +191,45 @@ export interface RuptureScenarios {
   finEssaiMois: number
 }
 
-// NOTE — a calendar-aware billable-days profile (August dips for CP, May
-// fériés, October peaks…) was prototyped here but removed in favor of a
-// constant value, because the dips collided with the end-of-essai cliff
-// and made the chart confusing. The risk indicators expose the actionable
-// numbers separately. If we want a calendar view back later, it'll come
-// as an opt-in toggle that uses a real mission start date — see RiskPanel
-// in PricingWidget.tsx for the synthesis side of the equation.
+/**
+ * Typical French calendar profile — billable days per calendar month
+ * (Syntec cadre, modalité 1). Built from working days, French fériés,
+ * 25 CP/year concentrated in summer + Christmas, and ~10 RTT spread
+ * across the year. Total ≈ 220 facturable days/year, scaled to match
+ * the cabinet's configured monthly average. Month 1 = January for V1.
+ *
+ * This profile is intentionally less extreme than what unpaid leaves
+ * could give (e.g. August at 10 days) so the chart ripples naturally
+ * without visually colliding with the end-of-essai cliff.
+ *
+ * Indexed from 0 (January) to 11 (December).
+ */
+const TYPICAL_BILLABLE_DAYS_BY_MONTH: number[] = [
+  20, // Jan
+  19, // Fév
+  21, // Mar
+  19, // Avr — 1 férié (Pâques)
+  17, // Mai — 3 fériés (1er, 8, Ascension)
+  19, // Juin — 1 férié (Pentecôte), début CP
+  17, // Juil — 1 semaine CP en moyenne
+  14, // Août — 3 semaines CP, pic de l'été
+  21, // Sep — rentrée plein temps
+  22, // Oct — gros mois facturable
+  18, // Nov — 2 fériés (Toussaint, Armistice)
+  17, // Déc — 1 semaine CP + 1 férié (Noël)
+]
+const TYPICAL_YEARLY_BILLABLE = TYPICAL_BILLABLE_DAYS_BY_MONTH.reduce((a, b) => a + b, 0)
+
+/** Returns the per-month billable-days profile for `monthCount` months,
+ *  scaled so the yearly total matches configuredAvgDays × 12. */
+function billableDaysProfile(monthCount: number, configuredAvgDays: number): number[] {
+  const scale = (configuredAvgDays * 12) / TYPICAL_YEARLY_BILLABLE
+  const out: number[] = []
+  for (let i = 0; i < monthCount; i++) {
+    out.push(TYPICAL_BILLABLE_DAYS_BY_MONTH[i % 12] * scale)
+  }
+  return out
+}
 
 /** Verdict of the conventional-minimum sanity check. */
 export interface MinimumCheck {
@@ -519,8 +551,13 @@ export function computeRuptureScenarios(
   const cost = computeEmployerCost(input)
   const brutMensuel = input.brutAnnuel / 12
 
-  const revenuMensuel = tjm * input.joursFacturablesParMois
-  const margeNominaleMensuelle = revenuMensuel - cost.coutTotalMensuel
+  // Per-month billable days profile — the chart now ripples month by month.
+  // Revenue varies with the actual billable days of each calendar month;
+  // employer cost (gross + charges + benefits) stays constant. That's
+  // exactly why August is painful for ESNs : same payroll, fewer billed
+  // days. The nominal margin curve therefore tells the seasonal story,
+  // and the worst-case curve adds the rupture impact on top of it.
+  const billableDays = billableDaysProfile(dureeMois, input.joursFacturablesParMois)
 
   // Taux charges patronales effectif — sert au calcul des dommages-intérêts
   // CDD (salaires restants × (1 + charges)).
@@ -538,15 +575,19 @@ export function computeRuptureScenarios(
     ? options.dureeCDD <= 6 ? 0.5 : 1.0
     : 0
 
-  const pctOf = (m: number): number =>
-    revenuMensuel <= 0 ? 0 : (m / revenuMensuel) * 100
-
   const nominal: MarginPoint[] = []
   const worstCase: MarginPoint[] = []
   const branches: { mois: number; branche: RuptureBranche }[] = []
 
   for (let t = 1; t <= dureeMois; t++) {
-    // Nominal — toujours la marge constante, c'est le repère visuel.
+    // Revenue varies with the calendar month's actual billable days.
+    const joursDuMois = billableDays[t - 1] ?? input.joursFacturablesParMois
+    const revenuMensuel = tjm * joursDuMois
+    const margeNominaleMensuelle = revenuMensuel - cost.coutTotalMensuel
+    const pctOf = (m: number): number =>
+      revenuMensuel <= 0 ? 0 : (m / revenuMensuel) * 100
+
+    // Nominal — marge mensuelle nominale qui ondule avec les jours du mois.
     nominal.push({
       mois: t,
       margeMois: margeNominaleMensuelle,

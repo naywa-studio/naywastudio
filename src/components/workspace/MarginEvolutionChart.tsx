@@ -125,15 +125,16 @@ export default function MarginEvolutionChart({
           <h4 style={{
             margin: 0, fontSize: 13, fontWeight: 800, color: "#111827",
           }}>
-            Évolution de la marge — 3 scénarios
+            Évolution de la marge — nominale vs worst case
           </h4>
-          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 560 }}>
+          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 580 }}>
             Pour chaque mois X, marge <strong>mensuelle effective</strong> du
-            projet <strong>si le contrat est rompu à ce mois-là</strong>.
-            Pendant l&apos;essai, pas d&apos;indemnité — les courbes sont
-            confondues. À la fin de l&apos;essai, chute visible : préavis et
-            indemnités Syntec deviennent payables et grèvent la marge le
-            temps d&apos;être amortis.
+            projet. Les courbes ondulent avec les <strong>jours facturables
+            réels</strong> de chaque mois calendaire (creux en juillet-août pour
+            les CP, autour des fériés de mai/novembre, pic en octobre). Pendant
+            l&apos;essai, pas d&apos;indemnité — les deux courbes sont
+            confondues. À la fin de l&apos;essai, cliff visible sur la rouge :
+            préavis et indemnités Syntec deviennent payables.
             {dureeMois > 0 && <> Ligne violette : fin prévue ({dureeMois} mois).</>}
           </p>
         </div>
