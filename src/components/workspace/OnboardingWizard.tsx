@@ -145,6 +145,9 @@ export default function OnboardingWizard({
           pricing_default_lieu: state.pricing_default_lieu,
           pricing_default_modalite: state.pricing_default_modalite,
           pricing_default_avantages: state.pricing_default_avantages,
+          // Marks onboarding as done so the wizard doesn't reappear
+          // on subsequent visits. NULL = still to do.
+          pricing_onboarded_at: new Date().toISOString(),
         })
         .eq("user_id", userIdRef.current)
     }

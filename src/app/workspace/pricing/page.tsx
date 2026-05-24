@@ -38,6 +38,7 @@ type ProfilePricing = Pick<Profile,
   | "pricing_billable_days_per_month"
   | "pricing_margin_min_pct"
   | "pricing_default_avantages"
+  | "pricing_onboarded_at"
 > | null
 
 export default function PricingPage() {
@@ -56,7 +57,7 @@ export default function PricingPage() {
         .order("created_at", { ascending: false }),
       sb
         .from("profiles")
-        .select("pricing_billable_days_per_month, pricing_margin_min_pct, pricing_default_avantages")
+        .select("pricing_billable_days_per_month, pricing_margin_min_pct, pricing_default_avantages, pricing_onboarded_at")
         .eq("user_id", user.id)
         .maybeSingle(),
       sb
@@ -86,12 +87,11 @@ export default function PricingPage() {
   // Loading state — profile or missions not yet fetched.
   if (missions === null || profile === undefined) return <NoraLoader />
 
-  // Onboarding check : if the cabinet's pricing params are blank, run the
-  // guided wizard which writes back to profiles. Done = the 2 required
-  // anchors (jours facturables + marge min) are set.
-  const onboardingDone =
-    profile?.pricing_billable_days_per_month != null &&
-    profile?.pricing_margin_min_pct != null
+  // Onboarding check : dedicated timestamp set by the wizard at finish.
+  // Migration 012 had set DEFAULT 18 / 15 on the params columns, so they
+  // were never NULL for new profiles — we couldn't tell first-time users
+  // apart from configured ones. The dedicated column fixes that.
+  const onboardingDone = profile?.pricing_onboarded_at != null
 
   if (!onboardingDone) {
     return (
