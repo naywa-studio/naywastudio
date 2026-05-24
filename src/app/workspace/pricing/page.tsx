@@ -15,12 +15,13 @@
  *   - 📖 Référence Syntec (/workspace/pricing/reference)
  */
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Job, Profile } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import OnboardingWizard from "@/components/workspace/OnboardingWizard"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -44,52 +45,50 @@ export default function PricingPage() {
   const [missions, setMissions] = useState<MissionRow[] | null>(null)
   const [profile, setProfile] = useState<ProfilePricing | undefined>(undefined)
 
+  const loadAll = useCallback(async () => {
+    const { data: { user } } = await sb.auth.getUser()
+    if (!user) return
+    const [{ data: jobs }, { data: prof }, { data: pricingMatches }] = await Promise.all([
+      sb
+        .from("jobs")
+        .select("id, title, location, contract_type, status, client_tjm_min, client_tjm_max, margin_min_pct, duration_months, target_gross_salary, created_at")
+        .neq("status", "archived")
+        .order("created_at", { ascending: false }),
+      sb
+        .from("profiles")
+        .select("pricing_billable_days_per_month, pricing_margin_min_pct, pricing_default_avantages")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      sb
+        .from("match_assessments")
+        .select("job_id")
+        .eq("pipeline_stage", "pricing"),
+    ])
+    // Group pricing-stage candidates by job_id to count per mission.
+    const countsByJob = new Map<string, number>()
+    for (const row of (pricingMatches ?? []) as { job_id: string }[]) {
+      countsByJob.set(row.job_id, (countsByJob.get(row.job_id) ?? 0) + 1)
+    }
+    const rows: MissionRow[] = ((jobs ?? []) as MissionRow["job"][]).map((j) => ({
+      job: j,
+      pricingCandidatesCount: countsByJob.get(j.id) ?? 0,
+    }))
+    setMissions(rows)
+    setProfile(prof ?? null)
+  }, [sb])
+
   useEffect(() => {
     let mounted = true
-    ;(async () => {
-      const { data: { user } } = await sb.auth.getUser()
-      if (!user || !mounted) return
-
-      const [{ data: jobs }, { data: prof }, { data: pricingMatches }] = await Promise.all([
-        sb
-          .from("jobs")
-          .select("id, title, location, contract_type, status, client_tjm_min, client_tjm_max, margin_min_pct, duration_months, target_gross_salary, created_at")
-          .neq("status", "archived")
-          .order("created_at", { ascending: false }),
-        sb
-          .from("profiles")
-          .select("pricing_billable_days_per_month, pricing_margin_min_pct, pricing_default_avantages")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-        sb
-          .from("match_assessments")
-          .select("job_id")
-          .eq("pipeline_stage", "pricing"),
-      ])
-
-      if (!mounted) return
-
-      // Group pricing-stage candidates by job_id to count per mission.
-      const countsByJob = new Map<string, number>()
-      for (const row of (pricingMatches ?? []) as { job_id: string }[]) {
-        countsByJob.set(row.job_id, (countsByJob.get(row.job_id) ?? 0) + 1)
-      }
-
-      const rows: MissionRow[] = ((jobs ?? []) as MissionRow["job"][]).map((j) => ({
-        job: j,
-        pricingCandidatesCount: countsByJob.get(j.id) ?? 0,
-      }))
-      setMissions(rows)
-      setProfile(prof ?? null)
-    })()
+    ;(async () => { if (mounted) await loadAll() })()
     return () => { mounted = false }
-  }, [sb])
+  }, [loadAll])
 
   // Loading state — profile or missions not yet fetched.
   if (missions === null || profile === undefined) return <NoraLoader />
 
-  // Onboarding check : if the cabinet's pricing params are blank, surface
-  // a guided setup prompt instead of the missions list (wizard wired in #28).
+  // Onboarding check : if the cabinet's pricing params are blank, run the
+  // guided wizard which writes back to profiles. Done = the 2 required
+  // anchors (jours facturables + marge min) are set.
   const onboardingDone =
     profile?.pricing_billable_days_per_month != null &&
     profile?.pricing_margin_min_pct != null
@@ -98,7 +97,7 @@ export default function PricingPage() {
     return (
       <main style={mainStyle}>
         <Header missionCount={0} />
-        <OnboardingPrompt />
+        <OnboardingWizard onDone={() => { void loadAll() }} />
       </main>
     )
   }
@@ -176,50 +175,6 @@ const linkBtnStyle: React.CSSProperties = {
   background: "white", border: "1px solid rgba(124,99,200,0.25)",
   borderRadius: 9, padding: "8px 14px", textDecoration: "none",
   whiteSpace: "nowrap",
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
- * Onboarding prompt — shown if paramétrage entreprise is incomplete
- * ────────────────────────────────────────────────────────────────────────── */
-
-function OnboardingPrompt() {
-  return (
-    <m.div
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: EASE }}
-      style={{
-        marginTop: 28, padding: "44px 32px",
-        background: "white",
-        border: "2px dashed rgba(124,99,200,0.30)",
-        borderRadius: 20, textAlign: "center",
-      }}
-    >
-      <div style={{ fontSize: 44, marginBottom: 12 }}>⚙</div>
-      <h2 style={{
-        margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827",
-        letterSpacing: "-0.015em",
-      }}>
-        Configurez votre pricing
-      </h2>
-      <p style={{
-        margin: "0 auto 18px", maxWidth: 540, fontSize: 14, color: "#6B7280",
-        lineHeight: 1.6,
-      }}>
-        Avant de commencer à chiffrer, configurez les paramètres récurrents
-        de votre cabinet (charges patronales, mutuelle, tickets resto, marge
-        minimum…). Ça prend 2 minutes et vous ne le referez plus.
-      </p>
-      <Link href="/workspace/parametrage" style={{
-        display: "inline-block",
-        padding: "11px 22px", borderRadius: 12,
-        background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-        color: "white", fontWeight: 700, fontSize: 14, textDecoration: "none",
-        boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
-      }}>
-        Configurer maintenant →
-      </Link>
-    </m.div>
-  )
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
