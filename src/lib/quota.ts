@@ -12,7 +12,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "./database.types"
 
-export type QuotaAction = "upload" | "match" | "compose" | "assistant" | "send" | "critique" | "pricing_agent"
+export type QuotaAction = "upload" | "match" | "compose" | "assistant" | "send" | "critique"
 
 export const DAILY_LIMITS: Record<QuotaAction, number> = {
   upload: 50,
@@ -21,7 +21,6 @@ export const DAILY_LIMITS: Record<QuotaAction, number> = {
   assistant: 120,
   send: 60,
   critique: 80,
-  pricing_agent: 60,   // 1 boucle agent = potentiellement plusieurs appels OpenRouter
 }
 
 const LABELS: Record<QuotaAction, string> = {
@@ -31,7 +30,6 @@ const LABELS: Record<QuotaAction, string> = {
   assistant: "questions à l'assistant",
   send: "emails envoyés",
   critique: "relectures de message",
-  pricing_agent: "analyses pricing IA",
 }
 
 export interface QuotaResult {

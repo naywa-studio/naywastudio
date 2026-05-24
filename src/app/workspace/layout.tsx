@@ -27,12 +27,11 @@ export function useWorkspace() {
 }
 
 const TABS: { href: string; label: string; live: boolean }[] = [
-  { href: "/workspace",            label: "Accueil",    live: true },
-  { href: "/workspace/vivier",     label: "Vivier",     live: true },
-  { href: "/workspace/missions",   label: "Missions",   live: true },
-  { href: "/workspace/pricing",    label: "Pricing",    live: true },
-  { href: "/workspace/pricing-ia", label: "Pricing IA", live: true },
-  { href: "/workspace/pipeline",   label: "Pipeline",   live: true },
+  { href: "/workspace",          label: "Accueil",  live: true },
+  { href: "/workspace/vivier",   label: "Vivier",   live: true },
+  { href: "/workspace/missions", label: "Missions", live: true },
+  { href: "/workspace/pricing",  label: "Pricing",  live: true },
+  { href: "/workspace/pipeline", label: "Pipeline", live: true },
 ]
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
