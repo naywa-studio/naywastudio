@@ -2,24 +2,24 @@
 
 /**
  * MarginEvolutionChart — pour chaque mois X entre 1 et 24, marge
- * MENSUELLE effective générée par la mission si rupture à ce mois-là.
+ * MENSUELLE effective générée par la mission si rupture à ce mois-là,
+ * exprimée en % du revenu mensuel.
  *
- *   marge_mensuelle(X) = revenu_mensuel − coût_employeur
- *                        − ( coût_rupture(X) / X )
+ *   marge_pct(X) = ( revenu(X) − coût_employeur − coût_rupture(X)/X ) / revenu(X)
+ *
+ * Le creux d'août et le pic d'octobre que tu vois sont la traduction
+ * directe des CP / RTT du candidat : ils sont déjà comptés dans la
+ * baisse des jours facturables ce mois-là (et le brut + charges continuent
+ * d'être payés). Pas besoin de ligne séparée "coût CP".
  *
  * Comportement attendu :
  * - Pendant la période d'essai : pas d'indemnité légalement payable
- *   → les trois courbes se confondent sur le plateau nominal
- * - À la fin de la période d'essai : CHUTE brutale des courbes 2/3
- *   (le préavis et l'indemnité Article 4.5 deviennent payables, et
- *   amortis sur encore peu de mois → impact maximum)
- * - Mois suivants : remontée progressive — le même coût de rupture
- *   amorti sur de plus en plus de mois pèse moins lourd mensuellement
- * - Petits sauts visibles aux mois 8 (entrée indemnité Art. 4.5) et
- *   24 (cadre : 1/4 → 1/3 mois/année d'ancienneté)
- *
- * Le candidat est en mission dès le jour 1 → revenu plein, jamais
- * de zone négative initiale.
+ *   → les deux courbes se confondent sur le plateau nominal qui ondule
+ * - À la fin de la période d'essai : CHUTE brutale de la rouge (worst case)
+ *   → préavis + indemnité Article 4.5 deviennent payables, amortis sur peu
+ *     de mois → impact maximum
+ * - Mois suivants : remontée progressive — même coût rupture amorti sur
+ *   plus de mois pèse moins lourd mensuellement
  */
 
 import { useMemo } from "react"
@@ -41,76 +41,86 @@ interface Props {
   typeContrat?: 'cdi' | 'cdd'
   /** CDD duration in months — required when typeContrat is 'cdd'. */
   dureeCDD?: number
+  /** Mois calendaire de démarrage (0=Jan … 11=Déc). Par défaut : mois courant. */
+  startMonthIndex?: number
+  /** Seuil marge mini cabinet (%) — tracé en pointillé pour visualiser
+   *  la zone "sous le seuil" en post-essai. */
+  margeMinPct?: number
 }
 
 const W = 720          // viewBox width — scales fluidly via 100% width
 const H = 340          // viewBox height
-const PAD_L = 64       // left axis label
+const PAD_L = 56       // left axis label
 const PAD_R = 16
 const PAD_T = 28       // legend
-const PAD_B = 48       // X axis labels + month/year row
+const PAD_B = 56       // X axis labels + month/year row
 
 const PLOT_W = W - PAD_L - PAD_R
 const PLOT_H = H - PAD_T - PAD_B
 
-/** Risk horizon — 24 months covers both seniority thresholds (8 mois and
- *  2 ans) where Article 4.5 indemnity formula changes for cadres. */
 const HORIZON_MOIS = 24
+
+const MONTH_ABBR = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
 
 export default function MarginEvolutionChart({
   inputs, dureeMois, tjm, typeContrat = 'cdi', dureeCDD,
+  startMonthIndex, margeMinPct,
 }: Props) {
   const scenarios = useMemo(
     () => computeRuptureScenarios(inputs, HORIZON_MOIS, tjm, {
       typeContrat,
       dureeCDD: dureeCDD ?? dureeMois,
+      startMonthIndex,
     }),
-    [inputs, tjm, typeContrat, dureeCDD, dureeMois],
+    [inputs, tjm, typeContrat, dureeCDD, dureeMois, startMonthIndex],
   )
 
-  // Nouvelle structure : 2 courbes (nominal + worstCase). Le worst case
-  // intègre toute la logique de l'arbre selon (typeContrat, t).
   const nominal = scenarios.nominal
   const worst = scenarios.worstCase
 
-  // Compute Y range — include 0 so the zero line is always visible if the
-  // worst case dips into the red, but keep a comfortable top margin so the
-  // nominal plateau doesn't sit right at the edge.
-  const allValues = [
-    ...nominal.map((p) => p.margeMois),
-    ...worst.map((p) => p.margeMois),
+  // Y range in PERCENT — include 0 always, include the seuil if defined
+  const pctValues = [
+    ...nominal.map((p) => p.margePct),
+    ...worst.map((p) => p.margePct),
     0,
+    ...(margeMinPct !== undefined ? [margeMinPct] : []),
   ]
-  const yMinRaw = Math.min(...allValues)
-  const yMaxRaw = Math.max(...allValues)
-  // Give 8% headroom above the nominal plateau and below the cliff trough.
-  const yMin = yMinRaw - Math.abs(yMaxRaw - yMinRaw) * 0.08
-  const yMax = yMaxRaw + Math.abs(yMaxRaw - yMinRaw) * 0.08
+  const yMinRaw = Math.min(...pctValues)
+  const yMaxRaw = Math.max(...pctValues)
+  const span = Math.max(yMaxRaw - yMinRaw, 1)
+  const yMin = yMinRaw - span * 0.10
+  const yMax = yMaxRaw + span * 0.10
   const yRange = yMax - yMin || 1
 
-  // Coordinate mappers — X axis is the 24-month risk horizon, fixed.
   const xOf = (mois: number): number =>
     PAD_L + (mois / HORIZON_MOIS) * PLOT_W
-  const yOf = (margin: number): number =>
-    PAD_T + (1 - (margin - yMin) / yRange) * PLOT_H
+  const yOf = (pct: number): number =>
+    PAD_T + (1 - (pct - yMin) / yRange) * PLOT_H
 
-  const pathFor = (points: { mois: number; margeMois: number }[]): string =>
+  const pathFor = (points: { mois: number; margePct: number }[]): string =>
     points
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${xOf(p.mois).toFixed(2)} ${yOf(p.margeMois).toFixed(2)}`)
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${xOf(p.mois).toFixed(2)} ${yOf(p.margePct).toFixed(2)}`)
       .join(" ")
 
   const zeroY = yOf(0)
+  const seuilY = margeMinPct !== undefined ? yOf(margeMinPct) : null
   const finEssaiX = xOf(Math.min(scenarios.finEssaiMois, HORIZON_MOIS))
   const finMissionX = dureeMois > 0 && dureeMois < HORIZON_MOIS ? xOf(dureeMois) : null
 
-  // X ticks every 3 months (0, 3, 6, 9, 12, 15, 18, 21, 24)
+  // X ticks every 3 months
   const xTicks = [0, 3, 6, 9, 12, 15, 18, 21, 24]
-
-  // 4 Y ticks evenly spaced
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => yMin + t * yRange)
+  // 5 Y ticks evenly spaced (always integer percents)
+  const yTickVals = [0, 0.25, 0.5, 0.75, 1].map((t) => yMin + t * yRange)
 
   const endNomi = nominal.at(-1)
   const endWorst = worst.at(-1)
+
+  // Calendar month label for any horizon month t (1..24)
+  const calendarLabel = (t: number): string => {
+    if (t === 0 || nominal.length === 0) return ""
+    const point = nominal[Math.min(t, nominal.length) - 1]
+    return MONTH_ABBR[point.calendarMonthIndex] ?? ""
+  }
 
   return (
     <div style={{
@@ -125,29 +135,29 @@ export default function MarginEvolutionChart({
           <h4 style={{
             margin: 0, fontSize: 13, fontWeight: 800, color: "#111827",
           }}>
-            Évolution de la marge — nominale vs worst case
+            Évolution de la marge — % mensuel
           </h4>
-          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 580 }}>
-            Pour chaque mois X, marge <strong>mensuelle effective</strong> du
-            projet. Les courbes ondulent avec les <strong>jours facturables
-            réels</strong> de chaque mois calendaire (creux en juillet-août pour
-            les CP, autour des fériés de mai/novembre, pic en octobre). Pendant
-            l&apos;essai, pas d&apos;indemnité — les deux courbes sont
-            confondues. À la fin de l&apos;essai, cliff visible sur la rouge :
-            préavis et indemnités Syntec deviennent payables.
+          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 580, lineHeight: 1.5 }}>
+            Pour chaque mois, marge mensuelle effective en % du revenu. Les
+            courbes ondulent avec les <strong>jours facturables réels</strong> du
+            mois calendaire (creux août pour CP, pic octobre, fériés
+            mai/novembre). <strong>Les CP et RTT du candidat sont déjà comptés ici</strong>
+            {" "}— quand il prend ses congés, on facture moins de jours mais on paye
+            le brut + les charges en plein. À la fin de l&apos;essai, cliff sur la
+            rouge : préavis + indemnités Syntec deviennent payables.
             {dureeMois > 0 && <> Ligne violette : fin prévue ({dureeMois} mois).</>}
           </p>
         </div>
-        <Legend preavisMois={scenarios.preavisMois} />
+        <Legend />
       </header>
 
       <svg
         viewBox={`0 0 ${W} ${H}`}
         width="100%" height="auto" role="img"
-        aria-label="Graphique évolution de la marge sur la durée de la mission"
+        aria-label="Graphique évolution de la marge en pourcentage sur 24 mois"
         style={{ display: "block", overflow: "visible" }}
       >
-        {/* Background bands */}
+        {/* Background bands — essai (rouge léger) vs post-essai (vert léger) */}
         <rect
           x={PAD_L} y={PAD_T}
           width={finEssaiX - PAD_L} height={PLOT_H}
@@ -159,7 +169,6 @@ export default function MarginEvolutionChart({
           fill="rgba(34,197,94,0.04)"
         />
 
-        {/* Period-of-essai label */}
         <text
           x={(PAD_L + finEssaiX) / 2} y={PAD_T - 10}
           fontSize={10} fill="#B91C1C" textAnchor="middle" fontWeight={700}
@@ -167,26 +176,42 @@ export default function MarginEvolutionChart({
           Période d&apos;essai
         </text>
 
-        {/* Y grid + ticks */}
-        {yTicks.map((v) => (
+        {/* Y grid + ticks (en %) */}
+        {yTickVals.map((v) => (
           <g key={`y-${v}`}>
             <line
               x1={PAD_L} y1={yOf(v)} x2={W - PAD_R} y2={yOf(v)}
-              stroke={v === 0 ? "#9CA3AF" : "#F0ECF8"}
-              strokeWidth={v === 0 ? 1.2 : 1}
-              strokeDasharray={v === 0 ? "none" : "2 4"}
+              stroke={Math.abs(v) < 0.01 ? "#9CA3AF" : "#F0ECF8"}
+              strokeWidth={Math.abs(v) < 0.01 ? 1.2 : 1}
+              strokeDasharray={Math.abs(v) < 0.01 ? "none" : "2 4"}
             />
             <text
               x={PAD_L - 8} y={yOf(v) + 3}
               fontSize={10} fill="#6B7280" textAnchor="end"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
-              {formatEurPerDay(v)}
+              {`${v.toFixed(0)} %`}
             </text>
           </g>
         ))}
 
-        {/* X ticks — every 3 months, with year labels at 12 and 24 */}
+        {/* Seuil marge mini cabinet — ligne horizontale pointillée orange */}
+        {seuilY !== null && margeMinPct !== undefined && (
+          <>
+            <line
+              x1={PAD_L} y1={seuilY} x2={W - PAD_R} y2={seuilY}
+              stroke="#D97706" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.7}
+            />
+            <text
+              x={W - PAD_R - 4} y={seuilY - 4}
+              fontSize={10} fill="#D97706" textAnchor="end" fontWeight={700}
+            >
+              seuil mini {margeMinPct.toFixed(0)} %
+            </text>
+          </>
+        )}
+
+        {/* X ticks — every 3 months, calendar label + horizon month */}
         {xTicks.map((m) => (
           <g key={`x-${m}`}>
             <line
@@ -197,12 +222,20 @@ export default function MarginEvolutionChart({
               x={xOf(m)} y={PAD_T + PLOT_H + 18}
               fontSize={10} fill="#6B7280" textAnchor="middle"
             >
-              {m === 0 ? "0" : `${m}m`}
+              {m === 0 ? "Start" : `+${m}m`}
             </text>
-            {(m === 12 || m === 24) && (
+            {m > 0 && (
               <text
                 x={xOf(m)} y={PAD_T + PLOT_H + 32}
-                fontSize={10} fill="#9CA3AF" textAnchor="middle" fontStyle="italic"
+                fontSize={10} fill="#9CA3AF" textAnchor="middle" fontWeight={700}
+              >
+                {calendarLabel(m)}
+              </text>
+            )}
+            {(m === 12 || m === 24) && (
+              <text
+                x={xOf(m)} y={PAD_T + PLOT_H + 46}
+                fontSize={9} fill="#C7BFE3" textAnchor="middle" fontStyle="italic"
               >
                 {m === 12 ? "1 an" : "2 ans"}
               </text>
@@ -210,19 +243,19 @@ export default function MarginEvolutionChart({
           </g>
         ))}
 
-        {/* Seuil indemnité Article 4.5 — 8 mois (entrée du droit à indemnité) */}
+        {/* Seuil indemnité Article 4.5 — 8 mois */}
         <line
           x1={xOf(8)} y1={PAD_T} x2={xOf(8)} y2={PAD_T + PLOT_H}
-          stroke="#9CA3AF" strokeWidth={1} strokeDasharray="3 3" opacity={0.6}
+          stroke="#9CA3AF" strokeWidth={1} strokeDasharray="3 3" opacity={0.5}
         />
         <text
           x={xOf(8)} y={PAD_T - 4}
-          fontSize={9} fill="#6B7280" textAnchor="middle"
+          fontSize={9} fill="#9CA3AF" textAnchor="middle"
         >
           ┐ 8m
         </text>
 
-        {/* Fin de mission prévue — ligne pointillée violette */}
+        {/* Fin de mission prévue */}
         {finMissionX !== null && (
           <>
             <line
@@ -238,7 +271,7 @@ export default function MarginEvolutionChart({
           </>
         )}
 
-        {/* Curves — paint worst-case first so the nominal plateau stays on top */}
+        {/* Curves */}
         <path d={pathFor(worst)}
           fill="none" stroke="#DC2626" strokeWidth={2.5}
           strokeLinejoin="round" strokeLinecap="round"
@@ -248,11 +281,11 @@ export default function MarginEvolutionChart({
           strokeLinejoin="round" strokeLinecap="round"
         />
 
-        {/* Endpoints at month 24 — monthly margin labels */}
-        {endNomi && <EndDot color="#16A34A" x={xOf(endNomi.mois)} y={yOf(endNomi.margeMois)} label={`${Math.round(endNomi.margeMois).toLocaleString("fr-FR")} €/mois`} />}
-        {endWorst && <EndDot color="#DC2626" x={xOf(endWorst.mois)} y={yOf(endWorst.margeMois)} label={`${Math.round(endWorst.margeMois).toLocaleString("fr-FR")} €/mois`} />}
+        {/* Endpoints */}
+        {endNomi && <EndDot color="#16A34A" x={xOf(endNomi.mois)} y={yOf(endNomi.margePct)} label={`${endNomi.margePct.toFixed(1)} %`} />}
+        {endWorst && <EndDot color="#DC2626" x={xOf(endWorst.mois)} y={yOf(endWorst.margePct)} label={`${endWorst.margePct.toFixed(1)} %`} />}
 
-        {/* Zero line — repaint on top of the bands */}
+        {/* Zero line — always paint on top so it's visible */}
         {yMin < 0 && yMax > 0 && (
           <line
             x1={PAD_L} y1={zeroY} x2={W - PAD_R} y2={zeroY}
@@ -260,29 +293,20 @@ export default function MarginEvolutionChart({
           />
         )}
       </svg>
-
-      <ScenarioSummary
-        endNomi={endNomi?.margeMois ?? 0}
-        endWorst={endWorst?.margeMois ?? 0}
-        endNomiPct={endNomi?.margePct ?? 0}
-        endWorstPct={endWorst?.margePct ?? 0}
-        preavisMois={scenarios.preavisMois}
-      />
     </div>
   )
 }
 
 /* ──────────────────────────────────────────────────────────────────────── */
 
-function Legend({ preavisMois: _preavisMois }: { preavisMois: number }) {
-  void _preavisMois
+function Legend() {
   return (
     <div style={{
       display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center",
       fontSize: 11, color: "#6B7280",
     }}>
-      <LegendDot color="#16A34A" label="Marge nominale (sans rupture)" />
-      <LegendDot color="#DC2626" label="Marge effective si rupture employeur" />
+      <LegendDot color="#16A34A" label="Nominale (sans rupture)" />
+      <LegendDot color="#DC2626" label="Worst case (rupture employeur)" />
     </div>
   )
 }
@@ -312,64 +336,4 @@ function EndDot({ color, x, y, label }: { color: string; x: number; y: number; l
       </text>
     </g>
   )
-}
-
-function ScenarioSummary({
-  endNomi, endWorst,
-  endNomiPct, endWorstPct,
-  preavisMois,
-}: {
-  endNomi: number
-  endWorst: number
-  endNomiPct: number
-  endWorstPct: number
-  preavisMois: number
-}) {
-  const fmt = (v: number, pct: number) =>
-    `${v < 0 ? "−" : ""}${Math.abs(Math.round(v)).toLocaleString("fr-FR")} €/mois · ${pct.toFixed(1)} %`
-  const tone = (v: number) =>
-    v >= 0 ? "#15803d" : "#B91C1C"
-
-  const rows = [
-    { color: "#16A34A", label: "Marge nominale — fin d'horizon (24m)", value: endNomi, pct: endNomiPct },
-    { color: "#DC2626", label: `Marge worst case — rupture employeur (préavis ${preavisMois}m) à 24m`, value: endWorst, pct: endWorstPct },
-  ]
-
-  return (
-    <div style={{
-      marginTop: 14, paddingTop: 12, borderTop: "1px solid #F0ECF8",
-      display: "flex", flexDirection: "column", gap: 6,
-    }}>
-      {rows.map((r) => (
-        <div key={r.label} style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          fontSize: 12.5, color: "#374151",
-        }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <span style={{
-              display: "inline-block", width: 12, height: 12, borderRadius: 3,
-              background: r.color,
-            }} />
-            {r.label}
-          </span>
-          <span style={{
-            fontWeight: 800, color: tone(r.value),
-            fontVariantNumeric: "tabular-nums",
-          }}>
-            {fmt(r.value, r.pct)}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/** Monthly margin — values typically range from a few hundred € to ~5k €/mois.
- *  Use compact "k" notation above 1 000 to keep Y-axis legible. */
-function formatEurPerDay(v: number): string {
-  const sign = v < 0 ? "−" : ""
-  const a = Math.abs(v)
-  if (a >= 10_000) return `${sign}${(a / 1_000).toFixed(0)} k €`
-  if (a >= 1_000) return `${sign}${(a / 1_000).toFixed(1)} k €`
-  return `${sign}${Math.round(a)} €`
 }

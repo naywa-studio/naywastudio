@@ -714,8 +714,10 @@ function MissionPricingBlock({
   const [tjmMin, setTjmMin] = useState<string>(numToStr(job.client_tjm_min))
   const [tjmMax, setTjmMax] = useState<string>(numToStr(job.client_tjm_max))
   const [marginMin, setMarginMin] = useState<string>(numToStr(job.margin_min_pct))
+  const [marginTarget, setMarginTarget] = useState<string>(numToStr(job.margin_target_pct))
   const [duration, setDuration] = useState<string>(numToStr(job.duration_months))
   const [targetGross, setTargetGross] = useState<string>(numToStr(job.target_gross_salary))
+  const [startDate, setStartDate] = useState<string>(job.start_date ?? "")
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const saveTimerRef = useRef<number | null>(null)
 
@@ -806,7 +808,15 @@ function MissionPricingBlock({
           value={marginMin}
           onChange={(v) => updateField("margin_min_pct", v, setMarginMin)}
           suffix="%"
-          placeholder="15"
+          placeholder="défaut cabinet"
+          max={100}
+        />
+        <PricingField
+          label="Marge cible"
+          value={marginTarget}
+          onChange={(v) => updateField("margin_target_pct", v, setMarginTarget)}
+          suffix="%"
+          placeholder="défaut cabinet"
           max={100}
         />
         <PricingField
@@ -825,6 +835,33 @@ function MissionPricingBlock({
           placeholder="45000"
           step={500}
         />
+        <label style={{
+          background: "white", border: "1px solid rgba(217,119,6,0.18)",
+          borderRadius: 9, padding: "8px 11px",
+          display: "flex", flexDirection: "column", gap: 4, cursor: "text",
+        }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, color: "#92400E",
+            letterSpacing: "0.05em", textTransform: "uppercase",
+          }}>
+            Démarrage prévu
+          </span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => {
+              const v = e.target.value
+              setStartDate(v)
+              schedulePatch({ start_date: v || null })
+            }}
+            style={{
+              width: "100%", minWidth: 0,
+              fontSize: 13, fontWeight: 700, color: "#111827",
+              background: "transparent", border: "none", outline: "none",
+              padding: 0, fontFamily: "inherit",
+            }}
+          />
+        </label>
       </div>
     </div>
   )

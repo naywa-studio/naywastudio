@@ -156,6 +156,8 @@ export interface TriangleValues {
 export interface MarginPoint {
   /** Months since mission start, 1..duration (we skip month 0). */
   mois: number
+  /** Index calendaire du mois (0=janv, 11=déc) — sert à étiqueter l'axe X. */
+  calendarMonthIndex: number
   /** Effective monthly margin €, assuming rupture at this exact month.
    *  Computed as: revenu_mensuel − coût_employeur − (coût_rupture / mois).
    *  During the période d'essai, coût_rupture = 0 (no severance payable),
@@ -164,6 +166,10 @@ export interface MarginPoint {
   margeMois: number
   /** Same margin expressed as a % of monthly revenue. */
   margePct: number
+  /** Marge cumulée en € depuis le mois 1 jusqu'à ce mois inclus.
+   *  Pour la courbe nominale : Σ(marge_nominale_t). Pour le worst case :
+   *  Σ(marge_worst_t). Sert au 2ᵉ chart "rentabilité cumulée". */
+  margeCumulee: number
 }
 
 /** Identifie quelle branche de l'arbre s'applique à un mois t donné.
@@ -221,12 +227,19 @@ const TYPICAL_BILLABLE_DAYS_BY_MONTH: number[] = [
 const TYPICAL_YEARLY_BILLABLE = TYPICAL_BILLABLE_DAYS_BY_MONTH.reduce((a, b) => a + b, 0)
 
 /** Returns the per-month billable-days profile for `monthCount` months,
- *  scaled so the yearly total matches configuredAvgDays × 12. */
-function billableDaysProfile(monthCount: number, configuredAvgDays: number): number[] {
+ *  scaled so the yearly total matches configuredAvgDays × 12. The profile
+ *  starts at `startMonthIndex` (0=Jan…11=Dec) so the calendar follows the
+ *  actual mission start month (août = 14 j, octobre = 22 j…). */
+function billableDaysProfile(
+  monthCount: number,
+  configuredAvgDays: number,
+  startMonthIndex: number = 0,
+): number[] {
   const scale = (configuredAvgDays * 12) / TYPICAL_YEARLY_BILLABLE
   const out: number[] = []
   for (let i = 0; i < monthCount; i++) {
-    out.push(TYPICAL_BILLABLE_DAYS_BY_MONTH[i % 12] * scale)
+    const monthIdx = (startMonthIndex + i) % 12
+    out.push(TYPICAL_BILLABLE_DAYS_BY_MONTH[monthIdx] * scale)
   }
   return out
 }
@@ -546,18 +559,28 @@ export function computeRuptureScenarios(
     typeContrat: TypeContrat
     /** Durée prévue du CDD en mois — requise si typeContrat === 'cdd'. */
     dureeCDD?: number
+    /** Mois calendaire de démarrage (0=Jan…11=Déc). Par défaut : mois courant.
+     *  Permet d'aligner le creux août / pic octobre avec la réalité de la mission. */
+    startMonthIndex?: number
   } = { typeContrat: 'cdi' },
 ): RuptureScenarios {
   const cost = computeEmployerCost(input)
   const brutMensuel = input.brutAnnuel / 12
 
-  // Per-month billable days profile — the chart now ripples month by month.
-  // Revenue varies with the actual billable days of each calendar month;
-  // employer cost (gross + charges + benefits) stays constant. That's
-  // exactly why August is painful for ESNs : same payroll, fewer billed
-  // days. The nominal margin curve therefore tells the seasonal story,
-  // and the worst-case curve adds the rupture impact on top of it.
-  const billableDays = billableDaysProfile(dureeMois, input.joursFacturablesParMois)
+  // Per-month billable days profile — anchored on the mission's actual
+  // start month. Revenue varies with the actual billable days of each
+  // calendar month; employer cost (gross + charges + benefits) stays
+  // constant. That's exactly why August is painful for ESNs : same payroll,
+  // fewer billed days. The CP and RTT of the candidate are already
+  // implicitly counted here : when the candidate takes 3 weeks of CP in
+  // August, the month is billed 14 days but the brut + charges are paid in
+  // full → ergo the August trough.
+  const startMonthIndex = options.startMonthIndex ?? new Date().getMonth()
+  const billableDays = billableDaysProfile(
+    dureeMois,
+    input.joursFacturablesParMois,
+    startMonthIndex,
+  )
 
   // Taux charges patronales effectif — sert au calcul des dommages-intérêts
   // CDD (salaires restants × (1 + charges)).
@@ -578,20 +601,26 @@ export function computeRuptureScenarios(
   const nominal: MarginPoint[] = []
   const worstCase: MarginPoint[] = []
   const branches: { mois: number; branche: RuptureBranche }[] = []
+  let cumulNominal = 0
+  let cumulWorst = 0
 
   for (let t = 1; t <= dureeMois; t++) {
     // Revenue varies with the calendar month's actual billable days.
     const joursDuMois = billableDays[t - 1] ?? input.joursFacturablesParMois
+    const calendarMonthIndex = (startMonthIndex + t - 1) % 12
     const revenuMensuel = tjm * joursDuMois
     const margeNominaleMensuelle = revenuMensuel - cost.coutTotalMensuel
     const pctOf = (m: number): number =>
       revenuMensuel <= 0 ? 0 : (m / revenuMensuel) * 100
 
+    cumulNominal += margeNominaleMensuelle
     // Nominal — marge mensuelle nominale qui ondule avec les jours du mois.
     nominal.push({
       mois: t,
+      calendarMonthIndex,
       margeMois: margeNominaleMensuelle,
       margePct: pctOf(margeNominaleMensuelle),
+      margeCumulee: cumulNominal,
     })
 
     // Worst-case : on parcourt l'arbre selon (typeContrat, t).
@@ -633,10 +662,13 @@ export function computeRuptureScenarios(
 
     // Mensualisation : on étale le coût de rupture sur t mois écoulés.
     const margeWorst = margeNominaleMensuelle - coutRupture / t
+    cumulWorst += margeWorst
     worstCase.push({
       mois: t,
+      calendarMonthIndex,
       margeMois: margeWorst,
       margePct: pctOf(margeWorst),
+      margeCumulee: cumulWorst,
     })
     branches.push({ mois: t, branche })
   }

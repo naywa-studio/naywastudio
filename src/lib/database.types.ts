@@ -208,8 +208,10 @@ export type Database = {
           client_tjm_min: number | null
           client_tjm_max: number | null
           margin_min_pct: number | null
+          margin_target_pct: number | null
           duration_months: number | null
           target_gross_salary: number | null
+          start_date: string | null
           created_at: string
           updated_at: string
         }
@@ -232,8 +234,10 @@ export type Database = {
           client_tjm_min?: number | null
           client_tjm_max?: number | null
           margin_min_pct?: number | null
+          margin_target_pct?: number | null
           duration_months?: number | null
           target_gross_salary?: number | null
+          start_date?: string | null
           created_at?: string
           updated_at?: string
         }
