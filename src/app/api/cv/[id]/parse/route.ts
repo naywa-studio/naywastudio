@@ -78,9 +78,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     parsedCv = out.cv
     taxonomy = out.taxonomy
   } catch (err) {
-    const isScanned = err instanceof CvParseError &&
-      (err.code === "scanned_pdf" || err.code === "empty_pdf")
-    if (isScanned) {
+    // Tous les échecs d'extraction texte basculent vers l'OCR Mistral —
+    // pas seulement "scanned_pdf" et "empty_pdf". Un "invalid_pdf"
+    // (PDF structurellement bizarre, signature exotique, encoding cassé)
+    // peut très bien être lu par mistral-ocr qui voit l'image rendue.
+    // C'est ce qui se passait en production : unpdf 1.6.2 throw
+    // "Invalid PDF structure" sur certains exports modernes, on perdait
+    // tous les CV sans même tenter l'OCR.
+    const isLlmJsonError = err instanceof CvParseError && err.code === "llm_invalid_json"
+    if (isLlmJsonError) {
+      // L'extraction texte a marché mais le LLM a retourné du JSON cassé.
+      // Inutile d'aller en OCR — le PDF a du texte, c'est le LLM qui a flanché.
+      parseError = { code: err.code, message: err.message }
+    } else {
       // OCR fallback (mistral-ocr via OpenRouter).
       try {
         const out = await parseCvViaOcr(buf)
@@ -88,14 +98,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         taxonomy = out.taxonomy
         parseError = null
       } catch (ocrErr) {
-        parseError = ocrErr instanceof CvParseError
+        // L'OCR a échoué aussi → on remonte l'erreur originale d'extraction
+        // qui est plus parlante côté UI ("PDF illisible…" vs "OCR failed").
+        const originalErr = err instanceof CvParseError
+          ? { code: err.code, message: err.message }
+          : { code: "llm_failed", message: (err as Error).message ?? "Erreur de parsing." }
+        const ocrFailed = ocrErr instanceof CvParseError
           ? { code: ocrErr.code, message: ocrErr.message }
           : { code: "ocr_failed", message: (ocrErr as Error).message ?? "L'OCR a échoué." }
+        parseError = {
+          code: originalErr.code,
+          message: `${originalErr.message} (OCR fallback : ${ocrFailed.message})`,
+        }
       }
-    } else {
-      parseError = err instanceof CvParseError
-        ? { code: err.code, message: err.message }
-        : { code: "llm_failed", message: (err as Error).message ?? "Erreur de parsing." }
     }
   }
 
