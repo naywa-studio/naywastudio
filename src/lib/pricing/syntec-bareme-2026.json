@@ -171,13 +171,20 @@
     }
   ],
   "charges_patronales_2026": {
-    "_note": "Taux estimatifs basés sur connaissance droit social 2026, à valider expert paie. PASS 2026 = 3 925 €/mois.",
-    "_status": "a_valider_expert_paie",
+    "_note": "Taux totaux par STATUT, alignés sur la pratique cabinet (Excel pricing). Le versement mobilité (1.8-3.05% selon lieu) est déjà inclus dans le total. PASS 2026 = 4 005 €/mois (arrêté du 22/12/2025).",
+    "_status": "aligne_pratique_cabinet",
+    "totaux_par_statut": {
+      "etam": 0.48,
+      "etam_assimile_cadre": 0.47,
+      "cadre": 0.47,
+      "expatrie": 0.27
+    },
     "totaux_indicatifs": {
-      "cadre_syntec_paris_pct_brut": 44,
-      "cadre_syntec_province_pct_brut": 42,
-      "etam_syntec_paris_pct_brut": 41,
-      "etam_syntec_province_pct_brut": 39
+      "_deprecated": "Remplacé par totaux_par_statut depuis l'alignement Excel cabinet. Conservé pour compat.",
+      "cadre_syntec_paris_pct_brut": 47,
+      "cadre_syntec_province_pct_brut": 47,
+      "etam_syntec_paris_pct_brut": 48,
+      "etam_syntec_province_pct_brut": 48
     },
     "cotisations": [
       { "code": "maladie_maternite", "libelle": "Maladie-maternité", "taux_pct": 7.00, "base": "totalite", "statuts": ["tous"], "_note": "13% sans réduction Fillon" },
@@ -198,7 +205,7 @@
       { "code": "chomage", "libelle": "Assurance chômage", "taux_pct": 4.05, "base": "tranche_1_et_2", "statuts": ["tous"], "_note": "Plafond 4 PASS" },
       { "code": "ags", "libelle": "AGS", "taux_pct": 0.15, "base": "tranche_1_et_2", "statuts": ["tous"] },
       { "code": "cufpa", "libelle": "Contribution unique formation/apprentissage", "taux_pct": 1.68, "base": "totalite", "statuts": ["tous"] },
-      { "code": "versement_mobilite_paris_intra", "libelle": "Versement mobilité Paris intra-muros + petite couronne", "taux_pct": 3.20, "base": "totalite", "statuts": ["tous"], "lieu": "paris_petite_couronne", "condition": "effectif_ge_11", "_note": "Taux max IDF 2026 (VM + VMA combinés)" },
+      { "code": "versement_mobilite_paris_intra", "libelle": "Versement mobilité Paris intra-muros + petite couronne", "taux_pct": 3.05, "base": "totalite", "statuts": ["tous"], "lieu": "paris_petite_couronne", "condition": "effectif_ge_11", "_note": "Grand Paris 2026 — était 2,95% en 2025, revalorisé +0,10 pt au 1er janvier 2026 (LégiSocial)" },
       { "code": "versement_mobilite_idf_grande_couronne", "libelle": "Versement mobilité IDF grande couronne", "taux_pct": 1.80, "base": "totalite", "statuts": ["tous"], "lieu": "idf_grande_couronne", "condition": "effectif_ge_11" },
       { "code": "versement_mobilite_lyon", "libelle": "Versement mobilité Lyon métropole", "taux_pct": 2.00, "base": "totalite", "statuts": ["tous"], "lieu": "lyon", "condition": "effectif_ge_11" },
       { "code": "versement_mobilite_province", "libelle": "Versement mobilité autres communes", "taux_pct": 1.0, "base": "totalite", "statuts": ["tous"], "lieu": "province", "_note": "0,2% à 1,75% selon commune. Outil URSSAF par code postal/INSEE. Défaut prudent 1%." },
@@ -207,26 +214,26 @@
     ]
   },
   "periode_essai": {
-    "_source": "Convention Syntec Article 3.4 — en vigueur étendu (avenant n°2 du 27 octobre 2022 BOCC 2022-49)",
-    "_status": "confirmé_legifrance",
+    "_source": "Convention Syntec Article 3.4 — aligné sur la pratique cabinet (Excel pricing template). Durées plus courtes que le plafond légal max possible (4+4 cadre).",
+    "_status": "confirmé_pratique_cabinet",
     "regle_prealable": "La période d'essai et son renouvellement ne se présument pas. Doivent être expressément stipulés dans la proposition d'embauche ou le contrat de travail.",
     "renouvellement_exceptionnel": "Renouvellement exige un accord écrit du salarié et de l'employeur.",
-    "etam_coef_240_a_250": {
+    "etam_jusquau_coef_355": {
       "duree_initiale_mois": 2,
-      "renouvellement_max_mois": 2,
-      "total_max_mois": 4,
-      "_coefficients_couverts": [240, 250]
+      "renouvellement_max_mois": 1,
+      "total_max_mois": 3,
+      "_coefficients_couverts": [240, 250, 275, 310, 355]
     },
-    "etam_coef_275_a_500": {
+    "etam_coef_400_a_500": {
       "duree_initiale_mois": 3,
-      "renouvellement_max_mois": 3,
-      "total_max_mois": 6,
-      "_coefficients_couverts": [275, 310, 355, 400, 450, 500]
+      "renouvellement_max_mois": 2,
+      "total_max_mois": 5,
+      "_coefficients_couverts": [400, 450, 500]
     },
-    "cadre_coef_95_a_270": {
+    "cadre_tous_coefficients": {
       "duree_initiale_mois": 4,
-      "renouvellement_max_mois": 4,
-      "total_max_mois": 8,
+      "renouvellement_max_mois": 3,
+      "total_max_mois": 7,
       "_coefficients_couverts": [95, 100, 105, 115, 130, 150, 170, 210, 270]
     }
   },
@@ -315,11 +322,15 @@
         "_libelle": "1/3 de mois par année dès 2 ans d'ancienneté (PLUS GÉNÉREUX QUE LE LÉGAL)"
       }
     },
-    "base_calcul": "1_12_des_12_derniers_mois_de_remuneration",
-    "inclusions": ["primes_contractuelles"],
-    "exclusions": ["majorations_heures_supplementaires", "indemnites_deplacement", "indemnites_detachement"],
+    "salaire_reference": {
+      "formule": "MAX(1/12 des 12 derniers mois bruts, 1/3 des 3 derniers mois bruts)",
+      "_note": "On retient la formule la plus favorable au salarié — typiquement la moyenne 3 mois quand une prime importante a été versée sur le dernier trimestre."
+    },
+    "inclusions": ["primes_contractuelles", "treizieme_mois_prorata", "prime_vacances_art_31"],
+    "exclusions": ["majorations_heures_supplementaires", "indemnites_deplacement", "indemnites_detachement", "primes_annuelles_non_garanties"],
     "annees_incompletes": "calcul_prorata_nombre_mois_presence",
-    "regle_plus_favorable": "L'employeur verse l'indemnité dont le montant est le PLUS ÉLEVÉ entre formule Syntec et formule légale Code du travail"
+    "regle_plus_favorable": "L'employeur verse l'indemnité dont le montant est le PLUS ÉLEVÉ entre formule Syntec et formule légale Code du travail R1234-2",
+    "plafond_10_12_mois_supprime": "Avenant n°46 du 16/07/2021 + avenant n°2 du 27/10/2022 — effectifs depuis le 1er mai 2023, plus aucun plafond sur le montant total"
   },
   "indemnite_depart_retraite": {
     "_source": "Convention Syntec Article 4.8 (à confirmer version en vigueur)",
@@ -394,21 +405,24 @@
       "ou_temps_trajet_min": "1h30 en transports en commun"
     },
     "petits_deplacements": {
-      "repas_lieu_travail_panier_eur": 7.40,
-      "repas_hors_entreprise_restaurant_eur": 20.70,
-      "repas_hors_entreprise_panier_eur": 10.30
+      "repas_lieu_travail_panier_eur": 7.50,
+      "repas_hors_entreprise_restaurant_eur": 21.40,
+      "repas_hors_entreprise_panier_eur": 10.40,
+      "_note": "Revalorisé au 1er janvier 2026 (vs 7,40 / 21,10 / 10,30 en 2025)"
     },
     "grands_deplacements": {
       "paris_petite_couronne": {
         "hebergement_petit_dej_eur_jour": 74.30,
-        "repas_eur": 20.70,
-        "total_jour_eur": 115.70,
-        "_zones": ["75", "92", "93", "94"]
+        "repas_eur": 21.40,
+        "total_jour_eur": 117.10,
+        "_zones": ["75", "92", "93", "94"],
+        "_note": "Total = hébergement + 2 repas (matin + midi/soir)"
       },
       "autres_departements_metropole": {
         "hebergement_petit_dej_eur_jour": 55.10,
-        "repas_eur": 20.70,
-        "total_jour_eur": 96.50
+        "repas_eur": 21.40,
+        "total_jour_eur": 97.90,
+        "_note": "Total = hébergement + 2 repas"
       },
       "logement_pmr_special": {
         "plafond_majoré_eur_jour": 150,
@@ -537,7 +551,8 @@
     "valeur_faciale_typique_eur": 9.50,
     "part_employeur_min_pct": 50,
     "part_employeur_max_pct": 60,
-    "plafond_exoneration_urssaf_eur_jour": 7.18,
+    "plafond_exoneration_urssaf_eur_jour": 7.32,
+    "_plafond_note": "Plafond 2026 — était 7,26 € en 2025 et 7,18 € en 2024. Pour exonération max, valeur faciale du ticket entre 12,20 € et 14,64 €.",
     "_status": "plafond_a_confirmer_2026"
   },
   "mutuelle_syntec": {
@@ -596,8 +611,8 @@
     "FAIT — Vieillesse déplafonnée 2026 : 2,11% (hausse +0,09 vs 2,02% en 2025)",
     "FAIT — AGIRC-ARRCO 2026 confirmé patronal T1 4,72% / T2 12,95% (inchangé, plus de distinction cadre/non-cadre)",
     "FAIT — APEC 2026 confirmé : 0,036% employeur sur T1+T2 (max 4 PASS)",
-    "FAIT — Barème URSSAF déplacements 2026 : repas 20,70€, hébergement Paris 74,30€/jour, province 55,10€/jour",
-    "FAIT — Versement mobilité 2026 : Paris jusqu'à 3,20%, Lyon 2,00%, province 0,2-1,75% (outil URSSAF par commune)",
+    "FAIT — Barème URSSAF déplacements 2026 : repas 21,40€, hébergement Paris 74,30€/jour (total 117,10€), province 55,10€/jour (total 97,90€)",
+    "FAIT — Versement mobilité 2026 : Grand Paris 3,05% (était 2,95% 2025), Lyon ~2,00%, province 0,2-1,75% (outil URSSAF par commune)",
     "FAIT — Barème indemnités kilométriques URSSAF 2026 complet (voitures thermique + électrique, motos 2-roues thermique + électrique, cyclomoteurs)",
     "Confirmer ETAM Assimilé Cadre n'est PAS une catégorie Syntec — c'est une catégorie sociale (cotisations) liée aux ETAM coefs élevés 400/450/500 — voir réponse Culture RH",
     "Confirmer ou retirer du périmètre : CDI de chantier Syntec (accord branche 2018 séparé) — pas dans le texte de base de la convention",
