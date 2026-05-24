@@ -37,6 +37,10 @@ interface Props {
   dureeMois: number
   /** Daily rate billed to the client. Drives the revenue side of margin. */
   tjm: number
+  /** Type de contrat — drives which branch of the decision tree applies. */
+  typeContrat?: 'cdi' | 'cdd'
+  /** CDD duration in months — required when typeContrat is 'cdd'. */
+  dureeCDD?: number
 }
 
 const W = 720          // viewBox width — scales fluidly via 100% width
@@ -53,10 +57,15 @@ const PLOT_H = H - PAD_T - PAD_B
  *  2 ans) where Article 4.5 indemnity formula changes for cadres. */
 const HORIZON_MOIS = 24
 
-export default function MarginEvolutionChart({ inputs, dureeMois, tjm }: Props) {
+export default function MarginEvolutionChart({
+  inputs, dureeMois, tjm, typeContrat = 'cdi', dureeCDD,
+}: Props) {
   const scenarios = useMemo(
-    () => computeRuptureScenarios(inputs, HORIZON_MOIS, tjm),
-    [inputs, tjm],
+    () => computeRuptureScenarios(inputs, HORIZON_MOIS, tjm, {
+      typeContrat,
+      dureeCDD: dureeCDD ?? dureeMois,
+    }),
+    [inputs, tjm, typeContrat, dureeCDD, dureeMois],
   )
 
   // Nouvelle structure : 2 courbes (nominal + worstCase). Le worst case

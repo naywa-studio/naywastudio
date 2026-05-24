@@ -169,6 +169,13 @@ function PricingWidgetInner({
   const modalite: Modalite = preset.modalite
   const joursParMois = profile?.pricing_billable_days_per_month ?? 18
 
+  // Type de contrat et durée CDD — lues depuis la mission. Le calculateur
+  // branche sur l'arbre CDI vs CDD selon ces deux inputs.
+  const typeContrat: 'cdi' | 'cdd' = (job?.contract_type ?? '').toLowerCase() === 'cdd'
+    ? 'cdd'
+    : 'cdi'
+  const dureeCDD = typeContrat === 'cdd' ? (job?.duration_months ?? undefined) : undefined
+
   // Inputs the sourceur can edit — initial values derived from the mission so
   // the calculator is immediately useful. The triangle has a "pivot" — the
   // field we SOLVE for; the two others are entered by the sourceur.
@@ -426,6 +433,8 @@ function PricingWidgetInner({
         inputs={buildInputs(triangle?.brutAnnuel ?? brutAnnuel)}
         tjm={triangle?.tjm ?? tjm}
         margeMinPct={margeMinPct}
+        typeContrat={typeContrat}
+        dureeCDD={dureeCDD}
       />
 
       {/* Margin evolution chart — always shown, runs on a fixed 24-month
@@ -436,6 +445,8 @@ function PricingWidgetInner({
           inputs={buildInputs(triangle?.brutAnnuel ?? brutAnnuel)}
           dureeMois={job?.duration_months ?? 0}
           tjm={triangle?.tjm ?? tjm}
+          typeContrat={typeContrat}
+          dureeCDD={dureeCDD}
         />
       </div>
     </section>
@@ -447,17 +458,22 @@ function PricingWidgetInner({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function RiskPanel({
-  inputs, tjm, margeMinPct,
+  inputs, tjm, margeMinPct, typeContrat, dureeCDD,
 }: {
   inputs: PricingInputs
   tjm: number
   margeMinPct: number
+  typeContrat: 'cdi' | 'cdd'
+  dureeCDD?: number
 }) {
   const indicators = useMemo<RiskIndicators>(() => {
-    const scenarios = computeRuptureScenarios(inputs, 24, tjm)
+    const scenarios = computeRuptureScenarios(inputs, 24, tjm, {
+      typeContrat,
+      dureeCDD,
+    })
     const revenuMensuel = tjm * inputs.joursFacturablesParMois
     return computeRiskIndicators(scenarios, margeMinPct, revenuMensuel)
-  }, [inputs, tjm, margeMinPct])
+  }, [inputs, tjm, margeMinPct, typeContrat, dureeCDD])
 
   const tone =
     indicators.level === "high"   ? { fg: "#B91C1C", bg: "rgba(220,38,38,0.06)",  bd: "rgba(220,38,38,0.25)",  label: "🚨 Risque élevé" } :

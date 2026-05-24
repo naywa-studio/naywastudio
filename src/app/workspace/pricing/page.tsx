@@ -251,7 +251,7 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
       whileHover={{ y: -2 }}
     >
       <Link
-        href={`/workspace/missions/${job.id}`}
+        href={`/workspace/pricing/${job.id}`}
         style={{
           display: "block", textDecoration: "none",
           background: "white", borderRadius: 14, border: "1px solid #F0ECF8",
