@@ -38,6 +38,10 @@ type AgentEvent =
   | { type: 'assistant_text'; content: string }
   | { type: 'tool_call'; tool: string; args: unknown; result_summary: string }
   | { type: 'ask_user'; question: string; options?: string[]; reason?: string }
+  | { type: 'propose_deductions'; summary?: string; fields: Array<{
+      field: string; label?: string; value: unknown; reasoning: string;
+      confidence?: 'haute' | 'moyenne' | 'faible'; source?: string
+    }> }
   | { type: 'error'; message: string }
 
 export async function POST(req: NextRequest) {
@@ -219,9 +223,17 @@ export async function POST(req: NextRequest) {
         })
         askedUser = true
       }
+      if (result.deductions) {
+        events.push({
+          type: 'propose_deductions',
+          summary: result.deductions.summary,
+          fields: result.deductions.fields,
+        })
+        askedUser = true     // même logique : on rend la main à l'humain
+      }
     }
 
-    // If any tool called ask_user, we hand back to the sourceur — no further LLM iteration this turn.
+    // If any tool called ask_user / propose_deductions, we hand back to the sourceur.
     if (askedUser) break
   }
 

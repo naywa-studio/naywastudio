@@ -131,9 +131,9 @@ export const PRICING_TOOLS: ORTool[] = [
     function: {
       name: 'ask_user',
       description:
-        "Pose une question au sourceur quand un input est manquant ou ambigu. " +
-        "Utilise un format clair avec choix proposés. Le sourceur répondra et la conversation " +
-        "continuera. **N'appelle PAS ce tool si tu peux déduire l'info des inputs déjà fournis.**",
+        "Pose UNE question ouverte au sourceur (texte libre) quand tu ne peux vraiment pas déduire " +
+        "une info des données déjà fournies. **N'utilise PAS ce tool pour valider des déductions** " +
+        "(utilise propose_deductions à la place).",
       parameters: {
         type: 'object',
         required: ['question'],
@@ -141,6 +141,41 @@ export const PRICING_TOOLS: ORTool[] = [
           question: { type: 'string', description: 'La question en français, claire et courte.' },
           options:  { type: 'array', items: { type: 'string' }, description: 'Optionnel : suggestions de réponses.' },
           reason:   { type: 'string', description: 'Optionnel : pourquoi tu as besoin de cette info.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'propose_deductions',
+      description:
+        "Présente au sourceur les valeurs que tu AS DÉDUITES depuis le contexte mission + candidat. " +
+        "Chaque déduction inclut la valeur, la raison et la source. Le sourceur voit une carte avec " +
+        "tous les champs et peut soit tout confirmer en un clic, soit corriger ligne par ligne. " +
+        "**APPELLE TOUJOURS CE TOOL EN PREMIER**, avant tout calcul, dès que tu as un contexte " +
+        "mission+candidat. La conversation se met en pause jusqu'à la validation du sourceur.",
+      parameters: {
+        type: 'object',
+        required: ['deductions'],
+        properties: {
+          deductions: {
+            type: 'array',
+            description: 'Liste des champs déduits. Inclus TOUS les champs nécessaires au calcul, même ceux que tu juges évidents.',
+            items: {
+              type: 'object',
+              required: ['field', 'value', 'reasoning'],
+              properties: {
+                field:     { type: 'string', description: "Clé du champ : 'statut' | 'position' | 'coefficient' | 'modalite' | 'lieu' | 'brutAnnuel' | 'tjm' | 'typeContrat' | 'dureeMois' | 'treiziemeMois' | 'autre'." },
+                label:     { type: 'string', description: 'Libellé lisible en français, ex: "Statut Syntec".' },
+                value:     { description: 'Valeur déduite (string ou number selon le champ).' },
+                reasoning: { type: 'string', description: 'Phrase courte expliquant la déduction.' },
+                confidence:{ type: 'string', enum: ['haute', 'moyenne', 'faible'], description: 'Confiance dans la déduction.' },
+                source:    { type: 'string', description: "D'où vient l'info : 'contexte_mission' | 'contexte_candidat' | 'parametres_cabinet' | 'convention_syntec' | 'inference'." },
+              },
+            },
+          },
+          summary: { type: 'string', description: "Phrase d'intro avant la carte, ex: 'Voici ce que je déduis du profil :'" },
         },
       },
     },
@@ -184,15 +219,30 @@ function parsePricingInputs(raw: unknown): PricingInputs {
   }
 }
 
+/** A single deduction proposed by the agent. The UI renders these as a
+ *  card with confirm-all + edit-per-row controls. */
+export interface DeductionField {
+  field: string
+  label?: string
+  value: unknown
+  reasoning: string
+  confidence?: 'haute' | 'moyenne' | 'faible'
+  source?: string
+}
+
 /** Result of a tool execution. The agent loop will feed `content` back to
- *  the LLM as a tool message. If `userQuestion` is set, the loop pauses and
- *  hands the question over to the UI (the sourceur must reply). */
+ *  the LLM as a tool message. If `userQuestion` or `deductions` is set, the
+ *  loop pauses and hands the interaction over to the UI. */
 export interface ToolExecutionResult {
   content: string                      // JSON string fed back to the LLM
   userQuestion?: {
     question: string
     options?: string[]
     reason?: string
+  }
+  deductions?: {
+    summary?: string
+    fields: DeductionField[]
   }
 }
 
@@ -283,6 +333,35 @@ export function executeToolCall(
       }
     }
 
+    case 'propose_deductions': {
+      const o = asRecord(args)
+      const summary = o.summary != null ? String(o.summary) : undefined
+      const rawFields = Array.isArray(o.deductions) ? o.deductions : []
+      const fields: DeductionField[] = rawFields.map((f) => {
+        const r = asRecord(f)
+        return {
+          field:      String(r.field ?? ''),
+          label:      r.label != null ? String(r.label) : undefined,
+          value:      r.value,
+          reasoning:  String(r.reasoning ?? ''),
+          confidence: ['haute', 'moyenne', 'faible'].includes(String(r.confidence))
+            ? (r.confidence as DeductionField['confidence'])
+            : undefined,
+          source:     r.source != null ? String(r.source) : undefined,
+        }
+      }).filter((f) => f.field !== '')
+
+      return {
+        content: JSON.stringify({
+          _proposed_deductions: true,
+          summary,
+          fields,
+          instruction_for_llm: 'En attente de validation du sourceur. Quand il aura confirmé ou corrigé, il reviendra avec un message texte. Continue le workflow à ce moment-là.',
+        }),
+        deductions: { summary, fields },
+      }
+    }
+
     default:
       return { content: JSON.stringify({ error: `unknown tool: ${name}` }) }
   }
@@ -296,17 +375,48 @@ export const PRICING_AGENT_SYSTEM = `Tu es l'agent Pricing IA de Naywa Studio.
 
 Rôle : aider un sourceur ESN à décider s'il est sûr d'embaucher un candidat sur une mission, en analysant le risque marge en cas de rupture.
 
-Règles ABSOLUES :
-1. **Tu ne fais JAMAIS d'arithmétique.** Tu appelles toujours les tools \`compute_employer_cost\` et \`compute_rupture_scenarios\` pour les chiffres. Si tu donnes un chiffre, il vient d'un tool, jamais de toi.
-2. **Tu ne devines JAMAIS une règle Syntec.** Si tu as un doute, appelle \`get_syntec_rule\`. La convention IDCC 1486 (avenant n°46) est ta seule source de vérité.
-3. **Tu poses des questions ciblées via \`ask_user\` UNIQUEMENT pour les inputs vraiment manquants.** Si une info est déduisible (ex : statut cadre depuis le titre "Lead Dev"), ne la demande pas.
-4. Tu tutoies le sourceur, ton chaleureux et concis. Pas de markdown lourd.
-5. Tu rends ton avis final en **3 blocs courts** : (a) marges chiffrées dans les 3 scénarios, (b) risque global (faible/modéré/élevé) avec justification, (c) recommandation actionnable (TJM minimum, marge brut max, ou refus).
+═══ RÈGLES ABSOLUES ═══
 
-Workflow type :
-- Démarrage : on te passe le contexte mission + candidat (et tu reçois aussi les paramètres cabinet par défaut). Tu présentes brièvement ce que tu vas faire.
-- Tu identifies les inputs manquants (statut, position, coef, modalité, TJM, brut). Tu demandes via \`ask_user\` ceux qui ne sont vraiment pas déductibles.
-- Tu appelles \`compute_employer_cost\` puis \`compute_rupture_scenarios\`.
-- Tu rends ton verdict en français, chiffres à l'appui.
+1. **Tu ne fais JAMAIS d'arithmétique.** Si tu donnes un chiffre, il vient d'un tool, jamais de toi.
+2. **Tu ne devines JAMAIS une règle Syntec.** Pour toute règle légale, tool \`get_syntec_rule\` d'abord.
+3. Tu tutoies, ton chaleureux et concis. Pas de markdown lourd.
 
-Tu n'inventes JAMAIS d'indemnité, de plafond, de pourcentage. Si tu as besoin d'un chiffre légal, tool d'abord.`
+═══ WORKFLOW OBLIGATOIRE ═══
+
+**ÉTAPE 1 — DÉDUIRE ET FAIRE VALIDER** (tour de chat n°1, OBLIGATOIRE)
+
+Dès le premier message du sourceur, tu DOIS appeler \`propose_deductions\` avec TOUTES les valeurs nécessaires au calcul, déduites du contexte. **NE POSE PAS DE QUESTIONS OUVERTES EN PREMIER.** Le sourceur valide en un clic ou corrige.
+
+Déductions à proposer systématiquement (en analysant le contexte mission+candidat) :
+- \`statut\` : 'cadre' si titre contient "lead/architect/senior/manager/expert/principal" OU years_experience ≥ 7, sinon 'etam'
+- \`position\` : '1.2' (junior, 0-3 ans) / '2.1' (confirmé 4-6 ans) / '2.2' (senior 7-10 ans) / '3.1' (lead 11+ ans)
+- \`coefficient\` : 100 / 115 / 130 / 170 selon position
+- \`modalite\` : 'modalite_3' (forfait jours) si cadre ≥ 7 ans XP, sinon 'modalite_1'
+- \`lieu\` : depuis mission.location ('paris_petite_couronne' si Paris, 'lyon' si Lyon, 'province' sinon) — fallback paramètres cabinet
+- \`typeContrat\` : 'cdi' ou 'cdd' depuis mission.contract_type
+- \`dureeMois\` : depuis mission.duration_months
+- \`brutAnnuel\` : depuis mission.target_gross_salary (si rempli), sinon estimation selon position/coef × 12 + 20% (à valider !)
+- \`tjm\` : milieu de [client_tjm_min, client_tjm_max] depuis la mission
+- \`treiziemeMois\` : depuis paramètres cabinet
+- \`startMonthIndex\` : mois calendaire de mission.start_date (0-11), ou mois courant
+
+Pour chaque déduction, mets une \`confidence\` ('haute' / 'moyenne' / 'faible') et une \`source\` claire. Si tu n'as VRAIMENT aucun signal pour un champ, mets confidence='faible' et propose la valeur la plus probable — le sourceur corrigera.
+
+**ÉTAPE 2 — CALCULER** (après confirmation du sourceur)
+
+Une fois que le sourceur a renvoyé un message texte de confirmation/correction, appelle dans l'ordre :
+1. \`compute_employer_cost\` avec les inputs validés
+2. \`compute_rupture_scenarios\` avec les mêmes inputs + tjm
+
+**ÉTAPE 3 — VERDICT** (réponse texte finale)
+
+Rends 3 blocs courts :
+- **Marges** : chiffres aux mois clés (1, fin_essai, 12, 24) pour les 3 scénarios
+- **Risque global** : faible / modéré / élevé avec 1 phrase de justification (chiffrée)
+- **Recommandation** : TJM minimum à viser, brut max à offrir, ou refus si non rentable
+
+═══ INTERDIT ═══
+- Donner un chiffre sans tool
+- Inventer une indemnité ou un seuil
+- Sauter l'étape 1 (déductions à valider) — même si tu penses tout savoir, le sourceur DOIT voir et valider
+- Poser plusieurs questions ouvertes successives au lieu d'utiliser \`propose_deductions\``

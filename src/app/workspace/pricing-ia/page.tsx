@@ -37,8 +37,17 @@ interface ChatMessage {
   tool_calls?: ToolCall[]
 }
 
+interface DeductionField {
+  field: string
+  label?: string
+  value: unknown
+  reasoning: string
+  confidence?: "haute" | "moyenne" | "faible"
+  source?: string
+}
+
 interface AgentEvent {
-  type: "assistant_text" | "tool_call" | "ask_user" | "error"
+  type: "assistant_text" | "tool_call" | "ask_user" | "propose_deductions" | "error"
   content?: string
   tool?: string
   args?: unknown
@@ -47,6 +56,8 @@ interface AgentEvent {
   options?: string[]
   reason?: string
   message?: string
+  summary?: string
+  fields?: DeductionField[]
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -56,12 +67,15 @@ interface AgentEvent {
 export default function PricingIaPage() {
   const sb = useMemo(() => getSupabase(), [])
 
-  // Mission + candidate selection
+  // Mission + candidate selection. Le candidat est filtré dynamiquement
+  // sur la mission sélectionnée (via match_assessments) — on ne propose que
+  // les candidats déjà matchés sur la mission, triés par score décroissant.
   const [missions, setMissions] = useState<Job[]>([])
-  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [matchedCandidates, setMatchedCandidates] = useState<Array<{ candidate: Candidate; score: number | null; tier: string | null }>>([])
   const [missionId, setMissionId] = useState<string>("")
   const [candidateId, setCandidateId] = useState<string>("")
   const [loadingLists, setLoadingLists] = useState(true)
+  const [loadingCandidates, setLoadingCandidates] = useState(false)
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -71,21 +85,53 @@ export default function PricingIaPage() {
   const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
-  // Load missions + candidates once
+  // Load missions list once at mount
   useEffect(() => {
     let mounted = true
     ;(async () => {
-      const [missionsRes, candidatesRes] = await Promise.all([
-        sb.from("jobs").select("*").in("status", ["draft", "open"]).order("created_at", { ascending: false }).limit(50),
-        sb.from("candidates").select("*").eq("parse_status", "parsed").order("created_at", { ascending: false }).limit(80),
-      ])
+      const { data } = await sb
+        .from("jobs")
+        .select("*")
+        .in("status", ["draft", "open"])
+        .order("created_at", { ascending: false })
+        .limit(50)
       if (!mounted) return
-      setMissions((missionsRes.data ?? []) as Job[])
-      setCandidates((candidatesRes.data ?? []) as Candidate[])
+      setMissions((data ?? []) as Job[])
       setLoadingLists(false)
     })()
     return () => { mounted = false }
   }, [sb])
+
+  // Charge les candidats matchés sur la mission sélectionnée
+  useEffect(() => {
+    if (!missionId) {
+      setMatchedCandidates([])
+      setCandidateId("")
+      return
+    }
+    let mounted = true
+    setLoadingCandidates(true)
+    setCandidateId("")
+    ;(async () => {
+      const { data } = await sb
+        .from("match_assessments")
+        .select("score, match_tier, candidate:candidates(*)")
+        .eq("job_id", missionId)
+        .order("score", { ascending: false, nullsFirst: false })
+        .limit(40)
+      if (!mounted) return
+      const rows = ((data ?? []) as unknown as {
+        score: number | null
+        match_tier: string | null
+        candidate: Candidate | null
+      }[])
+        .filter((r) => r.candidate !== null)
+        .map((r) => ({ candidate: r.candidate as Candidate, score: r.score, tier: r.match_tier }))
+      setMatchedCandidates(rows)
+      setLoadingCandidates(false)
+    })()
+    return () => { mounted = false }
+  }, [missionId, sb])
 
   // Auto-scroll to bottom when new content
   useEffect(() => {
@@ -133,7 +179,9 @@ export default function PricingIaPage() {
   }, [messages, sending, callAgent])
 
   const startConversation = useCallback(async () => {
-    const seed = "Bonjour Nora. Analyse ce candidat sur cette mission et donne-moi ton verdict de risque rupture. Pose-moi les questions s'il te manque des inputs."
+    // Seed message neutre — le system prompt force le workflow "propose_deductions
+    // d'abord" donc on ne biaise pas avec "pose-moi des questions".
+    const seed = "Analyse ce candidat sur cette mission. Présente-moi tes déductions pour validation."
     await sendMessage(seed)
   }, [sendMessage])
 
@@ -153,7 +201,8 @@ export default function PricingIaPage() {
 
       <ContextPicker
         missions={missions}
-        candidates={candidates}
+        matchedCandidates={matchedCandidates}
+        loadingCandidates={loadingCandidates}
         missionId={missionId}
         candidateId={candidateId}
         onMissionChange={setMissionId}
@@ -207,7 +256,7 @@ export default function PricingIaPage() {
             <MessageBubble key={i} message={msg} />
           ))}
           {pendingEvents.map((ev, i) => (
-            <EventLine key={`ev-${i}`} event={ev} />
+            <EventLine key={`ev-${i}`} event={ev} onSubmitText={(text) => sendMessage(text)} />
           ))}
           {sending && (
             <div style={{ padding: "8px 12px", fontSize: 12, color: "#9CA3AF" }}>
@@ -275,17 +324,25 @@ function Header() {
 }
 
 function ContextPicker({
-  missions, candidates, missionId, candidateId,
+  missions, matchedCandidates, loadingCandidates, missionId, candidateId,
   onMissionChange, onCandidateChange, disabled,
 }: {
   missions: Job[]
-  candidates: Candidate[]
+  matchedCandidates: Array<{ candidate: Candidate; score: number | null; tier: string | null }>
+  loadingCandidates: boolean
   missionId: string
   candidateId: string
   onMissionChange: (id: string) => void
   onCandidateChange: (id: string) => void
   disabled: boolean
 }) {
+  const candidatePlaceholder = !missionId
+    ? "— sélectionne d'abord une mission —"
+    : loadingCandidates
+      ? "Chargement des candidats matchés…"
+      : matchedCandidates.length === 0
+        ? "Aucun candidat matché sur cette mission — lance un matching d'abord"
+        : "— sélectionner —"
   return (
     <div style={{
       display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
@@ -303,13 +360,14 @@ function ContextPicker({
         }))}
       />
       <PickerSelect
-        label="Candidat"
+        label={`Candidat matché ${matchedCandidates.length > 0 ? `(${matchedCandidates.length})` : ""}`}
         value={candidateId}
         onChange={onCandidateChange}
-        disabled={disabled}
-        options={candidates.map((c) => ({
-          value: c.id,
-          label: `${c.full_name ?? "Sans nom"}${c.current_title ? ` · ${c.current_title}` : ""}`,
+        disabled={disabled || !missionId || loadingCandidates || matchedCandidates.length === 0}
+        placeholder={candidatePlaceholder}
+        options={matchedCandidates.map(({ candidate, score }) => ({
+          value: candidate.id,
+          label: `${score != null ? `[${score}] ` : ""}${candidate.full_name ?? "Sans nom"}${candidate.current_title ? ` · ${candidate.current_title}` : ""}`,
         }))}
       />
     </div>
@@ -317,13 +375,14 @@ function ContextPicker({
 }
 
 function PickerSelect({
-  label, value, onChange, options, disabled,
+  label, value, onChange, options, disabled, placeholder,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   options: { value: string; label: string }[]
   disabled?: boolean
+  placeholder?: string
 }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -337,12 +396,12 @@ function PickerSelect({
         disabled={disabled}
         style={{
           padding: "8px 10px", fontSize: 13,
-          color: "#111827", background: disabled ? "#FAFAFA" : "white",
+          color: disabled ? "#9CA3AF" : "#111827", background: disabled ? "#FAFAFA" : "white",
           border: "1px solid #E5E7EB", borderRadius: 9,
           fontFamily: "inherit", cursor: disabled ? "not-allowed" : "pointer",
         }}
       >
-        <option value="">— sélectionner —</option>
+        <option value="">{placeholder ?? "— sélectionner —"}</option>
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
@@ -383,11 +442,11 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   )
 }
 
-function EventLine({ event }: { event: AgentEvent }) {
-  if (event.type === "assistant_text") {
-    return (
-      <MessageBubble message={{ role: "assistant", content: event.content ?? "" }} />
-    )
+function EventLine({ event, onSubmitText }: { event: AgentEvent; onSubmitText: (text: string) => void }) {
+  // assistant_text est déjà rendu via persisted_messages → ne pas dupliquer.
+  if (event.type === "assistant_text") return null
+  if (event.type === "propose_deductions" && event.fields) {
+    return <DeductionsCard summary={event.summary} fields={event.fields} onSubmit={onSubmitText} />
   }
   if (event.type === "tool_call") {
     return (
@@ -448,6 +507,119 @@ function EventLine({ event }: { event: AgentEvent }) {
     )
   }
   return null
+}
+
+function DeductionsCard({
+  summary, fields, onSubmit,
+}: {
+  summary?: string
+  fields: DeductionField[]
+  onSubmit: (text: string) => void
+}) {
+  // Local state — chaque champ est éditable avant validation.
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {}
+    for (const f of fields) initial[f.field] = String(f.value ?? "")
+    return initial
+  })
+
+  const confidenceColor = (c?: DeductionField["confidence"]) =>
+    c === "haute" ? "#16a34a" : c === "moyenne" ? "#D97706" : c === "faible" ? "#DC2626" : "#9CA3AF"
+
+  const submitConfirmAll = () => {
+    const lines = fields.map((f) => {
+      const newValue = values[f.field]
+      const original = String(f.value ?? "")
+      const tag = newValue !== original ? " (corrigé)" : ""
+      return `- ${f.label ?? f.field} : ${newValue}${tag}`
+    })
+    onSubmit(`Validé. Voici les valeurs finales :\n${lines.join("\n")}\n\nTu peux maintenant lancer les calculs.`)
+  }
+
+  return (
+    <m.div
+      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: EASE }}
+      style={{
+        margin: "12px 0", padding: "16px 18px",
+        background: "linear-gradient(135deg, rgba(124,99,200,0.05), rgba(124,99,200,0.02))",
+        border: "1.5px solid rgba(124,99,200,0.30)", borderRadius: 14,
+      }}
+    >
+      <p style={{ margin: "0 0 12px", fontSize: 13.5, fontWeight: 700, color: "#7C63C8" }}>
+        📋 {summary ?? "Voici ce que je déduis de ce profil — confirme ou corrige :"}
+      </p>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {fields.map((f) => (
+          <div key={f.field} style={{
+            display: "grid", gridTemplateColumns: "1fr auto auto",
+            gap: 10, alignItems: "center",
+            padding: "8px 10px",
+            background: "white", border: "1px solid #F0ECF8", borderRadius: 9,
+          }}>
+            <div>
+              <div style={{
+                fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+                letterSpacing: "0.04em", textTransform: "uppercase",
+              }}>
+                {f.label ?? f.field}
+              </div>
+              <input
+                type="text"
+                value={values[f.field] ?? ""}
+                onChange={(e) => setValues((v) => ({ ...v, [f.field]: e.target.value }))}
+                style={{
+                  width: "100%", marginTop: 2,
+                  fontSize: 13.5, fontWeight: 600, color: "#111827",
+                  background: "transparent", border: "none", outline: "none",
+                  padding: 0, fontFamily: "inherit",
+                }}
+              />
+              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>
+                {f.reasoning}
+              </div>
+            </div>
+            {f.confidence && (
+              <span style={{
+                fontSize: 9.5, fontWeight: 700,
+                color: confidenceColor(f.confidence),
+                background: `${confidenceColor(f.confidence)}15`,
+                padding: "3px 7px", borderRadius: 100,
+                letterSpacing: "0.04em", textTransform: "uppercase",
+                whiteSpace: "nowrap",
+              }}>
+                Conf. {f.confidence}
+              </span>
+            )}
+            {f.source && (
+              <span style={{
+                fontSize: 9.5, color: "#9CA3AF",
+                whiteSpace: "nowrap",
+              }}>
+                {f.source}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 14, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button
+          onClick={submitConfirmAll}
+          style={{
+            padding: "8px 18px", fontSize: 13, fontWeight: 700,
+            color: "white",
+            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            border: "none", borderRadius: 9, cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          ✓ Valider et lancer les calculs
+        </button>
+      </div>
+    </m.div>
+  )
 }
 
 function ChatInput({
