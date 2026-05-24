@@ -246,10 +246,53 @@ export interface ToolExecutionResult {
   }
 }
 
+/** Contexte d'exécution serveur passé à chaque tool call. Permet
+ *  d'injecter automatiquement les défauts du cabinet (avantages, jours
+ *  facturables…) si le LLM oublie de les passer — empêche silencieusement
+ *  les chiffres d'être faussés faute de paramètres. */
+export interface ToolExecutionContext {
+  cabinetAvantages?: Avantages
+  cabinetJoursFacturables?: number
+  cabinetLieuDefault?: Lieu
+  cabinetModaliteDefault?: Modalite
+}
+
+/** Merge les défauts cabinet dans les inputs LLM. Le LLM gagne s'il a
+ *  explicitement passé une valeur ; sinon on prend la valeur du cabinet. */
+function mergeWithCabinetDefaults(
+  llmInputs: PricingInputs,
+  ctx: ToolExecutionContext,
+): PricingInputs {
+  // Avantages : merge clé par clé (le LLM peut surcharger un champ précis)
+  const cab = ctx.cabinetAvantages ?? {}
+  const llm = llmInputs.avantages ?? {}
+  const mergedAvantages: Avantages = {
+    ticketsResto:                  llm.ticketsResto                  ?? cab.ticketsResto,
+    mutuellePremium:               llm.mutuellePremium               ?? cab.mutuellePremium,
+    transport:                     llm.transport                     ?? cab.transport,
+    forfaitMobilite:               llm.forfaitMobilite               ?? cab.forfaitMobilite,
+    treiziemeMois:                 llm.treiziemeMois                 ?? cab.treiziemeMois,
+    primeCooptationAnnuelle:       llm.primeCooptationAnnuelle       ?? cab.primeCooptationAnnuelle,
+    urssafIndemniteJour:           llm.urssafIndemniteJour           ?? cab.urssafIndemniteJour,
+    medecineDuTravailAnnuel:       llm.medecineDuTravailAnnuel       ?? cab.medecineDuTravailAnnuel,
+    indemniteKilometriqueAnnuelle: llm.indemniteKilometriqueAnnuelle ?? cab.indemniteKilometriqueAnnuelle,
+    expatriationMensuelle:         llm.expatriationMensuelle         ?? cab.expatriationMensuelle,
+    autresMensuels:                llm.autresMensuels                ?? cab.autresMensuels,
+  }
+  return {
+    ...llmInputs,
+    avantages: mergedAvantages,
+    joursFacturablesParMois: llmInputs.joursFacturablesParMois || ctx.cabinetJoursFacturables || 18,
+    lieu: llmInputs.lieu || ctx.cabinetLieuDefault || 'paris_petite_couronne',
+    modalite: llmInputs.modalite || ctx.cabinetModaliteDefault || 'modalite_1',
+  }
+}
+
 /** Dispatch a single tool call requested by the LLM. */
 export function executeToolCall(
   name: string,
   argsJson: string,
+  ctx: ToolExecutionContext = {},
 ): ToolExecutionResult {
   let args: unknown = {}
   try { args = JSON.parse(argsJson) } catch { /* keep empty */ }
@@ -273,14 +316,25 @@ export function executeToolCall(
     }
 
     case 'compute_employer_cost': {
-      const inputs = parsePricingInputs(args)
+      const rawInputs = parsePricingInputs(args)
+      const inputs = mergeWithCabinetDefaults(rawInputs, ctx)
       const cost = computeEmployerCost(inputs)
-      return { content: JSON.stringify({ employer_cost: cost, inputs }) }
+      const injectedDefaults = JSON.stringify(rawInputs.avantages) !== JSON.stringify(inputs.avantages)
+      return {
+        content: JSON.stringify({
+          employer_cost: cost,
+          inputs_used: inputs,
+          _note: injectedDefaults
+            ? "Les avantages cabinet (tickets, mutuelle, transport, médecine…) ont été automatiquement injectés depuis les paramètres car ils manquaient dans ta requête. C'est ce qui explique le coût total."
+            : undefined,
+        }),
+      }
     }
 
     case 'compute_rupture_scenarios': {
       const raw = asRecord(args)
-      const inputs = parsePricingInputs(raw.pricingInputs)
+      const rawInputs = parsePricingInputs(raw.pricingInputs)
+      const inputs = mergeWithCabinetDefaults(rawInputs, ctx)
       const tjm = Number(raw.tjm ?? 0)
       const typeContrat = (raw.typeContrat ?? 'cdi') as TypeContrat
       const dureeCDD = raw.dureeCDD != null ? Number(raw.dureeCDD) : undefined
@@ -315,7 +369,8 @@ export function executeToolCall(
     }
 
     case 'validate_minimum_conventionnel': {
-      const inputs = parsePricingInputs(args)
+      const rawInputs = parsePricingInputs(args)
+      const inputs = mergeWithCabinetDefaults(rawInputs, ctx)
       const check = validateAgainstMinimum(inputs)
       return { content: JSON.stringify(check) }
     }
@@ -410,13 +465,26 @@ Une fois que le sourceur a renvoyé un message texte de confirmation/correction,
 
 **ÉTAPE 3 — VERDICT** (réponse texte finale)
 
-Rends 3 blocs courts :
-- **Marges** : chiffres aux mois clés (1, fin_essai, 12, 24) pour les 3 scénarios
-- **Risque global** : faible / modéré / élevé avec 1 phrase de justification (chiffrée)
-- **Recommandation** : TJM minimum à viser, brut max à offrir, ou refus si non rentable
+Format OBLIGATOIRE, 3 blocs. Tu cites TOUJOURS les 3 scénarios pour chaque mois — c'est le cœur de l'analyse de risque rupture :
+
+**📊 Marges aux mois clés**
+
+| Mois | Sans rupture | Préavis 1 mois | Préavis Syntec max |
+|---|---|---|---|
+| 1 | X €/mois (X%) | X €/mois (X%) | X €/mois (X%) |
+| Fin essai (m N) | X (X%) | X (X%) | X (X%) |
+| Mois 12 | X (X%) | X (X%) | X (X%) |
+| Mois 24 | X (X%) | X (X%) | X (X%) |
+
+(Les chiffres viennent EXACTEMENT du tool \`compute_rupture_scenarios\` — nominal_sans_rupture, mild_preavis_1_mois, worst_preavis_syntec.)
+
+**🎯 Risque global** : faible / modéré / élevé + 1 phrase chiffrée (cite le worst case mois fin_essai+1).
+
+**💡 Recommandation** : actionnable — soit "viser TJM ≥ X €/j", soit "limiter brut à X €/an", soit "refuser ce candidat sur cette mission, raison : Y".
 
 ═══ INTERDIT ═══
 - Donner un chiffre sans tool
 - Inventer une indemnité ou un seuil
+- Ne montrer que la marge nominale — tu DOIS afficher les 3 scénarios
 - Sauter l'étape 1 (déductions à valider) — même si tu penses tout savoir, le sourceur DOIT voir et valider
 - Poser plusieurs questions ouvertes successives au lieu d'utiliser \`propose_deductions\``

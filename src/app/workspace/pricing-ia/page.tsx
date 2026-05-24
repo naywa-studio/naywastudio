@@ -449,14 +449,24 @@ function EventLine({ event, onSubmitText }: { event: AgentEvent; onSubmitText: (
     return <DeductionsCard summary={event.summary} fields={event.fields} onSubmit={onSubmitText} />
   }
   if (event.type === "tool_call") {
+    const friendlyLabel: Record<string, string> = {
+      get_syntec_rule:               "📖 Consulte la convention Syntec",
+      compute_employer_cost:         "💼 Calcule le coût employeur",
+      compute_rupture_scenarios:     "📈 Simule les scénarios de rupture",
+      validate_minimum_conventionnel: "⚖ Vérifie le minimum conventionnel",
+      propose_deductions:            "📋 Prépare ses déductions",
+      ask_user:                      "❓ Pose une question",
+    }
+    const label = friendlyLabel[event.tool ?? ""] ?? `⚙ ${event.tool}`
     return (
       <div style={{
-        margin: "6px 0", padding: "6px 10px",
-        background: "rgba(124,99,200,0.04)", border: "1px solid rgba(124,99,200,0.12)",
-        borderRadius: 8, fontSize: 11, color: "#6B7280",
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        margin: "6px 0", padding: "5px 10px",
+        background: "rgba(124,99,200,0.04)", border: "1px solid rgba(124,99,200,0.10)",
+        borderRadius: 8, fontSize: 11, color: "#9CA3AF",
+        display: "inline-flex", alignItems: "center", gap: 6,
       }}>
-        ⚙ <strong style={{ color: "#7C63C8" }}>{event.tool}</strong> — {event.result_summary}
+        <span>{label}</span>
+        <span style={{ fontSize: 9.5, opacity: 0.7 }}>✓</span>
       </div>
     )
   }

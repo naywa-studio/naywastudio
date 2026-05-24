@@ -19,8 +19,9 @@ import {
   PRICING_TOOLS,
   PRICING_AGENT_SYSTEM,
   executeToolCall,
+  type ToolExecutionContext,
 } from '@/lib/pricing/agent-tools'
-import type { Candidate, Job, Profile } from '@/lib/database.types'
+import type { Candidate, Job, Profile, PricingDefaultAvantages } from '@/lib/database.types'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -137,6 +138,17 @@ export async function POST(req: NextRequest) {
       : []),
   ]
 
+  // Contexte serveur passé à chaque tool call — permet d'injecter
+  // automatiquement les défauts du cabinet (avantages, jours facturables,
+  // lieu, modalité) si le LLM oublie de les passer. Garde-fou silencieux.
+  const cabinetAvantages = (cabinet?.pricing_default_avantages ?? null) as PricingDefaultAvantages | null
+  const toolCtx: ToolExecutionContext = {
+    cabinetAvantages: cabinetAvantages as ToolExecutionContext['cabinetAvantages'],
+    cabinetJoursFacturables: cabinet?.pricing_billable_days_per_month ?? undefined,
+    cabinetLieuDefault: (cabinet?.pricing_default_lieu ?? undefined) as ToolExecutionContext['cabinetLieuDefault'],
+    cabinetModaliteDefault: (cabinet?.pricing_default_modalite ?? undefined) as ToolExecutionContext['cabinetModaliteDefault'],
+  }
+
   for (const m of body.messages.slice(-MAX_TURNS)) {
     if (m.role === 'user') {
       messages.push({ role: 'user', content: String(m.content ?? '') })
@@ -195,7 +207,7 @@ export async function POST(req: NextRequest) {
 
     let askedUser = false
     for (const call of toolCalls) {
-      const result = executeToolCall(call.function.name, call.function.arguments)
+      const result = executeToolCall(call.function.name, call.function.arguments, toolCtx)
 
       // Summarise the tool result for the client UI (short string, not full JSON)
       let argsParsed: unknown = null
