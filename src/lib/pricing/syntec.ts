@@ -329,21 +329,29 @@ function finPeriodeEssaiMois(statut: Statut, coefficient: number): number {
 
 /** Article 4.5 — indemnité conventionnelle de licenciement (en mois de brut).
  *  Returns 0 below 8 months of seniority (article 4.5 attribution condition).
- *  Always returns at least the legal minimum (règle "plus favorable"). */
+ *  Always returns at least the legal minimum (règle "plus favorable").
+ *
+ *  Important : un "ETAM assimilé cadre" cotise en cadre côté retraite mais
+ *  RESTE ETAM pour la grille conventionnelle Syntec (incluant l'article 4.5).
+ *  Il bénéficie donc de la formule ETAM (1/4 puis 1/3 après 10 ans), pas
+ *  de la formule cadre rétroactive (1/3 dès 2 ans). */
 function indemniteLicenciementMois(
   statut: Statut,
   ancienneteAnnees: number,
 ): number {
   if (ancienneteAnnees < 8 / 12) return 0  // < 8 mois → pas d'indemnité
 
-  // Syntec
+  // Syntec — la formule cadre rétroactive (1/3 dès 2 ans) n'est ouverte
+  // qu'aux ingénieurs et cadres vrais (article 4.5 « Ingénieurs et Cadres »).
+  // ETAM et assimilés cadre suivent la formule ETAM.
   let syntec: number
-  if (statut === 'cadre' || statut === 'etam_assimile_cadre') {
+  if (statut === 'cadre') {
     syntec =
       ancienneteAnnees < 2
         ? ancienneteAnnees * 0.25
         : ancienneteAnnees * (1 / 3)
   } else {
+    // ETAM et etam_assimile_cadre
     syntec =
       ancienneteAnnees <= 10
         ? ancienneteAnnees * 0.25
@@ -565,7 +573,6 @@ export function computeRuptureScenarios(
   } = { typeContrat: 'cdi' },
 ): RuptureScenarios {
   const cost = computeEmployerCost(input)
-  const brutMensuel = input.brutAnnuel / 12
 
   // Per-month billable days profile — anchored on the mission's actual
   // start month. Revenue varies with the actual billable days of each
@@ -634,28 +641,49 @@ export function computeRuptureScenarios(
         coutRupture = 0
       } else {
         // Branche cdi_post_essai : préavis × coût + indemnité Art. 4.5.
+        //
+        // Salaire de référence Art. 4.5 = base brut + 13ᵉ mois prorata
+        // + prime de vacances Art. 31 (mensualisée). On reconstitue ce
+        // mensuel "tout compris" depuis la breakdown du coût employeur,
+        // sans inclure les charges patronales (l'indemnité s'exprime
+        // en brut chargeable, pas en coût employeur).
         branche = 'cdi_post_essai'
         const ancienneteAnnees = t / 12
         const indemniteMois = indemniteLicenciementMois(input.statut, ancienneteAnnees)
-        const indemniteEuros = indemniteMois * brutMensuel
+        const salaireRef =
+          cost.brutMensuel +
+          cost.treiziemeMoisMensualise +
+          cost.primeVacancesMensualisee
+        const indemniteEuros = indemniteMois * salaireRef
         coutRupture = preavisM * cost.coutTotalMensuel + indemniteEuros
       }
     } else {
       // CDD — 3 branches selon t vs essai_CDD vs durée_CDD.
       const dureeCDD = options.dureeCDD ?? dureeMois
+      // Rémunération totale mensuelle = brut + 13ᵉ mois prorata + prime
+      // de vacances. C'est l'assiette légale du calcul de l'indemnité fin
+      // CDD (Article L1243-8) — pas uniquement le brut sec.
+      const remTotaleMensuelle =
+        cost.brutMensuel +
+        cost.treiziemeMoisMensualise +
+        cost.primeVacancesMensualisee
+
       if (t <= essaiCddMois) {
         branche = 'cdd_essai'
         coutRupture = 0
       } else if (t >= dureeCDD) {
         // Atteint le terme : indemnité fin CDD 10 % de la rémunération totale.
         branche = 'cdd_terme'
-        coutRupture = 0.10 * brutMensuel * t
+        coutRupture = 0.10 * remTotaleMensuelle * t
       } else {
         // Rupture anticipée par l'employeur (worst case du CDD).
+        // Dommages-intérêts L1243-4 : au moins le montant des rémunérations
+        // dues jusqu'au terme. Pour l'employeur on majore × (1 + charges)
+        // car les damages payés restent assujettis aux cotisations.
         branche = 'cdd_rupture_anticipee'
         const moisRestants = dureeCDD - t
-        const dommagesInterets = brutMensuel * moisRestants * (1 + tauxCharges)
-        const indemniteFinCDD = 0.10 * brutMensuel * t
+        const dommagesInterets = remTotaleMensuelle * moisRestants * (1 + tauxCharges)
+        const indemniteFinCDD = 0.10 * remTotaleMensuelle * t
         coutRupture = dommagesInterets + indemniteFinCDD
       }
     }
