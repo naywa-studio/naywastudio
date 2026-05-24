@@ -282,16 +282,17 @@ const MODALITE_UPLIFT_PCT: Record<Modalite, number> = {
   modalite_3: 20, // Modalité 3 : forfait jours 218j, +20% mini conventionnel
 }
 
-/** Approximate aggregate employer-charge rate per Lieu (decimal 0.0–1.0).
- *  Computed once from the cotisations table — see _totaux_indicatifs in JSON.
- *  These are "good enough" for the V1; the paramétrage page lets the cabinet
- *  override per their actual payroll. */
-const TAUX_CHARGES_BY_LIEU: Record<Lieu, number> = {
-  paris_petite_couronne: 0.44,   // Versement mobilité IDF max
-  idf_grande_couronne:   0.43,
-  lyon:                  0.43,
-  province:              0.42,
+/** Taux aggregate charges patronales par STATUT social (aligné Excel cabinet).
+ *  Le versement mobilité (1.8 → 3.05% selon lieu) est déjà intégré dans le
+ *  total. ETAM a 1 point de plus que cadre parce qu'il cotise plus sur la
+ *  T1 (pas d'APEC/prévoyance cadre mais autres compensations). Expatrié = 27%
+ *  parce que pas de cotisations chômage France ni AGIRC-ARRCO. */
+const TAUX_CHARGES_BY_STATUT: Record<Statut, number> = {
+  etam:                  0.48,
+  etam_assimile_cadre:   0.47,
+  cadre:                 0.47,
 }
+const TAUX_CHARGES_EXPATRIE = 0.27   // utilisé via override avantages.expatriationMensuelle
 
 /** Look up the conventional minimum monthly salary for a (statut, position). */
 function lookupMinimumGrid(
@@ -330,17 +331,25 @@ function preavisMois(statut: Statut, ancienneteAnnees: number, coefficient: numb
   return bareme.preavis_cdi.etam_ge_2_ans_ancienne.licenciement_mois
 }
 
-/** Article 3.4 — total durée d'essai (initiale + renouvellement max) en mois. */
+/** Article 3.4 — total durée d'essai (initiale + renouvellement) en mois.
+ *  Aligné sur la pratique cabinet (Excel pricing) :
+ *  - ETAM jusqu'au coef 355  : 2 + 1 = 3 mois
+ *  - ETAM coef 400 à 500     : 3 + 2 = 5 mois
+ *  - Cadre (tous coefs)      : 4 + 3 = 7 mois
+ *  (Le plafond légal max Syntec est 4+4=8 mois cadre mais la plupart des
+ *   cabinets pratiquent 4+3=7 mois.) */
 function finPeriodeEssaiMois(statut: Statut, coefficient: number): number {
-  if (statut === 'cadre' || statut === 'etam_assimile_cadre') {
-    if (coefficient <= 270 && coefficient >= 95) {
-      return bareme.periode_essai.cadre_coef_95_a_270.total_max_mois
-    }
+  // Le JSON a été refactoré (nouvelles clés) — TS ne voit pas le nouveau
+  // shape, on lit via index dynamique typé.
+  const essai = (bareme.periode_essai as unknown as Record<string, { total_max_mois: number }>)
+  if (statut === 'cadre') {
+    return essai.cadre_tous_coefficients.total_max_mois
   }
-  if (coefficient >= 275) {
-    return bareme.periode_essai.etam_coef_275_a_500.total_max_mois
+  // ETAM (y compris assimilé cadre — la grille conventionnelle est ETAM)
+  if (coefficient >= 400) {
+    return essai.etam_coef_400_a_500.total_max_mois
   }
-  return bareme.periode_essai.etam_coef_240_a_250.total_max_mois
+  return essai.etam_jusquau_coef_355.total_max_mois
 }
 
 /** Article 4.5 — indemnité conventionnelle de licenciement (en mois de brut).
@@ -436,9 +445,11 @@ export function computeEmployerCost(input: PricingInputs): EmployerCostBreakdown
   // that's part of the contractual remuneration). Avantages en nature
   // (tickets resto, mutuelle, transport) are partially exonérés so we don't
   // apply charges on top — they're already net cost to the employer.
-  // Le taux est fixé par la loi (statut + lieu pour le versement mobilité),
-  // pas par l'employeur. L'ancien override est ignoré dans le nouveau code.
-  const tauxCharges = TAUX_CHARGES_BY_LIEU[input.lieu]
+  // Taux total par STATUT (versement mobilité inclus). Aligné Excel cabinet :
+  // ETAM 48%, ETAM assimilé 47%, Cadre 47%. Expatrié = 27% via override.
+  const tauxCharges = input.avantages.expatriationMensuelle && input.avantages.expatriationMensuelle > 0
+    ? TAUX_CHARGES_EXPATRIE
+    : TAUX_CHARGES_BY_STATUT[input.statut]
   const remunerationCotisable = brutMensuel + treiziemeMoisMensualise + primeVacancesMensualisee
   const chargesPatronales = remunerationCotisable * tauxCharges
 
@@ -629,43 +640,66 @@ export function computeRuptureScenarios(
   const remTotaleMensuelle =
     cost.brutMensuel + cost.treiziemeMoisMensualise + cost.primeVacancesMensualisee
 
+  /** Indemnité compensatrice de congés payés non pris (L3141-28).
+   *  Payée cash à la rupture pour les CP acquis mais non pris. Formule
+   *  alignée Excel cabinet :  10% × coût_salarial_mensuel × (CP_restants / 2.08).
+   *  - 25 CP/an / 12 mois ≈ 2.083 CP acquis par mois travaillé
+   *  - Hypothèse pessimiste worst case : aucun CP pris pendant la mission,
+   *    donc CP_restants = t × 2.083
+   *  - L'indemnité étant un complément de salaire, elle est elle-même
+   *    chargée — on prend donc le COÛT salarial (brut + charges + prime),
+   *    pas le brut sec.
+   *  Note : pas appliquée au scénario nominal (sans rupture) car en CDI
+   *  les CP s'accumulent et se prennent, pas de paiement immédiat. */
+  const coutSalarialMensuel =
+    cost.brutMensuel + cost.treiziemeMoisMensualise + cost.primeVacancesMensualisee + cost.chargesPatronales
+  const indemniteCompensatriceCp = (t: number): number => {
+    const cpRestants = t * (25 / 12)
+    return 0.10 * coutSalarialMensuel * (cpRestants / 2.08)
+  }
+
   /** Coût rupture employeur (€) à un mois `t` donné, pour un préavis
    *  paramétrique. Utilisé pour générer les 2 courbes rupture en variant
-   *  uniquement le préavis (1 mois mild vs préavis Syntec worst). */
+   *  uniquement le préavis (1 mois mild vs préavis Syntec worst).
+   *  Inclut l'indemnité compensatrice CP non pris (toujours due à la
+   *  rupture, peu importe le motif). */
   const coutRuptureAt = (t: number, preavisMoisActif: number): { cout: number; branche: RuptureBranche } => {
     if (options.typeContrat === 'cdi') {
       if (t <= finEssai) {
-        return { cout: 0, branche: 'cdi_essai' }
+        // En essai, rupture gratuite côté préavis/indemnité Art 4.5, mais
+        // l'indemnité CP reste due si CP acquis non pris.
+        return { cout: indemniteCompensatriceCp(t), branche: 'cdi_essai' }
       }
       const ancienneteAnnees = t / 12
       const indemniteMois = indemniteLicenciementMois(input.statut, ancienneteAnnees)
       const indemniteEuros = indemniteMois * remTotaleMensuelle
       return {
-        cout: preavisMoisActif * cost.coutTotalMensuel + indemniteEuros,
+        cout: preavisMoisActif * cost.coutTotalMensuel + indemniteEuros + indemniteCompensatriceCp(t),
         branche: 'cdi_post_essai',
       }
     }
     // CDD
     const dureeCDD = options.dureeCDD ?? dureeMois
     if (t <= essaiCddMois) {
-      return { cout: 0, branche: 'cdd_essai' }
+      return { cout: indemniteCompensatriceCp(t), branche: 'cdd_essai' }
     }
     if (t >= dureeCDD) {
       // Terme atteint : indemnité fin CDD 10 % de la rémunération totale.
-      return { cout: 0.10 * remTotaleMensuelle * t, branche: 'cdd_terme' }
+      return {
+        cout: 0.10 * remTotaleMensuelle * t + indemniteCompensatriceCp(t),
+        branche: 'cdd_terme',
+      }
     }
     // Rupture anticipée employeur. Le préavis paramétrique modèle ici
     // « combien de mois on continue à payer le salarié pendant que le
     // litige se règle » — pour le mild, on suppose une transaction rapide
     // (1 mois) et pour le worst case les dommages-intérêts intégraux
     // jusqu'au terme (moisRestants).
-    const moisRestants = options.typeContrat === 'cdd'
-      ? Math.min(dureeCDD - t, preavisMoisActif === PREAVIS_MILD_MOIS ? 1 : dureeCDD - t)
-      : 0
+    const moisRestants = Math.min(dureeCDD - t, preavisMoisActif === PREAVIS_MILD_MOIS ? 1 : dureeCDD - t)
     const dommagesInterets = remTotaleMensuelle * moisRestants * (1 + tauxCharges)
     const indemniteFinCDD = 0.10 * remTotaleMensuelle * t
     return {
-      cout: dommagesInterets + indemniteFinCDD,
+      cout: dommagesInterets + indemniteFinCDD + indemniteCompensatriceCp(t),
       branche: 'cdd_rupture_anticipee',
     }
   }

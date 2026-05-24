@@ -171,13 +171,20 @@
     }
   ],
   "charges_patronales_2026": {
-    "_note": "Taux estimatifs basés sur connaissance droit social 2026, à valider expert paie. PASS 2026 = 4 005 €/mois (arrêté du 22/12/2025).",
-    "_status": "a_valider_expert_paie",
+    "_note": "Taux totaux par STATUT, alignés sur la pratique cabinet (Excel pricing). Le versement mobilité (1.8-3.05% selon lieu) est déjà inclus dans le total. PASS 2026 = 4 005 €/mois (arrêté du 22/12/2025).",
+    "_status": "aligne_pratique_cabinet",
+    "totaux_par_statut": {
+      "etam": 0.48,
+      "etam_assimile_cadre": 0.47,
+      "cadre": 0.47,
+      "expatrie": 0.27
+    },
     "totaux_indicatifs": {
-      "cadre_syntec_paris_pct_brut": 44,
-      "cadre_syntec_province_pct_brut": 42,
-      "etam_syntec_paris_pct_brut": 41,
-      "etam_syntec_province_pct_brut": 39
+      "_deprecated": "Remplacé par totaux_par_statut depuis l'alignement Excel cabinet. Conservé pour compat.",
+      "cadre_syntec_paris_pct_brut": 47,
+      "cadre_syntec_province_pct_brut": 47,
+      "etam_syntec_paris_pct_brut": 48,
+      "etam_syntec_province_pct_brut": 48
     },
     "cotisations": [
       { "code": "maladie_maternite", "libelle": "Maladie-maternité", "taux_pct": 7.00, "base": "totalite", "statuts": ["tous"], "_note": "13% sans réduction Fillon" },
@@ -207,26 +214,26 @@
     ]
   },
   "periode_essai": {
-    "_source": "Convention Syntec Article 3.4 — en vigueur étendu (avenant n°2 du 27 octobre 2022 BOCC 2022-49)",
-    "_status": "confirmé_legifrance",
+    "_source": "Convention Syntec Article 3.4 — aligné sur la pratique cabinet (Excel pricing template). Durées plus courtes que le plafond légal max possible (4+4 cadre).",
+    "_status": "confirmé_pratique_cabinet",
     "regle_prealable": "La période d'essai et son renouvellement ne se présument pas. Doivent être expressément stipulés dans la proposition d'embauche ou le contrat de travail.",
     "renouvellement_exceptionnel": "Renouvellement exige un accord écrit du salarié et de l'employeur.",
-    "etam_coef_240_a_250": {
+    "etam_jusquau_coef_355": {
       "duree_initiale_mois": 2,
-      "renouvellement_max_mois": 2,
-      "total_max_mois": 4,
-      "_coefficients_couverts": [240, 250]
+      "renouvellement_max_mois": 1,
+      "total_max_mois": 3,
+      "_coefficients_couverts": [240, 250, 275, 310, 355]
     },
-    "etam_coef_275_a_500": {
+    "etam_coef_400_a_500": {
       "duree_initiale_mois": 3,
-      "renouvellement_max_mois": 3,
-      "total_max_mois": 6,
-      "_coefficients_couverts": [275, 310, 355, 400, 450, 500]
+      "renouvellement_max_mois": 2,
+      "total_max_mois": 5,
+      "_coefficients_couverts": [400, 450, 500]
     },
-    "cadre_coef_95_a_270": {
+    "cadre_tous_coefficients": {
       "duree_initiale_mois": 4,
-      "renouvellement_max_mois": 4,
-      "total_max_mois": 8,
+      "renouvellement_max_mois": 3,
+      "total_max_mois": 7,
       "_coefficients_couverts": [95, 100, 105, 115, 130, 150, 170, 210, 270]
     }
   },
