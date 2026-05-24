@@ -181,18 +181,34 @@ export type RuptureBranche =
   | 'cdd_terme'              // t = durée_CDD
   | 'cdd_rupture_anticipee'  // essai_CDD < t < durée_CDD
 
-/** Worst-case rupture curves drawn on the chart.
- *  - `nominal` : plateau plat de la marge mensuelle sans aucune rupture
- *  - `worstCase` : marge mensuelle effective si l'employeur subit la
- *    rupture à chaque t (pendant essai = nominale, post-essai = chute
- *    cliff puis remontée asymptotique). */
+/** 3 scénarios rupture tracés sur le chart, comme dans l'Excel de
+ *  référence du sourceur :
+ *  - `nominal` (« sans intercontrat ») : aucune rupture, le candidat
+ *    enchaîne sur une autre mission sans temps mort
+ *  - `mild` (« préavis 1 mois ») : rupture amiable post-essai, préavis
+ *    négocié à 1 mois au lieu du préavis Syntec intégral
+ *  - `worstCase` (« préavis max ») : rupture employeur post-essai avec
+ *    préavis Syntec intégral (3 mois cadre, 2 mois ETAM…) + indemnité
+ *    Art. 4.5 due selon l'ancienneté
+ *
+ *  Formule de chaque point (cumulative averaging, comme l'Excel) :
+ *
+ *    margePct(t) = ( Σ revenu_1..t  −  coût_emp × t  −  coût_rupture(t) )
+ *                  ÷  Σ revenu_1..t
+ *
+ *  Le cumul lisse naturellement les pics et creux mensuels du calendrier
+ *  (creux d'août, pic d'octobre) au lieu de les amplifier comme le faisait
+ *  la formule instantanée précédente. */
 export interface RuptureScenarios {
   nominal: MarginPoint[]
+  mild: MarginPoint[]
   worstCase: MarginPoint[]
-  /** Branche de l'arbre active à chaque mois — pour annotations / tooltips. */
+  /** Branche de l'arbre active à chaque mois (worst case) — annotations. */
   branches: { mois: number; branche: RuptureBranche }[]
-  /** Préavis Syntec applicable post-essai (mois). */
+  /** Préavis Syntec intégral applicable post-essai (mois). */
   preavisMois: number
+  /** Préavis du scénario mild — fixé à 1 mois pour V1. */
+  preavisMildMois: number
   /** Fin de période d'essai Syntec / Code du travail (mois). */
   finEssaiMois: number
 }
@@ -605,107 +621,110 @@ export function computeRuptureScenarios(
     ? options.dureeCDD <= 6 ? 0.5 : 1.0
     : 0
 
+  // Préavis du scénario mild (rupture amiable) — fixé à 1 mois pour V1.
+  const PREAVIS_MILD_MOIS = 1
+
+  // Rémunération totale mensuelle = brut + 13ᵉ mois prorata + prime Art. 31
+  // — c'est l'assiette légale des indemnités (Syntec Art. 4.5, L1243-8).
+  const remTotaleMensuelle =
+    cost.brutMensuel + cost.treiziemeMoisMensualise + cost.primeVacancesMensualisee
+
+  /** Coût rupture employeur (€) à un mois `t` donné, pour un préavis
+   *  paramétrique. Utilisé pour générer les 2 courbes rupture en variant
+   *  uniquement le préavis (1 mois mild vs préavis Syntec worst). */
+  const coutRuptureAt = (t: number, preavisMoisActif: number): { cout: number; branche: RuptureBranche } => {
+    if (options.typeContrat === 'cdi') {
+      if (t <= finEssai) {
+        return { cout: 0, branche: 'cdi_essai' }
+      }
+      const ancienneteAnnees = t / 12
+      const indemniteMois = indemniteLicenciementMois(input.statut, ancienneteAnnees)
+      const indemniteEuros = indemniteMois * remTotaleMensuelle
+      return {
+        cout: preavisMoisActif * cost.coutTotalMensuel + indemniteEuros,
+        branche: 'cdi_post_essai',
+      }
+    }
+    // CDD
+    const dureeCDD = options.dureeCDD ?? dureeMois
+    if (t <= essaiCddMois) {
+      return { cout: 0, branche: 'cdd_essai' }
+    }
+    if (t >= dureeCDD) {
+      // Terme atteint : indemnité fin CDD 10 % de la rémunération totale.
+      return { cout: 0.10 * remTotaleMensuelle * t, branche: 'cdd_terme' }
+    }
+    // Rupture anticipée employeur. Le préavis paramétrique modèle ici
+    // « combien de mois on continue à payer le salarié pendant que le
+    // litige se règle » — pour le mild, on suppose une transaction rapide
+    // (1 mois) et pour le worst case les dommages-intérêts intégraux
+    // jusqu'au terme (moisRestants).
+    const moisRestants = options.typeContrat === 'cdd'
+      ? Math.min(dureeCDD - t, preavisMoisActif === PREAVIS_MILD_MOIS ? 1 : dureeCDD - t)
+      : 0
+    const dommagesInterets = remTotaleMensuelle * moisRestants * (1 + tauxCharges)
+    const indemniteFinCDD = 0.10 * remTotaleMensuelle * t
+    return {
+      cout: dommagesInterets + indemniteFinCDD,
+      branche: 'cdd_rupture_anticipee',
+    }
+  }
+
   const nominal: MarginPoint[] = []
+  const mild: MarginPoint[] = []
   const worstCase: MarginPoint[] = []
   const branches: { mois: number; branche: RuptureBranche }[] = []
-  let cumulNominal = 0
-  let cumulWorst = 0
+
+  // Cumulatifs glissants — clés du lissage. À chaque t, la marge affichée
+  // est la moyenne sur la période [1..t] : on accumule revenu et coût
+  // employeur, puis on soustrait le coût rupture (qui dépend de t).
+  let cumulRevenu = 0
+  let cumulCoutEmployeur = 0
 
   for (let t = 1; t <= dureeMois; t++) {
-    // Revenue varies with the calendar month's actual billable days.
     const joursDuMois = billableDays[t - 1] ?? input.joursFacturablesParMois
     const calendarMonthIndex = (startMonthIndex + t - 1) % 12
     const revenuMensuel = tjm * joursDuMois
-    const margeNominaleMensuelle = revenuMensuel - cost.coutTotalMensuel
-    const pctOf = (m: number): number =>
-      revenuMensuel <= 0 ? 0 : (m / revenuMensuel) * 100
 
-    cumulNominal += margeNominaleMensuelle
-    // Nominal — marge mensuelle nominale qui ondule avec les jours du mois.
-    nominal.push({
+    cumulRevenu += revenuMensuel
+    cumulCoutEmployeur += cost.coutTotalMensuel
+
+    // Aide : convertit une marge € cumulée en (€/mois, %, cumul €) pour
+    // un point du graphe. La moyenne mensuelle = cumul / t, le % = cumul
+    // / cumulRevenu, et le cumul € reste tel quel.
+    const pointFromCumul = (margeCumul: number): MarginPoint => ({
       mois: t,
       calendarMonthIndex,
-      margeMois: margeNominaleMensuelle,
-      margePct: pctOf(margeNominaleMensuelle),
-      margeCumulee: cumulNominal,
+      margeMois: margeCumul / t,
+      margePct: cumulRevenu <= 0 ? 0 : (margeCumul / cumulRevenu) * 100,
+      margeCumulee: margeCumul,
     })
 
-    // Worst-case : on parcourt l'arbre selon (typeContrat, t).
-    let coutRupture = 0
-    let branche: RuptureBranche = 'cdi_essai'
+    // Scénario nominal : pas de rupture, juste la marge cumulée.
+    const margeNomi = cumulRevenu - cumulCoutEmployeur
+    nominal.push(pointFromCumul(margeNomi))
 
-    if (options.typeContrat === 'cdi') {
-      if (t <= finEssai) {
-        // Branche cdi_essai : aucun coût de rupture.
-        branche = 'cdi_essai'
-        coutRupture = 0
-      } else {
-        // Branche cdi_post_essai : préavis × coût + indemnité Art. 4.5.
-        //
-        // Salaire de référence Art. 4.5 = base brut + 13ᵉ mois prorata
-        // + prime de vacances Art. 31 (mensualisée). On reconstitue ce
-        // mensuel "tout compris" depuis la breakdown du coût employeur,
-        // sans inclure les charges patronales (l'indemnité s'exprime
-        // en brut chargeable, pas en coût employeur).
-        branche = 'cdi_post_essai'
-        const ancienneteAnnees = t / 12
-        const indemniteMois = indemniteLicenciementMois(input.statut, ancienneteAnnees)
-        const salaireRef =
-          cost.brutMensuel +
-          cost.treiziemeMoisMensualise +
-          cost.primeVacancesMensualisee
-        const indemniteEuros = indemniteMois * salaireRef
-        coutRupture = preavisM * cost.coutTotalMensuel + indemniteEuros
-      }
-    } else {
-      // CDD — 3 branches selon t vs essai_CDD vs durée_CDD.
-      const dureeCDD = options.dureeCDD ?? dureeMois
-      // Rémunération totale mensuelle = brut + 13ᵉ mois prorata + prime
-      // de vacances. C'est l'assiette légale du calcul de l'indemnité fin
-      // CDD (Article L1243-8) — pas uniquement le brut sec.
-      const remTotaleMensuelle =
-        cost.brutMensuel +
-        cost.treiziemeMoisMensualise +
-        cost.primeVacancesMensualisee
+    // Scénarios rupture : on calcule un coût rupture à cet instant t, puis
+    // on retranche du cumul. La courbe est donc lisse car la volatilité
+    // mensuelle a été absorbée par le cumul.
+    const { cout: coutMild } = coutRuptureAt(t, PREAVIS_MILD_MOIS)
+    const margeMild = cumulRevenu - cumulCoutEmployeur - coutMild
+    mild.push(pointFromCumul(margeMild))
 
-      if (t <= essaiCddMois) {
-        branche = 'cdd_essai'
-        coutRupture = 0
-      } else if (t >= dureeCDD) {
-        // Atteint le terme : indemnité fin CDD 10 % de la rémunération totale.
-        branche = 'cdd_terme'
-        coutRupture = 0.10 * remTotaleMensuelle * t
-      } else {
-        // Rupture anticipée par l'employeur (worst case du CDD).
-        // Dommages-intérêts L1243-4 : au moins le montant des rémunérations
-        // dues jusqu'au terme. Pour l'employeur on majore × (1 + charges)
-        // car les damages payés restent assujettis aux cotisations.
-        branche = 'cdd_rupture_anticipee'
-        const moisRestants = dureeCDD - t
-        const dommagesInterets = remTotaleMensuelle * moisRestants * (1 + tauxCharges)
-        const indemniteFinCDD = 0.10 * remTotaleMensuelle * t
-        coutRupture = dommagesInterets + indemniteFinCDD
-      }
-    }
+    const { cout: coutWorst, branche } = coutRuptureAt(t, preavisM)
+    const margeWorst = cumulRevenu - cumulCoutEmployeur - coutWorst
+    worstCase.push(pointFromCumul(margeWorst))
 
-    // Mensualisation : on étale le coût de rupture sur t mois écoulés.
-    const margeWorst = margeNominaleMensuelle - coutRupture / t
-    cumulWorst += margeWorst
-    worstCase.push({
-      mois: t,
-      calendarMonthIndex,
-      margeMois: margeWorst,
-      margePct: pctOf(margeWorst),
-      margeCumulee: cumulWorst,
-    })
     branches.push({ mois: t, branche })
   }
 
   return {
     nominal,
+    mild,
     worstCase,
     branches,
     preavisMois: preavisM,
+    preavisMildMois: PREAVIS_MILD_MOIS,
     finEssaiMois: finEssai,
   }
 }

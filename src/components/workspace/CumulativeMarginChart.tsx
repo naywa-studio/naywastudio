@@ -54,10 +54,12 @@ export default function CumulativeMarginChart({
   )
 
   const nominal = scenarios.nominal
+  const mild = scenarios.mild
   const worst = scenarios.worstCase
 
   const allValues = [
     ...nominal.map((p) => p.margeCumulee),
+    ...mild.map((p) => p.margeCumulee),
     ...worst.map((p) => p.margeCumulee),
     0,
   ]
@@ -81,14 +83,16 @@ export default function CumulativeMarginChart({
   const zeroY = yOf(0)
   const finMissionX = dureeMois > 0 && dureeMois < HORIZON_MOIS ? xOf(dureeMois) : null
 
-  // Break-even : premier mois où la cumulative worst > 0
+  // Break-even : premier mois où chaque cumulative repasse au positif
   const breakEvenWorst = worst.find((p) => p.margeCumulee >= 0)
+  const breakEvenMild = mild.find((p) => p.margeCumulee >= 0)
   const breakEvenNomi = nominal.find((p) => p.margeCumulee >= 0)
 
   const xTicks = [0, 3, 6, 9, 12, 15, 18, 21, 24]
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => yMin + t * yRange)
 
   const endNomi = nominal.at(-1)
+  const endMild = mild.at(-1)
   const endWorst = worst.at(-1)
 
   const calendarLabel = (t: number): string => {
@@ -179,37 +183,47 @@ export default function CumulativeMarginChart({
           />
         )}
 
-        {/* Curves */}
+        {/* Curves — ordre de peinture : nominal en arrière, worst, mild devant */}
+        <path d={pathFor(nominal)}
+          fill="none" stroke="#2563EB" strokeWidth={2} opacity={0.85}
+          strokeLinejoin="round" strokeLinecap="round"
+          strokeDasharray="2 4"
+        />
         <path d={pathFor(worst)}
           fill="none" stroke="#DC2626" strokeWidth={2.5}
           strokeLinejoin="round" strokeLinecap="round"
+          strokeDasharray="6 4"
         />
-        <path d={pathFor(nominal)}
-          fill="none" stroke="#16A34A" strokeWidth={2.5}
+        <path d={pathFor(mild)}
+          fill="none" stroke="#16A34A" strokeWidth={2.8}
           strokeLinejoin="round" strokeLinecap="round"
         />
 
-        {/* Break-even markers */}
-        {breakEvenNomi && (
+        {/* Break-even markers (mild only, le plus parlant pour le sourceur) */}
+        {breakEvenMild && (
           <g>
-            <circle cx={xOf(breakEvenNomi.mois)} cy={zeroY} r={4} fill="#16A34A" stroke="white" strokeWidth={1.5} />
-            <text x={xOf(breakEvenNomi.mois)} y={zeroY - 8} fontSize={9.5} fill="#16A34A" textAnchor="middle" fontWeight={700}>
-              break-even +{breakEvenNomi.mois}m
+            <circle cx={xOf(breakEvenMild.mois)} cy={zeroY} r={4} fill="#16A34A" stroke="white" strokeWidth={1.5} />
+            <text x={xOf(breakEvenMild.mois)} y={zeroY - 8} fontSize={9.5} fill="#16A34A" textAnchor="middle" fontWeight={700}>
+              break-even +{breakEvenMild.mois}m
             </text>
           </g>
         )}
-        {breakEvenWorst && breakEvenWorst.mois !== breakEvenNomi?.mois && (
+        {breakEvenWorst && breakEvenWorst.mois !== breakEvenMild?.mois && (
           <g>
             <circle cx={xOf(breakEvenWorst.mois)} cy={zeroY} r={4} fill="#DC2626" stroke="white" strokeWidth={1.5} />
             <text x={xOf(breakEvenWorst.mois)} y={zeroY + 14} fontSize={9.5} fill="#DC2626" textAnchor="middle" fontWeight={700}>
-              break-even +{breakEvenWorst.mois}m
+              break-even worst +{breakEvenWorst.mois}m
             </text>
           </g>
         )}
 
         {/* Endpoints */}
-        {endNomi && <EndDot color="#16A34A" x={xOf(endNomi.mois)} y={yOf(endNomi.margeCumulee)} label={formatEur(endNomi.margeCumulee)} />}
+        {endNomi && <EndDot color="#2563EB" x={xOf(endNomi.mois)} y={yOf(endNomi.margeCumulee)} label={formatEur(endNomi.margeCumulee)} />}
+        {endMild && <EndDot color="#16A34A" x={xOf(endMild.mois)} y={yOf(endMild.margeCumulee)} label={formatEur(endMild.margeCumulee)} />}
         {endWorst && <EndDot color="#DC2626" x={xOf(endWorst.mois)} y={yOf(endWorst.margeCumulee)} label={formatEur(endWorst.margeCumulee)} />}
+
+        {/* prévenir warning unused */}
+        {breakEvenNomi !== undefined && null}
 
         {/* Zero line — toujours visible si on traverse */}
         {yMin < 0 && yMax > 0 && (
@@ -231,18 +245,21 @@ function Legend() {
       display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center",
       fontSize: 11, color: "#6B7280",
     }}>
-      <LegendDot color="#16A34A" label="Cumul nominal" />
-      <LegendDot color="#DC2626" label="Cumul worst case" />
+      <LegendDot color="#16A34A" label="Cumul préavis 1 mois" />
+      <LegendDot color="#DC2626" label="Cumul worst Syntec" dashed />
+      <LegendDot color="#2563EB" label="Cumul sans rupture" dashed />
     </div>
   )
 }
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function LegendDot({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
       <span style={{
-        display: "inline-block", width: 16, height: 3, borderRadius: 2,
-        background: color,
+        display: "inline-block", width: 18, height: 3, borderRadius: 2,
+        background: dashed
+          ? `repeating-linear-gradient(90deg, ${color} 0 4px, transparent 4px 7px)`
+          : color,
       }} />
       <span>{label}</span>
     </span>

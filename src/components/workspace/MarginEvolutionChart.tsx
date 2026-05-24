@@ -1,25 +1,25 @@
 "use client"
 
 /**
- * MarginEvolutionChart — pour chaque mois X entre 1 et 24, marge
- * MENSUELLE effective générée par la mission si rupture à ce mois-là,
- * exprimée en % du revenu mensuel.
+ * MarginEvolutionChart — pour chaque mois X entre 1 et 24, marge moyenne
+ * effective générée par la mission depuis le démarrage si rupture à ce
+ * mois-là, exprimée en % du revenu cumulé.
  *
- *   marge_pct(X) = ( revenu(X) − coût_employeur − coût_rupture(X)/X ) / revenu(X)
+ *   marge_pct(X) = ( Σ revenu_1..X  −  coût_emp × X  −  coût_rupture(X) )
+ *                  ÷  Σ revenu_1..X
  *
- * Le creux d'août et le pic d'octobre que tu vois sont la traduction
- * directe des CP / RTT du candidat : ils sont déjà comptés dans la
- * baisse des jours facturables ce mois-là (et le brut + charges continuent
- * d'être payés). Pas besoin de ligne séparée "coût CP".
+ * 3 scénarios distincts, alignés sur l'Excel de référence du sourceur :
  *
- * Comportement attendu :
- * - Pendant la période d'essai : pas d'indemnité légalement payable
- *   → les deux courbes se confondent sur le plateau nominal qui ondule
- * - À la fin de la période d'essai : CHUTE brutale de la rouge (worst case)
- *   → préavis + indemnité Article 4.5 deviennent payables, amortis sur peu
- *     de mois → impact maximum
- * - Mois suivants : remontée progressive — même coût rupture amorti sur
- *   plus de mois pèse moins lourd mensuellement
+ *   - VERTE pleine — « préavis 1 mois » (mild) — rupture amiable,
+ *     transaction rapide, scénario réaliste si la séparation est anticipée
+ *   - ROUGE pointillée — « préavis max Syntec » (worst case) — préavis
+ *     intégral 3 mois cadre / 2 mois ETAM + indemnité Art. 4.5
+ *   - BLEUE pointillée — « sans intercontrat » (nominal) — pas de rupture,
+ *     le candidat enchaîne sur une autre mission sans temps mort
+ *
+ * Le cumul lisse naturellement les variations mensuelles (creux d'août,
+ * pic d'octobre) au lieu de les amplifier comme la formule instantanée.
+ * Les CP et RTT restent comptés via la baisse des jours facturables.
  */
 
 import { useMemo } from "react"
@@ -76,11 +76,13 @@ export default function MarginEvolutionChart({
   )
 
   const nominal = scenarios.nominal
+  const mild = scenarios.mild
   const worst = scenarios.worstCase
 
   // Y range in PERCENT — include 0 always, include the seuil if defined
   const pctValues = [
     ...nominal.map((p) => p.margePct),
+    ...mild.map((p) => p.margePct),
     ...worst.map((p) => p.margePct),
     0,
     ...(margeMinPct !== undefined ? [margeMinPct] : []),
@@ -113,6 +115,7 @@ export default function MarginEvolutionChart({
   const yTickVals = [0, 0.25, 0.5, 0.75, 1].map((t) => yMin + t * yRange)
 
   const endNomi = nominal.at(-1)
+  const endMild = mild.at(-1)
   const endWorst = worst.at(-1)
 
   // Calendar month label for any horizon month t (1..24)
@@ -135,16 +138,16 @@ export default function MarginEvolutionChart({
           <h4 style={{
             margin: 0, fontSize: 13, fontWeight: 800, color: "#111827",
           }}>
-            Évolution de la marge — % mensuel
+            Évolution de la marge en cas de rupture du contrat
           </h4>
-          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 580, lineHeight: 1.5 }}>
-            Pour chaque mois, marge mensuelle effective en % du revenu. Les
-            courbes ondulent avec les <strong>jours facturables réels</strong> du
-            mois calendaire (creux août pour CP, pic octobre, fériés
-            mai/novembre). <strong>Les CP et RTT du candidat sont déjà comptés ici</strong>
-            {" "}— quand il prend ses congés, on facture moins de jours mais on paye
-            le brut + les charges en plein. À la fin de l&apos;essai, cliff sur la
-            rouge : préavis + indemnités Syntec deviennent payables.
+          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 600, lineHeight: 1.5 }}>
+            À chaque mois, marge moyenne du projet en % du revenu cumulé si
+            rupture à ce moment-là. Lissage par cumul — les variations
+            mensuelles (CP août, pic octobre) sont absorbées plutôt
+            qu&apos;amplifiées. La <strong style={{ color: "#16A34A" }}>verte</strong> = préavis
+            1 mois (amiable) · la <strong style={{ color: "#DC2626" }}>rouge</strong> = préavis
+            Syntec intégral (worst case) · la <strong style={{ color: "#2563EB" }}>bleue</strong> =
+            sans rupture (candidat enchaîné sur autre mission).
             {dureeMois > 0 && <> Ligne violette : fin prévue ({dureeMois} mois).</>}
           </p>
         </div>
@@ -271,18 +274,26 @@ export default function MarginEvolutionChart({
           </>
         )}
 
-        {/* Curves */}
+        {/* Curves — ordre de peinture : nominal en arrière (bleu pointillé),
+            worst au milieu (rouge tireté), mild devant (vert plein) */}
+        <path d={pathFor(nominal)}
+          fill="none" stroke="#2563EB" strokeWidth={2} opacity={0.85}
+          strokeLinejoin="round" strokeLinecap="round"
+          strokeDasharray="2 4"
+        />
         <path d={pathFor(worst)}
           fill="none" stroke="#DC2626" strokeWidth={2.5}
           strokeLinejoin="round" strokeLinecap="round"
+          strokeDasharray="6 4"
         />
-        <path d={pathFor(nominal)}
-          fill="none" stroke="#16A34A" strokeWidth={2.5}
+        <path d={pathFor(mild)}
+          fill="none" stroke="#16A34A" strokeWidth={2.8}
           strokeLinejoin="round" strokeLinecap="round"
         />
 
         {/* Endpoints */}
-        {endNomi && <EndDot color="#16A34A" x={xOf(endNomi.mois)} y={yOf(endNomi.margePct)} label={`${endNomi.margePct.toFixed(1)} %`} />}
+        {endNomi && <EndDot color="#2563EB" x={xOf(endNomi.mois)} y={yOf(endNomi.margePct)} label={`${endNomi.margePct.toFixed(1)} %`} />}
+        {endMild && <EndDot color="#16A34A" x={xOf(endMild.mois)} y={yOf(endMild.margePct)} label={`${endMild.margePct.toFixed(1)} %`} />}
         {endWorst && <EndDot color="#DC2626" x={xOf(endWorst.mois)} y={yOf(endWorst.margePct)} label={`${endWorst.margePct.toFixed(1)} %`} />}
 
         {/* Zero line — always paint on top so it's visible */}
@@ -305,18 +316,21 @@ function Legend() {
       display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center",
       fontSize: 11, color: "#6B7280",
     }}>
-      <LegendDot color="#16A34A" label="Nominale (sans rupture)" />
-      <LegendDot color="#DC2626" label="Worst case (rupture employeur)" />
+      <LegendDot color="#16A34A" label="Préavis 1 mois (amiable)" />
+      <LegendDot color="#DC2626" label="Préavis max Syntec (worst)" dashed />
+      <LegendDot color="#2563EB" label="Sans intercontrat (nominal)" dashed />
     </div>
   )
 }
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function LegendDot({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
       <span style={{
-        display: "inline-block", width: 16, height: 3, borderRadius: 2,
-        background: color,
+        display: "inline-block", width: 18, height: 3, borderRadius: 2,
+        background: dashed
+          ? `repeating-linear-gradient(90deg, ${color} 0 4px, transparent 4px 7px)`
+          : color,
       }} />
       <span>{label}</span>
     </span>
