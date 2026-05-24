@@ -243,18 +243,10 @@ function PricingWidgetInner({
     [brutAnnuel, buildInputs],
   )
 
-  // Seuils marge — mission > cabinet > défaut. Le chip "Marge mini = X%
-  // (mission)" indique au sourceur d'où vient la valeur active.
-  const cabinetMinPct = profile?.pricing_margin_min_pct ?? 15
-  const cabinetTargetPct = profile?.pricing_margin_target_pct ?? 22
-  const missionMinPct = job?.margin_min_pct ?? null
-  const missionTargetPct = job?.margin_target_pct ?? null
-  const margeMinPct = missionMinPct ?? cabinetMinPct
-  const margeTargetPct = missionTargetPct ?? cabinetTargetPct
-  const marginSource = {
-    min: missionMinPct !== null ? 'mission' as const : 'cabinet' as const,
-    target: missionTargetPct !== null ? 'mission' as const : 'cabinet' as const,
-  }
+  // Seuils marge — UNIQUEMENT depuis les paramètres cabinet (pas de
+  // surcharge par mission, c'est une règle de cabinet).
+  const margeMinPct = profile?.pricing_margin_min_pct ?? 15
+  const margeTargetPct = profile?.pricing_margin_target_pct ?? 22
 
   // Mois calendaire de démarrage — utilisé pour ancrer le profil des jours
   // facturables sur le mois réel. Si start_date manquant, fallback today().
@@ -371,20 +363,6 @@ function PricingWidgetInner({
         <Pill label="Position" value={`${preset.position} · coef ${preset.coefficient}`} />
         <Pill label="Lieu" value={LIEU_LABELS[lieu]} />
       </div>
-
-      {/* Source de la marge mini / cible — chip explicatif */}
-      {(marginSource.min === 'mission' || marginSource.target === 'mission') && (
-        <div style={{
-          marginBottom: 10, padding: "6px 11px", fontSize: 11.5,
-          background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.18)",
-          borderRadius: 8, color: "#92400E", lineHeight: 1.5,
-        }}>
-          ⚙ Override mission actif —
-          {marginSource.min === 'mission' && <> marge mini <strong>{margeMinPct}%</strong> (mission) au lieu de {cabinetMinPct}% (cabinet)</>}
-          {marginSource.min === 'mission' && marginSource.target === 'mission' && <> · </>}
-          {marginSource.target === 'mission' && <> marge cible <strong>{margeTargetPct}%</strong> (mission) au lieu de {cabinetTargetPct}% (cabinet)</>}
-        </div>
-      )}
 
       {/* Sliders TJM + Brut → la marge en résultante */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>

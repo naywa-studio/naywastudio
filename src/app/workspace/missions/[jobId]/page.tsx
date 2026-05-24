@@ -713,8 +713,6 @@ function MissionPricingBlock({
 
   const [tjmMin, setTjmMin] = useState<string>(numToStr(job.client_tjm_min))
   const [tjmMax, setTjmMax] = useState<string>(numToStr(job.client_tjm_max))
-  const [marginMin, setMarginMin] = useState<string>(numToStr(job.margin_min_pct))
-  const [marginTarget, setMarginTarget] = useState<string>(numToStr(job.margin_target_pct))
   const [duration, setDuration] = useState<string>(numToStr(job.duration_months))
   const [targetGross, setTargetGross] = useState<string>(numToStr(job.target_gross_salary))
   const [startDate, setStartDate] = useState<string>(job.start_date ?? "")
@@ -802,22 +800,6 @@ function MissionPricingBlock({
           onChange={(v) => updateField("client_tjm_max", v, setTjmMax)}
           suffix="€/j"
           placeholder="650"
-        />
-        <PricingField
-          label="Marge minimum"
-          value={marginMin}
-          onChange={(v) => updateField("margin_min_pct", v, setMarginMin)}
-          suffix="%"
-          placeholder="défaut cabinet"
-          max={100}
-        />
-        <PricingField
-          label="Marge cible"
-          value={marginTarget}
-          onChange={(v) => updateField("margin_target_pct", v, setMarginTarget)}
-          suffix="%"
-          placeholder="défaut cabinet"
-          max={100}
         />
         <PricingField
           label="Durée prévue"

@@ -223,8 +223,6 @@ function MissionPricingEditor({
 
   const [tjmMin, setTjmMin] = useState<string>(numToStr(job.client_tjm_min))
   const [tjmMax, setTjmMax] = useState<string>(numToStr(job.client_tjm_max))
-  const [marginMin, setMarginMin] = useState<string>(numToStr(job.margin_min_pct))
-  const [marginTarget, setMarginTarget] = useState<string>(numToStr(job.margin_target_pct))
   const [duration, setDuration] = useState<string>(numToStr(job.duration_months))
   const [targetGross, setTargetGross] = useState<string>(numToStr(job.target_gross_salary))
   const [startDate, setStartDate] = useState<string>(job.start_date ?? "")
@@ -271,7 +269,6 @@ function MissionPricingEditor({
   // List of required fields not yet filled — surfaced as a reminder banner.
   const missing: string[] = []
   if (!tjmMin && !tjmMax) missing.push("TJM client")
-  if (!marginMin) missing.push("marge minimum")
   if (!duration) missing.push("durée prévue")
 
   return (
@@ -305,8 +302,6 @@ function MissionPricingEditor({
       }}>
         <PricingField label="TJM min" value={tjmMin} onChange={(v) => updateField("client_tjm_min", v, setTjmMin)} suffix="€/j" placeholder="500" />
         <PricingField label="TJM max" value={tjmMax} onChange={(v) => updateField("client_tjm_max", v, setTjmMax)} suffix="€/j" placeholder="650" />
-        <PricingField label="Marge min" value={marginMin} onChange={(v) => updateField("margin_min_pct", v, setMarginMin)} suffix="%" placeholder="défaut cabinet" max={100} />
-        <PricingField label="Marge cible" value={marginTarget} onChange={(v) => updateField("margin_target_pct", v, setMarginTarget)} suffix="%" placeholder="défaut cabinet" max={100} />
         <PricingField label="Durée prévue" value={duration} onChange={(v) => updateField("duration_months", v, setDuration)} suffix="mois" placeholder="12" max={120} />
         <PricingField label="Brut ciblé" value={targetGross} onChange={(v) => updateField("target_gross_salary", v, setTargetGross)} suffix="€/an" placeholder="45000" step={500} />
         <DateField label="Démarrage" value={startDate} onChange={(v) => {
