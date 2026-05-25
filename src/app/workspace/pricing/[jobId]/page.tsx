@@ -3,16 +3,13 @@
 /**
  * /workspace/pricing/[jobId] — Vue mission dédiée au pricing.
  *
- * Affiche :
- *   - Le header mission + édition inline des params (TJM, marge, durée, brut ciblé)
- *     via un mini éditeur dédié à cette vue
- *   - La liste des candidats actuellement en stage "pricing" du kanban
- *   - Quand un candidat est sélectionné : le PricingWidget rebranché avec
- *     auto-détection statut/position/modalité depuis parsed_cv et le chiffrage
- *     en direct (triangle + KPI risque + graphique 2 courbes)
+ * Layout v2 :
+ *   - Header compact (titre + tags + lien fiche mission)
+ *   - Bandeau paramètres mission inline (1 ligne, éditable, auto-save)
+ *   - Grid : left rail candidats compact (200px) + main full-width
+ *   - Main : PricingWidget qui contient verdict hero + sliders + tabs charts
  *
- * Si la mission n'a aucun candidat en stage pricing, message d'incitation à
- * en déplacer un depuis le pipeline.
+ * Page large pour exploiter la largeur de l'écran (max-width: 1480).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -103,25 +100,25 @@ export default function PricingMissionPage() {
 
   return (
     <main style={mainStyle}>
-      <Header job={job} />
+      {/* Header compact — 1 ligne */}
+      <CompactHeader job={job} />
 
-      <MissionPricingEditor
+      {/* Bandeau paramètres mission — inline éditable */}
+      <MissionParamsBar
         job={job}
         onPatched={(next) => setJob(next)}
       />
 
+      {/* Layout principal : left rail candidats + main widget */}
       <div className="pricing-mission-grid" style={{
-        marginTop: 18,
+        marginTop: 14,
         display: "grid",
-        gridTemplateColumns: "minmax(0, 320px) minmax(0, 1fr)",
-        gap: 18,
+        gridTemplateColumns: "minmax(0, 220px) minmax(0, 1fr)",
+        gap: 14,
         alignItems: "start",
       }}>
-        <aside style={{
-          alignSelf: "flex-start",
-          position: "sticky", top: 80,
-        }}>
-          <CandidatesList
+        <aside style={{ alignSelf: "flex-start", position: "sticky", top: 80 }}>
+          <CompactCandidatesList
             candidates={candidates}
             selectedMatchId={selectedMatchId}
             onSelect={setSelectedMatchId}
@@ -157,61 +154,70 @@ export default function PricingMissionPage() {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Header
+ * Compact header — 1 ligne titre + tags + actions
  * ────────────────────────────────────────────────────────────────────────── */
 
-function Header({ job }: { job: Job }) {
+function CompactHeader({ job }: { job: Job }) {
   return (
-    <div style={{ marginBottom: 18 }}>
-      <Link href="/workspace/pricing" style={{
-        display: "inline-flex", alignItems: "center", gap: 6,
-        fontSize: 13, color: "#7C63C8", textDecoration: "none", marginBottom: 16,
-      }}>
-        ← Retour au pricing
-      </Link>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
-        <div>
-          <span style={{
-            display: "inline-block",
-            fontSize: 11, fontWeight: 700, color: "#D97706",
-            background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.22)",
-            padding: "4px 11px", borderRadius: 100,
-            letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10,
-          }}>
-            💰 Pricing — {job.title}
-          </span>
-          <h1 style={{
-            margin: 0, fontSize: "clamp(22px, 2.6vw, 28px)", fontWeight: 800,
-            color: "#111827", letterSpacing: "-0.02em", lineHeight: 1.2,
-          }}>
-            Chiffrer un candidat
-          </h1>
-          <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6B7280" }}>
-            {job.location && <>{job.location} · </>}
-            {job.contract_type && <>{job.contract_type} · </>}
-            {job.duration_months && <>{job.duration_months} mois</>}
-          </p>
-        </div>
-        <Link href={`/workspace/missions/${job.id}`} style={{
-          fontSize: 12, fontWeight: 700, color: "#7C63C8",
-          background: "white", border: "1px solid rgba(124,99,200,0.25)",
-          borderRadius: 9, padding: "8px 14px", textDecoration: "none",
-          whiteSpace: "nowrap",
+    <div style={{
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      gap: 14, flexWrap: "wrap", marginBottom: 14,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, flex: 1 }}>
+        <Link href="/workspace/pricing" title="Retour au pricing" style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          width: 32, height: 32, borderRadius: 9,
+          border: "1px solid rgba(124,99,200,0.20)", background: "white",
+          color: "#7C63C8", textDecoration: "none", flexShrink: 0,
         }}>
-          Fiche mission complète →
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+            <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </Link>
+        <div style={{ minWidth: 0 }}>
+          <h1 style={{
+            margin: 0, fontSize: 20, fontWeight: 800, color: "#111827",
+            letterSpacing: "-0.015em", lineHeight: 1.2,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            💰 {job.title}
+          </h1>
+          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+            {job.location && <Chip>{job.location}</Chip>}
+            {job.contract_type && <Chip>{job.contract_type}</Chip>}
+            {job.duration_months && <Chip>{job.duration_months} mois</Chip>}
+          </div>
+        </div>
       </div>
+      <Link href={`/workspace/missions/${job.id}`} style={{
+        fontSize: 12, fontWeight: 700, color: "#7C63C8",
+        background: "white", border: "1px solid rgba(124,99,200,0.25)",
+        borderRadius: 9, padding: "8px 14px", textDecoration: "none",
+        whiteSpace: "nowrap", flexShrink: 0,
+      }}>
+        Fiche mission →
+      </Link>
     </div>
   )
 }
 
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span style={{
+      fontSize: 11, color: "#6B7280", fontWeight: 600,
+      padding: "3px 9px", borderRadius: 100,
+      background: "#F8F6FF", border: "1px solid #F0ECF8",
+    }}>
+      {children}
+    </span>
+  )
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
- * Mission pricing inline editor — same pattern as MissionPricingBlock on
- * the mission detail page, repeated here so the sourceur can complete or
- * tweak the inputs without leaving the pricing view.
+ * Mission params bar — 1 ligne d'inputs auto-save, ne casse pas le flow
  * ────────────────────────────────────────────────────────────────────────── */
 
-function MissionPricingEditor({
+function MissionParamsBar({
   job,
   onPatched,
 }: {
@@ -266,88 +272,115 @@ function MissionPricingEditor({
     [schedulePatch],
   )
 
-  // List of required fields not yet filled — surfaced as a reminder banner.
   const missing: string[] = []
-  if (!tjmMin && !tjmMax) missing.push("TJM client")
-  if (!duration) missing.push("durée prévue")
+  if (!tjmMin && !tjmMax) missing.push("TJM")
+  if (!duration) missing.push("durée")
+  if (!startDate) missing.push("démarrage")
 
   return (
     <div style={{
-      background: "rgba(217,119,6,0.04)",
-      border: "1px solid rgba(217,119,6,0.20)",
-      borderRadius: 12, padding: 14,
+      background: "white",
+      border: "1px solid rgba(217,119,6,0.18)",
+      borderRadius: 12, padding: "10px 12px",
+      display: "flex", alignItems: "center", gap: 8,
+      flexWrap: "wrap",
     }}>
-      <div style={{
-        display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12,
-        flexWrap: "wrap", justifyContent: "space-between",
+      <span style={{
+        fontSize: 10.5, fontWeight: 700, color: "#92400E",
+        letterSpacing: "0.06em", textTransform: "uppercase",
+        marginRight: 4,
       }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <p style={{
-            margin: 0, fontSize: 11, fontWeight: 700, color: "#B45309",
-            letterSpacing: "0.07em", textTransform: "uppercase",
-          }}>
-            ⚙ Paramètres de la mission
-          </p>
-          <span style={{ fontSize: 11, color: "#9CA3AF" }}>
-            — sauvegarde automatique
-          </span>
-        </div>
-        <SaveBadge state={saveState} />
-      </div>
+        ⚙ Mission
+      </span>
 
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-        gap: 8,
-      }}>
-        <PricingField label="TJM min" value={tjmMin} onChange={(v) => updateField("client_tjm_min", v, setTjmMin)} suffix="€/j" placeholder="500" />
-        <PricingField label="TJM max" value={tjmMax} onChange={(v) => updateField("client_tjm_max", v, setTjmMax)} suffix="€/j" placeholder="650" />
-        <PricingField label="Durée prévue" value={duration} onChange={(v) => updateField("duration_months", v, setDuration)} suffix="mois" placeholder="12" max={120} />
-        <PricingField label="Brut ciblé" value={targetGross} onChange={(v) => updateField("target_gross_salary", v, setTargetGross)} suffix="€/an" placeholder="45000" step={500} />
-        <DateField label="Démarrage" value={startDate} onChange={(v) => {
+      <InlineField label="TJM min" value={tjmMin} suffix="€" onChange={(v) => updateField("client_tjm_min", v, setTjmMin)} placeholder="500" />
+      <InlineField label="TJM max" value={tjmMax} suffix="€" onChange={(v) => updateField("client_tjm_max", v, setTjmMax)} placeholder="650" />
+      <InlineField label="Durée" value={duration} suffix="m" onChange={(v) => updateField("duration_months", v, setDuration)} placeholder="12" max={120} />
+      <InlineField label="Brut ciblé" value={targetGross} suffix="€/an" onChange={(v) => updateField("target_gross_salary", v, setTargetGross)} placeholder="45 000" step={500} wide />
+      <InlineDateField
+        label="Début"
+        value={startDate}
+        onChange={(v) => {
           setStartDate(v)
           schedulePatch({ start_date: v || null })
-        }} />
-      </div>
+        }}
+      />
+
+      <div style={{ flex: 1, minWidth: 0 }} />
 
       {missing.length > 0 && (
-        <p style={{
-          margin: "10px 0 0", fontSize: 11.5, color: "#92400E", lineHeight: 1.5,
+        <span style={{
+          fontSize: 10.5, color: "#92400E", fontWeight: 600,
+          padding: "3px 8px", borderRadius: 100,
+          background: "rgba(217,119,6,0.08)",
         }}>
-          ⚠ <strong>Manquant pour un chiffrage précis :</strong> {missing.join(", ")}.
-        </p>
+          ⚠ manque {missing.join(", ")}
+        </span>
       )}
+      <SaveBadge state={saveState} />
     </div>
   )
 }
 
-function DateField({
+function InlineField({
+  label, value, onChange, suffix, placeholder, max, step, wide,
+}: {
+  label: string
+  value: string
+  onChange: (s: string) => void
+  suffix: string
+  placeholder?: string
+  max?: number
+  step?: number
+  wide?: boolean
+}) {
+  return (
+    <label style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "5px 9px",
+      background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 8,
+    }}>
+      <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600 }}>{label}</span>
+      <input
+        type="number" inputMode="decimal"
+        min={0} max={max} step={step ?? 1}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: wide ? 76 : 50,
+          fontSize: 13, fontWeight: 700, color: "#111827",
+          background: "transparent", border: "none", outline: "none",
+          padding: 0, fontFamily: "inherit", textAlign: "right",
+          fontVariantNumeric: "tabular-nums",
+          appearance: "textfield",
+        }}
+      />
+      <span style={{ fontSize: 10, color: "#9CA3AF" }}>{suffix}</span>
+    </label>
+  )
+}
+
+function InlineDateField({
   label, value, onChange,
 }: {
   label: string
   value: string
-  onChange: (next: string) => void
+  onChange: (s: string) => void
 }) {
   return (
     <label style={{
-      background: "white", border: "1px solid rgba(217,119,6,0.18)",
-      borderRadius: 9, padding: "8px 11px",
-      display: "flex", flexDirection: "column", gap: 4,
-      cursor: "text",
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "5px 9px",
+      background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 8,
     }}>
-      <span style={{
-        fontSize: 10, fontWeight: 700, color: "#92400E",
-        letterSpacing: "0.05em", textTransform: "uppercase",
-      }}>
-        {label}
-      </span>
+      <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600 }}>{label}</span>
       <input
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         style={{
-          width: "100%", minWidth: 0,
-          fontSize: 13, fontWeight: 700, color: "#111827",
+          fontSize: 12, fontWeight: 700, color: "#111827",
           background: "transparent", border: "none", outline: "none",
           padding: 0, fontFamily: "inherit",
         }}
@@ -356,75 +389,28 @@ function DateField({
   )
 }
 
-function PricingField({
-  label, value, onChange, suffix, placeholder, max, step,
-}: {
-  label: string
-  value: string
-  onChange: (next: string) => void
-  suffix: string
-  placeholder?: string
-  max?: number
-  step?: number
-}) {
-  return (
-    <label style={{
-      background: "white", border: "1px solid rgba(217,119,6,0.18)",
-      borderRadius: 9, padding: "8px 11px",
-      display: "flex", flexDirection: "column", gap: 4,
-      cursor: "text",
-    }}>
-      <span style={{
-        fontSize: 10, fontWeight: 700, color: "#92400E",
-        letterSpacing: "0.05em", textTransform: "uppercase",
-      }}>
-        {label}
-      </span>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-        <input
-          type="number" inputMode="decimal"
-          min={0} max={max} step={step ?? 1}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          style={{
-            flex: 1, minWidth: 0,
-            fontSize: 13.5, fontWeight: 700, color: "#111827",
-            background: "transparent", border: "none", outline: "none",
-            padding: 0, fontFamily: "inherit",
-            fontVariantNumeric: "tabular-nums",
-            appearance: "textfield",
-          }}
-        />
-        <span style={{ fontSize: 11, color: "#9CA3AF", flexShrink: 0 }}>{suffix}</span>
-      </div>
-    </label>
-  )
-}
-
 function SaveBadge({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
   if (state === "idle") return null
   const styles: Record<string, React.CSSProperties> = {
     saving: { background: "#F3F4F6", color: "#6B7280" },
-    saved: { background: "rgba(34,197,94,0.10)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.22)" },
-    error: { background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA" },
+    saved: { background: "rgba(34,197,94,0.10)", color: "#16a34a" },
+    error: { background: "#FEF2F2", color: "#B91C1C" },
   }
   return (
-    <div style={{
+    <span style={{
       ...styles[state],
-      display: "inline-flex", alignItems: "center", gap: 6,
       fontSize: 10.5, fontWeight: 600, padding: "3px 9px", borderRadius: 100,
     }}>
       {state === "saving" ? "Enregistrement…" : state === "saved" ? "✓ Enregistré" : "⚠ Erreur"}
-    </div>
+    </span>
   )
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Candidates list — left rail, sticky
+ * Candidates list — compact (avatar + nom + score)
  * ────────────────────────────────────────────────────────────────────────── */
 
-function CandidatesList({
+function CompactCandidatesList({
   candidates, selectedMatchId, onSelect,
 }: {
   candidates: PricingCandidate[]
@@ -432,52 +418,61 @@ function CandidatesList({
   onSelect: (id: string) => void
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <p style={{
-        margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF",
-        letterSpacing: "0.08em", textTransform: "uppercase",
+        margin: "0 0 4px", fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+        letterSpacing: "0.06em", textTransform: "uppercase",
       }}>
-        Candidats en pricing · {candidates.length}
+        Candidats · {candidates.length}
       </p>
       {candidates.length === 0 && (
-        <p style={{ margin: 0, fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
-          Aucun candidat à chiffrer pour cette mission.
+        <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
+          Aucun candidat à chiffrer.
         </p>
       )}
       {candidates.map((c, i) => {
         const active = c.matchId === selectedMatchId
+        const initials = (c.candidate.full_name ?? "?")
+          .split(" ").slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase()
         return (
           <m.button
             key={c.matchId}
-            initial={{ opacity: 0, x: -8 }}
+            initial={{ opacity: 0, x: -6 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.25), ease: EASE }}
+            transition={{ duration: 0.25, delay: Math.min(i * 0.03, 0.2), ease: EASE }}
             onClick={() => onSelect(c.matchId)}
             style={{
               textAlign: "left", cursor: "pointer", fontFamily: "inherit",
-              background: active ? "rgba(217,119,6,0.06)" : "white",
-              border: active ? "1.5px solid rgba(217,119,6,0.40)" : "1px solid #F0ECF8",
-              borderRadius: 12, padding: "11px 13px",
-              display: "flex", flexDirection: "column", gap: 3,
+              background: active ? "linear-gradient(135deg, rgba(124,99,200,0.10), rgba(124,99,200,0.04))" : "white",
+              border: active ? "1.5px solid rgba(124,99,200,0.40)" : "1px solid #F0ECF8",
+              borderRadius: 10, padding: "8px 10px",
+              display: "flex", alignItems: "center", gap: 8,
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
-                {c.candidate.full_name ?? "Candidat sans nom"}
-              </span>
-              {c.score != null && (
-                <span style={{
-                  fontSize: 10, fontWeight: 700, color: "#6B7280",
-                  padding: "2px 7px", borderRadius: 100,
-                  background: "#F4F1FB", textTransform: "uppercase",
-                }}>
-                  {c.score}
-                </span>
-              )}
-            </div>
-            {c.candidate.current_title && (
-              <span style={{ fontSize: 11.5, color: "#6B7280", lineHeight: 1.4 }}>
-                {c.candidate.current_title}
+            <span style={{
+              width: 28, height: 28, borderRadius: "50%",
+              background: active ? "#7C63C8" : "#F4F1FB",
+              color: active ? "white" : "#7C63C8",
+              fontSize: 10, fontWeight: 800,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>
+              {initials || "?"}
+            </span>
+            <span style={{
+              fontSize: 12.5, fontWeight: active ? 700 : 600, color: "#111827",
+              flex: 1, minWidth: 0,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {c.candidate.full_name ?? "Sans nom"}
+            </span>
+            {c.score != null && (
+              <span style={{
+                fontSize: 10, fontWeight: 800, color: "#6B7280",
+                padding: "1px 6px", borderRadius: 100,
+                background: "#F4F1FB", flexShrink: 0,
+              }}>
+                {c.score}
               </span>
             )}
           </m.button>
@@ -488,7 +483,7 @@ function CandidatesList({
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Empty state — no candidates in pricing stage for this mission
+ * Empty state
  * ────────────────────────────────────────────────────────────────────────── */
 
 function NoCandidatesState({ jobId }: { jobId: string }) {
@@ -510,8 +505,7 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
         lineHeight: 1.6,
       }}>
         Pour chiffrer un candidat, déplacez-le dans la colonne <strong>Pricing</strong> du
-        pipeline. Le pricing apparaîtra ici dès que vous aurez au moins un candidat dans
-        cette colonne.
+        pipeline.
       </p>
       <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
         <Link href={`/workspace/missions/${jobId}`} style={{
@@ -535,7 +529,7 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
 
 const mainStyle: React.CSSProperties = {
   minHeight: "calc(100vh - 60px)",
-  padding: "32px 24px 80px",
-  maxWidth: 1280, margin: "0 auto",
+  padding: "24px 24px 80px",
+  maxWidth: 1480, margin: "0 auto",
   fontFamily: "var(--font-inter), sans-serif",
 }
