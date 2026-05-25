@@ -19,6 +19,7 @@ import Link from "next/link"
 import {
   computeEmployerCost,
   computeTriangle,
+  computeMissionMargin,
   validateAgainstMinimum,
   type PricingInputs,
   type Statut,
@@ -230,6 +231,21 @@ function PricingWidgetInner({
     [brutAnnuel, buildInputs],
   )
 
+  // Marge RÉELLE de la mission, mois par mois sur le calendrier français.
+  // Sert au KPI "Marge moyenne mission" (à la place de l'estimation 21j).
+  const missionMargin = useMemo(() => {
+    const startDate = job?.start_date
+      ? new Date(job.start_date)
+      : new Date()
+    const durationMonths = job?.duration_months ?? 12
+    if (Number.isNaN(startDate.getTime())) return null
+    try {
+      return computeMissionMargin(buildInputs(brutAnnuel), tjm, startDate, durationMonths)
+    } catch {
+      return null
+    }
+  }, [job?.start_date, job?.duration_months, brutAnnuel, tjm, buildInputs])
+
   const minimumCheck = useMemo(
     () => validateAgainstMinimum(buildInputs(brutAnnuel)),
     [brutAnnuel, buildInputs],
@@ -376,12 +392,15 @@ function PricingWidgetInner({
           ] : []}
         />
 
-        {/* KPI marge résultante — readonly */}
+        {/* KPI marge résultante — marge MOYENNE RÉELLE sur la mission entière,
+            calculée mois par mois sur le calendrier français. Fallback sur le
+            triangle (estim. 21j) si la mission n'a pas encore de start_date. */}
         <MargeResultCard
-          margeMensuelle={triangle?.margeMensuelle ?? 0}
-          margePct={triangle?.margePct ?? 0}
+          margeMensuelle={missionMargin?.margeMoyenneEur ?? triangle?.margeMensuelle ?? 0}
+          margePct={missionMargin?.margePct ?? triangle?.margePct ?? 0}
           margeMinPct={margeMinPct}
           margeTargetPct={margeTargetPct}
+          monthCount={missionMargin?.monthCount}
         />
       </div>
 
@@ -417,7 +436,7 @@ function PricingWidgetInner({
       >
         {showDetail ? "▼ Masquer le détail coût employeur" : "▶ Voir le détail coût employeur"}
       </button>
-      {showDetail && <CostBreakdown cost={cost} />}
+      {showDetail && <CostBreakdown cost={cost} avantages={avantages} />}
 
       {/* Marge mensuelle réelle — calendrier français, mois par mois */}
       <div style={{ marginTop: 16 }}>
@@ -551,12 +570,13 @@ function SliderField({
 }
 
 function MargeResultCard({
-  margeMensuelle, margePct, margeMinPct, margeTargetPct,
+  margeMensuelle, margePct, margeMinPct, margeTargetPct, monthCount,
 }: {
   margeMensuelle: number
   margePct: number
   margeMinPct: number
   margeTargetPct: number
+  monthCount?: number
 }) {
   const color =
     margePct >= margeTargetPct ? "#15803d" :
@@ -570,12 +590,19 @@ function MargeResultCard({
       display: "flex", alignItems: "baseline", justifyContent: "space-between",
       gap: 8, flexWrap: "wrap",
     }}>
-      <span style={{
-        fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
-        letterSpacing: "0.05em", textTransform: "uppercase",
-      }}>
-        ⟲ Marge mensuelle (résultante)
-      </span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <span style={{
+          fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+          letterSpacing: "0.05em", textTransform: "uppercase",
+        }}>
+          ⟲ Marge mensuelle moyenne (résultante)
+        </span>
+        <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>
+          {monthCount
+            ? `Calculée sur les ${monthCount} mois calendaires réels de la mission`
+            : "Estimation sur 21 j (renseigne la date de démarrage + durée pour le vrai calcul)"}
+        </span>
+      </div>
       <div style={{ display: "inline-flex", alignItems: "baseline", gap: 10 }}>
         <span style={{
           fontSize: 20, fontWeight: 800, color: "#111827",
@@ -622,27 +649,34 @@ function MarginVerdict({ margePct, margeMin, margeCible }: { margePct: number; m
   )
 }
 
-function CostBreakdown({ cost }: { cost: ReturnType<typeof computeEmployerCost> }) {
+function CostBreakdown({
+  cost, avantages,
+}: {
+  cost: ReturnType<typeof computeEmployerCost>
+  avantages: Avantages
+}) {
   // Le coût total est splitté en FIXE mensuel (ne dépend pas des jours) et
   // VARIABLE journalier (URSSAF + tickets, varient avec les jours réels du
   // mois). Le chart en bas applique le vrai split mois par mois ; ici on
-  // détaille la composition.
+  // détaille chaque ligne individuelle pour transparence totale.
 
-  // Re-décomposition du coût fixe pour l'affichage
-  const remunCotisable = cost.brutMensuel + cost.treiziemeMoisMensualise + cost.primeVacancesMensualisee
-  // Avantages mensuels fixes = coutFixeMensuel − (brut + 13e + prime + charges + prime coopt)
-  const avantagesFixesMensuels = cost.coutFixeMensuel
-    - remunCotisable
-    - cost.chargesPatronales
-    - cost.primeCooptationMensualisee
+  // Mensualisation des avantages annuels pour affichage
+  const medecineMens = (avantages.medecineDuTravailAnnuel ?? 0) / 12
+  const kmMens = (avantages.indemniteKilometriqueAnnuelle ?? 0) / 12
 
   const fixedRows: { label: string; value: number; hint?: string }[] = [
     { label: "Brut mensuel", value: cost.brutMensuel },
-    { label: "Prime de vacances (Art. 31)", value: cost.primeVacancesMensualisee, hint: "≈ 1% du brut, mensualisée" },
-    { label: "13ᵉ mois mensualisé", value: cost.treiziemeMoisMensualise },
-    { label: `Charges patronales (${(cost.tauxCharges * 100).toFixed(1)}%)`, value: cost.chargesPatronales },
-    { label: "Mutuelle + transport + médecine + autres (mensuels fixes)", value: avantagesFixesMensuels },
-    { label: "Prime cooptation mensualisée", value: cost.primeCooptationMensualisee },
+    { label: "Prime de vacances (Art. 31)", value: cost.primeVacancesMensualisee, hint: "1 % du brut, mensualisée" },
+    { label: "13ᵉ mois mensualisé", value: cost.treiziemeMoisMensualise, hint: "brut ÷ 12, si activé" },
+    { label: `Charges patronales (${(cost.tauxCharges * 100).toFixed(1)} %)`, value: cost.chargesPatronales, hint: "sur brut + 13e + prime" },
+    { label: "Mutuelle (part employeur)", value: avantages.mutuellePremium ?? 0 },
+    { label: "Transport / Navigo (50 %)", value: avantages.transport ?? 0 },
+    { label: "Forfait mobilité durable", value: avantages.forfaitMobilite ?? 0 },
+    { label: "Médecine du travail", value: medecineMens, hint: `${avantages.medecineDuTravailAnnuel ?? 0} €/an ÷ 12` },
+    { label: "Indemnité kilométrique", value: kmMens, hint: `${avantages.indemniteKilometriqueAnnuelle ?? 0} €/an ÷ 12` },
+    { label: "Indemnité expatriation", value: avantages.expatriationMensuelle ?? 0 },
+    { label: "Prime cooptation mensualisée", value: cost.primeCooptationMensualisee, hint: "annuelle ÷ 12" },
+    { label: "Autres avantages mensuels", value: avantages.autresMensuels ?? 0 },
   ]
 
   return (
@@ -684,7 +718,7 @@ function CostBreakdown({ cost }: { cost: ReturnType<typeof computeEmployerCost> 
         </span>
       </div>
 
-      {/* Bloc VARIABLE */}
+      {/* Bloc VARIABLE — détail URSSAF + tickets */}
       {cost.coutVariableJournalier > 0 && (
         <>
           <div style={{
@@ -692,17 +726,43 @@ function CostBreakdown({ cost }: { cost: ReturnType<typeof computeEmployerCost> 
             letterSpacing: "0.05em", textTransform: "uppercase",
             marginTop: 10, marginBottom: 2,
           }}>
-            Coût variable journalier (× jours travaillés réels)
+            Coût variable par jour travaillé (× jours réels du mois)
           </div>
+          {(avantages.urssafIndemniteJour ?? 0) > 0 && (
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "baseline",
+              fontSize: 12.5, color: "#4B5563",
+            }}>
+              <span>
+                Indemnité URSSAF grand déplacement
+                <span style={{ color: "#9CA3AF", marginLeft: 6 }}>· exonérée de charges</span>
+              </span>
+              <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
+                {(avantages.urssafIndemniteJour ?? 0).toFixed(2)} € / jour
+              </span>
+            </div>
+          )}
+          {(avantages.ticketsResto ?? 0) > 0 && (
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "baseline",
+              fontSize: 12.5, color: "#4B5563",
+            }}>
+              <span>
+                Tickets restaurant (part employeur)
+                <span style={{ color: "#9CA3AF", marginLeft: 6 }}>· URSSAF strict €/jour</span>
+              </span>
+              <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
+                {(avantages.ticketsResto ?? 0).toFixed(2)} € / jour
+              </span>
+            </div>
+          )}
           <div style={{
-            display: "flex", justifyContent: "space-between", alignItems: "baseline",
-            fontSize: 12.5, color: "#4B5563",
+            marginTop: 4, paddingTop: 6, borderTop: "1px dashed #E5E7EB",
+            display: "flex", justifyContent: "space-between",
+            fontSize: 12.5, fontWeight: 700, color: "#374151",
           }}>
-            <span>
-              URSSAF + tickets resto cumulés (par jour travaillé)
-              <span style={{ color: "#9CA3AF", marginLeft: 6 }}>· variable selon le mois</span>
-            </span>
-            <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
+            <span>Sous-total variable / jour</span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>
               {cost.coutVariableJournalier.toFixed(2)} € / jour
             </span>
           </div>

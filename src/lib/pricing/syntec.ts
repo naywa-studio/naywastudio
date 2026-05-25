@@ -526,6 +526,64 @@ export function computeEmployerCost(input: PricingInputs): EmployerCostBreakdown
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+ * Public API — marge réelle de la mission (sur calendrier français)
+ * ────────────────────────────────────────────────────────────────────────── */
+
+import { missionMonthProfile } from './calendar'
+
+export interface MissionMarginSummary {
+  /** Marge mensuelle moyenne (€) sur toute la durée de la mission. */
+  margeMoyenneEur: number
+  /** Marge totale cumulée sur toute la mission (€). */
+  margeTotaleEur: number
+  /** Marge moyenne en % du revenu cumulé. */
+  margePct: number
+  /** Revenu mensuel moyen (€). */
+  revenuMoyenEur: number
+  /** Revenu total mission (€). */
+  revenuTotalEur: number
+  /** Coût employeur total mission (€). */
+  coutTotalMission: number
+  /** Nombre total de jours ouvrés sur la mission. */
+  totalWorkingDays: number
+  /** Nombre de mois calendaires (incluant partiels). */
+  monthCount: number
+}
+
+/** Calcule la marge moyenne RÉELLE de la mission, en utilisant le calendrier
+ *  français mois par mois (Lun-Ven hors fériés). C'est la valeur de
+ *  référence affichée comme KPI résultante du widget pricing. */
+export function computeMissionMargin(
+  inputs: PricingInputs,
+  tjm: number,
+  startDate: Date,
+  durationMonths: number,
+): MissionMarginSummary {
+  const cost = computeEmployerCost(inputs)
+  const months = missionMonthProfile(startDate, Math.max(1, durationMonths))
+  let totalRevenu = 0
+  let totalCout = 0
+  let totalDays = 0
+  for (const m of months) {
+    totalRevenu += tjm * m.workingDays
+    totalCout += cost.coutFixeMensuel + cost.coutVariableJournalier * m.workingDays
+    totalDays += m.workingDays
+  }
+  const margeTotale = totalRevenu - totalCout
+  const monthCount = months.length
+  return {
+    margeMoyenneEur: monthCount > 0 ? margeTotale / monthCount : 0,
+    margeTotaleEur: margeTotale,
+    margePct: totalRevenu > 0 ? (margeTotale / totalRevenu) * 100 : 0,
+    revenuMoyenEur: monthCount > 0 ? totalRevenu / monthCount : 0,
+    revenuTotalEur: totalRevenu,
+    coutTotalMission: totalCout,
+    totalWorkingDays: totalDays,
+    monthCount,
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
  * Public API — the triangle (TJM / brut / marge)
  * ────────────────────────────────────────────────────────────────────────── */
 
