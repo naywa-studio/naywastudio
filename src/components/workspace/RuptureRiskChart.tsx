@@ -89,14 +89,14 @@ export default function RuptureRiskChart({
   const yRange = yMax - yMin
 
   const xOf = (i: number): number => {
-    const slotW = PLOT_W / points.length
-    return PAD_L + slotW * i + slotW / 2
+    // Pour une courbe, on centre chaque point dans son "slot" pour avoir
+    // une courbe régulière qui couvre toute la largeur.
+    if (points.length === 1) return PAD_L + PLOT_W / 2
+    return PAD_L + (PLOT_W * i) / (points.length - 1)
   }
   const yOf = (pct: number): number =>
     PAD_T + (1 - (pct - yMin) / yRange) * PLOT_H
   const zeroY = yOf(0)
-  const slotW = PLOT_W / points.length
-  const barW = Math.max(8, slotW * 0.7)
 
   // Y ticks — 5 paliers en %
   const yTickVals: number[] = []
@@ -104,13 +104,25 @@ export default function RuptureRiskChart({
     yTickVals.push(yMin + (yRange * t) / 4)
   }
 
-  // Fin essai : entre le dernier mois pendant essai et le premier post-essai
+  // Fin essai — milieu entre le dernier mois en essai et le premier post-essai
   const finEssaiIdx = points.findIndex((p) => p.isPostEssai)   // 1er post-essai
   const finEssaiX = finEssaiIdx > 0
-    ? PAD_L + (PLOT_W / points.length) * finEssaiIdx
+    ? (xOf(finEssaiIdx - 1) + xOf(finEssaiIdx)) / 2
     : null
 
-  const barColor = (margePct: number): string => {
+  // Path SVG de la courbe (lissée via lignes droites entre points)
+  const linePath = points
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${xOf(i).toFixed(2)} ${yOf(p.margePct).toFixed(2)}`)
+    .join(" ")
+
+  // Path SVG de l'aire sous la courbe (pour fond coloré)
+  const areaPath = points.length > 0
+    ? `M ${xOf(0).toFixed(2)} ${zeroY.toFixed(2)} ` +
+      points.map((p, i) => `L ${xOf(i).toFixed(2)} ${yOf(p.margePct).toFixed(2)}`).join(" ") +
+      ` L ${xOf(points.length - 1).toFixed(2)} ${zeroY.toFixed(2)} Z`
+    : ""
+
+  const pointColor = (margePct: number): string => {
     if (margePct < 0) return "#DC2626"
     const seuil = margeMinPct ?? 15
     if (margePct < seuil) return "#EA580C"
@@ -210,20 +222,35 @@ export default function RuptureRiskChart({
           </>
         )}
 
-        {/* Bars */}
+        {/* Aire sous la courbe (fond violet pâle) */}
+        <path
+          d={areaPath}
+          fill="rgba(124,99,200,0.08)"
+          stroke="none"
+        />
+
+        {/* Courbe principale */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#7C63C8"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+
+        {/* Points + labels (un point coloré par mois selon la valeur) */}
         {points.map((p, i) => {
-          const h = p.margePct >= 0 ? zeroY - yOf(p.margePct) : yOf(p.margePct) - zeroY
-          const y = p.margePct >= 0 ? yOf(p.margePct) : zeroY
+          const showLabel = points.length <= 18 || i % 2 === 0 || i === points.length - 1
           return (
             <g key={p.monthIndex}>
-              <rect
-                x={xOf(i) - barW / 2}
-                y={y}
-                width={barW}
-                height={Math.max(1, h)}
-                fill={barColor(p.margePct)}
-                opacity={0.85}
-                rx={2}
+              <circle
+                cx={xOf(i)}
+                cy={yOf(p.margePct)}
+                r={4}
+                fill={pointColor(p.margePct)}
+                stroke="white"
+                strokeWidth={2}
               >
                 <title>
                   {MONTH_ABBR_FR[p.calendarMonth]} {p.year} (mois {p.monthIndex})
@@ -231,11 +258,12 @@ export default function RuptureRiskChart({
                   {"\n"}Cumul revenu : {formatEur(p.cumulRevenu)} | Coût employeur : {formatEur(p.cumulCost)}
                   {"\n"}Coût rupture : {p.coutRupture > 0 ? formatEur(p.coutRupture) : "0 € (essai)"}
                 </title>
-              </rect>
-              {barW >= 18 && (
+              </circle>
+              {showLabel && (
                 <text
-                  x={xOf(i)} y={y - 3}
-                  fontSize={9} fill="#374151" textAnchor="middle" fontWeight={700}
+                  x={xOf(i)} y={yOf(p.margePct) - 9}
+                  fontSize={9.5} fill={pointColor(p.margePct)} textAnchor="middle" fontWeight={700}
+                  style={{ fontVariantNumeric: "tabular-nums" }}
                 >
                   {p.margePct.toFixed(0)}%
                 </text>
