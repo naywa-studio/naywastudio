@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Pricing — smoke tests des fonctions de calcul critiques.
  *

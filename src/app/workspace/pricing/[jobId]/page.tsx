@@ -12,7 +12,7 @@
  * Page large pour exploiter la largeur de l'écran (max-width: 1480).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { m, AnimatePresence } from "framer-motion"
@@ -103,8 +103,8 @@ export default function PricingMissionPage() {
       {/* Header compact — 1 ligne */}
       <CompactHeader job={job} />
 
-      {/* Bandeau paramètres mission — inline éditable */}
-      <MissionParamsBar
+      {/* Détection mission paramétrée : si non → wizard, sinon → résumé compact */}
+      <MissionConfigZone
         job={job}
         onPatched={(next) => setJob(next)}
       />
@@ -214,15 +214,105 @@ function Chip({ children }: { children: React.ReactNode }) {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Mission params bar — 1 ligne d'inputs auto-save, ne casse pas le flow
+ * Zone config mission — wizard si non paramétrée, résumé compact sinon
  * ────────────────────────────────────────────────────────────────────────── */
 
-function MissionParamsBar({
-  job,
-  onPatched,
+/** Une mission est considérée "paramétrée" si elle a au moins :
+ *  - TJM client (min ou max)
+ *  - Durée prévue
+ *  - Date de démarrage
+ *  Le brut ciblé est optionnel (sert juste de point de départ pour le slider). */
+function isMissionConfigured(job: Job): boolean {
+  const hasTjm = job.client_tjm_min != null || job.client_tjm_max != null
+  const hasDuration = job.duration_months != null
+  const hasStart = job.start_date != null
+  return hasTjm && hasDuration && hasStart
+}
+
+function MissionConfigZone({
+  job, onPatched,
 }: {
   job: Job
   onPatched: (next: Job) => void
+}) {
+  const [forceEdit, setForceEdit] = useState(false)
+  const configured = isMissionConfigured(job)
+
+  if (!configured || forceEdit) {
+    return (
+      <MissionConfigWizard
+        job={job}
+        onPatched={(next) => { onPatched(next); setForceEdit(false) }}
+        onCancel={configured ? () => setForceEdit(false) : undefined}
+      />
+    )
+  }
+
+  return (
+    <MissionConfigSummary
+      job={job}
+      onEdit={() => setForceEdit(true)}
+    />
+  )
+}
+
+/** Résumé compact d'une mission déjà paramétrée — 1 ligne discrète + bouton modifier. */
+function MissionConfigSummary({
+  job, onEdit,
+}: {
+  job: Job
+  onEdit: () => void
+}) {
+  const startStr = job.start_date
+    ? new Date(job.start_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
+    : "?"
+  const tjmStr = job.client_tjm_min != null && job.client_tjm_max != null
+    ? `${job.client_tjm_min}-${job.client_tjm_max} €/j`
+    : `${job.client_tjm_min ?? job.client_tjm_max ?? "?"} €/j`
+  return (
+    <div style={{
+      background: "rgba(34,197,94,0.04)",
+      border: "1px solid rgba(34,197,94,0.20)",
+      borderRadius: 10, padding: "8px 12px",
+      display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+      fontSize: 12, color: "#374151",
+    }}>
+      <span style={{
+        fontSize: 10.5, fontWeight: 700, color: "#15803d",
+        letterSpacing: "0.06em", textTransform: "uppercase",
+      }}>
+        ✓ Mission paramétrée
+      </span>
+      <span>· TJM {tjmStr}</span>
+      <span>· {job.duration_months} mois</span>
+      <span>· début {startStr}</span>
+      {job.target_gross_salary != null && (
+        <span>· brut ciblé {Math.round(job.target_gross_salary).toLocaleString("fr-FR")} €/an</span>
+      )}
+      <div style={{ flex: 1 }} />
+      <button
+        onClick={onEdit}
+        style={{
+          fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
+          background: "transparent",
+          border: "1px solid rgba(124,99,200,0.30)",
+          borderRadius: 8, padding: "4px 10px", cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        ⚙ Modifier
+      </button>
+    </div>
+  )
+}
+
+/** Wizard d'init / édition — formulaire centré avec strict nécessaire. */
+function MissionConfigWizard({
+  job, onPatched, onCancel,
+}: {
+  job: Job
+  onPatched: (next: Job) => void
+  onCancel?: () => void
 }) {
   const numToStr = (n: number | null | undefined): string =>
     n == null ? "" : String(n)
@@ -232,8 +322,8 @@ function MissionParamsBar({
   const [duration, setDuration] = useState<string>(numToStr(job.duration_months))
   const [targetGross, setTargetGross] = useState<string>(numToStr(job.target_gross_salary))
   const [startDate, setStartDate] = useState<string>(job.start_date ?? "")
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
-  const saveTimerRef = useRef<number | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const parseNum = (s: string): number | null => {
     if (!s.trim()) return null
@@ -241,168 +331,226 @@ function MissionParamsBar({
     return Number.isFinite(n) ? n : null
   }
 
-  const schedulePatch = useCallback(
-    (patch: Partial<Job>) => {
-      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
-      setSaveState("saving")
-      saveTimerRef.current = window.setTimeout(async () => {
-        const res = await fetch(`/api/jobs/${job.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(patch),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          onPatched(data.job as Job)
-          setSaveState("saved")
-          window.setTimeout(() => setSaveState("idle"), 1800)
-        } else {
-          setSaveState("error")
-        }
-      }, 800)
-    },
-    [job.id, onPatched],
-  )
+  const tjmMinNum = parseNum(tjmMin)
+  const tjmMaxNum = parseNum(tjmMax)
+  const durationNum = parseNum(duration)
+  const targetGrossNum = parseNum(targetGross)
+  const valid = (tjmMinNum != null || tjmMaxNum != null) && durationNum != null && startDate !== ""
 
-  const updateField = useCallback(
-    (key: keyof Job, raw: string, setter: (s: string) => void) => {
-      setter(raw)
-      schedulePatch({ [key]: parseNum(raw) } as Partial<Job>)
-    },
-    [schedulePatch],
-  )
-
-  const missing: string[] = []
-  if (!tjmMin && !tjmMax) missing.push("TJM")
-  if (!duration) missing.push("durée")
-  if (!startDate) missing.push("démarrage")
+  const onSubmit = async () => {
+    if (!valid || saving) return
+    setSaving(true); setError(null)
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_tjm_min: tjmMinNum,
+          client_tjm_max: tjmMaxNum,
+          duration_months: durationNum,
+          target_gross_salary: targetGrossNum,
+          start_date: startDate || null,
+        }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      onPatched(data.job as Job)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
-    <div style={{
-      background: "white",
-      border: "1px solid rgba(217,119,6,0.18)",
-      borderRadius: 12, padding: "10px 12px",
-      display: "flex", alignItems: "center", gap: 8,
-      flexWrap: "wrap",
-    }}>
-      <span style={{
-        fontSize: 10.5, fontWeight: 700, color: "#92400E",
-        letterSpacing: "0.06em", textTransform: "uppercase",
-        marginRight: 4,
-      }}>
-        ⚙ Mission
-      </span>
-
-      <InlineField label="TJM min" value={tjmMin} suffix="€" onChange={(v) => updateField("client_tjm_min", v, setTjmMin)} placeholder="500" />
-      <InlineField label="TJM max" value={tjmMax} suffix="€" onChange={(v) => updateField("client_tjm_max", v, setTjmMax)} placeholder="650" />
-      <InlineField label="Durée" value={duration} suffix="m" onChange={(v) => updateField("duration_months", v, setDuration)} placeholder="12" max={120} />
-      <InlineField label="Brut ciblé" value={targetGross} suffix="€/an" onChange={(v) => updateField("target_gross_salary", v, setTargetGross)} placeholder="45 000" step={500} wide />
-      <InlineDateField
-        label="Début"
-        value={startDate}
-        onChange={(v) => {
-          setStartDate(v)
-          schedulePatch({ start_date: v || null })
-        }}
-      />
-
-      <div style={{ flex: 1, minWidth: 0 }} />
-
-      {missing.length > 0 && (
+    <m.div
+      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: EASE }}
+      style={{
+        background: "white",
+        border: "1.5px solid rgba(217,119,6,0.30)",
+        borderRadius: 14, padding: 20,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
         <span style={{
-          fontSize: 10.5, color: "#92400E", fontWeight: 600,
-          padding: "3px 8px", borderRadius: 100,
-          background: "rgba(217,119,6,0.08)",
+          fontSize: 11, fontWeight: 700, color: "#92400E",
+          letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
-          ⚠ manque {missing.join(", ")}
+          ⚙ Paramétrage mission
         </span>
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            style={{
+              marginLeft: "auto", fontSize: 11, color: "#9CA3AF",
+              background: "transparent", border: "none", cursor: "pointer",
+              padding: 0, textDecoration: "underline", fontFamily: "inherit",
+            }}
+          >
+            annuler
+          </button>
+        )}
+      </div>
+      <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6B7280", lineHeight: 1.5 }}>
+        Pour chiffrer cette mission, on a besoin du strict nécessaire. Tu peux modifier
+        ces valeurs plus tard via le bouton ⚙ Modifier.
+      </p>
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+        gap: 12,
+      }}>
+        <WizardField
+          label="TJM client min"
+          hint="prix journalier minimum négocié avec le client"
+          value={tjmMin}
+          onChange={setTjmMin}
+          suffix="€/j"
+          placeholder="500"
+          required
+        />
+        <WizardField
+          label="TJM client max"
+          hint="optionnel — borne haute si négociation flexible"
+          value={tjmMax}
+          onChange={setTjmMax}
+          suffix="€/j"
+          placeholder="650"
+        />
+        <WizardField
+          label="Durée prévue"
+          hint="en mois calendaires"
+          value={duration}
+          onChange={setDuration}
+          suffix="mois"
+          placeholder="12"
+          required
+          max={120}
+        />
+        <WizardField
+          label="Brut ciblé candidat"
+          hint="optionnel — proposition de départ"
+          value={targetGross}
+          onChange={setTargetGross}
+          suffix="€/an"
+          placeholder="45 000"
+          step={500}
+        />
+        <WizardDateField
+          label="Date de démarrage"
+          hint="ancre le calendrier de la mission"
+          value={startDate}
+          onChange={setStartDate}
+          required
+        />
+      </div>
+
+      {error && (
+        <div style={{
+          marginTop: 12, padding: "9px 12px",
+          background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9,
+          fontSize: 12, color: "#B91C1C",
+        }}>
+          ⚠ {error}
+        </div>
       )}
-      <SaveBadge state={saveState} />
-    </div>
+
+      <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button
+          onClick={onSubmit}
+          disabled={!valid || saving}
+          style={{
+            padding: "10px 22px", fontSize: 13, fontWeight: 700,
+            color: "white",
+            background: valid && !saving
+              ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
+              : "#C7BFE3",
+            border: "none", borderRadius: 10,
+            cursor: valid && !saving ? "pointer" : "not-allowed",
+            fontFamily: "inherit",
+          }}
+        >
+          {saving ? "Enregistrement…" : "✓ Valider et chiffrer"}
+        </button>
+      </div>
+    </m.div>
   )
 }
 
-function InlineField({
-  label, value, onChange, suffix, placeholder, max, step, wide,
+function WizardField({
+  label, hint, value, onChange, suffix, placeholder, required, max, step,
 }: {
   label: string
+  hint?: string
   value: string
   onChange: (s: string) => void
   suffix: string
   placeholder?: string
+  required?: boolean
   max?: number
   step?: number
-  wide?: boolean
 }) {
   return (
-    <label style={{
-      display: "inline-flex", alignItems: "center", gap: 4,
-      padding: "5px 9px",
-      background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 8,
-    }}>
-      <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600 }}>{label}</span>
-      <input
-        type="number" inputMode="decimal"
-        min={0} max={max} step={step ?? 1}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{
-          width: wide ? 76 : 50,
-          fontSize: 13, fontWeight: 700, color: "#111827",
-          background: "transparent", border: "none", outline: "none",
-          padding: 0, fontFamily: "inherit", textAlign: "right",
-          fontVariantNumeric: "tabular-nums",
-          appearance: "textfield",
-        }}
-      />
-      <span style={{ fontSize: 10, color: "#9CA3AF" }}>{suffix}</span>
+    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
+        {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
+      </span>
+      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>{hint}</span>}
+      <div style={{
+        display: "flex", alignItems: "baseline", gap: 6,
+        padding: "10px 12px",
+        background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
+      }}>
+        <input
+          type="number" inputMode="decimal"
+          min={0} max={max} step={step ?? 1}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{
+            flex: 1, minWidth: 0,
+            fontSize: 14, fontWeight: 700, color: "#111827",
+            background: "transparent", border: "none", outline: "none",
+            padding: 0, fontFamily: "inherit",
+            fontVariantNumeric: "tabular-nums",
+            appearance: "textfield",
+          }}
+        />
+        <span style={{ fontSize: 11.5, color: "#9CA3AF", flexShrink: 0 }}>{suffix}</span>
+      </div>
     </label>
   )
 }
 
-function InlineDateField({
-  label, value, onChange,
+function WizardDateField({
+  label, hint, value, onChange, required,
 }: {
   label: string
+  hint?: string
   value: string
   onChange: (s: string) => void
+  required?: boolean
 }) {
   return (
-    <label style={{
-      display: "inline-flex", alignItems: "center", gap: 6,
-      padding: "5px 9px",
-      background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 8,
-    }}>
-      <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600 }}>{label}</span>
+    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
+        {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
+      </span>
+      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>{hint}</span>}
       <input
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         style={{
-          fontSize: 12, fontWeight: 700, color: "#111827",
-          background: "transparent", border: "none", outline: "none",
-          padding: 0, fontFamily: "inherit",
+          padding: "10px 12px",
+          fontSize: 14, fontWeight: 700, color: "#111827",
+          background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
+          outline: "none", fontFamily: "inherit",
         }}
       />
     </label>
-  )
-}
-
-function SaveBadge({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
-  if (state === "idle") return null
-  const styles: Record<string, React.CSSProperties> = {
-    saving: { background: "#F3F4F6", color: "#6B7280" },
-    saved: { background: "rgba(34,197,94,0.10)", color: "#16a34a" },
-    error: { background: "#FEF2F2", color: "#B91C1C" },
-  }
-  return (
-    <span style={{
-      ...styles[state],
-      fontSize: 10.5, fontWeight: 600, padding: "3px 9px", borderRadius: 100,
-    }}>
-      {state === "saving" ? "Enregistrement…" : state === "saved" ? "✓ Enregistré" : "⚠ Erreur"}
-    </span>
   )
 }
 

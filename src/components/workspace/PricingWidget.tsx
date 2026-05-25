@@ -237,12 +237,22 @@ function PricingWidgetInner({
     }
   }, [tjm, brutAnnuel, buildInputs, joursParMois, margeMinPct, margeTargetPct, minimumCheck.minimumMensuel])
 
-  const tjmMinBound = job?.client_tjm_min ?? Math.max(200, tjm - 300)
-  const tjmMaxBound = job?.client_tjm_max ?? tjm + 400
-  const brutMinBound = limits?.brutMin ?? 20000
-  const brutMaxBound = limits?.brutMax
-    ? Math.max(Math.round(limits.brutMax), brutMinBound + 5000)
-    : Math.max(brutAnnuel + 20000, 80000)
+  // Sliders LIBRES — bornes larges, marqueurs informatifs seulement.
+  // TJM : 100-2000 €/j, marqueurs sur min/max mission
+  // Brut : 20k-150k €/an, marqueurs min Syntec / brut max / brut idéal
+  // Pas de blocage technique — l'alerte rouge s'affiche si user va trop bas
+  const tjmMinBound = Math.min(100, tjm)
+  const tjmMaxBound = Math.max(
+    2000,
+    job?.client_tjm_max ?? 0,
+    tjm + 100,
+  )
+  const brutMinBound = Math.min(20000, brutAnnuel - 5000)
+  const brutMaxBound = Math.max(
+    150000,
+    brutAnnuel + 10000,
+    (limits?.brutMax ?? 0) + 5000,
+  )
 
   // Tab actif
   type Tab = "monthly" | "rupture" | "detail"
@@ -302,14 +312,18 @@ function PricingWidgetInner({
         <SliderField
           label="TJM client"
           value={tjm}
-          min={Math.max(100, Math.round(tjmMinBound))}
+          min={Math.round(tjmMinBound)}
           max={Math.round(tjmMaxBound)}
           step={5}
           suffix="€/j"
           onChange={setTjm}
           range={job?.client_tjm_min != null || job?.client_tjm_max != null
-            ? `mission : ${job?.client_tjm_min ?? "—"} → ${job?.client_tjm_max ?? "—"} €/j`
-            : "renseigne TJM min/max dans la mission"}
+            ? `fenêtre client : ${job?.client_tjm_min ?? "—"} → ${job?.client_tjm_max ?? "—"} €/j (marqueurs orange)`
+            : "aucune fenêtre client renseignée"}
+          markers={[
+            ...(job?.client_tjm_min != null ? [{ value: job.client_tjm_min, label: "min", color: "#D97706" }] : []),
+            ...(job?.client_tjm_max != null ? [{ value: job.client_tjm_max, label: "max", color: "#D97706" }] : []),
+          ]}
         />
         <SliderField
           label="Brut candidat"
@@ -319,8 +333,9 @@ function PricingWidgetInner({
           step={500}
           suffix="€/an"
           onChange={setBrutAnnuel}
-          range={limits ? `min Syntec ${formatEur0(brutMinBound)} · max ${margeMinPct}% : ${formatEur0(limits.brutMax)} · idéal ${margeTargetPct}% : ${formatEur0(limits.brutIdeal)}` : ""}
+          range={limits ? `min Syntec ${formatEur0(limits.brutMin)} · marge ${margeMinPct}% : ${formatEur0(limits.brutMax)} · marge ${margeTargetPct}% : ${formatEur0(limits.brutIdeal)}` : ""}
           markers={limits ? [
+            { value: Math.round(limits.brutMin), label: `⚖ Syntec`, color: "#B91C1C" },
             { value: Math.round(limits.brutIdeal), label: `💎 ${margeTargetPct}%`, color: "#16a34a" },
             { value: Math.round(limits.brutMax),   label: `🎯 ${margeMinPct}%`,    color: "#D97706" },
           ] : []}

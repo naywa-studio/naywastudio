@@ -58,13 +58,6 @@ const DEFAULT_FORM: Form = {
   },
 }
 
-const LIEU_LABELS: Record<Lieu, string> = {
-  paris_petite_couronne: "Paris + petite couronne (75/92/93/94)",
-  idf_grande_couronne: "Île-de-France grande couronne",
-  lyon: "Lyon métropole",
-  province: "Province (autres communes)",
-}
-
 const MODALITE_LABELS: Record<Modalite, string> = {
   modalite_1: "Modalité 1 — Standard 35h",
   modalite_2: "Modalité 2 — Forfait hebdo 38h30 (+15% mini)",
@@ -244,21 +237,10 @@ export default function ParametragePage() {
       </Section>
 
       {/* Section 2 — Mission par défaut */}
-      <Section title="Mission par défaut" icon="🌍">
-        <Field
-          label="Lieu de mission par défaut"
-          hint="Sert au plafond URSSAF des indemnités grand déplacement (Paris+PC 115,70 €/j, autres zones 96,50 €/j)"
-        >
-          <Select
-            value={form.pricing_default_lieu}
-            onChange={(v) => update("pricing_default_lieu", v as Lieu)}
-            options={Object.entries(LIEU_LABELS).map(([value, label]) => ({ value, label }))}
-          />
-        </Field>
-
+      <Section title="Modalité par défaut" icon="📐">
         <Field
           label="Modalité Syntec par défaut"
-          hint="La modalité 3 (forfait jours) impose un minimum +20% (cadres autonomes uniquement)"
+          hint="La modalité 3 (forfait jours) impose un minimum +20% (cadres autonomes uniquement). Le lieu, lui, se renseigne sur chaque mission individuellement."
         >
           <Select
             value={form.pricing_default_modalite}
