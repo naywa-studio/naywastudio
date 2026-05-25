@@ -28,6 +28,7 @@ import {
   type Avantages,
 } from "@/lib/pricing/syntec"
 import MonthlyMarginChart from "@/components/workspace/MonthlyMarginChart"
+import RuptureRiskChart from "@/components/workspace/RuptureRiskChart"
 import type { Candidate, Job, ParsedCv, Profile } from "@/lib/database.types"
 import { getSupabase } from "@/lib/supabase"
 
@@ -448,6 +449,15 @@ function PricingWidgetInner({
           margeMinPct={margeMinPct}
         />
       </div>
+
+      {/* Analyse risque rupture employeur — chart 2ᵉ niveau */}
+      <RuptureRiskChart
+        inputs={buildInputs(brutAnnuel)}
+        startDate={job?.start_date ?? null}
+        durationMonths={job?.duration_months ?? 12}
+        tjm={tjm}
+        margeMinPct={margeMinPct}
+      />
     </section>
   )
 }

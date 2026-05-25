@@ -584,6 +584,138 @@ export function computeMissionMargin(
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+ * Public API — risque rupture employeur sur calendrier réel
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export interface RuptureRiskPoint {
+  /** Index 1..N du mois dans la mission. */
+  monthIndex: number
+  /** Année calendaire. */
+  year: number
+  /** Mois calendaire 0..11. */
+  calendarMonth: number
+  /** Jours travaillés du mois (calendrier réel). */
+  workingDays: number
+  /** Cumul des jours travaillés depuis le démarrage jusqu'à ce mois inclus. */
+  cumulDays: number
+  /** Cumul revenu € depuis démarrage. */
+  cumulRevenu: number
+  /** Cumul coût employeur € depuis démarrage. */
+  cumulCost: number
+  /** Coût rupture estimé si l'employeur rompt à ce mois T (€). 0 pendant essai. */
+  coutRupture: number
+  /** Marge nette cumulée (€) après application du coût rupture. */
+  margeNetteEur: number
+  /** Marge en % du revenu cumulé. */
+  margePct: number
+  /** Vrai si t > fin_essai (sortie de la zone "rupture gratuite"). */
+  isPostEssai: boolean
+}
+
+export interface RuptureRiskProfile {
+  points: RuptureRiskPoint[]
+  /** Mois calendaire de fin d'essai (= last month where rupture is free). */
+  finEssaiMois: number
+  /** Préavis Syntec applicable post-essai (mois). */
+  preavisMois: number
+  /** Récap : pire mois (margePct min). */
+  worstMonth: RuptureRiskPoint | null
+  /** Récap : meilleur mois (margePct max). */
+  bestMonth: RuptureRiskPoint | null
+}
+
+/** Calcule pour chaque mois T de la mission la marge moyenne cumulée
+ *  si l'employeur ROMPT le contrat à ce mois-là. Inclut :
+ *  - Préavis × coût salarial (chargé) pendant la durée de préavis Syntec
+ *  - Indemnité de licenciement Art. 4.5 (si ancienneté ≥ 8 mois)
+ *  - Indemnité compensatrice CP non pris (10% × salaire chargé × CP_restants/2.08)
+ *
+ *  Pendant la période d'essai, le coût rupture est 0 (rupture gratuite),
+ *  donc la marge = marge moyenne cumulée nominale. À la fin de l'essai,
+ *  cliff vers le bas, puis remontée progressive. */
+export function computeRuptureRiskProfile(
+  inputs: PricingInputs,
+  tjm: number,
+  startDate: Date,
+  durationMonths: number,
+): RuptureRiskProfile {
+  const cost = computeEmployerCost(inputs)
+  const months = missionMonthProfile(startDate, Math.max(1, durationMonths))
+
+  const preavisM = preavisMois(inputs.statut, durationMonths / 12, inputs.coefficient)
+  const finEssai = finPeriodeEssaiMois(inputs.statut, inputs.coefficient)
+
+  // Salaire chargé mensuel = base d'assiette pour les indemnités Syntec
+  // (brut + 13e + prime + charges). Avantages exonérés non inclus.
+  const coutSalarialMensuel =
+    cost.brutMensuel + cost.treiziemeMoisMensualise + cost.primeVacancesMensualisee + cost.chargesPatronales
+  const remTotaleMensuelle =
+    cost.brutMensuel + cost.treiziemeMoisMensualise + cost.primeVacancesMensualisee
+
+  /** Indemnité compensatrice CP non pris à un mois t donné. */
+  const indemniteCpAt = (t: number): number => {
+    const cpRestants = t * (25 / 12)   // hypothèse pessimiste : aucun pris
+    return 0.10 * coutSalarialMensuel * (cpRestants / 2.08)
+  }
+
+  const points: RuptureRiskPoint[] = []
+  let cumulRevenu = 0
+  let cumulCost = 0
+  let cumulDays = 0
+
+  for (const m of months) {
+    cumulDays += m.workingDays
+    cumulRevenu += tjm * m.workingDays
+    cumulCost += cost.coutFixeMensuel + cost.coutVariableJournalier * m.workingDays
+
+    const isPostEssai = m.monthIndex > finEssai
+    let coutRupture = 0
+    if (isPostEssai) {
+      // Préavis = N mois de coût salarial chargé (le candidat est payé sans
+      // bosser pendant le préavis — pas de revenu en face).
+      const coutPreavis = preavisM * coutSalarialMensuel
+      // Indemnité Art 4.5 : 0 avant 8 mois d'ancienneté
+      const ancienneteAnnees = m.monthIndex / 12
+      const indemniteMois = indemniteLicenciementMois(inputs.statut, ancienneteAnnees)
+      const indemniteEuros = indemniteMois * remTotaleMensuelle
+      coutRupture = coutPreavis + indemniteEuros + indemniteCpAt(m.monthIndex)
+    }
+
+    const margeNetteEur = cumulRevenu - cumulCost - coutRupture
+    const margePct = cumulRevenu > 0 ? (margeNetteEur / cumulRevenu) * 100 : 0
+
+    points.push({
+      monthIndex: m.monthIndex,
+      year: m.year,
+      calendarMonth: m.calendarMonth,
+      workingDays: m.workingDays,
+      cumulDays,
+      cumulRevenu,
+      cumulCost,
+      coutRupture,
+      margeNetteEur,
+      margePct,
+      isPostEssai,
+    })
+  }
+
+  const worst = points.length > 0
+    ? points.reduce((a, b) => (b.margePct < a.margePct ? b : a), points[0])
+    : null
+  const best = points.length > 0
+    ? points.reduce((a, b) => (b.margePct > a.margePct ? b : a), points[0])
+    : null
+
+  return {
+    points,
+    finEssaiMois: finEssai,
+    preavisMois: preavisM,
+    worstMonth: worst,
+    bestMonth: best,
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
  * Public API — the triangle (TJM / brut / marge)
  * ────────────────────────────────────────────────────────────────────────── */
 
