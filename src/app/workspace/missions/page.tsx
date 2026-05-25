@@ -11,7 +11,8 @@ import Select from "@/components/ui/Select"
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 const SENIORITIES = ["etudiant", "stagiaire", "junior", "mid", "senior", "lead", "principal"]
-const CONTRACTS = ["CDI", "CDD", "Freelance", "Stage", "Alternance"]
+// CONTRACTS retiré — le type de contrat (CDI/CDD/...) sera demandé au
+// moment du chiffrage dans l'onglet Pricing, pas à la création de mission.
 
 export default function MissionsPage() {
   const sb = useMemo(() => getSupabase(), [])
@@ -252,25 +253,15 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
   const [title, setTitle] = useState("")
   const [location, setLocation] = useState("")
   const [seniority, setSeniority] = useState("")
-  const [contractType, setContractType] = useState("")
   const [reqSkills, setReqSkills] = useState<string[]>([])
   const [niceSkills, setNiceSkills] = useState<string[]>([])
   const [description, setDescription] = useState("")
-  // Pricing — all optional. The sourceur can fill them now or come back later.
-  const [tjmMin, setTjmMin] = useState<string>("")
-  const [tjmMax, setTjmMax] = useState<string>("")
-  const [marginMin, setMarginMin] = useState<string>("")
-  const [duration, setDuration] = useState<string>("")
-  const [targetGross, setTargetGross] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const createJob = async (values: {
-    title: string; location: string; seniority: string; contract_type: string
+    title: string; location: string; seniority: string
     required_skills: string[]; nice_to_have_skills: string[]; description: string
-    client_tjm_min?: number | null; client_tjm_max?: number | null
-    margin_min_pct?: number | null; duration_months?: number | null
-    target_gross_salary?: number | null
   }): Promise<boolean> => {
     if (!values.title.trim()) { setError("Le titre est requis."); return false }
     setSubmitting(true); setError(null)
@@ -295,26 +286,15 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
     }
   }
 
-  const parseNum = (s: string): number | null => {
-    if (!s.trim()) return null
-    const n = Number(s.replace(",", "."))
-    return Number.isFinite(n) ? n : null
-  }
   const submitForm = () => createJob({
-    title, location, seniority, contract_type: contractType,
+    title, location, seniority,
     required_skills: reqSkills, nice_to_have_skills: niceSkills, description,
-    client_tjm_min: parseNum(tjmMin),
-    client_tjm_max: parseNum(tjmMax),
-    margin_min_pct: parseNum(marginMin),
-    duration_months: parseNum(duration),
-    target_gross_salary: parseNum(targetGross),
   })
 
   const applyDraft = (d: JobDraft) => {
     setTitle(d.title)
     setLocation(d.location ?? "")
     setSeniority(d.seniority ?? "")
-    setContractType(d.contract_type ?? "")
     setReqSkills(d.required_skills)
     setNiceSkills(d.nice_to_have_skills)
     setDescription(d.description ?? "")
@@ -326,7 +306,6 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
     title: d.title,
     location: d.location ?? "",
     seniority: d.seniority ?? "",
-    contract_type: d.contract_type ?? "",
     required_skills: d.required_skills,
     nice_to_have_skills: d.nice_to_have_skills,
     description: d.description ?? "",
@@ -405,15 +384,6 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
                 </Field>
               </div>
 
-              <Field label="Type de contrat">
-                <Select
-                  value={contractType}
-                  onChange={setContractType}
-                  placeholder="—"
-                  options={CONTRACTS.map((c) => ({ value: c, label: c }))}
-                />
-              </Field>
-
               <Field label="Compétences requises" hint="Entrée ou virgule pour ajouter">
                 <TagInput tags={reqSkills} onChange={setReqSkills} placeholder="Python, Spark, AWS…" />
               </Field>
@@ -428,68 +398,15 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
                   style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
               </Field>
 
-              {/* Pricing block — optional, used by the Pricing tab later.
-                  Pre-collected here so the sourceur doesn't have to re-open the
-                  mission later when moving a candidate into the pricing stage. */}
-              <div style={{
-                background: "rgba(217,119,6,0.04)", border: "1px solid rgba(217,119,6,0.18)",
-                borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 10,
+              <p style={{
+                margin: 0, padding: "10px 12px", fontSize: 11.5, color: "#6B7280",
+                background: "#F8F6FF", border: "1px solid #F0ECF8", borderRadius: 9,
+                lineHeight: 1.5,
               }}>
-                <div style={{
-                  fontSize: 11.5, fontWeight: 700, color: "#B45309",
-                  letterSpacing: "0.06em", textTransform: "uppercase",
-                  display: "flex", alignItems: "center", gap: 6,
-                }}>
-                  💰 Pricing <span style={{ fontWeight: 500, color: "#9CA3AF", textTransform: "none", letterSpacing: 0 }}>
-                    · optionnel, complétez plus tard si besoin
-                  </span>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Field label="TJM client min (€/j)">
-                    <input
-                      type="number" inputMode="decimal" min={0} step={10}
-                      value={tjmMin} onChange={(e) => setTjmMin(e.target.value)}
-                      placeholder="500" style={inputStyle}
-                    />
-                  </Field>
-                  <Field label="TJM client max (€/j)">
-                    <input
-                      type="number" inputMode="decimal" min={0} step={10}
-                      value={tjmMax} onChange={(e) => setTjmMax(e.target.value)}
-                      placeholder="650" style={inputStyle}
-                    />
-                  </Field>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Field label="Marge minimum (%)">
-                    <input
-                      type="number" inputMode="decimal" min={0} max={100} step={1}
-                      value={marginMin} onChange={(e) => setMarginMin(e.target.value)}
-                      placeholder="15" style={inputStyle}
-                    />
-                  </Field>
-                  <Field label="Durée prévue (mois)">
-                    <input
-                      type="number" inputMode="numeric" min={1} max={120} step={1}
-                      value={duration} onChange={(e) => setDuration(e.target.value)}
-                      placeholder="12" style={inputStyle}
-                    />
-                  </Field>
-                </div>
-
-                <Field
-                  label="Salaire brut annuel ciblé (si communiqué par le client)"
-                  hint="Avec 2 valeurs du triangle (TJM + brut), la marge est déduite automatiquement"
-                >
-                  <input
-                    type="number" inputMode="decimal" min={0} step={500}
-                    value={targetGross} onChange={(e) => setTargetGross(e.target.value)}
-                    placeholder="45000" style={inputStyle}
-                  />
-                </Field>
-              </div>
+                💡 <strong>Type de contrat, TJM, durée, brut, démarrage</strong> : tu les
+                renseigneras au moment du chiffrage, dans l&apos;onglet Pricing — plus pertinent
+                là-bas, et l&apos;outil te guidera avec un mini questionnaire.
+              </p>
 
               {error && (
                 <div style={{

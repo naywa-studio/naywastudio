@@ -39,6 +39,9 @@ export default function PricingMissionPage() {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  // Wizard mission piloté par la page parent — permet au widget pricing de
+  // demander une réouverture du wizard via le bouton "⚙ Modifier la mission".
+  const [missionEditOpen, setMissionEditOpen] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -106,10 +109,12 @@ export default function PricingMissionPage() {
       {/* Header compact — 1 ligne */}
       <CompactHeader job={job} />
 
-      {/* Détection mission paramétrée : si non → wizard, sinon → résumé compact */}
+      {/* Détection mission paramétrée : si non OU si force édition → wizard, sinon → résumé compact */}
       <MissionConfigZone
         job={job}
         onPatched={(next) => setJob(next)}
+        forceEdit={missionEditOpen}
+        onCloseEdit={() => setMissionEditOpen(false)}
       />
 
       {/* Layout principal : left rail candidats + main widget */}
@@ -138,7 +143,11 @@ export default function PricingMissionPage() {
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.3, ease: EASE }}
               >
-                <PricingWidget candidate={selected.candidate} job={job} />
+                <PricingWidget
+                  candidate={selected.candidate}
+                  job={job}
+                  onEditMission={() => setMissionEditOpen(true)}
+                />
               </m.div>
             ) : (
               <NoCandidatesState jobId={job.id} />
@@ -233,20 +242,30 @@ function isMissionConfigured(job: Job): boolean {
 }
 
 function MissionConfigZone({
-  job, onPatched,
+  job, onPatched, forceEdit, onCloseEdit,
 }: {
   job: Job
   onPatched: (next: Job) => void
+  forceEdit?: boolean
+  onCloseEdit?: () => void
 }) {
-  const [forceEdit, setForceEdit] = useState(false)
+  const [internalEdit, setInternalEdit] = useState(false)
   const configured = isMissionConfigured(job)
+  const showWizard = !configured || forceEdit || internalEdit
 
-  if (!configured || forceEdit) {
+  if (showWizard) {
     return (
       <MissionConfigWizard
         job={job}
-        onPatched={(next) => { onPatched(next); setForceEdit(false) }}
-        onCancel={configured ? () => setForceEdit(false) : undefined}
+        onPatched={(next) => {
+          onPatched(next)
+          setInternalEdit(false)
+          onCloseEdit?.()
+        }}
+        onCancel={configured ? () => {
+          setInternalEdit(false)
+          onCloseEdit?.()
+        } : undefined}
       />
     )
   }
@@ -254,7 +273,7 @@ function MissionConfigZone({
   return (
     <MissionConfigSummary
       job={job}
-      onEdit={() => setForceEdit(true)}
+      onEdit={() => setInternalEdit(true)}
     />
   )
 }
@@ -269,9 +288,7 @@ function MissionConfigSummary({
   const startStr = job.start_date
     ? new Date(job.start_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
     : "?"
-  const tjmStr = job.client_tjm_min != null && job.client_tjm_max != null
-    ? `${job.client_tjm_min}-${job.client_tjm_max} €/j`
-    : `${job.client_tjm_min ?? job.client_tjm_max ?? "?"} €/j`
+  const tjm = job.client_tjm_min ?? job.client_tjm_max
   return (
     <div style={{
       background: "rgba(34,197,94,0.04)",
@@ -286,8 +303,9 @@ function MissionConfigSummary({
       }}>
         ✓ Mission paramétrée
       </span>
-      <span>· TJM {tjmStr}</span>
+      <span>· TJM {tjm ?? "?"} €/j</span>
       <span>· {job.duration_months} mois</span>
+      {job.contract_type && <span>· {job.contract_type}</span>}
       <span>· début {startStr}</span>
       {job.target_gross_salary != null && (
         <span>· brut ciblé {Math.round(job.target_gross_salary).toLocaleString("fr-FR")} €/an</span>
@@ -320,10 +338,13 @@ function MissionConfigWizard({
   const numToStr = (n: number | null | undefined): string =>
     n == null ? "" : String(n)
 
-  const [tjmMin, setTjmMin] = useState<string>(numToStr(job.client_tjm_min))
-  const [tjmMax, setTjmMax] = useState<string>(numToStr(job.client_tjm_max))
+  // TJM unique — client_tjm_min en DB sert de "TJM cible". Le slider du widget
+  // est centré dessus et ouvre une plage adaptive ±35%. client_tjm_max reste
+  // null (legacy field, plus exposé en UI).
+  const [tjm, setTjm] = useState<string>(numToStr(job.client_tjm_min ?? job.client_tjm_max))
   const [duration, setDuration] = useState<string>(numToStr(job.duration_months))
   const [targetGross, setTargetGross] = useState<string>(numToStr(job.target_gross_salary))
+  const [contractType, setContractType] = useState<string>(job.contract_type ?? "CDI")
   const [startDate, setStartDate] = useState<string>(job.start_date ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -334,11 +355,10 @@ function MissionConfigWizard({
     return Number.isFinite(n) ? n : null
   }
 
-  const tjmMinNum = parseNum(tjmMin)
-  const tjmMaxNum = parseNum(tjmMax)
+  const tjmNum = parseNum(tjm)
   const durationNum = parseNum(duration)
   const targetGrossNum = parseNum(targetGross)
-  const valid = (tjmMinNum != null || tjmMaxNum != null) && durationNum != null && startDate !== ""
+  const valid = tjmNum != null && durationNum != null && startDate !== ""
 
   const onSubmit = async () => {
     if (!valid || saving) return
@@ -348,10 +368,11 @@ function MissionConfigWizard({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          client_tjm_min: tjmMinNum,
-          client_tjm_max: tjmMaxNum,
+          client_tjm_min: tjmNum,
+          client_tjm_max: null,  // plus utilisé — TJM unique
           duration_months: durationNum,
           target_gross_salary: targetGrossNum,
+          contract_type: contractType,
           start_date: startDate || null,
         }),
       })
@@ -406,21 +427,13 @@ function MissionConfigWizard({
         gap: 12,
       }}>
         <WizardField
-          label="TJM client min"
-          hint="prix journalier minimum négocié avec le client"
-          value={tjmMin}
-          onChange={setTjmMin}
+          label="TJM client cible"
+          hint="prix journalier négocié — le slider explorera autour"
+          value={tjm}
+          onChange={setTjm}
           suffix="€/j"
-          placeholder="500"
+          placeholder="600"
           required
-        />
-        <WizardField
-          label="TJM client max"
-          hint="optionnel — borne haute si négociation flexible"
-          value={tjmMax}
-          onChange={setTjmMax}
-          suffix="€/j"
-          placeholder="650"
         />
         <WizardField
           label="Durée prévue"
@@ -431,6 +444,16 @@ function MissionConfigWizard({
           placeholder="12"
           required
           max={120}
+        />
+        <WizardSelectField
+          label="Type de contrat"
+          hint="CDI ou CDD — change la modélisation rupture"
+          value={contractType}
+          onChange={setContractType}
+          options={[
+            { value: "CDI", label: "CDI" },
+            { value: "CDD", label: "CDD" },
+          ]}
         />
         <WizardField
           label="Brut ciblé candidat"
@@ -523,6 +546,40 @@ function WizardField({
         />
         <span style={{ fontSize: 11.5, color: "#9CA3AF", flexShrink: 0 }}>{suffix}</span>
       </div>
+    </label>
+  )
+}
+
+function WizardSelectField({
+  label, hint, value, onChange, options,
+}: {
+  label: string
+  hint?: string
+  value: string
+  onChange: (s: string) => void
+  options: { value: string; label: string }[]
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
+      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>{hint}</span>}
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          padding: "10px 12px",
+          fontSize: 14, fontWeight: 700, color: "#111827",
+          background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
+          outline: "none", fontFamily: "inherit", appearance: "none",
+          backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\'><path fill=\'%239CA3AF\' d=\'M5 6L0 0h10z\'/></svg>")',
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "right 14px center",
+        }}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
     </label>
   )
 }

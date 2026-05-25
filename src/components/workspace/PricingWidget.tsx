@@ -91,10 +91,13 @@ type PricingProfile = Pick<Profile,
 > | null
 
 export default function PricingWidget({
-  candidate, job,
+  candidate, job, onEditMission,
 }: {
   candidate: Candidate
   job: Job | null
+  /** Callback déclenché par le bouton "⚙ Modifier mission" — la page parent
+   *  ouvre le wizard mission (MissionConfigWizard) avec les valeurs courantes. */
+  onEditMission?: () => void
 }) {
   const sb = useMemo(() => getSupabase(), [])
   const [profile, setProfile] = useState<PricingProfile | undefined>(undefined)
@@ -125,7 +128,7 @@ export default function PricingWidget({
       </section>
     )
   }
-  return <PricingWidgetInner candidate={candidate} job={job} profile={profile} />
+  return <PricingWidgetInner candidate={candidate} job={job} profile={profile} onEditMission={onEditMission} />
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -133,11 +136,12 @@ export default function PricingWidget({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function PricingWidgetInner({
-  candidate, job, profile,
+  candidate, job, profile, onEditMission,
 }: {
   candidate: Candidate
   job: Job | null
   profile: PricingProfile
+  onEditMission?: () => void
 }) {
   const detectedPreset = useMemo(
     () => detectSeniority(candidate.parsed_cv, candidate.current_title),
@@ -237,21 +241,23 @@ function PricingWidgetInner({
     }
   }, [tjm, brutAnnuel, buildInputs, joursParMois, margeMinPct, margeTargetPct, minimumCheck.minimumMensuel])
 
-  // Sliders LIBRES — bornes larges, marqueurs informatifs seulement.
-  // TJM : 100-2000 €/j, marqueurs sur min/max mission
-  // Brut : 20k-150k €/an, marqueurs min Syntec / brut max / brut idéal
-  // Pas de blocage technique — l'alerte rouge s'affiche si user va trop bas
-  const tjmMinBound = Math.min(100, tjm)
-  const tjmMaxBound = Math.max(
-    2000,
-    job?.client_tjm_max ?? 0,
-    tjm + 100,
+  // Sliders ADAPTATIFS — bornes intelligentes autour de la valeur courante.
+  // TJM : ±35% autour de la valeur courante (min 200 €/j, max 1500 €/j absolus)
+  //   → si TJM=600 → range [400, 800]. Si TJM=900 → range [600, 1200].
+  // Brut : ±35% autour de la valeur courante, clampé pour rester réaliste
+  //   → si brut=45k → range [30k, 60k]. Si brut=70k → range [46k, 95k].
+  // Les marqueurs (min Syntec, brut max/idéal) tombent dans la plage car ils
+  // sont calculés à partir du même TJM courant.
+  const tjmMinBound = Math.max(200, Math.round(tjm * 0.65 / 5) * 5)
+  const tjmMaxBound = Math.min(1500, Math.round(tjm * 1.4 / 5) * 5)
+  const brutMinBound = Math.max(
+    20000,
+    Math.round((brutAnnuel * 0.65) / 500) * 500,
+    Math.round((limits?.brutMin ?? 0) - 5000),
   )
-  const brutMinBound = Math.min(20000, brutAnnuel - 5000)
   const brutMaxBound = Math.max(
-    150000,
-    brutAnnuel + 10000,
-    (limits?.brutMax ?? 0) + 5000,
+    Math.round((brutAnnuel * 1.4) / 500) * 500,
+    Math.round((limits?.brutMax ?? 0) + 5000),
   )
 
   // Tab actif
@@ -297,10 +303,24 @@ function PricingWidgetInner({
         <span>·</span>
         <span>{LIEU_LABELS[lieu]}</span>
         <span style={{ flex: 1 }} />
+        {onEditMission && (
+          <button
+            onClick={onEditMission}
+            style={{
+              fontSize: 11, fontWeight: 600, color: "#92400E",
+              background: "rgba(217,119,6,0.06)",
+              border: "1px solid rgba(217,119,6,0.25)",
+              borderRadius: 6, padding: "3px 9px",
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            ⚙ Modifier la mission
+          </button>
+        )}
         <Link href="/workspace/parametrage" style={{
           fontSize: 11, fontWeight: 600, color: "#7C63C8", textDecoration: "none",
         }}>
-          ⚙ Paramètres pricing
+          ⚙ Paramètres cabinet
         </Link>
       </div>
 
@@ -317,13 +337,10 @@ function PricingWidgetInner({
           step={5}
           suffix="€/j"
           onChange={setTjm}
-          range={job?.client_tjm_min != null || job?.client_tjm_max != null
-            ? `fenêtre client : ${job?.client_tjm_min ?? "—"} → ${job?.client_tjm_max ?? "—"} €/j (marqueurs orange)`
-            : "aucune fenêtre client renseignée"}
-          markers={[
-            ...(job?.client_tjm_min != null ? [{ value: job.client_tjm_min, label: "min", color: "#D97706" }] : []),
-            ...(job?.client_tjm_max != null ? [{ value: job.client_tjm_max, label: "max", color: "#D97706" }] : []),
-          ]}
+          range={`plage ${Math.round(tjmMinBound)} → ${Math.round(tjmMaxBound)} €/j · adaptive autour du TJM courant`}
+          markers={job?.client_tjm_min != null ? [
+            { value: job.client_tjm_min, label: "cible mission", color: "#D97706" },
+          ] : []}
         />
         <SliderField
           label="Brut candidat"
