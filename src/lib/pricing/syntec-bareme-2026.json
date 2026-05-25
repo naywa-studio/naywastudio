@@ -171,20 +171,22 @@
     }
   ],
   "charges_patronales_2026": {
-    "_note": "Taux totaux par STATUT, alignés sur la pratique cabinet (Excel pricing). Le versement mobilité (1.8-3.05% selon lieu) est déjà inclus dans le total. PASS 2026 = 4 005 €/mois (arrêté du 22/12/2025).",
-    "_status": "aligne_pratique_cabinet",
+    "_note": "Taux totaux par STATUT, calculés depuis la décomposition réelle des cotisations 2026 (sécu+chômage+retraite+formation+versement mobilité Paris). Cabinet ESN moyen 11-250 sal, brut 50-65k. Versement mobilité Paris+PC inclus (~3.05%). Pour cabinet >250 sal, ajouter ~2pts (forfait social, taxe apprentissage majorée).",
+    "_status": "valeurs_realistes_2026",
     "totaux_par_statut": {
-      "etam": 0.48,
-      "etam_assimile_cadre": 0.47,
-      "cadre": 0.47,
-      "expatrie": 0.27
+      "etam": 0.38,
+      "etam_assimile_cadre": 0.42,
+      "cadre": 0.44,
+      "expatrie": 0.22
     },
-    "totaux_indicatifs": {
-      "_deprecated": "Remplacé par totaux_par_statut depuis l'alignement Excel cabinet. Conservé pour compat.",
-      "cadre_syntec_paris_pct_brut": 47,
-      "cadre_syntec_province_pct_brut": 47,
-      "etam_syntec_paris_pct_brut": 48,
-      "etam_syntec_province_pct_brut": 48
+    "totaux_indicatifs_par_lieu": {
+      "_note": "Modulation indicative par lieu (versement mobilité). Pour usage avancé / V2.",
+      "cadre_paris_pct_brut": 44,
+      "cadre_idf_grande_couronne_pct_brut": 43,
+      "cadre_lyon_pct_brut": 43,
+      "cadre_province_pct_brut": 42,
+      "etam_paris_pct_brut": 38,
+      "etam_province_pct_brut": 36
     },
     "cotisations": [
       { "code": "maladie_maternite", "libelle": "Maladie-maternité", "taux_pct": 7.00, "base": "totalite", "statuts": ["tous"], "_note": "13% sans réduction Fillon" },

@@ -92,17 +92,18 @@ export default function PricingPage() {
 
           <Section title="4 · Charges patronales — total à payer (% du brut)" icon="💸">
             <p style={paragraphStyle}>
-              Total agrégé par statut, versement mobilité inclus.
-              Valeurs alignées sur la pratique cabinet ESN (peuvent varier de ±1 pt
-              selon effectif, code AT/MP et zone exacte).
+              Total agrégé par statut, calculé depuis la décomposition réelle des
+              cotisations 2026 (sécu + chômage + retraite + formation + versement mobilité).
+              Valeurs pour cabinet ESN moyen (11-250 sal, Paris+petite couronne, brut 50-65k).
+              Peut varier de ±2 pts selon effectif (&gt; 250 sal = +2 pts), code AT/MP et lieu exact.
             </p>
             <Table
               headers={["Statut", "Total charges patronales", "Notes"]}
               rows={[
-                ["ETAM", "≈ 48 % du brut", "Versement mobilité inclus"],
-                ["ETAM Assimilé Cadre", "≈ 47 % du brut", "+ APEC + prévoyance 1,5 %"],
-                ["Cadre (IC)", "≈ 47 % du brut", "Idem + cotisations T2 au-delà du PASS"],
-                ["Expatrié", "≈ 27 % du brut", "Pas de cotisations chômage France ni AGIRC-ARRCO si CFE"],
+                ["ETAM", "≈ 38 % du brut", "Sans APEC, prévoyance Syntec ni AGIRC-ARRCO T2"],
+                ["ETAM Assimilé Cadre", "≈ 42 % du brut", "+ APEC + prévoyance 1,5 % (cotise cadre)"],
+                ["Cadre (IC)", "≈ 44 % du brut", "Idem + cotisations T2 au-delà du PASS · versement mobilité Paris 3,05 %"],
+                ["Expatrié", "≈ 22 % du brut", "Variable selon convention bilatérale + CFE. Pas de chômage France si maintenu"],
               ]}
             />
             <CalloutInfo>
@@ -470,7 +471,7 @@ function FormulasPanel() {
         color="#7C63C8"
         lines={[
           "C = Brut mensuel négocié",
-          "  + Brut × charges patronales % par statut (ETAM 48 %, Cadre 47 %, Expat 27 %)",
+          "  + Brut × charges patronales % par statut (ETAM 38 %, Assimilé 42 %, Cadre 44 %, Expat 22 %)",
           "  + Brut × 1 % (prime de vacances Art. 31 mensualisée)",
           "  + Mutuelle santé (part employeur)",
           "  + Transport (50 % Navigo / TCL)",
@@ -479,7 +480,7 @@ function FormulasPanel() {
           "  + Médecine du travail (forfait annuel ÷ 12)",
           "  + Indemnité URSSAF déplacement (115,70 €/j Paris+PC, 96,50 €/j autres zones)",
         ]}
-        note="Constante quel que soit t. Versement mobilité déjà inclus dans le total charges par statut."
+        note="Constante quel que soit t. Versement mobilité (1-3 % selon lieu) déjà inclus dans le total charges par statut."
       />
 
       {/* CDI — 2 cas (pendant essai / post-essai). Motif fixé à

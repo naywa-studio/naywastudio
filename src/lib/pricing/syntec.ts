@@ -277,17 +277,33 @@ const MODALITE_UPLIFT_PCT: Record<Modalite, number> = {
   modalite_3: 20, // Modalité 3 : forfait jours 218j, +20% mini conventionnel
 }
 
-/** Taux aggregate charges patronales par STATUT social (aligné Excel cabinet).
- *  Le versement mobilité (1.8 → 3.05% selon lieu) est déjà intégré dans le
- *  total. ETAM a 1 point de plus que cadre parce qu'il cotise plus sur la
- *  T1 (pas d'APEC/prévoyance cadre mais autres compensations). Expatrié = 27%
- *  parce que pas de cotisations chômage France ni AGIRC-ARRCO. */
+/** Taux aggregate charges patronales par STATUT social.
+ *  Valeurs réalistes 2026 pour un cabinet ESN moyen (effectif 11-250 sal,
+ *  Paris+ petite couronne, brut moyen 50-65k), versement mobilité inclus.
+ *
+ *  Décomposition Cadre Paris :
+ *   - Sécu (maladie+AF+vieillesse+AT+FNAL+CSA)   ≈ 22.9%
+ *   - AGIRC-ARRCO (T1+T2 effectif sur brut 60k) ≈  8.1%
+ *   - CEG + CET + APEC                          ≈  1.8%
+ *   - Prévoyance Syntec                         ≈  1.5%
+ *   - Chômage + AGS + formation                 ≈  6.1%
+ *   - Versement mobilité Paris                  ≈  3.05%
+ *   - Total                                     ≈ 43-44%
+ *
+ *  Province : retire ~2pts de versement mobilité.
+ *  ETAM : retire AGIRC-ARRCO T2, APEC, prévoyance cadre ≈ -6pts.
+ *  ETAM Assimilé : entre les deux (cotise cadre mais grille ETAM).
+ *  Expatrié : variable selon convention bilatérale + CFE, ~22% indicatif.
+ *
+ *  Ces valeurs peuvent varier de ±2pts selon : taille cabinet (>250 sal =
+ *  forfait social, taxe apprentissage majorée), code AT/MP, brut exact
+ *  (cotisations T2 si > PASS 4 005€/mois). Au cabinet d'ajuster si besoin. */
 const TAUX_CHARGES_BY_STATUT: Record<Statut, number> = {
-  etam:                  0.48,
-  etam_assimile_cadre:   0.47,
-  cadre:                 0.47,
+  etam:                  0.38,
+  etam_assimile_cadre:   0.42,
+  cadre:                 0.44,
 }
-const TAUX_CHARGES_EXPATRIE = 0.27   // utilisé via override avantages.expatriationMensuelle
+const TAUX_CHARGES_EXPATRIE = 0.22   // utilisé via override avantages.expatriationMensuelle
 
 /** Look up the conventional minimum monthly salary for a (statut, position). */
 function lookupMinimumGrid(
