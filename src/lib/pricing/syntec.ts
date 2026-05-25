@@ -43,7 +43,9 @@ export type TypeContrat = 'cdi' | 'cdd'
 
 /** Optional employee perks — all monthly amounts in EUR, employer share. */
 export interface Avantages {
-  /** Tickets restaurant — employer's monthly contribution (€). */
+  /** Tickets restaurant — part employeur PAR JOUR TRAVAILLÉ (€/jour).
+   *  Plafond URSSAF 2026 ≈ 7,18 €/jour pour la part exonérée employeur
+   *  (60% × 11,97 € = 7,18). Le chart multiplie par les jours réels du mois. */
   ticketsResto?: number
   /** Mutuelle premium beyond minimum legal — employer share (€/month). */
   mutuellePremium?: number
@@ -131,8 +133,19 @@ export interface EmployerCostBreakdown {
   tauxCharges: number
   /** Total employer cotisations applied to brut + 13th + prime vacances. */
   chargesPatronales: number
-  /** Grand total — what the candidate truly costs to the ESN each month. */
+  /** Grand total — what the candidate truly costs to the ESN each month
+   *  pour un nombre moyen de jours (joursFacturablesParMois). Maintenu
+   *  pour compat — préférer coutFixeMensuel + coutVariableJournalier. */
   coutTotalMensuel: number
+  /** Coût mensuel FIXE — brut, charges, 13e, prime vacances, prime
+   *  cooptation, médecine du travail, mutuelle, transport, forfait mobilité,
+   *  expatriation, indemnité km annuelle, autres mensuels. NE varie PAS
+   *  avec les jours travaillés du mois. */
+  coutFixeMensuel: number
+  /** Coût employeur PAR JOUR TRAVAILLÉ — indemnité URSSAF grand
+   *  déplacement (€/j) + tickets resto (€/j). Multiplier par les jours
+   *  réellement travaillés du mois pour avoir le coût variable de ce mois. */
+  coutVariableJournalier: number
 }
 
 /** Three KPIs the ESN sourceur reasons with. Given any 2, the 3rd is derived. */
@@ -434,53 +447,69 @@ export function computeEmployerCost(input: PricingInputs): EmployerCostBreakdown
 
   const treiziemeMoisMensualise = input.avantages.treiziemeMois ? brutMensuel / 12 : 0
 
-  // URSSAF indemnité = montant journalier × jours facturables ; reste exonéré
-  // de charges (c'est l'intérêt URSSAF), donc on l'agrège aux avantages plutôt
-  // qu'à la rémunération cotisable.
-  const urssafIndemniteMensuelle =
-    (input.avantages.urssafIndemniteJour ?? 0) * input.joursFacturablesParMois
+  // ──────────────────────────────────────────────────────────────────────
+  // Split FIXE mensuel vs VARIABLE journalier
+  // ──────────────────────────────────────────────────────────────────────
+  // FIXE = ne dépend pas des jours travaillés du mois
+  //   - Brut + 13e + prime vacances + charges (rémunération cotisable)
+  //   - Avantages mensuels constants : mutuelle, transport, forfait mobilité,
+  //     expatriation, prime cooptation mensualisée, autres mensuels
+  //   - Avantages annuels mensualisés : médecine du travail / 12,
+  //     indemnité km annuelle / 12
+  //
+  // VARIABLE = se calcule par jour travaillé
+  //   - Indemnité URSSAF grand déplacement (€/jour)
+  //   - Tickets restaurant (€/jour, part employeur)
+  //
+  // Le chart MonthlyMargin appelle (coutFixe + coutVariable × jours_du_mois)
+  // pour chaque mois, en utilisant les VRAIS jours travaillés du calendrier.
 
-  // Médecine du travail — forfait annuel obligatoire, mensualisé.
+  // Annuel → mensuel
   const medecineDuTravailMensuelle = (input.avantages.medecineDuTravailAnnuel ?? 0) / 12
-
-  // Indemnité kilométrique — annuelle estimée, mensualisée.
   const indemniteKmMensuelle = (input.avantages.indemniteKilometriqueAnnuelle ?? 0) / 12
+  const primeCooptationMensualisee = (input.avantages.primeCooptationAnnuelle ?? 0) / 12
 
-  // Expatriation — montant mensuel direct.
+  // Avantages mensuels constants (hors charges, hors brut/prime/13e)
   const expatriationMensuelle = input.avantages.expatriationMensuelle ?? 0
-
-  const avantagesMensuels =
-    (input.avantages.ticketsResto ?? 0) +
+  const avantagesMensuelsFixes =
     (input.avantages.mutuellePremium ?? 0) +
     (input.avantages.transport ?? 0) +
     (input.avantages.forfaitMobilite ?? 0) +
-    urssafIndemniteMensuelle +
     medecineDuTravailMensuelle +
     indemniteKmMensuelle +
     expatriationMensuelle +
     (input.avantages.autresMensuels ?? 0)
 
-  const primeCooptationMensualisee = (input.avantages.primeCooptationAnnuelle ?? 0) / 12
+  // Avantages JOURNALIERS — variable selon les jours travaillés du mois
+  const coutVariableJournalier =
+    (input.avantages.urssafIndemniteJour ?? 0) +
+    (input.avantages.ticketsResto ?? 0)
 
-  // Employer charges apply to brut + 13th + prime de vacances (everything
-  // that's part of the contractual remuneration). Avantages en nature
-  // (tickets resto, mutuelle, transport) are partially exonérés so we don't
-  // apply charges on top — they're already net cost to the employer.
-  // Taux total par STATUT (versement mobilité inclus). Aligné Excel cabinet :
-  // ETAM 48%, ETAM assimilé 47%, Cadre 47%. Expatrié = 27% via override.
+  // Charges patronales sur la rémunération cotisable (brut + 13e + prime).
+  // Avantages exonérés (mutuelle, transport, tickets resto, URSSAF) → pas chargés.
+  // Taux par STATUT (versement mobilité inclus). Expatrié = 27% si applicable.
   const tauxCharges = input.avantages.expatriationMensuelle && input.avantages.expatriationMensuelle > 0
     ? TAUX_CHARGES_EXPATRIE
     : TAUX_CHARGES_BY_STATUT[input.statut]
   const remunerationCotisable = brutMensuel + treiziemeMoisMensualise + primeVacancesMensualisee
   const chargesPatronales = remunerationCotisable * tauxCharges
 
-  const coutTotalMensuel =
+  // Coût FIXE mensuel = tout ce qui ne dépend pas des jours du mois
+  const coutFixeMensuel =
     brutMensuel +
     treiziemeMoisMensualise +
     primeVacancesMensualisee +
     chargesPatronales +
-    avantagesMensuels +
+    avantagesMensuelsFixes +
     primeCooptationMensualisee
+
+  // coutTotalMensuel (legacy) : approximation basée sur jours_facturables_par_mois
+  // moyen. À ne plus utiliser pour le chart — préférer coutFixe + coutVar × jours_réels.
+  const coutTotalMensuel = coutFixeMensuel + coutVariableJournalier * input.joursFacturablesParMois
+
+  // avantagesMensuels (legacy) : pour compat avec l'affichage CostBreakdown.
+  // Inclut une mensualisation moyenne du variable.
+  const avantagesMensuels = avantagesMensuelsFixes + coutVariableJournalier * input.joursFacturablesParMois
 
   return {
     brutMensuel,
@@ -491,6 +520,8 @@ export function computeEmployerCost(input: PricingInputs): EmployerCostBreakdown
     tauxCharges,
     chargesPatronales,
     coutTotalMensuel,
+    coutFixeMensuel,
+    coutVariableJournalier,
   }
 }
 

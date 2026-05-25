@@ -44,7 +44,7 @@ const DEFAULT_FORM: Form = {
   pricing_default_lieu: "paris_petite_couronne",
   pricing_default_modalite: "modalite_1",
   pricing_default_avantages: {
-    ticketsResto: 100,
+    ticketsResto: 6,           // €/jour travaillé (URSSAF 2026 plafond exonération employeur ≈ 7.18€)
     mutuellePremium: 45,
     transport: 42,
     forfaitMobilite: 0,
@@ -214,19 +214,14 @@ export default function ParametragePage() {
         <SaveBadge state={saveState} error={error} />
       </div>
 
-      {/* Section 1 — Hypothèses commerciales */}
-      <Section title="Hypothèses commerciales" icon="📊">
-        <Field
-          label="Jours facturables par mois"
-          hint="Standard ESN : 17-18 jours (après congés, RTT, fériés, intercontrats)"
-        >
-          <NumberInput
-            value={form.pricing_billable_days_per_month}
-            onChange={(v) => update("pricing_billable_days_per_month", v)}
-            min={10} max={22} step={0.5}
-            suffix="jours"
-          />
-        </Field>
+      {/* Section 1 — Seuils de marge */}
+      <Section title="Seuils de marge" icon="📊">
+        <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+          Les jours travaillés mois par mois sont calculés depuis le <strong>vrai calendrier
+          français</strong> (Lun-Ven hors fériés) — plus besoin d&apos;une valeur théorique
+          mensuelle. Le chart marge mensuelle reflète directement les creux d&apos;août et les
+          pics d&apos;octobre.
+        </p>
 
         <Row>
           <Field label="Marge minimum acceptable" hint="En dessous, refus du chiffrage">
@@ -281,13 +276,13 @@ export default function ParametragePage() {
         </p>
 
         <AvantageRow
-          label="Tickets restaurant"
-          hint="Part employeur, ≈ 100-130 €/mois pour 9 € × 18 j à 60%"
-          enabled={(form.pricing_default_avantages.ticketsResto ?? 0) > 0}
-          onToggle={(on) => updateAvantage("ticketsResto", on ? 100 : 0)}
-          value={form.pricing_default_avantages.ticketsResto ?? 0}
-          onValueChange={(v) => updateAvantage("ticketsResto", v)}
-          suffix="€/mois"
+          label="Tickets restaurant (€/jour travaillé)"
+          hint="Part employeur par jour. Plafond URSSAF 2026 ≈ 7,18 € (60% × 11,97 €). Variable selon les jours réels du mois."
+        enabled={(form.pricing_default_avantages.ticketsResto ?? 0) > 0}
+        onToggle={(on) => updateAvantage("ticketsResto", on ? 6 : 0)}
+        value={form.pricing_default_avantages.ticketsResto ?? 0}
+        onValueChange={(v) => updateAvantage("ticketsResto", v)}
+        suffix="€/jour"
         />
 
         <AvantageRow
