@@ -320,7 +320,7 @@ Important : si activée, c'est un coût lourd pour l'ESN en cas de rupture. Souv
 
 **~42% à 45% du brut** selon les options (réduction Fillon, taille entreprise, versement mobilité local).
 
-> ⚠ **Critique pour le calcul** : ces taux doivent être vérifiés annuellement (lois de financement Sécurité Sociale + accords AGIRC-ARRCO). Coder dans `syntec-bareme-2026.json` avec date de mise à jour pour faciliter la maintenance.
+> ⚠ **Critique pour le calcul** : ces taux doivent être vérifiés annuellement (lois de financement Sécurité Sociale + accords AGIRC-ARRCO). Source unique : [`src/lib/pricing/syntec-bareme-2026.json`](../src/lib/pricing/syntec-bareme-2026.json) (bundle Next, importé par `syntec.ts`).
 
 ---
 

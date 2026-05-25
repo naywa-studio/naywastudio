@@ -92,15 +92,17 @@ export default function PricingPage() {
 
           <Section title="4 · Charges patronales — total à payer (% du brut)" icon="💸">
             <p style={paragraphStyle}>
-              Total agrégé des cotisations patronales que l&apos;employeur ajoute au brut.
-              Approximatif : varie selon lieu (versement mobilité) et salaire (cotisations T2 au-delà du PASS).
+              Total agrégé par statut, versement mobilité inclus.
+              Valeurs alignées sur la pratique cabinet ESN (peuvent varier de ±1 pt
+              selon effectif, code AT/MP et zone exacte).
             </p>
             <Table
               headers={["Statut", "Total charges patronales", "Notes"]}
               rows={[
-                ["ETAM", "≈ 35 à 38 % du brut", "Sans APEC ni prévoyance 1,5 %"],
-                ["ETAM Assimilé Cadre", "≈ 42 à 45 % du brut", "+ APEC + prévoyance 1,5 %"],
-                ["Cadre (IC)", "≈ 42 à 46 % du brut", "Idem + cotisations T2 au-delà du PASS"],
+                ["ETAM", "≈ 48 % du brut", "Versement mobilité inclus"],
+                ["ETAM Assimilé Cadre", "≈ 47 % du brut", "+ APEC + prévoyance 1,5 %"],
+                ["Cadre (IC)", "≈ 47 % du brut", "Idem + cotisations T2 au-delà du PASS"],
+                ["Expatrié", "≈ 27 % du brut", "Pas de cotisations chômage France ni AGIRC-ARRCO si CFE"],
               ]}
             />
             <CalloutInfo>
@@ -464,21 +466,20 @@ function FormulasPanel() {
       </div>
 
       <FormulaCard
-        title="📦 C(brut, statut, lieu) — coût mensuel récurrent"
+        title="📦 C(brut, statut) — coût mensuel récurrent"
         color="#7C63C8"
         lines={[
           "C = Brut mensuel négocié",
-          "  + Brut × charges patronales % (35–46 % selon statut)",
-          "  + Brut × versement mobilité % (0–3,2 % selon lieu)",
+          "  + Brut × charges patronales % par statut (ETAM 48 %, Cadre 47 %, Expat 27 %)",
           "  + Brut × 1 % (prime de vacances Art. 31 mensualisée)",
           "  + Mutuelle santé (part employeur)",
           "  + Transport (50 % Navigo / TCL)",
           "  + Tickets resto (valeur × part empl. × jours travaillés)",
           "  + 13ᵉ mois ÷ 12 (si pratiqué)",
           "  + Médecine du travail (forfait annuel ÷ 12)",
-          "  + Indemnité URSSAF déplacement (117,10 €/j Paris+PC, 97,90 €/j province)",
+          "  + Indemnité URSSAF déplacement (115,70 €/j Paris+PC, 96,50 €/j autres zones)",
         ]}
-        note="Constante quel que soit t. C'est la base que paye l'employeur chaque mois."
+        note="Constante quel que soit t. Versement mobilité déjà inclus dans le total charges par statut."
       />
 
       {/* CDI — 2 cas (pendant essai / post-essai). Motif fixé à

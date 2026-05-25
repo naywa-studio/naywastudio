@@ -252,7 +252,7 @@ export default function ParametragePage() {
       <Section title="Mission par défaut" icon="🌍">
         <Field
           label="Lieu de mission par défaut"
-          hint="Détermine le taux de versement mobilité et les indemnités URSSAF"
+          hint="Sert au plafond URSSAF des indemnités grand déplacement (Paris+PC 115,70 €/j, autres zones 96,50 €/j)"
         >
           <Select
             value={form.pricing_default_lieu}

@@ -114,11 +114,6 @@ export interface PricingInputs {
   avantages: Avantages
   /** Average billable days per month (default 18 in this codebase). */
   joursFacturablesParMois: number
-  /** @deprecated Le taux est fixé par la loi (par statut), pas par
-   *  l'employeur. Champ conservé pour ne pas casser les callsites
-   *  historiques, mais ignoré dans le nouveau code. À retirer dans une
-   *  version future. */
-  tauxChargesPatronalesOverride?: number
 }
 
 /** Breakdown of the employer's monthly cost for a candidate. */
@@ -318,9 +313,19 @@ function lookupMinimumGrid(
   return row ? row.minimum_mensuel_eur : null
 }
 
-/** Article 4.2 — durée du préavis (mois) selon statut + ancienneté. */
+/** Article 4.2 — durée du préavis (mois) selon statut + ancienneté.
+ *  Aligné Excel cabinet (Paramètres!C95:E99) :
+ *  - Cadre              → 3 mois toujours
+ *  - ETAM Assimilé cadre → 2 mois toujours (même < 2 ans d'ancienneté)
+ *  - ETAM coef > 355    → 2 mois toujours
+ *  - ETAM < 2 ans       → 1 mois
+ *  - ETAM ≥ 2 ans       → 2 mois */
 function preavisMois(statut: Statut, ancienneteAnnees: number, coefficient: number): number {
   if (statut === 'cadre') return bareme.preavis_cdi.cadre.licenciement_mois
+  if (statut === 'etam_assimile_cadre') {
+    return (bareme.preavis_cdi as unknown as Record<string, { licenciement_mois: number }>)
+      .etam_assimile_cadre.licenciement_mois
+  }
   // ETAM aux coefficients 400, 450, 500 : 2 mois quel que soit l'ancienneté
   if (coefficient >= 400) {
     return bareme.preavis_cdi.etam_coef_400_450_500.licenciement_mois

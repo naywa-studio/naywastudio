@@ -284,6 +284,11 @@
       "licenciement_mois": 3,
       "_note": "Cadres : 3 mois quelle que soit l'ancienneté"
     },
+    "etam_assimile_cadre": {
+      "demission_mois": 2,
+      "licenciement_mois": 2,
+      "_note": "ETAM Assimilé cadre : 2 mois toujours, comme un ETAM senior. Aligné Excel cabinet (ligne C99)."
+    },
     "absence_recherche_emploi_jours_ouvres_par_mois": 6,
     "_correction": "Source Article 4.3 — 6 jours ouvrés/mois (pas 50h/mois comme indiqué initialement)"
   },
