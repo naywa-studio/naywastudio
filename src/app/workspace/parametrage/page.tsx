@@ -257,29 +257,25 @@ export default function ParametragePage() {
           ajuster individuellement.
         </p>
 
-        <AvantageRow
-          label="Tickets restaurant (€/jour travaillé)"
-          hint="Part employeur par jour. Plafond URSSAF 2026 ≈ 7,18 € (60% × 11,97 €). Variable selon les jours réels du mois."
-        enabled={(form.pricing_default_avantages.ticketsResto ?? 0) > 0}
-        onToggle={(on) => updateAvantage("ticketsResto", on ? 6 : 0)}
-        value={form.pricing_default_avantages.ticketsResto ?? 0}
-        onValueChange={(v) => updateAvantage("ticketsResto", v)}
-        suffix="€/jour"
-        />
+        <p style={{ margin: "0 0 12px", fontSize: 12, color: "#6B7280", lineHeight: 1.5, fontStyle: "italic" }}>
+          Les avantages systématiques que ton cabinet offre à tous ses salariés. Les
+          avantages variables par mission (indemnité URSSAF grand déplacement, indemnité
+          kilométrique, expatriation) se renseignent au niveau de chaque mission.
+        </p>
 
         <AvantageRow
-          label="Mutuelle premium"
-          hint="Part employeur au-delà du minimum légal (50%)"
+          label="Mutuelle santé"
+          hint="Part employeur, au-delà du minimum légal (50 %)"
           enabled={(form.pricing_default_avantages.mutuellePremium ?? 0) > 0}
-          onToggle={(on) => updateAvantage("mutuellePremium", on ? 45 : 0)}
+          onToggle={(on) => updateAvantage("mutuellePremium", on ? 50 : 0)}
           value={form.pricing_default_avantages.mutuellePremium ?? 0}
           onValueChange={(v) => updateAvantage("mutuellePremium", v)}
           suffix="€/mois"
         />
 
         <AvantageRow
-          label="Transport"
-          hint="Remboursement 50% Navigo / TCL (obligatoire si pris en charge)"
+          label="Transport (Navigo / TCL)"
+          hint="50 % Navigo Paris = 42 € · Lyon TCL = 32 € · ailleurs à saisir"
           enabled={(form.pricing_default_avantages.transport ?? 0) > 0}
           onToggle={(on) => updateAvantage("transport", on ? 42 : 0)}
           value={form.pricing_default_avantages.transport ?? 0}
@@ -288,28 +284,8 @@ export default function ParametragePage() {
         />
 
         <AvantageRow
-          label="Forfait mobilité durable"
-          hint="Vélo, covoiturage, trottinette électrique — exo jusqu'à 700 €/an"
-          enabled={(form.pricing_default_avantages.forfaitMobilite ?? 0) > 0}
-          onToggle={(on) => updateAvantage("forfaitMobilite", on ? 30 : 0)}
-          value={form.pricing_default_avantages.forfaitMobilite ?? 0}
-          onValueChange={(v) => updateAvantage("forfaitMobilite", v)}
-          suffix="€/mois"
-        />
-
-        <AvantageRow
-          label="Indemnité URSSAF (grand déplacement)"
-          hint="€/jour travaillé. Plafonds 2026 : Paris+PC 117,10 €/j · autres zones 97,90 €/j"
-          enabled={(form.pricing_default_avantages.urssafIndemniteJour ?? 0) > 0}
-          onToggle={(on) => updateAvantage("urssafIndemniteJour", on ? 97.90 : 0)}
-          value={form.pricing_default_avantages.urssafIndemniteJour ?? 0}
-          onValueChange={(v) => updateAvantage("urssafIndemniteJour", v)}
-          suffix="€/jour"
-        />
-
-        <AvantageRow
-          label="Médecine du travail (obligatoire)"
-          hint="Cotisation annuelle au Service de Santé au Travail. Coût typique 80-150 €/an/salarié"
+          label="Médecine du travail"
+          hint="Cotisation obligatoire SST. Typique 80-150 €/an/salarié"
           enabled={(form.pricing_default_avantages.medecineDuTravailAnnuel ?? 0) > 0}
           onToggle={(on) => updateAvantage("medecineDuTravailAnnuel", on ? 100 : 0)}
           value={form.pricing_default_avantages.medecineDuTravailAnnuel ?? 0}
@@ -318,28 +294,8 @@ export default function ParametragePage() {
         />
 
         <AvantageRow
-          label="Indemnité kilométrique (annuelle estimée)"
-          hint="Si véhicule perso pour déplacements pro. Barème URSSAF 2026 dans la page Pricing"
-          enabled={(form.pricing_default_avantages.indemniteKilometriqueAnnuelle ?? 0) > 0}
-          onToggle={(on) => updateAvantage("indemniteKilometriqueAnnuelle", on ? 1200 : 0)}
-          value={form.pricing_default_avantages.indemniteKilometriqueAnnuelle ?? 0}
-          onValueChange={(v) => updateAvantage("indemniteKilometriqueAnnuelle", v)}
-          suffix="€/an"
-        />
-
-        <AvantageRow
-          label="Indemnité d'expatriation (mensuelle)"
-          hint="Si mission expatrié. Calcul simplifié V1 — à valider expert paie pour conventions bilatérales et CFE"
-          enabled={(form.pricing_default_avantages.expatriationMensuelle ?? 0) > 0}
-          onToggle={(on) => updateAvantage("expatriationMensuelle", on ? 2000 : 0)}
-          value={form.pricing_default_avantages.expatriationMensuelle ?? 0}
-          onValueChange={(v) => updateAvantage("expatriationMensuelle", v)}
-          suffix="€/mois"
-        />
-
-        <AvantageRow
           label="13ᵉ mois"
-          hint="Non obligatoire Syntec, mais ~60% des ESN le pratiquent"
+          hint="Non obligatoire Syntec, mais ~60 % des ESN le pratiquent"
           enabled={form.pricing_default_avantages.treiziemeMois === true}
           onToggle={(on) => updateAvantage("treiziemeMois", on)}
           valueLocked
@@ -347,8 +303,28 @@ export default function ParametragePage() {
         />
 
         <AvantageRow
-          label="Autres avantages"
-          hint="Champ libre pour tout ce qui n'est pas listé"
+          label="Tickets restaurant (€/jour travaillé)"
+          hint="Part employeur par jour. Plafond URSSAF 2026 ≈ 7,18 € (60 % × 11,97 €)"
+          enabled={(form.pricing_default_avantages.ticketsResto ?? 0) > 0}
+          onToggle={(on) => updateAvantage("ticketsResto", on ? 6 : 0)}
+          value={form.pricing_default_avantages.ticketsResto ?? 0}
+          onValueChange={(v) => updateAvantage("ticketsResto", v)}
+          suffix="€/jour"
+        />
+
+        <AvantageRow
+          label="Forfait mobilité durable"
+          hint="Vélo, covoiturage — exo jusqu'à 700 €/an"
+          enabled={(form.pricing_default_avantages.forfaitMobilite ?? 0) > 0}
+          onToggle={(on) => updateAvantage("forfaitMobilite", on ? 30 : 0)}
+          value={form.pricing_default_avantages.forfaitMobilite ?? 0}
+          onValueChange={(v) => updateAvantage("forfaitMobilite", v)}
+          suffix="€/mois"
+        />
+
+        <AvantageRow
+          label="Autres avantages mensuels"
+          hint="Champ libre pour ce qui n'est pas listé (CSE, etc.)"
           enabled={(form.pricing_default_avantages.autresMensuels ?? 0) > 0}
           onToggle={(on) => updateAvantage("autresMensuels", on ? 50 : 0)}
           value={form.pricing_default_avantages.autresMensuels ?? 0}

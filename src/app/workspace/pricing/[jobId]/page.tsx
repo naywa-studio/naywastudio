@@ -54,12 +54,15 @@ export default function PricingMissionPage() {
       }
       setJob(jobData as Job)
 
+      // On liste TOUS les candidats matchés sur la mission (triés par score),
+      // pas seulement ceux du stage "pricing". Le sourceur choisit librement
+      // qui chiffrer depuis cette vue — plus besoin de passer par le kanban.
       const { data: matches } = await sb
         .from("match_assessments")
         .select("id, score, match_tier, candidate:candidates(*)")
         .eq("job_id", jobId)
-        .eq("pipeline_stage", "pricing")
         .order("score", { ascending: false, nullsFirst: false })
+        .limit(40)
 
       if (!mounted) return
       const rows: PricingCandidate[] = ((matches ?? []) as unknown as {

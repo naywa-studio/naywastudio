@@ -1,59 +1,59 @@
 "use client"
 
 /**
- * OnboardingWizard — premier passage sur /workspace/pricing.
+ * OnboardingWizard — wizard cabinet pricing.
  *
- * 5 étapes guidées qui sauvegardent automatiquement dans profiles à
- * chaque interaction. Quand le sourceur arrive sur le pricing pour la
- * première fois (pricing_billable_days_per_month NULL), ce wizard
- * remplace l'écran liste-missions. Une fois fini, la liste apparaît.
+ * Apparaît la 1ère fois que le sourceur arrive sur /workspace/pricing
+ * (détection via profiles.pricing_onboarded_at NULL). Demande SEULEMENT
+ * les paramètres systématiques du cabinet (pas par mission) :
  *
- * Skip possible à tout moment via "Configurer plus tard" qui pointe
- * vers la page Paramétrage complète (où tous les champs sont éditables).
+ *   Étape 1 : Bienvenue
+ *   Étape 2 : Seuils de marge + modalité Syntec par défaut
+ *   Étape 3 : Avantages standards mensuels (mutuelle, transport, médecine,
+ *             13ᵉ mois, tickets resto)
+ *
+ * Une fois fini, marque pricing_onboarded_at = now() pour ne plus le
+ * réafficher. L'user peut rejouer le wizard depuis la page paramétrage
+ * ou via "Reconfigurer" — pas implémenté ici.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import Link from "next/link"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { PricingDefaultAvantages } from "@/lib/database.types"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
-type Lieu = "paris_petite_couronne" | "idf_grande_couronne" | "lyon" | "province"
 type Modalite = "modalite_1" | "modalite_2" | "modalite_3"
 
 interface WizardState {
-  pricing_billable_days_per_month: number
   pricing_margin_min_pct: number
   pricing_margin_target_pct: number
-  pricing_default_lieu: Lieu
   pricing_default_modalite: Modalite
   pricing_default_avantages: PricingDefaultAvantages
 }
 
 const DEFAULT_STATE: WizardState = {
-  pricing_billable_days_per_month: 18,
   pricing_margin_min_pct: 15,
   pricing_margin_target_pct: 22,
-  pricing_default_lieu: "paris_petite_couronne",
   pricing_default_modalite: "modalite_1",
   pricing_default_avantages: {
-    ticketsResto: 0,
-    mutuellePremium: 0,
-    transport: 0,
-    forfaitMobilite: 0,
+    mutuellePremium: 50,
+    transport: 42,
+    medecineDuTravailAnnuel: 100,
     treiziemeMois: false,
+    ticketsResto: 6,
+    // Le reste reste à 0 ou non défini — pas pertinent au niveau cabinet
+    forfaitMobilite: 0,
     primeCooptationAnnuelle: 0,
     urssafIndemniteJour: 0,
-    medecineDuTravailAnnuel: 100,
     indemniteKilometriqueAnnuelle: 0,
     expatriationMensuelle: 0,
     autresMensuels: 0,
   },
 }
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 3
 
 export default function OnboardingWizard({
   onDone,
@@ -67,7 +67,6 @@ export default function OnboardingWizard({
   const userIdRef = useRef<string | null>(null)
   const saveTimerRef = useRef<number | null>(null)
 
-  // Capture user id once for save calls.
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -77,29 +76,23 @@ export default function OnboardingWizard({
     return () => { mounted = false }
   }, [sb])
 
-  // Debounced save: when state changes, schedule a write after 600 ms.
-  const scheduleSave = useCallback(
-    (next: WizardState) => {
+  const scheduleSave = useCallback((next: WizardState) => {
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
+    setSaving(true)
+    saveTimerRef.current = window.setTimeout(async () => {
       if (!userIdRef.current) return
-      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
-      setSaving(true)
-      saveTimerRef.current = window.setTimeout(async () => {
-        await sb
-          .from("profiles")
-          .update({
-            pricing_billable_days_per_month: next.pricing_billable_days_per_month,
-            pricing_margin_min_pct: next.pricing_margin_min_pct,
-            pricing_margin_target_pct: next.pricing_margin_target_pct,
-            pricing_default_lieu: next.pricing_default_lieu,
-            pricing_default_modalite: next.pricing_default_modalite,
-            pricing_default_avantages: next.pricing_default_avantages,
-          })
-          .eq("user_id", userIdRef.current!)
-        setSaving(false)
-      }, 600)
-    },
-    [sb],
-  )
+      await sb
+        .from("profiles")
+        .update({
+          pricing_margin_min_pct: next.pricing_margin_min_pct,
+          pricing_margin_target_pct: next.pricing_margin_target_pct,
+          pricing_default_modalite: next.pricing_default_modalite,
+          pricing_default_avantages: next.pricing_default_avantages,
+        })
+        .eq("user_id", userIdRef.current)
+      setSaving(false)
+    }, 600)
+  }, [sb])
 
   const update = useCallback(
     <K extends keyof WizardState>(key: K, value: WizardState[K]) => {
@@ -130,7 +123,6 @@ export default function OnboardingWizard({
   const back = () => setStep((s) => Math.max(s - 1, 1))
 
   const finish = async () => {
-    // Make sure the last debounce wrote before we hand off.
     if (saveTimerRef.current) {
       window.clearTimeout(saveTimerRef.current)
       saveTimerRef.current = null
@@ -139,14 +131,10 @@ export default function OnboardingWizard({
       await sb
         .from("profiles")
         .update({
-          pricing_billable_days_per_month: state.pricing_billable_days_per_month,
           pricing_margin_min_pct: state.pricing_margin_min_pct,
           pricing_margin_target_pct: state.pricing_margin_target_pct,
-          pricing_default_lieu: state.pricing_default_lieu,
           pricing_default_modalite: state.pricing_default_modalite,
           pricing_default_avantages: state.pricing_default_avantages,
-          // Marks onboarding as done so the wizard doesn't reappear
-          // on subsequent visits. NULL = still to do.
           pricing_onboarded_at: new Date().toISOString(),
         })
         .eq("user_id", userIdRef.current)
@@ -174,31 +162,18 @@ export default function OnboardingWizard({
             transition={{ duration: 0.3, ease: EASE }}
           >
             {step === 1 && <StepWelcome />}
-            {step === 2 && (
-              <StepHypotheses state={state} update={update} />
-            )}
-            {step === 3 && (
-              <StepMissionDefaults state={state} update={update} />
-            )}
-            {step === 4 && (
-              <StepAvantages state={state} updateAvantage={updateAvantage} />
-            )}
-            {step === 5 && <StepDone />}
+            {step === 2 && <StepMarges state={state} update={update} />}
+            {step === 3 && <StepAvantages state={state} updateAvantage={updateAvantage} />}
           </m.div>
         </AnimatePresence>
       </div>
 
-      <Footer
-        step={step} total={TOTAL_STEPS}
-        onBack={back} onNext={next} onFinish={finish}
-      />
+      <Footer step={step} total={TOTAL_STEPS} onBack={back} onNext={next} onFinish={finish} />
     </div>
   )
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
- * Progress header
- * ────────────────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────── */
 
 function ProgressHeader({ step, total, saving }: { step: number; total: number; saving: boolean }) {
   return (
@@ -215,7 +190,7 @@ function ProgressHeader({ step, total, saving }: { step: number; total: number; 
           fontSize: 11, fontWeight: 700, color: "#7C63C8",
           letterSpacing: "0.08em", textTransform: "uppercase",
         }}>
-          ⚙ Configuration · Étape {step}/{total}
+          ⚙ Paramètres cabinet · Étape {step}/{total}
         </span>
         {saving && (
           <span style={{ fontSize: 10.5, color: "#9CA3AF", fontStyle: "italic" }}>
@@ -223,27 +198,18 @@ function ProgressHeader({ step, total, saving }: { step: number; total: number; 
           </span>
         )}
       </div>
-      <div style={{
-        height: 4, borderRadius: 4, background: "rgba(124,99,200,0.10)",
-        overflow: "hidden",
-      }}>
+      <div style={{ height: 4, borderRadius: 4, background: "rgba(124,99,200,0.10)", overflow: "hidden" }}>
         <m.div
           animate={{ width: `${(step / total) * 100}%` }}
           transition={{ duration: 0.35, ease: EASE }}
-          style={{
-            height: "100%",
-            background: "linear-gradient(120deg, #7C63C8, #6B54B2)",
-            borderRadius: 4,
-          }}
+          style={{ height: "100%", background: "linear-gradient(120deg, #7C63C8, #6B54B2)", borderRadius: 4 }}
         />
       </div>
     </div>
   )
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
- * Steps
- * ────────────────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────── */
 
 function StepWelcome() {
   return (
@@ -251,17 +217,18 @@ function StepWelcome() {
       <div style={{ fontSize: 48, marginBottom: 16 }}>👋</div>
       <h2 style={titleStyle}>Bienvenue dans le pricing Naywa</h2>
       <p style={leadStyle}>
-        En 2 minutes, vous configurez les paramètres récurrents de votre cabinet
-        pour que chaque chiffrage candidat soit calculé automatiquement.
+        En 1 minute, on cale les paramètres récurrents de ton cabinet — ce qui ne
+        change pas d&apos;une mission à l&apos;autre. Tout le reste (TJM, durée, brut, lieu)
+        se renseigne par mission.
       </p>
       <p style={{ ...leadStyle, marginTop: 14, fontSize: 12.5, color: "#9CA3AF" }}>
-        Vous pourrez tout modifier plus tard depuis ⚙ Paramètres.
+        Tu pourras tout modifier plus tard depuis ⚙ Paramètres cabinet.
       </p>
     </div>
   )
 }
 
-function StepHypotheses({
+function StepMarges({
   state, update,
 }: {
   state: WizardState
@@ -269,85 +236,44 @@ function StepHypotheses({
 }) {
   return (
     <div>
-      <h2 style={titleStyle}>📊 Vos hypothèses commerciales</h2>
+      <h2 style={titleStyle}>🎯 Seuils de marge</h2>
       <p style={leadStyle}>
-        Trois valeurs qui structurent tous vos chiffrages.
+        Le plancher et la cible de ton cabinet. Ils servent de repères dans
+        tous les chiffrages.
       </p>
 
-      <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-        <Field
-          label="Jours facturables par mois en moyenne"
-          hint="Standard ESN : 17-18 jours (après congés, RTT, fériés, intercontrats)"
-        >
+      <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <Field label="Marge minimum acceptable" hint="En dessous, refus du chiffrage">
           <NumberInput
-            value={state.pricing_billable_days_per_month}
-            onChange={(v) => update("pricing_billable_days_per_month", v)}
-            min={10} max={22} step={0.5}
-            suffix="jours"
+            value={state.pricing_margin_min_pct}
+            onChange={(v) => update("pricing_margin_min_pct", v)}
+            min={0} max={100} step={0.5}
+            suffix="%"
           />
         </Field>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <Field label="Marge minimum acceptable" hint="Plancher en dessous duquel vous refusez">
-            <NumberInput
-              value={state.pricing_margin_min_pct}
-              onChange={(v) => update("pricing_margin_min_pct", v)}
-              min={0} max={100} step={0.5}
-              suffix="%"
-            />
-          </Field>
-          <Field label="Marge cible standard" hint="L'objectif visé par le cabinet">
-            <NumberInput
-              value={state.pricing_margin_target_pct}
-              onChange={(v) => update("pricing_margin_target_pct", v)}
-              min={0} max={100} step={0.5}
-              suffix="%"
-            />
-          </Field>
-        </div>
+        <Field label="Marge cible" hint="L'objectif visé">
+          <NumberInput
+            value={state.pricing_margin_target_pct}
+            onChange={(v) => update("pricing_margin_target_pct", v)}
+            min={0} max={100} step={0.5}
+            suffix="%"
+          />
+        </Field>
       </div>
-    </div>
-  )
-}
 
-function StepMissionDefaults({
-  state, update,
-}: {
-  state: WizardState
-  update: <K extends keyof WizardState>(key: K, value: WizardState[K]) => void
-}) {
-  const lieuOptions: { value: Lieu; label: string }[] = [
-    { value: "paris_petite_couronne", label: "Paris + petite couronne (75/92/93/94)" },
-    { value: "idf_grande_couronne", label: "Île-de-France grande couronne" },
-    { value: "lyon", label: "Lyon métropole" },
-    { value: "province", label: "Province (autres communes)" },
-  ]
-  const modOptions: { value: Modalite; label: string }[] = [
-    { value: "modalite_1", label: "Modalité 1 — Standard 35h" },
-    { value: "modalite_2", label: "Modalité 2 — 38h30 (+15% mini)" },
-    { value: "modalite_3", label: "Modalité 3 — Forfait jours 218j (+20% mini)" },
-  ]
-  return (
-    <div>
-      <h2 style={titleStyle}>🌍 Mission par défaut</h2>
-      <p style={leadStyle}>
-        Ce que vous voyez le plus souvent — modifiable mission par mission après.
-      </p>
-
-      <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-        <Field label="Lieu de mission le plus fréquent" hint="Détermine le versement mobilité par défaut">
-          <NativeSelect
-            value={state.pricing_default_lieu}
-            onChange={(v) => update("pricing_default_lieu", v as Lieu)}
-            options={lieuOptions}
-          />
-        </Field>
-
-        <Field label="Modalité Syntec par défaut" hint="La modalité 3 (forfait jours) impose un minimum +20%">
-          <NativeSelect
+      <div style={{ marginTop: 22 }}>
+        <Field
+          label="Modalité Syntec par défaut"
+          hint="Modalité 3 = forfait jours 218 j/an (cadres autonomes). Modalité 1 = standard 35h."
+        >
+          <Select
             value={state.pricing_default_modalite}
             onChange={(v) => update("pricing_default_modalite", v as Modalite)}
-            options={modOptions}
+            options={[
+              { value: "modalite_1", label: "Modalité 1 — Standard 35h" },
+              { value: "modalite_2", label: "Modalité 2 — Forfait hebdo 38h30 (+15% mini)" },
+              { value: "modalite_3", label: "Modalité 3 — Forfait jours 218 j (+20% mini)" },
+            ]}
           />
         </Field>
       </div>
@@ -359,79 +285,74 @@ function StepAvantages({
   state, updateAvantage,
 }: {
   state: WizardState
-  updateAvantage: <K extends keyof PricingDefaultAvantages>(
-    key: K, value: PricingDefaultAvantages[K]
-  ) => void
+  updateAvantage: <K extends keyof PricingDefaultAvantages>(key: K, value: PricingDefaultAvantages[K]) => void
 }) {
+  const av = state.pricing_default_avantages
   return (
     <div>
-      <h2 style={titleStyle}>🎁 Avantages que vous offrez</h2>
+      <h2 style={titleStyle}>🎁 Avantages standards cabinet</h2>
       <p style={leadStyle}>
-        Cochez ce que votre cabinet propose. Vous pourrez ajuster les montants
-        précis depuis ⚙ Paramètres plus tard.
+        Ce que ton cabinet propose à TOUS ses salariés (peu importe la mission).
+        Les avantages variables par mission (URSSAF déplacement, indemnité km) se
+        renseignent au niveau de chaque mission.
       </p>
 
-      <div style={{ marginTop: 18, display: "flex", flexDirection: "column" }}>
-        <AvantageToggle
-          label="🍽 Tickets restaurant"
-          hint="≈ 100 €/mois part employeur (60% × 9 € × 18 j)"
-          checked={(state.pricing_default_avantages.ticketsResto ?? 0) > 0}
-          onToggle={(on) => updateAvantage("ticketsResto", on ? 100 : 0)}
+      <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+        <AvantageRow
+          label="Mutuelle santé"
+          hint="Part employeur, au-delà des 50 % minimum légaux"
+          enabled={(av.mutuellePremium ?? 0) > 0}
+          onToggle={(on) => updateAvantage("mutuellePremium", on ? 50 : 0)}
+          value={av.mutuellePremium ?? 0}
+          onValueChange={(v) => updateAvantage("mutuellePremium", v)}
+          suffix="€/mois"
+          max={500}
         />
-        <AvantageToggle
-          label="🏥 Mutuelle premium"
-          hint="Part employeur au-delà du minimum légal (45 €/mois par défaut)"
-          checked={(state.pricing_default_avantages.mutuellePremium ?? 0) > 0}
-          onToggle={(on) => updateAvantage("mutuellePremium", on ? 45 : 0)}
-        />
-        <AvantageToggle
-          label="🚆 Transport en commun (50%)"
-          hint="Remboursement Navigo / TCL — 42 €/mois par défaut"
-          checked={(state.pricing_default_avantages.transport ?? 0) > 0}
+        <AvantageRow
+          label="Transport (Navigo / TCL)"
+          hint="50 % du Navigo Paris = 42 € · Lyon TCL = 32 € · ailleurs = à saisir"
+          enabled={(av.transport ?? 0) > 0}
           onToggle={(on) => updateAvantage("transport", on ? 42 : 0)}
+          value={av.transport ?? 0}
+          onValueChange={(v) => updateAvantage("transport", v)}
+          suffix="€/mois"
+          max={300}
         />
-        <AvantageToggle
-          label="🩺 Médecine du travail (obligatoire)"
-          hint="Cotisation SST, ~100 €/an par salarié — généralement payée par toutes les entreprises"
-          checked={(state.pricing_default_avantages.medecineDuTravailAnnuel ?? 0) > 0}
+        <AvantageRow
+          label="Médecine du travail"
+          hint="Cotisation obligatoire au SST. Typique 80-150 €/an/salarié."
+          enabled={(av.medecineDuTravailAnnuel ?? 0) > 0}
           onToggle={(on) => updateAvantage("medecineDuTravailAnnuel", on ? 100 : 0)}
+          value={av.medecineDuTravailAnnuel ?? 0}
+          onValueChange={(v) => updateAvantage("medecineDuTravailAnnuel", v)}
+          suffix="€/an"
+          max={500}
         />
-        <AvantageToggle
-          label="🧳 Indemnité URSSAF (grand déplacement)"
-          hint="Si vos consultants sont souvent en déplacement (97,90 €/j province)"
-          checked={(state.pricing_default_avantages.urssafIndemniteJour ?? 0) > 0}
-          onToggle={(on) => updateAvantage("urssafIndemniteJour", on ? 97.90 : 0)}
-        />
-        <AvantageToggle
-          label="🎁 13ᵉ mois"
-          hint="Si votre cabinet le pratique (~60% des ESN)"
-          checked={state.pricing_default_avantages.treiziemeMois === true}
+        <AvantageRow
+          label="13ᵉ mois"
+          hint="Non obligatoire Syntec, mais ~60 % des ESN le pratiquent"
+          enabled={av.treiziemeMois === true}
           onToggle={(on) => updateAvantage("treiziemeMois", on)}
+          valueLocked
+          lockedLabel="= 1 mois de brut / 12"
+        />
+        <AvantageRow
+          label="Tickets restaurant"
+          hint="Part employeur €/jour travaillé. Plafond URSSAF 2026 ≈ 7,18 €/jour."
+          enabled={(av.ticketsResto ?? 0) > 0}
+          onToggle={(on) => updateAvantage("ticketsResto", on ? 6 : 0)}
+          value={av.ticketsResto ?? 0}
+          onValueChange={(v) => updateAvantage("ticketsResto", v)}
+          suffix="€/jour"
+          max={8}
+          step={0.1}
         />
       </div>
     </div>
   )
 }
 
-function StepDone() {
-  return (
-    <div style={{ textAlign: "center", paddingTop: 16 }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-      <h2 style={titleStyle}>Tout est configuré !</h2>
-      <p style={leadStyle}>
-        Vous pouvez maintenant chiffrer vos missions. Sélectionnez une mission
-        dans la liste pour commencer.
-      </p>
-      <p style={{ ...leadStyle, marginTop: 14, fontSize: 12.5, color: "#9CA3AF" }}>
-        Tous ces paramètres restent ajustables depuis ⚙ Paramètres entreprise.
-      </p>
-    </div>
-  )
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
- * Footer with nav buttons
- * ────────────────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────── */
 
 function Footer({
   step, total, onBack, onNext, onFinish,
@@ -446,50 +367,56 @@ function Footer({
     <div style={{
       padding: "14px 32px",
       borderTop: "1px solid #F0ECF8",
-      background: "#FAFAFA",
       display: "flex", justifyContent: "space-between", alignItems: "center",
       gap: 10, flexWrap: "wrap",
     }}>
-      <div>
-        {step > 1 && step < total && (
-          <button onClick={onBack} style={btnSecondaryStyle}>
-            ← Précédent
-          </button>
-        )}
-      </div>
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        <Link href="/workspace/parametrage" style={{
-          fontSize: 11.5, fontWeight: 600, color: "#9CA3AF",
-          textDecoration: "underline",
-        }}>
-          Configurer plus tard
-        </Link>
-        {step < total && (
-          <button onClick={onNext} style={btnPrimaryStyle}>
-            Suivant →
-          </button>
-        )}
-        {step === total && (
-          <button onClick={onFinish} style={btnPrimaryStyle}>
-            Commencer le pricing →
-          </button>
-        )}
-      </div>
+      <button
+        onClick={onBack}
+        disabled={step === 1}
+        style={{
+          fontSize: 12.5, fontWeight: 600, color: step === 1 ? "#C7BFE3" : "#7C63C8",
+          background: "transparent", border: "none", cursor: step === 1 ? "not-allowed" : "pointer",
+          padding: "8px 12px", fontFamily: "inherit",
+        }}
+      >
+        ← Retour
+      </button>
+      {step < total ? (
+        <button
+          onClick={onNext}
+          style={{
+            fontSize: 13, fontWeight: 700, color: "white",
+            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            border: "none", borderRadius: 9, padding: "10px 20px",
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          Continuer →
+        </button>
+      ) : (
+        <button
+          onClick={onFinish}
+          style={{
+            fontSize: 13, fontWeight: 700, color: "white",
+            background: "linear-gradient(120deg, #16a34a 0%, #15803d 100%)",
+            border: "none", borderRadius: 9, padding: "10px 22px",
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          ✓ Terminer
+        </button>
+      )}
     </div>
   )
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
- * Reusable form widgets
- * ────────────────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────── */
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
-        {label}
-        {hint && <span style={{ fontWeight: 400, color: "#9CA3AF", marginLeft: 6 }}>· {hint}</span>}
-      </span>
+    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
+      {hint && <span style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
       {children}
     </label>
   )
@@ -506,33 +433,23 @@ function NumberInput({
   suffix: string
 }) {
   return (
-    <div style={{
-      display: "flex", alignItems: "center",
-      background: "white", border: "1px solid #E5E7EB", borderRadius: 9,
-      overflow: "hidden",
-    }}>
+    <div style={inputBoxStyle}>
       <input
         type="number"
         value={value}
         min={min} max={max} step={step}
         onChange={(e) => {
           const n = Number(e.target.value)
-          if (Number.isFinite(n)) onChange(n)
+          if (Number.isFinite(n)) onChange(Math.max(min, Math.min(max, n)))
         }}
-        style={{
-          flex: 1, padding: "9px 12px",
-          fontSize: 14, fontWeight: 600, color: "#111827",
-          background: "transparent", border: "none", outline: "none",
-          fontFamily: "inherit", minWidth: 0, width: "100%",
-          fontVariantNumeric: "tabular-nums",
-        }}
+        style={inputInnerStyle}
       />
-      <span style={{ fontSize: 12.5, color: "#9CA3AF", paddingRight: 12 }}>{suffix}</span>
+      <span style={{ fontSize: 12, color: "#9CA3AF", paddingRight: 12 }}>{suffix}</span>
     </div>
   )
 }
 
-function NativeSelect({
+function Select({
   value, onChange, options,
 }: {
   value: string
@@ -544,9 +461,8 @@ function NativeSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       style={{
-        background: "white", border: "1px solid #E5E7EB", borderRadius: 9,
-        padding: "10px 12px", fontSize: 13.5, color: "#111827",
-        fontFamily: "inherit", appearance: "none", cursor: "pointer",
+        ...inputBoxStyle, padding: "10px 12px", fontSize: 13, color: "#111827",
+        fontFamily: "inherit", appearance: "none",
         backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\'><path fill=\'%239CA3AF\' d=\'M5 6L0 0h10z\'/></svg>")',
         backgroundRepeat: "no-repeat",
         backgroundPosition: "right 14px center",
@@ -559,69 +475,105 @@ function NativeSelect({
   )
 }
 
-function AvantageToggle({
-  label, hint, checked, onToggle,
+function AvantageRow({
+  label, hint, enabled, onToggle, value, onValueChange, suffix, valueLocked, lockedLabel, max, step,
 }: {
   label: string
   hint?: string
-  checked: boolean
-  onToggle: (next: boolean) => void
+  enabled: boolean
+  onToggle: (on: boolean) => void
+  value?: number
+  onValueChange?: (v: number) => void
+  suffix?: string
+  valueLocked?: boolean
+  lockedLabel?: string
+  max?: number
+  step?: number
 }) {
   return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center",
+      padding: "10px 12px",
+      background: enabled ? "rgba(124,99,200,0.04)" : "#FAFAFA",
+      border: enabled ? "1px solid rgba(124,99,200,0.18)" : "1px solid #F0ECF8",
+      borderRadius: 9,
+    }}>
+      <Checkbox checked={enabled} onChange={onToggle} />
+      <div>
+        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{label}</p>
+        {hint && <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</p>}
+      </div>
+      {valueLocked ? (
+        <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>{lockedLabel}</span>
+      ) : (
+        <div style={{ width: 130 }}>
+          <div style={inputBoxStyle}>
+            <input
+              type="number"
+              value={value ?? 0}
+              disabled={!enabled}
+              onChange={(e) => {
+                const n = Number(e.target.value)
+                if (!Number.isFinite(n)) return
+                const clamped = max != null ? Math.min(max, Math.max(0, n)) : Math.max(0, n)
+                onValueChange?.(clamped)
+              }}
+              style={{ ...inputInnerStyle, color: enabled ? "#111827" : "#9CA3AF" }}
+              min={0}
+              max={max}
+              step={step ?? 1}
+            />
+            <span style={{ fontSize: 11, color: "#9CA3AF", paddingRight: 10 }}>{suffix}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Checkbox({ checked, onChange }: { checked: boolean; onChange: (on: boolean) => void }) {
+  return (
     <button
-      type="button"
-      onClick={() => onToggle(!checked)}
+      role="checkbox"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
       style={{
-        display: "grid", gridTemplateColumns: "auto 1fr", gap: 12,
-        textAlign: "left", cursor: "pointer", fontFamily: "inherit",
-        padding: "10px 0", border: "none", background: "transparent",
-        borderBottom: "1px solid #F4F1FB",
+        width: 20, height: 20, borderRadius: 6, cursor: "pointer",
+        border: checked ? "none" : "1.5px solid #D1D5DB",
+        background: checked ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)" : "white",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        padding: 0,
       }}
     >
-      <span
-        role="checkbox"
-        aria-checked={checked}
-        style={{
-          width: 20, height: 20, borderRadius: 6,
-          border: checked ? "none" : "1.5px solid #D1D5DB",
-          background: checked ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)" : "white",
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-        }}
-      >
-        {checked && (
-          <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-            <path d="M1 4.5L4 7.5L10 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </span>
-      <div>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#111827" }}>{label}</p>
-        {hint && <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.45 }}>{hint}</p>}
-      </div>
+      {checked && (
+        <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+          <path d="M1 4.5L4 7.5L10 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
     </button>
   )
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
- * Shared styles
- * ────────────────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────── */
 
 const titleStyle: React.CSSProperties = {
-  margin: "0 0 8px", fontSize: 20, fontWeight: 800, color: "#111827",
-  letterSpacing: "-0.015em", textAlign: "center",
+  margin: "0 0 8px", fontSize: 19, fontWeight: 800, color: "#111827",
+  letterSpacing: "-0.015em", lineHeight: 1.25,
 }
+
 const leadStyle: React.CSSProperties = {
-  margin: 0, fontSize: 13.5, color: "#6B7280", lineHeight: 1.6,
-  textAlign: "center", maxWidth: 480, marginInline: "auto",
+  margin: 0, fontSize: 13.5, color: "#6B7280", lineHeight: 1.55,
 }
-const btnPrimaryStyle: React.CSSProperties = {
-  padding: "10px 18px", borderRadius: 10, border: "none",
-  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-  color: "white", fontSize: 13, fontWeight: 700,
-  cursor: "pointer", fontFamily: "inherit",
+
+const inputBoxStyle: React.CSSProperties = {
+  display: "flex", alignItems: "center",
+  background: "white", border: "1px solid #E5E7EB", borderRadius: 9,
+  overflow: "hidden",
 }
-const btnSecondaryStyle: React.CSSProperties = {
-  padding: "10px 16px", borderRadius: 10,
-  background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
-  fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+
+const inputInnerStyle: React.CSSProperties = {
+  flex: 1, padding: "9px 12px",
+  fontSize: 13, color: "#111827",
+  background: "transparent", border: "none", outline: "none",
+  fontFamily: "inherit", minWidth: 0, width: "100%",
 }
