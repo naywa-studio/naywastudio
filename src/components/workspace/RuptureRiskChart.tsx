@@ -110,16 +110,17 @@ export default function RuptureRiskChart({
     ? (xOf(finEssaiIdx - 1) + xOf(finEssaiIdx)) / 2
     : null
 
-  // Path SVG de la courbe (lissée via lignes droites entre points)
-  const linePath = points
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${xOf(i).toFixed(2)} ${yOf(p.margePct).toFixed(2)}`)
-    .join(" ")
+  // Path SVG de la courbe lissée via splines de Bezier cubiques
+  // (Catmull-Rom → Bezier conversion). Effet organique sans avoir à
+  // calculer chaque semaine — la formule mensuelle reste source de vérité.
+  const xys = points.map((p, i) => ({ x: xOf(i), y: yOf(p.margePct) }))
+  const linePath = buildSmoothPath(xys)
 
-  // Path SVG de l'aire sous la courbe (pour fond coloré)
-  const areaPath = points.length > 0
-    ? `M ${xOf(0).toFixed(2)} ${zeroY.toFixed(2)} ` +
-      points.map((p, i) => `L ${xOf(i).toFixed(2)} ${yOf(p.margePct).toFixed(2)}`).join(" ") +
-      ` L ${xOf(points.length - 1).toFixed(2)} ${zeroY.toFixed(2)} Z`
+  // Path SVG de l'aire sous la courbe (mêmes splines, refermées sur l'axe zéro)
+  const areaPath = xys.length > 0
+    ? linePath +
+      ` L ${xys[xys.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)}` +
+      ` L ${xys[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`
     : ""
 
   const pointColor = (margePct: number): string => {
@@ -390,4 +391,32 @@ function StatTile({
 function formatEur(v: number): string {
   const sign = v < 0 ? "−" : ""
   return `${sign}${Math.abs(Math.round(v)).toLocaleString("fr-FR")} €`
+}
+
+/** Construit un path SVG smooth (splines Bezier cubiques) qui passe
+ *  exactement par tous les points fournis. Algorithme Catmull-Rom →
+ *  Bezier : pour chaque segment Pi → Pi+1, on calcule 2 points de
+ *  contrôle basés sur les pentes locales (Pi-1, Pi+2). Donne un effet
+ *  organique sans changer les valeurs source. Tension = 0.4 (entre 0
+ *  = anguleux et 0.5 = très bombé). */
+function buildSmoothPath(pts: { x: number; y: number }[]): string {
+  if (pts.length === 0) return ""
+  if (pts.length === 1) return `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`
+  if (pts.length === 2) {
+    return `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)} L ${pts[1].x.toFixed(2)} ${pts[1].y.toFixed(2)}`
+  }
+  const t = 0.4
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i]
+    const p1 = pts[i]
+    const p2 = pts[i + 1]
+    const p3 = pts[i + 2] ?? p2
+    const c1x = p1.x + (p2.x - p0.x) * t / 3
+    const c1y = p1.y + (p2.y - p0.y) * t / 3
+    const c2x = p2.x - (p3.x - p1.x) * t / 3
+    const c2y = p2.y - (p3.y - p1.y) * t / 3
+    d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`
+  }
+  return d
 }
