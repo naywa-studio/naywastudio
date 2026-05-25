@@ -163,7 +163,10 @@ function PricingWidgetInner({
       : profile?.pricing_default_lieu as Lieu | undefined) ?? "paris_petite_couronne"
 
   const modalite: Modalite = preset.modalite
-  const joursParMois = profile?.pricing_billable_days_per_month ?? 18
+  // Jours/mois utilisés UNIQUEMENT par le KPI marge mensuelle moyenne et
+  // par la résolution inverse brut max (les seuils). Le chart en bas utilise
+  // les VRAIS jours du calendrier. 21 = moyenne France (252 j ouvrés/12).
+  const joursParMois = profile?.pricing_billable_days_per_month ?? 21
 
   // Inputs the sourceur can edit — initial values derived from the mission so
   // the calculator is immediately useful. Pas de pivot : la marge est
@@ -620,21 +623,43 @@ function MarginVerdict({ margePct, margeMin, margeCible }: { margePct: number; m
 }
 
 function CostBreakdown({ cost }: { cost: ReturnType<typeof computeEmployerCost> }) {
-  const rows: { label: string; value: number; hint?: string }[] = [
+  // Le coût total est splitté en FIXE mensuel (ne dépend pas des jours) et
+  // VARIABLE journalier (URSSAF + tickets, varient avec les jours réels du
+  // mois). Le chart en bas applique le vrai split mois par mois ; ici on
+  // détaille la composition.
+
+  // Re-décomposition du coût fixe pour l'affichage
+  const remunCotisable = cost.brutMensuel + cost.treiziemeMoisMensualise + cost.primeVacancesMensualisee
+  // Avantages mensuels fixes = coutFixeMensuel − (brut + 13e + prime + charges + prime coopt)
+  const avantagesFixesMensuels = cost.coutFixeMensuel
+    - remunCotisable
+    - cost.chargesPatronales
+    - cost.primeCooptationMensualisee
+
+  const fixedRows: { label: string; value: number; hint?: string }[] = [
     { label: "Brut mensuel", value: cost.brutMensuel },
     { label: "Prime de vacances (Art. 31)", value: cost.primeVacancesMensualisee, hint: "≈ 1% du brut, mensualisée" },
     { label: "13ᵉ mois mensualisé", value: cost.treiziemeMoisMensualise },
     { label: `Charges patronales (${(cost.tauxCharges * 100).toFixed(1)}%)`, value: cost.chargesPatronales },
-    { label: "Avantages (tickets, mutuelle, transport…)", value: cost.avantagesMensuels },
+    { label: "Mutuelle + transport + médecine + autres (mensuels fixes)", value: avantagesFixesMensuels },
     { label: "Prime cooptation mensualisée", value: cost.primeCooptationMensualisee },
   ]
+
   return (
     <div style={{
       marginTop: 10, padding: 14, background: "#FAFAFA",
       borderRadius: 10, border: "1px solid #F0ECF8",
       display: "flex", flexDirection: "column", gap: 6,
     }}>
-      {rows.filter((r) => r.value !== 0).map((r) => (
+      {/* Bloc FIXE */}
+      <div style={{
+        fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+        letterSpacing: "0.05em", textTransform: "uppercase",
+        marginBottom: 2,
+      }}>
+        Coût fixe mensuel (constant chaque mois)
+      </div>
+      {fixedRows.filter((r) => r.value !== 0).map((r) => (
         <div key={r.label} style={{
           display: "flex", justifyContent: "space-between", alignItems: "baseline",
           fontSize: 12.5, color: "#4B5563",
@@ -649,15 +674,74 @@ function CostBreakdown({ cost }: { cost: ReturnType<typeof computeEmployerCost> 
         </div>
       ))}
       <div style={{
-        marginTop: 6, paddingTop: 8, borderTop: "1px solid #E5E7EB",
+        marginTop: 4, paddingTop: 6, borderTop: "1px dashed #E5E7EB",
         display: "flex", justifyContent: "space-between",
-        fontSize: 13, fontWeight: 800, color: "#7C63C8",
+        fontSize: 12.5, fontWeight: 700, color: "#374151",
       }}>
-        <span>Coût employeur total</span>
+        <span>Sous-total fixe mensuel</span>
         <span style={{ fontVariantNumeric: "tabular-nums" }}>
-          {Math.round(cost.coutTotalMensuel).toLocaleString("fr-FR")} € / mois
+          {Math.round(cost.coutFixeMensuel).toLocaleString("fr-FR")} € / mois
         </span>
       </div>
+
+      {/* Bloc VARIABLE */}
+      {cost.coutVariableJournalier > 0 && (
+        <>
+          <div style={{
+            fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+            letterSpacing: "0.05em", textTransform: "uppercase",
+            marginTop: 10, marginBottom: 2,
+          }}>
+            Coût variable journalier (× jours travaillés réels)
+          </div>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "baseline",
+            fontSize: 12.5, color: "#4B5563",
+          }}>
+            <span>
+              URSSAF + tickets resto cumulés (par jour travaillé)
+              <span style={{ color: "#9CA3AF", marginLeft: 6 }}>· variable selon le mois</span>
+            </span>
+            <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
+              {cost.coutVariableJournalier.toFixed(2)} € / jour
+            </span>
+          </div>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "baseline",
+            fontSize: 11.5, color: "#9CA3AF",
+          }}>
+            <span>Ex : sur un mois à 21 jours ouvrés</span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>
+              {Math.round(cost.coutVariableJournalier * 21).toLocaleString("fr-FR")} €
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* Total approximatif */}
+      <div style={{
+        marginTop: 8, paddingTop: 8, borderTop: "1px solid #E5E7EB",
+        display: "flex", justifyContent: "space-between", alignItems: "baseline",
+        fontSize: 13, fontWeight: 800, color: "#7C63C8",
+      }}>
+        <span>
+          Coût total estimé
+          <span style={{ fontSize: 11, fontWeight: 500, color: "#9CA3AF", marginLeft: 6 }}>
+            · sur mois moyen 21 j
+          </span>
+        </span>
+        <span style={{ fontVariantNumeric: "tabular-nums" }}>
+          {Math.round(cost.coutFixeMensuel + cost.coutVariableJournalier * 21).toLocaleString("fr-FR")} € / mois
+        </span>
+      </div>
+      <p style={{
+        margin: "4px 0 0", fontSize: 11, color: "#9CA3AF",
+        fontStyle: "italic", lineHeight: 1.4,
+      }}>
+        Le chart en bas applique le vrai nombre de jours travaillés de chaque
+        mois calendaire (19 j en novembre, 23 j en octobre…) — le coût total
+        réel varie donc légèrement chaque mois.
+      </p>
     </div>
   )
 }
