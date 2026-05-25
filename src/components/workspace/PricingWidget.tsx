@@ -693,7 +693,6 @@ function CostBreakdown({
     { label: "Médecine du travail", value: medecineMens, hint: `${avantages.medecineDuTravailAnnuel ?? 0} €/an ÷ 12` },
     { label: "Indemnité kilométrique", value: kmMens, hint: `${avantages.indemniteKilometriqueAnnuelle ?? 0} €/an ÷ 12` },
     { label: "Indemnité expatriation", value: avantages.expatriationMensuelle ?? 0 },
-    { label: "Prime cooptation mensualisée", value: cost.primeCooptationMensualisee, hint: "annuelle ÷ 12" },
     { label: "Autres avantages mensuels", value: avantages.autresMensuels ?? 0 },
   ]
 

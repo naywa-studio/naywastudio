@@ -365,16 +365,6 @@ export default function ParametragePage() {
         />
 
         <AvantageRow
-          label="Prime de cooptation (amortie)"
-          hint="Versée au coopteur au démarrage, étalée sur 12 mois dans le coût"
-          enabled={(form.pricing_default_avantages.primeCooptationAnnuelle ?? 0) > 0}
-          onToggle={(on) => updateAvantage("primeCooptationAnnuelle", on ? 1500 : 0)}
-          value={form.pricing_default_avantages.primeCooptationAnnuelle ?? 0}
-          onValueChange={(v) => updateAvantage("primeCooptationAnnuelle", v)}
-          suffix="€/an"
-        />
-
-        <AvantageRow
           label="Autres avantages"
           hint="Champ libre pour tout ce qui n'est pas listé"
           enabled={(form.pricing_default_avantages.autresMensuels ?? 0) > 0}
