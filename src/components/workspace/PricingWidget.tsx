@@ -475,6 +475,17 @@ function formatEur0(v: number): string {
   return `${Math.round(v).toLocaleString("fr-FR")} €`
 }
 
+/** Format € intelligent — affiche 1 décimale uniquement quand le nombre
+ *  n'est pas entier (ex : 37,5 € pour la prime, 3 750 € pour le brut). */
+function formatEurSmart(v: number): string {
+  const rounded = Math.round(v * 10) / 10
+  const hasDecimal = Math.abs(rounded - Math.round(rounded)) >= 0.05
+  return `${rounded.toLocaleString("fr-FR", {
+    minimumFractionDigits: hasDecimal ? 1 : 0,
+    maximumFractionDigits: 1,
+  })} €`
+}
+
 /* Slider + numeric input. Markers (dots) on the track help land on the
    "idéal" and "max" brut points. */
 function SliderField({
@@ -664,11 +675,18 @@ function CostBreakdown({
   const medecineMens = (avantages.medecineDuTravailAnnuel ?? 0) / 12
   const kmMens = (avantages.indemniteKilometriqueAnnuelle ?? 0) / 12
 
+  // Assiette cotisable pour le hint des charges (transparence)
+  const assiette = cost.brutMensuel + cost.treiziemeMoisMensualise + cost.primeVacancesMensualisee
+
   const fixedRows: { label: string; value: number; hint?: string }[] = [
     { label: "Brut mensuel", value: cost.brutMensuel },
     { label: "Prime de vacances (Art. 31)", value: cost.primeVacancesMensualisee, hint: "1 % du brut, mensualisée" },
     { label: "13ᵉ mois mensualisé", value: cost.treiziemeMoisMensualise, hint: "brut ÷ 12, si activé" },
-    { label: `Charges patronales (${(cost.tauxCharges * 100).toFixed(1)} %)`, value: cost.chargesPatronales, hint: "sur brut + 13e + prime" },
+    {
+      label: `Charges patronales (${(cost.tauxCharges * 100).toFixed(1)} %)`,
+      value: cost.chargesPatronales,
+      hint: `assiette = brut + prime + 13e = ${formatEurSmart(assiette)}`,
+    },
     { label: "Mutuelle (part employeur)", value: avantages.mutuellePremium ?? 0 },
     { label: "Transport / Navigo (50 %)", value: avantages.transport ?? 0 },
     { label: "Forfait mobilité durable", value: avantages.forfaitMobilite ?? 0 },
@@ -703,7 +721,7 @@ function CostBreakdown({
             {r.hint && <span style={{ color: "#9CA3AF", marginLeft: 6 }}>· {r.hint}</span>}
           </span>
           <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
-            {Math.round(r.value).toLocaleString("fr-FR")} €
+            {formatEurSmart(r.value)}
           </span>
         </div>
       ))}
@@ -714,7 +732,7 @@ function CostBreakdown({
       }}>
         <span>Sous-total fixe mensuel</span>
         <span style={{ fontVariantNumeric: "tabular-nums" }}>
-          {Math.round(cost.coutFixeMensuel).toLocaleString("fr-FR")} € / mois
+          {formatEurSmart(cost.coutFixeMensuel)} / mois
         </span>
       </div>
 
@@ -772,7 +790,7 @@ function CostBreakdown({
           }}>
             <span>Ex : sur un mois à 21 jours ouvrés</span>
             <span style={{ fontVariantNumeric: "tabular-nums" }}>
-              {Math.round(cost.coutVariableJournalier * 21).toLocaleString("fr-FR")} €
+              {formatEurSmart(cost.coutVariableJournalier * 21)}
             </span>
           </div>
         </>
@@ -791,7 +809,7 @@ function CostBreakdown({
           </span>
         </span>
         <span style={{ fontVariantNumeric: "tabular-nums" }}>
-          {Math.round(cost.coutFixeMensuel + cost.coutVariableJournalier * 21).toLocaleString("fr-FR")} € / mois
+          {formatEurSmart(cost.coutFixeMensuel + cost.coutVariableJournalier * 21)} / mois
         </span>
       </div>
       <p style={{
