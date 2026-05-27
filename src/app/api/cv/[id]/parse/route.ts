@@ -24,11 +24,12 @@ export const runtime = "nodejs"
 export const maxDuration = 60 // pdf-parse + LLM round-trip
 
 // Vercel kills the function at 60 s. We race the parse work against a
-// 50 s watchdog so we have ~10 s to flip parse_status to "error" before
-// the hard kill — without this, parse_status stays at "parsing" forever
-// and the client has to manually retry. The dangling LLM call is killed
-// with the process; we waste a few tokens but the UX stays coherent.
-const WATCHDOG_MS = 50_000
+// 57 s watchdog so we have ~3 s to flip parse_status to "error" before
+// the hard kill. Internal LLM timeouts (cv-parser.ts) are tuned so the
+// primary text call caps at 25 s and the OCR fallback at 30 s — total
+// worst case 55 s, comfortably under the watchdog. Without this, a hung
+// upstream would leave parse_status="parsing" forever.
+const WATCHDOG_MS = 57_000
 class ParseTimeoutError extends Error {
   constructor() { super("parse_watchdog_timeout") }
 }
@@ -92,12 +93,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     let taxonomy: CandidateTaxonomy | null = null
     let rawText = ""
     let parseError: { code: string; message: string } | null = null
+    const t0 = Date.now()
     try {
       rawText = await extractPdfText(buf)
+      const t1 = Date.now()
+      console.log(`[parse ${candidate.id}] extract=${t1 - t0}ms text=${rawText.length}c`)
       const out = await parseCvWithLlm(rawText)
+      console.log(`[parse ${candidate.id}] llm=${Date.now() - t1}ms ok`)
       parsedCv = out.cv
       taxonomy = out.taxonomy
     } catch (err) {
+      console.log(`[parse ${candidate.id}] primary failed @${Date.now() - t0}ms : ${(err as Error).message}`)
       // Tous les échecs d'extraction texte basculent vers l'OCR Mistral.
       // unpdf 1.6.2 throw "Invalid PDF structure" sur certains exports
       // modernes — l'OCR voit l'image rendue et fonctionne quand même.
@@ -105,11 +111,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (isLlmJsonError) {
         parseError = { code: err.code, message: err.message }
       } else {
+        const tOcr = Date.now()
         try {
           const out = await parseCvViaOcr(buf)
+          console.log(`[parse ${candidate.id}] ocr=${Date.now() - tOcr}ms ok`)
           parsedCv = out.cv
           taxonomy = out.taxonomy
         } catch (ocrErr) {
+          console.log(`[parse ${candidate.id}] ocr failed @${Date.now() - tOcr}ms : ${(ocrErr as Error).message}`)
           const originalErr = err instanceof CvParseError
             ? { code: err.code, message: err.message }
             : { code: "llm_failed", message: (err as Error).message ?? "Erreur de parsing." }
