@@ -163,6 +163,30 @@ export default function VivierPage() {
     return () => { cancelled = true; clearInterval(interval) }
   }, [pendingIdsKey, sb])
 
+  // 1ter. Auto-retry stuck parses. /api/cv/[id]/parse is fire-and-forget
+  // from the upload step — if Vercel kills the function mid-flight (timeout,
+  // OOM, browser closed before keepalive completes), parse_status stays
+  // "parsing" forever and the user has to manually retry. We detect rows
+  // stuck for >90 s and re-fire the endpoint exactly once per candidate.
+  // The route is idempotent (it resets parse_status="parsing" at the start
+  // and writes the final state at the end), so this is safe.
+  const retryAttemptedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      for (const c of candidates) {
+        if (c.parse_status !== "parsing" && c.parse_status !== "pending") continue
+        if (retryAttemptedRef.current.has(c.id)) continue
+        const elapsed = now - new Date(c.created_at).getTime()
+        if (elapsed > 90_000) {
+          retryAttemptedRef.current.add(c.id)
+          void fetch(`/api/cv/${c.id}/parse`, { method: "POST", keepalive: true }).catch(() => {})
+        }
+      }
+    }, 10_000)
+    return () => clearInterval(interval)
+  }, [candidates])
+
   // 2. File handling — every job has a stable local id so we never confuse
   // two files that happen to share a name.
   const enqueue = useCallback(async (files: File[]) => {
@@ -290,17 +314,30 @@ export default function VivierPage() {
     return Array.from(seen).sort((a, b) => a.localeCompare(b))
   }, [candidates])
 
-  // Group by sector (for the "by-sector" view).
+  // Split into parsing vs parsed pools. Parsing candidates have no sector
+  // yet (parsed_cv is null) — putting them in "Autre" makes them feel lost.
+  // Instead we surface them in a dedicated "Parsing en cours" strip at the
+  // top of the page, visible in every view mode.
+  const parsingCandidates = useMemo(
+    () => filtered.filter((c) => c.parse_status === "pending" || c.parse_status === "parsing"),
+    [filtered],
+  )
+  const parsedOrErrored = useMemo(
+    () => filtered.filter((c) => c.parse_status !== "pending" && c.parse_status !== "parsing"),
+    [filtered],
+  )
+
+  // Group by sector (for the "by-sector" view) — parsed/errored rows only.
   const bySector = useMemo(() => {
     const map = new Map<string, Candidate[]>()
-    for (const c of filtered) {
+    for (const c of parsedOrErrored) {
       const s = c.parsed_cv?.sector ?? "autre"
       const arr = map.get(s); if (arr) arr.push(c); else map.set(s, [c])
     }
     return SECTOR_ORDER
       .map((s) => ({ sector: s, items: map.get(s) ?? [] }))
       .filter((g) => g.items.length > 0)
-  }, [filtered])
+  }, [parsedOrErrored])
 
   const activeFilters =
     (seniorityFilter ? 1 : 0) +
@@ -663,6 +700,54 @@ export default function VivierPage() {
         </div>
       )}
 
+      {/* Parsing strip — surfaces in-progress CVs above all sectors so they
+          never disappear into "Autre" while waiting for the LLM. */}
+      {parsingCandidates.length > 0 && (
+        <section style={{
+          marginBottom: 18,
+          background: "white",
+          border: "1px solid rgba(124,99,200,0.22)",
+          borderRadius: 14,
+          overflow: "hidden",
+        }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "12px 16px",
+            background: "linear-gradient(120deg, rgba(124,99,200,0.06) 0%, rgba(124,99,200,0.02) 100%)",
+            borderBottom: "1px solid rgba(124,99,200,0.14)",
+          }}>
+            <span style={{
+              display: "inline-flex", width: 18, height: 18, borderRadius: "50%",
+              border: "2px solid rgba(124,99,200,0.25)",
+              borderTopColor: "#7C63C8",
+              animation: "spin 0.9s linear infinite",
+            }} />
+            <span style={{ fontSize: 13, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.02em" }}>
+              Parsing en cours
+            </span>
+            <span style={{
+              fontSize: 11, fontWeight: 700, color: "#7C63C8",
+              background: "white", border: "1px solid rgba(124,99,200,0.22)",
+              borderRadius: 100, padding: "1px 8px",
+            }}>{parsingCandidates.length}</span>
+            <span style={{ fontSize: 11.5, color: "#9CA3AF", marginLeft: "auto" }}>
+              Nora extrait nom, expérience, compétences…
+            </span>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+          <div style={{
+            padding: 14,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            gap: 14,
+          }}>
+            {parsingCandidates.map((c, i) => (
+              <ParsingCard key={c.id} c={c} delay={Math.min(i * 0.02, 0.15)} onDelete={() => handleDelete(c.id)} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Grid / empty state */}
       {empty ? (
         <EmptyDropZone onPick={() => inputRef.current?.click()} />
@@ -725,10 +810,10 @@ export default function VivierPage() {
           gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
           gap: 16,
         }}>
-          {filtered.map((c, i) => (
+          {parsedOrErrored.map((c, i) => (
             <CandidateCard key={c.id} c={c} delay={Math.min(i * 0.03, 0.25)} onDelete={() => handleDelete(c.id)} />
           ))}
-          {filtered.length === 0 && candidates.length > 0 && (
+          {parsedOrErrored.length === 0 && parsingCandidates.length === 0 && candidates.length > 0 && (
             <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
               Aucun candidat ne correspond aux filtres.
             </div>
@@ -931,6 +1016,130 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
             ✕
           </button>
         </div>
+      </div>
+    </m.div>
+  )
+}
+
+/**
+ * ParsingCard — dedicated card shown while a CV is being parsed.
+ * Renders a realistic progress bar driven by elapsed time since
+ * `created_at`. The curve `1 - exp(-t/14000)` rises fast at first and
+ * asymptotes near 96 %, mimicking real backend progress (and never
+ * showing a misleading 100 %). Past 90 s we show a discreet "Relance
+ * automatique…" hint — the parent already re-fires the parse endpoint.
+ */
+function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDelete: () => void }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 600)
+    return () => clearInterval(t)
+  }, [])
+  const startedAt = new Date(c.created_at).getTime()
+  const elapsedMs = Math.max(0, now - startedAt)
+  const elapsedSec = Math.round(elapsedMs / 1000)
+  // Exponential approach to 96 % — feels alive, never hits 100 (the
+  // realtime/polling update completes the perceived progress when the
+  // card swaps to the parsed CandidateCard).
+  const pct = Math.min(96, 100 * (1 - Math.exp(-elapsedMs / 14000)))
+  const stalling = elapsedMs > 90_000
+  const veryStalled = elapsedMs > 180_000
+
+  const label =
+    veryStalled ? "Relance en cours… le PDF est peut-être complexe."
+    : stalling  ? "Nora met plus de temps que d'habitude — relance auto."
+    : elapsedSec < 6 ? "Extraction du texte…"
+    : elapsedSec < 18 ? "Analyse par Nora…"
+    : "Structuration des compétences…"
+
+  return (
+    <m.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay, ease: EASE }}
+      style={{
+        background: "white", borderRadius: 14,
+        border: "1px solid rgba(124,99,200,0.22)",
+        padding: 18,
+        display: "flex", flexDirection: "column", gap: 12,
+        position: "relative",
+      }}
+    >
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{
+          width: 42, height: 42, borderRadius: "50%",
+          background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+          color: "#7C63C8", fontSize: 16, fontWeight: 800,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}>
+          <span style={{
+            display: "inline-block", width: 16, height: 16, borderRadius: "50%",
+            border: "2px solid rgba(124,99,200,0.25)",
+            borderTopColor: "#7C63C8",
+            animation: "spin 0.9s linear infinite",
+          }} />
+        </div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <p style={{
+            margin: 0, fontSize: 14, fontWeight: 700, color: "#111827",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {c.cv_file_name ?? "Sans nom"}
+          </p>
+          <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF" }}>
+            {label}
+          </p>
+        </div>
+        <button
+          onClick={onDelete}
+          title="Annuler"
+          style={{
+            background: "transparent", border: "1px solid #E5E7EB",
+            borderRadius: 8, padding: "5px 8px", cursor: "pointer",
+            color: "#9CA3AF", fontSize: 11, lineHeight: 1, flexShrink: 0,
+          }}
+        >✕</button>
+      </div>
+
+      <div>
+        <div style={{
+          position: "relative",
+          height: 6, width: "100%",
+          background: "rgba(124,99,200,0.10)",
+          borderRadius: 100, overflow: "hidden",
+        }}>
+          <div style={{
+            position: "absolute", left: 0, top: 0, bottom: 0,
+            width: `${pct}%`,
+            background: stalling
+              ? "linear-gradient(90deg, #C4B6E0 0%, #7C63C8 100%)"
+              : "linear-gradient(90deg, #7C63C8 0%, #B8AEDE 100%)",
+            borderRadius: 100,
+            transition: "width 600ms cubic-bezier(0.22, 1, 0.36, 1)",
+          }}>
+            {/* Shimmer overlay */}
+            <div style={{
+              position: "absolute", inset: 0,
+              background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
+              animation: "shimmer 1.4s linear infinite",
+            }} />
+          </div>
+        </div>
+        <div style={{
+          marginTop: 6, display: "flex", justifyContent: "space-between",
+          fontSize: 10.5, color: "#9CA3AF", fontVariantNumeric: "tabular-nums",
+        }}>
+          <span>{Math.round(pct)}%</span>
+          <span>{elapsedSec}s</span>
+        </div>
+        <style>{`
+          @keyframes shimmer {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(100%);  }
+          }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
       </div>
     </m.div>
   )

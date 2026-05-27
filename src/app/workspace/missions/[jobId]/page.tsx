@@ -110,11 +110,21 @@ export default function JobDetailPage() {
   const runMatch = async () => {
     if (!job) return
     setMatchError(null)
-    setJob({ ...job, match_status: "matching" })
+    // Stamp updated_at locally so the progress bar starts from now even
+    // if the server hasn't bounced its own updated_at yet.
+    setJob({ ...job, match_status: "matching", updated_at: new Date().toISOString() })
     const res = await fetch(`/api/jobs/${job.id}/match`, { method: "POST" })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      setMatchError(data?.detail ?? data?.error ?? "Le matching a échoué.")
+      // 409 "already_matching" isn't really an error — it just means the
+      // previous run is still in flight. We keep the progress bar going
+      // and let the polling effect detect completion. Anything else is
+      // a real failure.
+      if (res.status === 409) {
+        setMatchError(null)
+        return
+      }
+      setMatchError(data?.message ?? data?.detail ?? data?.error ?? "Le matching a échoué.")
       setJob((prev) => prev ? { ...prev, match_status: "error" } : prev)
       return
     }
@@ -257,32 +267,39 @@ export default function JobDetailPage() {
         {/* Match action */}
         <div style={{
           marginTop: 20, paddingTop: 18, borderTop: "1px solid #F0ECF8",
-          display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
         }}>
-          <button onClick={runMatch} disabled={matching} style={{
-            padding: "11px 20px", borderRadius: 11, border: "none",
-            background: matching ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            color: "white", fontSize: 13.5, fontWeight: 700,
-            cursor: matching ? "default" : "pointer", fontFamily: "inherit",
-            boxShadow: matching ? "none" : "0 6px 20px -8px rgba(124,99,200,0.55)",
-          }}>
-            {matching ? "✦ Matching en cours…" : rows.length > 0 ? "Relancer le matching" : "Matcher le vivier"}
-          </button>
-          <button onClick={() => setAssignOpen(true)} disabled={matching} style={{
-            padding: "10px 16px", borderRadius: 11,
-            background: "white", border: "1px solid rgba(124,99,200,0.3)",
-            color: "#7C63C8", fontSize: 13, fontWeight: 700,
-            cursor: matching ? "default" : "pointer", fontFamily: "inherit",
-          }}>
-            + Assigner un candidat
-          </button>
-          <span style={{ fontSize: 12.5, color: "#9CA3AF" }}>
-            {matching
-              ? "Nora compare votre vivier à la mission…"
-              : job.matched_at
-                ? `Dernier matching : ${new Date(job.matched_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`
-                : "Lancez le matching pour voir les candidats pertinents."}
-          </span>
+          {matching ? (
+            <MatchingProgress
+              startedAt={job.updated_at}
+              partialCount={rows.length}
+              onForceRetry={runMatch}
+            />
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+              <button onClick={runMatch} style={{
+                padding: "11px 20px", borderRadius: 11, border: "none",
+                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                color: "white", fontSize: 13.5, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit",
+                boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
+              }}>
+                {rows.length > 0 ? "Relancer le matching" : "Matcher le vivier"}
+              </button>
+              <button onClick={() => setAssignOpen(true)} style={{
+                padding: "10px 16px", borderRadius: 11,
+                background: "white", border: "1px solid rgba(124,99,200,0.3)",
+                color: "#7C63C8", fontSize: 13, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit",
+              }}>
+                + Assigner un candidat
+              </button>
+              <span style={{ fontSize: 12.5, color: "#9CA3AF" }}>
+                {job.matched_at
+                  ? `Dernier matching : ${new Date(job.matched_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`
+                  : "Lancez le matching pour voir les candidats pertinents."}
+              </span>
+            </div>
+          )}
         </div>
         {matchError && (
           <div style={{
@@ -533,6 +550,120 @@ function AssignModal({
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+/* ─── Matching progress ──────────────────────────────────────────
+ * Realistic progress bar driven by elapsed time since the run started.
+ * Curve `1 - exp(-t/22000)` rises fast then asymptotes near 96 % — the
+ * average run takes 20-40 s, so 22 s as the time constant matches reality.
+ * Partial results arrive in batches, so we also show "X profils déjà
+ * remontés" when applicable.
+ * Past 90 s without completion we surface a "Relancer" escape hatch —
+ * the server-side stale check (>2 min) will accept the new run.
+ */
+function MatchingProgress({
+  startedAt, partialCount, onForceRetry,
+}: { startedAt: string; partialCount: number; onForceRetry: () => void }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 600)
+    return () => clearInterval(t)
+  }, [])
+  const startMs = new Date(startedAt).getTime()
+  const elapsedMs = Math.max(0, now - startMs)
+  const elapsedSec = Math.round(elapsedMs / 1000)
+  const pct = Math.min(96, 100 * (1 - Math.exp(-elapsedMs / 22000)))
+  const stalling = elapsedMs > 90_000
+  const canForceRetry = elapsedMs > 120_000
+
+  const label =
+    elapsedSec < 4 ? "Préfiltrage du vivier…"
+    : elapsedSec < 14 ? "Nora scoring les profils pertinents…"
+    : elapsedSec < 28 ? "Comparaison taxonomies et expérience…"
+    : stalling ? "Le matching prend plus de temps que d'habitude — on patiente."
+    : "Finalisation du classement…"
+
+  return (
+    <div style={{
+      background: "linear-gradient(120deg, rgba(124,99,200,0.06) 0%, rgba(124,99,200,0.02) 100%)",
+      border: "1px solid rgba(124,99,200,0.22)",
+      borderRadius: 12,
+      padding: "14px 16px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <span style={{
+          display: "inline-block", width: 16, height: 16, borderRadius: "50%",
+          border: "2px solid rgba(124,99,200,0.25)",
+          borderTopColor: "#7C63C8",
+          animation: "matching-spin 0.9s linear infinite",
+        }} />
+        <span style={{ fontSize: 13.5, fontWeight: 800, color: "#7C63C8" }}>
+          Matching en cours
+        </span>
+        {partialCount > 0 && (
+          <span style={{
+            fontSize: 11, fontWeight: 700, color: "#7C63C8",
+            background: "white", border: "1px solid rgba(124,99,200,0.22)",
+            borderRadius: 100, padding: "1px 8px",
+          }}>{partialCount} déjà remonté{partialCount > 1 ? "s" : ""}</span>
+        )}
+        <span style={{
+          marginLeft: "auto", fontSize: 11.5, color: "#9CA3AF",
+          fontVariantNumeric: "tabular-nums",
+        }}>
+          {Math.round(pct)}% · {elapsedSec}s
+        </span>
+      </div>
+      <div style={{
+        position: "relative",
+        height: 6, width: "100%",
+        background: "rgba(124,99,200,0.12)",
+        borderRadius: 100, overflow: "hidden",
+      }}>
+        <div style={{
+          position: "absolute", left: 0, top: 0, bottom: 0,
+          width: `${pct}%`,
+          background: stalling
+            ? "linear-gradient(90deg, #C4B6E0 0%, #7C63C8 100%)"
+            : "linear-gradient(90deg, #7C63C8 0%, #B8AEDE 100%)",
+          borderRadius: 100,
+          transition: "width 600ms cubic-bezier(0.22, 1, 0.36, 1)",
+        }}>
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
+            animation: "matching-shimmer 1.4s linear infinite",
+          }} />
+        </div>
+      </div>
+      <div style={{
+        marginTop: 10, display: "flex", alignItems: "center",
+        gap: 12, flexWrap: "wrap",
+      }}>
+        <span style={{ fontSize: 12.5, color: "#6B7280", flex: 1, minWidth: 200 }}>
+          {label}
+        </span>
+        {canForceRetry && (
+          <button onClick={onForceRetry} style={{
+            fontSize: 11.5, fontWeight: 700, color: "#7C63C8",
+            background: "white",
+            border: "1px solid rgba(124,99,200,0.3)",
+            borderRadius: 8, padding: "6px 11px",
+            cursor: "pointer", fontFamily: "inherit",
+          }}>
+            Forcer la relance
+          </button>
+        )}
+      </div>
+      <style>{`
+        @keyframes matching-spin { to { transform: rotate(360deg); } }
+        @keyframes matching-shimmer {
+          0%   { transform: translateX(-100%); }
+          100% { transform: translateX(100%);  }
+        }
+      `}</style>
     </div>
   )
 }
