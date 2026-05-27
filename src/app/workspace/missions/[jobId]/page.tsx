@@ -94,6 +94,19 @@ export default function JobDetailPage() {
     }
   }, [jobId, sb, loadAll])
 
+  // Polling safety net — Realtime is the primary mechanism but when the
+  // server creates many match_assessments in one batch the websocket can
+  // occasionally lag or skip events, and the UI stays on "matching…" with
+  // an empty list until a manual refresh. While the job is in "matching"
+  // status we refetch every 3 s; as soon as it flips to "done" or "error"
+  // we stop. Cheap, idempotent.
+  const isMatching = job?.match_status === "matching"
+  useEffect(() => {
+    if (!isMatching) return
+    const interval = setInterval(() => { loadAll() }, 3000)
+    return () => clearInterval(interval)
+  }, [isMatching, loadAll])
+
   const runMatch = async () => {
     if (!job) return
     setMatchError(null)

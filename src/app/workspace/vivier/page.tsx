@@ -132,6 +132,37 @@ export default function VivierPage() {
     }
   }, [sb])
 
+  // 1bis. Polling safety net — while any candidate is still parsing, poll
+  // those specific rows every 4 s. Realtime is the primary mechanism, but
+  // websocket hiccups or backgrounded tabs occasionally miss the UPDATE
+  // event and the card stays stuck on "Parsing…" until a manual refresh.
+  // This is a thin fallback that stops as soon as nothing is pending.
+  const pendingIdsKey = useMemo(() => {
+    const ids: string[] = []
+    for (const c of candidates) {
+      if (c.parse_status === "pending" || c.parse_status === "parsing") ids.push(c.id)
+    }
+    return ids.sort().join(",")
+  }, [candidates])
+
+  useEffect(() => {
+    if (!pendingIdsKey) return
+    const ids = pendingIdsKey.split(",")
+    let cancelled = false
+    const tick = async () => {
+      const { data } = await sb
+        .from("candidates")
+        .select(CANDIDATE_COLUMNS)
+        .in("id", ids)
+      if (cancelled || !data) return
+      const byId = new Map<string, Candidate>()
+      for (const row of data as unknown as Candidate[]) byId.set(row.id, row)
+      setCandidates((prev) => prev.map((c) => byId.get(c.id) ?? c))
+    }
+    const interval = setInterval(tick, 4000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [pendingIdsKey, sb])
+
   // 2. File handling — every job has a stable local id so we never confuse
   // two files that happen to share a name.
   const enqueue = useCallback(async (files: File[]) => {
@@ -176,9 +207,16 @@ export default function VivierPage() {
           patch(id, { status: "error", error: String(data?.message ?? data?.error ?? `HTTP ${res.status}`) })
           continue
         }
-        const cand = (data as { candidate?: { id?: string } }).candidate
-        // Trigger parse in background — we explicitly don't await it.
+        const cand = (data as { candidate?: Candidate }).candidate
+        // Optimistic insert — don't wait for Realtime, which may be slow
+        // or miss the event entirely (background tab, websocket hiccup).
+        // The Realtime UPDATE will later overwrite this row by id, so no
+        // risk of duplicates.
         if (cand?.id) {
+          setCandidates((prev) =>
+            prev.some((c) => c.id === cand.id) ? prev : [cand, ...prev]
+          )
+          // Trigger parse in background — we explicitly don't await it.
           void fetch(`/api/cv/${cand.id}/parse`, { method: "POST", keepalive: true }).catch(() => {})
         }
         patch(id, { status: "done", candidateId: cand?.id })
