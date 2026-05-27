@@ -23,6 +23,16 @@ import type { ParsedCv, CandidateTaxonomy } from "@/lib/database.types"
 export const runtime = "nodejs"
 export const maxDuration = 60 // pdf-parse + LLM round-trip
 
+// Vercel kills the function at 60 s. We race the parse work against a
+// 50 s watchdog so we have ~10 s to flip parse_status to "error" before
+// the hard kill — without this, parse_status stays at "parsing" forever
+// and the client has to manually retry. The dangling LLM call is killed
+// with the process; we waste a few tokens but the UX stays coherent.
+const WATCHDOG_MS = 50_000
+class ParseTimeoutError extends Error {
+  constructor() { super("parse_watchdog_timeout") }
+}
+
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
 
@@ -68,51 +78,81 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const buf = Buffer.from(await blob.arrayBuffer())
 
   // Parse — text path first; fall back to OCR for scanned / empty-text PDFs.
-  let parsedCv: ParsedCv | null = null
-  let taxonomy: CandidateTaxonomy | null = null
-  let rawText = ""
-  let parseError: { code: string; message: string } | null = null
-  try {
-    rawText = await extractPdfText(buf)
-    const out = await parseCvWithLlm(rawText)
-    parsedCv = out.cv
-    taxonomy = out.taxonomy
-  } catch (err) {
-    // Tous les échecs d'extraction texte basculent vers l'OCR Mistral —
-    // pas seulement "scanned_pdf" et "empty_pdf". Un "invalid_pdf"
-    // (PDF structurellement bizarre, signature exotique, encoding cassé)
-    // peut très bien être lu par mistral-ocr qui voit l'image rendue.
-    // C'est ce qui se passait en production : unpdf 1.6.2 throw
-    // "Invalid PDF structure" sur certains exports modernes, on perdait
-    // tous les CV sans même tenter l'OCR.
-    const isLlmJsonError = err instanceof CvParseError && err.code === "llm_invalid_json"
-    if (isLlmJsonError) {
-      // L'extraction texte a marché mais le LLM a retourné du JSON cassé.
-      // Inutile d'aller en OCR — le PDF a du texte, c'est le LLM qui a flanché.
-      parseError = { code: err.code, message: err.message }
-    } else {
-      // OCR fallback (mistral-ocr via OpenRouter).
-      try {
-        const out = await parseCvViaOcr(buf)
-        parsedCv = out.cv
-        taxonomy = out.taxonomy
-        parseError = null
-      } catch (ocrErr) {
-        // L'OCR a échoué aussi → on remonte l'erreur originale d'extraction
-        // qui est plus parlante côté UI ("PDF illisible…" vs "OCR failed").
-        const originalErr = err instanceof CvParseError
-          ? { code: err.code, message: err.message }
-          : { code: "llm_failed", message: (err as Error).message ?? "Erreur de parsing." }
-        const ocrFailed = ocrErr instanceof CvParseError
-          ? { code: ocrErr.code, message: ocrErr.message }
-          : { code: "ocr_failed", message: (ocrErr as Error).message ?? "L'OCR a échoué." }
-        parseError = {
-          code: originalErr.code,
-          message: `${originalErr.message} (OCR fallback : ${ocrFailed.message})`,
+  // Wrapped in a watchdog race so we can flip parse_status="error"
+  // gracefully if the LLM/OCR call hangs past 50 s.
+  type ParseOutcome = {
+    parsedCv: ParsedCv | null
+    taxonomy: CandidateTaxonomy | null
+    rawText: string
+    parseError: { code: string; message: string } | null
+  }
+
+  const doParse = async (): Promise<ParseOutcome> => {
+    let parsedCv: ParsedCv | null = null
+    let taxonomy: CandidateTaxonomy | null = null
+    let rawText = ""
+    let parseError: { code: string; message: string } | null = null
+    try {
+      rawText = await extractPdfText(buf)
+      const out = await parseCvWithLlm(rawText)
+      parsedCv = out.cv
+      taxonomy = out.taxonomy
+    } catch (err) {
+      // Tous les échecs d'extraction texte basculent vers l'OCR Mistral.
+      // unpdf 1.6.2 throw "Invalid PDF structure" sur certains exports
+      // modernes — l'OCR voit l'image rendue et fonctionne quand même.
+      const isLlmJsonError = err instanceof CvParseError && err.code === "llm_invalid_json"
+      if (isLlmJsonError) {
+        parseError = { code: err.code, message: err.message }
+      } else {
+        try {
+          const out = await parseCvViaOcr(buf)
+          parsedCv = out.cv
+          taxonomy = out.taxonomy
+        } catch (ocrErr) {
+          const originalErr = err instanceof CvParseError
+            ? { code: err.code, message: err.message }
+            : { code: "llm_failed", message: (err as Error).message ?? "Erreur de parsing." }
+          const ocrFailed = ocrErr instanceof CvParseError
+            ? { code: ocrErr.code, message: ocrErr.message }
+            : { code: "ocr_failed", message: (ocrErr as Error).message ?? "L'OCR a échoué." }
+          parseError = {
+            code: originalErr.code,
+            message: `${originalErr.message} (OCR fallback : ${ocrFailed.message})`,
+          }
         }
       }
     }
+    return { parsedCv, taxonomy, rawText, parseError }
   }
+
+  let watchdogTimer: ReturnType<typeof setTimeout> | null = null
+  const watchdog = new Promise<never>((_, reject) => {
+    watchdogTimer = setTimeout(() => reject(new ParseTimeoutError()), WATCHDOG_MS)
+  })
+
+  let outcome: ParseOutcome
+  try {
+    outcome = await Promise.race([doParse(), watchdog])
+  } catch (raceErr) {
+    if (raceErr instanceof ParseTimeoutError) {
+      // The LLM / OCR hung past our 50 s budget. Flip status to error
+      // with a clear message before Vercel kills us at 60 s.
+      await admin.from("candidates").update({
+        parse_status: "error",
+        parse_error: "Le parsing a pris trop de temps (>50 s). Le PDF est peut-être trop volumineux ou complexe — réessayez ou recompressez-le.",
+      }).eq("id", candidate.id)
+      return NextResponse.json({
+        ok: false, error: "parse_timeout",
+        message: "Parsing trop long — réessayez.",
+      }, { status: 200 })
+    }
+    throw raceErr
+  } finally {
+    if (watchdogTimer) clearTimeout(watchdogTimer)
+  }
+
+  const { parsedCv, taxonomy, rawText, parseError } = outcome
 
   if (parseError) {
     await admin.from("candidates").update({

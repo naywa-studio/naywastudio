@@ -1123,30 +1123,42 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
           background: "rgba(124,99,200,0.10)",
           borderRadius: 100, overflow: "hidden",
         }}>
-          <div style={{
-            position: "absolute", left: 0, top: 0, bottom: 0,
-            width: `${pct}%`,
-            background: stalling
-              ? "linear-gradient(90deg, #C4B6E0 0%, #7C63C8 100%)"
-              : "linear-gradient(90deg, #7C63C8 0%, #B8AEDE 100%)",
-            borderRadius: 100,
-            transition: "width 600ms cubic-bezier(0.22, 1, 0.36, 1)",
-            animation: nearAsymptote ? "parsing-pulse 1.6s ease-in-out infinite" : "none",
-          }}>
-            {/* Shimmer overlay */}
+          {nearAsymptote ? (
+            // Past 80 % we drop the percentage-driven bar — it would crawl
+            // imperceptibly toward the asymptote and look frozen. Instead
+            // we show an indeterminate "comet" sliding across the bar so
+            // the user feels work is still happening.
             <div style={{
-              position: "absolute", inset: 0,
-              background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
-              animation: "shimmer 1.4s linear infinite",
+              position: "absolute", top: 0, bottom: 0,
+              width: "40%",
+              borderRadius: 100,
+              background: stalling
+                ? "linear-gradient(90deg, rgba(124,99,200,0) 0%, #C4B6E0 50%, rgba(124,99,200,0) 100%)"
+                : "linear-gradient(90deg, rgba(124,99,200,0) 0%, #7C63C8 50%, rgba(124,99,200,0) 100%)",
+              animation: "indeterminate 1.6s ease-in-out infinite",
             }} />
-          </div>
+          ) : (
+            <div style={{
+              position: "absolute", left: 0, top: 0, bottom: 0,
+              width: `${pct}%`,
+              background: "linear-gradient(90deg, #7C63C8 0%, #B8AEDE 100%)",
+              borderRadius: 100,
+              transition: "width 600ms cubic-bezier(0.22, 1, 0.36, 1)",
+            }}>
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
+                animation: "shimmer 1.4s linear infinite",
+              }} />
+            </div>
+          )}
         </div>
         <div style={{
           marginTop: 6, display: "flex", justifyContent: "space-between",
           alignItems: "center",
           fontSize: 10.5, color: "#9CA3AF", fontVariantNumeric: "tabular-nums",
         }}>
-          <span>{Math.round(pct)}%</span>
+          <span>{nearAsymptote ? "Finalisation…" : `${Math.round(pct)}%`}</span>
           {veryStalled ? (
             <button
               onClick={manualRetry}
@@ -1171,9 +1183,9 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
             100% { transform: translateX(100%);  }
           }
           @keyframes spin { to { transform: rotate(360deg); } }
-          @keyframes parsing-pulse {
-            0%, 100% { opacity: 1; }
-            50%      { opacity: 0.78; }
+          @keyframes indeterminate {
+            0%   { left: -40%; }
+            100% { left: 100%; }
           }
         `}</style>
       </div>
