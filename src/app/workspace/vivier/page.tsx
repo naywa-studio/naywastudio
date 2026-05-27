@@ -1042,15 +1042,29 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
   // realtime/polling update completes the perceived progress when the
   // card swaps to the parsed CandidateCard).
   const pct = Math.min(96, 100 * (1 - Math.exp(-elapsedMs / 14000)))
-  const stalling = elapsedMs > 90_000
-  const veryStalled = elapsedMs > 180_000
+  // Vercel Hobby kills the function at 60 s — past that the parse has
+  // either succeeded (DB update will land via Realtime/polling) or been
+  // killed (parse_status stays at "parsing" until the auto-retry fires).
+  const stalling = elapsedMs > 60_000
+  const veryStalled = elapsedMs > 120_000
+  // Subtle breathing pulse near the asymptote so the bar never looks dead.
+  const nearAsymptote = pct > 80
+  const [retrying, setRetrying] = useState(false)
 
   const label =
-    veryStalled ? "Relance en cours… le PDF est peut-être complexe."
-    : stalling  ? "Nora met plus de temps que d'habitude — relance auto."
+    veryStalled ? "Le PDF est peut-être trop complexe — réessayez."
+    : stalling  ? "Plus long que d'habitude — Nora finalise."
     : elapsedSec < 6 ? "Extraction du texte…"
     : elapsedSec < 18 ? "Analyse par Nora…"
     : "Structuration des compétences…"
+
+  const manualRetry = async () => {
+    setRetrying(true)
+    try {
+      await fetch(`/api/cv/${c.id}/parse`, { method: "POST" })
+    } catch { /* ignored — Realtime/polling will pick up the new state */ }
+    setRetrying(false)
+  }
 
   return (
     <m.div
@@ -1117,6 +1131,7 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
               : "linear-gradient(90deg, #7C63C8 0%, #B8AEDE 100%)",
             borderRadius: 100,
             transition: "width 600ms cubic-bezier(0.22, 1, 0.36, 1)",
+            animation: nearAsymptote ? "parsing-pulse 1.6s ease-in-out infinite" : "none",
           }}>
             {/* Shimmer overlay */}
             <div style={{
@@ -1128,10 +1143,27 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
         </div>
         <div style={{
           marginTop: 6, display: "flex", justifyContent: "space-between",
+          alignItems: "center",
           fontSize: 10.5, color: "#9CA3AF", fontVariantNumeric: "tabular-nums",
         }}>
           <span>{Math.round(pct)}%</span>
-          <span>{elapsedSec}s</span>
+          {veryStalled ? (
+            <button
+              onClick={manualRetry}
+              disabled={retrying}
+              style={{
+                fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                background: "white",
+                border: "1px solid rgba(124,99,200,0.3)",
+                borderRadius: 7, padding: "3px 9px",
+                cursor: retrying ? "default" : "pointer", fontFamily: "inherit",
+              }}
+            >
+              {retrying ? "…" : "Réessayer"}
+            </button>
+          ) : (
+            <span>{elapsedSec}s</span>
+          )}
         </div>
         <style>{`
           @keyframes shimmer {
@@ -1139,6 +1171,10 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
             100% { transform: translateX(100%);  }
           }
           @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes parsing-pulse {
+            0%, 100% { opacity: 1; }
+            50%      { opacity: 0.78; }
+          }
         `}</style>
       </div>
     </m.div>

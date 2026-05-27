@@ -43,12 +43,14 @@ const MAX_SCORED_PER_RUN = 40
 /**
  * If a previous run was killed mid-flight by Vercel (timeout, OOM, deploy),
  * the `match_status='matching'` flag is never cleared because no catch block
- * runs on a hard kill. We treat any "matching" older than 2 minutes as stale
- * and reset it so the sourceur can retry without manual DB surgery.
+ * runs on a hard kill. We treat any "matching" older than 75 seconds as
+ * stale and reset it so the sourceur can retry without manual DB surgery.
+ * 75 s = Vercel Hobby maxDuration (60 s) + a 15 s safety margin to avoid
+ * stomping on a run that's actually still finishing its last batch.
  */
-const STALE_MATCHING_AFTER_MS = 2 * 60_000
+const STALE_MATCHING_AFTER_MS = 75_000
 
-export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
@@ -59,9 +61,14 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
 
   const admin = getAdminSupabase()
 
+  // The "Forcer la relance" UX button passes ?force=1 — it bypasses the
+  // stale check entirely so the sourceur can always unblock themselves
+  // when they're convinced the previous run is dead.
+  const force = new URL(req.url).searchParams.get("force") === "1"
+
   // Recover from a previous run killed by Vercel mid-flight. Without this,
   // the job would stay "matching" forever and the UI's spinner never stops.
-  if (job.match_status === "matching") {
+  if (!force && job.match_status === "matching") {
     const lastUpdate = new Date(job.updated_at).getTime()
     if (Date.now() - lastUpdate < STALE_MATCHING_AFTER_MS) {
       return NextResponse.json(

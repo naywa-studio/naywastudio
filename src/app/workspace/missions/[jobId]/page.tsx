@@ -107,13 +107,14 @@ export default function JobDetailPage() {
     return () => clearInterval(interval)
   }, [isMatching, loadAll])
 
-  const runMatch = async () => {
+  const runMatch = async (opts?: { force?: boolean }) => {
     if (!job) return
     setMatchError(null)
     // Stamp updated_at locally so the progress bar starts from now even
     // if the server hasn't bounced its own updated_at yet.
     setJob({ ...job, match_status: "matching", updated_at: new Date().toISOString() })
-    const res = await fetch(`/api/jobs/${job.id}/match`, { method: "POST" })
+    const qs = opts?.force ? "?force=1" : ""
+    const res = await fetch(`/api/jobs/${job.id}/match${qs}`, { method: "POST" })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
       // 409 "already_matching" isn't really an error — it just means the
@@ -272,11 +273,11 @@ export default function JobDetailPage() {
             <MatchingProgress
               startedAt={job.updated_at}
               partialCount={rows.length}
-              onForceRetry={runMatch}
+              onForceRetry={() => runMatch({ force: true })}
             />
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-              <button onClick={runMatch} style={{
+              <button onClick={() => runMatch()} style={{
                 padding: "11px 20px", borderRadius: 11, border: "none",
                 background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
                 color: "white", fontSize: 13.5, fontWeight: 700,
@@ -575,15 +576,22 @@ function MatchingProgress({
   const elapsedMs = Math.max(0, now - startMs)
   const elapsedSec = Math.round(elapsedMs / 1000)
   const pct = Math.min(96, 100 * (1 - Math.exp(-elapsedMs / 22000)))
-  const stalling = elapsedMs > 90_000
-  const canForceRetry = elapsedMs > 120_000
+  // Beyond Vercel's 60 s budget the server has very likely been killed.
+  // We show "Forcer la relance" the moment we cross the server's stale
+  // window (75 s) so the user can unblock immediately.
+  const stalling = elapsedMs > 60_000
+  const canForceRetry = elapsedMs > 75_000
+  // Subtle pulse on the bar past 80 % so the user feels things are alive
+  // even though the asymptote makes the width crawl.
+  const nearAsymptote = pct > 80
 
   const label =
     elapsedSec < 4 ? "Préfiltrage du vivier…"
-    : elapsedSec < 14 ? "Nora scoring les profils pertinents…"
+    : elapsedSec < 14 ? "Nora score les profils pertinents…"
     : elapsedSec < 28 ? "Comparaison taxonomies et expérience…"
-    : stalling ? "Le matching prend plus de temps que d'habitude — on patiente."
-    : "Finalisation du classement…"
+    : !stalling ? "Finalisation du classement…"
+    : canForceRetry ? "Le matching a probablement été interrompu — relancez."
+    : "Plus long que d'habitude — encore quelques secondes."
 
   return (
     <div style={{
@@ -630,6 +638,9 @@ function MatchingProgress({
             : "linear-gradient(90deg, #7C63C8 0%, #B8AEDE 100%)",
           borderRadius: 100,
           transition: "width 600ms cubic-bezier(0.22, 1, 0.36, 1)",
+          // Gentle breathing pulse when nearing the asymptote so the bar
+          // never feels frozen — the width crawls but the opacity moves.
+          animation: nearAsymptote ? "matching-pulse 1.6s ease-in-out infinite" : "none",
         }}>
           <div style={{
             position: "absolute", inset: 0,
@@ -662,6 +673,10 @@ function MatchingProgress({
         @keyframes matching-shimmer {
           0%   { transform: translateX(-100%); }
           100% { transform: translateX(100%);  }
+        }
+        @keyframes matching-pulse {
+          0%, 100% { opacity: 1; }
+          50%      { opacity: 0.78; }
         }
       `}</style>
     </div>
