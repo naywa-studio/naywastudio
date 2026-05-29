@@ -22,15 +22,23 @@ type Row = Pick<MatchAssessment, "id" | "job_id" | "score" | "match_tier" | "pip
   job: { id: string; title: string } | null
 }
 
+// Étapes alignées sur la pipeline (colonne Pricing retirée). 'hired' et
+// 'rejected' sont conservés ici pour qu'un candidat à une issue terminale
+// reste visible dans ce mini-kanban contextuel.
 const STAGES: { key: PipelineStage; label: string; color: string; bg: string }[] = [
   { key: "identified", label: "Identifié", color: "#6B7280", bg: "#F9FAFB" },
-  { key: "pricing",    label: "Pricing",   color: "#D97706", bg: "rgba(217,119,6,0.06)" },
   { key: "contacted",  label: "Contacté",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
   { key: "replied",    label: "Réponse",   color: "#7C63C8", bg: "rgba(124,99,200,0.05)" },
   { key: "interview",  label: "Entretien", color: "#B45309", bg: "rgba(245,158,11,0.06)" },
   { key: "offer",      label: "Offre",     color: "#15803d", bg: "rgba(34,197,94,0.06)" },
   { key: "hired",      label: "Recruté",   color: "#0F766E", bg: "rgba(15,118,110,0.06)" },
+  { key: "rejected",   label: "Écarté",    color: "#9CA3AF", bg: "#F3F4F6" },
 ]
+
+/** Legacy 'pricing' rows (colonne supprimée) → rangées dans 'identified'. */
+function displayStage(s: PipelineStage): PipelineStage {
+  return s === "pricing" ? "identified" : s
+}
 
 export default function CandidateMiniKanban({
   candidateId,
@@ -99,7 +107,7 @@ export default function CandidateMiniKanban({
     const map = new Map<PipelineStage, Row[]>()
     for (const s of STAGES) map.set(s.key, [])
     for (const r of visibleRows) {
-      const arr = map.get(r.pipeline_stage)
+      const arr = map.get(displayStage(r.pipeline_stage))
       if (arr) arr.push(r)
     }
     return map
