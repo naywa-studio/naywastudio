@@ -124,7 +124,7 @@ export default function MatchPage() {
           </Link>
         ) : <span />}
         {/* Droite : avancer vers la pipeline (sens de progression du workspace) */}
-        <Link href="/workspace/pipeline" style={{ color: "#7C63C8", textDecoration: "none", fontWeight: 600 }}>
+        <Link href="/workspace/pipeline" style={{ color: "#7C63C8", textDecoration: "none" }}>
           Pipeline →
         </Link>
       </div>
