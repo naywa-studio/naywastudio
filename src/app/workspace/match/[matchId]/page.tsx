@@ -55,6 +55,7 @@ export default function MatchPage() {
   const [siblingMatches, setSiblingMatches] = useState<MatchSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [pipelineSaving, setPipelineSaving] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -105,6 +106,20 @@ export default function MatchPage() {
 
   const job = match.job
   const cv = candidate.parsed_cv ?? null
+
+  // Ajoute / retire ce candidat de la pipeline (liste curatée). Optimiste.
+  const togglePipeline = async () => {
+    const next = !match.in_pipeline
+    setPipelineSaving(true)
+    setMatch((prev) => prev ? { ...prev, in_pipeline: next } : prev)
+    const res = await fetch(`/api/match/${match.id}/pipeline`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ in_pipeline: next }),
+    })
+    if (!res.ok) setMatch((prev) => prev ? { ...prev, in_pipeline: !next } : prev)
+    setPipelineSaving(false)
+  }
   const tier = match.match_tier ? TIER_META[match.match_tier] : null
   const dims = match.score_dimensions ?? {}
   const dimEntries = Object.entries(dims).filter(([, v]) => typeof v === "number") as [keyof ScoreDimensions, number][]
@@ -175,6 +190,22 @@ export default function MatchPage() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {/* Action principale : suivre dans la pipeline */}
+          <button
+            onClick={togglePipeline}
+            disabled={pipelineSaving}
+            title={match.in_pipeline ? "Retirer de la pipeline" : "Suivre ce candidat dans la pipeline"}
+            style={{
+              fontSize: 13, fontWeight: 700, fontFamily: "inherit",
+              cursor: pipelineSaving ? "default" : "pointer",
+              borderRadius: 10, padding: "9px 16px",
+              ...(match.in_pipeline
+                ? { color: "#15803d", background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.35)" }
+                : { color: "white", background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)", border: "none", boxShadow: "0 6px 18px -8px rgba(124,99,200,0.6)" }),
+            }}
+          >
+            {match.in_pipeline ? "✓ Dans le pipeline" : "+ Ajouter à la pipeline"}
+          </button>
           {isManual ? (
             <span style={{
               fontSize: 12, fontWeight: 700, color: "#7C63C8",
