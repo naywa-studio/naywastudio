@@ -116,13 +116,17 @@ export default function MatchPage() {
       maxWidth: 1440, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
-      <div style={{ marginBottom: 18, display: "flex", gap: 14, fontSize: 12.5 }}>
-        <Link href="/workspace/pipeline" style={{ color: "#7C63C8", textDecoration: "none" }}>← Pipeline</Link>
-        {job && (
+      <div style={{ marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, fontSize: 12.5 }}>
+        {/* Gauche : retour à la mission (origine du candidat) */}
+        {job ? (
           <Link href={`/workspace/missions/${job.id}`} style={{ color: "#7C63C8", textDecoration: "none" }}>
             ← Mission : {job.title}
           </Link>
-        )}
+        ) : <span />}
+        {/* Droite : avancer vers la pipeline (sens de progression du workspace) */}
+        <Link href="/workspace/pipeline" style={{ color: "#7C63C8", textDecoration: "none", fontWeight: 600 }}>
+          Pipeline →
+        </Link>
       </div>
 
       {/* Header band — one fiche match per candidate. The job picker
