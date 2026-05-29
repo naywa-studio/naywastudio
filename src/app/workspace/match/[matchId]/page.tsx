@@ -274,7 +274,6 @@ export default function MatchPage() {
           {/* Match reason — featured, en premier : info de décision n°1 */}
           {!isManual && (match.justification || dimEntries.length > 0) && (
             <section style={{
-              flex: 1,
               background: "rgba(34,197,94,0.06)",
               border: "1px solid rgba(34,197,94,0.25)",
               borderRadius: 16, padding: 16,
@@ -300,7 +299,6 @@ export default function MatchPage() {
           )}
           {isManual && (
             <section style={{
-              flex: 1,
               background: "rgba(124,99,200,0.06)",
               border: "1px solid rgba(124,99,200,0.22)",
               borderRadius: 16, padding: 16,
@@ -325,13 +323,59 @@ export default function MatchPage() {
             )}
             {candidate.skills && candidate.skills.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                {candidate.skills.slice(0, 10).map((s) => (
+                {candidate.skills.slice(0, 12).map((s) => (
                   <span key={s} style={{
                     fontSize: 11.5, color: "#4B5563",
                     background: "#F8F6FF", border: "1px solid #F0ECF8",
                     padding: "3px 9px", borderRadius: 6,
                   }}>{s}</span>
                 ))}
+              </div>
+            )}
+
+            {/* Méta : années d'XP + langues */}
+            {(cv?.years_experience != null || (cv?.languages?.length ?? 0) > 0) && (
+              <div style={{
+                display: "flex", flexWrap: "wrap", gap: 16, marginTop: 14,
+                fontSize: 12, color: "#6B7280",
+              }}>
+                {cv?.years_experience != null && (
+                  <span>📈 <strong style={{ color: "#374151" }}>{cv.years_experience} an{cv.years_experience > 1 ? "s" : ""}</strong> d&apos;expérience</span>
+                )}
+                {(cv?.languages?.length ?? 0) > 0 && (
+                  <span>🌐 {cv!.languages!.join(", ")}</span>
+                )}
+              </div>
+            )}
+
+            {/* Parcours — remplit la carte avec du concret plutôt que du vide */}
+            {(cv?.experience?.length ?? 0) > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                  Parcours
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {cv!.experience!.slice(0, 6).map((xp, i) => {
+                    const end = xp.end === null ? "auj." : (xp.end ?? "")
+                    const period = [xp.start ?? "", end].filter(Boolean).join(" – ")
+                    return (
+                      <div key={i} style={{ display: "flex", gap: 10 }}>
+                        <span style={{
+                          flexShrink: 0, width: 7, height: 7, borderRadius: "50%",
+                          background: "#C4B6E0", marginTop: 5,
+                        }} />
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#374151", lineHeight: 1.4 }}>
+                            {xp.title}{xp.company ? <span style={{ fontWeight: 400, color: "#6B7280" }}> · {xp.company}</span> : null}
+                          </p>
+                          {period && (
+                            <p style={{ margin: "1px 0 0", fontSize: 11, color: "#9CA3AF" }}>{period}</p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </section>
