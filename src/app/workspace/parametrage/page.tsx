@@ -1,15 +1,16 @@
 "use client"
 
 /**
- * /workspace/parametrage — Paramètres pricing du cabinet.
+ * /workspace/parametrage — Paramètres pricing du cabinet (récurrents).
  *
- * Page volontairement non listée dans la nav principale. Accessible via le
- * lien ⚙ "Paramètres pricing" qui apparaîtra sur le widget de chiffrage
- * sur la fiche match. Le sourceur la visite une fois en arrivant pour caler
- * ses valeurs par défaut, puis n'y revient que rarement.
+ * Miroir du wizard d'onboarding : mêmes champs, mêmes hints/alertes URSSAF,
+ * structure visuelle similaire. La différence : pas d'étapes, tout est sur
+ * la même page, auto-save debounced (800 ms).
  *
- * Auto-save debounced (1s) — pas de bouton "Enregistrer", les changements
- * persistent silencieusement et un petit indicateur "✓ enregistré" confirme.
+ * Ce qui n'est plus ici :
+ *   - Modalité Syntec (dérivée du preset séniorité dans le widget)
+ *   - Lieu (demandé par mission, pas au niveau cabinet)
+ *   - Jours facturables / mois (calendrier réel utilisé pour les charts)
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -18,55 +19,39 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { PricingDefaultAvantages, Profile } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import {
+  AVANTAGES_CONFIG,
+  avantagesMonthlyTotal,
+  type AvantageConfig,
+} from "@/lib/pricing/avantages-meta"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
-/* ──────────────────────────────────────────────────────────────────────────
- * Type-safe form state — mirrors the profiles pricing_* columns.
- * ────────────────────────────────────────────────────────────────────────── */
-
-type Lieu = "paris_petite_couronne" | "idf_grande_couronne" | "lyon" | "province"
-type Modalite = "modalite_1" | "modalite_2" | "modalite_3"
-
 interface Form {
-  pricing_billable_days_per_month: number
   pricing_margin_min_pct: number
   pricing_margin_target_pct: number
-  pricing_default_lieu: Lieu
-  pricing_default_modalite: Modalite
   pricing_default_avantages: PricingDefaultAvantages
+  treiziemeMois: boolean
 }
 
 const DEFAULT_FORM: Form = {
-  pricing_billable_days_per_month: 18,
   pricing_margin_min_pct: 15,
   pricing_margin_target_pct: 22,
-  pricing_default_lieu: "paris_petite_couronne",
-  pricing_default_modalite: "modalite_1",
   pricing_default_avantages: {
-    ticketsResto: 6,           // €/jour travaillé (URSSAF 2026 plafond exonération employeur ≈ 7.18€)
-    mutuellePremium: 45,
-    transport: 42,
-    forfaitMobilite: 0,
+    mutuellePremium: 50,
+    transport: 43,
+    medecineDuTravailAnnuel: 100,
     treiziemeMois: false,
+    ticketsResto: 6,
+    forfaitMobilite: 0,
     primeCooptationAnnuelle: 0,
     urssafIndemniteJour: 0,
-    medecineDuTravailAnnuel: 100,
     indemniteKilometriqueAnnuelle: 0,
     expatriationMensuelle: 0,
     autresMensuels: 0,
   },
+  treiziemeMois: false,
 }
-
-const MODALITE_LABELS: Record<Modalite, string> = {
-  modalite_1: "Modalité 1 — Standard 35h",
-  modalite_2: "Modalité 2 — Forfait hebdo 38h30 (+15% mini)",
-  modalite_3: "Modalité 3 — Forfait jours 218j (+20% mini)",
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
- * Page
- * ────────────────────────────────────────────────────────────────────────── */
 
 export default function ParametragePage() {
   const sb = useMemo(() => getSupabase(), [])
@@ -85,27 +70,19 @@ export default function ParametragePage() {
       userIdRef.current = user.id
       const { data } = await sb
         .from("profiles")
-        .select(
-          "pricing_billable_days_per_month, pricing_margin_min_pct, pricing_margin_target_pct, pricing_default_lieu, pricing_default_modalite, pricing_default_avantages",
-        )
+        .select("pricing_margin_min_pct, pricing_margin_target_pct, pricing_default_avantages")
         .eq("user_id", user.id)
         .maybeSingle()
       if (!mounted) return
       const profile = data as Partial<Profile> | null
+      const av = (profile?.pricing_default_avantages as PricingDefaultAvantages | null) ?? DEFAULT_FORM.pricing_default_avantages
       setForm({
-        pricing_billable_days_per_month:
-          profile?.pricing_billable_days_per_month ?? DEFAULT_FORM.pricing_billable_days_per_month,
         pricing_margin_min_pct:
           profile?.pricing_margin_min_pct ?? DEFAULT_FORM.pricing_margin_min_pct,
         pricing_margin_target_pct:
           profile?.pricing_margin_target_pct ?? DEFAULT_FORM.pricing_margin_target_pct,
-        pricing_default_lieu:
-          (profile?.pricing_default_lieu as Lieu) ?? DEFAULT_FORM.pricing_default_lieu,
-        pricing_default_modalite:
-          (profile?.pricing_default_modalite as Modalite) ?? DEFAULT_FORM.pricing_default_modalite,
-        pricing_default_avantages:
-          (profile?.pricing_default_avantages as PricingDefaultAvantages) ??
-          DEFAULT_FORM.pricing_default_avantages,
+        pricing_default_avantages: av,
+        treiziemeMois: Boolean(av.treiziemeMois),
       })
     })()
     return () => { mounted = false }
@@ -121,12 +98,12 @@ export default function ParametragePage() {
         const { error: upErr } = await sb
           .from("profiles")
           .update({
-            pricing_billable_days_per_month: next.pricing_billable_days_per_month,
             pricing_margin_min_pct: next.pricing_margin_min_pct,
             pricing_margin_target_pct: next.pricing_margin_target_pct,
-            pricing_default_lieu: next.pricing_default_lieu,
-            pricing_default_modalite: next.pricing_default_modalite,
-            pricing_default_avantages: next.pricing_default_avantages,
+            pricing_default_avantages: {
+              ...next.pricing_default_avantages,
+              treiziemeMois: next.treiziemeMois,
+            },
           })
           .eq("user_id", userIdRef.current!)
         if (upErr) {
@@ -135,7 +112,6 @@ export default function ParametragePage() {
         } else {
           setSaveState("saved")
           setError(null)
-          // Fade the "saved" badge after 2 seconds.
           window.setTimeout(() => setSaveState("idle"), 2000)
         }
       }, 800)
@@ -143,7 +119,6 @@ export default function ParametragePage() {
     [sb],
   )
 
-  // Convenience updater that schedules a save automatically.
   const update = useCallback(
     <K extends keyof Form>(key: K, value: Form[K]) => {
       setForm((prev) => {
@@ -173,6 +148,9 @@ export default function ParametragePage() {
 
   if (!form) return <NoraLoader />
 
+  const monthly = avantagesMonthlyTotal({ ...form.pricing_default_avantages, treiziemeMois: form.treiziemeMois })
+  const margesInvalid = form.pricing_margin_target_pct < form.pricing_margin_min_pct
+
   return (
     <main style={{
       minHeight: "calc(100vh - 60px)",
@@ -182,10 +160,10 @@ export default function ParametragePage() {
     }}>
       {/* Header */}
       <div style={{ marginBottom: 26 }}>
-        <Link href="/workspace" style={{
+        <Link href="/workspace/pricing" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           fontSize: 13, color: "#7C63C8", textDecoration: "none", marginBottom: 18,
-        }}>← Retour au workspace</Link>
+        }}>← Retour au pricing</Link>
         <span style={{
           display: "inline-block",
           fontSize: 11, fontWeight: 700, color: "#7C63C8",
@@ -193,208 +171,160 @@ export default function ParametragePage() {
           padding: "4px 11px", borderRadius: 100,
           letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
         }}>
-          ⚙ Paramètres pricing
+          🏢 Paramètres cabinet
         </span>
         <h1 style={{ margin: 0, fontSize: "clamp(24px, 3vw, 30px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
-          Réglages du chiffrage de votre cabinet
+          Réglages récurrents de votre cabinet
         </h1>
-        <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6, maxWidth: 600 }}>
-          Ces valeurs alimentent par défaut chaque chiffrage candidat sur la fiche match.
-          Vous pourrez toujours les ajuster mission par mission.
+        <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6, maxWidth: 640 }}>
+          Tout ce qui ne change pas d&apos;une mission à l&apos;autre : vos marges et les avantages
+          standards que vous proposez à vos salariés. Les paramètres mission (TJM, durée,
+          lieu, type de contrat) se renseignent au niveau de chaque mission.
         </p>
-
-        {/* Save indicator */}
         <SaveBadge state={saveState} error={error} />
       </div>
 
-      {/* Section 1 — Seuils de marge */}
-      <Section title="Seuils de marge" icon="📊">
-        <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-          Les jours travaillés mois par mois sont calculés depuis le <strong>vrai calendrier
-          français</strong> (Lun-Ven hors fériés) — plus besoin d&apos;une valeur théorique
-          mensuelle. Le chart marge mensuelle reflète directement les creux d&apos;août et les
-          pics d&apos;octobre.
-        </p>
-
-        <Row>
-          <Field label="Marge minimum acceptable" hint="En dessous, refus du chiffrage">
+      {/* Section 1 — Marges */}
+      <m.section
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: EASE }}
+        style={sectionStyle}
+      >
+        <SectionHeader title="🎯 Seuils de marge" subtitle="Plancher et objectif de rentabilité de votre cabinet." />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Field label="Marge minimum acceptable" hint="En dessous, refus du chiffrage. Moyenne ESN : 12–18 %.">
             <NumberInput
               value={form.pricing_margin_min_pct}
               onChange={(v) => update("pricing_margin_min_pct", v)}
-              min={0} max={100} step={0.5}
+              min={0} max={50} step={0.5}
               suffix="%"
             />
           </Field>
-          <Field label="Marge cible standard" hint="L'objectif visé par le cabinet">
+          <Field label="Marge cible" hint="Objectif visé. Moyenne marché : 18–25 %.">
             <NumberInput
               value={form.pricing_margin_target_pct}
               onChange={(v) => update("pricing_margin_target_pct", v)}
-              min={0} max={100} step={0.5}
+              min={0} max={50} step={0.5}
               suffix="%"
             />
           </Field>
-        </Row>
-      </Section>
+        </div>
+        {margesInvalid && (
+          <p style={{
+            marginTop: 12, padding: "9px 12px", fontSize: 12.5, color: "#B91C1C",
+            background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
+            borderRadius: 9,
+          }}>
+            ⚠ La marge cible doit être supérieure ou égale à la marge mini.
+          </p>
+        )}
+      </m.section>
 
-      {/* Section 2 — Mission par défaut */}
-      <Section title="Modalité par défaut" icon="📐">
-        <Field
-          label="Modalité Syntec par défaut"
-          hint="La modalité 3 (forfait jours) impose un minimum +20% (cadres autonomes uniquement). Le lieu, lui, se renseigne sur chaque mission individuellement."
-        >
-          <Select
-            value={form.pricing_default_modalite}
-            onChange={(v) => update("pricing_default_modalite", v as Modalite)}
-            options={Object.entries(MODALITE_LABELS).map(([value, label]) => ({ value, label }))}
+      {/* Section 2 — Avantages */}
+      <m.section
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: EASE }}
+        style={sectionStyle}
+      >
+        <SectionHeader
+          title="🎁 Avantages standards"
+          subtitle="Ce que votre cabinet propose à tous ses salariés, peu importe la mission."
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <BooleanAvantageRow
+            label="13ᵉ mois"
+            hint="Non obligatoire Syntec. ~60 % des ESN le pratiquent. Équivaut à 1 mois de brut /12."
+            enabled={form.treiziemeMois}
+            onToggle={(on) => update("treiziemeMois", on)}
           />
-        </Field>
-      </Section>
+          {AVANTAGES_CONFIG.map((cfg) => (
+            <SmartAvantageRow
+              key={cfg.key}
+              config={cfg}
+              value={form.pricing_default_avantages[cfg.key as keyof PricingDefaultAvantages] as number | undefined}
+              onChange={(v) => updateAvantage(cfg.key as keyof PricingDefaultAvantages, v as PricingDefaultAvantages[keyof PricingDefaultAvantages])}
+            />
+          ))}
+        </div>
 
-      {/* Section 4 — Avantages par défaut */}
-      <Section title="Avantages par défaut" icon="🎁">
-        <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-          Ces avantages s&apos;ajouteront au coût employeur. Sur chaque chiffrage, vous pourrez les
-          ajuster individuellement.
-        </p>
-
-        <p style={{ margin: "0 0 12px", fontSize: 12, color: "#6B7280", lineHeight: 1.5, fontStyle: "italic" }}>
-          Les avantages systématiques que ton cabinet offre à tous ses salariés. Les
-          avantages variables par mission (indemnité URSSAF grand déplacement, indemnité
-          kilométrique, expatriation) se renseignent au niveau de chaque mission.
-        </p>
-
-        <AvantageRow
-          label="Mutuelle santé"
-          hint="Part employeur, au-delà du minimum légal (50 %)"
-          enabled={(form.pricing_default_avantages.mutuellePremium ?? 0) > 0}
-          onToggle={(on) => updateAvantage("mutuellePremium", on ? 50 : 0)}
-          value={form.pricing_default_avantages.mutuellePremium ?? 0}
-          onValueChange={(v) => updateAvantage("mutuellePremium", v)}
-          suffix="€/mois"
-        />
-
-        <AvantageRow
-          label="Transport (Navigo / TCL)"
-          hint="50 % Navigo Paris = 42 € · Lyon TCL = 32 € · ailleurs à saisir"
-          enabled={(form.pricing_default_avantages.transport ?? 0) > 0}
-          onToggle={(on) => updateAvantage("transport", on ? 42 : 0)}
-          value={form.pricing_default_avantages.transport ?? 0}
-          onValueChange={(v) => updateAvantage("transport", v)}
-          suffix="€/mois"
-        />
-
-        <AvantageRow
-          label="Médecine du travail"
-          hint="Cotisation obligatoire SST. Typique 80-150 €/an/salarié"
-          enabled={(form.pricing_default_avantages.medecineDuTravailAnnuel ?? 0) > 0}
-          onToggle={(on) => updateAvantage("medecineDuTravailAnnuel", on ? 100 : 0)}
-          value={form.pricing_default_avantages.medecineDuTravailAnnuel ?? 0}
-          onValueChange={(v) => updateAvantage("medecineDuTravailAnnuel", v)}
-          suffix="€/an"
-        />
-
-        <AvantageRow
-          label="13ᵉ mois"
-          hint="Non obligatoire Syntec, mais ~60 % des ESN le pratiquent"
-          enabled={form.pricing_default_avantages.treiziemeMois === true}
-          onToggle={(on) => updateAvantage("treiziemeMois", on)}
-          valueLocked
-          lockedLabel="= 1 mois de brut / 12"
-        />
-
-        <AvantageRow
-          label="Tickets restaurant (€/jour travaillé)"
-          hint="Part employeur par jour. Plafond URSSAF 2026 ≈ 7,18 € (60 % × 11,97 €)"
-          enabled={(form.pricing_default_avantages.ticketsResto ?? 0) > 0}
-          onToggle={(on) => updateAvantage("ticketsResto", on ? 6 : 0)}
-          value={form.pricing_default_avantages.ticketsResto ?? 0}
-          onValueChange={(v) => updateAvantage("ticketsResto", v)}
-          suffix="€/jour"
-        />
-
-        <AvantageRow
-          label="Forfait mobilité durable"
-          hint="Vélo, covoiturage — exo jusqu'à 700 €/an"
-          enabled={(form.pricing_default_avantages.forfaitMobilite ?? 0) > 0}
-          onToggle={(on) => updateAvantage("forfaitMobilite", on ? 30 : 0)}
-          value={form.pricing_default_avantages.forfaitMobilite ?? 0}
-          onValueChange={(v) => updateAvantage("forfaitMobilite", v)}
-          suffix="€/mois"
-        />
-
-        <AvantageRow
-          label="Autres avantages mensuels"
-          hint="Champ libre pour ce qui n'est pas listé (CSE, etc.)"
-          enabled={(form.pricing_default_avantages.autresMensuels ?? 0) > 0}
-          onToggle={(on) => updateAvantage("autresMensuels", on ? 50 : 0)}
-          value={form.pricing_default_avantages.autresMensuels ?? 0}
-          onValueChange={(v) => updateAvantage("autresMensuels", v)}
-          suffix="€/mois"
-        />
-      </Section>
-
-      <p style={{
-        marginTop: 28, fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.6, textAlign: "center",
-      }}>
-        Convention collective : <strong>Syntec IDCC 1486</strong>, avenant salaires du 27 novembre 2025
-        (applicable depuis le 1ᵉʳ janvier 2026).
-      </p>
+        {/* Récap mensuel */}
+        <div style={{
+          marginTop: 18, padding: "13px 16px",
+          background: "rgba(124,99,200,0.06)",
+          border: "1px solid rgba(124,99,200,0.20)",
+          borderRadius: 10,
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+        }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Coût mensuel estimé des avantages activés
+            </p>
+            <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280" }}>
+              Tickets resto × 21 j · annuels /12 · hors URSSAF grand déplacement (conditionnel).
+            </p>
+          </div>
+          <span style={{ fontSize: 20, fontWeight: 800, color: "#7C63C8", fontVariantNumeric: "tabular-nums" }}>
+            ~{Math.round(monthly)} €
+          </span>
+        </div>
+      </m.section>
     </main>
   )
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
- * Layout helpers
- * ────────────────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────── */
 
-function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+const sectionStyle: React.CSSProperties = {
+  marginBottom: 18,
+  background: "white",
+  borderRadius: 16,
+  border: "1px solid #F0ECF8",
+  padding: 22,
+}
+
+function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <m.section
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: EASE }}
-      style={{
-        background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
-        padding: 22, marginBottom: 14,
-      }}
-    >
-      <h2 style={{
-        margin: "0 0 16px", fontSize: 13, fontWeight: 700, color: "#7C63C8",
-        letterSpacing: "0.06em", textTransform: "uppercase",
-        display: "flex", alignItems: "center", gap: 8,
-      }}>
-        <span style={{ fontSize: 16 }}>{icon}</span>
+    <div style={{ marginBottom: 18 }}>
+      <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
         {title}
       </h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {children}
-      </div>
-    </m.section>
+      {subtitle && (
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>{subtitle}</p>
+      )}
+    </div>
   )
 }
 
-function Row({ children }: { children: React.ReactNode }) {
+function SaveBadge({ state, error }: { state: "idle" | "saving" | "saved" | "error"; error: string | null }) {
+  if (state === "idle") return null
+  const fg = state === "error" ? "#B91C1C" : state === "saved" ? "#15803d" : "#6B7280"
+  const bg = state === "error" ? "rgba(220,38,38,0.06)" : state === "saved" ? "rgba(34,197,94,0.07)" : "#F3F4F6"
+  const bd = state === "error" ? "rgba(220,38,38,0.25)" : state === "saved" ? "rgba(34,197,94,0.25)" : "#E5E7EB"
+  const text =
+    state === "saving" ? "Enregistrement…"
+    : state === "saved" ? "✓ Enregistré"
+    : `⚠ Échec : ${error ?? "réessaie"}`
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-      {children}
-    </div>
+    <span style={{
+      marginTop: 14, display: "inline-block",
+      fontSize: 11.5, fontWeight: 600, color: fg,
+      background: bg, border: `1px solid ${bd}`,
+      borderRadius: 100, padding: "4px 10px",
+    }}>
+      {text}
+    </span>
   )
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
-        {label}
-        {hint && <span style={{ fontWeight: 400, color: "#9CA3AF", marginLeft: 6 }}>· {hint}</span>}
-      </span>
+    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
+      {hint && <span style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
       {children}
     </label>
   )
 }
-
-/* ──────────────────────────────────────────────────────────────────────────
- * Form widgets
- * ────────────────────────────────────────────────────────────────────────── */
 
 function NumberInput({
   value, onChange, min, max, step, suffix,
@@ -414,80 +344,94 @@ function NumberInput({
         min={min} max={max} step={step}
         onChange={(e) => {
           const n = Number(e.target.value)
-          if (Number.isFinite(n)) onChange(n)
+          if (Number.isFinite(n)) onChange(Math.max(min, Math.min(max, n)))
         }}
         style={inputInnerStyle}
       />
-      <span style={{ fontSize: 12.5, color: "#9CA3AF", paddingRight: 12 }}>{suffix}</span>
+      <span style={{ fontSize: 12, color: "#9CA3AF", paddingRight: 12 }}>{suffix}</span>
     </div>
   )
 }
 
-function Select({
-  value, onChange, options,
-}: {
-  value: string
-  onChange: (v: string) => void
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={{
-        ...inputBoxStyle, padding: "9px 12px", fontSize: 13.5, color: "#111827",
-        fontFamily: "inherit", appearance: "none",
-        backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\'><path fill=\'%239CA3AF\' d=\'M5 6L0 0h10z\'/></svg>")',
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "right 14px center",
-      }}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
-  )
-}
-
-function AvantageRow({
-  label, hint, enabled, onToggle, value, onValueChange, suffix, valueLocked, lockedLabel,
+function BooleanAvantageRow({
+  label, hint, enabled, onToggle,
 }: {
   label: string
-  hint?: string
+  hint: string
   enabled: boolean
   onToggle: (on: boolean) => void
-  value?: number
-  onValueChange?: (v: number) => void
-  suffix?: string
-  valueLocked?: boolean
-  lockedLabel?: string
 }) {
   return (
     <div style={{
-      display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 14, alignItems: "center",
-      padding: "10px 0", borderBottom: "1px solid #F4F1FB",
+      display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center",
+      padding: "10px 12px",
+      background: enabled ? "rgba(124,99,200,0.04)" : "#FAFAFA",
+      border: enabled ? "1px solid rgba(124,99,200,0.18)" : "1px solid #F0ECF8",
+      borderRadius: 9,
     }}>
       <Checkbox checked={enabled} onChange={onToggle} />
       <div>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#111827" }}>{label}</p>
-        {hint && <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>{hint}</p>}
+        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{label}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</p>
       </div>
-      {valueLocked ? (
-        <span style={{ fontSize: 12, color: "#9CA3AF", whiteSpace: "nowrap" }}>{lockedLabel}</span>
-      ) : (
-        <div style={{ width: 160 }}>
+      <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>= 1 mois /12</span>
+    </div>
+  )
+}
+
+function SmartAvantageRow({
+  config, value, onChange,
+}: {
+  config: AvantageConfig
+  value: number | undefined
+  onChange: (v: number) => void
+}) {
+  const enabled = (value ?? 0) > 0
+  const numericValue = value ?? 0
+  const warningMsg = enabled && config.warning ? config.warning(numericValue) : null
+  const toggle = (on: boolean) => onChange(on ? config.defaultValue : 0)
+
+  return (
+    <div style={{
+      padding: "10px 12px",
+      background: enabled ? "rgba(124,99,200,0.04)" : "#FAFAFA",
+      border: enabled ? "1px solid rgba(124,99,200,0.18)" : "1px solid #F0ECF8",
+      borderRadius: 9,
+    }}>
+      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center" }}>
+        <Checkbox checked={enabled} onChange={toggle} />
+        <div>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{config.label}</p>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{config.hint}</p>
+        </div>
+        <div style={{ width: 140 }}>
           <div style={inputBoxStyle}>
             <input
               type="number"
-              value={value ?? 0}
+              value={numericValue}
               disabled={!enabled}
-              onChange={(e) => onValueChange?.(Number(e.target.value))}
+              onChange={(e) => {
+                const n = Number(e.target.value)
+                if (!Number.isFinite(n)) return
+                onChange(Math.min(config.max, Math.max(0, n)))
+              }}
               style={{ ...inputInnerStyle, color: enabled ? "#111827" : "#9CA3AF" }}
-              min={0} step={1}
+              min={0}
+              max={config.max}
+              step={config.step ?? 1}
             />
-            <span style={{ fontSize: 11.5, color: "#9CA3AF", paddingRight: 10 }}>{suffix}</span>
+            <span style={{ fontSize: 11, color: "#9CA3AF", paddingRight: 10 }}>{config.suffix}</span>
           </div>
         </div>
+      </div>
+      {warningMsg && (
+        <p style={{
+          margin: "8px 0 0", fontSize: 11.5, color: "#B45309",
+          background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.25)",
+          borderRadius: 7, padding: "5px 9px",
+        }}>
+          {warningMsg}
+        </p>
       )}
     </div>
   )
@@ -516,46 +460,17 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: (on: bool
   )
 }
 
-function SaveBadge({ state, error }: { state: "idle" | "saving" | "saved" | "error"; error: string | null }) {
-  if (state === "idle") return null
-  const style: React.CSSProperties = {
-    marginTop: 14, display: "inline-flex", alignItems: "center", gap: 6,
-    fontSize: 11.5, fontWeight: 600, padding: "4px 10px", borderRadius: 100,
-  }
-  if (state === "saving") {
-    return (
-      <div style={{ ...style, background: "#F3F4F6", color: "#6B7280" }}>
-        Enregistrement…
-      </div>
-    )
-  }
-  if (state === "saved") {
-    return (
-      <div style={{ ...style, background: "rgba(34,197,94,0.10)", color: "#16a34a", border: "1px solid rgba(34,197,94,0.22)" }}>
-        ✓ Enregistré
-      </div>
-    )
-  }
-  return (
-    <div style={{ ...style, background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA" }}>
-      ⚠ Erreur : {error ?? "réessayer"}
-    </div>
-  )
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
- * Reused input styles
- * ────────────────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────── */
 
 const inputBoxStyle: React.CSSProperties = {
   display: "flex", alignItems: "center",
-  background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
+  background: "white", border: "1px solid #E5E7EB", borderRadius: 9,
   overflow: "hidden",
 }
 
 const inputInnerStyle: React.CSSProperties = {
   flex: 1, padding: "9px 12px",
-  fontSize: 13.5, color: "#111827",
+  fontSize: 13, color: "#111827",
   background: "transparent", border: "none", outline: "none",
   fontFamily: "inherit", minWidth: 0, width: "100%",
 }

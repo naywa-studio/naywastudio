@@ -1,49 +1,51 @@
 "use client"
 
 /**
- * OnboardingWizard — wizard cabinet pricing.
+ * OnboardingWizard — wizard cabinet pricing (1ère visite).
  *
- * Apparaît la 1ère fois que le sourceur arrive sur /workspace/pricing
- * (détection via profiles.pricing_onboarded_at NULL). Demande SEULEMENT
- * les paramètres systématiques du cabinet (pas par mission) :
+ * Étape 1 : Bienvenue
+ * Étape 2 : Marges (mini + cible, avec validation cible ≥ mini)
+ * Étape 3 : Avantages standards (cabinet) — config dans avantages-meta.ts
  *
- *   Étape 1 : Bienvenue
- *   Étape 2 : Seuils de marge + modalité Syntec par défaut
- *   Étape 3 : Avantages standards mensuels (mutuelle, transport, médecine,
- *             13ᵉ mois, tickets resto)
+ * Tout ce qui dépend de la mission (TJM, durée, lieu, type de contrat,
+ * date de démarrage) est demandé séparément dans le wizard Mission, pas
+ * ici. Le sourceur ne renseigne ici QUE ce qui est récurrent à toutes
+ * les missions.
  *
- * Une fois fini, marque pricing_onboarded_at = now() pour ne plus le
- * réafficher. L'user peut rejouer le wizard depuis la page paramétrage
- * ou via "Reconfigurer" — pas implémenté ici.
+ * Une fois terminé : pricing_onboarded_at = now() → ne réapparaît plus.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { PricingDefaultAvantages } from "@/lib/database.types"
+import {
+  AVANTAGES_CONFIG,
+  avantagesMonthlyTotal,
+  type AvantageConfig,
+  type AvantageKey,
+} from "@/lib/pricing/avantages-meta"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
-
-type Modalite = "modalite_1" | "modalite_2" | "modalite_3"
 
 interface WizardState {
   pricing_margin_min_pct: number
   pricing_margin_target_pct: number
-  pricing_default_modalite: Modalite
   pricing_default_avantages: PricingDefaultAvantages
+  /** 13ᵉ mois — booléen séparé du config (pas un montant). */
+  treiziemeMois: boolean
 }
 
 const DEFAULT_STATE: WizardState = {
   pricing_margin_min_pct: 15,
   pricing_margin_target_pct: 22,
-  pricing_default_modalite: "modalite_1",
   pricing_default_avantages: {
     mutuellePremium: 50,
-    transport: 42,
+    transport: 43,
     medecineDuTravailAnnuel: 100,
     treiziemeMois: false,
     ticketsResto: 6,
-    // Le reste reste à 0 ou non défini — pas pertinent au niveau cabinet
+    // Le reste désactivé par défaut
     forfaitMobilite: 0,
     primeCooptationAnnuelle: 0,
     urssafIndemniteJour: 0,
@@ -51,6 +53,7 @@ const DEFAULT_STATE: WizardState = {
     expatriationMensuelle: 0,
     autresMensuels: 0,
   },
+  treiziemeMois: false,
 }
 
 const TOTAL_STEPS = 3
@@ -86,8 +89,10 @@ export default function OnboardingWizard({
         .update({
           pricing_margin_min_pct: next.pricing_margin_min_pct,
           pricing_margin_target_pct: next.pricing_margin_target_pct,
-          pricing_default_modalite: next.pricing_default_modalite,
-          pricing_default_avantages: next.pricing_default_avantages,
+          pricing_default_avantages: {
+            ...next.pricing_default_avantages,
+            treiziemeMois: next.treiziemeMois,
+          },
         })
         .eq("user_id", userIdRef.current)
       setSaving(false)
@@ -133,8 +138,10 @@ export default function OnboardingWizard({
         .update({
           pricing_margin_min_pct: state.pricing_margin_min_pct,
           pricing_margin_target_pct: state.pricing_margin_target_pct,
-          pricing_default_modalite: state.pricing_default_modalite,
-          pricing_default_avantages: state.pricing_default_avantages,
+          pricing_default_avantages: {
+            ...state.pricing_default_avantages,
+            treiziemeMois: state.treiziemeMois,
+          },
           pricing_onboarded_at: new Date().toISOString(),
         })
         .eq("user_id", userIdRef.current)
@@ -144,7 +151,7 @@ export default function OnboardingWizard({
 
   return (
     <div style={{
-      maxWidth: 640, margin: "32px auto 0",
+      maxWidth: 720, margin: "32px auto 0",
       background: "white", borderRadius: 18,
       border: "1px solid #F0ECF8",
       overflow: "hidden",
@@ -152,7 +159,7 @@ export default function OnboardingWizard({
     }}>
       <ProgressHeader step={step} total={TOTAL_STEPS} saving={saving} />
 
-      <div style={{ padding: "28px 32px 24px", minHeight: 320 }}>
+      <div style={{ padding: "28px 32px 24px", minHeight: 360 }}>
         <AnimatePresence mode="wait">
           <m.div
             key={step}
@@ -163,7 +170,13 @@ export default function OnboardingWizard({
           >
             {step === 1 && <StepWelcome />}
             {step === 2 && <StepMarges state={state} update={update} />}
-            {step === 3 && <StepAvantages state={state} updateAvantage={updateAvantage} />}
+            {step === 3 && (
+              <StepAvantages
+                state={state}
+                update={update}
+                updateAvantage={updateAvantage}
+              />
+            )}
           </m.div>
         </AnimatePresence>
       </div>
@@ -178,7 +191,7 @@ export default function OnboardingWizard({
 function ProgressHeader({ step, total, saving }: { step: number; total: number; saving: boolean }) {
   return (
     <div style={{
-      background: "linear-gradient(120deg, rgba(124,99,200,0.06), rgba(217,119,6,0.04))",
+      background: "linear-gradient(120deg, rgba(124,99,200,0.06), rgba(124,99,200,0.02))",
       padding: "14px 32px",
       borderBottom: "1px solid #F0ECF8",
     }}>
@@ -190,7 +203,7 @@ function ProgressHeader({ step, total, saving }: { step: number; total: number; 
           fontSize: 11, fontWeight: 700, color: "#7C63C8",
           letterSpacing: "0.08em", textTransform: "uppercase",
         }}>
-          ⚙ Paramètres cabinet · Étape {step}/{total}
+          🏢 Paramètres cabinet · Étape {step}/{total}
         </span>
         {saving && (
           <span style={{ fontSize: 10.5, color: "#9CA3AF", fontStyle: "italic" }}>
@@ -217,9 +230,13 @@ function StepWelcome() {
       <div style={{ fontSize: 48, marginBottom: 16 }}>👋</div>
       <h2 style={titleStyle}>Bienvenue dans le pricing Naywa</h2>
       <p style={leadStyle}>
-        En 1 minute, on cale les paramètres récurrents de ton cabinet — ce qui ne
-        change pas d&apos;une mission à l&apos;autre. Tout le reste (TJM, durée, brut, lieu)
-        se renseigne par mission.
+        En 1 minute, on cale les paramètres récurrents de ton <strong>cabinet</strong> —
+        ce qui ne change pas d&apos;une mission à l&apos;autre : tes marges et les avantages
+        que tu proposes à tes salariés.
+      </p>
+      <p style={{ ...leadStyle, marginTop: 14 }}>
+        Tout ce qui dépend d&apos;une mission précise (TJM, durée, lieu, type de contrat)
+        sera demandé séparément pour <strong>chaque mission</strong>.
       </p>
       <p style={{ ...leadStyle, marginTop: 14, fontSize: 12.5, color: "#9CA3AF" }}>
         Tu pourras tout modifier plus tard depuis ⚙ Paramètres cabinet.
@@ -234,119 +251,113 @@ function StepMarges({
   state: WizardState
   update: <K extends keyof WizardState>(key: K, value: WizardState[K]) => void
 }) {
+  const mini = state.pricing_margin_min_pct
+  const cible = state.pricing_margin_target_pct
+  const invalid = cible < mini
+
   return (
     <div>
       <h2 style={titleStyle}>🎯 Seuils de marge</h2>
       <p style={leadStyle}>
-        Le plancher et la cible de ton cabinet. Ils servent de repères dans
-        tous les chiffrages.
+        Le plancher et la cible de ton cabinet. Ils servent de repères dans tous
+        les chiffrages et alimentent le verdict (rentable / pas rentable).
       </p>
 
       <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <Field label="Marge minimum acceptable" hint="En dessous, refus du chiffrage">
+        <Field
+          label="Marge minimum acceptable"
+          hint="En dessous, refus du chiffrage. Moyenne ESN : 12–18 %."
+        >
           <NumberInput
-            value={state.pricing_margin_min_pct}
+            value={mini}
             onChange={(v) => update("pricing_margin_min_pct", v)}
-            min={0} max={100} step={0.5}
+            min={0} max={50} step={0.5}
             suffix="%"
           />
         </Field>
-        <Field label="Marge cible" hint="L'objectif visé">
+        <Field
+          label="Marge cible"
+          hint="L'objectif visé. Moyenne marché : 18–25 %."
+        >
           <NumberInput
-            value={state.pricing_margin_target_pct}
+            value={cible}
             onChange={(v) => update("pricing_margin_target_pct", v)}
-            min={0} max={100} step={0.5}
+            min={0} max={50} step={0.5}
             suffix="%"
           />
         </Field>
       </div>
 
-      <div style={{ marginTop: 22 }}>
-        <Field
-          label="Modalité Syntec par défaut"
-          hint="Modalité 3 = forfait jours 218 j/an (cadres autonomes). Modalité 1 = standard 35h."
-        >
-          <Select
-            value={state.pricing_default_modalite}
-            onChange={(v) => update("pricing_default_modalite", v as Modalite)}
-            options={[
-              { value: "modalite_1", label: "Modalité 1 — Standard 35h" },
-              { value: "modalite_2", label: "Modalité 2 — Forfait hebdo 38h30 (+15% mini)" },
-              { value: "modalite_3", label: "Modalité 3 — Forfait jours 218 j (+20% mini)" },
-            ]}
-          />
-        </Field>
-      </div>
+      {invalid && (
+        <p style={{
+          marginTop: 14, padding: "9px 12px", fontSize: 12.5, color: "#B91C1C",
+          background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
+          borderRadius: 9,
+        }}>
+          ⚠ La marge cible ({cible} %) doit être supérieure ou égale à la marge mini ({mini} %).
+        </p>
+      )}
     </div>
   )
 }
 
 function StepAvantages({
-  state, updateAvantage,
+  state, update, updateAvantage,
 }: {
   state: WizardState
+  update: <K extends keyof WizardState>(key: K, value: WizardState[K]) => void
   updateAvantage: <K extends keyof PricingDefaultAvantages>(key: K, value: PricingDefaultAvantages[K]) => void
 }) {
   const av = state.pricing_default_avantages
+  const monthly = avantagesMonthlyTotal({ ...av, treiziemeMois: state.treiziemeMois })
+
   return (
     <div>
-      <h2 style={titleStyle}>🎁 Avantages standards cabinet</h2>
+      <h2 style={titleStyle}>🎁 Avantages standards du cabinet</h2>
       <p style={leadStyle}>
-        Ce que ton cabinet propose à TOUS ses salariés (peu importe la mission).
-        Les avantages variables par mission (URSSAF déplacement, indemnité km) se
-        renseignent au niveau de chaque mission.
+        Ce que ton cabinet propose à <strong>tous</strong> ses salariés, peu importe la mission.
+        Active uniquement ceux qui s&apos;appliquent. Les plafonds URSSAF sont rappelés en hint.
       </p>
 
-      <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 12 }}>
-        <AvantageRow
-          label="Mutuelle santé"
-          hint="Part employeur, au-delà des 50 % minimum légaux"
-          enabled={(av.mutuellePremium ?? 0) > 0}
-          onToggle={(on) => updateAvantage("mutuellePremium", on ? 50 : 0)}
-          value={av.mutuellePremium ?? 0}
-          onValueChange={(v) => updateAvantage("mutuellePremium", v)}
-          suffix="€/mois"
-          max={500}
-        />
-        <AvantageRow
-          label="Transport (Navigo / TCL)"
-          hint="50 % du Navigo Paris = 42 € · Lyon TCL = 32 € · ailleurs = à saisir"
-          enabled={(av.transport ?? 0) > 0}
-          onToggle={(on) => updateAvantage("transport", on ? 42 : 0)}
-          value={av.transport ?? 0}
-          onValueChange={(v) => updateAvantage("transport", v)}
-          suffix="€/mois"
-          max={300}
-        />
-        <AvantageRow
-          label="Médecine du travail"
-          hint="Cotisation obligatoire au SST. Typique 80-150 €/an/salarié."
-          enabled={(av.medecineDuTravailAnnuel ?? 0) > 0}
-          onToggle={(on) => updateAvantage("medecineDuTravailAnnuel", on ? 100 : 0)}
-          value={av.medecineDuTravailAnnuel ?? 0}
-          onValueChange={(v) => updateAvantage("medecineDuTravailAnnuel", v)}
-          suffix="€/an"
-          max={500}
-        />
-        <AvantageRow
+      <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* 13ᵉ mois — toggle simple, pas un montant */}
+        <BooleanAvantageRow
           label="13ᵉ mois"
-          hint="Non obligatoire Syntec, mais ~60 % des ESN le pratiquent"
-          enabled={av.treiziemeMois === true}
-          onToggle={(on) => updateAvantage("treiziemeMois", on)}
-          valueLocked
-          lockedLabel="= 1 mois de brut / 12"
+          hint="Non obligatoire Syntec. ~60 % des ESN le pratiquent. Équivaut à 1 mois de brut /12."
+          enabled={state.treiziemeMois}
+          onToggle={(on) => update("treiziemeMois", on)}
         />
-        <AvantageRow
-          label="Tickets restaurant"
-          hint="Part employeur €/jour travaillé. Plafond URSSAF 2026 ≈ 7,18 €/jour."
-          enabled={(av.ticketsResto ?? 0) > 0}
-          onToggle={(on) => updateAvantage("ticketsResto", on ? 6 : 0)}
-          value={av.ticketsResto ?? 0}
-          onValueChange={(v) => updateAvantage("ticketsResto", v)}
-          suffix="€/jour"
-          max={8}
-          step={0.1}
-        />
+
+        {/* Tous les autres avantages — config-driven */}
+        {AVANTAGES_CONFIG.map((cfg) => (
+          <SmartAvantageRow
+            key={cfg.key}
+            config={cfg}
+            value={av[cfg.key as keyof PricingDefaultAvantages] as number | undefined}
+            onChange={(v) => updateAvantage(cfg.key as keyof PricingDefaultAvantages, v as PricingDefaultAvantages[keyof PricingDefaultAvantages])}
+          />
+        ))}
+      </div>
+
+      {/* Récap coût mensuel total */}
+      <div style={{
+        marginTop: 18, padding: "13px 16px",
+        background: "rgba(124,99,200,0.06)",
+        border: "1px solid rgba(124,99,200,0.20)",
+        borderRadius: 10,
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+      }}>
+        <div>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            Coût mensuel estimé des avantages activés
+          </p>
+          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280" }}>
+            Tickets resto × 21 j · annuels /12 · hors URSSAF grand déplacement (conditionnel).
+          </p>
+        </div>
+        <span style={{ fontSize: 20, fontWeight: 800, color: "#7C63C8", fontVariantNumeric: "tabular-nums" }}>
+          ~{Math.round(monthly)} €
+        </span>
       </div>
     </div>
   )
@@ -449,46 +460,17 @@ function NumberInput({
   )
 }
 
-function Select({
-  value, onChange, options,
-}: {
-  value: string
-  onChange: (v: string) => void
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={{
-        ...inputBoxStyle, padding: "10px 12px", fontSize: 13, color: "#111827",
-        fontFamily: "inherit", appearance: "none",
-        backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\'><path fill=\'%239CA3AF\' d=\'M5 6L0 0h10z\'/></svg>")',
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "right 14px center",
-      }}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
-  )
-}
-
-function AvantageRow({
-  label, hint, enabled, onToggle, value, onValueChange, suffix, valueLocked, lockedLabel, max, step,
+/**
+ * BooleanAvantageRow — comme une ligne avantage mais sans montant.
+ * Utilisé pour le 13ᵉ mois qui est purement on/off.
+ */
+function BooleanAvantageRow({
+  label, hint, enabled, onToggle,
 }: {
   label: string
-  hint?: string
+  hint: string
   enabled: boolean
   onToggle: (on: boolean) => void
-  value?: number
-  onValueChange?: (v: number) => void
-  suffix?: string
-  valueLocked?: boolean
-  lockedLabel?: string
-  max?: number
-  step?: number
 }) {
   return (
     <div style={{
@@ -501,31 +483,74 @@ function AvantageRow({
       <Checkbox checked={enabled} onChange={onToggle} />
       <div>
         <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{label}</p>
-        {hint && <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</p>}
+        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</p>
       </div>
-      {valueLocked ? (
-        <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>{lockedLabel}</span>
-      ) : (
-        <div style={{ width: 130 }}>
+      <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>
+        = 1 mois de brut /12
+      </span>
+    </div>
+  )
+}
+
+/**
+ * SmartAvantageRow — ligne avantage pilotée par AvantageConfig.
+ * Affiche un warning orange en bas du champ si la valeur dépasse un plafond
+ * URSSAF (hint contextuel, sans bloquer la saisie).
+ */
+function SmartAvantageRow({
+  config, value, onChange,
+}: {
+  config: AvantageConfig
+  value: number | undefined
+  onChange: (v: number) => void
+}) {
+  const enabled = (value ?? 0) > 0
+  const numericValue = value ?? 0
+  const warningMsg = enabled && config.warning ? config.warning(numericValue) : null
+
+  const toggle = (on: boolean) => onChange(on ? config.defaultValue : 0)
+
+  return (
+    <div style={{
+      padding: "10px 12px",
+      background: enabled ? "rgba(124,99,200,0.04)" : "#FAFAFA",
+      border: enabled ? "1px solid rgba(124,99,200,0.18)" : "1px solid #F0ECF8",
+      borderRadius: 9,
+    }}>
+      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center" }}>
+        <Checkbox checked={enabled} onChange={toggle} />
+        <div>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{config.label}</p>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{config.hint}</p>
+        </div>
+        <div style={{ width: 140 }}>
           <div style={inputBoxStyle}>
             <input
               type="number"
-              value={value ?? 0}
+              value={numericValue}
               disabled={!enabled}
               onChange={(e) => {
                 const n = Number(e.target.value)
                 if (!Number.isFinite(n)) return
-                const clamped = max != null ? Math.min(max, Math.max(0, n)) : Math.max(0, n)
-                onValueChange?.(clamped)
+                onChange(Math.min(config.max, Math.max(0, n)))
               }}
               style={{ ...inputInnerStyle, color: enabled ? "#111827" : "#9CA3AF" }}
               min={0}
-              max={max}
-              step={step ?? 1}
+              max={config.max}
+              step={config.step ?? 1}
             />
-            <span style={{ fontSize: 11, color: "#9CA3AF", paddingRight: 10 }}>{suffix}</span>
+            <span style={{ fontSize: 11, color: "#9CA3AF", paddingRight: 10 }}>{config.suffix}</span>
           </div>
         </div>
+      </div>
+      {warningMsg && (
+        <p style={{
+          margin: "8px 0 0", fontSize: 11.5, color: "#B45309",
+          background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.25)",
+          borderRadius: 7, padding: "5px 9px",
+        }}>
+          {warningMsg}
+        </p>
       )}
     </div>
   )
@@ -577,3 +602,6 @@ const inputInnerStyle: React.CSSProperties = {
   background: "transparent", border: "none", outline: "none",
   fontFamily: "inherit", minWidth: 0, width: "100%",
 }
+
+// Export du type pour fixer lint si export non utilisé ailleurs.
+export type { AvantageKey }
