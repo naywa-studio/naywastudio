@@ -56,6 +56,9 @@ export default function MatchPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [pipelineSaving, setPipelineSaving] = useState(false)
+  // CV anonymisé replié par défaut — c'est l'élément le plus encombrant et le
+  // moins consulté en continu ; on le déploie à la demande.
+  const [cvOpen, setCvOpen] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -246,31 +249,9 @@ export default function MatchPage() {
         gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) 240px",
         gap: 18,
       }}>
-        {/* LEFT — candidat, raison du match, anonymisation */}
+        {/* LEFT — pourquoi ça matche (en tête), résumé, CV anonymisé (replié) */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <section style={{ background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              Résumé candidat
-            </h3>
-            {cv?.summary && (
-              <p style={{ margin: "0 0 10px", fontSize: 13.5, color: "#374151", lineHeight: 1.65 }}>
-                {cv.summary}
-              </p>
-            )}
-            {candidate.skills && candidate.skills.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                {candidate.skills.slice(0, 10).map((s) => (
-                  <span key={s} style={{
-                    fontSize: 11.5, color: "#4B5563",
-                    background: "#F8F6FF", border: "1px solid #F0ECF8",
-                    padding: "3px 9px", borderRadius: 6,
-                  }}>{s}</span>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Match reason — featured */}
+          {/* Match reason — featured, en premier : info de décision n°1 */}
           {!isManual && (match.justification || dimEntries.length > 0) && (
             <section style={{
               background: "rgba(34,197,94,0.06)",
@@ -311,12 +292,69 @@ export default function MatchPage() {
             </section>
           )}
 
-          <AnonymizeForJob
-            candidateId={candidate.id}
-            jobId={job?.id ?? null}
-            jobTitle={job?.title ?? null}
-            candidateParsed={candidate.parse_status === "parsed"}
-          />
+          <section style={{ background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              Résumé candidat
+            </h3>
+            {cv?.summary && (
+              <p style={{ margin: "0 0 10px", fontSize: 13.5, color: "#374151", lineHeight: 1.65 }}>
+                {cv.summary}
+              </p>
+            )}
+            {candidate.skills && candidate.skills.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                {candidate.skills.slice(0, 10).map((s) => (
+                  <span key={s} style={{
+                    fontSize: 11.5, color: "#4B5563",
+                    background: "#F8F6FF", border: "1px solid #F0ECF8",
+                    padding: "3px 9px", borderRadius: 6,
+                  }}>{s}</span>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* CV anonymisé — replié par défaut */}
+          {cvOpen ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button
+                onClick={() => setCvOpen(false)}
+                style={{
+                  alignSelf: "flex-start", fontSize: 12, fontWeight: 600, color: "#7C63C8",
+                  background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0,
+                }}
+              >
+                ▴ Masquer le CV anonymisé
+              </button>
+              <AnonymizeForJob
+                candidateId={candidate.id}
+                jobId={job?.id ?? null}
+                jobTitle={job?.title ?? null}
+                candidateParsed={candidate.parse_status === "parsed"}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setCvOpen(true)}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                width: "100%", textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+                background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: "16px 18px",
+              }}
+            >
+              <span>
+                <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#111827" }}>
+                  🔒 CV anonymisé
+                </span>
+                <span style={{ display: "block", marginTop: 2, fontSize: 12, color: "#9CA3AF" }}>
+                  Générer un PDF présentable au client, identité retirée.
+                </span>
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#7C63C8", whiteSpace: "nowrap" }}>
+                Ouvrir ▾
+              </span>
+            </button>
+          )}
         </div>
 
         {/* RIGHT — message d'approche */}
