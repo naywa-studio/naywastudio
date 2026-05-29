@@ -15,6 +15,7 @@ export default function AnonymizeForJob({
   jobId,
   jobTitle,
   candidateParsed = true,
+  embedded = false,
 }: {
   candidateId: string
   jobId: string | null
@@ -22,6 +23,9 @@ export default function AnonymizeForJob({
   /** When false (CV not parsed yet), the section disables itself with a
    *  clear message rather than letting the user trigger a 400. */
   candidateParsed?: boolean
+  /** When true, drop the outer card + title — the host already provides a
+   *  "🔒 CV anonymisé" header (e.g. the collapsible block on the fiche match). */
+  embedded?: boolean
 }) {
   const [state, setState] = useState<"idle" | "working" | "ready" | "error">("idle")
   // Two distinct URLs:
@@ -31,7 +35,6 @@ export default function AnonymizeForJob({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [previewOpen, setPreviewOpen] = useState(true)
 
   const hasJob = !!jobId
 
@@ -79,16 +82,18 @@ export default function AnonymizeForJob({
   }
 
   return (
-    <section style={{
+    <section style={embedded ? { background: "transparent" } : {
       background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
       padding: 18,
     }}>
-      <h2 style={{
-        margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF",
-        letterSpacing: "0.08em", textTransform: "uppercase",
-      }}>
-        🔒 CV anonymisé
-      </h2>
+      {!embedded && (
+        <h2 style={{
+          margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF",
+          letterSpacing: "0.08em", textTransform: "uppercase",
+        }}>
+          🔒 CV anonymisé
+        </h2>
+      )}
       <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
         {!candidateParsed
           ? "Disponible une fois le CV parsé."
@@ -129,21 +134,9 @@ export default function AnonymizeForJob({
             Télécharger ↓
           </a>
         )}
-        {state === "ready" && previewUrl && (
-          <button
-            onClick={() => setPreviewOpen((v) => !v)}
-            style={{
-              fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
-              background: "transparent", border: "none", padding: "9px 4px",
-              cursor: "pointer", fontFamily: "inherit", marginLeft: "auto",
-            }}
-          >
-            {previewOpen ? "Masquer l'aperçu" : "Voir l'aperçu"}
-          </button>
-        )}
       </div>
 
-      {state === "ready" && previewUrl && previewOpen && (
+      {state === "ready" && previewUrl && (
         <div style={{
           marginTop: 14, borderRadius: 12, overflow: "hidden",
           border: "1px solid #F0ECF8", background: "#FAFAFA",

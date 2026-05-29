@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { m } from "framer-motion"
@@ -59,6 +59,15 @@ export default function MatchPage() {
   // CV anonymisé replié par défaut — c'est l'élément le plus encombrant et le
   // moins consulté en continu ; on le déploie à la demande.
   const [cvOpen, setCvOpen] = useState(false)
+  const cvSectionRef = useRef<HTMLElement | null>(null)
+  // Ouvre le CV anonymisé ET fait descendre la page dessus (uniquement à
+  // l'ouverture — pas à la fermeture).
+  const openCv = () => {
+    setCvOpen(true)
+    requestAnimationFrame(() => {
+      cvSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  }
 
   useEffect(() => {
     let mounted = true
@@ -314,47 +323,48 @@ export default function MatchPage() {
             )}
           </section>
 
-          {/* CV anonymisé — replié par défaut */}
-          {cvOpen ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button
-                onClick={() => setCvOpen(false)}
-                style={{
-                  alignSelf: "flex-start", fontSize: 12, fontWeight: 600, color: "#7C63C8",
-                  background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0,
-                }}
-              >
-                ▴ Masquer le CV anonymisé
-              </button>
-              <AnonymizeForJob
-                candidateId={candidate.id}
-                jobId={job?.id ?? null}
-                jobTitle={job?.title ?? null}
-                candidateParsed={candidate.parse_status === "parsed"}
-              />
-            </div>
-          ) : (
-            <button
-              onClick={() => setCvOpen(true)}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
-                width: "100%", textAlign: "left", cursor: "pointer", fontFamily: "inherit",
-                background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: "16px 18px",
-              }}
-            >
-              <span>
-                <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#111827" }}>
+          {/* CV anonymisé — carte unique, repliée par défaut. Le bouton
+              Ouvrir/Masquer vit dans l'en-tête de la carte. */}
+          <section ref={cvSectionRef} style={{
+            background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18,
+          }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+              <div style={{ minWidth: 0 }}>
+                <span style={{
+                  display: "block", fontSize: 12, fontWeight: 700, color: "#9CA3AF",
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                }}>
                   🔒 CV anonymisé
                 </span>
-                <span style={{ display: "block", marginTop: 2, fontSize: 12, color: "#9CA3AF" }}>
-                  Générer un PDF présentable au client, identité retirée.
-                </span>
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#7C63C8", whiteSpace: "nowrap" }}>
-                Ouvrir ▾
-              </span>
-            </button>
-          )}
+                {!cvOpen && (
+                  <span style={{ display: "block", marginTop: 4, fontSize: 12.5, color: "#6B7280" }}>
+                    Générer un PDF présentable au client, identité retirée.
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => (cvOpen ? setCvOpen(false) : openCv())}
+                style={{
+                  flexShrink: 0, fontSize: 12, fontWeight: 700, color: "#7C63C8",
+                  background: "transparent", border: "none", cursor: "pointer",
+                  fontFamily: "inherit", whiteSpace: "nowrap", padding: 0,
+                }}
+              >
+                {cvOpen ? "Masquer" : "Ouvrir ▾"}
+              </button>
+            </div>
+            {cvOpen && (
+              <div style={{ marginTop: 14 }}>
+                <AnonymizeForJob
+                  candidateId={candidate.id}
+                  jobId={job?.id ?? null}
+                  jobTitle={job?.title ?? null}
+                  candidateParsed={candidate.parse_status === "parsed"}
+                  embedded
+                />
+              </div>
+            )}
+          </section>
         </div>
 
         {/* RIGHT — message d'approche */}
