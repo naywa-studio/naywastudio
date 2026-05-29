@@ -58,6 +58,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     justification: "Assigné manuellement par le sourceur.",
     match_tier: null,
     pipeline_stage: "identified",
+    // Assignation manuelle = choix explicite → entre direct dans la pipeline.
+    in_pipeline: true,
   }
   const { data: inserted, error } = await admin
     .from("match_assessments").insert(insert).select("id").single()

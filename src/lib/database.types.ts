@@ -334,6 +334,9 @@ export type Database = {
           justification: string | null
           match_tier: 'excellent' | 'good' | 'fair' | 'poor' | null
           pipeline_stage: 'identified' | 'pricing' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
+          /** true = candidat suivi dans la pipeline (ajout explicite ou contact
+           *  auto). false = simple résultat de matching, non affiché en pipeline. */
+          in_pipeline: boolean
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -351,6 +354,7 @@ export type Database = {
           justification?: string | null
           match_tier?: 'excellent' | 'good' | 'fair' | 'poor' | null
           pipeline_stage?: 'identified' | 'pricing' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
+          in_pipeline?: boolean
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null

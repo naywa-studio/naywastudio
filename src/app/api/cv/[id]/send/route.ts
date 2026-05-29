@@ -129,10 +129,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .eq("job_id", jobId)
       .maybeSingle()
     if (assessment && assessment.pipeline_stage === "identified") {
+      // Envoyer un email = contact effectif → "Contacté" ET entrée auto dans
+      // la pipeline (in_pipeline).
       await admin.from("match_assessments").update({
         pipeline_stage: "contacted",
+        in_pipeline: true,
         contacted_at: assessment.contacted_at ?? new Date().toISOString(),
       }).eq("id", assessment.id)
+    } else if (assessment) {
+      // Déjà au-delà de "identified" — on garantit juste qu'il est suivi.
+      await admin.from("match_assessments").update({ in_pipeline: true }).eq("id", assessment.id)
     }
   }
 

@@ -95,6 +95,9 @@ export default function PipelinePage() {
     const { data } = await sb
       .from("match_assessments")
       .select("*, candidate:candidates(id, full_name, current_title, cv_file_name), job:jobs(id, title)")
+      // Seuls les candidats explicitement suivis (choix sourceur ou contact
+      // auto) apparaissent — la pipeline n'est pas un déversoir du matching.
+      .eq("in_pipeline", true)
       .order("updated_at", { ascending: false })
     setRows((data ?? []) as Row[])
     setLoading(false)

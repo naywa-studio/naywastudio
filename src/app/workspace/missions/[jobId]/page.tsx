@@ -153,6 +153,19 @@ export default function JobDetailPage() {
     if (res.ok) router.push("/workspace/missions")
   }
 
+  // Ajoute / retire un candidat de la pipeline (liste curatée). Optimiste.
+  const togglePipeline = async (rowId: string, next: boolean) => {
+    setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, in_pipeline: next } : r))
+    const res = await fetch(`/api/match/${rowId}/pipeline`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ in_pipeline: next }),
+    })
+    if (!res.ok) {
+      setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, in_pipeline: !next } : r))
+    }
+  }
+
   if (loading) return <NoraLoader />
   if (notFound || !job) {
     return (
@@ -371,7 +384,7 @@ export default function JobDetailPage() {
           )}
 
           {strong.map((g) => g.rows.length > 0 && (
-            <TierBlock key={g.tier} tier={g.tier} rows={g.rows} />
+            <TierBlock key={g.tier} tier={g.tier} rows={g.rows} onTogglePipeline={togglePipeline} />
           ))}
 
           {weakCount > 0 && (
@@ -386,7 +399,7 @@ export default function JobDetailPage() {
               <AnimatePresence>
                 {showWeak && (
                   <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ overflow: "hidden" }}>
-                    {weak.map((g) => g.rows.length > 0 && <TierBlock key={g.tier} tier={g.tier} rows={g.rows} />)}
+                    {weak.map((g) => g.rows.length > 0 && <TierBlock key={g.tier} tier={g.tier} rows={g.rows} onTogglePipeline={togglePipeline} />)}
                   </m.div>
                 )}
               </AnimatePresence>
@@ -729,7 +742,7 @@ function MatchingProgress({
 
 /* ─── Tier block ───────────────────────────────────────────────── */
 
-function TierBlock({ tier, rows }: { tier: MatchTier; rows: AssessmentRow[] }) {
+function TierBlock({ tier, rows, onTogglePipeline }: { tier: MatchTier; rows: AssessmentRow[]; onTogglePipeline: (id: string, next: boolean) => void }) {
   const meta = TIER_META[tier]
   return (
     <section style={{ marginBottom: 22 }}>
@@ -741,13 +754,13 @@ function TierBlock({ tier, rows }: { tier: MatchTier; rows: AssessmentRow[] }) {
         <span style={{ fontSize: 11, color: "#9CA3AF" }}>· {rows.length}</span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {rows.map((r, i) => <MatchRow key={r.id} row={r} tier={tier} delay={Math.min(i * 0.03, 0.2)} />)}
+        {rows.map((r, i) => <MatchRow key={r.id} row={r} tier={tier} delay={Math.min(i * 0.03, 0.2)} onTogglePipeline={onTogglePipeline} />)}
       </div>
     </section>
   )
 }
 
-function MatchRow({ row, tier, delay }: { row: AssessmentRow; tier: MatchTier; delay: number }) {
+function MatchRow({ row, tier, delay, onTogglePipeline }: { row: AssessmentRow; tier: MatchTier; delay: number; onTogglePipeline: (id: string, next: boolean) => void }) {
   const meta = TIER_META[tier]
   const c = row.candidate
   const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
@@ -791,7 +804,21 @@ function MatchRow({ row, tier, delay }: { row: AssessmentRow; tier: MatchTier; d
         )}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end", flexShrink: 0, alignSelf: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0, alignSelf: "center" }}>
+        <button
+          onClick={() => onTogglePipeline(row.id, !row.in_pipeline)}
+          title={row.in_pipeline ? "Retirer de la pipeline" : "Suivre ce candidat dans la pipeline"}
+          style={{
+            fontSize: 11.5, fontWeight: 700, fontFamily: "inherit", cursor: "pointer",
+            padding: "6px 11px", borderRadius: 8,
+            color: row.in_pipeline ? "#15803d" : "#7C63C8",
+            background: row.in_pipeline ? "rgba(34,197,94,0.08)" : "white",
+            border: `1px solid ${row.in_pipeline ? "rgba(34,197,94,0.3)" : "rgba(124,99,200,0.3)"}`,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {row.in_pipeline ? "✓ Dans le pipeline" : "+ Pipeline"}
+        </button>
         <Link href={`/workspace/match/${row.id}`} style={{
           fontSize: 12, fontWeight: 700, color: "white",
           padding: "6px 12px", borderRadius: 8,

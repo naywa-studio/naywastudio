@@ -44,7 +44,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (fetchErr || !row) return NextResponse.json({ error: "not_found" }, { status: 404 })
 
   const now = new Date().toISOString()
-  const update: MatchUpdate = { pipeline_stage: stage as PipelineStage }
+  // Déplacer une carte dans le kanban implique qu'elle est suivie.
+  const update: MatchUpdate = { pipeline_stage: stage as PipelineStage, in_pipeline: true }
 
   // Stamp the milestone the first time a stage is reached. Reaching a later
   // stage also back-fills earlier milestones that were skipped.
