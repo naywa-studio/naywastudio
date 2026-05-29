@@ -16,6 +16,7 @@ export default function AnonymizeForJob({
   jobTitle,
   candidateParsed = true,
   embedded = false,
+  onPreviewLoad,
 }: {
   candidateId: string
   jobId: string | null
@@ -26,6 +27,9 @@ export default function AnonymizeForJob({
   /** When true, drop the outer card + title — the host already provides a
    *  "🔒 CV anonymisé" header (e.g. the collapsible block on the fiche match). */
   embedded?: boolean
+  /** Fired once the preview iframe finishes loading — lets the host re-scroll
+   *  to the now-full-height preview. */
+  onPreviewLoad?: () => void
 }) {
   const [state, setState] = useState<"idle" | "working" | "ready" | "error">("idle")
   // Two distinct URLs:
@@ -150,6 +154,7 @@ export default function AnonymizeForJob({
           <iframe
             src={`${previewUrl}#toolbar=1&navpanes=0&view=FitH`}
             title="CV anonymisé"
+            onLoad={() => onPreviewLoad?.()}
             style={{ width: "100%", height: 720, border: "none", display: "block" }}
           />
         </div>

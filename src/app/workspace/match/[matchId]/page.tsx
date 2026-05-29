@@ -60,15 +60,23 @@ export default function MatchPage() {
   // moins consulté en continu ; on le déploie à la demande.
   const [cvOpen, setCvOpen] = useState(false)
   const cvSectionRef = useRef<HTMLElement | null>(null)
-  // Ouvre le CV anonymisé ET fait descendre la page dessus (uniquement à
-  // l'ouverture — pas à la fermeture).
+  // Vrai juste après un clic "Ouvrir" : on veut scroller jusqu'au CV. Comme
+  // l'aperçu PDF charge en différé, on re-scrolle quand l'iframe a fini.
+  const scrollPendingRef = useRef(false)
+  const scrollToCv = () => {
+    cvSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
   const openCv = () => {
     setCvOpen(true)
-    // Laisse le temps au DOM de se déplier (la carte grandit) avant de
-    // scroller dessus. rAF seul se déclenchait parfois avant le reflow.
-    setTimeout(() => {
-      cvSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-    }, 120)
+    scrollPendingRef.current = true
+    // Premier scroll rapide (cas sans aperçu existant). Le re-scroll après
+    // chargement de l'iframe affine quand l'aperçu grandit la carte.
+    setTimeout(scrollToCv, 120)
+  }
+  const handlePreviewLoad = () => {
+    if (!scrollPendingRef.current) return
+    scrollPendingRef.current = false
+    scrollToCv()
   }
 
   useEffect(() => {
@@ -266,6 +274,7 @@ export default function MatchPage() {
           {/* Match reason — featured, en premier : info de décision n°1 */}
           {!isManual && (match.justification || dimEntries.length > 0) && (
             <section style={{
+              flex: 1,
               background: "rgba(34,197,94,0.06)",
               border: "1px solid rgba(34,197,94,0.25)",
               borderRadius: 16, padding: 16,
@@ -291,6 +300,7 @@ export default function MatchPage() {
           )}
           {isManual && (
             <section style={{
+              flex: 1,
               background: "rgba(124,99,200,0.06)",
               border: "1px solid rgba(124,99,200,0.22)",
               borderRadius: 16, padding: 16,
@@ -402,6 +412,7 @@ export default function MatchPage() {
                 jobTitle={job?.title ?? null}
                 candidateParsed={candidate.parse_status === "parsed"}
                 embedded
+                onPreviewLoad={handlePreviewLoad}
               />
             </div>
           )}
