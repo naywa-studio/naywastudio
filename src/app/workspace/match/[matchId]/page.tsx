@@ -64,9 +64,11 @@ export default function MatchPage() {
   // l'ouverture — pas à la fermeture).
   const openCv = () => {
     setCvOpen(true)
-    requestAnimationFrame(() => {
+    // Laisse le temps au DOM de se déplier (la carte grandit) avant de
+    // scroller dessus. rAF seul se déclenchait parfois avant le reflow.
+    setTimeout(() => {
       cvSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-    })
+    }, 120)
   }
 
   useEffect(() => {
@@ -257,9 +259,10 @@ export default function MatchPage() {
         display: "grid",
         gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) 240px",
         gap: 18,
+        alignItems: "stretch",
       }}>
-        {/* LEFT — pourquoi ça matche (en tête), résumé, CV anonymisé (replié) */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* COL 1 (rangée 1) — pourquoi ça matche + résumé candidat */}
+        <div style={{ gridColumn: "1", gridRow: "1", display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Match reason — featured, en premier : info de décision n°1 */}
           {!isManual && (match.justification || dimEntries.length > 0) && (
             <section style={{
@@ -301,7 +304,7 @@ export default function MatchPage() {
             </section>
           )}
 
-          <section style={{ background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
+          <section style={{ flex: 1, background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               Résumé candidat
             </h3>
@@ -322,54 +325,11 @@ export default function MatchPage() {
               </div>
             )}
           </section>
-
-          {/* CV anonymisé — carte unique, repliée par défaut. Le bouton
-              Ouvrir/Masquer vit dans l'en-tête de la carte. */}
-          <section ref={cvSectionRef} style={{
-            background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18,
-          }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ minWidth: 0 }}>
-                <span style={{
-                  display: "block", fontSize: 12, fontWeight: 700, color: "#9CA3AF",
-                  letterSpacing: "0.08em", textTransform: "uppercase",
-                }}>
-                  🔒 CV anonymisé
-                </span>
-                {!cvOpen && (
-                  <span style={{ display: "block", marginTop: 4, fontSize: 12.5, color: "#6B7280" }}>
-                    Générer un PDF présentable au client, identité retirée.
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => (cvOpen ? setCvOpen(false) : openCv())}
-                style={{
-                  flexShrink: 0, fontSize: 12, fontWeight: 700, color: "#7C63C8",
-                  background: "transparent", border: "none", cursor: "pointer",
-                  fontFamily: "inherit", whiteSpace: "nowrap", padding: 0,
-                }}
-              >
-                {cvOpen ? "Masquer" : "Ouvrir ▾"}
-              </button>
-            </div>
-            {cvOpen && (
-              <div style={{ marginTop: 14 }}>
-                <AnonymizeForJob
-                  candidateId={candidate.id}
-                  jobId={job?.id ?? null}
-                  jobTitle={job?.title ?? null}
-                  candidateParsed={candidate.parse_status === "parsed"}
-                  embedded
-                />
-              </div>
-            )}
-          </section>
         </div>
 
-        {/* RIGHT — message d'approche */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <section style={{ background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
+        {/* COL 2 (rangée 1) — message d'approche */}
+        <div style={{ gridColumn: "2", gridRow: "1", display: "flex", flexDirection: "column", gap: 14 }}>
+          <section style={{ flex: 1, background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               ✉ Message d&apos;approche
             </h3>
@@ -389,10 +349,9 @@ export default function MatchPage() {
 
         </div>
 
-        {/* Right rail — vertical mini-kanban (sticky). Stays here on top
-            of the dropdown because it gives the at-a-glance view of where
-            this candidate is across every job they're matched to. */}
+        {/* COL 3 (rangée 1) — mini-kanban vertical (sticky) */}
         <aside className="match-rail" style={{
+          gridColumn: "3", gridRow: "1",
           position: "sticky", top: 80, alignSelf: "flex-start",
         }}>
           <CandidateMiniKanban
@@ -402,12 +361,60 @@ export default function MatchPage() {
             onlyMatchId={match.id}
           />
         </aside>
+
+        {/* RANGÉE 2 — CV anonymisé en grande carte sur toute la largeur des
+            deux premières colonnes. Replié par défaut ; l'aperçu s'affiche en
+            grand et centré une fois ouvert. */}
+        <section ref={cvSectionRef} className="match-cv" style={{
+          gridColumn: "1 / 3", gridRow: "2",
+          background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18,
+        }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
+              <span style={{
+                display: "block", fontSize: 12, fontWeight: 700, color: "#9CA3AF",
+                letterSpacing: "0.08em", textTransform: "uppercase",
+              }}>
+                🔒 CV anonymisé
+              </span>
+              {!cvOpen && (
+                <span style={{ display: "block", marginTop: 4, fontSize: 12.5, color: "#6B7280" }}>
+                  Générer un PDF présentable au client, identité retirée.
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => (cvOpen ? setCvOpen(false) : openCv())}
+              style={{
+                flexShrink: 0, fontSize: 12, fontWeight: 700, color: "#7C63C8",
+                background: "transparent", border: "none", cursor: "pointer",
+                fontFamily: "inherit", whiteSpace: "nowrap", padding: 0,
+              }}
+            >
+              {cvOpen ? "Masquer" : "Ouvrir ▾"}
+            </button>
+          </div>
+          {cvOpen && (
+            <div style={{ marginTop: 14 }}>
+              <AnonymizeForJob
+                candidateId={candidate.id}
+                jobId={job?.id ?? null}
+                jobTitle={job?.title ?? null}
+                candidateParsed={candidate.parse_status === "parsed"}
+                embedded
+              />
+            </div>
+          )}
+        </section>
       </div>
 
       <style>{`
         @media (max-width: 1180px) {
           .match-band { grid-template-columns: 1fr !important; }
           .match-grid { grid-template-columns: 1fr !important; }
+          /* En mono-colonne, on remet tout en flux automatique sinon les
+             placements explicites (col 2/3, row 2, span) cassent l'empilement. */
+          .match-grid > * { grid-column: 1 / -1 !important; grid-row: auto !important; }
           .match-rail { position: static !important; }
         }
       `}</style>

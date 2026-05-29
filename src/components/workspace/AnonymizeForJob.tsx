@@ -140,6 +140,8 @@ export default function AnonymizeForJob({
         <div style={{
           marginTop: 14, borderRadius: 12, overflow: "hidden",
           border: "1px solid #F0ECF8", background: "#FAFAFA",
+          // Centré, format proche d'une page A4 pour une lecture confortable.
+          maxWidth: 840, marginLeft: "auto", marginRight: "auto",
         }}>
           {/* PDF viewer hints understood by Chrome/Edge's built-in viewer:
               #toolbar=1   keep the toolbar (zoom, print, download)
@@ -148,7 +150,7 @@ export default function AnonymizeForJob({
           <iframe
             src={`${previewUrl}#toolbar=1&navpanes=0&view=FitH`}
             title="CV anonymisé"
-            style={{ width: "100%", height: 520, border: "none", display: "block" }}
+            style={{ width: "100%", height: 720, border: "none", display: "block" }}
           />
         </div>
       )}
