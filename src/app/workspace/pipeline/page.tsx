@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
@@ -39,6 +39,16 @@ function displayStage(s: PipelineStage): PipelineStage {
   return s === "pricing" ? "identified" : s
 }
 
+/** Sticky header cell shared by the "Mission" label and the stage columns. */
+const headerCellStyle: React.CSSProperties = {
+  position: "sticky", top: 0, zIndex: 2,
+  background: "#FFFFFF",
+  borderBottom: "1px solid #E2DAF6",
+  padding: "10px 12px",
+  fontSize: 11, fontWeight: 800,
+  letterSpacing: "0.06em", textTransform: "uppercase",
+}
+
 /* Days a card can sit in a stage before Nora suggests a relance. */
 const RELANCE_AFTER_DAYS: Partial<Record<PipelineStage, number>> = {
   contacted: 5,
@@ -62,19 +72,18 @@ function needsRelance(row: Row): boolean {
   return daysSince(row.updated_at) >= threshold
 }
 
-type GroupMode = "by-job" | "flat"
-
 export default function PipelinePage() {
   const sb = useMemo(() => getSupabase(), [])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [dragId, setDragId] = useState<string | null>(null)
-  const [overStage, setOverStage] = useState<PipelineStage | null>(null)
+  const [overCell, setOverCell] = useState<string | null>(null) // `${jobId}:${stage}`
   const [overTerminal, setOverTerminal] = useState<PipelineStage | null>(null)
-  const [groupMode, setGroupMode] = useState<GroupMode>("by-job")
   const [jobFilter, setJobFilter] = useState<string>("")
   const [showWeak, setShowWeak] = useState(false)
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  // Lanes (missions) are collapsed by default — click a mission to reveal its
+  // candidates. We track the OPEN ones so new missions appear collapsed.
+  const [expandedLanes, setExpandedLanes] = useState<Set<string>>(new Set())
   // When set, the board is replaced by a read-only list of that terminal
   // state's candidates (Recruté / Écarté).
   const [terminalView, setTerminalView] = useState<PipelineStage | null>(null)
@@ -83,10 +92,10 @@ export default function PipelinePage() {
    *  candidates (score === null) are always kept visible. */
   const SCORE_THRESHOLD = 60
 
-  const toggleCollapsed = (key: string) => {
-    setCollapsed((prev) => {
+  const toggleLane = (jobId: string) => {
+    setExpandedLanes((prev) => {
       const next = new Set(prev)
-      if (next.has(key)) next.delete(key); else next.add(key)
+      if (next.has(jobId)) next.delete(jobId); else next.add(jobId)
       return next
     })
   }
@@ -162,16 +171,29 @@ export default function PipelinePage() {
     [rows, jobFilter],
   )
 
-  // Bucket active rows by their (display) stage; terminal rows are kept aside.
-  const byStage = useMemo(() => {
-    const map = new Map<PipelineStage, Row[]>()
-    for (const s of ACTIVE_STAGES) map.set(s.key, [])
+  // Swimlanes : one lane per mission, each lane bucketed by active stage.
+  // Terminal rows (hired/rejected) are excluded — they live in the chips.
+  type Lane = {
+    jobId: string
+    jobTitle: string
+    byStage: Map<PipelineStage, Row[]>
+    activeTotal: number
+  }
+  const lanes = useMemo<Lane[]>(() => {
+    const map = new Map<string, Lane>()
     for (const r of filteredRows) {
       const stage = displayStage(r.pipeline_stage)
-      const arr = map.get(stage)
-      if (arr) arr.push(r) // terminal stages aren't in the map → skipped
+      if (!ACTIVE_STAGES.some((s) => s.key === stage)) continue // skip terminal
+      const id = r.job?.id ?? "_none"
+      const title = r.job?.title ?? "Sans mission"
+      let lane = map.get(id)
+      if (!lane) { lane = { jobId: id, jobTitle: title, byStage: new Map(), activeTotal: 0 }; map.set(id, lane) }
+      const arr = lane.byStage.get(stage)
+      if (arr) arr.push(r); else lane.byStage.set(stage, [r])
+      lane.activeTotal++
     }
-    return map
+    return Array.from(map.values())
+      .sort((a, b) => b.activeTotal - a.activeTotal || a.jobTitle.localeCompare(b.jobTitle))
   }, [filteredRows])
 
   // Terminal counts (respect the job filter, ignore the weak filter so an
@@ -249,25 +271,6 @@ export default function PipelinePage() {
                 />
               </div>
             )}
-            <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
-              {([
-                { key: "by-job" as GroupMode, label: "Groupé par mission" },
-                { key: "flat"   as GroupMode, label: "Vue à plat" },
-              ]).map((m) => (
-                <button
-                  key={m.key}
-                  onClick={() => setGroupMode(m.key)}
-                  style={{
-                    fontSize: 12, fontWeight: 600, padding: "7px 12px",
-                    border: "none", cursor: "pointer", fontFamily: "inherit",
-                    background: groupMode === m.key ? "#7C63C8" : "white",
-                    color: groupMode === m.key ? "white" : "#6B7280",
-                  }}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
             {weakCount > 0 && (
               <button
                 onClick={() => setShowWeak((v) => !v)}
@@ -352,135 +355,130 @@ export default function PipelinePage() {
             rows={terminalRows}
             onReactivate={(id) => moveCard(id, "identified")}
           />
-        ) : (
+        ) : lanes.length === 0 ? (
           <div style={{
-            flex: 1, minHeight: 0, marginTop: 14,
-            display: "flex", gap: 14,
-            overflowX: "auto", overflowY: "hidden", paddingBottom: 14,
+            flex: 1, marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center",
+            textAlign: "center", color: "#9CA3AF",
           }}>
-            {ACTIVE_STAGES.map((stage) => {
-              const cards = byStage.get(stage.key) ?? []
-              const isOver = overStage === stage.key
-              return (
-                <div
-                  key={stage.key}
-                  onDragOver={(e) => { e.preventDefault(); if (overStage !== stage.key) setOverStage(stage.key) }}
-                  onDragLeave={(e) => { if (e.currentTarget === e.target) setOverStage(null) }}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    if (dragId) moveCard(dragId, stage.key)
-                    setDragId(null); setOverStage(null)
-                  }}
-                  style={{
-                    flex: "1 1 0", minWidth: 232, height: "100%",
-                    display: "flex", flexDirection: "column",
-                    background: isOver ? "rgba(124,99,200,0.06)" : stage.bg,
-                    border: isOver ? "1.5px dashed #7C63C8" : "1px solid #F0ECF8",
-                    borderRadius: 14,
-                    transition: "background 120ms, border-color 120ms",
-                  }}
-                >
-                  {/* En-tête figé */}
-                  <div style={{
-                    flexShrink: 0,
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "11px 13px",
-                    borderBottom: "1px solid rgba(17,24,39,0.05)",
-                  }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: stage.color, display: "inline-block" }} />
-                      <span style={{ fontSize: 12.5, fontWeight: 800, color: stage.color, letterSpacing: "0.02em" }}>
-                        {stage.label}
-                      </span>
-                    </span>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, color: "#9CA3AF",
-                      background: "white", border: "1px solid #F0ECF8",
-                      borderRadius: 100, padding: "1px 7px",
-                    }}>
-                      {cards.length}
-                    </span>
-                  </div>
-
-                  {/* Corps scrollable */}
-                  <div style={{
-                    flex: 1, minHeight: 0, overflowY: "auto",
-                    padding: 10, display: "flex", flexDirection: "column", gap: 8,
-                  }}>
-                    {groupMode === "by-job" ? (
-                      groupByJob(cards).map(({ jobId, jobTitle, jobCards }) => {
-                        const key = `${stage.key}:${jobId}`
-                        const open = !collapsed.has(key)
-                        return (
-                          <div key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            <button
-                              onClick={() => toggleCollapsed(key)}
-                              style={{
-                                display: "flex", alignItems: "center", gap: 6,
-                                background: "transparent", border: "none",
-                                padding: "2px 4px", cursor: "pointer", fontFamily: "inherit",
-                                textAlign: "left",
-                              }}
-                            >
-                              <span style={{
-                                fontSize: 10, color: "#7C63C8",
-                                transform: open ? "rotate(90deg)" : "none",
-                                transition: "transform 140ms",
-                                display: "inline-block", width: 8,
-                              }}>
-                                ›
-                              </span>
-                              <span style={{
-                                fontSize: 10.5, fontWeight: 700, color: "#4B5563",
-                                flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                              }}>
-                                {jobTitle}
-                              </span>
-                              <span style={{
-                                fontSize: 10, fontWeight: 700, color: "#9CA3AF",
-                                background: "white", border: "1px solid #F0ECF8",
-                                borderRadius: 100, padding: "0 6px",
-                              }}>
-                                {jobCards.length}
-                              </span>
-                            </button>
-                            {open && jobCards.map((row) => (
-                              <Card
-                                key={row.id}
-                                row={row}
-                                dragging={dragId === row.id}
-                                onDragStart={() => setDragId(row.id)}
-                                onDragEnd={() => { setDragId(null); setOverStage(null) }}
-                                hideJobBadge
-                              />
-                            ))}
-                          </div>
-                        )
-                      })
-                    ) : (
-                      cards.map((row) => (
-                        <Card
-                          key={row.id}
-                          row={row}
-                          dragging={dragId === row.id}
-                          onDragStart={() => setDragId(row.id)}
-                          onDragEnd={() => { setDragId(null); setOverStage(null) }}
-                        />
-                      ))
-                    )}
-
-                    {cards.length === 0 && (
-                      <div style={{
-                        padding: "16px 8px", textAlign: "center",
-                        fontSize: 11.5, color: "#C4B6E0",
-                      }}>
-                        Déposez ici
-                      </div>
-                    )}
-                  </div>
+            <div>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>📥</div>
+              <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>
+                Aucun candidat dans la pipeline
+              </p>
+              <p style={{ margin: 0, fontSize: 13, maxWidth: 420 }}>
+                Depuis une mission, cliquez <strong>+ Pipeline</strong> sur les candidats à suivre — ils
+                apparaîtront ici, par mission.
+              </p>
+            </div>
+          </div>
+        ) : (
+          /* Swimlanes : mission en ligne × étape en colonne */
+          <div style={{ flex: 1, minHeight: 0, marginTop: 14, overflow: "auto", paddingBottom: 14 }}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: `200px repeat(${ACTIVE_STAGES.length}, minmax(190px, 1fr))`,
+              minWidth: 200 + ACTIVE_STAGES.length * 190,
+            }}>
+              {/* En-tête de colonnes — figé en haut */}
+              <div style={{ ...headerCellStyle, color: "#9CA3AF" }}>Mission</div>
+              {ACTIVE_STAGES.map((s) => (
+                <div key={s.key} style={{ ...headerCellStyle, display: "flex", alignItems: "center", gap: 7 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, display: "inline-block" }} />
+                  <span style={{ color: s.color }}>{s.label}</span>
                 </div>
-              )
-            })}
+              ))}
+
+              {/* Un couloir par mission */}
+              {lanes.map((lane) => {
+                const open = expandedLanes.has(lane.jobId)
+                return (
+                  <Fragment key={lane.jobId}>
+                    {/* Cellule libellé mission (cliquable) */}
+                    <button
+                      onClick={() => toggleLane(lane.jobId)}
+                      style={{
+                        gridColumn: "1",
+                        display: "flex", alignItems: "flex-start", gap: 7,
+                        textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+                        background: "#FBFAFE", border: "none",
+                        borderBottom: "1px solid #F0ECF8", borderRight: "1px solid #F0ECF8",
+                        padding: "12px 12px",
+                      }}
+                    >
+                      <span style={{
+                        fontSize: 11, color: "#7C63C8", marginTop: 1,
+                        transform: open ? "rotate(90deg)" : "none",
+                        transition: "transform 140ms", display: "inline-block", width: 9,
+                      }}>›</span>
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={{
+                          display: "block", fontSize: 12.5, fontWeight: 700, color: "#111827",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3,
+                        }}>{lane.jobTitle}</span>
+                        <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>
+                          {lane.activeTotal} candidat{lane.activeTotal > 1 ? "s" : ""}
+                        </span>
+                      </span>
+                    </button>
+
+                    {/* Cellules d'étape */}
+                    {ACTIVE_STAGES.map((s) => {
+                      const cards = lane.byStage.get(s.key) ?? []
+                      const cellKey = `${lane.jobId}:${s.key}`
+                      const isOver = overCell === cellKey
+                      return (
+                        <div
+                          key={cellKey}
+                          onDragOver={(e) => { e.preventDefault(); if (overCell !== cellKey) setOverCell(cellKey) }}
+                          onDragLeave={(e) => { if (e.currentTarget === e.target) setOverCell(null) }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            if (dragId) moveCard(dragId, s.key)
+                            setDragId(null); setOverCell(null)
+                          }}
+                          style={{
+                            borderBottom: "1px solid #F0ECF8",
+                            borderRight: "1px solid #F5F3FB",
+                            background: isOver ? "rgba(124,99,200,0.07)" : open ? s.bg : "white",
+                            padding: open ? 8 : 0,
+                            minHeight: open ? 56 : 40,
+                            display: "flex", flexDirection: "column",
+                            gap: 8,
+                            alignItems: open ? "stretch" : "center",
+                            justifyContent: "center",
+                            transition: "background 120ms",
+                          }}
+                        >
+                          {open ? (
+                            cards.length > 0 ? (
+                              cards.map((row) => (
+                                <Card
+                                  key={row.id}
+                                  row={row}
+                                  dragging={dragId === row.id}
+                                  onDragStart={() => setDragId(row.id)}
+                                  onDragEnd={() => { setDragId(null); setOverCell(null) }}
+                                  hideJobBadge
+                                />
+                              ))
+                            ) : (
+                              <span style={{ fontSize: 11, color: "#D6CCEC" }}>—</span>
+                            )
+                          ) : (
+                            <span style={{
+                              fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+                              color: cards.length > 0 ? s.color : "#D1D5DB",
+                            }}>
+                              {cards.length}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </Fragment>
+                )
+              })}
+            </div>
           </div>
         )}
 
@@ -569,22 +567,6 @@ function TerminalListView({
       )}
     </div>
   )
-}
-
-/* ─── Grouping helpers ──────────────────────────────────────────── */
-
-function groupByJob(rows: Row[]): { jobId: string; jobTitle: string; jobCards: Row[] }[] {
-  const map = new Map<string, { jobTitle: string; jobCards: Row[] }>()
-  for (const r of rows) {
-    const id = r.job?.id ?? "_none"
-    const title = r.job?.title ?? "Sans mission"
-    const entry = map.get(id)
-    if (entry) entry.jobCards.push(r)
-    else map.set(id, { jobTitle: title, jobCards: [r] })
-  }
-  // Stable order: most cards first, then alphabetical.
-  return Array.from(map, ([jobId, v]) => ({ jobId, jobTitle: v.jobTitle, jobCards: v.jobCards }))
-    .sort((a, b) => b.jobCards.length - a.jobCards.length || a.jobTitle.localeCompare(b.jobTitle))
 }
 
 /* ─── Card ─────────────────────────────────────────────────────── */
