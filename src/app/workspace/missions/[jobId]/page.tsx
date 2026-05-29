@@ -7,8 +7,22 @@ import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Job, Candidate, MatchAssessment, MatchTier } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import { seniorityIntervalLabel } from "@/lib/seniority"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
+/** Human seniority label — interval ("Mid → Senior · 5–10 ans") if present
+ *  in normalized, else the legacy free string. */
+function jobSeniorityLabel(job: Job): string | null {
+  const n = job.normalized
+  const iv = seniorityIntervalLabel(n?.seniority_min_years, n?.seniority_max_years)
+  if (iv) {
+    const lo = n?.seniority_min_years, hi = n?.seniority_max_years
+    if (lo != null && hi != null) return `${iv} · ${lo}–${hi} ans`
+    return iv
+  }
+  return job.seniority?.trim() || null
+}
 
 type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
 
@@ -171,7 +185,7 @@ export default function JobDetailPage() {
 
   return (
     <main style={{
-      padding: "32px 24px 80px", maxWidth: 1040, margin: "0 auto",
+      padding: "32px 24px 80px", maxWidth: 1320, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
       <Link href="/workspace/missions" style={{
@@ -179,27 +193,37 @@ export default function JobDetailPage() {
         fontSize: 13, color: "#7C63C8", textDecoration: "none", marginBottom: 22,
       }}>← Retour aux missions</Link>
 
-      {/* Header */}
+      <div className="mission-grid" style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(320px, 380px) minmax(0, 1fr)",
+        gap: 22, alignItems: "start",
+      }}>
+      {/* ── Colonne gauche : définition mission + actions (sticky) ── */}
       <m.section
+        className="mission-left"
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        style={{ background: "white", borderRadius: 16, border: "1px solid #F0ECF8", padding: 24, marginBottom: 20 }}
+        style={{ background: "white", borderRadius: 16, border: "1px solid #F0ECF8", padding: 24, position: "sticky", top: 24 }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
-              {job.title}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+              {job.role_name?.trim() || job.title}
             </h1>
+            {job.role_name?.trim() && job.title && job.title !== job.role_name && (
+              <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#9CA3AF" }}>{job.title}</p>
+            )}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10, fontSize: 12, color: "#6B7280" }}>
               {job.location && <Meta>{job.location}</Meta>}
-              {job.seniority && <Meta>{job.seniority}</Meta>}
+              {jobSeniorityLabel(job) && <Meta>{jobSeniorityLabel(job)}</Meta>}
               {job.contract_type && <Meta>{job.contract_type}</Meta>}
             </div>
           </div>
-          <button onClick={handleDelete} style={{
+          <button onClick={handleDelete} title="Supprimer la mission" style={{
+            flexShrink: 0,
             fontSize: 12, fontWeight: 600, color: "#DC2626",
             background: "transparent", border: "1px solid #FCA5A5",
-            borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontFamily: "inherit",
+            borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
           }}>Supprimer</button>
         </div>
 
@@ -311,6 +335,8 @@ export default function JobDetailPage() {
         )}
       </m.section>
 
+      {/* ── Colonne droite : résultats du matching ── */}
+      <div className="mission-right">
       {/* Results */}
       {rows.length === 0 ? (
         <div style={{
@@ -368,6 +394,8 @@ export default function JobDetailPage() {
           )}
         </>
       )}
+      </div>{/* /mission-right */}
+      </div>{/* /mission-grid */}
 
       {assignOpen && (
         <AssignModal
@@ -377,6 +405,15 @@ export default function JobDetailPage() {
           onAssigned={() => { setAssignOpen(false); loadAll() }}
         />
       )}
+
+      {/* Sur écran étroit, on repasse en une colonne et la définition n'est
+          plus sticky (sinon elle masquerait les résultats au scroll). */}
+      <style>{`
+        @media (max-width: 1023px) {
+          .mission-grid { grid-template-columns: 1fr !important; }
+          .mission-left { position: static !important; }
+        }
+      `}</style>
     </main>
   )
 }

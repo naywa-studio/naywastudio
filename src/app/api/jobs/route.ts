@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { normalizeJob } from "@/lib/matching"
+import { primarySeniority, normalizeInterval } from "@/lib/seniority"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -58,16 +59,32 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
   const body = await req.json().catch(() => null) as Record<string, unknown> | null
-  const title = clean(body?.title)
-  if (!title) {
-    return NextResponse.json({ error: "missing_title", message: "Le titre du poste est requis." }, { status: 400 })
+
+  // role_name = nom du poste (signal matching) ; title = intitulé indicatif.
+  // Le nom du poste est désormais le champ requis. On retombe sur title si
+  // un ancien client n'envoie que title.
+  const roleName = clean(body?.role_name)
+  const title = clean(body?.title) ?? roleName
+  if (!roleName && !title) {
+    return NextResponse.json({ error: "missing_role", message: "Le nom du poste est requis." }, { status: 400 })
   }
+
+  // Séniorité en intervalle d'expérience (années). On dérive un label unique
+  // de façon déterministe (band du milieu de l'intervalle) pour alimenter le
+  // matching qui attend une seule valeur. L'intervalle complet est conservé
+  // dans `normalized` pour l'affichage.
+  const seniorityMin = cleanNumber(body?.seniority_min_years)
+  const seniorityMax = cleanNumber(body?.seniority_max_years)
+  const interval = normalizeInterval(seniorityMin, seniorityMax)
+  const derivedSeniority = primarySeniority(seniorityMin, seniorityMax)
 
   const payload = {
     user_id: user.id,
-    title,
+    title: title ?? roleName ?? "Sans titre",
+    role_name: roleName,
     location: clean(body?.location),
-    seniority: clean(body?.seniority),
+    // Séniorité dérivée de l'intervalle. Fallback sur une valeur libre legacy.
+    seniority: derivedSeniority ?? clean(body?.seniority),
     contract_type: clean(body?.contract_type),
     required_skills: cleanArr(body?.required_skills),
     nice_to_have_skills: cleanArr(body?.nice_to_have_skills),
@@ -94,9 +111,16 @@ export async function POST(req: NextRequest) {
   // Normalize for matching (best-effort — a failure here doesn't block creation).
   try {
     const normalized = await normalizeJob(payload)
+    // On force la séniorité dérivée + on conserve l'intervalle saisi.
+    const enriched = {
+      ...normalized,
+      seniority: derivedSeniority ?? normalized.seniority ?? null,
+      seniority_min_years: interval?.min ?? null,
+      seniority_max_years: interval?.max ?? null,
+    }
     const { data: updated } = await sb
       .from("jobs")
-      .update({ normalized })
+      .update({ normalized: enriched })
       .eq("id", created.id)
       .select("*")
       .single()

@@ -44,6 +44,8 @@ Séniorité : "etudiant" pour un job étudiant / alternance / poste ouvert aux �
 
 export async function normalizeJob(input: {
   title: string
+  /** Nom du poste — signal principal pour role_family. Fallback sur title. */
+  role_name?: string | null
   location?: string | null
   seniority?: string | null
   contract_type?: string | null
@@ -51,14 +53,16 @@ export async function normalizeJob(input: {
   nice_to_have_skills?: string[] | null
   description?: string | null
 }): Promise<JobNormalized> {
+  // Le nom du poste est le signal métier ; l'intitulé n'est qu'une étiquette.
+  const roleSignal = input.role_name?.trim() || input.title
   const userMsg = [
-    `Titre : ${input.title}`,
+    `Nom du poste recherché : ${roleSignal}`,
     input.seniority ? `Séniorité indiquée : ${input.seniority}` : "",
     input.location ? `Lieu : ${input.location}` : "",
     input.contract_type ? `Contrat : ${input.contract_type}` : "",
     input.required_skills?.length ? `Compétences requises : ${input.required_skills.join(", ")}` : "",
     input.nice_to_have_skills?.length ? `Compétences souhaitées : ${input.nice_to_have_skills.join(", ")}` : "",
-    input.description ? `Description :\n${input.description}` : "",
+    input.description ? `Contexte de la mission :\n${input.description}` : "",
   ].filter(Boolean).join("\n")
 
   const result = await openrouterChat({
@@ -247,7 +251,9 @@ export async function scoreBatch(job: Job, candidates: Candidate[]): Promise<Mat
   if (candidates.length === 0) return []
 
   const jobPayload = {
-    title: job.title,
+    // Le nom du poste est le signal métier principal ; on l'envoie comme
+    // "role". L'intitulé indicatif (title) n'est pas transmis au scoring.
+    role: job.role_name?.trim() || job.title,
     location: job.location,
     seniority: job.seniority ?? job.normalized?.seniority ?? null,
     contract_type: job.contract_type,
@@ -317,7 +323,7 @@ export async function scoreBatch(job: Job, candidates: Candidate[]): Promise<Mat
  * e.g. { title: "Senior Data Engineer Fintech" } → "data-engineer · fintech"
  */
 export function missionTagFor(job: Job): string {
-  const role = job.normalized?.role_family?.[0] ?? job.title
+  const role = job.normalized?.role_family?.[0] ?? job.role_name?.trim() ?? job.title
   const domain = job.normalized?.domains?.[0] ?? null
   const slug = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")

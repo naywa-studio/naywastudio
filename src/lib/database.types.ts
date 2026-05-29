@@ -96,6 +96,10 @@ export type JobNormalized = {
   domains?: string[]
   seniority?: string | null
   summary?: string | null
+  /** Experience interval captured on the mission form (years). The matching
+   *  `seniority` above is derived from the midpoint of this interval. */
+  seniority_min_years?: number | null
+  seniority_max_years?: number | null
 }
 
 // ── Pricing defaults stored on profiles.pricing_default_avantages ──
@@ -190,6 +194,7 @@ export type Database = {
           id: string
           user_id: string
           title: string
+          role_name: string | null
           location: string | null
           seniority: string | null
           contract_type: string | null
@@ -219,6 +224,7 @@ export type Database = {
           id?: string
           user_id: string
           title: string
+          role_name?: string | null
           location?: string | null
           seniority?: string | null
           contract_type?: string | null
