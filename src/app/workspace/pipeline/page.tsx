@@ -15,16 +15,29 @@ type Row = MatchAssessment & {
   job: { id: string; title: string } | null
 }
 
-const STAGES: { key: PipelineStage; label: string; color: string; bg: string }[] = [
+type StageMeta = { key: PipelineStage; label: string; color: string; bg: string }
+
+// Active board columns — the relational journey. Pricing was removed (handled
+// in the dedicated Pricing tab) and the terminal states live outside the board.
+const ACTIVE_STAGES: StageMeta[] = [
   { key: "identified", label: "Identifié", color: "#6B7280", bg: "#F9FAFB" },
-  { key: "pricing",    label: "Pricing",   color: "#D97706", bg: "rgba(217,119,6,0.06)" },
   { key: "contacted",  label: "Contacté",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
   { key: "replied",    label: "Réponse",   color: "#7C63C8", bg: "rgba(124,99,200,0.05)" },
   { key: "interview",  label: "Entretien", color: "#B45309", bg: "rgba(245,158,11,0.06)" },
   { key: "offer",      label: "Offre",     color: "#15803d", bg: "rgba(34,197,94,0.06)" },
-  { key: "hired",      label: "Recruté",   color: "#0F766E", bg: "rgba(15,118,110,0.06)" },
-  { key: "rejected",   label: "Écarté",    color: "#9CA3AF", bg: "#F9FAFB" },
 ]
+
+// Terminal states — outcomes, not steps. Shown as clickable + droppable chips
+// above the board, never as columns (they'd just add horizontal scroll).
+const TERMINAL_STAGES: StageMeta[] = [
+  { key: "hired",    label: "Recruté", color: "#0F766E", bg: "rgba(15,118,110,0.08)" },
+  { key: "rejected", label: "Écarté",  color: "#9CA3AF", bg: "#F3F4F6" },
+]
+
+/** Legacy 'pricing' rows (column removed) are shown in 'identified'. */
+function displayStage(s: PipelineStage): PipelineStage {
+  return s === "pricing" ? "identified" : s
+}
 
 /* Days a card can sit in a stage before Nora suggests a relance. */
 const RELANCE_AFTER_DAYS: Partial<Record<PipelineStage, number>> = {
@@ -57,10 +70,14 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overStage, setOverStage] = useState<PipelineStage | null>(null)
+  const [overTerminal, setOverTerminal] = useState<PipelineStage | null>(null)
   const [groupMode, setGroupMode] = useState<GroupMode>("by-job")
   const [jobFilter, setJobFilter] = useState<string>("")
   const [showWeak, setShowWeak] = useState(false)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  // When set, the board is replaced by a read-only list of that terminal
+  // state's candidates (Recruté / Écarté).
+  const [terminalView, setTerminalView] = useState<PipelineStage | null>(null)
 
   /** Below-threshold matches clutter the pipeline. Manually assigned
    *  candidates (score === null) are always kept visible. */
@@ -142,17 +159,41 @@ export default function PipelinePage() {
     [rows, jobFilter],
   )
 
+  // Bucket active rows by their (display) stage; terminal rows are kept aside.
   const byStage = useMemo(() => {
     const map = new Map<PipelineStage, Row[]>()
-    for (const s of STAGES) map.set(s.key, [])
+    for (const s of ACTIVE_STAGES) map.set(s.key, [])
     for (const r of filteredRows) {
-      const arr = map.get(r.pipeline_stage)
-      if (arr) arr.push(r)
+      const stage = displayStage(r.pipeline_stage)
+      const arr = map.get(stage)
+      if (arr) arr.push(r) // terminal stages aren't in the map → skipped
     }
     return map
   }, [filteredRows])
 
-  const relanceCount = useMemo(() => filteredRows.filter(needsRelance).length, [filteredRows])
+  // Terminal counts (respect the job filter, ignore the weak filter so an
+  // outcome is never hidden). Keyed by stage.
+  const terminalCounts = useMemo(() => {
+    const scoped = jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows
+    const counts: Record<string, number> = {}
+    for (const s of TERMINAL_STAGES) {
+      counts[s.key] = scoped.filter((r) => r.pipeline_stage === s.key).length
+    }
+    return counts
+  }, [rows, jobFilter])
+
+  // Rows shown in the terminal list view (when a chip is selected).
+  const terminalRows = useMemo(() => {
+    if (!terminalView) return []
+    const scoped = jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows
+    return scoped.filter((r) => r.pipeline_stage === terminalView)
+  }, [rows, jobFilter, terminalView])
+
+  // Relance only counts active rows (terminal candidates are done).
+  const relanceCount = useMemo(
+    () => filteredRows.filter((r) => !["hired", "rejected"].includes(r.pipeline_stage) && needsRelance(r)).length,
+    [filteredRows],
+  )
 
   if (loading) {
     return <NoraLoader />
@@ -160,50 +201,51 @@ export default function PipelinePage() {
 
   return (
     <main style={{
-      minHeight: "calc(100vh - 60px)",
-      padding: "40px 24px 60px",
+      height: "calc(100vh - 60px)",
+      padding: "26px 24px 0",
       fontFamily: "var(--font-inter), sans-serif",
+      display: "flex", flexDirection: "column",
     }}>
-      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        <div style={{ marginBottom: 8 }}>
-          <span style={{
-            display: "inline-block",
-            fontSize: 11, fontWeight: 700, color: "#7C63C8",
-            background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
-            padding: "4px 11px", borderRadius: 100,
-            letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
-          }}>
-            Pipeline
-          </span>
-          <h1 style={{ margin: 0, fontSize: "clamp(26px, 3vw, 34px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
+      <div style={{
+        maxWidth: 1400, margin: "0 auto", width: "100%",
+        flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
+      }}>
+        {/* Header (compact) */}
+        <div style={{ flexShrink: 0 }}>
+          <h1 style={{ margin: 0, fontSize: "clamp(22px, 2.4vw, 28px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
             Suivi candidat
           </h1>
-          <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
+          <p style={{ margin: "5px 0 0", fontSize: 13, color: "#6B7280" }}>
             {rows.length === 0
               ? "Vos candidats matchés apparaîtront ici, étape par étape."
-              : "Glissez une carte d'une colonne à l'autre pour faire avancer un candidat."}
+              : terminalView
+                ? "Issues finales — glissez une carte vers le pipeline pour la réactiver."
+                : "Glissez une carte d'une colonne à l'autre pour faire avancer un candidat."}
           </p>
         </div>
 
-        {/* Controls: filter + grouping toggle */}
-        {rows.length > 0 && allJobs.length > 0 && (
+        {/* Controls row : filtres à gauche · issues terminales à droite */}
+        {rows.length > 0 && (
           <div style={{
-            marginTop: 18, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap",
+            flexShrink: 0, marginTop: 14, marginBottom: 4,
+            display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap",
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ fontSize: 11.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                Mission
-              </label>
-              <Select
-                value={jobFilter}
-                onChange={setJobFilter}
-                options={[
-                  { value: "", label: `Toutes les missions (${allJobs.length})` },
-                  ...allJobs.map((j) => ({ value: j.id, label: j.title })),
-                ]}
-                style={{ minWidth: 220 }}
-              />
-            </div>
+            {allJobs.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <label style={{ fontSize: 11.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  Mission
+                </label>
+                <Select
+                  value={jobFilter}
+                  onChange={setJobFilter}
+                  options={[
+                    { value: "", label: `Toutes les missions (${allJobs.length})` },
+                    ...allJobs.map((j) => ({ value: j.id, label: j.title })),
+                  ]}
+                  style={{ minWidth: 220 }}
+                />
+              </div>
+            )}
             <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
               {([
                 { key: "by-job" as GroupMode, label: "Groupé par mission" },
@@ -239,36 +281,81 @@ export default function PipelinePage() {
                 {showWeak ? "✓ " : ""}Inclure les {weakCount} match{weakCount > 1 ? "s" : ""} faible{weakCount > 1 ? "s" : ""} (&lt;60)
               </button>
             )}
+
+            {/* Issues terminales — chips cliquables + zones de drop */}
+            <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              {TERMINAL_STAGES.map((s) => {
+                const active = terminalView === s.key
+                const isOver = overTerminal === s.key
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => setTerminalView(active ? null : s.key)}
+                    onDragOver={(e) => { e.preventDefault(); if (overTerminal !== s.key) setOverTerminal(s.key) }}
+                    onDragLeave={(e) => { if (e.currentTarget === e.target) setOverTerminal(null) }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      if (dragId) moveCard(dragId, s.key)
+                      setDragId(null); setOverTerminal(null)
+                    }}
+                    title={`${s.label} — cliquez pour voir, ou glissez une carte ici`}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 7,
+                      fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+                      color: active || isOver ? "white" : s.color,
+                      background: active || isOver ? s.color : s.bg,
+                      border: `1px solid ${isOver ? s.color : active ? s.color : "transparent"}`,
+                      borderRadius: 9, padding: "7px 12px", cursor: "pointer",
+                      transition: "all 120ms",
+                    }}
+                  >
+                    {s.key === "hired" ? "✓" : "✕"} {s.label}
+                    <span style={{
+                      fontSize: 10.5, fontWeight: 800,
+                      color: active || isOver ? "white" : s.color,
+                      background: active || isOver ? "rgba(255,255,255,0.22)" : "white",
+                      borderRadius: 100, padding: "1px 7px",
+                    }}>
+                      {terminalCounts[s.key] ?? 0}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
 
-        {relanceCount > 0 && (
-          <m.div
-            initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-            style={{
-              marginTop: 18, padding: "12px 16px",
-              background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)",
-              borderRadius: 12, display: "flex", alignItems: "center", gap: 10,
-              fontSize: 13.5, color: "#92400E",
-            }}
-          >
-            <span style={{ fontSize: 16 }}>⏰</span>
+        {relanceCount > 0 && !terminalView && (
+          <div style={{
+            flexShrink: 0, marginTop: 10, padding: "9px 14px",
+            background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)",
+            borderRadius: 10, display: "flex", alignItems: "center", gap: 9,
+            fontSize: 12.5, color: "#92400E",
+          }}>
+            <span style={{ fontSize: 14 }}>⏰</span>
             <span>
               <strong>{relanceCount} relance{relanceCount > 1 ? "s" : ""} suggérée{relanceCount > 1 ? "s" : ""}</strong>
-              {" — "}des candidats stagnent dans une étape. Repérez le badge ⏰ sur les cartes.
+              {" — "}des candidats stagnent dans une étape (badge ⏰ sur les cartes).
             </span>
-          </m.div>
+          </div>
         )}
 
+        {/* Corps : board · vue terminale · vide */}
         {rows.length === 0 ? (
           <EmptyState />
+        ) : terminalView ? (
+          <TerminalListView
+            stage={TERMINAL_STAGES.find((s) => s.key === terminalView)!}
+            rows={terminalRows}
+            onReactivate={(id) => moveCard(id, "identified")}
+          />
         ) : (
           <div style={{
-            marginTop: 22,
+            flex: 1, minHeight: 0, marginTop: 14,
             display: "flex", gap: 14,
-            overflowX: "auto", paddingBottom: 16,
+            overflowX: "auto", overflowY: "hidden", paddingBottom: 14,
           }}>
-            {STAGES.map((stage) => {
+            {ACTIVE_STAGES.map((stage) => {
               const cards = byStage.get(stage.key) ?? []
               const isOver = overStage === stage.key
               return (
@@ -282,22 +369,26 @@ export default function PipelinePage() {
                     setDragId(null); setOverStage(null)
                   }}
                   style={{
-                    flex: "0 0 248px",
+                    flex: "1 1 0", minWidth: 232, height: "100%",
+                    display: "flex", flexDirection: "column",
                     background: isOver ? "rgba(124,99,200,0.06)" : stage.bg,
                     border: isOver ? "1.5px dashed #7C63C8" : "1px solid #F0ECF8",
                     borderRadius: 14,
-                    padding: 10,
-                    display: "flex", flexDirection: "column", gap: 8,
-                    minHeight: 200,
                     transition: "background 120ms, border-color 120ms",
                   }}
                 >
+                  {/* En-tête figé */}
                   <div style={{
+                    flexShrink: 0,
                     display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "4px 6px 6px",
+                    padding: "11px 13px",
+                    borderBottom: "1px solid rgba(17,24,39,0.05)",
                   }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 800, color: stage.color, letterSpacing: "0.02em" }}>
-                      {stage.label}
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: stage.color, display: "inline-block" }} />
+                      <span style={{ fontSize: 12.5, fontWeight: 800, color: stage.color, letterSpacing: "0.02em" }}>
+                        {stage.label}
+                      </span>
                     </span>
                     <span style={{
                       fontSize: 11, fontWeight: 700, color: "#9CA3AF",
@@ -308,76 +399,82 @@ export default function PipelinePage() {
                     </span>
                   </div>
 
-                  {groupMode === "by-job" ? (
-                    groupByJob(cards).map(({ jobId, jobTitle, jobCards }) => {
-                      const key = `${stage.key}:${jobId}`
-                      const open = !collapsed.has(key)
-                      return (
-                        <div key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          <button
-                            onClick={() => toggleCollapsed(key)}
-                            style={{
-                              display: "flex", alignItems: "center", gap: 6,
-                              background: "transparent", border: "none",
-                              padding: "4px 6px", cursor: "pointer", fontFamily: "inherit",
-                              textAlign: "left",
-                            }}
-                          >
-                            <span style={{
-                              fontSize: 10, color: "#7C63C8",
-                              transform: open ? "rotate(90deg)" : "none",
-                              transition: "transform 140ms",
-                              display: "inline-block", width: 8,
-                            }}>
-                              ›
-                            </span>
-                            <span style={{
-                              fontSize: 10.5, fontWeight: 700, color: "#4B5563",
-                              flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                            }}>
-                              {jobTitle}
-                            </span>
-                            <span style={{
-                              fontSize: 10, fontWeight: 700, color: "#9CA3AF",
-                              background: "white", border: "1px solid #F0ECF8",
-                              borderRadius: 100, padding: "0 6px",
-                            }}>
-                              {jobCards.length}
-                            </span>
-                          </button>
-                          {open && jobCards.map((row) => (
-                            <Card
-                              key={row.id}
-                              row={row}
-                              dragging={dragId === row.id}
-                              onDragStart={() => setDragId(row.id)}
-                              onDragEnd={() => { setDragId(null); setOverStage(null) }}
-                              hideJobBadge
-                            />
-                          ))}
-                        </div>
-                      )
-                    })
-                  ) : (
-                    cards.map((row) => (
-                      <Card
-                        key={row.id}
-                        row={row}
-                        dragging={dragId === row.id}
-                        onDragStart={() => setDragId(row.id)}
-                        onDragEnd={() => { setDragId(null); setOverStage(null) }}
-                      />
-                    ))
-                  )}
+                  {/* Corps scrollable */}
+                  <div style={{
+                    flex: 1, minHeight: 0, overflowY: "auto",
+                    padding: 10, display: "flex", flexDirection: "column", gap: 8,
+                  }}>
+                    {groupMode === "by-job" ? (
+                      groupByJob(cards).map(({ jobId, jobTitle, jobCards }) => {
+                        const key = `${stage.key}:${jobId}`
+                        const open = !collapsed.has(key)
+                        return (
+                          <div key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <button
+                              onClick={() => toggleCollapsed(key)}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 6,
+                                background: "transparent", border: "none",
+                                padding: "2px 4px", cursor: "pointer", fontFamily: "inherit",
+                                textAlign: "left",
+                              }}
+                            >
+                              <span style={{
+                                fontSize: 10, color: "#7C63C8",
+                                transform: open ? "rotate(90deg)" : "none",
+                                transition: "transform 140ms",
+                                display: "inline-block", width: 8,
+                              }}>
+                                ›
+                              </span>
+                              <span style={{
+                                fontSize: 10.5, fontWeight: 700, color: "#4B5563",
+                                flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                              }}>
+                                {jobTitle}
+                              </span>
+                              <span style={{
+                                fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+                                background: "white", border: "1px solid #F0ECF8",
+                                borderRadius: 100, padding: "0 6px",
+                              }}>
+                                {jobCards.length}
+                              </span>
+                            </button>
+                            {open && jobCards.map((row) => (
+                              <Card
+                                key={row.id}
+                                row={row}
+                                dragging={dragId === row.id}
+                                onDragStart={() => setDragId(row.id)}
+                                onDragEnd={() => { setDragId(null); setOverStage(null) }}
+                                hideJobBadge
+                              />
+                            ))}
+                          </div>
+                        )
+                      })
+                    ) : (
+                      cards.map((row) => (
+                        <Card
+                          key={row.id}
+                          row={row}
+                          dragging={dragId === row.id}
+                          onDragStart={() => setDragId(row.id)}
+                          onDragEnd={() => { setDragId(null); setOverStage(null) }}
+                        />
+                      ))
+                    )}
 
-                  {cards.length === 0 && (
-                    <div style={{
-                      padding: "16px 8px", textAlign: "center",
-                      fontSize: 11.5, color: "#C4B6E0",
-                    }}>
-                      Déposez ici
-                    </div>
-                  )}
+                    {cards.length === 0 && (
+                      <div style={{
+                        padding: "16px 8px", textAlign: "center",
+                        fontSize: 11.5, color: "#C4B6E0",
+                      }}>
+                        Déposez ici
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -386,6 +483,88 @@ export default function PipelinePage() {
 
       </div>
     </main>
+  )
+}
+
+/* ─── Terminal list view (Recruté / Écarté) ─────────────────────── */
+
+function TerminalListView({
+  stage, rows, onReactivate,
+}: {
+  stage: StageMeta
+  rows: Row[]
+  onReactivate: (id: string) => void
+}) {
+  return (
+    <div style={{ flex: 1, minHeight: 0, marginTop: 14, display: "flex", flexDirection: "column" }}>
+      {rows.length === 0 ? (
+        <div style={{
+          flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#9CA3AF", fontSize: 14,
+        }}>
+          Aucun candidat dans « {stage.label} » pour l&apos;instant.
+        </div>
+      ) : (
+        <div style={{
+          flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 20,
+          display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))",
+          gap: 12, alignContent: "start",
+        }}>
+          {rows.map((row) => {
+            const c = row.candidate
+            const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
+            return (
+              <div key={row.id} style={{
+                background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
+                padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8,
+              }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {name}
+                    </p>
+                    {c?.current_title && (
+                      <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {c.current_title}
+                      </p>
+                    )}
+                  </div>
+                  {row.score != null && (
+                    <span style={{
+                      flexShrink: 0, fontSize: 11, fontWeight: 800, color: stage.color,
+                      background: stage.bg, borderRadius: 100, padding: "1px 8px",
+                    }}>{row.score}</span>
+                  )}
+                </div>
+                {row.job && (
+                  <span style={{
+                    alignSelf: "flex-start", fontSize: 10.5, color: "#6B7280",
+                    background: "#F8F6FF", border: "1px solid #F0ECF8",
+                    borderRadius: 6, padding: "2px 7px", maxWidth: "100%",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>{row.job.title}</span>
+                )}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 2 }}>
+                  <button
+                    onClick={() => onReactivate(row.id)}
+                    style={{
+                      fontSize: 11, fontWeight: 600, color: "#7C63C8",
+                      background: "transparent", border: "none", cursor: "pointer",
+                      fontFamily: "inherit", padding: 0,
+                    }}
+                  >
+                    ↩ Remettre dans le pipeline
+                  </button>
+                  <Link href={`/workspace/match/${row.id}`} style={{
+                    fontSize: 11, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
+                  }}>Ouvrir ▶</Link>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
