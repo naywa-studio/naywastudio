@@ -150,11 +150,14 @@ function PricingWidgetInner({
   const [seniority, setSeniority] = useState<SenioritePreset>(detectedPreset)
   const preset = PRESETS[seniority]
 
-  const lieu: Lieu = (job?.location?.toLowerCase().includes("paris")
-    ? "paris_petite_couronne"
-    : job?.location?.toLowerCase().includes("lyon")
-      ? "lyon"
-      : profile?.pricing_default_lieu as Lieu | undefined) ?? "paris_petite_couronne"
+  // Priorité au lieu typé renseigné par mission (wizard) ; fallback sur la
+  // détection legacy via job.location (texte libre) puis sur le défaut
+  // cabinet (peut disparaître à terme).
+  const lieu: Lieu = (job?.pricing_lieu as Lieu | undefined)
+    ?? (job?.location?.toLowerCase().includes("paris") ? "paris_petite_couronne"
+      : job?.location?.toLowerCase().includes("lyon")  ? "lyon"
+      : profile?.pricing_default_lieu as Lieu | undefined)
+    ?? "paris_petite_couronne"
 
   const modalite: Modalite = preset.modalite
   const joursParMois = profile?.pricing_billable_days_per_month ?? 21
@@ -172,10 +175,18 @@ function PricingWidgetInner({
   const [tjm, setTjm] = useState<number>(initialTjm)
   const [brutAnnuel, setBrutAnnuel] = useState<number>(initialBrut)
 
-  const [avantages] = useState<Avantages>(() => ({
-    ...FALLBACK_AVANTAGES,
-    ...(profile?.pricing_default_avantages ?? {}),
-  }))
+  // Avantages = base cabinet, avec deux tarifs conditionnels mis à 0 si la
+  // mission ne les déclenche pas. Le tarif (€/jour, €/mois) est défini en
+  // paramètres cabinet (politique uniforme), l'activation est par mission.
+  const avantages = useMemo<Avantages>(() => {
+    const base: Avantages = {
+      ...FALLBACK_AVANTAGES,
+      ...(profile?.pricing_default_avantages ?? {}),
+    }
+    if (!job?.has_grand_deplacement) base.urssafIndemniteJour = 0
+    if (!job?.is_expatriated)        base.expatriationMensuelle = 0
+    return base
+  }, [profile?.pricing_default_avantages, job?.has_grand_deplacement, job?.is_expatriated])
 
   const buildInputs = useCallback(
     (brut: number): PricingInputs => ({
