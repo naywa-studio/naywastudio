@@ -99,7 +99,7 @@ export const AVANTAGES_CONFIG: AvantageConfig[] = [
   {
     key: "indemniteKilometriqueAnnuelle",
     label: "Indemnité kilométrique annuelle",
-    hint: "Si véhicule personnel utilisé pour le pro. Barème URSSAF selon la puissance du véhicule (CV).",
+    hint: "Budget annuel cabinet pour les salariés utilisant leur véhicule perso (barème URSSAF selon CV).",
     defaultValue: 600,
     suffix: "€/an",
     max: 5000,
@@ -107,7 +107,7 @@ export const AVANTAGES_CONFIG: AvantageConfig[] = [
   {
     key: "urssafIndemniteJour",
     label: "URSSAF indemnité grand déplacement",
-    hint: "Plafond Paris / Petite Couronne : 117,10 €/j · autres zones : 97,90 €/j (URSSAF 2026).",
+    hint: "Tarif cabinet appliqué uniquement aux missions avec grand déplacement (activable par mission). Plafond Paris/PC : 117,10 €/j · autres zones : 97,90 €/j (URSSAF 2026).",
     defaultValue: 80,
     suffix: "€/jour",
     max: 200,
@@ -121,7 +121,7 @@ export const AVANTAGES_CONFIG: AvantageConfig[] = [
   {
     key: "expatriationMensuelle",
     label: "Prime d'expatriation",
-    hint: "Uniquement pour missions à l'étranger. Souvent 0 sinon contractuel.",
+    hint: "Tarif cabinet appliqué uniquement aux missions à l'étranger (activable par mission).",
     defaultValue: 500,
     suffix: "€/mois",
     max: 5000,
