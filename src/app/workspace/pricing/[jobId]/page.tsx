@@ -142,7 +142,9 @@ export default function PricingMissionPage() {
 
         <section style={{ minWidth: 0 }}>
           <AnimatePresence mode="wait">
-            {selected ? (
+            {!isMissionConfigured(job) ? (
+              <MissionNotConfiguredCta onEdit={() => setMissionEditOpen(true)} />
+            ) : selected ? (
               <m.div
                 key={selected.matchId}
                 initial={{ opacity: 0, y: 6 }}
@@ -891,6 +893,46 @@ function CompactCandidatesList({
 /* ──────────────────────────────────────────────────────────────────────────
  * Empty state
  * ────────────────────────────────────────────────────────────────────────── */
+
+/** Affiché à la place du widget quand la mission n'est pas (encore) paramétrée :
+ *  inutile d'afficher un chiffrage avec des charts faux — on guide vers le wizard. */
+function MissionNotConfiguredCta({ onEdit }: { onEdit: () => void }) {
+  return (
+    <m.div
+      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: EASE }}
+      style={{
+        background: "white", border: "2px dashed rgba(124,99,200,0.30)",
+        borderRadius: 16, padding: "48px 28px", textAlign: "center",
+      }}
+    >
+      <div style={{ fontSize: 40, marginBottom: 14 }}>📋</div>
+      <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "#111827" }}>
+        Mission à paramétrer
+      </h3>
+      <p style={{
+        margin: "0 auto 16px", maxWidth: 460, fontSize: 13, color: "#6B7280",
+        lineHeight: 1.6,
+      }}>
+        Renseigne le <strong>TJM</strong>, la <strong>durée</strong>, la <strong>date de démarrage</strong>
+        {" "}et le <strong>lieu</strong> de la mission. Les graphiques et le verdict deviennent pertinents
+        une fois ces paramètres saisis.
+      </p>
+      <button
+        onClick={onEdit}
+        style={{
+          display: "inline-block",
+          fontSize: 12.5, fontWeight: 700, color: "white",
+          background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          border: "none", borderRadius: 10, padding: "9px 18px",
+          cursor: "pointer", fontFamily: "inherit",
+        }}
+      >
+        ⚙ Paramétrer la mission
+      </button>
+    </m.div>
+  )
+}
 
 function NoCandidatesState({ jobId }: { jobId: string }) {
   return (

@@ -298,25 +298,6 @@ function PricingWidgetInner({
     }
   }, [tjm, brutAnnuel, buildInputs, joursParMois, margeMinPct, margeTargetPct, minimumCheck.minimumMensuel])
 
-  // Sliders ADAPTATIFS — bornes intelligentes autour de la valeur courante.
-  // TJM : ±35% autour de la valeur courante (min 200 €/j, max 1500 €/j absolus)
-  //   → si TJM=600 → range [400, 800]. Si TJM=900 → range [600, 1200].
-  // Brut : ±35% autour de la valeur courante, clampé pour rester réaliste
-  //   → si brut=45k → range [30k, 60k]. Si brut=70k → range [46k, 95k].
-  // Les marqueurs (min Syntec, brut max/idéal) tombent dans la plage car ils
-  // sont calculés à partir du même TJM courant.
-  const tjmMinBound = Math.max(200, Math.round(tjm * 0.65 / 5) * 5)
-  const tjmMaxBound = Math.min(1500, Math.round(tjm * 1.4 / 5) * 5)
-  const brutMinBound = Math.max(
-    20000,
-    Math.round((brutAnnuel * 0.65) / 500) * 500,
-    Math.round((limits?.brutMin ?? 0) - 5000),
-  )
-  const brutMaxBound = Math.max(
-    Math.round((brutAnnuel * 1.4) / 500) * 500,
-    Math.round((limits?.brutMax ?? 0) + 5000),
-  )
-
   // Tab actif
   type Tab = "monthly" | "rupture" | "detail"
   const [tab, setTab] = useState<Tab>("monthly")
@@ -381,37 +362,33 @@ function PricingWidgetInner({
         </Link>
       </div>
 
-      {/* ═══ LEVIERS — 2 sliders en grille ═══ */}
+      {/* ═══ LEVIERS — steppers compacts avec markers cliquables ═══ */}
       <div style={{
         marginTop: 12,
         display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
       }}>
-        <SliderField
+        <StepperField
           label="TJM client"
           value={tjm}
-          min={Math.round(tjmMinBound)}
-          max={Math.round(tjmMaxBound)}
-          step={5}
+          step={10}
+          max={2000}
           suffix="€/j"
           onChange={setTjm}
-          range={`plage ${Math.round(tjmMinBound)} → ${Math.round(tjmMaxBound)} €/j · adaptive autour du TJM courant`}
           markers={job?.client_tjm_min != null ? [
             { value: job.client_tjm_min, label: "cible mission", color: "#D97706" },
           ] : []}
         />
-        <SliderField
+        <StepperField
           label="Brut candidat"
           value={brutAnnuel}
-          min={brutMinBound}
-          max={brutMaxBound}
           step={500}
+          max={150000}
           suffix="€/an"
           onChange={setBrutAnnuel}
-          range={limits ? `min Syntec ${formatEur0(limits.brutMin)} · marge ${margeMinPct}% : ${formatEur0(limits.brutMax)} · marge ${margeTargetPct}% : ${formatEur0(limits.brutIdeal)}` : ""}
           markers={limits ? [
-            { value: Math.round(limits.brutMin), label: `⚖ Syntec`, color: "#B91C1C" },
-            { value: Math.round(limits.brutIdeal), label: `💎 ${margeTargetPct}%`, color: "#16a34a" },
-            { value: Math.round(limits.brutMax),   label: `🎯 ${margeMinPct}%`,    color: "#D97706" },
+            { value: Math.round(limits.brutMin),   label: "min Syntec",                 color: "#B91C1C" },
+            { value: Math.round(limits.brutIdeal), label: `cible ${margeTargetPct}%`,   color: "#15803d" },
+            { value: Math.round(limits.brutMax),   label: `plancher ${margeMinPct}%`,   color: "#D97706" },
           ] : []}
         />
       </div>
@@ -657,12 +634,8 @@ function TabButton({
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Slider component
+ * Lever / format helpers
  * ────────────────────────────────────────────────────────────────────────── */
-
-function formatEur0(v: number): string {
-  return `${Math.round(v).toLocaleString("fr-FR")} €`
-}
 
 function formatEurInt(v: number): string {
   const sign = v < 0 ? "−" : ""
@@ -678,90 +651,119 @@ function formatEurSmart(v: number): string {
   })} €`
 }
 
-function SliderField({
-  label, value, min, max, step, suffix, onChange, range, markers,
+const stepperBtnStyle: React.CSSProperties = {
+  width: 32, fontSize: 16, fontWeight: 800,
+  color: "#7C63C8", background: "rgba(124,99,200,0.06)",
+  border: "1px solid rgba(124,99,200,0.20)", borderRadius: 8,
+  cursor: "pointer", fontFamily: "inherit",
+  padding: "0 4px",
+}
+
+/**
+ * StepperField — saisie directe d'un montant avec boutons −/+ et markers cliquables.
+ *
+ * Plus de slider draggable (peu précis aux niveaux de granularité du pricing).
+ * À la place : le sourceur tape la valeur exacte, ajuste par pas (−10/+10 sur
+ * TJM, −500/+500 sur Brut), ou clique sur un marker pour aller directement à
+ * une valeur de référence (cible mission, plancher Syntec, marge cible/mini).
+ */
+function StepperField({
+  label, value, step, max, suffix, onChange, markers,
 }: {
   label: string
   value: number
-  min: number
-  max: number
   step: number
+  max: number
   suffix: string
   onChange: (v: number) => void
-  range?: string
   markers?: { value: number; label: string; color: string }[]
 }) {
-  const safeMin = Math.min(min, value)
-  const safeMax = Math.max(max, value)
-  const pct = (v: number) =>
-    safeMax === safeMin ? 0 : ((v - safeMin) / (safeMax - safeMin)) * 100
+  const display = Math.round(value)
+  const nudge = (delta: number) => {
+    const raw = value + delta
+    const clamped = Math.max(0, Math.min(max, raw))
+    onChange(Math.round(clamped / step) * step)
+  }
+
   return (
     <div style={{
       background: "white", border: "1.5px solid #F0ECF8",
-      borderRadius: 12, padding: 12,
-      display: "flex", flexDirection: "column", gap: 8,
+      borderRadius: 12, padding: "12px 14px",
+      display: "flex", flexDirection: "column", gap: 10,
     }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{
           fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
           letterSpacing: "0.05em", textTransform: "uppercase",
         }}>
           {label}
         </span>
-        <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6 }}>
-          <input
-            type="number"
-            value={Math.round(value)}
-            min={safeMin} max={safeMax} step={step}
-            onChange={(e) => onChange(Number(e.target.value))}
-            style={{
-              fontSize: 18, fontWeight: 800, color: "#111827",
-              background: "transparent", border: "none", outline: "none",
-              padding: 0, width: 100, textAlign: "right",
-              fontFamily: "inherit",
-              fontVariantNumeric: "tabular-nums",
-              appearance: "textfield",
-            }}
-          />
-          <span style={{ fontSize: 11, color: "#9CA3AF" }}>{suffix}</span>
+        <div style={{ display: "inline-flex", alignItems: "stretch", gap: 6 }}>
+          <button
+            onClick={() => nudge(-step)}
+            aria-label={`Diminuer de ${step}`}
+            style={stepperBtnStyle}
+          >−</button>
+          <div style={{
+            display: "inline-flex", alignItems: "baseline", gap: 5,
+            background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 8,
+            padding: "5px 12px", minWidth: 120,
+          }}>
+            <input
+              type="number"
+              value={display}
+              step={step}
+              max={max}
+              onChange={(e) => {
+                const n = Number(e.target.value)
+                if (Number.isFinite(n)) onChange(Math.max(0, Math.min(max, n)))
+              }}
+              style={{
+                flex: 1, minWidth: 0, width: "100%",
+                fontSize: 18, fontWeight: 800, color: "#111827",
+                background: "transparent", border: "none", outline: "none",
+                padding: 0, textAlign: "right",
+                fontFamily: "inherit", fontVariantNumeric: "tabular-nums",
+                appearance: "textfield",
+              }}
+            />
+            <span style={{ fontSize: 12, color: "#9CA3AF" }}>{suffix}</span>
+          </div>
+          <button
+            onClick={() => nudge(step)}
+            aria-label={`Augmenter de ${step}`}
+            style={stepperBtnStyle}
+          >+</button>
         </div>
       </div>
-      <div style={{ position: "relative", padding: "4px 0" }}>
-        <input
-          type="range"
-          value={value}
-          min={safeMin} max={safeMax} step={step}
-          onChange={(e) => onChange(Number(e.target.value))}
-          style={{
-            width: "100%", appearance: "none", height: 6,
-            background: "linear-gradient(to right, #C7BFE3, #7C63C8)",
-            borderRadius: 100, outline: "none",
-            cursor: "pointer",
-          }}
-        />
-        {markers && markers.map((m) => {
-          const left = pct(m.value)
-          if (left < 0 || left > 100) return null
-          return (
-            <div key={m.label} style={{
-              position: "absolute", left: `${left}%`, top: 14,
-              transform: "translateX(-50%)",
-              fontSize: 10, color: m.color, whiteSpace: "nowrap",
-              fontWeight: 700, pointerEvents: "none",
-            }}>
-              <span style={{ display: "block", width: 1.5, height: 8, background: m.color, margin: "0 auto" }} />
-              <span style={{ display: "block", paddingTop: 2 }}>{m.label}</span>
-            </div>
-          )
-        })}
-      </div>
-      {range && (
-        <p style={{
-          margin: markers && markers.length > 0 ? "18px 0 0" : 0,
-          fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4,
-        }}>
-          {range}
-        </p>
+
+      {markers && markers.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {markers.map((m) => {
+            const isActive = Math.abs(m.value - value) < step
+            return (
+              <button
+                key={m.label}
+                onClick={() => onChange(Math.round(m.value / step) * step)}
+                title={`Mettre à ${m.value.toLocaleString("fr-FR")} ${suffix}`}
+                style={{
+                  fontSize: 10.5, fontWeight: 700,
+                  color: isActive ? "white" : m.color,
+                  background: isActive ? m.color : `${m.color}14`,
+                  border: `1px solid ${isActive ? m.color : m.color + "40"}`,
+                  borderRadius: 7, padding: "4px 9px", cursor: "pointer",
+                  fontFamily: "inherit",
+                  display: "inline-flex", alignItems: "baseline", gap: 5,
+                }}
+              >
+                <span>{m.label}</span>
+                <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>
+                  {m.value.toLocaleString("fr-FR")}
+                </span>
+              </button>
+            )
+          })}
+        </div>
       )}
     </div>
   )
