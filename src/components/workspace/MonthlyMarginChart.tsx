@@ -25,7 +25,6 @@ import {
   type PricingInputs,
 } from "@/lib/pricing/syntec"
 import { missionMonthProfile, MONTH_ABBR_FR } from "@/lib/pricing/calendar"
-import InfoTip from "@/components/ui/InfoTip"
 
 interface Props {
   inputs: PricingInputs
@@ -147,15 +146,7 @@ export default function MonthlyMarginChart({
       }}>
         <div>
           <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
-            <InfoTip
-              text={
-                "Marge = TJM × jours travaillés du mois − coût employeur. " +
-                "Jours = vrais jours ouvrés français (Lun-Ven hors fériés). " +
-                "CP/RTT du candidat non modélisés en V1."
-              }
-            >
-              Marge mensuelle (calendrier réel)
-            </InfoTip>
+            Marge mensuelle
           </h4>
         </div>
       </header>

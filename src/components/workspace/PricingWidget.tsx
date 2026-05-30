@@ -31,7 +31,6 @@ import type { Candidate, Job, Profile } from "@/lib/database.types"
 import { PRESETS, detectSeniority, type SenioritePreset } from "@/lib/pricing/preset"
 import { missionMonthProfile, MONTH_ABBR_FR } from "@/lib/pricing/calendar"
 import { getSupabase } from "@/lib/supabase"
-import InfoTip from "@/components/ui/InfoTip"
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Preset séniorité — extraits dans @/lib/pricing/preset pour partage avec
@@ -387,14 +386,7 @@ function PricingWidgetInner({
           >
             <strong style={{ color: "#374151" }}>{preset.short}</strong>
             <span>·</span>
-            <InfoTip
-              text={
-                `Position Syntec ${preset.position} (coefficient ${preset.coefficient}) — ` +
-                "détermine le minimum conventionnel et la modalité de temps de travail (forfait jours, heures…)."
-              }
-            >
-              <span>Cadre · Pos. {preset.position} · coef {preset.coefficient}</span>
-            </InfoTip>
+            <span>Cadre · Pos. {preset.position} · coef {preset.coefficient}</span>
             <span>·</span>
             <span>{LIEU_LABELS[lieu]}</span>
             <span style={{ flex: 1 }} />
@@ -410,25 +402,23 @@ function PricingWidgetInner({
 
           {/* Leviers — steppers TJM / Brut (empilés en colonne unique) */}
           <StepperField
-            label="TJM client"
+            label="TJM client (€/j HT)"
             value={tjm}
             step={10}
             max={2000}
             suffix="€/j"
             onChange={setTjm}
-            tooltip="TJM = Taux Journalier Moyen, le prix HT facturé au client par jour travaillé du consultant. Levier principal de la rentabilité mission."
             markers={job?.client_tjm_min != null ? [
               { value: job.client_tjm_min, label: "cible mission", color: "#D97706" },
             ] : []}
           />
           <StepperField
-            label="Brut candidat"
+            label="Salaire brut annuel"
             value={brutAnnuel}
             step={500}
             max={150000}
             suffix="€/an"
             onChange={setBrutAnnuel}
-            tooltip="Salaire brut annuel proposé au candidat. Doit dépasser le minimum Syntec de sa position. Plus le brut monte, plus le coût employeur (charges + avantages) monte, et moins la marge est confortable."
             markers={limits ? [
               { value: Math.round(limits.brutMin),   label: "min Syntec",                 color: "#B91C1C" },
               { value: Math.round(limits.brutIdeal), label: `cible ${margeTargetPct}%`,   color: "#15803d" },
@@ -619,11 +609,6 @@ function VerdictHero({
         value={`${margePct.toFixed(1)} %`}
         sub={`cible ${margeTargetPct}% · plancher ${margeMinPct}%`}
         color={status.color}
-        tooltip={
-          "Marge totale mission ÷ revenu total mission. " +
-          `Cible ${margeTargetPct}% = objectif commercial confortable. ` +
-          `Plancher ${margeMinPct}% = seuil minimum cabinet, en dessous tu perds de l'argent en risque.`
-        }
       />
 
       {/* KPI 2 — Marge mensuelle */}
@@ -632,7 +617,6 @@ function VerdictHero({
         value={`${formatEurInt(margeMensuelleEur)} €`}
         sub={`moyenne sur ${monthCount} mois`}
         color="#111827"
-        tooltip="Marge totale mission ÷ nombre de mois. Donne une idée de ce que rapporte la mission mois après mois en moyenne (les vrais montants mensuels varient selon le calendrier — voir l'onglet Marge mensuelle)."
       />
 
       {/* KPI 3 — Marge totale mission */}
@@ -641,20 +625,18 @@ function VerdictHero({
         value={`${formatEurInt(margeTotaleEur)} €`}
         sub={`sur ${monthCount} mois`}
         color="#111827"
-        tooltip="Cumul de la marge sur toute la durée de la mission, calendrier français réel (Lun-Ven hors fériés)."
       />
     </div>
   )
 }
 
 function HeroKpi({
-  label, value, sub, color, tooltip,
+  label, value, sub, color,
 }: {
   label: string
   value: string
   sub: string
   color: string
-  tooltip?: string
 }) {
   return (
     <div style={{
@@ -667,7 +649,7 @@ function HeroKpi({
         fontSize: 10, fontWeight: 700, color: "#9CA3AF",
         letterSpacing: "0.04em", textTransform: "uppercase",
       }}>
-        {tooltip ? <InfoTip text={tooltip}>{label}</InfoTip> : label}
+        {label}
       </div>
       <div style={{
         fontSize: 22, fontWeight: 800, color,
@@ -936,7 +918,7 @@ const stepperBtnStyle: React.CSSProperties = {
  * une valeur de référence (cible mission, plancher Syntec, marge cible/mini).
  */
 function StepperField({
-  label, value, step, max, suffix, onChange, markers, tooltip,
+  label, value, step, max, suffix, onChange, markers,
 }: {
   label: string
   value: number
@@ -945,7 +927,6 @@ function StepperField({
   suffix: string
   onChange: (v: number) => void
   markers?: { value: number; label: string; color: string }[]
-  tooltip?: string
 }) {
   const display = Math.round(value)
   const nudge = (delta: number) => {
@@ -965,7 +946,7 @@ function StepperField({
           fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
           letterSpacing: "0.05em", textTransform: "uppercase",
         }}>
-          {tooltip ? <InfoTip text={tooltip}>{label}</InfoTip> : label}
+          {label}
         </span>
         <div style={{ display: "inline-flex", alignItems: "stretch", gap: 6 }}>
           <button
