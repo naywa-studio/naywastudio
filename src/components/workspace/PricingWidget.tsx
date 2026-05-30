@@ -338,111 +338,128 @@ function PricingWidgetInner({
         />
       )}
 
-      {/* ═══ CONTEXT BAR — statut / position / lieu + avantages actifs ═══ */}
-      <div style={{
+      {/* ═══ DASHBOARD 2 COLONNES — leviers à gauche, charts à droite ═══
+       *  Objectif : voir le graphe et le coût sans scroller. À <1100 px on
+       *  empile (mobile/tablette). */}
+      <div className="pricing-dash" style={{
         marginTop: 12,
-        display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
-        padding: "8px 12px", background: "#FAFAFA", borderRadius: 10,
-        fontSize: 11, color: "#6B7280",
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.15fr)",
+        gap: 14, alignItems: "start",
       }}>
-        <strong style={{ color: "#374151" }}>{preset.short}</strong>
-        <span>·</span>
-        <span>Cadre · Pos. {preset.position} · coef {preset.coefficient}</span>
-        <span>·</span>
-        <span>{LIEU_LABELS[lieu]}</span>
-        <span style={{ flex: 1 }} />
-        <Link href="/workspace/parametrage" style={{
-          fontSize: 11, fontWeight: 600, color: "#7C63C8", textDecoration: "none",
-        }}>
-          ⚙ Paramètres cabinet
-        </Link>
-      </div>
+        {/* ─── COLONNE GAUCHE — contexte + leviers ─── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+          {/* Context bar */}
+          <div style={{
+            display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
+            padding: "8px 12px", background: "#FAFAFA", borderRadius: 10,
+            fontSize: 11, color: "#6B7280",
+          }}>
+            <strong style={{ color: "#374151" }}>{preset.short}</strong>
+            <span>·</span>
+            <span>Cadre · Pos. {preset.position} · coef {preset.coefficient}</span>
+            <span>·</span>
+            <span>{LIEU_LABELS[lieu]}</span>
+            <span style={{ flex: 1 }} />
+            <Link href="/workspace/parametrage" style={{
+              fontSize: 11, fontWeight: 600, color: "#7C63C8", textDecoration: "none",
+            }}>
+              ⚙ Paramètres cabinet
+            </Link>
+          </div>
 
-      {/* ═══ AVANTAGES APPLIQUÉS — transparence sur ce qui pèse ═══ */}
-      <ActiveAvantagesStrip avantages={avantages} job={job} />
+          {/* Avantages appliqués */}
+          <ActiveAvantagesStrip avantages={avantages} job={job} />
 
+          {/* Leviers — steppers TJM / Brut (empilés en colonne unique) */}
+          <StepperField
+            label="TJM client"
+            value={tjm}
+            step={10}
+            max={2000}
+            suffix="€/j"
+            onChange={setTjm}
+            markers={job?.client_tjm_min != null ? [
+              { value: job.client_tjm_min, label: "cible mission", color: "#D97706" },
+            ] : []}
+          />
+          <StepperField
+            label="Brut candidat"
+            value={brutAnnuel}
+            step={500}
+            max={150000}
+            suffix="€/an"
+            onChange={setBrutAnnuel}
+            markers={limits ? [
+              { value: Math.round(limits.brutMin),   label: "min Syntec",                 color: "#B91C1C" },
+              { value: Math.round(limits.brutIdeal), label: `cible ${margeTargetPct}%`,   color: "#15803d" },
+              { value: Math.round(limits.brutMax),   label: `plancher ${margeMinPct}%`,   color: "#D97706" },
+            ] : []}
+          />
 
-      {/* ═══ LEVIERS — steppers compacts avec markers cliquables ═══ */}
-      <div style={{
-        marginTop: 12,
-        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
-      }}>
-        <StepperField
-          label="TJM client"
-          value={tjm}
-          step={10}
-          max={2000}
-          suffix="€/j"
-          onChange={setTjm}
-          markers={job?.client_tjm_min != null ? [
-            { value: job.client_tjm_min, label: "cible mission", color: "#D97706" },
-          ] : []}
-        />
-        <StepperField
-          label="Brut candidat"
-          value={brutAnnuel}
-          step={500}
-          max={150000}
-          suffix="€/an"
-          onChange={setBrutAnnuel}
-          markers={limits ? [
-            { value: Math.round(limits.brutMin),   label: "min Syntec",                 color: "#B91C1C" },
-            { value: Math.round(limits.brutIdeal), label: `cible ${margeTargetPct}%`,   color: "#15803d" },
-            { value: Math.round(limits.brutMax),   label: `plancher ${margeMinPct}%`,   color: "#D97706" },
-          ] : []}
-        />
-      </div>
-
-      {/* ═══ ALERTE MINIMUM SYNTEC si dépassement ═══ */}
-      {!minimumCheck.ok && (
-        <div style={{
-          marginTop: 10, padding: "8px 12px",
-          background: "#FEF2F2", border: "1px solid #FECACA",
-          borderRadius: 9, fontSize: 12, color: "#B91C1C", lineHeight: 1.5,
-        }}>
-          ⚠ {minimumCheck.message}
+          {/* Alerte minimum Syntec si dépassement */}
+          {!minimumCheck.ok && (
+            <div style={{
+              padding: "8px 12px",
+              background: "#FEF2F2", border: "1px solid #FECACA",
+              borderRadius: 9, fontSize: 12, color: "#B91C1C", lineHeight: 1.5,
+            }}>
+              ⚠ {minimumCheck.message}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* ═══ TABS CHARTS ═══ */}
-      <div style={{
-        marginTop: 14,
-        display: "flex", gap: 4, borderBottom: "1px solid #F0ECF8",
-      }}>
-        <TabButton active={tab === "monthly"} onClick={() => setTab("monthly")}>
-          📈 Marge mensuelle
-        </TabButton>
-        <TabButton active={tab === "rupture"} onClick={() => setTab("rupture")}>
-          ⚠ Risque rupture
-        </TabButton>
-        <TabButton active={tab === "detail"} onClick={() => setTab("detail")}>
-          📋 Détail coût employeur
-        </TabButton>
+        {/* ─── COLONNE DROITE — tabs charts ─── */}
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <div style={{
+            display: "flex", gap: 4, borderBottom: "1px solid #F0ECF8",
+            flexWrap: "wrap",
+          }}>
+            <TabButton active={tab === "monthly"} onClick={() => setTab("monthly")}>
+              📈 Marge mensuelle
+            </TabButton>
+            <TabButton active={tab === "rupture"} onClick={() => setTab("rupture")}>
+              ⚠ Risque rupture
+            </TabButton>
+            <TabButton active={tab === "detail"} onClick={() => setTab("detail")}>
+              📋 Détail coût
+            </TabButton>
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            {tab === "monthly" && (
+              <MonthlyMarginChart
+                inputs={buildInputs(brutAnnuel)}
+                startDate={job?.start_date ?? null}
+                durationMonths={job?.duration_months ?? 12}
+                tjm={tjm}
+                margeMinPct={margeMinPct}
+              />
+            )}
+            {tab === "rupture" && (
+              <RuptureRiskChart
+                inputs={buildInputs(brutAnnuel)}
+                startDate={job?.start_date ?? null}
+                durationMonths={job?.duration_months ?? 12}
+                tjm={tjm}
+                margeMinPct={margeMinPct}
+              />
+            )}
+            {tab === "detail" && (
+              <CostBreakdown cost={cost} avantages={avantages} />
+            )}
+          </div>
+        </div>
       </div>
 
-      <div style={{ marginTop: 12 }}>
-        {tab === "monthly" && (
-          <MonthlyMarginChart
-            inputs={buildInputs(brutAnnuel)}
-            startDate={job?.start_date ?? null}
-            durationMonths={job?.duration_months ?? 12}
-            tjm={tjm}
-            margeMinPct={margeMinPct}
-          />
-        )}
-        {tab === "rupture" && (
-          <RuptureRiskChart
-            inputs={buildInputs(brutAnnuel)}
-            startDate={job?.start_date ?? null}
-            durationMonths={job?.duration_months ?? 12}
-            tjm={tjm}
-            margeMinPct={margeMinPct}
-          />
-        )}
-        {tab === "detail" && (
-          <CostBreakdown cost={cost} avantages={avantages} />
-        )}
-      </div>
+      {/* Stack en colonne unique sur écran étroit pour garder la lisibilité. */}
+      <style jsx>{`
+        @media (max-width: 1100px) {
+          .pricing-dash {
+            grid-template-columns: minmax(0, 1fr) !important;
+          }
+        }
+      `}</style>
     </section>
   )
 }
