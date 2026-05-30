@@ -233,12 +233,21 @@ function Chip({ children }: { children: React.ReactNode }) {
  *  - TJM client (min ou max)
  *  - Durée prévue
  *  - Date de démarrage
- *  Le brut ciblé est optionnel (sert juste de point de départ pour le slider). */
+ *  - Lieu typé (pour les plafonds URSSAF)
+ *  Le brut ciblé et les overrides marges sont optionnels. */
 function isMissionConfigured(job: Job): boolean {
   const hasTjm = job.client_tjm_min != null || job.client_tjm_max != null
   const hasDuration = job.duration_months != null
   const hasStart = job.start_date != null
-  return hasTjm && hasDuration && hasStart
+  const hasLieu = job.pricing_lieu != null
+  return hasTjm && hasDuration && hasStart && hasLieu
+}
+
+const LIEU_LABELS: Record<NonNullable<Job["pricing_lieu"]>, string> = {
+  paris_petite_couronne: "Paris / Petite Couronne",
+  idf_grande_couronne:   "Île-de-France (grande couronne)",
+  lyon:                  "Lyon",
+  province:              "Province",
 }
 
 function MissionConfigZone({
@@ -306,9 +315,21 @@ function MissionConfigSummary({
       <span>· TJM {tjm ?? "?"} €/j</span>
       <span>· {job.duration_months} mois</span>
       {job.contract_type && <span>· {job.contract_type}</span>}
+      {job.pricing_lieu && <span>· {LIEU_LABELS[job.pricing_lieu]}</span>}
       <span>· début {startStr}</span>
       {job.target_gross_salary != null && (
         <span>· brut ciblé {Math.round(job.target_gross_salary).toLocaleString("fr-FR")} €/an</span>
+      )}
+      {(job.has_grand_deplacement || job.is_expatriated) && (
+        <span style={{
+          fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+          background: "rgba(124,99,200,0.10)", border: "1px solid rgba(124,99,200,0.22)",
+          borderRadius: 100, padding: "1px 8px",
+        }}>
+          {job.has_grand_deplacement && "Grand déplacement"}
+          {job.has_grand_deplacement && job.is_expatriated && " · "}
+          {job.is_expatriated && "Expatrié"}
+        </span>
       )}
       <div style={{ flex: 1 }} />
       <button
@@ -327,7 +348,7 @@ function MissionConfigSummary({
   )
 }
 
-/** Wizard d'init / édition — formulaire centré avec strict nécessaire. */
+/** Wizard de paramétrage mission — strict nécessaire + activations conditionnelles. */
 function MissionConfigWizard({
   job, onPatched, onCancel,
 }: {
@@ -338,14 +359,27 @@ function MissionConfigWizard({
   const numToStr = (n: number | null | undefined): string =>
     n == null ? "" : String(n)
 
-  // TJM unique — client_tjm_min en DB sert de "TJM cible". Le slider du widget
-  // est centré dessus et ouvre une plage adaptive ±35%. client_tjm_max reste
-  // null (legacy field, plus exposé en UI).
+  // Champs requis
   const [tjm, setTjm] = useState<string>(numToStr(job.client_tjm_min ?? job.client_tjm_max))
   const [duration, setDuration] = useState<string>(numToStr(job.duration_months))
-  const [targetGross, setTargetGross] = useState<string>(numToStr(job.target_gross_salary))
   const [contractType, setContractType] = useState<string>(job.contract_type ?? "CDI")
   const [startDate, setStartDate] = useState<string>(job.start_date ?? "")
+  const [lieu, setLieu] = useState<string>(job.pricing_lieu ?? "paris_petite_couronne")
+
+  // Optionnels
+  const [targetGross, setTargetGross] = useState<string>(numToStr(job.target_gross_salary))
+  const [marginMin, setMarginMin] = useState<string>(numToStr(job.margin_min_pct))
+  const [marginTarget, setMarginTarget] = useState<string>(numToStr(job.margin_target_pct))
+
+  // Flags d'activation des tarifs cabinet
+  const [grandDeplacement, setGrandDeplacement] = useState<boolean>(job.has_grand_deplacement)
+  const [expatriated, setExpatriated] = useState<boolean>(job.is_expatriated)
+
+  // Section avancée (overrides marges) repliable
+  const [advancedOpen, setAdvancedOpen] = useState<boolean>(
+    job.margin_min_pct != null || job.margin_target_pct != null,
+  )
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -358,10 +392,15 @@ function MissionConfigWizard({
   const tjmNum = parseNum(tjm)
   const durationNum = parseNum(duration)
   const targetGrossNum = parseNum(targetGross)
-  const valid = tjmNum != null && durationNum != null && startDate !== ""
+  const marginMinNum = parseNum(marginMin)
+  const marginTargetNum = parseNum(marginTarget)
+  const valid = tjmNum != null && durationNum != null && startDate !== "" && lieu !== ""
+  // Validation override marges si saisis : cible ≥ mini
+  const marginsInvalid =
+    marginMinNum != null && marginTargetNum != null && marginTargetNum < marginMinNum
 
   const onSubmit = async () => {
-    if (!valid || saving) return
+    if (!valid || marginsInvalid || saving) return
     setSaving(true); setError(null)
     try {
       const res = await fetch(`/api/jobs/${job.id}`, {
@@ -374,6 +413,11 @@ function MissionConfigWizard({
           target_gross_salary: targetGrossNum,
           contract_type: contractType,
           start_date: startDate || null,
+          pricing_lieu: lieu,
+          has_grand_deplacement: grandDeplacement,
+          is_expatriated: expatriated,
+          margin_min_pct: marginMinNum,
+          margin_target_pct: marginTargetNum,
         }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -392,16 +436,16 @@ function MissionConfigWizard({
       transition={{ duration: 0.3, ease: EASE }}
       style={{
         background: "white",
-        border: "1.5px solid rgba(217,119,6,0.30)",
+        border: "1.5px solid rgba(124,99,200,0.30)",
         borderRadius: 14, padding: 20,
       }}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
         <span style={{
-          fontSize: 11, fontWeight: 700, color: "#92400E",
+          fontSize: 11, fontWeight: 700, color: "#7C63C8",
           letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
-          ⚙ Paramétrage mission
+          📋 Paramétrage mission
         </span>
         {onCancel && (
           <button
@@ -417,10 +461,12 @@ function MissionConfigWizard({
         )}
       </div>
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6B7280", lineHeight: 1.5 }}>
-        Pour chiffrer cette mission, on a besoin du strict nécessaire. Tu peux modifier
-        ces valeurs plus tard via le bouton ⚙ Modifier.
+        Renseigne ce qui dépend de cette mission. Les avantages cabinet sont déjà appliqués
+        d&apos;office ; les deux toggles plus bas activent les tarifs conditionnels (grand
+        déplacement, expatriation).
       </p>
 
+      {/* Champs essentiels */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
@@ -445,14 +491,33 @@ function MissionConfigWizard({
           required
           max={120}
         />
+        <WizardDateField
+          label="Date de démarrage"
+          hint="ancre le calendrier de la mission"
+          value={startDate}
+          onChange={setStartDate}
+          required
+        />
         <WizardSelectField
           label="Type de contrat"
-          hint="CDI ou CDD — change la modélisation rupture"
+          hint="détermine essai (3/5/7 mois) et scénario rupture"
           value={contractType}
           onChange={setContractType}
           options={[
             { value: "CDI", label: "CDI" },
             { value: "CDD", label: "CDD" },
+          ]}
+        />
+        <WizardSelectField
+          label="Lieu de mission"
+          hint="impacte le plafond URSSAF grand déplacement"
+          value={lieu}
+          onChange={setLieu}
+          options={[
+            { value: "paris_petite_couronne", label: "Paris / Petite Couronne" },
+            { value: "idf_grande_couronne",   label: "Île-de-France (grande couronne)" },
+            { value: "lyon",                  label: "Lyon" },
+            { value: "province",              label: "Province" },
           ]}
         />
         <WizardField
@@ -464,13 +529,93 @@ function MissionConfigWizard({
           placeholder="45 000"
           step={500}
         />
-        <WizardDateField
-          label="Date de démarrage"
-          hint="ancre le calendrier de la mission"
-          value={startDate}
-          onChange={setStartDate}
-          required
-        />
+      </div>
+
+      {/* Activations conditionnelles — tarifs cabinet appliqués si oui */}
+      <div style={{
+        marginTop: 16,
+        padding: "12px 14px",
+        background: "rgba(124,99,200,0.04)",
+        border: "1px solid #F0ECF8", borderRadius: 10,
+      }}>
+        <p style={{
+          margin: "0 0 10px", fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+          letterSpacing: "0.06em", textTransform: "uppercase",
+        }}>
+          Activations conditionnelles
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <WizardToggleRow
+            label="Mission avec grand déplacement"
+            hint="active le tarif URSSAF grand déplacement défini en paramètres cabinet"
+            enabled={grandDeplacement}
+            onToggle={setGrandDeplacement}
+          />
+          <WizardToggleRow
+            label="Mission expatriée"
+            hint="active la prime d'expatriation définie en paramètres cabinet"
+            enabled={expatriated}
+            onToggle={setExpatriated}
+          />
+        </div>
+      </div>
+
+      {/* Section avancée : overrides marges */}
+      <div style={{ marginTop: 14 }}>
+        <button
+          onClick={() => setAdvancedOpen((v) => !v)}
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
+            background: "transparent", border: "none", cursor: "pointer",
+            padding: "4px 0", fontFamily: "inherit",
+          }}
+        >
+          <span style={{
+            display: "inline-block", width: 9, fontSize: 11,
+            transform: advancedOpen ? "rotate(90deg)" : "none",
+            transition: "transform 140ms",
+          }}>›</span>
+          Overrides marges <span style={{ color: "#9CA3AF", fontWeight: 400 }}>· optionnel, défaut = cabinet</span>
+        </button>
+        {advancedOpen && (
+          <div style={{
+            marginTop: 8, padding: "12px 14px",
+            background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 10,
+            display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
+          }}>
+            <WizardField
+              label="Marge mini override"
+              hint="vide = défaut cabinet"
+              value={marginMin}
+              onChange={setMarginMin}
+              suffix="%"
+              placeholder="vide = cabinet"
+              max={50}
+              step={0.5}
+            />
+            <WizardField
+              label="Marge cible override"
+              hint="vide = défaut cabinet"
+              value={marginTarget}
+              onChange={setMarginTarget}
+              suffix="%"
+              placeholder="vide = cabinet"
+              max={50}
+              step={0.5}
+            />
+            {marginsInvalid && (
+              <p style={{
+                gridColumn: "1 / -1", margin: 0,
+                padding: "8px 10px", fontSize: 11.5, color: "#B91C1C",
+                background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
+                borderRadius: 8,
+              }}>
+                ⚠ La marge cible doit être ≥ la marge mini.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {error && (
@@ -486,15 +631,15 @@ function MissionConfigWizard({
       <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 8 }}>
         <button
           onClick={onSubmit}
-          disabled={!valid || saving}
+          disabled={!valid || marginsInvalid || saving}
           style={{
             padding: "10px 22px", fontSize: 13, fontWeight: 700,
             color: "white",
-            background: valid && !saving
+            background: valid && !marginsInvalid && !saving
               ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
               : "#C7BFE3",
             border: "none", borderRadius: 10,
-            cursor: valid && !saving ? "pointer" : "not-allowed",
+            cursor: valid && !marginsInvalid && !saving ? "pointer" : "not-allowed",
             fontFamily: "inherit",
           }}
         >
@@ -502,6 +647,49 @@ function MissionConfigWizard({
         </button>
       </div>
     </m.div>
+  )
+}
+
+/** Toggle row pour les flags d'activation conditionnelle. */
+function WizardToggleRow({
+  label, hint, enabled, onToggle,
+}: {
+  label: string
+  hint: string
+  enabled: boolean
+  onToggle: (on: boolean) => void
+}) {
+  return (
+    <button
+      onClick={() => onToggle(!enabled)}
+      style={{
+        display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center",
+        padding: "9px 12px",
+        background: enabled ? "rgba(124,99,200,0.08)" : "white",
+        border: enabled ? "1px solid rgba(124,99,200,0.30)" : "1px solid #F0ECF8",
+        borderRadius: 9, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+      }}
+    >
+      <span style={{
+        width: 20, height: 20, borderRadius: 6,
+        border: enabled ? "none" : "1.5px solid #D1D5DB",
+        background: enabled ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)" : "white",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {enabled && (
+          <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+            <path d="M1 4.5L4 7.5L10 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      <div>
+        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{label}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</p>
+      </div>
+      <span style={{ fontSize: 10.5, color: enabled ? "#7C63C8" : "#9CA3AF", fontWeight: 700 }}>
+        {enabled ? "Actif" : "Inactif"}
+      </span>
+    </button>
   )
 }
 

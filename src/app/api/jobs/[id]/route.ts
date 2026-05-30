@@ -81,6 +81,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if ("duration_months" in body)     { update.duration_months = cleanNumber(body.duration_months) }
   if ("target_gross_salary" in body) { update.target_gross_salary = cleanNumber(body.target_gross_salary) }
   if ("start_date" in body)          { update.start_date = clean(body.start_date) }
+  // Pricing mission — lieu typé + flags d'activation des tarifs cabinet.
+  if ("pricing_lieu" in body) {
+    const lieu = clean(body.pricing_lieu)
+    update.pricing_lieu = (lieu && ["paris_petite_couronne", "idf_grande_couronne", "lyon", "province"].includes(lieu))
+      ? lieu as 'paris_petite_couronne' | 'idf_grande_couronne' | 'lyon' | 'province'
+      : null
+  }
+  if ("has_grand_deplacement" in body) { update.has_grand_deplacement = Boolean(body.has_grand_deplacement) }
+  if ("is_expatriated" in body)        { update.is_expatriated = Boolean(body.is_expatriated) }
 
   if (matchingInputsChanged) {
     try {

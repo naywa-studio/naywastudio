@@ -217,6 +217,14 @@ export type Database = {
           duration_months: number | null
           target_gross_salary: number | null
           start_date: string | null
+          /** Lieu typé pour les calculs pricing (plafond URSSAF, transport).
+           *  Indépendant de `location` qui reste un texte libre saisi à la
+           *  création de la mission. */
+          pricing_lieu: 'paris_petite_couronne' | 'idf_grande_couronne' | 'lyon' | 'province' | null
+          /** Mission avec grand déplacement → applique le tarif URSSAF cabinet. */
+          has_grand_deplacement: boolean
+          /** Mission expatriée → applique la prime expatriation cabinet. */
+          is_expatriated: boolean
           created_at: string
           updated_at: string
         }
@@ -244,6 +252,9 @@ export type Database = {
           duration_months?: number | null
           target_gross_salary?: number | null
           start_date?: string | null
+          pricing_lieu?: 'paris_petite_couronne' | 'idf_grande_couronne' | 'lyon' | 'province' | null
+          has_grand_deplacement?: boolean
+          is_expatriated?: boolean
           created_at?: string
           updated_at?: string
         }
