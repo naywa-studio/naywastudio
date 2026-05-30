@@ -45,7 +45,11 @@ export interface AvantageConfig {
   warning?: (v: number) => string | null
 }
 
+// ─── Ordre d'affichage ───
+// Les avantages "required" (obligations légales) sont placés en tête pour les
+// regrouper visuellement, suivi des avantages optionnels.
 export const AVANTAGES_CONFIG: AvantageConfig[] = [
+  // ─── Obligatoires ───
   {
     key: "mutuellePremium",
     label: "Mutuelle santé",
@@ -55,6 +59,16 @@ export const AVANTAGES_CONFIG: AvantageConfig[] = [
     max: 500,
     required: true,
   },
+  {
+    key: "medecineDuTravailAnnuel",
+    label: "Médecine du travail",
+    hint: "Obligation légale employeur (cotisation SST/SPSTI). Coût annuel par salarié, moyenne marché : 80–150 €/an.",
+    defaultValue: 100,
+    suffix: "€/an",
+    max: 500,
+    required: true,
+  },
+  // ─── Optionnels ───
   {
     key: "transport",
     label: "Transport (Navigo / TCL / abonnement)",
@@ -81,15 +95,6 @@ export const AVANTAGES_CONFIG: AvantageConfig[] = [
     max: 10,
     step: 0.1,
     warning: (v) => v > 7.18 ? "⚠ Dépasse le plafond URSSAF 2026 (7,18 €/j). Au-delà = soumis à charges." : null,
-  },
-  {
-    key: "medecineDuTravailAnnuel",
-    label: "Médecine du travail",
-    hint: "Obligation légale employeur (cotisation SST/SPSTI). Coût annuel par salarié, moyenne marché : 80–150 €/an.",
-    defaultValue: 100,
-    suffix: "€/an",
-    max: 500,
-    required: true,
   },
   {
     key: "indemniteKilometriqueAnnuelle",

@@ -231,13 +231,31 @@ export default function ParametragePage() {
           subtitle="Ce que votre cabinet propose à tous ses salariés, peu importe la mission."
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Obligatoires groupés en tête */}
+          {AVANTAGES_CONFIG.filter((c) => c.required).map((cfg) => (
+            <SmartAvantageRow
+              key={cfg.key}
+              config={cfg}
+              value={form.pricing_default_avantages[cfg.key as keyof PricingDefaultAvantages] as number | undefined}
+              onChange={(v) => updateAvantage(cfg.key as keyof PricingDefaultAvantages, v as PricingDefaultAvantages[keyof PricingDefaultAvantages])}
+            />
+          ))}
+
+          <p style={{
+            margin: "8px 0 -2px", fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+            letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 4px",
+          }}>
+            Optionnels
+          </p>
+
           <BooleanAvantageRow
             label="13ᵉ mois"
             hint="Non obligatoire Syntec. ~60 % des ESN le pratiquent. Équivaut à 1 mois de brut /12."
             enabled={form.treiziemeMois}
             onToggle={(on) => update("treiziemeMois", on)}
           />
-          {AVANTAGES_CONFIG.map((cfg) => (
+
+          {AVANTAGES_CONFIG.filter((c) => !c.required).map((cfg) => (
             <SmartAvantageRow
               key={cfg.key}
               config={cfg}
@@ -386,13 +404,26 @@ function SmartAvantageRow({
   value: number | undefined
   onChange: (v: number) => void
 }) {
-  // Obligations légales (mutuelle, médecine du travail) : toujours actif,
-  // pas de case à cocher, badge "Obligatoire". On force un défaut si stock 0.
   const isRequired = config.required === true
-  const numericValue = isRequired && (value ?? 0) === 0 ? config.defaultValue : (value ?? 0)
-  const enabled = isRequired || numericValue > 0
-  const warningMsg = enabled && config.warning ? config.warning(numericValue) : null
-  const toggle = (on: boolean) => onChange(on ? config.defaultValue : 0)
+  const externalValue = value ?? 0
+  const enabled = isRequired || externalValue > 0
+
+  // Mémoire locale de la dernière valeur > 0 (parent charge avant render).
+  const [remembered, setRemembered] = useState<number>(
+    externalValue > 0 ? externalValue : config.defaultValue,
+  )
+
+  const displayValue = enabled ? externalValue : remembered
+  const warningMsg = enabled && config.warning ? config.warning(externalValue) : null
+
+  const handleToggle = (on: boolean) => {
+    onChange(on ? (remembered > 0 ? remembered : config.defaultValue) : 0)
+  }
+  const handleInputChange = (n: number) => {
+    const clamped = Math.min(config.max, Math.max(0, n))
+    if (clamped > 0) setRemembered(clamped)
+    onChange(clamped)
+  }
 
   return (
     <div style={{
@@ -404,13 +435,11 @@ function SmartAvantageRow({
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center" }}>
         {isRequired ? (
           <span style={{
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 20, height: 20, borderRadius: 6,
-            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            color: "white", fontSize: 13, fontWeight: 800,
-          }} title="Obligation légale — toujours actif">⚖</span>
+            display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+            background: "#7C63C8", margin: "0 6px",
+          }} title="Obligation légale — toujours actif" />
         ) : (
-          <Checkbox checked={enabled} onChange={toggle} />
+          <Checkbox checked={enabled} onChange={handleToggle} />
         )}
         <div>
           <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: 6 }}>
@@ -432,12 +461,10 @@ function SmartAvantageRow({
           <div style={inputBoxStyle}>
             <input
               type="number"
-              value={numericValue}
-              disabled={!enabled}
+              value={displayValue}
               onChange={(e) => {
                 const n = Number(e.target.value)
-                if (!Number.isFinite(n)) return
-                onChange(Math.min(config.max, Math.max(0, n)))
+                if (Number.isFinite(n)) handleInputChange(n)
               }}
               style={{ ...inputInnerStyle, color: enabled ? "#111827" : "#9CA3AF" }}
               min={0}

@@ -320,6 +320,24 @@ function StepAvantages({
       </p>
 
       <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Obligatoires — toujours actifs, groupés en tête */}
+        {AVANTAGES_CONFIG.filter((c) => c.required).map((cfg) => (
+          <SmartAvantageRow
+            key={cfg.key}
+            config={cfg}
+            value={av[cfg.key as keyof PricingDefaultAvantages] as number | undefined}
+            onChange={(v) => updateAvantage(cfg.key as keyof PricingDefaultAvantages, v as PricingDefaultAvantages[keyof PricingDefaultAvantages])}
+          />
+        ))}
+
+        {/* Séparateur visuel entre groupe obligatoire et groupe optionnel */}
+        <p style={{
+          margin: "8px 0 -2px", fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+          letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 4px",
+        }}>
+          Optionnels
+        </p>
+
         {/* 13ᵉ mois — toggle simple, pas un montant */}
         <BooleanAvantageRow
           label="13ᵉ mois"
@@ -328,8 +346,8 @@ function StepAvantages({
           onToggle={(on) => update("treiziemeMois", on)}
         />
 
-        {/* Tous les autres avantages — config-driven */}
-        {AVANTAGES_CONFIG.map((cfg) => (
+        {/* Avantages optionnels — case à cocher + saisie auto-active */}
+        {AVANTAGES_CONFIG.filter((c) => !c.required).map((cfg) => (
           <SmartAvantageRow
             key={cfg.key}
             config={cfg}
@@ -504,16 +522,31 @@ function SmartAvantageRow({
   value: number | undefined
   onChange: (v: number) => void
 }) {
-  // Pour les obligations légales (mutuelle, médecine du travail) : toujours
-  // actif, pas de case à cocher, badge "Obligatoire" — le sourceur règle juste
-  // le montant. La valeur affichée tombe sur defaultValue si jamais le stock
-  // est à 0 (cas d'un profil créé avant le passage à required).
   const isRequired = config.required === true
-  const numericValue = isRequired && (value ?? 0) === 0 ? config.defaultValue : (value ?? 0)
-  const enabled = isRequired || numericValue > 0
-  const warningMsg = enabled && config.warning ? config.warning(numericValue) : null
+  const externalValue = value ?? 0
+  const enabled = isRequired || externalValue > 0
 
-  const toggle = (on: boolean) => onChange(on ? config.defaultValue : 0)
+  // Mémoire locale de la dernière valeur > 0 saisie. Initialisée au mount
+  // avec la valeur DB ; mise à jour dans les handlers (pas besoin d'effect
+  // de sync — le parent charge ses données avant de rendre cette ligne).
+  const [remembered, setRemembered] = useState<number>(
+    externalValue > 0 ? externalValue : config.defaultValue,
+  )
+
+  // Affichage : si activé → vraie valeur ; sinon → dernière mémorisée en grisé.
+  const displayValue = enabled ? externalValue : remembered
+  const warningMsg = enabled && config.warning ? config.warning(externalValue) : null
+
+  const handleToggle = (on: boolean) => {
+    // Cocher = restaurer la mémoire ; décocher = mettre 0 en DB, mémoire intacte.
+    onChange(on ? (remembered > 0 ? remembered : config.defaultValue) : 0)
+  }
+  const handleInputChange = (n: number) => {
+    const clamped = Math.min(config.max, Math.max(0, n))
+    // Toute valeur > 0 mémorise + active automatiquement l'avantage.
+    if (clamped > 0) setRemembered(clamped)
+    onChange(clamped)
+  }
 
   return (
     <div style={{
@@ -524,14 +557,14 @@ function SmartAvantageRow({
     }}>
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center" }}>
         {isRequired ? (
+          // Point violet, marqueur discret d'obligation légale (la case à
+          // cocher serait trompeuse : on ne peut pas la décocher).
           <span style={{
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 20, height: 20, borderRadius: 6,
-            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            color: "white", fontSize: 13, fontWeight: 800,
-          }} title="Obligation légale — toujours actif">⚖</span>
+            display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+            background: "#7C63C8", margin: "0 6px",
+          }} title="Obligation légale — toujours actif" />
         ) : (
-          <Checkbox checked={enabled} onChange={toggle} />
+          <Checkbox checked={enabled} onChange={handleToggle} />
         )}
         <div>
           <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: 6 }}>
@@ -553,15 +586,10 @@ function SmartAvantageRow({
           <div style={inputBoxStyle}>
             <input
               type="number"
-              value={numericValue}
-              disabled={!enabled}
+              value={displayValue}
               onChange={(e) => {
                 const n = Number(e.target.value)
-                if (!Number.isFinite(n)) return
-                // Pour un obligatoire on garde un plancher de 0 (l'utilisateur
-                // peut taper 0 temporairement, on n'écrase pas avec defaultValue
-                // pendant la frappe).
-                onChange(Math.min(config.max, Math.max(0, n)))
+                if (Number.isFinite(n)) handleInputChange(n)
               }}
               style={{ ...inputInnerStyle, color: enabled ? "#111827" : "#9CA3AF" }}
               min={0}
