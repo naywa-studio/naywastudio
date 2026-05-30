@@ -1045,6 +1045,6 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
 const mainStyle: React.CSSProperties = {
   minHeight: "calc(100vh - 60px)",
   padding: "24px 24px 80px",
-  maxWidth: 1480, margin: "0 auto",
+  maxWidth: 1760, margin: "0 auto",
   fontFamily: "var(--font-inter), sans-serif",
 }

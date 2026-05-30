@@ -344,7 +344,7 @@ function PricingWidgetInner({
       <div className="pricing-dash" style={{
         marginTop: 12,
         display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.15fr)",
+        gridTemplateColumns: "minmax(320px, 0.8fr) minmax(0, 1.6fr)",
         gap: 14, alignItems: "start",
       }}>
         {/* ─── COLONNE GAUCHE — contexte + leviers ─── */}
