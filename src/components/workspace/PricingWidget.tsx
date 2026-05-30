@@ -298,9 +298,8 @@ function PricingWidgetInner({
     }
   }, [tjm, brutAnnuel, buildInputs, joursParMois, margeMinPct, margeTargetPct, minimumCheck.minimumMensuel])
 
-  // Tab actif
-  type Tab = "monthly" | "rupture" | "detail"
-  const [tab, setTab] = useState<Tab>("monthly")
+  // Charts désormais empilés en bloc (plus de tabs) — plus accessible, on
+  // scrolle naturellement à travers les 3 vues complémentaires.
 
   // KPIs hero — sources : missionMargin si dispo (vrai calendrier), sinon triangle estim 21j
   const margePct = missionMargin?.margePct ?? triangle?.margePct ?? 0
@@ -404,24 +403,9 @@ function PricingWidgetInner({
         </div>
       )}
 
-      {/* ═══ TABS CHARTS ═══ */}
-      <div style={{
-        marginTop: 14,
-        display: "flex", gap: 4, borderBottom: "1px solid #F0ECF8",
-      }}>
-        <TabButton active={tab === "monthly"} onClick={() => setTab("monthly")}>
-          📈 Marge mensuelle
-        </TabButton>
-        <TabButton active={tab === "rupture"} onClick={() => setTab("rupture")}>
-          ⚠ Risque rupture
-        </TabButton>
-        <TabButton active={tab === "detail"} onClick={() => setTab("detail")}>
-          📋 Détail coût employeur
-        </TabButton>
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        {tab === "monthly" && (
+      {/* ═══ CHARTS EMPILÉS — tout est visible, plus de tabs à cliquer ═══ */}
+      <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 18 }}>
+        <ChartSection icon="📈" title="Marge mensuelle">
           <MonthlyMarginChart
             inputs={buildInputs(brutAnnuel)}
             startDate={job?.start_date ?? null}
@@ -429,8 +413,8 @@ function PricingWidgetInner({
             tjm={tjm}
             margeMinPct={margeMinPct}
           />
-        )}
-        {tab === "rupture" && (
+        </ChartSection>
+        <ChartSection icon="⚠" title="Risque rupture">
           <RuptureRiskChart
             inputs={buildInputs(brutAnnuel)}
             startDate={job?.start_date ?? null}
@@ -438,10 +422,10 @@ function PricingWidgetInner({
             tjm={tjm}
             margeMinPct={margeMinPct}
           />
-        )}
-        {tab === "detail" && (
+        </ChartSection>
+        <ChartSection icon="📋" title="Détail coût employeur">
           <CostBreakdown cost={cost} avantages={avantages} />
-        )}
+        </ChartSection>
       </div>
     </section>
   )
@@ -602,34 +586,31 @@ function HeroKpi({
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Tabs button
+ * Chart section — encadrement visuel de chaque chart empilé
  * ────────────────────────────────────────────────────────────────────────── */
 
-function TabButton({
-  active, onClick, children,
+function ChartSection({
+  icon, title, children,
 }: {
-  active: boolean
-  onClick: () => void
+  icon: string
+  title: string
   children: React.ReactNode
 }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "9px 14px",
-        fontSize: 12.5,
-        fontWeight: active ? 700 : 600,
-        color: active ? "#7C63C8" : "#6B7280",
-        background: "transparent",
-        border: "none",
-        borderBottom: active ? "2px solid #7C63C8" : "2px solid transparent",
-        cursor: "pointer",
-        fontFamily: "inherit",
-        marginBottom: -1,
-      }}
-    >
+    <section style={{
+      background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
+      padding: 14,
+    }}>
+      <h3 style={{
+        margin: "0 0 12px", fontSize: 11, fontWeight: 700, color: "#7C63C8",
+        letterSpacing: "0.06em", textTransform: "uppercase",
+        display: "flex", alignItems: "center", gap: 6,
+      }}>
+        <span aria-hidden="true">{icon}</span>
+        <span>{title}</span>
+      </h3>
       {children}
-    </button>
+    </section>
   )
 }
 

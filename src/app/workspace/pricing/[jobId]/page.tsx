@@ -12,7 +12,7 @@
  * Page large pour exploiter la largeur de l'écran (max-width: 1480).
  */
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { m, AnimatePresence } from "framer-motion"
@@ -392,8 +392,11 @@ function MissionConfigWizard({
     job.margin_min_pct != null || job.margin_target_pct != null,
   )
 
-  const [saving, setSaving] = useState(false)
+  // Auto-save debounced — pas de bouton, les changements s'appliquent direct.
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
+  const saveTimerRef = useRef<number | null>(null)
+  const isFirstRenderRef = useRef(true)
 
   const parseNum = (s: string): number | null => {
     if (!s.trim()) return null
@@ -406,41 +409,50 @@ function MissionConfigWizard({
   const targetGrossNum = parseNum(targetGross)
   const marginMinNum = parseNum(marginMin)
   const marginTargetNum = parseNum(marginTarget)
-  const valid = tjmNum != null && durationNum != null && startDate !== "" && lieu !== ""
   // Validation override marges si saisis : cible ≥ mini
   const marginsInvalid =
     marginMinNum != null && marginTargetNum != null && marginTargetNum < marginMinNum
 
-  const onSubmit = async () => {
-    if (!valid || marginsInvalid || saving) return
-    setSaving(true); setError(null)
-    try {
-      const res = await fetch(`/api/jobs/${job.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          client_tjm_min: tjmNum,
-          client_tjm_max: null,  // plus utilisé — TJM unique
-          duration_months: durationNum,
-          target_gross_salary: targetGrossNum,
-          contract_type: contractType,
-          start_date: startDate || null,
-          pricing_lieu: lieu,
-          has_grand_deplacement: grandDeplacement,
-          is_expatriated: expatriated,
-          margin_min_pct: marginMinNum,
-          margin_target_pct: marginTargetNum,
-        }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      onPatched(data.job as Job)
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
+  // Auto-save : 600 ms après le dernier changement, on PATCH la mission.
+  useEffect(() => {
+    if (isFirstRenderRef.current) { isFirstRenderRef.current = false; return }
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
+    setSaveState("saving"); setError(null)
+    saveTimerRef.current = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/jobs/${job.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_tjm_min: tjmNum,
+            client_tjm_max: null,
+            duration_months: durationNum,
+            target_gross_salary: targetGrossNum,
+            contract_type: contractType,
+            start_date: startDate || null,
+            pricing_lieu: lieu,
+            has_grand_deplacement: grandDeplacement,
+            is_expatriated: expatriated,
+            margin_min_pct: marginsInvalid ? null : marginMinNum,
+            margin_target_pct: marginsInvalid ? null : marginTargetNum,
+          }),
+        })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        onPatched(data.job as Job)
+        setSaveState("saved")
+        window.setTimeout(() => setSaveState((s) => s === "saved" ? "idle" : s), 1500)
+      } catch (err) {
+        setError((err as Error).message); setSaveState("error")
+      }
+    }, 600)
+    return () => { if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current) }
+  }, [
+    tjm, duration, targetGross, contractType, startDate, lieu,
+    grandDeplacement, expatriated, marginMin, marginTarget,
+    tjmNum, durationNum, targetGrossNum, marginMinNum, marginTargetNum,
+    marginsInvalid, job.id, onPatched,
+  ])
 
   return (
     <m.div
@@ -452,23 +464,27 @@ function MissionConfigWizard({
         borderRadius: 14, padding: 20,
       }}
     >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
         <span style={{
           fontSize: 11, fontWeight: 700, color: "#7C63C8",
           letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
           📋 Paramétrage mission
         </span>
+        {saveState === "saving" && <SaveBadge tone="muted">Enregistrement…</SaveBadge>}
+        {saveState === "saved"  && <SaveBadge tone="green">✓ Enregistré</SaveBadge>}
+        {saveState === "error"  && <SaveBadge tone="red">⚠ {error ?? "Échec"}</SaveBadge>}
         {onCancel && (
           <button
             onClick={onCancel}
             style={{
-              marginLeft: "auto", fontSize: 11, color: "#9CA3AF",
-              background: "transparent", border: "none", cursor: "pointer",
-              padding: 0, textDecoration: "underline", fontFamily: "inherit",
+              marginLeft: "auto", fontSize: 11, fontWeight: 600, color: "#7C63C8",
+              background: "white", border: "1px solid rgba(124,99,200,0.25)",
+              borderRadius: 8, padding: "4px 10px", cursor: "pointer",
+              fontFamily: "inherit",
             }}
           >
-            annuler
+            Fermer
           </button>
         )}
       </div>
@@ -630,35 +646,24 @@ function MissionConfigWizard({
         )}
       </div>
 
-      {error && (
-        <div style={{
-          marginTop: 12, padding: "9px 12px",
-          background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9,
-          fontSize: 12, color: "#B91C1C",
-        }}>
-          ⚠ {error}
-        </div>
-      )}
-
-      <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-        <button
-          onClick={onSubmit}
-          disabled={!valid || marginsInvalid || saving}
-          style={{
-            padding: "10px 22px", fontSize: 13, fontWeight: 700,
-            color: "white",
-            background: valid && !marginsInvalid && !saving
-              ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
-              : "#C7BFE3",
-            border: "none", borderRadius: 10,
-            cursor: valid && !marginsInvalid && !saving ? "pointer" : "not-allowed",
-            fontFamily: "inherit",
-          }}
-        >
-          {saving ? "Enregistrement…" : "✓ Valider et chiffrer"}
-        </button>
-      </div>
     </m.div>
+  )
+}
+
+function SaveBadge({ tone, children }: { tone: "muted" | "green" | "red"; children: React.ReactNode }) {
+  const colors = {
+    muted: { fg: "#6B7280", bg: "#F3F4F6", bd: "#E5E7EB" },
+    green: { fg: "#15803d", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
+    red:   { fg: "#B91C1C", bg: "rgba(220,38,38,0.06)", bd: "rgba(220,38,38,0.25)" },
+  }[tone]
+  return (
+    <span style={{
+      fontSize: 10.5, fontWeight: 600, color: colors.fg,
+      background: colors.bg, border: `1px solid ${colors.bd}`,
+      borderRadius: 100, padding: "2px 8px",
+    }}>
+      {children}
+    </span>
   )
 }
 
@@ -719,11 +724,8 @@ function WizardField({
   step?: number
 }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
-        {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
-      </span>
-      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>{hint}</span>}
+    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {/* Input EN HAUT — toutes les cases s'alignent quelle que soit la longueur du libellé/hint. */}
       <div style={{
         display: "flex", alignItems: "baseline", gap: 6,
         padding: "10px 12px",
@@ -746,6 +748,10 @@ function WizardField({
         />
         <span style={{ fontSize: 11.5, color: "#9CA3AF", flexShrink: 0 }}>{suffix}</span>
       </div>
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
+        {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
+      </span>
+      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
     </label>
   )
 }
@@ -760,9 +766,7 @@ function WizardSelectField({
   options: { value: string; label: string }[]
 }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
-      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>{hint}</span>}
+    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -780,6 +784,8 @@ function WizardSelectField({
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
+      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
     </label>
   )
 }
@@ -794,11 +800,7 @@ function WizardDateField({
   required?: boolean
 }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
-        {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
-      </span>
-      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>{hint}</span>}
+    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <input
         type="date"
         value={value}
@@ -810,6 +812,10 @@ function WizardDateField({
           outline: "none", fontFamily: "inherit",
         }}
       />
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
+        {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
+      </span>
+      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
     </label>
   )
 }
