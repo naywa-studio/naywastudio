@@ -647,7 +647,7 @@ function Header() {
         padding: "4px 11px", borderRadius: 100,
         letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
       }}>
-        💰 Pricing · Référence opérationnelle
+        Pricing · Référence opérationnelle
       </span>
       <h1 style={{
         margin: 0, fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 800,

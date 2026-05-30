@@ -22,6 +22,7 @@ import { getSupabase } from "@/lib/supabase"
 import type { Job, Profile } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import OnboardingWizard from "@/components/workspace/OnboardingWizard"
+import PricingIcon from "@/components/workspace/PricingIcon"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -139,7 +140,7 @@ function Header({ missionCount }: { missionCount: number }) {
         padding: "4px 11px", borderRadius: 100,
         letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
       }}>
-        💰 Pricing
+        <PricingIcon size={11} style={{ marginRight: 5 }} /> Pricing
       </span>
       <div style={{
         display: "flex", justifyContent: "space-between", alignItems: "flex-end",

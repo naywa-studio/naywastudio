@@ -91,7 +91,9 @@ type PricingProfile = Pick<Profile,
 > | null
 
 export default function PricingWidget({
-  candidate, job, matchId, initialTjm: persistedTjm, initialBrut: persistedBrut, onEditMission,
+  candidate, job, matchId,
+  initialTjm: persistedTjm, initialBrut: persistedBrut,
+  onPricingChange,
 }: {
   candidate: Candidate
   job: Job | null
@@ -101,9 +103,10 @@ export default function PricingWidget({
   initialTjm?: number | null
   /** Dernier Brut ajusté par le sourceur sur ce match (override de la mission). */
   initialBrut?: number | null
-  /** Callback déclenché par le bouton "⚙ Modifier mission" — la page parent
-   *  ouvre le wizard mission (MissionConfigWizard) avec les valeurs courantes. */
-  onEditMission?: () => void
+  /** Remontée à la page parent à chaque sauvegarde — permet de mettre à jour
+   *  la liste de candidats en mémoire sans refetch, donc de garder ses
+   *  derniers réglages en revenant sur ce candidat. */
+  onPricingChange?: (matchId: string, tjm: number, brut: number) => void
 }) {
   const sb = useMemo(() => getSupabase(), [])
   const [profile, setProfile] = useState<PricingProfile | undefined>(undefined)
@@ -142,7 +145,7 @@ export default function PricingWidget({
       matchId={matchId}
       persistedTjm={persistedTjm ?? null}
       persistedBrut={persistedBrut ?? null}
-      onEditMission={onEditMission}
+      onPricingChange={onPricingChange}
     />
   )
 }
@@ -152,7 +155,8 @@ export default function PricingWidget({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function PricingWidgetInner({
-  candidate, job, profile, matchId, persistedTjm, persistedBrut, onEditMission,
+  candidate, job, profile, matchId, persistedTjm, persistedBrut,
+  onPricingChange,
 }: {
   candidate: Candidate
   job: Job | null
@@ -160,7 +164,7 @@ function PricingWidgetInner({
   matchId?: string
   persistedTjm: number | null
   persistedBrut: number | null
-  onEditMission?: () => void
+  onPricingChange?: (matchId: string, tjm: number, brut: number) => void
 }) {
   const detectedPreset = useMemo(
     () => detectSeniority(candidate.parsed_cv, candidate.current_title),
@@ -196,28 +200,37 @@ function PricingWidgetInner({
   const [tjm, setTjm] = useState<number>(initialTjm)
   const [brutAnnuel, setBrutAnnuel] = useState<number>(initialBrut)
 
-  // NB : le parent utilise `key={matchId}` sur le wrapper du widget, donc
-  // un changement de candidat remonte le composant → useState recapture
-  // les nouvelles valeurs initiales sans synchro manuelle nécessaire.
+  // NB : le parent utilise `key={matchId}:${target_gross_salary}` sur le
+  // wrapper du widget. Conséquence : changement de candidat OU de salaire
+  // ciblé mission → remount → useState recapture la bonne valeur initiale
+  // (persistedBrut > job.target_gross_salary > défaut). Pas besoin de
+  // useEffect de sync (qui poserait des soucis de lint setState-in-effect).
 
   // Persistance debounced — sauvegarde ~600 ms après le dernier ajustement.
+  // Après écriture, on remonte les nouvelles valeurs au parent pour qu'il
+  // garde son state candidat à jour (évite la perte des réglages en switchant
+  // de candidat puis en revenant).
   const saveTimerRef = useRef<number | null>(null)
   useEffect(() => {
     if (!matchId) return
-    // Évite l'écriture inutile au tout premier render (valeurs == initial).
     if (tjm === initialTjm && brutAnnuel === initialBrut) return
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = window.setTimeout(() => {
-      void fetch(`/api/match/${matchId}/pricing-params`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pricing_tjm: tjm, pricing_brut: brutAnnuel }),
-      }).catch(() => { /* best-effort */ })
+    const tjmToSave = tjm
+    const brutToSave = brutAnnuel
+    saveTimerRef.current = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/match/${matchId}/pricing-params`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pricing_tjm: tjmToSave, pricing_brut: brutToSave }),
+        })
+        if (res.ok) onPricingChange?.(matchId, tjmToSave, brutToSave)
+      } catch { /* best-effort */ }
     }, 600)
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
     }
-  }, [matchId, tjm, brutAnnuel, initialTjm, initialBrut])
+  }, [matchId, tjm, brutAnnuel, initialTjm, initialBrut, onPricingChange])
 
   // Avantages = base cabinet, avec deux tarifs conditionnels mis à 0 si la
   // mission ne les déclenche pas. Le tarif (€/jour, €/mois) est défini en
@@ -298,8 +311,10 @@ function PricingWidgetInner({
     }
   }, [tjm, brutAnnuel, buildInputs, joursParMois, margeMinPct, margeTargetPct, minimumCheck.minimumMensuel])
 
-  // Charts désormais empilés en bloc (plus de tabs) — plus accessible, on
-  // scrolle naturellement à travers les 3 vues complémentaires.
+  // Onglets : Marge mensuelle / Risque rupture / Détail coût — chacun à
+  // 1 clic. Préférable au scroll long pour balayer rapidement les 3 angles.
+  type Tab = "monthly" | "rupture" | "detail"
+  const [tab, setTab] = useState<Tab>("monthly")
 
   // KPIs hero — sources : missionMargin si dispo (vrai calendrier), sinon triangle estim 21j
   const margePct = missionMargin?.margePct ?? triangle?.margePct ?? 0
@@ -340,20 +355,6 @@ function PricingWidgetInner({
         <span>·</span>
         <span>{LIEU_LABELS[lieu]}</span>
         <span style={{ flex: 1 }} />
-        {onEditMission && (
-          <button
-            onClick={onEditMission}
-            style={{
-              fontSize: 11, fontWeight: 600, color: "#92400E",
-              background: "rgba(217,119,6,0.06)",
-              border: "1px solid rgba(217,119,6,0.25)",
-              borderRadius: 6, padding: "3px 9px",
-              cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            ⚙ Modifier la mission
-          </button>
-        )}
         <Link href="/workspace/parametrage" style={{
           fontSize: 11, fontWeight: 600, color: "#7C63C8", textDecoration: "none",
         }}>
@@ -403,9 +404,24 @@ function PricingWidgetInner({
         </div>
       )}
 
-      {/* ═══ CHARTS EMPILÉS — tout est visible, plus de tabs à cliquer ═══ */}
-      <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 18 }}>
-        <ChartSection icon="📈" title="Marge mensuelle">
+      {/* ═══ TABS CHARTS ═══ */}
+      <div style={{
+        marginTop: 14,
+        display: "flex", gap: 4, borderBottom: "1px solid #F0ECF8",
+      }}>
+        <TabButton active={tab === "monthly"} onClick={() => setTab("monthly")}>
+          📈 Marge mensuelle
+        </TabButton>
+        <TabButton active={tab === "rupture"} onClick={() => setTab("rupture")}>
+          ⚠ Risque rupture
+        </TabButton>
+        <TabButton active={tab === "detail"} onClick={() => setTab("detail")}>
+          📋 Détail coût employeur
+        </TabButton>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        {tab === "monthly" && (
           <MonthlyMarginChart
             inputs={buildInputs(brutAnnuel)}
             startDate={job?.start_date ?? null}
@@ -413,8 +429,8 @@ function PricingWidgetInner({
             tjm={tjm}
             margeMinPct={margeMinPct}
           />
-        </ChartSection>
-        <ChartSection icon="⚠" title="Risque rupture">
+        )}
+        {tab === "rupture" && (
           <RuptureRiskChart
             inputs={buildInputs(brutAnnuel)}
             startDate={job?.start_date ?? null}
@@ -422,10 +438,10 @@ function PricingWidgetInner({
             tjm={tjm}
             margeMinPct={margeMinPct}
           />
-        </ChartSection>
-        <ChartSection icon="📋" title="Détail coût employeur">
+        )}
+        {tab === "detail" && (
           <CostBreakdown cost={cost} avantages={avantages} />
-        </ChartSection>
+        )}
       </div>
     </section>
   )
@@ -586,31 +602,34 @@ function HeroKpi({
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Chart section — encadrement visuel de chaque chart empilé
+ * Tabs button
  * ────────────────────────────────────────────────────────────────────────── */
 
-function ChartSection({
-  icon, title, children,
+function TabButton({
+  active, onClick, children,
 }: {
-  icon: string
-  title: string
+  active: boolean
+  onClick: () => void
   children: React.ReactNode
 }) {
   return (
-    <section style={{
-      background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
-      padding: 14,
-    }}>
-      <h3 style={{
-        margin: "0 0 12px", fontSize: 11, fontWeight: 700, color: "#7C63C8",
-        letterSpacing: "0.06em", textTransform: "uppercase",
-        display: "flex", alignItems: "center", gap: 6,
-      }}>
-        <span aria-hidden="true">{icon}</span>
-        <span>{title}</span>
-      </h3>
+    <button
+      onClick={onClick}
+      style={{
+        padding: "9px 14px",
+        fontSize: 12.5,
+        fontWeight: active ? 700 : 600,
+        color: active ? "#7C63C8" : "#6B7280",
+        background: "transparent",
+        border: "none",
+        borderBottom: active ? "2px solid #7C63C8" : "2px solid transparent",
+        cursor: "pointer",
+        fontFamily: "inherit",
+        marginBottom: -1,
+      }}
+    >
       {children}
-    </section>
+    </button>
   )
 }
 

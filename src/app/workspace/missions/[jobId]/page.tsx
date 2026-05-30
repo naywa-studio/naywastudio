@@ -299,7 +299,7 @@ export default function JobDetailPage() {
           borderRadius: 9, padding: "8px 14px",
           textDecoration: "none", alignSelf: "flex-start",
         }}>
-          💰 Chiffrer dans le pricing →
+          Chiffrer dans le pricing →
         </Link>
 
         {/* Match action */}

@@ -146,7 +146,11 @@ export default function PricingMissionPage() {
               <MissionNotConfiguredCta onEdit={() => setMissionEditOpen(true)} />
             ) : selected ? (
               <m.div
-                key={selected.matchId}
+                // Inclure target_gross_salary dans la key : tout changement de
+                // brut ciblé mission remonte le widget → initialBrut recapturé
+                // depuis job. Le sourceur voit la case "Brut candidat" se
+                // mettre à jour automatiquement.
+                key={`${selected.matchId}:${job.target_gross_salary ?? ""}`}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
@@ -158,7 +162,9 @@ export default function PricingMissionPage() {
                   matchId={selected.matchId}
                   initialTjm={selected.pricingTjm}
                   initialBrut={selected.pricingBrut}
-                  onEditMission={() => setMissionEditOpen(true)}
+                  onPricingChange={(mid, t, b) => setCandidates((prev) =>
+                    prev.map((c) => c.matchId === mid ? { ...c, pricingTjm: t, pricingBrut: b } : c)
+                  )}
                 />
               </m.div>
             ) : (
@@ -204,7 +210,7 @@ function CompactHeader({ job }: { job: Job }) {
             letterSpacing: "-0.015em", lineHeight: 1.2,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           }}>
-            💰 {job.title}
+            {job.title}
           </h1>
           <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
             {job.location && <Chip>{job.location}</Chip>}
