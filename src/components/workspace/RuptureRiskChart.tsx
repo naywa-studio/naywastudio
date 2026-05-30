@@ -141,17 +141,17 @@ export default function RuptureRiskChart({
         flexWrap: "wrap", gap: 10, marginBottom: 10,
       }}>
         <div>
-          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
-            ⚠ Risque rupture — marge si l&apos;employeur rompt à ce mois
+          <h4
+            style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}
+            title={
+              `Pour chaque mois T, marge moyenne cumulée si l'employeur rompt à ce moment-là. ` +
+              `Inclut préavis Syntec (${profile.preavisMois} mois) + indemnité Art. 4.5 ` +
+              `(dès 8 mois d'ancienneté) + indemnité CP non pris. ` +
+              `Pendant l'essai (mois 1 à ${profile.finEssaiMois}), la rupture est gratuite.`
+            }
+          >
+            Risque rupture employeur <span style={{ fontWeight: 400, color: "#9CA3AF" }}>ⓘ</span>
           </h4>
-          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 620, lineHeight: 1.5 }}>
-            Pour chaque mois T, marge moyenne cumulée si l&apos;employeur rompt le contrat
-            à ce moment-là. Inclut <strong>préavis Syntec ({profile.preavisMois} mois)</strong> +{" "}
-            <strong>indemnité Art. 4.5</strong> (à partir de 8 mois d&apos;ancienneté) +{" "}
-            <strong>indemnité compensatrice CP</strong> non pris. Pendant l&apos;essai
-            (mois 1 à {profile.finEssaiMois}), la rupture est gratuite — les barres
-            sont à la marge nominale.
-          </p>
         </div>
       </header>
 

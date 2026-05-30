@@ -376,15 +376,25 @@ function PricingWidgetInner({
       }}>
         {/* ─── COLONNE GAUCHE — contexte + leviers ─── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-          {/* Context bar */}
-          <div style={{
-            display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
-            padding: "8px 12px", background: "#FAFAFA", borderRadius: 10,
-            fontSize: 11, color: "#6B7280",
-          }}>
+          {/* Context bar — paramètres Syntec appliqués + lieu */}
+          <div
+            style={{
+              display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
+              padding: "8px 12px", background: "#FAFAFA", borderRadius: 10,
+              fontSize: 11, color: "#6B7280",
+            }}
+          >
             <strong style={{ color: "#374151" }}>{preset.short}</strong>
             <span>·</span>
-            <span>Cadre · Pos. {preset.position} · coef {preset.coefficient}</span>
+            <span
+              title={
+                `Position Syntec ${preset.position} (coefficient ${preset.coefficient}) — ` +
+                "détermine le minimum conventionnel et la modalité de temps de travail (forfait jours, heures…)."
+              }
+              style={{ cursor: "help" }}
+            >
+              Cadre · Pos. {preset.position} · coef {preset.coefficient} ⓘ
+            </span>
             <span>·</span>
             <span>{LIEU_LABELS[lieu]}</span>
             <span style={{ flex: 1 }} />
@@ -406,6 +416,7 @@ function PricingWidgetInner({
             max={2000}
             suffix="€/j"
             onChange={setTjm}
+            tooltip="TJM = Taux Journalier Moyen, le prix HT facturé au client par jour travaillé du consultant. Levier principal de la rentabilité mission."
             markers={job?.client_tjm_min != null ? [
               { value: job.client_tjm_min, label: "cible mission", color: "#D97706" },
             ] : []}
@@ -417,6 +428,7 @@ function PricingWidgetInner({
             max={150000}
             suffix="€/an"
             onChange={setBrutAnnuel}
+            tooltip="Salaire brut annuel proposé au candidat. Doit dépasser le minimum Syntec de sa position. Plus le brut monte, plus le coût employeur (charges + avantages) monte, et moins la marge est confortable."
             markers={limits ? [
               { value: Math.round(limits.brutMin),   label: "min Syntec",                 color: "#B91C1C" },
               { value: Math.round(limits.brutIdeal), label: `cible ${margeTargetPct}%`,   color: "#15803d" },
@@ -607,6 +619,11 @@ function VerdictHero({
         value={`${margePct.toFixed(1)} %`}
         sub={`cible ${margeTargetPct}% · plancher ${margeMinPct}%`}
         color={status.color}
+        tooltip={
+          "Marge totale mission ÷ revenu total mission. " +
+          `Cible ${margeTargetPct}% = objectif commercial confortable. ` +
+          `Plancher ${margeMinPct}% = seuil minimum cabinet, en dessous tu perds de l'argent en risque.`
+        }
       />
 
       {/* KPI 2 — Marge mensuelle */}
@@ -615,6 +632,7 @@ function VerdictHero({
         value={`${formatEurInt(margeMensuelleEur)} €`}
         sub={`moyenne sur ${monthCount} mois`}
         color="#111827"
+        tooltip="Marge totale mission ÷ nombre de mois. Donne une idée de ce que rapporte la mission mois après mois en moyenne (les vrais montants mensuels varient selon le calendrier — voir l'onglet Marge mensuelle)."
       />
 
       {/* KPI 3 — Marge totale mission */}
@@ -623,18 +641,20 @@ function VerdictHero({
         value={`${formatEurInt(margeTotaleEur)} €`}
         sub={`sur ${monthCount} mois`}
         color="#111827"
+        tooltip="Cumul de la marge sur toute la durée de la mission, calendrier français réel (Lun-Ven hors fériés)."
       />
     </div>
   )
 }
 
 function HeroKpi({
-  label, value, sub, color,
+  label, value, sub, color, tooltip,
 }: {
   label: string
   value: string
   sub: string
   color: string
+  tooltip?: string
 }) {
   return (
     <div style={{
@@ -643,11 +663,15 @@ function HeroKpi({
       minWidth: 130,
       display: "flex", flexDirection: "column", gap: 2,
     }}>
-      <div style={{
-        fontSize: 10, fontWeight: 700, color: "#9CA3AF",
-        letterSpacing: "0.04em", textTransform: "uppercase",
-      }}>
-        {label}
+      <div
+        title={tooltip}
+        style={{
+          fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+          letterSpacing: "0.04em", textTransform: "uppercase",
+          cursor: tooltip ? "help" : "default",
+        }}
+      >
+        {label}{tooltip && <span style={{ marginLeft: 4, fontWeight: 400 }}>ⓘ</span>}
       </div>
       <div style={{
         fontSize: 22, fontWeight: 800, color,
@@ -916,7 +940,7 @@ const stepperBtnStyle: React.CSSProperties = {
  * une valeur de référence (cible mission, plancher Syntec, marge cible/mini).
  */
 function StepperField({
-  label, value, step, max, suffix, onChange, markers,
+  label, value, step, max, suffix, onChange, markers, tooltip,
 }: {
   label: string
   value: number
@@ -925,6 +949,7 @@ function StepperField({
   suffix: string
   onChange: (v: number) => void
   markers?: { value: number; label: string; color: string }[]
+  tooltip?: string
 }) {
   const display = Math.round(value)
   const nudge = (delta: number) => {
@@ -940,11 +965,15 @@ function StepperField({
       display: "flex", flexDirection: "column", gap: 10,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span style={{
-          fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
-          letterSpacing: "0.05em", textTransform: "uppercase",
-        }}>
-          {label}
+        <span
+          title={tooltip}
+          style={{
+            fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+            letterSpacing: "0.05em", textTransform: "uppercase",
+            cursor: tooltip ? "help" : "default",
+          }}
+        >
+          {label}{tooltip && <span style={{ marginLeft: 4, fontWeight: 400 }}>ⓘ</span>}
         </span>
         <div style={{ display: "inline-flex", alignItems: "stretch", gap: 6 }}>
           <button

@@ -145,15 +145,16 @@ export default function MonthlyMarginChart({
         flexWrap: "wrap", gap: 10, marginBottom: 10,
       }}>
         <div>
-          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
-            Évolution de la marge mensuelle (calendrier réel)
+          <h4
+            style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}
+            title={
+              "Marge = TJM × jours travaillés du mois − coût employeur. " +
+              "Jours = vrais jours ouvrés français (Lun-Ven hors fériés). " +
+              "CP/RTT du candidat non modélisés en V1."
+            }
+          >
+            Marge mensuelle (calendrier réel) <span style={{ fontWeight: 400, color: "#9CA3AF" }}>ⓘ</span>
           </h4>
-          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", maxWidth: 600, lineHeight: 1.5 }}>
-            Marge = <strong>TJM × jours travaillés du mois</strong> − coût employeur.
-            Jours = vrais jours ouvrés français (Lun-Ven hors fériés). Pic en octobre
-            (22-23 j), creux en mai (3 fériés) et août (15/08). CP/RTT du candidat
-            non modélisés en V1 — on suppose qu&apos;il travaille tous les jours ouvrés.
-          </p>
         </div>
       </header>
 
