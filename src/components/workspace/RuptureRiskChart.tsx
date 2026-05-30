@@ -32,6 +32,7 @@ import {
   type PricingInputs,
 } from "@/lib/pricing/syntec"
 import { MONTH_ABBR_FR } from "@/lib/pricing/calendar"
+import InfoTip from "@/components/ui/InfoTip"
 
 interface Props {
   inputs: PricingInputs
@@ -141,16 +142,17 @@ export default function RuptureRiskChart({
         flexWrap: "wrap", gap: 10, marginBottom: 10,
       }}>
         <div>
-          <h4
-            style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}
-            title={
-              `Pour chaque mois T, marge moyenne cumulée si l'employeur rompt à ce moment-là. ` +
-              `Inclut préavis Syntec (${profile.preavisMois} mois) + indemnité Art. 4.5 ` +
-              `(dès 8 mois d'ancienneté) + indemnité CP non pris. ` +
-              `Pendant l'essai (mois 1 à ${profile.finEssaiMois}), la rupture est gratuite.`
-            }
-          >
-            Risque rupture employeur <span style={{ fontWeight: 400, color: "#9CA3AF" }}>ⓘ</span>
+          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
+            <InfoTip
+              text={
+                `Pour chaque mois T, marge moyenne cumulée si l'employeur rompt à ce moment-là. ` +
+                `Inclut préavis Syntec (${profile.preavisMois} mois) + indemnité Art. 4.5 ` +
+                `(dès 8 mois d'ancienneté) + indemnité CP non pris. ` +
+                `Pendant l'essai (mois 1 à ${profile.finEssaiMois}), la rupture est gratuite.`
+              }
+            >
+              Risque rupture employeur
+            </InfoTip>
           </h4>
         </div>
       </header>

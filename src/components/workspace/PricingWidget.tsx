@@ -31,6 +31,7 @@ import type { Candidate, Job, Profile } from "@/lib/database.types"
 import { PRESETS, detectSeniority, type SenioritePreset } from "@/lib/pricing/preset"
 import { missionMonthProfile, MONTH_ABBR_FR } from "@/lib/pricing/calendar"
 import { getSupabase } from "@/lib/supabase"
+import InfoTip from "@/components/ui/InfoTip"
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Preset séniorité — extraits dans @/lib/pricing/preset pour partage avec
@@ -386,15 +387,14 @@ function PricingWidgetInner({
           >
             <strong style={{ color: "#374151" }}>{preset.short}</strong>
             <span>·</span>
-            <span
-              title={
+            <InfoTip
+              text={
                 `Position Syntec ${preset.position} (coefficient ${preset.coefficient}) — ` +
                 "détermine le minimum conventionnel et la modalité de temps de travail (forfait jours, heures…)."
               }
-              style={{ cursor: "help" }}
             >
-              Cadre · Pos. {preset.position} · coef {preset.coefficient} ⓘ
-            </span>
+              <span>Cadre · Pos. {preset.position} · coef {preset.coefficient}</span>
+            </InfoTip>
             <span>·</span>
             <span>{LIEU_LABELS[lieu]}</span>
             <span style={{ flex: 1 }} />
@@ -663,15 +663,11 @@ function HeroKpi({
       minWidth: 130,
       display: "flex", flexDirection: "column", gap: 2,
     }}>
-      <div
-        title={tooltip}
-        style={{
-          fontSize: 10, fontWeight: 700, color: "#9CA3AF",
-          letterSpacing: "0.04em", textTransform: "uppercase",
-          cursor: tooltip ? "help" : "default",
-        }}
-      >
-        {label}{tooltip && <span style={{ marginLeft: 4, fontWeight: 400 }}>ⓘ</span>}
+      <div style={{
+        fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+        letterSpacing: "0.04em", textTransform: "uppercase",
+      }}>
+        {tooltip ? <InfoTip text={tooltip}>{label}</InfoTip> : label}
       </div>
       <div style={{
         fontSize: 22, fontWeight: 800, color,
@@ -965,15 +961,11 @@ function StepperField({
       display: "flex", flexDirection: "column", gap: 10,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span
-          title={tooltip}
-          style={{
-            fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
-            letterSpacing: "0.05em", textTransform: "uppercase",
-            cursor: tooltip ? "help" : "default",
-          }}
-        >
-          {label}{tooltip && <span style={{ marginLeft: 4, fontWeight: 400 }}>ⓘ</span>}
+        <span style={{
+          fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+          letterSpacing: "0.05em", textTransform: "uppercase",
+        }}>
+          {tooltip ? <InfoTip text={tooltip}>{label}</InfoTip> : label}
         </span>
         <div style={{ display: "inline-flex", alignItems: "stretch", gap: 6 }}>
           <button
