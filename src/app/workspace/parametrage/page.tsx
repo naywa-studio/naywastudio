@@ -408,18 +408,22 @@ function SmartAvantageRow({
   const externalValue = value ?? 0
   const enabled = isRequired || externalValue > 0
 
-  // Mémoire locale de la dernière valeur > 0 (parent charge avant render).
   const [remembered, setRemembered] = useState<number>(
     externalValue > 0 ? externalValue : config.defaultValue,
   )
 
-  const displayValue = enabled ? externalValue : remembered
+  // Input vide quand pas activé → placeholder grisé fantôme, on tape proprement.
+  const inputValue = enabled ? String(Math.round(externalValue)) : ""
+  const placeholderValue = enabled ? undefined : String(Math.round(remembered))
   const warningMsg = enabled && config.warning ? config.warning(externalValue) : null
 
   const handleToggle = (on: boolean) => {
     onChange(on ? (remembered > 0 ? remembered : config.defaultValue) : 0)
   }
-  const handleInputChange = (n: number) => {
+  const handleInputChange = (raw: string) => {
+    if (raw === "") { onChange(0); return }
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return
     const clamped = Math.min(config.max, Math.max(0, n))
     if (clamped > 0) setRemembered(clamped)
     onChange(clamped)
@@ -461,12 +465,10 @@ function SmartAvantageRow({
           <div style={inputBoxStyle}>
             <input
               type="number"
-              value={displayValue}
-              onChange={(e) => {
-                const n = Number(e.target.value)
-                if (Number.isFinite(n)) handleInputChange(n)
-              }}
-              style={{ ...inputInnerStyle, color: enabled ? "#111827" : "#9CA3AF" }}
+              value={inputValue}
+              placeholder={placeholderValue}
+              onChange={(e) => handleInputChange(e.target.value)}
+              style={{ ...inputInnerStyle, color: "#111827" }}
               min={0}
               max={config.max}
               step={config.step ?? 1}

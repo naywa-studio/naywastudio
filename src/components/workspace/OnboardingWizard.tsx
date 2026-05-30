@@ -526,24 +526,30 @@ function SmartAvantageRow({
   const externalValue = value ?? 0
   const enabled = isRequired || externalValue > 0
 
-  // Mémoire locale de la dernière valeur > 0 saisie. Initialisée au mount
-  // avec la valeur DB ; mise à jour dans les handlers (pas besoin d'effect
-  // de sync — le parent charge ses données avant de rendre cette ligne).
+  // Mémoire locale : la dernière valeur > 0 saisie. Sert de défaut quand le
+  // sourceur recoche la case sans retaper.
   const [remembered, setRemembered] = useState<number>(
     externalValue > 0 ? externalValue : config.defaultValue,
   )
 
-  // Affichage : si activé → vraie valeur ; sinon → dernière mémorisée en grisé.
-  const displayValue = enabled ? externalValue : remembered
+  // Quand l'avantage est activé : la vraie valeur s'affiche dans l'input.
+  // Quand il est inactif : l'input est VIDE, et la valeur de référence
+  // apparaît en placeholder (grisé fantôme). En tapant, l'utilisateur
+  // remplace proprement au lieu d'ajouter à un nombre déjà présent.
+  const inputValue = enabled ? String(Math.round(externalValue)) : ""
+  const placeholderValue = enabled ? undefined : String(Math.round(remembered))
   const warningMsg = enabled && config.warning ? config.warning(externalValue) : null
 
   const handleToggle = (on: boolean) => {
-    // Cocher = restaurer la mémoire ; décocher = mettre 0 en DB, mémoire intacte.
+    // Cocher = appliquer la valeur de référence (mémorisée ou défaut config).
+    // Décocher = mettre 0 en DB, mémoire intacte.
     onChange(on ? (remembered > 0 ? remembered : config.defaultValue) : 0)
   }
-  const handleInputChange = (n: number) => {
+  const handleInputChange = (raw: string) => {
+    if (raw === "") { onChange(0); return }
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return
     const clamped = Math.min(config.max, Math.max(0, n))
-    // Toute valeur > 0 mémorise + active automatiquement l'avantage.
     if (clamped > 0) setRemembered(clamped)
     onChange(clamped)
   }
@@ -586,12 +592,10 @@ function SmartAvantageRow({
           <div style={inputBoxStyle}>
             <input
               type="number"
-              value={displayValue}
-              onChange={(e) => {
-                const n = Number(e.target.value)
-                if (Number.isFinite(n)) handleInputChange(n)
-              }}
-              style={{ ...inputInnerStyle, color: enabled ? "#111827" : "#9CA3AF" }}
+              value={inputValue}
+              placeholder={placeholderValue}
+              onChange={(e) => handleInputChange(e.target.value)}
+              style={{ ...inputInnerStyle, color: "#111827" }}
               min={0}
               max={config.max}
               step={config.step ?? 1}
