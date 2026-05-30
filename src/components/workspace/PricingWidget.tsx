@@ -217,8 +217,10 @@ function PricingWidgetInner({
   const cost = useMemo(() => computeEmployerCost(buildInputs(brutAnnuel)), [brutAnnuel, buildInputs])
   const minimumCheck = useMemo(() => validateAgainstMinimum(buildInputs(brutAnnuel)), [brutAnnuel, buildInputs])
 
-  const margeMinPct = profile?.pricing_margin_min_pct ?? 15
-  const margeTargetPct = profile?.pricing_margin_target_pct ?? 22
+  // Priorité aux overrides de la mission (saisis dans le wizard mission),
+  // sinon valeurs par défaut cabinet (paramétrage).
+  const margeMinPct = job?.margin_min_pct ?? profile?.pricing_margin_min_pct ?? 15
+  const margeTargetPct = job?.margin_target_pct ?? profile?.pricing_margin_target_pct ?? 22
 
   // Marge RÉELLE de la mission (calendrier français)
   const missionMargin = useMemo(() => {

@@ -57,15 +57,15 @@ export default function PricingMissionPage() {
       }
       setJob(jobData as Job)
 
-      // On liste TOUS les candidats matchés sur la mission (triés par score),
-      // pas seulement ceux du stage "pricing". Le sourceur choisit librement
-      // qui chiffrer depuis cette vue — plus besoin de passer par le kanban.
+      // Seuls les candidats explicitement ajoutés à la pipeline pour cette
+      // mission sont chiffrables. On évite ainsi le déversoir de tous les
+      // matchs ≥60 — le sourceur ne chiffre que ce qu'il poursuit vraiment.
       const { data: matches } = await sb
         .from("match_assessments")
         .select("id, score, match_tier, candidate:candidates(*)")
         .eq("job_id", jobId)
+        .eq("in_pipeline", true)
         .order("score", { ascending: false, nullsFirst: false })
-        .limit(40)
 
       if (!mounted) return
       const rows: PricingCandidate[] = ((matches ?? []) as unknown as {
@@ -894,31 +894,24 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
     >
       <div style={{ fontSize: 40, marginBottom: 14 }}>👥</div>
       <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "#111827" }}>
-        Aucun candidat en stage Pricing
+        Aucun candidat à chiffrer
       </h3>
       <p style={{
         margin: "0 auto 16px", maxWidth: 460, fontSize: 13, color: "#6B7280",
         lineHeight: 1.6,
       }}>
-        Pour chiffrer un candidat, déplacez-le dans la colonne <strong>Pricing</strong> du
-        pipeline.
+        Seuls les candidats <strong>ajoutés à la pipeline</strong> apparaissent ici.
+        Depuis la fiche mission, clique <strong>+ Pipeline</strong> sur les profils que
+        tu veux chiffrer.
       </p>
-      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-        <Link href={`/workspace/missions/${jobId}`} style={{
-          fontSize: 12.5, fontWeight: 700, color: "#7C63C8",
-          background: "white", border: "1px solid rgba(124,99,200,0.25)",
-          borderRadius: 10, padding: "9px 16px", textDecoration: "none",
-        }}>
-          Fiche mission →
-        </Link>
-        <Link href="/workspace/pipeline" style={{
-          fontSize: 12.5, fontWeight: 700, color: "white",
-          background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-          borderRadius: 10, padding: "9px 16px", textDecoration: "none",
-        }}>
-          Ouvrir le pipeline →
-        </Link>
-      </div>
+      <Link href={`/workspace/missions/${jobId}`} style={{
+        display: "inline-block",
+        fontSize: 12.5, fontWeight: 700, color: "white",
+        background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+        borderRadius: 10, padding: "9px 16px", textDecoration: "none",
+      }}>
+        Fiche mission →
+      </Link>
     </m.div>
   )
 }

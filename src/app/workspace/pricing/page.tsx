@@ -63,9 +63,10 @@ export default function PricingPage() {
       sb
         .from("match_assessments")
         .select("job_id")
-        .eq("pipeline_stage", "pricing"),
+        .eq("in_pipeline", true),
     ])
-    // Group pricing-stage candidates by job_id to count per mission.
+    // Compte les candidats en pipeline par mission — c'est le pool réel à
+    // chiffrer (le sourceur n'a ajouté que ceux qu'il poursuit vraiment).
     const countsByJob = new Map<string, number>()
     for (const row of (pricingMatches ?? []) as { job_id: string }[]) {
       countsByJob.set(row.job_id, (countsByJob.get(row.job_id) ?? 0) + 1)
@@ -272,12 +273,12 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
           {pricingCandidatesCount > 0 && (
             <span style={{
               flexShrink: 0,
-              fontSize: 11, fontWeight: 700, color: "#D97706",
-              background: "rgba(217,119,6,0.10)",
-              border: "1px solid rgba(217,119,6,0.25)",
+              fontSize: 11, fontWeight: 700, color: "#7C63C8",
+              background: "rgba(124,99,200,0.10)",
+              border: "1px solid rgba(124,99,200,0.25)",
               borderRadius: 100, padding: "3px 9px",
             }}>
-              {pricingCandidatesCount} candidat{pricingCandidatesCount > 1 ? "s" : ""}
+              {pricingCandidatesCount} en pipeline
             </span>
           )}
         </div>
