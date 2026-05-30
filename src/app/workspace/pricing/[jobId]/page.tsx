@@ -859,20 +859,34 @@ function CompactCandidatesList({
   selectedMatchId: string | null
   onSelect: (id: string) => void
 }) {
+  // Tri par marge décroissante : les candidats les plus rentables en haut →
+  // décision commerciale plus rapide (qui pousser en priorité au client).
+  // Ceux sans marge calculable (mission pas paramétrée, etc.) restent en fin.
+  const sorted = [...candidates].sort((a, b) => {
+    const ma = computeQuickMargin({
+      candidate: a.candidate, job, profile,
+      persistedTjm: a.pricingTjm, persistedBrut: a.pricingBrut,
+    })?.margePct ?? -Infinity
+    const mb = computeQuickMargin({
+      candidate: b.candidate, job, profile,
+      persistedTjm: b.pricingTjm, persistedBrut: b.pricingBrut,
+    })?.margePct ?? -Infinity
+    return mb - ma
+  })
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <p style={{
         margin: "0 0 4px", fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
         letterSpacing: "0.06em", textTransform: "uppercase",
       }}>
-        Candidats · {candidates.length}
+        Candidats · {sorted.length}
       </p>
-      {candidates.length === 0 && (
+      {sorted.length === 0 && (
         <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
           Aucun candidat à chiffrer.
         </p>
       )}
-      {candidates.map((c, i) => {
+      {sorted.map((c, i) => {
         const active = c.matchId === selectedMatchId
         const initials = (c.candidate.full_name ?? "?")
           .split(" ").slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase()
