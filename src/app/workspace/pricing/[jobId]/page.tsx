@@ -17,9 +17,10 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
-import type { Candidate, Job, MatchTier } from "@/lib/database.types"
+import type { Candidate, Job, MatchTier, Profile } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import PricingWidget from "@/components/workspace/PricingWidget"
+import { computeQuickMargin } from "@/lib/pricing/quick-margin"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -38,6 +39,9 @@ export default function PricingMissionPage() {
   const sb = useMemo(() => getSupabase(), [])
 
   const [job, setJob] = useState<Job | null>(null)
+  const [profile, setProfile] = useState<Pick<Profile,
+    | "pricing_billable_days_per_month" | "pricing_default_lieu" | "pricing_default_avantages"
+  > | null>(null)
   const [candidates, setCandidates] = useState<PricingCandidate[]>([])
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -59,6 +63,18 @@ export default function PricingMissionPage() {
         setNotFound(true); setLoading(false); return
       }
       setJob(jobData as Job)
+
+      // Profil cabinet — sert au calcul de marge rapide par candidat dans
+      // la liste de gauche (transparence sur qui est rentable d'un coup d'œil).
+      const { data: { user } } = await sb.auth.getUser()
+      if (user) {
+        const { data: profileData } = await sb
+          .from("profiles")
+          .select("pricing_billable_days_per_month, pricing_default_lieu, pricing_default_avantages")
+          .eq("user_id", user.id)
+          .maybeSingle()
+        if (mounted) setProfile(profileData ?? null)
+      }
 
       // Seuls les candidats explicitement ajoutés à la pipeline pour cette
       // mission sont chiffrables. On évite ainsi le déversoir de tous les
@@ -135,6 +151,8 @@ export default function PricingMissionPage() {
         <aside style={{ alignSelf: "flex-start", position: "sticky", top: 80 }}>
           <CompactCandidatesList
             candidates={candidates}
+            job={job}
+            profile={profile}
             selectedMatchId={selectedMatchId}
             onSelect={setSelectedMatchId}
           />
@@ -831,9 +849,13 @@ function WizardDateField({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function CompactCandidatesList({
-  candidates, selectedMatchId, onSelect,
+  candidates, job, profile, selectedMatchId, onSelect,
 }: {
   candidates: PricingCandidate[]
+  job: Job
+  profile: Pick<Profile,
+    | "pricing_billable_days_per_month" | "pricing_default_lieu" | "pricing_default_avantages"
+  > | null
   selectedMatchId: string | null
   onSelect: (id: string) => void
 }) {
@@ -854,6 +876,16 @@ function CompactCandidatesList({
         const active = c.matchId === selectedMatchId
         const initials = (c.candidate.full_name ?? "?")
           .split(" ").slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase()
+        // Calcul rapide marge + brut pour le récap (réutilise les mêmes
+        // fonctions que le widget, donc aucune divergence possible).
+        const quick = computeQuickMargin({
+          candidate: c.candidate, job, profile,
+          persistedTjm: c.pricingTjm, persistedBrut: c.pricingBrut,
+        })
+        const margeColor = quick == null ? "#9CA3AF"
+          : quick.margePct >= 22 ? "#15803d"
+          : quick.margePct >= 15 ? "#B45309"
+          : "#B91C1C"
         return (
           <m.button
             key={c.matchId}
@@ -865,35 +897,51 @@ function CompactCandidatesList({
               textAlign: "left", cursor: "pointer", fontFamily: "inherit",
               background: active ? "linear-gradient(135deg, rgba(124,99,200,0.10), rgba(124,99,200,0.04))" : "white",
               border: active ? "1.5px solid rgba(124,99,200,0.40)" : "1px solid #F0ECF8",
-              borderRadius: 10, padding: "8px 10px",
-              display: "flex", alignItems: "center", gap: 8,
+              borderRadius: 10, padding: "9px 10px",
+              display: "flex", flexDirection: "column", gap: 5,
             }}
           >
-            <span style={{
-              width: 28, height: 28, borderRadius: "50%",
-              background: active ? "#7C63C8" : "#F4F1FB",
-              color: active ? "white" : "#7C63C8",
-              fontSize: 10, fontWeight: 800,
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
-            }}>
-              {initials || "?"}
-            </span>
-            <span style={{
-              fontSize: 12.5, fontWeight: active ? 700 : 600, color: "#111827",
-              flex: 1, minWidth: 0,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              {c.candidate.full_name ?? "Sans nom"}
-            </span>
-            {c.score != null && (
+            {/* Ligne 1 : avatar + nom + score */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{
-                fontSize: 10, fontWeight: 800, color: "#6B7280",
-                padding: "1px 6px", borderRadius: 100,
-                background: "#F4F1FB", flexShrink: 0,
+                width: 26, height: 26, borderRadius: "50%",
+                background: active ? "#7C63C8" : "#F4F1FB",
+                color: active ? "white" : "#7C63C8",
+                fontSize: 10, fontWeight: 800,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
               }}>
-                {c.score}
+                {initials || "?"}
               </span>
+              <span style={{
+                fontSize: 12.5, fontWeight: active ? 700 : 600, color: "#111827",
+                flex: 1, minWidth: 0,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {c.candidate.full_name ?? "Sans nom"}
+              </span>
+              {c.score != null && (
+                <span style={{
+                  fontSize: 10, fontWeight: 800, color: "#6B7280",
+                  padding: "1px 6px", borderRadius: 100,
+                  background: active ? "white" : "#F4F1FB", flexShrink: 0,
+                }}>
+                  {c.score}
+                </span>
+              )}
+            </div>
+            {/* Ligne 2 : brut + marge */}
+            {quick && (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                gap: 6, paddingLeft: 34, fontSize: 10.5, color: "#9CA3AF",
+                fontVariantNumeric: "tabular-nums",
+              }}>
+                <span>{Math.round(quick.brut / 1000)} k€</span>
+                <span style={{ color: margeColor, fontWeight: 700 }}>
+                  {quick.margePct.toFixed(1)} %
+                </span>
+              </div>
             )}
           </m.button>
         )

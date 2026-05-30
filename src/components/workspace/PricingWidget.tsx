@@ -21,40 +21,22 @@ import {
   computeMissionMargin,
   validateAgainstMinimum,
   type PricingInputs,
-  type Statut,
   type Modalite,
   type Lieu,
   type Avantages,
 } from "@/lib/pricing/syntec"
 import MonthlyMarginChart from "@/components/workspace/MonthlyMarginChart"
 import RuptureRiskChart from "@/components/workspace/RuptureRiskChart"
-import type { Candidate, Job, ParsedCv, Profile } from "@/lib/database.types"
+import type { Candidate, Job, Profile } from "@/lib/database.types"
+import { PRESETS, detectSeniority, type SenioritePreset } from "@/lib/pricing/preset"
 import { getSupabase } from "@/lib/supabase"
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Auto-detect séniorité from the parsed CV
+ * Preset séniorité — extraits dans @/lib/pricing/preset pour partage avec
+ * la page parent (calcul de marge par candidat dans la liste).
  * ────────────────────────────────────────────────────────────────────────── */
 
-type SenioritePreset = "junior" | "confirme" | "senior" | "lead_expert"
-
-const PRESETS: Record<SenioritePreset, { statut: Statut; position: string; coefficient: number; modalite: Modalite; label: string; short: string }> = {
-  junior:      { statut: "cadre", position: "1.2", coefficient: 100, modalite: "modalite_1", label: "Junior (0-3 ans XP)",      short: "Junior" },
-  confirme:    { statut: "cadre", position: "2.1", coefficient: 115, modalite: "modalite_1", label: "Confirmé (4-7 ans XP)",    short: "Confirmé" },
-  senior:      { statut: "cadre", position: "2.2", coefficient: 130, modalite: "modalite_3", label: "Senior (8-11 ans XP)",     short: "Senior" },
-  lead_expert: { statut: "cadre", position: "3.1", coefficient: 170, modalite: "modalite_3", label: "Lead / Expert (12+ ans XP)", short: "Lead/Expert" },
-}
-
-function detectSeniority(parsed: ParsedCv | null, currentTitle: string | null): SenioritePreset {
-  const title = (parsed?.current_title ?? currentTitle ?? "").toLowerCase()
-  const years = parsed?.years_experience ?? 0
-  if (/principal|staff|head\b|cto|directeur tech/.test(title)) return "lead_expert"
-  if (/lead|architect|expert|manager principal/.test(title)) return "lead_expert"
-  if (/senior|sr\.|sr\b|tech lead/.test(title) && years >= 7) return "senior"
-  if (years >= 12) return "lead_expert"
-  if (years >= 8) return "senior"
-  if (years >= 4) return "confirme"
-  return "junior"
-}
+// Re-exports for backwards compat with the rest of this file.
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Defaults
@@ -342,7 +324,21 @@ function PricingWidgetInner({
         onSenioritySelect={setSeniority}
       />
 
-      {/* ═══ CONTEXT BAR — statut / position / lieu ═══ */}
+      {/* ═══ RECOMMANDATION HUMAINE — phrase d'aide à la décision ═══ */}
+      {limits && (
+        <RecommendationBanner
+          margePct={margePct}
+          margeMinPct={margeMinPct}
+          margeTargetPct={margeTargetPct}
+          brutAnnuel={brutAnnuel}
+          brutMin={limits.brutMin}
+          brutIdeal={limits.brutIdeal}
+          brutMax={limits.brutMax}
+          tjm={tjm}
+        />
+      )}
+
+      {/* ═══ CONTEXT BAR — statut / position / lieu + avantages actifs ═══ */}
       <div style={{
         marginTop: 12,
         display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
@@ -361,6 +357,10 @@ function PricingWidgetInner({
           ⚙ Paramètres cabinet
         </Link>
       </div>
+
+      {/* ═══ AVANTAGES APPLIQUÉS — transparence sur ce qui pèse ═══ */}
+      <ActiveAvantagesStrip avantages={avantages} job={job} />
+
 
       {/* ═══ LEVIERS — steppers compacts avec markers cliquables ═══ */}
       <div style={{
@@ -597,6 +597,152 @@ function HeroKpi({
       <div style={{ fontSize: 10.5, color: "#9CA3AF" }}>
         {sub}
       </div>
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * RecommendationBanner — phrase d'aide à la décision sous le verdict
+ *
+ * Traduit en français clair ce que les KPI veulent dire et propose une action :
+ *   - où monter le brut sans franchir le seuil
+ *   - quel TJM permettrait de respecter le seuil avec le brut actuel
+ *
+ * Pas de calculs nouveaux ici, juste de la formulation à partir de `limits`.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function RecommendationBanner({
+  margePct, margeMinPct, margeTargetPct,
+  brutAnnuel, brutMin, brutIdeal, brutMax, tjm,
+}: {
+  margePct: number
+  margeMinPct: number
+  margeTargetPct: number
+  brutAnnuel: number
+  brutMin: number
+  brutIdeal: number
+  brutMax: number
+  tjm: number
+}) {
+  const fmt = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €/an`
+  const reco = (() => {
+    // Au-dessus de la cible : marge confortable, marge de manœuvre disponible.
+    if (margePct >= margeTargetPct) {
+      return {
+        tone: "success" as const,
+        text:
+          `Belle marge. Tu peux remonter le brut jusqu'à ${fmt(brutIdeal)} pour rester sur ta cible ${margeTargetPct}%, ` +
+          `ou jusqu'à ${fmt(brutMax)} pour rester au-dessus de ton plancher ${margeMinPct}%.`,
+      }
+    }
+    // Entre plancher et cible : encore rentable, mais sous-optimal.
+    if (margePct >= margeMinPct) {
+      return {
+        tone: "warn" as const,
+        text:
+          `Marge sous ta cible ${margeTargetPct}%. Pour l'atteindre, descends le brut à ${fmt(brutIdeal)} ` +
+          `(actuel ${fmt(brutAnnuel)}), ou conserve le brut et négocie un TJM plus haut.`,
+      }
+    }
+    // Sous le plancher : danger commercial.
+    if (margePct >= 0) {
+      return {
+        tone: "alert" as const,
+        text:
+          `Marge sous ton plancher ${margeMinPct}%. Brut max acceptable à ce TJM : ${fmt(brutMax)} ` +
+          `(actuel ${fmt(brutAnnuel)}). Sinon, monte le TJM (${tjm} €/j aujourd'hui).`,
+      }
+    }
+    // Perte sèche.
+    return {
+      tone: "alert" as const,
+      text:
+        `Mission en perte : le coût employeur dépasse le revenu. ` +
+        `Plancher Syntec ${fmt(brutMin)} ; brut max à ta marge mini ${fmt(brutMax)}. ` +
+        `Revoir le TJM ou le brut.`,
+    }
+  })()
+
+  const palette = {
+    success: { fg: "#15803d", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)",  icon: "✓" },
+    warn:    { fg: "#B45309", bg: "rgba(217,119,6,0.08)",  bd: "rgba(217,119,6,0.25)",  icon: "💡" },
+    alert:   { fg: "#B91C1C", bg: "rgba(220,38,38,0.06)",  bd: "rgba(220,38,38,0.25)",  icon: "🚨" },
+  }[reco.tone]
+
+  return (
+    <div style={{
+      marginTop: 10, padding: "11px 14px",
+      background: palette.bg, border: `1px solid ${palette.bd}`,
+      borderRadius: 11, display: "flex", alignItems: "flex-start", gap: 9,
+    }}>
+      <span style={{ fontSize: 14, color: palette.fg, lineHeight: 1.2, flexShrink: 0 }}>{palette.icon}</span>
+      <p style={{
+        margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55,
+        fontWeight: 500,
+      }}>
+        <span style={{ fontWeight: 700, color: palette.fg, marginRight: 4 }}>
+          Reco
+        </span>
+        {reco.text}
+      </p>
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * ActiveAvantagesStrip — récap visible des avantages appliqués à la mission
+ *
+ * Liste discrète sous la context bar : ce qui pèse aujourd'hui dans le coût
+ * employeur (montants > 0), avec une mention des activations conditionnelles
+ * (grand déplacement, expatriation) si la mission les déclenche.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function ActiveAvantagesStrip({ avantages, job }: {
+  avantages: Avantages
+  job: Job | null
+}) {
+  type Chip = { label: string; value: string }
+  const chips: Chip[] = []
+  if ((avantages.mutuellePremium ?? 0) > 0)        chips.push({ label: "Mutuelle",        value: `${avantages.mutuellePremium} €/mois` })
+  if ((avantages.medecineDuTravailAnnuel ?? 0) > 0) chips.push({ label: "Médecine",        value: `${avantages.medecineDuTravailAnnuel} €/an` })
+  if ((avantages.transport ?? 0) > 0)              chips.push({ label: "Transport",       value: `${avantages.transport} €/mois` })
+  if ((avantages.ticketsResto ?? 0) > 0)           chips.push({ label: "Tickets resto",   value: `${avantages.ticketsResto} €/j` })
+  if ((avantages.forfaitMobilite ?? 0) > 0)        chips.push({ label: "Mobilité durable", value: `${avantages.forfaitMobilite} €/mois` })
+  if ((avantages.indemniteKilometriqueAnnuelle ?? 0) > 0) chips.push({ label: "Indemnité km", value: `${avantages.indemniteKilometriqueAnnuelle} €/an` })
+  if (avantages.treiziemeMois) chips.push({ label: "13ᵉ mois", value: "actif" })
+  if (job?.has_grand_deplacement && (avantages.urssafIndemniteJour ?? 0) > 0) {
+    chips.push({ label: "Grand déplacement", value: `${avantages.urssafIndemniteJour} €/j` })
+  }
+  if (job?.is_expatriated && (avantages.expatriationMensuelle ?? 0) > 0) {
+    chips.push({ label: "Expatriation", value: `${avantages.expatriationMensuelle} €/mois` })
+  }
+  if ((avantages.autresMensuels ?? 0) > 0) chips.push({ label: "Autres", value: `${avantages.autresMensuels} €/mois` })
+
+  if (chips.length === 0) return null
+
+  return (
+    <div style={{
+      marginTop: 8, padding: "8px 12px",
+      background: "white", border: "1px solid #F0ECF8", borderRadius: 10,
+      display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
+    }}>
+      <span style={{
+        fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+        letterSpacing: "0.05em", textTransform: "uppercase", marginRight: 4,
+      }}>
+        Avantages appliqués
+      </span>
+      {chips.map((c) => (
+        <span key={c.label} style={{
+          fontSize: 11, color: "#374151",
+          background: "#F8F6FF", border: "1px solid #F0ECF8",
+          padding: "2px 8px", borderRadius: 100,
+          display: "inline-flex", gap: 5, alignItems: "baseline",
+        }}>
+          <span style={{ color: "#6B7280" }}>{c.label}</span>
+          <strong style={{ color: "#111827", fontVariantNumeric: "tabular-nums" }}>{c.value}</strong>
+        </span>
+      ))}
     </div>
   )
 }
