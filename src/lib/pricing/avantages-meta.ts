@@ -37,6 +37,9 @@ export interface AvantageConfig {
   suffix: AvantageSuffix
   max: number
   step?: number
+  /** Si true : obligation légale employeur → toujours actif, pas de case à
+   *  cocher, le sourceur saisit juste le montant. */
+  required?: boolean
   /** Renvoie un message orange à afficher quand la valeur dépasse un plafond
    *  URSSAF / légal — sans bloquer la saisie. */
   warning?: (v: number) => string | null
@@ -46,10 +49,11 @@ export const AVANTAGES_CONFIG: AvantageConfig[] = [
   {
     key: "mutuellePremium",
     label: "Mutuelle santé",
-    hint: "Part employeur — au-delà des 50 % minimum légaux. Moyenne marché : 30–60 €/mois.",
+    hint: "Obligation employeur (mutuelle collective, ≥ 50 % à charge). Part employeur en €/mois. Moyenne marché : 30–60 €/mois.",
     defaultValue: 50,
     suffix: "€/mois",
     max: 500,
+    required: true,
   },
   {
     key: "transport",
@@ -81,10 +85,11 @@ export const AVANTAGES_CONFIG: AvantageConfig[] = [
   {
     key: "medecineDuTravailAnnuel",
     label: "Médecine du travail",
-    hint: "Cotisation SST — obligation employeur. Moyenne : 80–150 €/an par salarié.",
+    hint: "Obligation légale employeur (cotisation SST/SPSTI). Coût annuel par salarié, moyenne marché : 80–150 €/an.",
     defaultValue: 100,
     suffix: "€/an",
     max: 500,
+    required: true,
   },
   {
     key: "indemniteKilometriqueAnnuelle",

@@ -504,8 +504,13 @@ function SmartAvantageRow({
   value: number | undefined
   onChange: (v: number) => void
 }) {
-  const enabled = (value ?? 0) > 0
-  const numericValue = value ?? 0
+  // Pour les obligations légales (mutuelle, médecine du travail) : toujours
+  // actif, pas de case à cocher, badge "Obligatoire" — le sourceur règle juste
+  // le montant. La valeur affichée tombe sur defaultValue si jamais le stock
+  // est à 0 (cas d'un profil créé avant le passage à required).
+  const isRequired = config.required === true
+  const numericValue = isRequired && (value ?? 0) === 0 ? config.defaultValue : (value ?? 0)
+  const enabled = isRequired || numericValue > 0
   const warningMsg = enabled && config.warning ? config.warning(numericValue) : null
 
   const toggle = (on: boolean) => onChange(on ? config.defaultValue : 0)
@@ -518,9 +523,30 @@ function SmartAvantageRow({
       borderRadius: 9,
     }}>
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center" }}>
-        <Checkbox checked={enabled} onChange={toggle} />
+        {isRequired ? (
+          <span style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 20, height: 20, borderRadius: 6,
+            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            color: "white", fontSize: 13, fontWeight: 800,
+          }} title="Obligation légale — toujours actif">⚖</span>
+        ) : (
+          <Checkbox checked={enabled} onChange={toggle} />
+        )}
         <div>
-          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{config.label}</p>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: 6 }}>
+            {config.label}
+            {isRequired && (
+              <span style={{
+                fontSize: 9.5, fontWeight: 800, color: "#7C63C8",
+                background: "rgba(124,99,200,0.10)", border: "1px solid rgba(124,99,200,0.25)",
+                borderRadius: 100, padding: "1px 7px",
+                letterSpacing: "0.05em", textTransform: "uppercase",
+              }}>
+                Obligatoire
+              </span>
+            )}
+          </p>
           <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{config.hint}</p>
         </div>
         <div style={{ width: 140 }}>
@@ -532,6 +558,9 @@ function SmartAvantageRow({
               onChange={(e) => {
                 const n = Number(e.target.value)
                 if (!Number.isFinite(n)) return
+                // Pour un obligatoire on garde un plancher de 0 (l'utilisateur
+                // peut taper 0 temporairement, on n'écrase pas avec defaultValue
+                // pendant la frappe).
                 onChange(Math.min(config.max, Math.max(0, n)))
               }}
               style={{ ...inputInnerStyle, color: enabled ? "#111827" : "#9CA3AF" }}
