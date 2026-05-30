@@ -348,6 +348,11 @@ export type Database = {
           /** true = candidat suivi dans la pipeline (ajout explicite ou contact
            *  auto). false = simple résultat de matching, non affiché en pipeline. */
           in_pipeline: boolean
+          /** Derniers réglages pricing pour ce (candidat × mission). NULL = jamais
+           *  ajusté ; le widget retombe alors sur job.client_tjm_min /
+           *  job.target_gross_salary comme valeur de départ. */
+          pricing_tjm: number | null
+          pricing_brut: number | null
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -366,6 +371,8 @@ export type Database = {
           match_tier?: 'excellent' | 'good' | 'fair' | 'poor' | null
           pipeline_stage?: 'identified' | 'pricing' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
           in_pipeline?: boolean
+          pricing_tjm?: number | null
+          pricing_brut?: number | null
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null

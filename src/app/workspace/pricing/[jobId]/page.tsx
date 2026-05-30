@@ -28,6 +28,9 @@ interface PricingCandidate {
   candidate: Candidate
   score: number | null
   matchTier: MatchTier | null
+  /** Derniers réglages persistés par le sourceur sur ce candidat × mission. */
+  pricingTjm: number | null
+  pricingBrut: number | null
 }
 
 export default function PricingMissionPage() {
@@ -62,7 +65,7 @@ export default function PricingMissionPage() {
       // matchs ≥60 — le sourceur ne chiffre que ce qu'il poursuit vraiment.
       const { data: matches } = await sb
         .from("match_assessments")
-        .select("id, score, match_tier, candidate:candidates(*)")
+        .select("id, score, match_tier, pricing_tjm, pricing_brut, candidate:candidates(*)")
         .eq("job_id", jobId)
         .eq("in_pipeline", true)
         .order("score", { ascending: false, nullsFirst: false })
@@ -72,6 +75,8 @@ export default function PricingMissionPage() {
         id: string
         score: number | null
         match_tier: MatchTier | null
+        pricing_tjm: number | null
+        pricing_brut: number | null
         candidate: Candidate | null
       }[])
         .filter((r) => r.candidate !== null)
@@ -80,6 +85,8 @@ export default function PricingMissionPage() {
           candidate: r.candidate as Candidate,
           score: r.score,
           matchTier: r.match_tier,
+          pricingTjm: r.pricing_tjm,
+          pricingBrut: r.pricing_brut,
         }))
       setCandidates(rows)
       if (rows.length > 0) setSelectedMatchId(rows[0].matchId)
@@ -146,6 +153,9 @@ export default function PricingMissionPage() {
                 <PricingWidget
                   candidate={selected.candidate}
                   job={job}
+                  matchId={selected.matchId}
+                  initialTjm={selected.pricingTjm}
+                  initialBrut={selected.pricingBrut}
                   onEditMission={() => setMissionEditOpen(true)}
                 />
               </m.div>

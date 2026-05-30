@@ -13,7 +13,7 @@
  * computeTriangle, validateAgainstMinimum). Seul le rendu UI change.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import {
   computeEmployerCost,
@@ -91,10 +91,16 @@ type PricingProfile = Pick<Profile,
 > | null
 
 export default function PricingWidget({
-  candidate, job, onEditMission,
+  candidate, job, matchId, initialTjm: persistedTjm, initialBrut: persistedBrut, onEditMission,
 }: {
   candidate: Candidate
   job: Job | null
+  /** Id du match — sert à persister les réglages TJM/Brut côté serveur. */
+  matchId?: string
+  /** Dernier TJM ajusté par le sourceur sur ce match (override de la mission). */
+  initialTjm?: number | null
+  /** Dernier Brut ajusté par le sourceur sur ce match (override de la mission). */
+  initialBrut?: number | null
   /** Callback déclenché par le bouton "⚙ Modifier mission" — la page parent
    *  ouvre le wizard mission (MissionConfigWizard) avec les valeurs courantes. */
   onEditMission?: () => void
@@ -128,7 +134,17 @@ export default function PricingWidget({
       </section>
     )
   }
-  return <PricingWidgetInner candidate={candidate} job={job} profile={profile} onEditMission={onEditMission} />
+  return (
+    <PricingWidgetInner
+      candidate={candidate}
+      job={job}
+      profile={profile}
+      matchId={matchId}
+      persistedTjm={persistedTjm ?? null}
+      persistedBrut={persistedBrut ?? null}
+      onEditMission={onEditMission}
+    />
+  )
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -136,11 +152,14 @@ export default function PricingWidget({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function PricingWidgetInner({
-  candidate, job, profile, onEditMission,
+  candidate, job, profile, matchId, persistedTjm, persistedBrut, onEditMission,
 }: {
   candidate: Candidate
   job: Job | null
   profile: PricingProfile
+  matchId?: string
+  persistedTjm: number | null
+  persistedBrut: number | null
   onEditMission?: () => void
 }) {
   const detectedPreset = useMemo(
@@ -162,18 +181,43 @@ function PricingWidgetInner({
   const modalite: Modalite = preset.modalite
   const joursParMois = profile?.pricing_billable_days_per_month ?? 21
 
+  // Priorité : valeur persistée par le sourceur > valeur mission > défaut.
   const initialTjm = useMemo(() => {
+    if (persistedTjm != null) return persistedTjm
     const min = job?.client_tjm_min
     const max = job?.client_tjm_max
     if (min != null && max != null) return Math.round((min + max) / 2)
     if (min != null) return min
     if (max != null) return max
     return 550
-  }, [job?.client_tjm_min, job?.client_tjm_max])
-  const initialBrut = job?.target_gross_salary ?? 45000
+  }, [persistedTjm, job?.client_tjm_min, job?.client_tjm_max])
+  const initialBrut = persistedBrut ?? job?.target_gross_salary ?? 45000
 
   const [tjm, setTjm] = useState<number>(initialTjm)
   const [brutAnnuel, setBrutAnnuel] = useState<number>(initialBrut)
+
+  // NB : le parent utilise `key={matchId}` sur le wrapper du widget, donc
+  // un changement de candidat remonte le composant → useState recapture
+  // les nouvelles valeurs initiales sans synchro manuelle nécessaire.
+
+  // Persistance debounced — sauvegarde ~600 ms après le dernier ajustement.
+  const saveTimerRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!matchId) return
+    // Évite l'écriture inutile au tout premier render (valeurs == initial).
+    if (tjm === initialTjm && brutAnnuel === initialBrut) return
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = window.setTimeout(() => {
+      void fetch(`/api/match/${matchId}/pricing-params`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pricing_tjm: tjm, pricing_brut: brutAnnuel }),
+      }).catch(() => { /* best-effort */ })
+    }, 600)
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
+    }
+  }, [matchId, tjm, brutAnnuel, initialTjm, initialBrut])
 
   // Avantages = base cabinet, avec deux tarifs conditionnels mis à 0 si la
   // mission ne les déclenche pas. Le tarif (€/jour, €/mois) est défini en
