@@ -127,13 +127,6 @@ export default function MonthlyMarginChart({
   const revenuMoyen = points.reduce((s, p) => s + p.revenu, 0) / points.length
   const seuilMinEuros = margeMinPct !== undefined ? revenuMoyen * (margeMinPct / 100) : null
 
-  // Stats globales
-  const totalMarge = points.reduce((s, p) => s + p.marge, 0)
-  const totalRevenu = points.reduce((s, p) => s + p.revenu, 0)
-  const margeMoyennePct = totalRevenu > 0 ? (totalMarge / totalRevenu) * 100 : 0
-  const moisMax = points.reduce((a, b) => (b.marge > a.marge ? b : a), points[0])
-  const moisMin = points.reduce((a, b) => (b.marge < a.marge ? b : a), points[0])
-
   // Color pour chaque barre : gradient selon marge %
   const barColor = (margePct: number): string => {
     if (margePct < 0) return "#DC2626"
@@ -278,72 +271,11 @@ export default function MonthlyMarginChart({
           )
         })}
       </svg>
-
-      {/* Stats récap sous le chart */}
-      <div style={{
-        marginTop: 14, paddingTop: 12, borderTop: "1px solid #F0ECF8",
-        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-        gap: 8,
-      }}>
-        <StatTile label="Marge totale mission" value={formatEur(totalMarge)} hint={`sur ${points.length} mois`} />
-        <StatTile label="Marge moyenne %" value={`${margeMoyennePct.toFixed(1)} %`} hint={`du revenu cumulé ${formatEurCompact(totalRevenu)}`} />
-        <StatTile
-          label="Meilleur mois"
-          value={`${MONTH_ABBR_FR[moisMax.calendarMonth]} ${moisMax.year}`}
-          hint={`${formatEur(moisMax.marge)} · ${moisMax.workingDays}j`}
-          tone="good"
-        />
-        <StatTile
-          label="Mois le plus faible"
-          value={`${MONTH_ABBR_FR[moisMin.calendarMonth]} ${moisMin.year}`}
-          hint={`${formatEur(moisMin.marge)} · ${moisMin.workingDays}j`}
-          tone={moisMin.marge < 0 ? "bad" : "warn"}
-        />
-      </div>
     </div>
   )
 }
 
 /* ──────────────────────────────────────────────────────────────────────── */
-
-function StatTile({
-  label, value, hint, tone,
-}: {
-  label: string
-  value: string
-  hint?: string
-  tone?: "good" | "warn" | "bad"
-}) {
-  const color =
-    tone === "good" ? "#16A34A" :
-    tone === "warn" ? "#D97706" :
-    tone === "bad"  ? "#DC2626" :
-                      "#111827"
-  return (
-    <div style={{
-      background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 9,
-      padding: "9px 11px",
-    }}>
-      <div style={{
-        fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
-        letterSpacing: "0.04em", textTransform: "uppercase",
-      }}>
-        {label}
-      </div>
-      <div style={{
-        fontSize: 15, fontWeight: 800, color,
-        fontVariantNumeric: "tabular-nums", marginTop: 1,
-      }}>
-        {value}
-      </div>
-      {hint && (
-        <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 1 }}>
-          {hint}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function formatEur(v: number): string {
   const sign = v < 0 ? "−" : ""

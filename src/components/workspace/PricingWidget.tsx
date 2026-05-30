@@ -29,6 +29,7 @@ import MonthlyMarginChart from "@/components/workspace/MonthlyMarginChart"
 import RuptureRiskChart from "@/components/workspace/RuptureRiskChart"
 import type { Candidate, Job, Profile } from "@/lib/database.types"
 import { PRESETS, detectSeniority, type SenioritePreset } from "@/lib/pricing/preset"
+import { missionMonthProfile, MONTH_ABBR_FR } from "@/lib/pricing/calendar"
 import { getSupabase } from "@/lib/supabase"
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -273,6 +274,32 @@ function PricingWidgetInner({
     }
   }, [job?.start_date, job?.duration_months, brutAnnuel, tjm, buildInputs])
 
+  // Pic / Creux — meilleur et pire mois en marge €. Reuse des helpers calendrier
+  // déjà utilisés par MonthlyMarginChart : aucune logique métier nouvelle ici.
+  const extremeMonths = useMemo(() => {
+    if (!job?.start_date || !job?.duration_months) return null
+    const start = new Date(job.start_date)
+    if (Number.isNaN(start.getTime())) return null
+    try {
+      const months = missionMonthProfile(start, Math.max(1, job.duration_months))
+      if (months.length === 0) return null
+      const points = months.map((m) => {
+        const revenu = tjm * m.workingDays
+        const coutTotal = cost.coutFixeMensuel + cost.coutVariableJournalier * m.workingDays
+        return {
+          calendarMonth: m.calendarMonth, year: m.year,
+          workingDays: m.workingDays,
+          marge: revenu - coutTotal,
+        }
+      })
+      const best = points.reduce((a, b) => (b.marge > a.marge ? b : a), points[0])
+      const worst = points.reduce((a, b) => (b.marge < a.marge ? b : a), points[0])
+      return { best, worst }
+    } catch {
+      return null
+    }
+  }, [job?.start_date, job?.duration_months, tjm, cost])
+
   // Brut max / idéal (pour les marqueurs du slider brut)
   const limits = useMemo(() => {
     try {
@@ -396,6 +423,24 @@ function PricingWidgetInner({
               { value: Math.round(limits.brutMax),   label: `plancher ${margeMinPct}%`,   color: "#D97706" },
             ] : []}
           />
+
+          {/* Pic / Creux mission — clé contextuelle des mois calendaires */}
+          {extremeMonths && (
+            <div style={{
+              display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+            }}>
+              <ExtremeMonthCard
+                label="Meilleur mois"
+                month={extremeMonths.best}
+                tone="good"
+              />
+              <ExtremeMonthCard
+                label="Mois le plus faible"
+                month={extremeMonths.worst}
+                tone={extremeMonths.worst.marge < 0 ? "bad" : "warn"}
+              />
+            </div>
+          )}
 
           {/* Alerte minimum Syntec si dépassement */}
           {!minimumCheck.ok && (
@@ -760,6 +805,46 @@ function ActiveAvantagesStrip({ avantages, job }: {
           <strong style={{ color: "#111827", fontVariantNumeric: "tabular-nums" }}>{c.value}</strong>
         </span>
       ))}
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * ExtremeMonthCard — mini-tuile Pic / Creux mois (calendrier réel)
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function ExtremeMonthCard({
+  label, month, tone,
+}: {
+  label: string
+  month: { calendarMonth: number; year: number; workingDays: number; marge: number }
+  tone: "good" | "warn" | "bad"
+}) {
+  const palette = {
+    good: { fg: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)" },
+    warn: { fg: "#B45309", bg: "rgba(217,119,6,0.06)",  bd: "rgba(217,119,6,0.25)" },
+    bad:  { fg: "#B91C1C", bg: "#FEF2F2",               bd: "#FECACA"               },
+  }[tone]
+  const sign = month.marge < 0 ? "−" : ""
+  return (
+    <div style={{
+      background: palette.bg, border: `1px solid ${palette.bd}`,
+      borderRadius: 10, padding: "9px 11px",
+    }}>
+      <div style={{
+        fontSize: 10, fontWeight: 700, color: palette.fg,
+        letterSpacing: "0.05em", textTransform: "uppercase",
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontSize: 14, fontWeight: 800, color: "#111827", marginTop: 2,
+      }}>
+        {MONTH_ABBR_FR[month.calendarMonth]} {month.year}
+      </div>
+      <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>
+        {sign}{Math.abs(Math.round(month.marge)).toLocaleString("fr-FR")} € · {month.workingDays} j
+      </div>
     </div>
   )
 }
