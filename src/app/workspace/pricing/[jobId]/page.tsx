@@ -1224,15 +1224,163 @@ function ComparisonPanel({
       {picked.length < 2 ? (
         <ComparisonEmptyState picked={picked.length} />
       ) : (
-        <div style={{
-          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
-        }}>
-          {picked.map((p, idx) => (
-            <ComparisonCard key={p.matchId} rank={idx + 1} pc={p} job={job} profile={profile} />
-          ))}
-        </div>
+        <>
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
+          }}>
+            {picked.map((p, idx) => (
+              <ComparisonCard key={p.matchId} rank={idx + 1} pc={p} job={job} profile={profile} />
+            ))}
+          </div>
+          <NoraVerdictBubble
+            matchAId={picked[0].matchId}
+            matchBId={picked[1].matchId}
+            candidateAName={picked[0].candidate.full_name ?? "Candidat A"}
+            candidateBName={picked[1].candidate.full_name ?? "Candidat B"}
+          />
+        </>
       )}
     </section>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * NoraVerdictBubble — bulle de chat "La reco de Nora" pour la comparaison
+ *
+ * On ne fait PAS l'appel LLM automatiquement (coût + quota) : le sourceur
+ * clique "Demander l'avis de Nora" quand il veut. Le résultat est mis en
+ * cache par paire de matchIds — re-cliquer sur la même paire ne re-tire pas.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function NoraVerdictBubble({
+  matchAId, matchBId, candidateAName, candidateBName,
+}: {
+  matchAId: string
+  matchBId: string
+  candidateAName: string
+  candidateBName: string
+}) {
+  type State =
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "ok"; winner: "A" | "B" | "tie"; commentary: string }
+    | { kind: "error"; message: string }
+  const [state, setState] = useState<State>({ kind: "idle" })
+  // Reset si la paire change
+  const pairKey = `${matchAId}|${matchBId}`
+  const lastKeyRef = useRef(pairKey)
+  if (lastKeyRef.current !== pairKey && state.kind !== "loading") {
+    lastKeyRef.current = pairKey
+    if (state.kind !== "idle") setState({ kind: "idle" })
+  }
+
+  const ask = async () => {
+    setState({ kind: "loading" })
+    try {
+      const res = await fetch(`/api/pricing/compare`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchAId, matchBId }),
+      })
+      const data = await res.json().catch(() => null) as { winner?: string; commentary?: string; error?: string; message?: string } | null
+      if (!res.ok || !data?.commentary) {
+        throw new Error(data?.message ?? data?.error ?? `HTTP ${res.status}`)
+      }
+      const winner = (data.winner === "A" || data.winner === "B" || data.winner === "tie") ? data.winner : "tie"
+      setState({ kind: "ok", winner, commentary: data.commentary })
+    } catch (err) {
+      setState({ kind: "error", message: (err as Error).message })
+    }
+  }
+
+  return (
+    <div style={{
+      marginTop: 14,
+      display: "flex", alignItems: "flex-start", gap: 10,
+    }}>
+      <div style={{
+        width: 30, height: 30, flexShrink: 0,
+        borderRadius: "50%",
+        background: "linear-gradient(135deg, #7C63C8 0%, #6B54B2 100%)",
+        color: "white", fontSize: 12, fontWeight: 800,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 2px 8px rgba(124,99,200,0.25)",
+      }}>
+        N
+      </div>
+
+      <div style={{
+        flex: 1,
+        background: "#FFFFFF",
+        border: "1px solid rgba(124,99,200,0.25)",
+        borderRadius: 14, borderTopLeftRadius: 4,
+        padding: "11px 14px",
+        boxShadow: "0 1px 2px rgba(17,24,39,0.04)",
+      }}>
+        <div style={{
+          fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          marginBottom: 4,
+        }}>
+          La reco de Nora
+        </div>
+        {state.kind === "idle" && (
+          <>
+            <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
+              Vous voulez un avis rapide sur le meilleur choix entre {candidateAName} et {candidateBName} ?
+            </p>
+            <button onClick={ask} style={{
+              fontFamily: "inherit", fontSize: 11.5, fontWeight: 700,
+              color: "white",
+              padding: "6px 12px", borderRadius: 8,
+              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              border: "1px solid rgba(124,99,200,0.40)",
+              cursor: "pointer",
+            }}>
+              ✦ Demander l&apos;avis de Nora
+            </button>
+          </>
+        )}
+        {state.kind === "loading" && (
+          <p style={{ margin: 0, fontSize: 12.5, color: "#9CA3AF", lineHeight: 1.55, fontStyle: "italic" }}>
+            Nora analyse les deux candidats…
+          </p>
+        )}
+        {state.kind === "ok" && (
+          <>
+            {state.winner !== "tie" && (
+              <div style={{
+                display: "inline-block",
+                fontSize: 10, fontWeight: 800, color: "#15803d",
+                background: "rgba(34,197,94,0.10)",
+                border: "1px solid rgba(34,197,94,0.25)",
+                borderRadius: 100, padding: "2px 8px", marginBottom: 6,
+                letterSpacing: "0.05em", textTransform: "uppercase",
+              }}>
+                ✓ Préférence : {state.winner === "A" ? candidateAName : candidateBName}
+              </div>
+            )}
+            <p style={{ margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
+              {state.commentary}
+            </p>
+          </>
+        )}
+        {state.kind === "error" && (
+          <>
+            <p style={{ margin: "0 0 6px", fontSize: 12.5, color: "#B91C1C", lineHeight: 1.55 }}>
+              Désolée, je n&apos;ai pas pu donner d&apos;avis ({state.message}).
+            </p>
+            <button onClick={ask} style={{
+              fontFamily: "inherit", fontSize: 11, fontWeight: 700,
+              color: "#7C63C8", background: "rgba(124,99,200,0.06)",
+              border: "1px solid rgba(124,99,200,0.25)",
+              borderRadius: 7, padding: "4px 10px", cursor: "pointer",
+            }}>
+              Réessayer
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 

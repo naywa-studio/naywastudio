@@ -39,7 +39,7 @@ interface Props {
 }
 
 const W = 760
-const H = 380
+const H = 280
 const PAD_L = 56
 const PAD_R = 16
 const PAD_T = 30
