@@ -12,7 +12,7 @@
  * Page large pour exploiter la largeur de l'écran (max-width: 1480).
  */
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { m, AnimatePresence } from "framer-motion"
@@ -44,6 +44,22 @@ export default function PricingMissionPage() {
   > | null>(null)
   const [candidates, setCandidates] = useState<PricingCandidate[]>([])
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
+  // Mode comparaison : le sourceur tape "⇆ Comparer" pour activer un picking
+  // de 2 candidats à voir côte à côte. compareIds reste vide tant qu'il ne
+  // clique pas — on passe en vue comparaison quand compareIds.length === 2.
+  const [compareMode, setCompareMode] = useState<boolean>(false)
+  const [compareIds, setCompareIds] = useState<string[]>([])
+  const toggleCompareId = useCallback((id: string) => {
+    setCompareIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id)
+      if (prev.length >= 2) return [prev[1], id] /* FIFO : la plus ancienne sort */
+      return [...prev, id]
+    })
+  }, [])
+  const exitCompareMode = useCallback(() => {
+    setCompareMode(false)
+    setCompareIds([])
+  }, [])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   // Wizard mission piloté par la page parent — permet au widget pricing de
@@ -155,6 +171,13 @@ export default function PricingMissionPage() {
             profile={profile}
             selectedMatchId={selectedMatchId}
             onSelect={setSelectedMatchId}
+            compareMode={compareMode}
+            compareIds={compareIds}
+            onToggleCompareMode={() => {
+              if (compareMode) exitCompareMode()
+              else setCompareMode(true)
+            }}
+            onToggleCompareId={toggleCompareId}
           />
         </aside>
 
@@ -162,6 +185,22 @@ export default function PricingMissionPage() {
           <AnimatePresence mode="wait">
             {!isMissionConfigured(job) ? (
               <MissionNotConfiguredCta onEdit={() => setMissionEditOpen(true)} />
+            ) : compareMode ? (
+              <m.div
+                key={`compare:${compareIds.join(":")}`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.3, ease: EASE }}
+              >
+                <ComparisonPanel
+                  candidates={candidates}
+                  compareIds={compareIds}
+                  job={job}
+                  profile={profile}
+                  onExit={exitCompareMode}
+                />
+              </m.div>
             ) : selected ? (
               <m.div
                 // Inclure target_gross_salary dans la key : tout changement de
@@ -237,14 +276,24 @@ function CompactHeader({ job }: { job: Job }) {
           </div>
         </div>
       </div>
-      <Link href={`/workspace/missions/${job.id}`} style={{
-        fontSize: 12, fontWeight: 700, color: "#7C63C8",
-        background: "white", border: "1px solid rgba(124,99,200,0.25)",
-        borderRadius: 9, padding: "8px 14px", textDecoration: "none",
-        whiteSpace: "nowrap", flexShrink: 0,
-      }}>
-        Fiche mission →
-      </Link>
+      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <Link href="/workspace/parametrage" style={{
+          fontSize: 12, fontWeight: 700, color: "#7C63C8",
+          background: "white", border: "1px solid rgba(124,99,200,0.25)",
+          borderRadius: 9, padding: "8px 14px", textDecoration: "none",
+          whiteSpace: "nowrap",
+        }}>
+          ⚙ Paramètres cabinet
+        </Link>
+        <Link href={`/workspace/missions/${job.id}`} style={{
+          fontSize: 12, fontWeight: 700, color: "#7C63C8",
+          background: "white", border: "1px solid rgba(124,99,200,0.25)",
+          borderRadius: 9, padding: "8px 14px", textDecoration: "none",
+          whiteSpace: "nowrap",
+        }}>
+          Fiche mission →
+        </Link>
+      </div>
     </div>
   )
 }
@@ -845,6 +894,7 @@ function WizardDateField({
 
 function CompactCandidatesList({
   candidates, job, profile, selectedMatchId, onSelect,
+  compareMode, compareIds, onToggleCompareMode, onToggleCompareId,
 }: {
   candidates: PricingCandidate[]
   job: Job
@@ -853,6 +903,10 @@ function CompactCandidatesList({
   > | null
   selectedMatchId: string | null
   onSelect: (id: string) => void
+  compareMode: boolean
+  compareIds: string[]
+  onToggleCompareMode: () => void
+  onToggleCompareId: (id: string) => void
 }) {
   // Tri par marge décroissante : les candidats les plus rentables en haut →
   // décision commerciale plus rapide (qui pousser en priorité au client).
@@ -870,12 +924,50 @@ function CompactCandidatesList({
   })
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <p style={{
-        margin: "0 0 4px", fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
-        letterSpacing: "0.06em", textTransform: "uppercase",
+      {/* Header avec compteur + toggle comparaison */}
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        gap: 8, marginBottom: 4,
       }}>
-        Candidats · {sorted.length}
-      </p>
+        <p style={{
+          margin: 0, fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+          letterSpacing: "0.06em", textTransform: "uppercase",
+        }}>
+          Candidats · {sorted.length}
+        </p>
+        {sorted.length >= 2 && (
+          <button
+            onClick={onToggleCompareMode}
+            style={{
+              fontFamily: "inherit", fontSize: 10, fontWeight: 700,
+              padding: "3px 8px", borderRadius: 100,
+              color: compareMode ? "white" : "#7C63C8",
+              background: compareMode
+                ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
+                : "rgba(124,99,200,0.08)",
+              border: compareMode
+                ? "1px solid #7C63C8"
+                : "1px solid rgba(124,99,200,0.25)",
+              cursor: "pointer",
+            }}
+          >
+            {compareMode ? "✕ Quitter" : "⇆ Comparer"}
+          </button>
+        )}
+      </div>
+      {compareMode && (
+        <p style={{
+          margin: "0 0 4px", fontSize: 11, color: "#7C63C8", lineHeight: 1.4,
+          padding: "6px 10px",
+          background: "rgba(124,99,200,0.06)",
+          border: "1px solid rgba(124,99,200,0.18)",
+          borderRadius: 8,
+        }}>
+          {compareIds.length === 0 && "Choisissez deux candidats à comparer."}
+          {compareIds.length === 1 && "Encore un candidat à choisir."}
+          {compareIds.length === 2 && "Comparaison affichée à droite."}
+        </p>
+      )}
       {sorted.length === 0 && (
         <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
           Aucun candidat à chiffrer.
@@ -883,6 +975,8 @@ function CompactCandidatesList({
       )}
       {sorted.map((c, i) => {
         const active = c.matchId === selectedMatchId
+        const compareRank = compareMode ? compareIds.indexOf(c.matchId) : -1
+        const inCompare = compareRank >= 0
         const initials = (c.candidate.full_name ?? "?")
           .split(" ").slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase()
         // Calcul rapide marge + brut pour le récap (réutilise les mêmes
@@ -901,15 +995,39 @@ function CompactCandidatesList({
             initial={{ opacity: 0, x: -6 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.25, delay: Math.min(i * 0.03, 0.2), ease: EASE }}
-            onClick={() => onSelect(c.matchId)}
+            onClick={() => {
+              if (compareMode) onToggleCompareId(c.matchId)
+              else onSelect(c.matchId)
+            }}
             style={{
               textAlign: "left", cursor: "pointer", fontFamily: "inherit",
-              background: active ? "linear-gradient(135deg, rgba(124,99,200,0.10), rgba(124,99,200,0.04))" : "white",
-              border: active ? "1.5px solid rgba(124,99,200,0.40)" : "1px solid #F0ECF8",
+              background: inCompare
+                ? "linear-gradient(135deg, rgba(124,99,200,0.14), rgba(124,99,200,0.04))"
+                : active
+                  ? "linear-gradient(135deg, rgba(124,99,200,0.10), rgba(124,99,200,0.04))"
+                  : "white",
+              border: inCompare
+                ? "1.5px solid #7C63C8"
+                : active
+                  ? "1.5px solid rgba(124,99,200,0.40)"
+                  : "1px solid #F0ECF8",
               borderRadius: 10, padding: "9px 10px",
               display: "flex", flexDirection: "column", gap: 5,
+              position: "relative",
             }}
           >
+            {inCompare && (
+              <span style={{
+                position: "absolute", top: -7, right: -7,
+                width: 18, height: 18, borderRadius: "50%",
+                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                color: "white", fontSize: 10, fontWeight: 800,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 2px 6px rgba(124,99,200,0.30)",
+              }}>
+                {compareRank + 1}
+              </span>
+            )}
             {/* Ligne 1 : avatar + nom + score */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{
@@ -1045,4 +1163,216 @@ const mainStyle: React.CSSProperties = {
   padding: "24px 24px 80px",
   maxWidth: 1760, margin: "0 auto",
   fontFamily: "var(--font-inter), sans-serif",
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * ComparisonPanel — 2 candidats côte à côte
+ *
+ * S'appuie strictement sur computeQuickMargin (mêmes fonctions que le widget)
+ * pour qu'il n'y ait aucune divergence de chiffre. Affiche les KPI clés en
+ * 2 colonnes : séniorité détectée, TJM, brut, marge %, marge mensuelle,
+ * marge totale, et un verdict côte à côte.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function ComparisonPanel({
+  candidates, compareIds, job, profile, onExit,
+}: {
+  candidates: PricingCandidate[]
+  compareIds: string[]
+  job: Job
+  profile: Pick<Profile,
+    | "pricing_billable_days_per_month" | "pricing_default_lieu" | "pricing_default_avantages"
+  > | null
+  onExit: () => void
+}) {
+  const picked = compareIds
+    .map((id) => candidates.find((c) => c.matchId === id))
+    .filter((x): x is PricingCandidate => !!x)
+
+  return (
+    <section style={{
+      background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+      padding: 18,
+    }}>
+      {/* Header — titre + close */}
+      <header style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        marginBottom: 14,
+      }}>
+        <div>
+          <h3 style={{
+            margin: 0, fontSize: 14, fontWeight: 800, color: "#111827",
+          }}>
+            Comparaison de candidats
+          </h3>
+          <p style={{
+            margin: "3px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4,
+          }}>
+            {picked.length}/2 sélectionnés · choisis les candidats dans la liste à gauche pour les comparer côte à côte.
+          </p>
+        </div>
+        <button onClick={onExit} style={{
+          fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          background: "rgba(124,99,200,0.06)",
+          border: "1px solid rgba(124,99,200,0.20)",
+          borderRadius: 8, padding: "5px 10px", cursor: "pointer",
+        }}>
+          ✕ Fermer
+        </button>
+      </header>
+
+      {picked.length < 2 ? (
+        <ComparisonEmptyState picked={picked.length} />
+      ) : (
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
+        }}>
+          {picked.map((p, idx) => (
+            <ComparisonCard key={p.matchId} rank={idx + 1} pc={p} job={job} profile={profile} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function ComparisonEmptyState({ picked }: { picked: number }) {
+  return (
+    <div style={{
+      padding: "36px 18px", textAlign: "center",
+      background: "#FAFAFA", border: "1px dashed #E5E7EB", borderRadius: 12,
+    }}>
+      <div style={{ fontSize: 28, marginBottom: 6 }}>⇆</div>
+      <p style={{ margin: 0, fontSize: 13, color: "#374151", fontWeight: 600 }}>
+        {picked === 0 ? "Choisissez 2 candidats à comparer." : "Encore un candidat à choisir."}
+      </p>
+      <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>
+        Cliquez dans la liste à gauche pour les ajouter à la comparaison.
+      </p>
+    </div>
+  )
+}
+
+function ComparisonCard({
+  rank, pc, job, profile,
+}: {
+  rank: number
+  pc: PricingCandidate
+  job: Job
+  profile: Pick<Profile,
+    | "pricing_billable_days_per_month" | "pricing_default_lieu" | "pricing_default_avantages"
+  > | null
+}) {
+  const quick = computeQuickMargin({
+    candidate: pc.candidate, job, profile,
+    persistedTjm: pc.pricingTjm, persistedBrut: pc.pricingBrut,
+  })
+  const targetPct = job.margin_target_pct ?? 22
+  const minPct = job.margin_min_pct ?? 15
+  const status: { fg: string; bg: string; bd: string; label: string } =
+    quick == null            ? { fg: "#6B7280", bg: "#FAFAFA",                bd: "#E5E7EB",                label: "Pricing en attente" }
+    : quick.margePct >= targetPct ? { fg: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)",  label: "Mission rentable" }
+    : quick.margePct >= minPct    ? { fg: "#B45309", bg: "rgba(217,119,6,0.06)",  bd: "rgba(217,119,6,0.25)",  label: "Sous la cible" }
+    : quick.margePct >= 0         ? { fg: "#B91C1C", bg: "#FEF2F2",               bd: "#FECACA",                label: "Sous le plancher" }
+                                  : { fg: "#B91C1C", bg: "#FEF2F2",               bd: "#FECACA",                label: "Mission en perte" }
+  const margeMonth = quick ? quick.margeMensuelleEur : null
+  const margeTotal = quick ? Math.round(quick.margeMensuelleEur * 12) : null
+  const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR")
+
+  return (
+    <div style={{
+      background: status.bg, border: `1.5px solid ${status.bd}`,
+      borderRadius: 12, padding: 14,
+      display: "flex", flexDirection: "column", gap: 12,
+    }}>
+      {/* Identification candidat + badge rang */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{
+          width: 24, height: 24, borderRadius: "50%",
+          background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          color: "white", fontSize: 11, fontWeight: 800,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}>
+          {rank}
+        </span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 800, color: "#111827",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {pc.candidate.full_name ?? "Sans nom"}
+          </div>
+          <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 1 }}>
+            {pc.candidate.current_title ?? "—"}
+            {pc.candidate.years_experience != null ? ` · ${pc.candidate.years_experience} ans XP` : ""}
+          </div>
+        </div>
+      </div>
+
+      {/* Verdict */}
+      <div style={{
+        fontSize: 10, fontWeight: 700, color: status.fg,
+        letterSpacing: "0.06em", textTransform: "uppercase",
+      }}>
+        {status.label}
+      </div>
+
+      {/* KPIs — marge moyenne en gros, sub : marge mensuelle / totale */}
+      <div style={{
+        display: "flex", alignItems: "baseline", gap: 6,
+      }}>
+        <span style={{
+          fontSize: 32, fontWeight: 800, color: status.fg,
+          fontVariantNumeric: "tabular-nums", lineHeight: 1,
+        }}>
+          {quick == null ? "—" : `${quick.margePct.toFixed(1)}`}
+        </span>
+        <span style={{ fontSize: 14, color: status.fg, fontWeight: 700 }}>
+          {quick == null ? "" : "% marge moyenne"}
+        </span>
+      </div>
+
+      {/* Détail TJM / Brut / Marge mensuelle / totale */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+        paddingTop: 10, borderTop: "1px solid rgba(0,0,0,0.06)",
+      }}>
+        <CompareStat label="TJM" value={quick ? `${quick.tjm} €/j` : "—"} />
+        <CompareStat label="Brut" value={quick ? `${fmt(quick.brut)} €/an` : "—"} />
+        <CompareStat label="Marge / mois" value={margeMonth != null ? `${fmt(margeMonth)} €` : "—"} />
+        <CompareStat label="Marge totale" value={margeTotal != null ? `${fmt(margeTotal)} €` : "—"} />
+      </div>
+
+      {/* Précision : si pas de pricing persisté, on prévient. */}
+      {quick != null && pc.pricingTjm == null && pc.pricingBrut == null && (
+        <p style={{
+          margin: 0, fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4,
+          fontStyle: "italic",
+        }}>
+          Valeurs auto-calculées (TJM mission + brut par défaut). Ouvre la
+          fiche pricing du candidat pour ajuster.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function CompareStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{
+        fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
+        letterSpacing: "0.05em", textTransform: "uppercase",
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontSize: 13, fontWeight: 700, color: "#111827",
+        fontVariantNumeric: "tabular-nums", marginTop: 2,
+      }}>
+        {value}
+      </div>
+    </div>
+  )
 }

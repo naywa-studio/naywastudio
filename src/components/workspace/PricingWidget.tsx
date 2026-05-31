@@ -14,7 +14,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import Link from "next/link"
 import {
   computeEmployerCost,
   computeTriangle,
@@ -379,45 +378,6 @@ function PricingWidgetInner({
       background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
       padding: 18,
     }}>
-      {/* ═══ WIDGET HEADER — titre + lien paramètres cabinet ═══ */}
-      <header style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        marginBottom: 12,
-      }}>
-        <h3 style={{
-          margin: 0, fontSize: 13, fontWeight: 800, color: "#111827",
-          letterSpacing: "0.01em",
-        }}>
-          Chiffrage candidat
-        </h3>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {matchId && job?.start_date && job?.duration_months && (
-            <ExportPdfButton
-              matchId={matchId}
-              tjm={tjm}
-              brutAnnuel={brutAnnuel}
-              position={effectivePosition}
-              coefficient={effectiveCoef}
-              seniorityLabel={preset.short}
-              lieu={lieu}
-              modalite={modalite}
-              statut={preset.statut}
-              joursFacturablesParMois={joursParMois}
-              margeMinPct={margeMinPct}
-              margeTargetPct={margeTargetPct}
-            />
-          )}
-          <Link href="/workspace/parametrage" style={{
-            fontSize: 11, fontWeight: 600, color: "#7C63C8", textDecoration: "none",
-            padding: "5px 10px", borderRadius: 8,
-            background: "rgba(124,99,200,0.06)",
-            border: "1px solid rgba(124,99,200,0.20)",
-          }}>
-            ⚙ Paramètres cabinet
-          </Link>
-        </div>
-      </header>
-
       {/* ═══ VERDICT HERO ═══ */}
       <VerdictHero
         candidateName={candidate.full_name ?? "Sans nom"}
@@ -939,93 +899,6 @@ function ActiveAvantagesStrip({ avantages, job }: {
         </span>
       ))}
     </div>
-  )
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
- * ExportPdfButton — bouton "Exporter PDF" + appel API + déclenche download
- *
- * On envoie au serveur l'état courant du widget (TJM, Brut, position/coef
- * choisis, séniorité, marges cibles). Le serveur recompose les inputs avec
- * les avantages cabinet + flags mission et appelle les mêmes fonctions
- * syntec.ts que le widget — pas de divergence possible.
- * ────────────────────────────────────────────────────────────────────────── */
-
-function ExportPdfButton({
-  matchId, tjm, brutAnnuel, position, coefficient, seniorityLabel,
-  lieu, modalite, statut, joursFacturablesParMois,
-  margeMinPct, margeTargetPct,
-}: {
-  matchId: string
-  tjm: number
-  brutAnnuel: number
-  position: string
-  coefficient: number
-  seniorityLabel: string
-  lieu: Lieu
-  modalite: Modalite
-  statut: PricingInputs["statut"]
-  joursFacturablesParMois: number
-  margeMinPct: number
-  margeTargetPct: number
-}) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const onClick = async () => {
-    setBusy(true); setError(null)
-    try {
-      const res = await fetch(`/api/match/${matchId}/pricing-pdf`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tjm, brutAnnuel, position, coefficient, seniorityLabel,
-          lieu, modalite, statut, joursFacturablesParMois,
-          margeMinPct, margeTargetPct,
-        }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null) as { error?: string } | null
-        throw new Error(data?.error ?? `HTTP ${res.status}`)
-      }
-      // Filename comes from server's Content-Disposition; fall back if needed.
-      const disp = res.headers.get("Content-Disposition") ?? ""
-      const match = /filename="([^"]+)"/.exec(disp)
-      const filename = match?.[1] ?? "pricing.pdf"
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a); a.click(); a.remove()
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      setError((err as Error).message)
-      window.setTimeout(() => setError(null), 4000)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={busy}
-      style={{
-        fontFamily: "inherit", fontSize: 11, fontWeight: 700,
-        color: "white",
-        padding: "5px 10px", borderRadius: 8,
-        background: busy
-          ? "rgba(124,99,200,0.5)"
-          : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-        border: "1px solid rgba(124,99,200,0.40)",
-        cursor: busy ? "wait" : "pointer",
-        display: "inline-flex", alignItems: "center", gap: 5,
-      }}
-      title={error ?? "Télécharger une synthèse PDF du pricing courant"}
-    >
-      {busy ? "Génération…" : "↓ Exporter PDF"}
-    </button>
   )
 }
 
