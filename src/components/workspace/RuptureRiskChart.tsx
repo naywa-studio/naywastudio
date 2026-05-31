@@ -302,39 +302,20 @@ export default function RuptureRiskChart({
         })}
       </svg>
 
-      {/* Récap pire / meilleur mois */}
-      <div style={{
-        marginTop: 14, paddingTop: 12, borderTop: "1px solid #F0ECF8",
-        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        gap: 8,
-      }}>
-        {profile.worstMonth && (
+      {/* Récap pire moment — la seule info actionnable de ce chart (la fin
+          d'essai et le préavis sont déjà sur le graphe ou dans paramétrage). */}
+      {profile.worstMonth && (
+        <div style={{
+          marginTop: 14, paddingTop: 12, borderTop: "1px solid #F0ECF8",
+        }}>
           <StatTile
             label="Pire moment pour rompre"
             value={`${MONTH_ABBR_FR[profile.worstMonth.calendarMonth]} ${profile.worstMonth.year}`}
             hint={`Marge ${profile.worstMonth.margePct.toFixed(1)} % · ${formatEur(profile.worstMonth.margeNetteEur)}`}
             tone={profile.worstMonth.margePct < 0 ? "bad" : profile.worstMonth.margePct < (margeMinPct ?? 15) ? "warn" : undefined}
           />
-        )}
-        {profile.bestMonth && (
-          <StatTile
-            label="Meilleur moment pour rompre"
-            value={`${MONTH_ABBR_FR[profile.bestMonth.calendarMonth]} ${profile.bestMonth.year}`}
-            hint={`Marge ${profile.bestMonth.margePct.toFixed(1)} % · ${formatEur(profile.bestMonth.margeNetteEur)}`}
-            tone="good"
-          />
-        )}
-        <StatTile
-          label="Préavis Syntec"
-          value={`${profile.preavisMois} mois`}
-          hint={`Coût pendant préavis ≈ ${formatEur(profile.preavisMois * (points[0]?.cumulCost / points[0]?.cumulDays * 21 || 0))}/mois (estim.)`}
-        />
-        <StatTile
-          label="Fin période d'essai"
-          value={`Mois ${profile.finEssaiMois}`}
-          hint="Avant : rupture gratuite. Après : coût rupture appliqué."
-        />
-      </div>
+        </div>
+      )}
     </div>
   )
 }

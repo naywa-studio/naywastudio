@@ -60,6 +60,20 @@ const LIEU_LABELS: Record<Lieu, string> = {
   province: "Province",
 }
 
+/* Grille cadres Syntec 2026 — utilisée pour le sélecteur position/coef
+ * dans la context bar (override manuel du preset séniorité). */
+const SYNTEC_CADRE_ROWS: { position: string; coefficient: number; label: string }[] = [
+  { position: "1.1", coefficient: 95,  label: "1.1 · coef 95 — Jeune diplômé Bac+5" },
+  { position: "1.2", coefficient: 100, label: "1.2 · coef 100 — Ingénieur débutant 1-2 ans" },
+  { position: "2.1", coefficient: 105, label: "2.1 · coef 105 — Junior <26 ans" },
+  { position: "2.1", coefficient: 115, label: "2.1 · coef 115 — Confirmé ≥26 ans" },
+  { position: "2.2", coefficient: 130, label: "2.2 · coef 130 — Senior / lead" },
+  { position: "2.3", coefficient: 150, label: "2.3 · coef 150 — Senior confirmé" },
+  { position: "3.1", coefficient: 170, label: "3.1 · coef 170 — Manager / chef de projet" },
+  { position: "3.2", coefficient: 210, label: "3.2 · coef 210 — Senior manager / expert" },
+  { position: "3.3", coefficient: 270, label: "3.3 · coef 270 — Director / partner" },
+]
+
 /* ──────────────────────────────────────────────────────────────────────────
  * Outer wrapper — loads profile defaults
  * ────────────────────────────────────────────────────────────────────────── */
@@ -156,6 +170,15 @@ function PricingWidgetInner({
   const [seniority, setSeniority] = useState<SenioritePreset>(detectedPreset)
   const preset = PRESETS[seniority]
 
+  // Override manuel position/coef Syntec — si le sourceur n'est pas d'accord
+  // avec le preset auto. Tant que null, on suit le preset séniorité.
+  // Note : on ne reset pas automatiquement sur changement de séniorité — le
+  // sourceur a explicitement choisi une ligne, on la respecte tant qu'il ne
+  // clique pas "réinitialiser".
+  const [syntecOverride, setSyntecOverride] = useState<{ position: string; coefficient: number } | null>(null)
+  const effectivePosition = syntecOverride?.position ?? preset.position
+  const effectiveCoef = syntecOverride?.coefficient ?? preset.coefficient
+
   // Priorité au lieu typé renseigné par mission (wizard) ; fallback sur la
   // détection legacy via job.location (texte libre) puis sur le défaut
   // cabinet (peut disparaître à terme).
@@ -232,14 +255,14 @@ function PricingWidgetInner({
     (brut: number): PricingInputs => ({
       brutAnnuel: brut,
       statut: preset.statut,
-      position: preset.position,
-      coefficient: preset.coefficient,
+      position: effectivePosition,
+      coefficient: effectiveCoef,
       modalite,
       lieu,
       avantages,
       joursFacturablesParMois: joursParMois,
     }),
-    [preset, modalite, lieu, avantages, joursParMois],
+    [preset.statut, effectivePosition, effectiveCoef, modalite, lieu, avantages, joursParMois],
   )
 
   // Triangle (résultante TJM/brut/marge) — pour le KPI marge mensuelle estim
@@ -335,6 +358,27 @@ function PricingWidgetInner({
       background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
       padding: 18,
     }}>
+      {/* ═══ WIDGET HEADER — titre + lien paramètres cabinet ═══ */}
+      <header style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        marginBottom: 12,
+      }}>
+        <h3 style={{
+          margin: 0, fontSize: 13, fontWeight: 800, color: "#111827",
+          letterSpacing: "0.01em",
+        }}>
+          Chiffrage candidat
+        </h3>
+        <Link href="/workspace/parametrage" style={{
+          fontSize: 11, fontWeight: 600, color: "#7C63C8", textDecoration: "none",
+          padding: "5px 10px", borderRadius: 8,
+          background: "rgba(124,99,200,0.06)",
+          border: "1px solid rgba(124,99,200,0.20)",
+        }}>
+          ⚙ Paramètres cabinet
+        </Link>
+      </header>
+
       {/* ═══ VERDICT HERO ═══ */}
       <VerdictHero
         candidateName={candidate.full_name ?? "Sans nom"}
@@ -376,26 +420,18 @@ function PricingWidgetInner({
       }}>
         {/* ─── COLONNE GAUCHE — contexte + leviers ─── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-          {/* Context bar — paramètres Syntec appliqués + lieu */}
-          <div
-            style={{
-              display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
-              padding: "8px 12px", background: "#FAFAFA", borderRadius: 10,
-              fontSize: 11, color: "#6B7280",
-            }}
-          >
-            <strong style={{ color: "#374151" }}>{preset.short}</strong>
-            <span>·</span>
-            <span>Cadre · Pos. {preset.position} · coef {preset.coefficient}</span>
-            <span>·</span>
-            <span>{LIEU_LABELS[lieu]}</span>
-            <span style={{ flex: 1 }} />
-            <Link href="/workspace/parametrage" style={{
-              fontSize: 11, fontWeight: 600, color: "#7C63C8", textDecoration: "none",
-            }}>
-              ⚙ Paramètres cabinet
-            </Link>
-          </div>
+          {/* Context bar — paramètres Syntec appliqués + lieu. La position et
+              le coefficient sont ajustables manuellement si le preset auto ne
+              correspond pas au profil exact du candidat. */}
+          <SyntecContextBar
+            seniorityLabel={preset.short}
+            position={effectivePosition}
+            coefficient={effectiveCoef}
+            isOverridden={syntecOverride != null}
+            lieuLabel={LIEU_LABELS[lieu]}
+            onChange={(p, c) => setSyntecOverride({ position: p, coefficient: c })}
+            onReset={() => setSyntecOverride(null)}
+          />
 
           {/* Avantages appliqués */}
           <ActiveAvantagesStrip avantages={avantages} job={job} />
@@ -695,8 +731,9 @@ function RecommendationBanner({
       return {
         tone: "success" as const,
         text:
-          `Belle marge. Tu peux remonter le brut jusqu'à ${fmt(brutIdeal)} pour rester sur ta cible ${margeTargetPct}%, ` +
-          `ou jusqu'à ${fmt(brutMax)} pour rester au-dessus de ton plancher ${margeMinPct}%.`,
+          `Belle marge sur cette mission. Vous pouvez remonter le brut jusqu'à ${fmt(brutIdeal)} ` +
+          `pour rester sur la cible ${margeTargetPct}%, ou jusqu'à ${fmt(brutMax)} ` +
+          `pour rester au-dessus du plancher ${margeMinPct}%.`,
       }
     }
     // Entre plancher et cible : encore rentable, mais sous-optimal.
@@ -704,8 +741,9 @@ function RecommendationBanner({
       return {
         tone: "warn" as const,
         text:
-          `Marge sous ta cible ${margeTargetPct}%. Pour l'atteindre, descends le brut à ${fmt(brutIdeal)} ` +
-          `(actuel ${fmt(brutAnnuel)}), ou conserve le brut et négocie un TJM plus haut.`,
+          `La marge est sous la cible ${margeTargetPct}%. Pour l'atteindre, il faut descendre ` +
+          `le brut à ${fmt(brutIdeal)} (actuel ${fmt(brutAnnuel)}), ou conserver le brut et ` +
+          `négocier un TJM plus haut.`,
       }
     }
     // Sous le plancher : danger commercial.
@@ -713,42 +751,69 @@ function RecommendationBanner({
       return {
         tone: "alert" as const,
         text:
-          `Marge sous ton plancher ${margeMinPct}%. Brut max acceptable à ce TJM : ${fmt(brutMax)} ` +
-          `(actuel ${fmt(brutAnnuel)}). Sinon, monte le TJM (${tjm} €/j aujourd'hui).`,
+          `Attention, la marge passe sous le plancher ${margeMinPct}%. Brut max acceptable ` +
+          `à ce TJM : ${fmt(brutMax)} (actuel ${fmt(brutAnnuel)}). Sinon, il faudrait remonter ` +
+          `le TJM (${tjm} €/j aujourd'hui).`,
       }
     }
     // Perte sèche.
     return {
       tone: "alert" as const,
       text:
-        `Mission en perte : le coût employeur dépasse le revenu. ` +
-        `Plancher Syntec ${fmt(brutMin)} ; brut max à ta marge mini ${fmt(brutMax)}. ` +
-        `Revoir le TJM ou le brut.`,
+        `Cette mission est en perte : le coût employeur dépasse le revenu. ` +
+        `Plancher Syntec ${fmt(brutMin)} ; brut max à la marge mini ${fmt(brutMax)}. ` +
+        `Il faut revoir le TJM ou le brut avant d'engager le candidat.`,
     }
   })()
 
   const palette = {
-    success: { fg: "#15803d", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)",  icon: "✓" },
-    warn:    { fg: "#B45309", bg: "rgba(217,119,6,0.08)",  bd: "rgba(217,119,6,0.25)",  icon: "💡" },
-    alert:   { fg: "#B91C1C", bg: "rgba(220,38,38,0.06)",  bd: "rgba(220,38,38,0.25)",  icon: "🚨" },
+    success: { fg: "#15803d", bg: "#FFFFFF",                bd: "rgba(34,197,94,0.25)" },
+    warn:    { fg: "#B45309", bg: "#FFFFFF",                bd: "rgba(217,119,6,0.25)" },
+    alert:   { fg: "#B91C1C", bg: "#FFFFFF",                bd: "rgba(220,38,38,0.25)" },
   }[reco.tone]
 
   return (
     <div style={{
-      marginTop: 10, padding: "11px 14px",
-      background: palette.bg, border: `1px solid ${palette.bd}`,
-      borderRadius: 11, display: "flex", alignItems: "flex-start", gap: 9,
+      marginTop: 12,
+      display: "flex", alignItems: "flex-start", gap: 10,
     }}>
-      <span style={{ fontSize: 14, color: palette.fg, lineHeight: 1.2, flexShrink: 0 }}>{palette.icon}</span>
-      <p style={{
-        margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55,
-        fontWeight: 500,
+      {/* Avatar Nora — pastille violette avec initiale */}
+      <div style={{
+        width: 30, height: 30, flexShrink: 0,
+        borderRadius: "50%",
+        background: "linear-gradient(135deg, #7C63C8 0%, #6B54B2 100%)",
+        color: "white", fontSize: 12, fontWeight: 800,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 2px 8px rgba(124,99,200,0.25)",
+        letterSpacing: "0.02em",
       }}>
-        <span style={{ fontWeight: 700, color: palette.fg, marginRight: 4 }}>
-          Reco
-        </span>
-        {reco.text}
-      </p>
+        N
+      </div>
+
+      {/* Bulle de message style chat */}
+      <div style={{
+        position: "relative",
+        flex: 1,
+        background: palette.bg,
+        border: `1px solid ${palette.bd}`,
+        borderRadius: 14,
+        borderTopLeftRadius: 4,
+        padding: "10px 14px",
+        boxShadow: "0 1px 2px rgba(17,24,39,0.04)",
+      }}>
+        <div style={{
+          fontSize: 11, fontWeight: 700, color: palette.fg,
+          marginBottom: 4, letterSpacing: "0.01em",
+        }}>
+          La reco de Nora
+        </div>
+        <p style={{
+          margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55,
+          fontWeight: 400,
+        }}>
+          {reco.text}
+        </p>
+      </div>
     </div>
   )
 }
@@ -807,6 +872,114 @@ function ActiveAvantagesStrip({ avantages, job }: {
           <strong style={{ color: "#111827", fontVariantNumeric: "tabular-nums" }}>{c.value}</strong>
         </span>
       ))}
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * SyntecContextBar — barre contextuelle Syntec avec sélecteur position/coef
+ *
+ * Le sourceur peut surcharger la position/coef proposée par le preset si le
+ * profil exact du candidat est plus subtil (ex. coef 115 vs 105 sur 2.1
+ * selon l'âge, ou ingénieur Bac+5 reclassé 2.2 plus tôt que prévu).
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function SyntecContextBar({
+  seniorityLabel, position, coefficient, isOverridden, lieuLabel,
+  onChange, onReset,
+}: {
+  seniorityLabel: string
+  position: string
+  coefficient: number
+  isOverridden: boolean
+  lieuLabel: string
+  onChange: (position: string, coefficient: number) => void
+  onReset: () => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div style={{
+      position: "relative",
+      display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
+      padding: "8px 12px", background: "#FAFAFA", borderRadius: 10,
+      fontSize: 11, color: "#6B7280",
+    }}>
+      <strong style={{ color: "#374151" }}>{seniorityLabel}</strong>
+      <span>·</span>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          fontFamily: "inherit", fontSize: 11, color: "#374151",
+          background: isOverridden ? "rgba(124,99,200,0.10)" : "white",
+          border: `1px solid ${isOverridden ? "rgba(124,99,200,0.30)" : "#E5E7EB"}`,
+          borderRadius: 7, padding: "3px 8px", cursor: "pointer",
+          display: "inline-flex", alignItems: "center", gap: 5,
+        }}
+      >
+        Cadre · Pos. {position} · coef {coefficient}
+        <span style={{ color: "#7C63C8", fontSize: 10 }}>▾</span>
+      </button>
+      {isOverridden && (
+        <button
+          onClick={onReset}
+          style={{
+            fontFamily: "inherit", fontSize: 10.5, color: "#7C63C8",
+            background: "transparent", border: "none", cursor: "pointer",
+            textDecoration: "underline", padding: 0,
+          }}
+        >
+          réinitialiser
+        </button>
+      )}
+      <span>·</span>
+      <span>{lieuLabel}</span>
+
+      {open && (
+        <>
+          {/* overlay pour fermer au clic externe */}
+          <div
+            onClick={() => setOpen(false)}
+            style={{
+              position: "fixed", inset: 0, zIndex: 50, background: "transparent",
+            }}
+          />
+          <div style={{
+            position: "absolute", top: "calc(100% + 6px)", left: 12, zIndex: 60,
+            background: "white", border: "1px solid #E9E2F7", borderRadius: 10,
+            boxShadow: "0 8px 28px rgba(124,99,200,0.18), 0 1px 2px rgba(17,24,39,0.04)",
+            padding: 6, minWidth: 320, maxHeight: 320, overflowY: "auto",
+          }}>
+            <div style={{
+              fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+              letterSpacing: "0.05em", textTransform: "uppercase",
+              padding: "6px 10px 4px",
+            }}>
+              Choisir une position Syntec
+            </div>
+            {SYNTEC_CADRE_ROWS.map((row) => {
+              const isActive = row.position === position && row.coefficient === coefficient
+              return (
+                <button
+                  key={`${row.position}-${row.coefficient}`}
+                  onClick={() => { onChange(row.position, row.coefficient); setOpen(false) }}
+                  style={{
+                    display: "block", width: "100%", textAlign: "left",
+                    fontFamily: "inherit", fontSize: 12,
+                    color: isActive ? "#7C63C8" : "#374151",
+                    fontWeight: isActive ? 700 : 500,
+                    background: isActive ? "rgba(124,99,200,0.08)" : "transparent",
+                    border: "none", borderRadius: 7, padding: "7px 10px",
+                    cursor: "pointer",
+                  }}
+                >
+                  {row.label}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
     </div>
   )
 }
