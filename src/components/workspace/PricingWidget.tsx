@@ -394,19 +394,11 @@ function PricingWidgetInner({
         onSenioritySelect={setSeniority}
       />
 
-      {/* ═══ RECOMMANDATION HUMAINE — phrase d'aide à la décision ═══ */}
-      {limits && (
-        <RecommendationBanner
-          margePct={margePct}
-          margeMinPct={margeMinPct}
-          margeTargetPct={margeTargetPct}
-          brutAnnuel={brutAnnuel}
-          brutMin={limits.brutMin}
-          brutIdeal={limits.brutIdeal}
-          brutMax={limits.brutMax}
-          tjm={tjm}
-        />
-      )}
+      {/* La bulle "La reco de Nora" est déplacée dans la colonne droite,
+          sous le chart, pour :
+          - libérer l'espace vertical au-dessus du 2-col layout (l'abscisse
+            des graphes reste visible sans scroller)
+          - combler le vide qui apparaissait sous le chart côté droit. */}
 
       {/* ═══ DASHBOARD 2 COLONNES — leviers à gauche, charts à droite ═══
        *  Objectif : voir le graphe et le coût sans scroller. À <1100 px on
@@ -558,6 +550,23 @@ function PricingWidgetInner({
               <CostBreakdown cost={cost} avantages={avantages} />
             )}
           </div>
+
+          {/* Reco de Nora — sous le chart, comble l'espace blanc qu'il y avait
+              et libère le haut du widget pour laisser voir l'axe X. */}
+          {limits && (
+            <div style={{ marginTop: 12 }}>
+              <RecommendationBanner
+                margePct={margePct}
+                margeMinPct={margeMinPct}
+                margeTargetPct={margeTargetPct}
+                brutAnnuel={brutAnnuel}
+                brutMin={limits.brutMin}
+                brutIdeal={limits.brutIdeal}
+                brutMax={limits.brutMax}
+                tjm={tjm}
+              />
+            </div>
+          )}
         </div>
       </div>
 

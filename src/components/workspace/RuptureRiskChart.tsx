@@ -199,20 +199,27 @@ export default function RuptureRiskChart({
           </g>
         ))}
 
-        {/* Seuil mini cabinet */}
+        {/* Seuil mini cabinet — label collé à GAUCHE (zone vide près de l'axe Y)
+            pour ne jamais chevaucher la courbe ou les labels % en fin de
+            mission. Pastille blanche en arrière-plan pour la lisibilité. */}
         {margeMinPct !== undefined && (
-          <>
+          <g>
             <line
               x1={PAD_L} y1={yOf(margeMinPct)} x2={W - PAD_R} y2={yOf(margeMinPct)}
               stroke="#D97706" strokeWidth={1.2} strokeDasharray="5 4" opacity={0.7}
             />
+            <rect
+              x={PAD_L + 4} y={yOf(margeMinPct) - 13}
+              width={92} height={14} rx={3}
+              fill="white" opacity={0.92}
+            />
             <text
-              x={W - PAD_R - 4} y={yOf(margeMinPct) - 4}
-              fontSize={10} fill="#D97706" textAnchor="end" fontWeight={700}
+              x={PAD_L + 8} y={yOf(margeMinPct) - 3}
+              fontSize={10} fill="#D97706" textAnchor="start" fontWeight={700}
             >
               seuil mini {margeMinPct.toFixed(0)} %
             </text>
-          </>
+          </g>
         )}
 
         {/* Aire sous la courbe (fond violet pâle) */}
