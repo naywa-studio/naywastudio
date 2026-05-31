@@ -111,7 +111,11 @@ export default function PricingMissionPage() {
         pricing_brut: number | null
         candidate: Candidate | null
       }[])
-        .filter((r) => r.candidate !== null)
+        // On exclut les candidats marqués "ancien" par le dédup — le vivier
+        // les masque aussi, donc afficher leur match côté pricing crée le
+        // même candidat en double dans la liste (une fois "ancien", une fois
+        // "freshest"). Le tag est porté sur le candidat joint.
+        .filter((r) => r.candidate !== null && !r.candidate.tags?.includes("ancien"))
         .map((r) => ({
           matchId: r.id,
           candidate: r.candidate as Candidate,

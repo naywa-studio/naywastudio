@@ -44,7 +44,15 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     .eq("job_id", id)
     .order("score", { ascending: false, nullsFirst: false })
 
-  return NextResponse.json({ job, assessments: assessments ?? [] })
+  // Exclure les matchs dont le candidat a été marqué "ancien" par la dédup —
+  // le vivier les masque aussi, donc les afficher ici crée un doublon visible
+  // alors que le sourceur a déjà fait le tri.
+  const filtered = (assessments ?? []).filter((m) => {
+    const tags = (m.candidate as { tags?: string[] | null } | null)?.tags ?? []
+    return !tags.includes("ancien")
+  })
+
+  return NextResponse.json({ job, assessments: filtered })
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
