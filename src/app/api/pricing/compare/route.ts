@@ -21,14 +21,19 @@ import type { Candidate, Job, Profile } from "@/lib/database.types"
 export const runtime = "nodejs"
 export const maxDuration = 30
 
-const SYSTEM_PROMPT = `Tu es Nora, l'assistante pricing du sourceur. On te montre deux candidats positionnés sur la même mission. Tu donnes un avis tranché et court — qui est le meilleur choix, et pourquoi.
+const SYSTEM_PROMPT = `Tu es Nora, l'assistante pricing du sourceur. On te montre deux candidats positionnés sur la même mission. Tu produis un vrai avis raisonné — qui est le meilleur choix, pourquoi, et ce qu'il faut surveiller.
 
 Règles :
 - Réponds en JSON strict : { "winner": "A" | "B" | "tie", "commentary": string }.
-- Le commentary fait 2 à 3 phrases maximum, en français, vouvoiement (jamais de tutoiement).
-- Tu compares marge moyenne, marge mensuelle, séniorité, et brut. Tu ne fais aucune supposition sur la qualité humaine du candidat — uniquement les chiffres et la séniorité.
-- Si l'écart est minime (< 1 pt de marge ET brut équivalent), réponds tie et explique-le.
-- Ne ré-explique pas les chiffres déjà visibles — vas droit à la décision ("Le candidat A est plus rentable…", "Préférez le candidat B…").`
+- Le commentary fait 4 à 5 phrases en français, vouvoiement strict (jamais de tutoiement).
+- Structure attendue :
+  1. Phrase d'ouverture qui annonce la préférence (ou l'égalité) avec le nom du candidat retenu.
+  2. Le POURQUOI commercial : compare la marge moyenne et la marge mensuelle, chiffrez l'écart en points ou en euros si pertinent.
+  3. Le POURQUOI RH : compare la séniorité, l'expérience, et le coût brut. Si l'un est plus cher mais plus expérimenté, expliquez l'arbitrage.
+  4. Un point d'attention concret : risque rupture si le brut est sous le minimum Syntec, marge sous le plancher cabinet, ou écart fort entre TJM affiché et brut proposé.
+  5. (Optionnel) Une suggestion d'action : "Vous pourriez ajuster X pour…".
+- Si l'écart est minime (< 1 pt de marge ET brut équivalent), réponds winner = "tie" et expliquez pourquoi les deux profils se valent commercialement, en suggérant le critère humain qui pourrait départager.
+- Ne ré-énumérez pas tous les chiffres bruts du snapshot — extrayez les signaux qui pèsent dans la décision et reliez-les entre eux.`
 
 interface Body {
   matchAId?: string
@@ -95,39 +100,54 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
   }
 
+  // Brève synthèse écart pour pré-mâcher l'analyse côté LLM.
+  const margePctDelta = Number((qA.margePct - qB.margePct).toFixed(1))
+  const margeMonthDelta = Math.round(qA.margeMensuelleEur - qB.margeMensuelleEur)
+  const margeTotalA = Math.round(qA.margeMensuelleEur * (job.duration_months ?? 12))
+  const margeTotalB = Math.round(qB.margeMensuelleEur * (job.duration_months ?? 12))
+  const brutDelta = Math.round(qA.brut - qB.brut)
+  const xpDelta = (candA.years_experience ?? 0) - (candB.years_experience ?? 0)
+
+  const candidateSnapshot = (cand: Candidate, q: NonNullable<ReturnType<typeof computeQuickMargin>>) => ({
+    nom: cand.full_name,
+    poste_actuel: cand.current_title,
+    ans_xp: cand.years_experience,
+    seniorite_niveau: cand.seniority_level,
+    tjm_eur_jour: q.tjm,
+    brut_annuel_eur: Math.round(q.brut),
+    marge_moyenne_pct: Number(q.margePct.toFixed(1)),
+    marge_mensuelle_eur: Math.round(q.margeMensuelleEur),
+    marge_totale_eur: Math.round(q.margeMensuelleEur * (job.duration_months ?? 12)),
+    rappel_competences: (cand.skills ?? []).slice(0, 8),
+  })
+
   const snapshot = {
     mission: {
       titre: job.title,
-      tjm_cible: job.client_tjm_min ?? null,
+      lieu: job.location,
+      tjm_cible_min: job.client_tjm_min ?? null,
+      tjm_cible_max: job.client_tjm_max ?? null,
       duree_mois: job.duration_months ?? null,
       marge_cible_pct: job.margin_target_pct ?? 22,
       marge_min_pct: job.margin_min_pct ?? 15,
+      brut_cible: job.target_gross_salary ?? null,
     },
-    A: {
-      nom: candA.full_name,
-      poste_actuel: candA.current_title,
-      ans_xp: candA.years_experience,
-      tjm_eur_jour: qA.tjm,
-      brut_annuel_eur: Math.round(qA.brut),
-      marge_moyenne_pct: Number(qA.margePct.toFixed(1)),
-      marge_mensuelle_eur: Math.round(qA.margeMensuelleEur),
+    ecarts: {
+      marge_moyenne_pts_a_vs_b: margePctDelta,
+      marge_mensuelle_eur_a_vs_b: margeMonthDelta,
+      marge_totale_eur_a_moins_b: margeTotalA - margeTotalB,
+      brut_eur_a_moins_b: brutDelta,
+      annees_xp_a_moins_b: xpDelta,
     },
-    B: {
-      nom: candB.full_name,
-      poste_actuel: candB.current_title,
-      ans_xp: candB.years_experience,
-      tjm_eur_jour: qB.tjm,
-      brut_annuel_eur: Math.round(qB.brut),
-      marge_moyenne_pct: Number(qB.margePct.toFixed(1)),
-      marge_mensuelle_eur: Math.round(qB.margeMensuelleEur),
-    },
+    A: candidateSnapshot(candA, qA),
+    B: candidateSnapshot(candB, qB),
   }
 
   try {
     const result = await openrouterChat({
       model: "openai/gpt-4o-mini",
       temperature: 0.3,
-      maxTokens: 280,
+      maxTokens: 600,
       responseFormat: "json_object",
       timeoutMs: 25_000,
       messages: [
