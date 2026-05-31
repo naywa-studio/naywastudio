@@ -302,64 +302,13 @@ export default function RuptureRiskChart({
         })}
       </svg>
 
-      {/* Récap pire moment — la seule info actionnable de ce chart (la fin
-          d'essai et le préavis sont déjà sur le graphe ou dans paramétrage). */}
-      {profile.worstMonth && (
-        <div style={{
-          marginTop: 14, paddingTop: 12, borderTop: "1px solid #F0ECF8",
-        }}>
-          <StatTile
-            label="Pire moment pour rompre"
-            value={`${MONTH_ABBR_FR[profile.worstMonth.calendarMonth]} ${profile.worstMonth.year}`}
-            hint={`Marge ${profile.worstMonth.margePct.toFixed(1)} % · ${formatEur(profile.worstMonth.margeNetteEur)}`}
-            tone={profile.worstMonth.margePct < 0 ? "bad" : profile.worstMonth.margePct < (margeMinPct ?? 15) ? "warn" : undefined}
-          />
-        </div>
-      )}
+      {/* La carte « Pire moment pour rompre » est rendue par le widget dans la
+          colonne gauche (sous Meilleur/Pire mois calendaire) — pas besoin de
+          dupliquer ici. */}
     </div>
   )
 }
 
-/* ──────────────────────────────────────────────────────────────────────── */
-
-function StatTile({
-  label, value, hint, tone,
-}: {
-  label: string
-  value: string
-  hint?: string
-  tone?: "good" | "warn" | "bad"
-}) {
-  const color =
-    tone === "good" ? "#16A34A" :
-    tone === "warn" ? "#D97706" :
-    tone === "bad"  ? "#DC2626" :
-                      "#111827"
-  return (
-    <div style={{
-      background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 9,
-      padding: "9px 11px",
-    }}>
-      <div style={{
-        fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
-        letterSpacing: "0.04em", textTransform: "uppercase",
-      }}>
-        {label}
-      </div>
-      <div style={{
-        fontSize: 14, fontWeight: 800, color,
-        fontVariantNumeric: "tabular-nums", marginTop: 1,
-      }}>
-        {value}
-      </div>
-      {hint && (
-        <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 1 }}>
-          {hint}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function formatEur(v: number): string {
   const sign = v < 0 ? "−" : ""

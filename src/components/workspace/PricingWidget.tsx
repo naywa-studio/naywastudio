@@ -19,6 +19,7 @@ import {
   computeEmployerCost,
   computeTriangle,
   computeMissionMargin,
+  computeRuptureRiskProfile,
   validateAgainstMinimum,
   type PricingInputs,
   type Modalite,
@@ -323,6 +324,26 @@ function PricingWidgetInner({
     }
   }, [job?.start_date, job?.duration_months, tjm, cost])
 
+  // Pire moment pour rompre — issu du profil de risque rupture (recompute
+  // côté widget pour pouvoir l'afficher dans la colonne gauche sans dépendre
+  // de l'onglet actif).
+  const worstRuptureMonth = useMemo(() => {
+    if (!job?.start_date || !job?.duration_months) return null
+    const start = new Date(job.start_date)
+    if (Number.isNaN(start.getTime())) return null
+    try {
+      const profile = computeRuptureRiskProfile(
+        buildInputs(brutAnnuel),
+        tjm,
+        start,
+        Math.max(1, job.duration_months),
+      )
+      return profile.worstMonth
+    } catch {
+      return null
+    }
+  }, [job?.start_date, job?.duration_months, brutAnnuel, tjm, buildInputs])
+
   // Brut max / idéal (pour les marqueurs du slider brut)
   const limits = useMemo(() => {
     try {
@@ -440,7 +461,10 @@ function PricingWidgetInner({
           <StepperField
             label="TJM client (€/j HT)"
             value={tjm}
-            step={10}
+            /* Step adaptatif : ±10 € sous 800 €/j (granularité fine sur les
+             *  juniors / confirmés), ±25 € au-dessus (les TJM seniors+
+             *  bougent rarement par tranches inférieures à 25 €). */
+            step={tjm < 800 ? 10 : 25}
             max={2000}
             suffix="€/j"
             onChange={setTjm}
@@ -462,21 +486,45 @@ function PricingWidgetInner({
             ] : []}
           />
 
-          {/* Pic / Creux mission — clé contextuelle des mois calendaires */}
-          {extremeMonths && (
-            <div style={{
-              display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
-            }}>
-              <ExtremeMonthCard
-                label="Meilleur mois"
-                month={extremeMonths.best}
-                tone="good"
-              />
-              <ExtremeMonthCard
-                label="Mois le plus faible"
-                month={extremeMonths.worst}
-                tone={extremeMonths.worst.marge < 0 ? "bad" : "warn"}
-              />
+          {/* Pic / Creux mission + Pire moment pour rompre — clés contextuelles
+              du calendrier mission, indépendantes de l'onglet actif. */}
+          {(extremeMonths || worstRuptureMonth) && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {extremeMonths && (
+                <div style={{
+                  display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+                }}>
+                  <ExtremeMonthCard
+                    label="Meilleur mois"
+                    month={extremeMonths.best}
+                    tone="good"
+                  />
+                  <ExtremeMonthCard
+                    label="Mois le plus faible"
+                    month={extremeMonths.worst}
+                    tone={extremeMonths.worst.marge < 0 ? "bad" : "warn"}
+                  />
+                </div>
+              )}
+              {worstRuptureMonth && (
+                <ExtremeMonthCard
+                  label="Pire moment pour rompre"
+                  month={{
+                    calendarMonth: worstRuptureMonth.calendarMonth,
+                    year: worstRuptureMonth.year,
+                    workingDays: worstRuptureMonth.workingDays,
+                    marge: worstRuptureMonth.margeNetteEur,
+                  }}
+                  tone={
+                    worstRuptureMonth.margePct < 0
+                      ? "bad"
+                      : worstRuptureMonth.margePct < margeMinPct
+                        ? "warn"
+                        : "good"
+                  }
+                  subValue={`Marge ${worstRuptureMonth.margePct.toFixed(1)} %`}
+                />
+              )}
             </div>
           )}
 
@@ -989,11 +1037,14 @@ function SyntecContextBar({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function ExtremeMonthCard({
-  label, month, tone,
+  label, month, tone, subValue,
 }: {
   label: string
   month: { calendarMonth: number; year: number; workingDays: number; marge: number }
   tone: "good" | "warn" | "bad"
+  /** Optionnel : remplace le sub-text "marge € · X j" par une autre info
+   *  (ex. marge % pour la carte rupture). */
+  subValue?: string
 }) {
   const palette = {
     good: { fg: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)" },
@@ -1018,7 +1069,7 @@ function ExtremeMonthCard({
         {MONTH_ABBR_FR[month.calendarMonth]} {month.year}
       </div>
       <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>
-        {sign}{Math.abs(Math.round(month.marge)).toLocaleString("fr-FR")} € · {month.workingDays} j
+        {subValue ?? `${sign}${Math.abs(Math.round(month.marge)).toLocaleString("fr-FR")} € · ${month.workingDays} j`}
       </div>
     </div>
   )
