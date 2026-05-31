@@ -238,6 +238,7 @@ export default function RuptureRiskChart({
           return (
             <g key={p.monthIndex}>
               <circle
+                className="nw-point"
                 cx={xOf(i)}
                 cy={yOf(p.margePct)}
                 r={4}
@@ -305,6 +306,16 @@ export default function RuptureRiskChart({
       {/* La carte « Pire moment pour rompre » est rendue par le widget dans la
           colonne gauche (sous Meilleur/Pire mois calendaire) — pas besoin de
           dupliquer ici. */}
+      <style jsx>{`
+        :global(.nw-point) {
+          transition: r 140ms ease, filter 140ms ease;
+          cursor: pointer;
+        }
+        :global(.nw-point:hover) {
+          r: 6;
+          filter: drop-shadow(0 2px 6px rgba(17, 24, 39, 0.25));
+        }
+      `}</style>
     </div>
   )
 }

@@ -192,19 +192,19 @@ export default function MonthlyMarginChart({
           </>
         )}
 
-        {/* Bars */}
+        {/* Bars — hover : opacité plein + stroke violet pour focus visuel */}
         {points.map((p, i) => {
           const h = p.marge >= 0 ? zeroY - yOf(p.marge) : yOf(p.marge) - zeroY
           const y = p.marge >= 0 ? yOf(p.marge) : zeroY
           return (
             <g key={p.monthIndex}>
               <rect
+                className="nw-bar"
                 x={xOf(i) - barW / 2}
                 y={y}
                 width={barW}
                 height={Math.max(1, h)}
                 fill={barColor(p.margePct)}
-                opacity={0.85}
                 rx={2}
               >
                 <title>
@@ -265,6 +265,17 @@ export default function MonthlyMarginChart({
           )
         })}
       </svg>
+      <style jsx>{`
+        :global(.nw-bar) {
+          opacity: 0.85;
+          transition: opacity 140ms ease, filter 140ms ease;
+          cursor: pointer;
+        }
+        :global(.nw-bar:hover) {
+          opacity: 1;
+          filter: drop-shadow(0 2px 6px rgba(17, 24, 39, 0.18));
+        }
+      `}</style>
     </div>
   )
 }

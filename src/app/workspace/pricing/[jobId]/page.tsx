@@ -402,8 +402,9 @@ function MissionConfigWizard({
   const [startDate, setStartDate] = useState<string>(job.start_date ?? "")
   const [lieu, setLieu] = useState<string>(job.pricing_lieu ?? "paris_petite_couronne")
 
-  // Optionnels
-  const [targetGross, setTargetGross] = useState<string>(numToStr(job.target_gross_salary))
+  // Optionnels — le brut ciblé n'a plus de champ dédié dans le wizard mission
+  // (dérivable depuis TJM + marge cible via les markers du widget pricing).
+  // On préserve la valeur déjà persistée si elle existe.
   const [marginMin, setMarginMin] = useState<string>(numToStr(job.margin_min_pct))
   const [marginTarget, setMarginTarget] = useState<string>(numToStr(job.margin_target_pct))
 
@@ -430,7 +431,6 @@ function MissionConfigWizard({
 
   const tjmNum = parseNum(tjm)
   const durationNum = parseNum(duration)
-  const targetGrossNum = parseNum(targetGross)
   const marginMinNum = parseNum(marginMin)
   const marginTargetNum = parseNum(marginTarget)
   // Validation override marges si saisis : cible ≥ mini
@@ -451,7 +451,7 @@ function MissionConfigWizard({
             client_tjm_min: tjmNum,
             client_tjm_max: null,
             duration_months: durationNum,
-            target_gross_salary: targetGrossNum,
+            target_gross_salary: job.target_gross_salary,
             contract_type: contractType,
             start_date: startDate || null,
             pricing_lieu: lieu,
@@ -472,10 +472,10 @@ function MissionConfigWizard({
     }, 600)
     return () => { if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current) }
   }, [
-    tjm, duration, targetGross, contractType, startDate, lieu,
+    tjm, duration, contractType, startDate, lieu,
     grandDeplacement, expatriated, marginMin, marginTarget,
-    tjmNum, durationNum, targetGrossNum, marginMinNum, marginTargetNum,
-    marginsInvalid, job.id, onPatched,
+    tjmNum, durationNum, marginMinNum, marginTargetNum,
+    marginsInvalid, job.id, job.target_gross_salary, onPatched,
   ])
 
   return (
@@ -572,15 +572,10 @@ function MissionConfigWizard({
             { value: "province",              label: "Province" },
           ]}
         />
-        <WizardField
-          label="Brut ciblé candidat"
-          hint="optionnel — proposition de départ"
-          value={targetGross}
-          onChange={setTargetGross}
-          suffix="€/an"
-          placeholder="45 000"
-          step={500}
-        />
+        {/* Brut ciblé candidat retiré — il est dérivable à partir du TJM + de
+            la marge cible. Le widget pricing propose un brut idéal et un brut
+            max via ses markers de stepper, donc pas la peine de le saisir ici.
+            La valeur déjà en base reste lue par le widget pour rétro-compat. */}
       </div>
 
       {/* Activations conditionnelles — tarifs cabinet appliqués si oui */}
@@ -944,8 +939,11 @@ function CompactCandidatesList({
                 </span>
               )}
             </div>
-            {/* Ligne 2 : brut + marge */}
-            {quick && (
+            {/* Ligne 2 : brut + marge — uniquement quand le sourceur a
+                explicitement chiffré ce candidat (TJM ou brut persisté).
+                Sinon, afficher la marge auto-calculée donne une fausse
+                impression de "pricing fait" alors que c'est un défaut. */}
+            {quick && (c.pricingTjm != null || c.pricingBrut != null) && (
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 gap: 6, paddingLeft: 34, fontSize: 10.5, color: "#9CA3AF",
