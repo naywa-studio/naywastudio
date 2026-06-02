@@ -471,11 +471,12 @@ function MissionConfigWizard({
     job.margin_min_pct != null || job.margin_target_pct != null,
   )
 
-  // Auto-save debounced — pas de bouton, les changements s'appliquent direct.
+  // Sauvegarde explicite — pas d'auto-save. Le sourceur peut modifier
+  // tranquillement plusieurs champs puis clique "Valider les paramètres".
+  // Ça évite la fermeture intempestive de la zone d'édition pendant qu'il
+  // est en train de taper.
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
-  const saveTimerRef = useRef<number | null>(null)
-  const isFirstRenderRef = useRef(true)
 
   const parseNum = (s: string): number | null => {
     if (!s.trim()) return null
@@ -491,46 +492,40 @@ function MissionConfigWizard({
   const marginsInvalid =
     marginMinNum != null && marginTargetNum != null && marginTargetNum < marginMinNum
 
-  // Auto-save : 600 ms après le dernier changement, on PATCH la mission.
-  useEffect(() => {
-    if (isFirstRenderRef.current) { isFirstRenderRef.current = false; return }
-    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
+  const requiredMissing = tjmNum == null || durationNum == null || !startDate
+  const canSubmit = !requiredMissing && !marginsInvalid && saveState !== "saving"
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return
     setSaveState("saving"); setError(null)
-    saveTimerRef.current = window.setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/jobs/${job.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            client_tjm_min: tjmNum,
-            client_tjm_max: null,
-            duration_months: durationNum,
-            target_gross_salary: job.target_gross_salary,
-            contract_type: contractType,
-            start_date: startDate || null,
-            pricing_lieu: lieu,
-            has_grand_deplacement: grandDeplacement,
-            is_expatriated: expatriated,
-            margin_min_pct: marginsInvalid ? null : marginMinNum,
-            margin_target_pct: marginsInvalid ? null : marginTargetNum,
-          }),
-        })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json()
-        onPatched(data.job as Job)
-        setSaveState("saved")
-        window.setTimeout(() => setSaveState((s) => s === "saved" ? "idle" : s), 1500)
-      } catch (err) {
-        setError((err as Error).message); setSaveState("error")
-      }
-    }, 600)
-    return () => { if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current) }
-  }, [
-    tjm, duration, contractType, startDate, lieu,
-    grandDeplacement, expatriated, marginMin, marginTarget,
-    tjmNum, durationNum, marginMinNum, marginTargetNum,
-    marginsInvalid, job.id, job.target_gross_salary, onPatched,
-  ])
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_tjm_min: tjmNum,
+          client_tjm_max: null,
+          duration_months: durationNum,
+          target_gross_salary: job.target_gross_salary,
+          contract_type: contractType,
+          start_date: startDate || null,
+          pricing_lieu: lieu,
+          has_grand_deplacement: grandDeplacement,
+          is_expatriated: expatriated,
+          margin_min_pct: marginsInvalid ? null : marginMinNum,
+          margin_target_pct: marginsInvalid ? null : marginTargetNum,
+        }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      onPatched(data.job as Job)
+      setSaveState("saved")
+      // Une fois validé, on referme le wizard pour montrer le résumé.
+      window.setTimeout(() => onCancel?.(), 400)
+    } catch (err) {
+      setError((err as Error).message); setSaveState("error")
+    }
+  }
 
   return (
     <m.div
@@ -717,6 +712,53 @@ function MissionConfigWizard({
             )}
           </div>
         )}
+      </div>
+
+      {/* Footer wizard — validation explicite. On a viré l'auto-save pour
+          laisser le sourceur taper tranquillement sans que la zone se
+          referme dans son dos. */}
+      <div style={{
+        marginTop: 18, paddingTop: 14, borderTop: "1px solid #F0ECF8",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 12, flexWrap: "wrap",
+      }}>
+        <p style={{ margin: 0, fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>
+          {requiredMissing
+            ? "Remplis TJM, durée et date de démarrage pour valider."
+            : marginsInvalid
+              ? "Corrige les marges (cible ≥ mini) pour valider."
+              : "Les changements ne sont pris en compte qu'après validation."}
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>
+          {onCancel && saveState !== "saving" && (
+            <button
+              onClick={onCancel}
+              style={{
+                fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, color: "#6B7280",
+                background: "white", border: "1px solid #E5E7EB",
+                borderRadius: 9, padding: "9px 16px", cursor: "pointer",
+              }}
+            >
+              Annuler
+            </button>
+          )}
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            style={{
+              fontFamily: "inherit", fontSize: 13, fontWeight: 700,
+              color: "white",
+              padding: "9px 18px", borderRadius: 9,
+              background: canSubmit
+                ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
+                : "rgba(124,99,200,0.45)",
+              border: "none",
+              cursor: canSubmit ? "pointer" : "not-allowed",
+            }}
+          >
+            {saveState === "saving" ? "Enregistrement…" : "✓ Valider les paramètres"}
+          </button>
+        </div>
       </div>
 
     </m.div>

@@ -51,7 +51,16 @@ export default function RejectReasonPicker({
               backdropFilter: "blur(4px)",
             }}
           />
-          {/* Modal */}
+          {/* Centering wrapper — fixed full-screen flex pour centrer.
+             *  Évite que les `transform` de framer-motion écrasent un
+             *  translate(-50%, -50%) sur la carte. */}
+          <div
+            style={{
+              position: "fixed", inset: 0, zIndex: 90,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: 16, pointerEvents: "none",
+            }}
+          >
           <m.div
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -61,15 +70,14 @@ export default function RejectReasonPicker({
             aria-modal="true"
             aria-label="Raison de l'écart"
             style={{
-              position: "fixed", zIndex: 90,
-              top: "50%", left: "50%", transform: "translate(-50%, -50%)",
               background: "white",
               border: "1px solid #E9E2F7",
               borderRadius: 16,
               boxShadow: "0 24px 80px rgba(17,24,39,0.25)",
               padding: "20px 22px",
-              width: "min(440px, calc(100vw - 32px))",
+              width: "min(440px, 100%)",
               fontFamily: "var(--font-inter), sans-serif",
+              pointerEvents: "auto",
             }}
           >
             <p style={{
@@ -181,6 +189,7 @@ export default function RejectReasonPicker({
               </div>
             </div>
           </m.div>
+          </div>
         </>
       )}
     </AnimatePresence>
