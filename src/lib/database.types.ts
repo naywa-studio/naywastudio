@@ -174,6 +174,11 @@ export type Database = {
           calendly_connected_at: string | null
           // Pricing defaults — pre-fill every chiffrage on the fiche match.
           pricing_billable_days_per_month: number | null
+          /** RTT par an accordés par le cabinet (configurable, défaut 0).
+           *  Soustraits du revenu facturable (proratisés par mois) car payés
+           *  mais non facturables au client. Les CP (25 j/an, obligation
+           *  légale) sont eux constants côté lib/pricing/syntec. */
+          pricing_rtt_days_per_year: number
           pricing_margin_min_pct: number | null
           pricing_margin_target_pct: number | null
           pricing_default_lieu: 'paris_petite_couronne' | 'idf_grande_couronne' | 'lyon' | 'province' | null

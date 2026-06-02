@@ -102,6 +102,11 @@ export const URSSAF_INDEMNITE_PLAFOND_JOUR: Record<Lieu, number> = {
   province: 96.50,
 }
 
+/** Jours de congés payés par an — convention cadre standard, obligation légale.
+ *  Soustraits du revenu facturable car payés mais non facturables au client.
+ *  Constante non configurable. */
+export const CP_DAYS_PER_YEAR = 25
+
 /** Everything we need to compute a pricing scenario. */
 export interface PricingInputs {
   /** Annual gross salary negotiated with the candidate (€). */
@@ -116,6 +121,9 @@ export interface PricingInputs {
   avantages: Avantages
   /** Average billable days per month (default 18 in this codebase). */
   joursFacturablesParMois: number
+  /** RTT par an accordés par le cabinet (défaut 0). Soustraits du revenu
+   *  facturable au même titre que les CP (payés mais non facturables). */
+  rttDaysPerYear?: number
 }
 
 /** Breakdown of the employer's monthly cost for a candidate. */
@@ -561,11 +569,15 @@ export function computeMissionMargin(
 ): MissionMarginSummary {
   const cost = computeEmployerCost(inputs)
   const months = missionMonthProfile(startDate, Math.max(1, durationMonths))
+  const cpRttHaircutMensuel = cpRttRevenueHaircutMonthly(tjm, inputs)
   let totalRevenu = 0
   let totalCout = 0
   let totalDays = 0
   for (const m of months) {
-    totalRevenu += tjm * m.workingDays
+    // Revenu mensuel net = jours calendrier × TJM, moins l'haircut CP+RTT
+    // proratisé (jours payés non facturables). Le coût employeur ne change
+    // pas car le brut couvre déjà ces jours.
+    totalRevenu += tjm * m.workingDays - cpRttHaircutMensuel
     totalCout += cost.coutFixeMensuel + cost.coutVariableJournalier * m.workingDays
     totalDays += m.workingDays
   }
@@ -581,6 +593,15 @@ export function computeMissionMargin(
     totalWorkingDays: totalDays,
     monthCount,
   }
+}
+
+/** Haircut mensuel = TJM × (25 CP + RTT cabinet) ÷ 12. C'est le revenu manqué
+ *  chaque mois parce que ces jours sont payés au candidat mais non facturables
+ *  au client. Utilisé dans toutes les fonctions qui produisent une marge. */
+export function cpRttRevenueHaircutMonthly(tjm: number, inputs: { rttDaysPerYear?: number }): number {
+  const cp = CP_DAYS_PER_YEAR
+  const rtt = inputs.rttDaysPerYear ?? 0
+  return tjm * (cp + rtt) / 12
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -662,10 +683,13 @@ export function computeRuptureRiskProfile(
   let cumulRevenu = 0
   let cumulCost = 0
   let cumulDays = 0
+  const cpRttHaircutMensuel = cpRttRevenueHaircutMonthly(tjm, inputs)
 
   for (const m of months) {
     cumulDays += m.workingDays
-    cumulRevenu += tjm * m.workingDays
+    // Revenu cumulé net = jours calendrier × TJM − haircut CP+RTT (jours
+    // payés non facturables, même règle que computeMissionMargin).
+    cumulRevenu += tjm * m.workingDays - cpRttHaircutMensuel
     cumulCost += cost.coutFixeMensuel + cost.coutVariableJournalier * m.workingDays
 
     const isPostEssai = m.monthIndex > finEssai

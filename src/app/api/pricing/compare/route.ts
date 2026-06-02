@@ -74,12 +74,12 @@ export async function POST(req: NextRequest) {
   // Profile (cabinet defaults) — needed for the margin compute.
   const { data: profile } = await sb
     .from("profiles")
-    .select("pricing_billable_days_per_month, pricing_default_lieu, pricing_default_avantages")
+    .select("pricing_billable_days_per_month, pricing_rtt_days_per_year, pricing_default_lieu, pricing_default_avantages")
     .eq("user_id", user.id)
     .maybeSingle()
   const profileSlim = profile as Pick<
     Profile,
-    "pricing_billable_days_per_month" | "pricing_default_lieu" | "pricing_default_avantages"
+    "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
   > | null
 
   // Re-order to match the client's A/B order.

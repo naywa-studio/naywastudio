@@ -40,7 +40,7 @@ export default function PricingMissionPage() {
 
   const [job, setJob] = useState<Job | null>(null)
   const [profile, setProfile] = useState<Pick<Profile,
-    | "pricing_billable_days_per_month" | "pricing_default_lieu" | "pricing_default_avantages"
+    | "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
   > | null>(null)
   const [candidates, setCandidates] = useState<PricingCandidate[]>([])
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
@@ -86,7 +86,7 @@ export default function PricingMissionPage() {
       if (user) {
         const { data: profileData } = await sb
           .from("profiles")
-          .select("pricing_billable_days_per_month, pricing_default_lieu, pricing_default_avantages")
+          .select("pricing_billable_days_per_month, pricing_rtt_days_per_year, pricing_default_lieu, pricing_default_avantages")
           .eq("user_id", user.id)
           .maybeSingle()
         if (mounted) setProfile(profileData ?? null)
@@ -903,7 +903,7 @@ function CompactCandidatesList({
   candidates: PricingCandidate[]
   job: Job
   profile: Pick<Profile,
-    | "pricing_billable_days_per_month" | "pricing_default_lieu" | "pricing_default_avantages"
+    | "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
   > | null
   selectedMatchId: string | null
   onSelect: (id: string) => void
@@ -1185,7 +1185,7 @@ function ComparisonPanel({
   compareIds: string[]
   job: Job
   profile: Pick<Profile,
-    | "pricing_billable_days_per_month" | "pricing_default_lieu" | "pricing_default_avantages"
+    | "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
   > | null
   onExit: () => void
 }) {
@@ -1412,7 +1412,7 @@ function ComparisonCard({
   pc: PricingCandidate
   job: Job
   profile: Pick<Profile,
-    | "pricing_billable_days_per_month" | "pricing_default_lieu" | "pricing_default_avantages"
+    | "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
   > | null
 }) {
   const quick = computeQuickMargin({

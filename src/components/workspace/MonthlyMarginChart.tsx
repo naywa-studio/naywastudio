@@ -22,6 +22,7 @@
 import { useMemo } from "react"
 import {
   computeEmployerCost,
+  cpRttRevenueHaircutMonthly,
   type PricingInputs,
 } from "@/lib/pricing/syntec"
 import { missionMonthProfile, MONTH_ABBR_FR } from "@/lib/pricing/calendar"
@@ -66,9 +67,12 @@ export default function MonthlyMarginChart({
     [start, durationMonths],
   )
 
+  // Haircut mensuel CP+RTT : revenu en moins car jours payés non facturables.
+  const cpRttHaircut = useMemo(() => cpRttRevenueHaircutMonthly(tjm, inputs), [tjm, inputs])
+
   // Pour chaque mois : revenu, coût, marge €, marge %
   const points = useMemo(() => monthProfiles.map((mp) => {
-    const revenu = tjm * mp.workingDays
+    const revenu = tjm * mp.workingDays - cpRttHaircut
     const coutTotal = cost.coutFixeMensuel + cost.coutVariableJournalier * mp.workingDays
     const marge = revenu - coutTotal
     const margePct = revenu > 0 ? (marge / revenu) * 100 : 0
@@ -83,7 +87,7 @@ export default function MonthlyMarginChart({
       marge,
       margePct,
     }
-  }), [monthProfiles, tjm, cost])
+  }), [monthProfiles, tjm, cost, cpRttHaircut])
 
   if (points.length === 0) {
     return (

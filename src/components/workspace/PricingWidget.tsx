@@ -19,6 +19,7 @@ import {
   computeTriangle,
   computeMissionMargin,
   computeRuptureRiskProfile,
+  cpRttRevenueHaircutMonthly,
   validateAgainstMinimum,
   type PricingInputs,
   type Modalite,
@@ -80,6 +81,7 @@ const SYNTEC_CADRE_ROWS: { position: string; coefficient: number; label: string 
 
 type PricingProfile = Pick<Profile,
   | "pricing_billable_days_per_month"
+  | "pricing_rtt_days_per_year"
   | "pricing_margin_min_pct"
   | "pricing_margin_target_pct"
   | "pricing_default_lieu"
@@ -115,7 +117,7 @@ export default function PricingWidget({
       if (!user || !mounted) return
       const { data } = await sb
         .from("profiles")
-        .select("pricing_billable_days_per_month, pricing_margin_min_pct, pricing_margin_target_pct, pricing_default_lieu, pricing_default_modalite, pricing_default_avantages")
+        .select("pricing_billable_days_per_month, pricing_rtt_days_per_year, pricing_margin_min_pct, pricing_margin_target_pct, pricing_default_lieu, pricing_default_modalite, pricing_default_avantages")
         .eq("user_id", user.id)
         .maybeSingle()
       if (mounted) setProfile(data ?? null)
@@ -251,6 +253,8 @@ function PricingWidgetInner({
     return base
   }, [profile?.pricing_default_avantages, job?.has_grand_deplacement, job?.is_expatriated])
 
+  const rttDaysPerYear = profile?.pricing_rtt_days_per_year ?? 0
+
   const buildInputs = useCallback(
     (brut: number): PricingInputs => ({
       brutAnnuel: brut,
@@ -261,8 +265,9 @@ function PricingWidgetInner({
       lieu,
       avantages,
       joursFacturablesParMois: joursParMois,
+      rttDaysPerYear,
     }),
-    [preset.statut, effectivePosition, effectiveCoef, modalite, lieu, avantages, joursParMois],
+    [preset.statut, effectivePosition, effectiveCoef, modalite, lieu, avantages, joursParMois, rttDaysPerYear],
   )
 
   // Triangle (résultante TJM/brut/marge) — pour le KPI marge mensuelle estim
@@ -306,8 +311,9 @@ function PricingWidgetInner({
     try {
       const months = missionMonthProfile(start, Math.max(1, job.duration_months))
       if (months.length === 0) return null
+      const haircut = cpRttRevenueHaircutMonthly(tjm, { rttDaysPerYear })
       const points = months.map((m) => {
-        const revenu = tjm * m.workingDays
+        const revenu = tjm * m.workingDays - haircut
         const coutTotal = cost.coutFixeMensuel + cost.coutVariableJournalier * m.workingDays
         return {
           calendarMonth: m.calendarMonth, year: m.year,
@@ -321,7 +327,7 @@ function PricingWidgetInner({
     } catch {
       return null
     }
-  }, [job?.start_date, job?.duration_months, tjm, cost])
+  }, [job?.start_date, job?.duration_months, tjm, cost, rttDaysPerYear])
 
   // Pire moment pour rompre — issu du profil de risque rupture (recompute
   // côté widget pour pouvoir l'afficher dans la colonne gauche sans dépendre
@@ -343,7 +349,15 @@ function PricingWidgetInner({
     }
   }, [job?.start_date, job?.duration_months, brutAnnuel, tjm, buildInputs])
 
-  // Brut max / idéal (pour les marqueurs du slider brut)
+  // Brut max / idéal (pour les marqueurs du slider brut).
+  //
+  // Le sourceur règle un pourcentage de marge ; il veut que ce % soit
+  // atteignable APRÈS l'haircut CP+RTT (sinon les markers seraient trompeurs).
+  // On calcule donc :
+  //   - revenu net = TJM × jours − haircut
+  //   - marge cible nette = revenu net × %  (ce que veut le sourceur)
+  //   - margeMensuelle pour computeTriangle = marge nette + haircut
+  //     (parce que computeTriangle raisonne en formule sans haircut).
   const limits = useMemo(() => {
     try {
       const baseInputs = (() => {
@@ -352,16 +366,17 @@ function PricingWidgetInner({
         void _b
         return rest
       })()
-      const revenuMensuel = tjm * joursParMois
-      const margeMinMensuelle = revenuMensuel * (margeMinPct / 100)
-      const margeTargetMensuelle = revenuMensuel * (margeTargetPct / 100)
-      const brutMax = computeTriangle("brut", { tjm, margeMensuelle: margeMinMensuelle }, baseInputs).brutAnnuel
-      const brutIdeal = computeTriangle("brut", { tjm, margeMensuelle: margeTargetMensuelle }, baseInputs).brutAnnuel
+      const haircut = cpRttRevenueHaircutMonthly(tjm, { rttDaysPerYear })
+      const revenuMensuelNet = tjm * joursParMois - haircut
+      const margeMinNette = revenuMensuelNet * (margeMinPct / 100)
+      const margeTargetNette = revenuMensuelNet * (margeTargetPct / 100)
+      const brutMax = computeTriangle("brut", { tjm, margeMensuelle: margeMinNette + haircut }, baseInputs).brutAnnuel
+      const brutIdeal = computeTriangle("brut", { tjm, margeMensuelle: margeTargetNette + haircut }, baseInputs).brutAnnuel
       return { brutMax, brutIdeal, brutMin: Math.max(Math.round((minimumCheck.minimumMensuel ?? 0) * 12), 20000) }
     } catch {
       return null
     }
-  }, [tjm, brutAnnuel, buildInputs, joursParMois, margeMinPct, margeTargetPct, minimumCheck.minimumMensuel])
+  }, [tjm, brutAnnuel, buildInputs, joursParMois, margeMinPct, margeTargetPct, minimumCheck.minimumMensuel, rttDaysPerYear])
 
   // Onglets : Marge mensuelle / Risque rupture / Détail coût — chacun à
   // 1 clic. Préférable au scroll long pour balayer rapidement les 3 angles.
@@ -547,7 +562,12 @@ function PricingWidgetInner({
               />
             )}
             {tab === "detail" && (
-              <CostBreakdown cost={cost} avantages={avantages} />
+              <CostBreakdown
+                cost={cost}
+                avantages={avantages}
+                cpRttHaircutMensuel={cpRttRevenueHaircutMonthly(tjm, { rttDaysPerYear })}
+                rttDaysPerYear={rttDaysPerYear}
+              />
             )}
           </div>
 
@@ -1235,10 +1255,13 @@ function StepperField({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function CostBreakdown({
-  cost, avantages,
+  cost, avantages, cpRttHaircutMensuel, rttDaysPerYear,
 }: {
   cost: ReturnType<typeof computeEmployerCost>
   avantages: Avantages
+  /** Revenu manqué chaque mois à cause des jours CP+RTT non facturables. */
+  cpRttHaircutMensuel: number
+  rttDaysPerYear: number
 }) {
   const medecineMens = (avantages.medecineDuTravailAnnuel ?? 0) / 12
   const kmMens = (avantages.indemniteKilometriqueAnnuelle ?? 0) / 12
@@ -1294,6 +1317,24 @@ function CostBreakdown({
           {formatEurSmart(cost.coutFixeMensuel)} / mois
         </span>
       </div>
+
+      {cpRttHaircutMensuel > 0 && (
+        <div style={{
+          marginTop: 8, paddingTop: 8, borderTop: "1px dashed #E5E7EB",
+          display: "flex", justifyContent: "space-between",
+          fontSize: 12.5, color: "#B45309",
+        }}>
+          <span>
+            Impact CP{rttDaysPerYear > 0 ? " + RTT" : ""} non facturés
+            <span style={{ color: "#9CA3AF", marginLeft: 6 }}>
+              · 25 CP{rttDaysPerYear > 0 ? ` + ${rttDaysPerYear} RTT` : ""}/an payés non facturables au client
+            </span>
+          </span>
+          <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+            − {formatEurSmart(cpRttHaircutMensuel)} / mois
+          </span>
+        </div>
+      )}
 
       {cost.coutVariableJournalier > 0 && (
         <>

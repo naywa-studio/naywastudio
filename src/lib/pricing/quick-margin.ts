@@ -41,6 +41,7 @@ export function computeQuickMargin(args: {
   job: Job | null
   profile: Pick<Profile,
     | "pricing_billable_days_per_month"
+    | "pricing_rtt_days_per_year"
     | "pricing_default_lieu"
     | "pricing_default_avantages"
   > | null
@@ -79,6 +80,7 @@ export function computeQuickMargin(args: {
     lieu,
     avantages: baseAv,
     joursFacturablesParMois: profile?.pricing_billable_days_per_month ?? 21,
+    rttDaysPerYear: profile?.pricing_rtt_days_per_year ?? 0,
   }
 
   try {

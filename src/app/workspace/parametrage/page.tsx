@@ -30,6 +30,7 @@ const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 interface Form {
   pricing_margin_min_pct: number
   pricing_margin_target_pct: number
+  pricing_rtt_days_per_year: number
   pricing_default_avantages: PricingDefaultAvantages
   treiziemeMois: boolean
 }
@@ -37,6 +38,7 @@ interface Form {
 const DEFAULT_FORM: Form = {
   pricing_margin_min_pct: 15,
   pricing_margin_target_pct: 22,
+  pricing_rtt_days_per_year: 0,
   pricing_default_avantages: {
     mutuellePremium: 50,
     transport: 43,
@@ -70,7 +72,7 @@ export default function ParametragePage() {
       userIdRef.current = user.id
       const { data } = await sb
         .from("profiles")
-        .select("pricing_margin_min_pct, pricing_margin_target_pct, pricing_default_avantages")
+        .select("pricing_margin_min_pct, pricing_margin_target_pct, pricing_rtt_days_per_year, pricing_default_avantages")
         .eq("user_id", user.id)
         .maybeSingle()
       if (!mounted) return
@@ -81,6 +83,8 @@ export default function ParametragePage() {
           profile?.pricing_margin_min_pct ?? DEFAULT_FORM.pricing_margin_min_pct,
         pricing_margin_target_pct:
           profile?.pricing_margin_target_pct ?? DEFAULT_FORM.pricing_margin_target_pct,
+        pricing_rtt_days_per_year:
+          profile?.pricing_rtt_days_per_year ?? DEFAULT_FORM.pricing_rtt_days_per_year,
         pricing_default_avantages: av,
         treiziemeMois: Boolean(av.treiziemeMois),
       })
@@ -100,6 +104,7 @@ export default function ParametragePage() {
           .update({
             pricing_margin_min_pct: next.pricing_margin_min_pct,
             pricing_margin_target_pct: next.pricing_margin_target_pct,
+            pricing_rtt_days_per_year: next.pricing_rtt_days_per_year,
             pricing_default_avantages: {
               ...next.pricing_default_avantages,
               treiziemeMois: next.treiziemeMois,
@@ -218,6 +223,43 @@ export default function ParametragePage() {
             ⚠ La marge cible doit être supérieure ou égale à la marge mini.
           </p>
         )}
+      </m.section>
+
+      {/* Section 1.5 — Jours non facturables (CP + RTT) */}
+      <m.section
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.38, ease: EASE }}
+        style={sectionStyle}
+      >
+        <SectionHeader
+          title="📅 Jours payés non facturables"
+          subtitle="Les jours où le candidat est rémunéré mais ne facture pas — ils baissent la marge mensuelle de chaque mission."
+        />
+
+        {/* Note informative CP — non modifiable, obligation légale */}
+        <div style={{
+          marginBottom: 14, padding: "11px 13px",
+          background: "rgba(124,99,200,0.06)",
+          border: "1px solid rgba(124,99,200,0.20)",
+          borderRadius: 9,
+          fontSize: 12, color: "#374151", lineHeight: 1.55,
+        }}>
+          <strong style={{ color: "#7C63C8" }}>Congés payés — 25 jours/an (obligation légale)</strong>
+          <br />
+          Tous les salariés cumulent 25 jours de congés payés par an (Code du travail, L3141-3). Ces jours sont payés par le cabinet mais non facturables au client — ils sont automatiquement déduits du revenu mensuel dans tous nos calculs. Non modifiable.
+        </div>
+
+        <Field
+          label="RTT accordés par votre cabinet"
+          hint="0 si vous n'accordez pas de RTT. Forfait 218 jours standard ≈ 10 RTT/an. Ces jours seront déduits du revenu facturable au même titre que les CP."
+        >
+          <NumberInput
+            value={form.pricing_rtt_days_per_year}
+            onChange={(v) => update("pricing_rtt_days_per_year", v)}
+            min={0} max={25} step={1}
+            suffix="j/an"
+          />
+        </Field>
       </m.section>
 
       {/* Section 2 — Avantages */}
