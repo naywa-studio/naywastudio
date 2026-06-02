@@ -9,6 +9,7 @@ import { customTagsOf } from "@/lib/tags"
 import { matchesCandidateRef, candidateRefLabel } from "@/lib/candidate-ref"
 import Select from "@/components/ui/Select"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import VivierMapView from "@/components/workspace/VivierMapView"
 import { showUndoToast } from "@/components/ui/UndoToast"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -23,7 +24,7 @@ interface UploadJob {
   candidateId?: string
 }
 
-type ViewMode = "flat" | "by-sector"
+type ViewMode = "flat" | "by-sector" | "map"
 
 const SECTOR_META: Record<NonNullable<NonNullable<Candidate["parsed_cv"]>["sector"]>, { label: string; fg: string; bg: string; bd: string }> = {
   tech:       { label: "Tech",         fg: "#2563EB", bg: "rgba(37,99,235,0.07)",  bd: "rgba(37,99,235,0.22)" },
@@ -575,8 +576,9 @@ export default function VivierPage() {
             </button>
             <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
               {([
+                { key: "map" as ViewMode,       label: "◍ Carte" },
                 { key: "by-sector" as ViewMode, label: "Par secteur" },
-                { key: "flat" as ViewMode,      label: "Vue à plat" },
+                { key: "flat" as ViewMode,      label: "À plat" },
               ]).map((m) => (
                 <button
                   key={m.key}
@@ -755,6 +757,8 @@ export default function VivierPage() {
       {/* Grid / empty state */}
       {empty ? (
         <EmptyDropZone onPick={() => inputRef.current?.click()} />
+      ) : viewMode === "map" ? (
+        <VivierMapView candidates={parsedOrErrored.filter((c) => c.parse_status === "parsed")} />
       ) : viewMode === "by-sector" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {bySector.length === 0 ? (

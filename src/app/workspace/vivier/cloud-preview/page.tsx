@@ -19,6 +19,7 @@
  */
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import { m, AnimatePresence, LayoutGroup } from "framer-motion"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -110,7 +111,6 @@ export default function VivierCloudPreview() {
   const [view, setView] = useState<"list" | "map">("map")
   const [query, setQuery] = useState("")
   const [zoomedSector, setZoomedSector] = useState<string | null>(null)
-  const [drawerCand, setDrawerCand] = useState<CvCand | null>(null)
 
   const q = query.trim().toLowerCase()
   const matchesQuery = (c: CvCand) => {
@@ -152,7 +152,6 @@ export default function VivierCloudPreview() {
                     sectorId={zoomedSector}
                     onBack={() => setZoomedSector(null)}
                     onJumpToSector={(nextId) => setZoomedSector(nextId)}
-                    onOpenCand={setDrawerCand}
                     matchesQuery={matchesQuery}
                     query={q}
                   />
@@ -167,12 +166,11 @@ export default function VivierCloudPreview() {
             transition={{ duration: 0.25, ease: EASE }}
             style={{ marginTop: 22 }}
           >
-            <FlatList candidates={CANDIDATES.filter(matchesQuery)} onOpenCand={setDrawerCand} />
+            <FlatList candidates={CANDIDATES.filter(matchesQuery)} />
           </m.div>
         )}
       </AnimatePresence>
 
-      <DrawerCandidate cand={drawerCand} onClose={() => setDrawerCand(null)} />
     </main>
   )
 }
@@ -319,63 +317,74 @@ function MacroMap({ onZoom }: { onZoom: (id: string) => void }) {
         })}
       </svg>
 
-      {/* Surcouche interactive : un bouton par zone, en HTML, pour les
-          interactions (hover scale, focus) — l'SVG ne gère que le fond. */}
+      {/* Surcouche interactive : un wrapper positionné + bouton motion à
+          l'intérieur. Le wrapper porte le translate(-50%, -50%) qui centre
+          la zone, le motion-button ne gère QUE le hover scale — comme ça
+          framer-motion n'écrase plus la translate de centrage et le titre
+          ne saute plus à droite au hover. */}
       <div style={{ position: "absolute", inset: 0 }}>
         {CLUSTERS.map((c) => {
           const count = candidatesInSector(c.id).length
           const sizePx = c.radius * 540
           return (
-            <m.button
+            <div
               key={c.id}
-              layoutId={`zone-${c.id}`}
-              onClick={() => onZoom(c.id)}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.98 }}
-              transition={SPRING}
               style={{
                 position: "absolute",
                 left: `${c.cx * 100}%`,
                 top: `${c.cy * 100}%`,
                 width: sizePx, height: sizePx,
                 transform: "translate(-50%, -50%)",
-                borderRadius: "50%",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                color: hsl(c.hue, 60, 25),
-                fontFamily: "inherit",
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                padding: 0,
+                pointerEvents: "auto",
               }}
-              aria-label={`Explorer le secteur ${c.label} (${count} candidats)`}
             >
-              <m.span
+              <m.button
+                layoutId={`zone-${c.id}`}
+                onClick={() => onZoom(c.id)}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.97 }}
+                transition={SPRING}
                 style={{
+                  width: "100%", height: "100%",
+                  borderRadius: "50%",
+                  /* Disque plein à la teinte secteur — devient visible
+                   *  au hover, restait fantomatique sans. Met le titre
+                   *  en valeur sans le faire bouger. */
+                  background: `radial-gradient(closest-side, ${hsl(c.hue, 70, 90)}66, ${hsl(c.hue, 60, 95)}11 70%, transparent 90%)`,
+                  border: "none",
+                  cursor: "pointer",
+                  color: hsl(c.hue, 60, 25),
+                  fontFamily: "inherit",
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center",
+                  padding: 0,
+                  transformOrigin: "center center",
+                }}
+                aria-label={`Explorer le secteur ${c.label} (${count} candidats)`}
+              >
+                <span style={{
                   fontSize: Math.max(14, sizePx / 12),
                   fontWeight: 800,
                   letterSpacing: "0.02em",
                   textTransform: "uppercase",
                   textShadow: "0 1px 0 rgba(255,255,255,0.6)",
                   pointerEvents: "none",
-                }}
-              >
-                {c.label}
-              </m.span>
-              <m.span
-                style={{
+                  textAlign: "center",
+                }}>
+                  {c.label}
+                </span>
+                <span style={{
                   fontSize: Math.max(10, sizePx / 22),
                   fontWeight: 700,
                   color: hsl(c.hue, 45, 38),
                   opacity: 0.85,
                   marginTop: 4,
                   pointerEvents: "none",
-                }}
-              >
-                {count} profils
-              </m.span>
-            </m.button>
+                }}>
+                  {count} profils
+                </span>
+              </m.button>
+            </div>
           )
         })}
       </div>
@@ -404,14 +413,12 @@ function SectorZoomView({
   sectorId,
   onBack,
   onJumpToSector,
-  onOpenCand,
   matchesQuery,
   query,
 }: {
   sectorId: string
   onBack: () => void
   onJumpToSector: (id: string) => void
-  onOpenCand: (c: CvCand) => void
   matchesQuery: (c: CvCand) => boolean
   query: string
 }) {
@@ -496,7 +503,7 @@ function SectorZoomView({
         gap: 12,
       }}>
         {primaries.map((c, i) => (
-          <CandidateCardLight key={c.id} c={c} index={i} cluster={cluster} onOpen={() => onOpenCand(c)} onJumpToSector={onJumpToSector} />
+          <CandidateCardLight key={c.id} c={c} index={i} cluster={cluster} onJumpToSector={onJumpToSector} />
         ))}
         {hybrids.length > 0 && primaries.length > 0 && (
           <m.div
@@ -520,7 +527,6 @@ function SectorZoomView({
             c={c}
             index={primaries.length + i}
             cluster={cluster}
-            onOpen={() => onOpenCand(c)}
             onJumpToSector={onJumpToSector}
             isHybridContext
           />
@@ -535,36 +541,38 @@ function SectorZoomView({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function CandidateCardLight({
-  c, index, cluster, onOpen, onJumpToSector, isHybridContext = false,
+  c, index, cluster, onJumpToSector, isHybridContext = false,
 }: {
   c: CvCand
   index: number
-  cluster: Cluster   // cluster contextuel (la zone dans laquelle on est)
-  onOpen: () => void
+  cluster: Cluster
   onJumpToSector: (id: string) => void
   isHybridContext?: boolean
 }) {
   const otherSectorId = c.primary === cluster.id ? c.secondary : c.primary
   const otherSector = otherSectorId ? clusterById(otherSectorId) : null
   return (
-    <m.button
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: EASE, delay: 0.18 + Math.min(index * 0.025, 0.25) }}
       whileHover={{ y: -2, boxShadow: `0 12px 24px ${hsl(cluster.hue, 50, 60)}22` }}
-      onClick={onOpen}
+      style={{ position: "relative" }}
+    >
+    <Link
+      href={`/workspace/vivier/${c.id}`}
       style={{
+        display: "block",
         position: "relative",
-        textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+        textAlign: "left", textDecoration: "none", cursor: "pointer", fontFamily: "inherit",
         background: "rgba(255,255,255,0.92)",
         backdropFilter: "blur(10px)",
         border: `1px solid ${hsl(cluster.hue, 40, 86)}`,
         borderRadius: 14,
         padding: "14px 16px 14px 20px",
-        display: "flex", flexDirection: "column", gap: 7,
         overflow: "hidden",
         boxShadow: "0 1px 2px rgba(17,24,39,0.04)",
-        transition: "box-shadow 200ms ease, transform 200ms ease",
+        color: "inherit",
       }}
     >
       {/* Bande verticale couleur secteur */}
@@ -635,7 +643,8 @@ function CandidateCardLight({
           ))}
         </div>
       )}
-    </m.button>
+    </Link>
+    </m.div>
   )
 }
 
@@ -643,7 +652,7 @@ function CandidateCardLight({
  * FlatList — vue Liste cross-secteurs (fallback pour ceux qui scrollent)
  * ────────────────────────────────────────────────────────────────────────── */
 
-function FlatList({ candidates, onOpenCand }: { candidates: CvCand[]; onOpenCand: (c: CvCand) => void }) {
+function FlatList({ candidates }: { candidates: CvCand[]; onOpenCand?: (c: CvCand) => void }) {
   if (candidates.length === 0) {
     return (
       <div style={{
@@ -660,7 +669,7 @@ function FlatList({ candidates, onOpenCand }: { candidates: CvCand[]; onOpenCand
       {candidates.map((c, i) => {
         const primary = clusterById(c.primary)
         return (
-          <CandidateCardLight key={c.id} c={c} index={i} cluster={primary} onOpen={() => onOpenCand(c)} onJumpToSector={() => {}} />
+          <CandidateCardLight key={c.id} c={c} index={i} cluster={primary} onJumpToSector={() => {}} />
         )
       })}
     </div>
@@ -668,9 +677,11 @@ function FlatList({ candidates, onOpenCand }: { candidates: CvCand[]; onOpenCand
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Drawer candidat — slide depuis la droite, fluid
+ * Drawer candidat — V2 supprimé : on nav direct vers la fiche au clic.
+ * (Le composant reste exporté désactivé pour mémoire en cas de re-activation.)
  * ────────────────────────────────────────────────────────────────────────── */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () => void }) {
   return (
     <AnimatePresence>
