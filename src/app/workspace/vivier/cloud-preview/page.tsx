@@ -1,23 +1,28 @@
 "use client"
 
 /**
- * /workspace/vivier/cloud-preview — V2 hybride
+ * /workspace/vivier/cloud-preview — V3 zones drill-in
  *
- * Deux vues d'un même vivier :
- *   - LISTE : la vue par défaut, enrichie de chips secteurs (filtrent) et
- *             d'une pastille de couleur par carte selon le secteur primaire.
- *             Scale à 200+ CVs.
- *   - CARTE : exploration visuelle / stratégique. Hover + clic ouvre un
- *             drawer latéral avec aperçu du candidat.
+ * Carte par défaut : SEULES les zones colorées (pas de dots). On lit le
+ * vivier comme un atlas. Clic sur une zone → la zone s'agrandit jusqu'à
+ * remplir le canvas (framer-motion layoutId), puis les candidats du
+ * secteur apparaissent en staggered fade-in dans l'ambiance colorée de
+ * la zone.
  *
- * 100 % fake data. Validation visuelle avant qu'on branche la classification
- * LLM réelle côté backend.
+ * Les hybrides apparaissent dans CHAQUE zone qu'ils touchent et portent
+ * un petit badge "+1 secteur" — clic dessus = zoom sur l'autre zone.
+ *
+ * Toggle Liste/Carte conservé : Liste = vue à plat (cards grille), Carte
+ * = nouveau concept zones drill-in.
+ *
+ * 100 % fake data. Pas de DB.
  */
 
 import { useMemo, useState } from "react"
-import { m, AnimatePresence } from "framer-motion"
+import { m, AnimatePresence, LayoutGroup } from "framer-motion"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+const SPRING = { type: "spring" as const, stiffness: 220, damping: 28, mass: 0.9 }
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Fake data
@@ -26,27 +31,27 @@ const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 interface Cluster {
   id: string
   label: string
-  cx: number
+  cx: number     // 0..1 fraction of canvas
   cy: number
-  radius: number
+  radius: number // 0..1
   hue: number
 }
 
 const CLUSTERS: Cluster[] = [
-  { id: "data",      label: "Data Engineering",  cx: 0.28, cy: 0.32, radius: 0.30, hue: 265 },
-  { id: "backend",   label: "Tech Backend",      cx: 0.56, cy: 0.28, radius: 0.26, hue: 215 },
-  { id: "quant",     label: "Quant / Finance",   cx: 0.80, cy: 0.50, radius: 0.22, hue: 305 },
-  { id: "etudiants", label: "Étudiants Bac+5",   cx: 0.22, cy: 0.72, radius: 0.22, hue: 175 },
-  { id: "devops",    label: "DevOps / SRE",      cx: 0.60, cy: 0.76, radius: 0.22, hue: 35 },
+  { id: "data",      label: "Data Engineering",  cx: 0.30, cy: 0.34, radius: 0.32, hue: 265 },
+  { id: "backend",   label: "Tech Backend",      cx: 0.58, cy: 0.30, radius: 0.28, hue: 215 },
+  { id: "quant",     label: "Quant / Finance",   cx: 0.82, cy: 0.52, radius: 0.24, hue: 305 },
+  { id: "etudiants", label: "Étudiants Bac+5",   cx: 0.24, cy: 0.74, radius: 0.24, hue: 175 },
+  { id: "devops",    label: "DevOps / SRE",      cx: 0.62, cy: 0.78, radius: 0.26, hue: 35 },
 ]
 
-interface CvDot {
+interface CvCand {
   id: string
   initials: string
   fullName: string
   title: string
   company: string | null
-  yearsExperience: number | null
+  yearsExperience: number
   location: string
   skills: string[]
   ref: string
@@ -55,68 +60,46 @@ interface CvDot {
   secondary?: string
 }
 
-const CV_DOTS: CvDot[] = [
-  { id: "1", initials: "AB", fullName: "Achraf Boutaleb", title: "Senior Data Engineer",       company: "Doctolib",       yearsExperience: 8, location: "Paris",      skills: ["Python", "Spark", "dbt", "Airflow"], ref: "C-A1B2C3D4", primary: "data", primaryWeight: 1.0 },
-  { id: "2", initials: "ML", fullName: "Marie Lefevre",   title: "Data Engineer Spark",        company: "BlaBlaCar",      yearsExperience: 5, location: "Paris",      skills: ["Scala", "Spark", "Kafka"],          ref: "C-D4E5F6A7", primary: "data", primaryWeight: 0.92 },
-  { id: "3", initials: "TR", fullName: "Tom Riberi",      title: "Lead Data Platform",         company: "Qonto",          yearsExperience: 9, location: "Paris",      skills: ["Snowflake", "dbt", "Looker"],       ref: "C-B7C8D9E0", primary: "data", primaryWeight: 0.88 },
-  { id: "4", initials: "SP", fullName: "Sofia Petrenko",  title: "Data Engineer dbt",          company: "Spendesk",       yearsExperience: 4, location: "Lyon",       skills: ["dbt", "BigQuery", "Python"],        ref: "C-E1F2A3B4", primary: "data", primaryWeight: 0.95 },
-  { id: "5", initials: "JM", fullName: "Julien Mazars",   title: "Backend + Data ingest",      company: "Algolia",        yearsExperience: 6, location: "Paris",      skills: ["Go", "Kafka", "PostgreSQL"],        ref: "C-12345678", primary: "data",    primaryWeight: 0.55, secondary: "backend" },
-  { id: "6", initials: "EK", fullName: "Elena Kowalski",  title: "Python pipelines",           company: "Aircall",        yearsExperience: 4, location: "Paris",      skills: ["Python", "FastAPI", "Airflow"],     ref: "C-87654321", primary: "data",    primaryWeight: 0.6,  secondary: "backend" },
-  { id: "7", initials: "RD", fullName: "Rachid Daher",    title: "Senior Backend Go",          company: "Swile",          yearsExperience: 7, location: "Paris",      skills: ["Go", "gRPC", "Kubernetes"],         ref: "C-AABBCCDD", primary: "backend", primaryWeight: 1.0 },
-  { id: "8", initials: "VC", fullName: "Vincent Caillet", title: "Backend Node.js",            company: "Mirakl",         yearsExperience: 5, location: "Paris",      skills: ["Node.js", "TypeScript", "MongoDB"], ref: "C-DDCCBBAA", primary: "backend", primaryWeight: 0.9 },
-  { id: "9", initials: "AY", fullName: "Aya Yamamoto",    title: "Backend Kotlin / Java",      company: "Datadog",        yearsExperience: 6, location: "Paris",      skills: ["Kotlin", "Java", "AWS"],            ref: "C-11223344", primary: "backend", primaryWeight: 0.85 },
-  { id: "10", initials: "PG", fullName: "Pierre Galland", title: "Tech Lead Backend",          company: "Payfit",         yearsExperience: 10, location: "Paris",     skills: ["Python", "Django", "PostgreSQL"],   ref: "C-44332211", primary: "backend", primaryWeight: 1.0 },
-  { id: "11", initials: "MO", fullName: "Mehdi Ouali",    title: "Backend + Kubernetes",       company: "Ubble",          yearsExperience: 7, location: "Lyon",       skills: ["Go", "K8s", "Terraform"],           ref: "C-55667788", primary: "backend", primaryWeight: 0.55, secondary: "devops" },
-  { id: "12", initials: "DL", fullName: "David Lemoine",  title: "Quant Researcher",           company: "BNP Paribas",    yearsExperience: 9, location: "Paris",      skills: ["Python", "C++", "Stochastic calc"], ref: "C-88776655", primary: "quant",   primaryWeight: 1.0 },
-  { id: "13", initials: "NR", fullName: "Naomi Reinhardt", title: "Quant Developer C++",       company: "Société Gé.",    yearsExperience: 7, location: "Paris",      skills: ["C++", "QuickFIX", "Linux"],         ref: "C-99887766", primary: "quant",   primaryWeight: 0.92 },
-  { id: "14", initials: "AB", fullName: "Antonin Berger", title: "Quant Strategy Python",      company: "Kepler Cheuvreux", yearsExperience: 6, location: "Paris",   skills: ["Python", "NumPy", "Pandas"],        ref: "C-AABB1122", primary: "quant",   primaryWeight: 0.88 },
-  { id: "15", initials: "LF", fullName: "Léa Faure",      title: "Data + Quant pricing",       company: "Crédit Agricole", yearsExperience: 5, location: "Paris",     skills: ["Python", "SQL", "Quant pricing"],   ref: "C-CCDD3344", primary: "quant",   primaryWeight: 0.55, secondary: "data" },
-  { id: "16", initials: "KB", fullName: "Karim Belkacem", title: "Site Reliability Engineer",  company: "Doctolib",       yearsExperience: 6, location: "Paris",      skills: ["AWS", "Terraform", "Kubernetes"],   ref: "C-EEFF5566", primary: "devops",  primaryWeight: 1.0 },
-  { id: "17", initials: "AT", fullName: "Anaïs Tessier",  title: "Cloud DevOps AWS",           company: "Voodoo",         yearsExperience: 4, location: "Paris",      skills: ["AWS", "Docker", "Terraform"],       ref: "C-99001122", primary: "devops",  primaryWeight: 0.88 },
-  { id: "18", initials: "MN", fullName: "Mathieu Nizet",  title: "Platform Engineer",          company: "Ankorstore",     yearsExperience: 5, location: "Paris",      skills: ["GCP", "K8s", "ArgoCD"],             ref: "C-33445566", primary: "devops",  primaryWeight: 0.82 },
-  { id: "19", initials: "CT", fullName: "Camille Tournier", title: "Étudiant 5A Centrale",     company: null,             yearsExperience: 0, location: "Paris",      skills: ["Python", "Machine Learning"],       ref: "C-77889900", primary: "etudiants", primaryWeight: 1.0 },
-  { id: "20", initials: "YO", fullName: "Yann Olivier",   title: "Étudiant 4A Polytechnique",  company: null,             yearsExperience: 1, location: "Paris",      skills: ["Python", "C++", "Deep Learning"],   ref: "C-12340000", primary: "etudiants", primaryWeight: 0.95 },
-  { id: "21", initials: "FH", fullName: "Fatima Hadj",    title: "Étudiante M2 ENS",           company: null,             yearsExperience: 0, location: "Lyon",       skills: ["R", "Statistics", "Python"],        ref: "C-56780000", primary: "etudiants", primaryWeight: 1.0 },
-  { id: "22", initials: "OB", fullName: "Oscar Brun",     title: "Étudiant 5A Télécom",        company: null,             yearsExperience: 1, location: "Paris",      skills: ["Python", "Cybersécurité"],          ref: "C-00001234", primary: "etudiants", primaryWeight: 0.85 },
-  { id: "23", initials: "RS", fullName: "Rania Saïdi",    title: "Étudiante Data 5A",          company: null,             yearsExperience: 0, location: "Paris",      skills: ["Python", "SQL", "dbt"],             ref: "C-00005678", primary: "etudiants", primaryWeight: 0.55, secondary: "data" },
-  { id: "24", initials: "GP", fullName: "Gabriel Praz",   title: "Étudiant DevOps 4A",         company: null,             yearsExperience: 1, location: "Paris",      skills: ["Docker", "AWS", "Linux"],           ref: "C-43210000", primary: "etudiants", primaryWeight: 0.6,  secondary: "devops" },
+const CANDIDATES: CvCand[] = [
+  { id: "1",  initials: "AB", fullName: "Achraf Boutaleb",   title: "Senior Data Engineer",      company: "Doctolib",         yearsExperience: 8, location: "Paris", skills: ["Python", "Spark", "dbt", "Airflow"],  ref: "C-A1B2C3D4", primary: "data", primaryWeight: 1.0 },
+  { id: "2",  initials: "ML", fullName: "Marie Lefevre",     title: "Data Engineer Spark",       company: "BlaBlaCar",        yearsExperience: 5, location: "Paris", skills: ["Scala", "Spark", "Kafka"],            ref: "C-D4E5F6A7", primary: "data", primaryWeight: 0.92 },
+  { id: "3",  initials: "TR", fullName: "Tom Riberi",        title: "Lead Data Platform",        company: "Qonto",            yearsExperience: 9, location: "Paris", skills: ["Snowflake", "dbt", "Looker"],         ref: "C-B7C8D9E0", primary: "data", primaryWeight: 0.88 },
+  { id: "4",  initials: "SP", fullName: "Sofia Petrenko",    title: "Data Engineer dbt",         company: "Spendesk",         yearsExperience: 4, location: "Lyon",  skills: ["dbt", "BigQuery", "Python"],          ref: "C-E1F2A3B4", primary: "data", primaryWeight: 0.95 },
+  { id: "5",  initials: "JM", fullName: "Julien Mazars",     title: "Backend + Data ingest",     company: "Algolia",          yearsExperience: 6, location: "Paris", skills: ["Go", "Kafka", "PostgreSQL"],          ref: "C-12345678", primary: "data",    primaryWeight: 0.55, secondary: "backend" },
+  { id: "6",  initials: "EK", fullName: "Elena Kowalski",    title: "Python pipelines",          company: "Aircall",          yearsExperience: 4, location: "Paris", skills: ["Python", "FastAPI", "Airflow"],       ref: "C-87654321", primary: "data",    primaryWeight: 0.6,  secondary: "backend" },
+  { id: "7",  initials: "RD", fullName: "Rachid Daher",      title: "Senior Backend Go",         company: "Swile",            yearsExperience: 7, location: "Paris", skills: ["Go", "gRPC", "Kubernetes"],           ref: "C-AABBCCDD", primary: "backend", primaryWeight: 1.0 },
+  { id: "8",  initials: "VC", fullName: "Vincent Caillet",   title: "Backend Node.js",           company: "Mirakl",           yearsExperience: 5, location: "Paris", skills: ["Node.js", "TypeScript", "MongoDB"],   ref: "C-DDCCBBAA", primary: "backend", primaryWeight: 0.9 },
+  { id: "9",  initials: "AY", fullName: "Aya Yamamoto",      title: "Backend Kotlin / Java",     company: "Datadog",          yearsExperience: 6, location: "Paris", skills: ["Kotlin", "Java", "AWS"],              ref: "C-11223344", primary: "backend", primaryWeight: 0.85 },
+  { id: "10", initials: "PG", fullName: "Pierre Galland",    title: "Tech Lead Backend",         company: "Payfit",           yearsExperience: 10, location: "Paris", skills: ["Python", "Django", "PostgreSQL"],   ref: "C-44332211", primary: "backend", primaryWeight: 1.0 },
+  { id: "11", initials: "MO", fullName: "Mehdi Ouali",       title: "Backend + Kubernetes",      company: "Ubble",            yearsExperience: 7, location: "Lyon",  skills: ["Go", "K8s", "Terraform"],             ref: "C-55667788", primary: "backend", primaryWeight: 0.55, secondary: "devops" },
+  { id: "12", initials: "DL", fullName: "David Lemoine",     title: "Quant Researcher",          company: "BNP Paribas",      yearsExperience: 9, location: "Paris", skills: ["Python", "C++", "Stochastic calc"],   ref: "C-88776655", primary: "quant",   primaryWeight: 1.0 },
+  { id: "13", initials: "NR", fullName: "Naomi Reinhardt",   title: "Quant Developer C++",       company: "Société Générale", yearsExperience: 7, location: "Paris", skills: ["C++", "QuickFIX", "Linux"],           ref: "C-99887766", primary: "quant",   primaryWeight: 0.92 },
+  { id: "14", initials: "AB", fullName: "Antonin Berger",    title: "Quant Strategy Python",     company: "Kepler Cheuvreux", yearsExperience: 6, location: "Paris", skills: ["Python", "NumPy", "Pandas"],          ref: "C-AABB1122", primary: "quant",   primaryWeight: 0.88 },
+  { id: "15", initials: "LF", fullName: "Léa Faure",         title: "Data + Quant pricing",      company: "Crédit Agricole",  yearsExperience: 5, location: "Paris", skills: ["Python", "SQL", "Quant pricing"],     ref: "C-CCDD3344", primary: "quant",   primaryWeight: 0.55, secondary: "data" },
+  { id: "16", initials: "KB", fullName: "Karim Belkacem",    title: "Site Reliability Engineer", company: "Doctolib",         yearsExperience: 6, location: "Paris", skills: ["AWS", "Terraform", "Kubernetes"],     ref: "C-EEFF5566", primary: "devops",  primaryWeight: 1.0 },
+  { id: "17", initials: "AT", fullName: "Anaïs Tessier",     title: "Cloud DevOps AWS",          company: "Voodoo",           yearsExperience: 4, location: "Paris", skills: ["AWS", "Docker", "Terraform"],         ref: "C-99001122", primary: "devops",  primaryWeight: 0.88 },
+  { id: "18", initials: "MN", fullName: "Mathieu Nizet",     title: "Platform Engineer",         company: "Ankorstore",       yearsExperience: 5, location: "Paris", skills: ["GCP", "K8s", "ArgoCD"],               ref: "C-33445566", primary: "devops",  primaryWeight: 0.82 },
+  { id: "19", initials: "CT", fullName: "Camille Tournier",  title: "Étudiant 5A Centrale",      company: null,               yearsExperience: 0, location: "Paris", skills: ["Python", "Machine Learning"],         ref: "C-77889900", primary: "etudiants", primaryWeight: 1.0 },
+  { id: "20", initials: "YO", fullName: "Yann Olivier",      title: "Étudiant 4A Polytechnique", company: null,               yearsExperience: 1, location: "Paris", skills: ["Python", "C++", "Deep Learning"],     ref: "C-12340000", primary: "etudiants", primaryWeight: 0.95 },
+  { id: "21", initials: "FH", fullName: "Fatima Hadj",       title: "Étudiante M2 ENS",          company: null,               yearsExperience: 0, location: "Lyon",  skills: ["R", "Statistics", "Python"],          ref: "C-56780000", primary: "etudiants", primaryWeight: 1.0 },
+  { id: "22", initials: "OB", fullName: "Oscar Brun",        title: "Étudiant 5A Télécom",       company: null,               yearsExperience: 1, location: "Paris", skills: ["Python", "Cybersécurité"],            ref: "C-00001234", primary: "etudiants", primaryWeight: 0.85 },
+  { id: "23", initials: "RS", fullName: "Rania Saïdi",       title: "Étudiante Data 5A",         company: null,               yearsExperience: 0, location: "Paris", skills: ["Python", "SQL", "dbt"],               ref: "C-00005678", primary: "etudiants", primaryWeight: 0.55, secondary: "data" },
+  { id: "24", initials: "GP", fullName: "Gabriel Praz",      title: "Étudiant DevOps 4A",        company: null,               yearsExperience: 1, location: "Paris", skills: ["Docker", "AWS", "Linux"],             ref: "C-43210000", primary: "etudiants", primaryWeight: 0.6,  secondary: "devops" },
 ]
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Helpers
+ * Helpers couleur
  * ────────────────────────────────────────────────────────────────────────── */
 
-const clusterColor = (hue: number, sat = 65, lit = 60) => `hsl(${hue}, ${sat}%, ${lit}%)`
+const hsl = (h: number, s = 65, l = 60) => `hsl(${h}, ${s}%, ${l}%)`
 
-function positionFor(dot: CvDot) {
-  const primary = CLUSTERS.find((c) => c.id === dot.primary)!
-  const secondary = dot.secondary ? CLUSTERS.find((c) => c.id === dot.secondary) : null
-  const w = dot.primaryWeight
-  let x = primary.cx, y = primary.cy
-  if (secondary) {
-    x = primary.cx * w + secondary.cx * (1 - w)
-    y = primary.cy * w + secondary.cy * (1 - w)
-  }
-  const seed = Number(dot.id) || 0
-  const angle = (seed * 137.508) * Math.PI / 180
-  const radius = primary.radius * 0.42 * Math.sqrt((seed % 7) / 7)
-  const jitterScale = secondary ? 0.4 : 1.0
-  x += Math.cos(angle) * radius * jitterScale
-  y += Math.sin(angle) * radius * jitterScale
-  return { x, y }
+function clusterById(id: string): Cluster {
+  return CLUSTERS.find((c) => c.id === id) ?? CLUSTERS[0]
 }
 
-function dotColor(dot: CvDot) {
-  const primary = CLUSTERS.find((c) => c.id === dot.primary)!
-  if (!dot.secondary) return clusterColor(primary.hue, 55, 55)
-  const secondary = CLUSTERS.find((c) => c.id === dot.secondary)!
-  const w = dot.primaryWeight
-  const h = primary.hue * w + secondary.hue * (1 - w)
-  return clusterColor(h, 55, 55)
-}
-
-function clusterById(id: string) {
-  return CLUSTERS.find((c) => c.id === id)
+/** Toutes les candidats qui touchent un secteur (primaire OU secondaire). */
+function candidatesInSector(sectorId: string): CvCand[] {
+  return CANDIDATES.filter((c) => c.primary === sectorId || c.secondary === sectorId)
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -124,272 +107,528 @@ function clusterById(id: string) {
  * ────────────────────────────────────────────────────────────────────────── */
 
 export default function VivierCloudPreview() {
-  const [view, setView] = useState<"list" | "map">("list")
+  const [view, setView] = useState<"list" | "map">("map")
   const [query, setQuery] = useState("")
-  const [activeClusters, setActiveClusters] = useState<Set<string>>(
-    () => new Set(CLUSTERS.map((c) => c.id)),
-  )
-  const [drawerDot, setDrawerDot] = useState<CvDot | null>(null)
-
-  const toggleCluster = (id: string) => {
-    setActiveClusters((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-  const onlyOneActive = (id: string) => setActiveClusters(new Set([id]))
-  const allActive = () => setActiveClusters(new Set(CLUSTERS.map((c) => c.id)))
+  const [zoomedSector, setZoomedSector] = useState<string | null>(null)
+  const [drawerCand, setDrawerCand] = useState<CvCand | null>(null)
 
   const q = query.trim().toLowerCase()
-  const filtered = useMemo(() => CV_DOTS.filter((d) => {
-    if (!activeClusters.has(d.primary) && (!d.secondary || !activeClusters.has(d.secondary))) {
-      return false
-    }
-    if (q) {
-      const hay = [d.fullName, d.title, d.company ?? "", d.location, d.ref, ...d.skills].join(" ").toLowerCase()
-      if (!hay.includes(q)) return false
-    }
-    return true
-  }), [activeClusters, q])
+  const matchesQuery = (c: CvCand) => {
+    if (!q) return true
+    return [c.fullName, c.title, c.company ?? "", c.location, c.ref, ...c.skills]
+      .join(" ").toLowerCase().includes(q)
+  }
 
   return (
     <main style={{
-      padding: "24px 28px 80px",
-      maxWidth: 1360, margin: "0 auto",
+      padding: "26px 28px 80px",
+      maxWidth: 1320, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
       minHeight: "calc(100vh - 60px)",
     }}>
-      {/* Header */}
-      <m.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: EASE }}>
-        <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-          Vivier — Aperçu visuel
-        </p>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginTop: 4 }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#111827" }}>
-              Mon vivier
-            </h1>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6B7280", maxWidth: 720, lineHeight: 1.6 }}>
-              {filtered.length} candidat{filtered.length > 1 ? "s" : ""} · {CLUSTERS.length} secteurs détectés par Nora.
-            </p>
-          </div>
-          <ViewToggle view={view} onChange={setView} />
-        </div>
-      </m.div>
+      <Header view={view} setView={(v) => { setView(v); setZoomedSector(null) }} />
 
-      {/* Search + cluster chips */}
-      <m.div
-        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: EASE, delay: 0.04 }}
-        style={{ marginTop: 18 }}
-      >
-        <input
-          type="search"
-          placeholder="Rechercher par nom, poste, compétence, ref C-…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          style={{
-            width: "100%",
-            fontSize: 13.5, color: "#111827",
-            padding: "12px 16px",
-            background: "white",
-            border: "1px solid #E5E7EB",
-            borderRadius: 12,
-            outline: "none",
-            fontFamily: "inherit",
-          }}
-        />
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginTop: 12 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginRight: 4 }}>
-            Secteurs
-          </span>
-          {CLUSTERS.map((c) => {
-            const active = activeClusters.has(c.id)
-            const count = CV_DOTS.filter((d) => d.primary === c.id || d.secondary === c.id).length
-            return (
-              <button
-                key={c.id}
-                onClick={() => toggleCluster(c.id)}
-                onDoubleClick={() => onlyOneActive(c.id)}
-                title={`Clic : afficher/masquer · Double-clic : isoler`}
-                style={{
-                  fontFamily: "inherit",
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "5px 11px", borderRadius: 100,
-                  fontSize: 12, fontWeight: 600,
-                  cursor: "pointer",
-                  color: active ? "#1F2937" : "#9CA3AF",
-                  background: active ? clusterColor(c.hue, 60, 94) : "#FAFAFA",
-                  border: `1px solid ${active ? clusterColor(c.hue, 55, 72) : "#E5E7EB"}`,
-                  opacity: active ? 1 : 0.6,
-                }}
-              >
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: clusterColor(c.hue, 65, 55), display: "inline-block" }} />
-                {c.label}
-                <span style={{ color: "#9CA3AF", fontWeight: 500 }}>· {count}</span>
-              </button>
-            )
-          })}
-          {activeClusters.size < CLUSTERS.length && (
-            <button onClick={allActive} style={{
-              fontFamily: "inherit", fontSize: 11, fontWeight: 600,
-              color: "#7C63C8", background: "transparent", border: "none",
-              cursor: "pointer", textDecoration: "underline", padding: "5px 8px",
-            }}>
-              Tout afficher
-            </button>
-          )}
-        </div>
-      </m.div>
+      <SearchBar value={query} onChange={setQuery} />
 
-      {/* Views */}
-      <AnimatePresence mode="wait">
-        {view === "list" ? (
-          <m.div key="list" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, ease: EASE }} style={{ marginTop: 22 }}>
-            <ListView candidates={filtered} onOpenDrawer={setDrawerDot} />
+      {/* Vue Carte avec drill-in */}
+      <AnimatePresence mode="wait" initial={false}>
+        {view === "map" ? (
+          <m.div
+            key="map"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: EASE }}
+            style={{ marginTop: 22 }}
+          >
+            <LayoutGroup>
+              <AnimatePresence mode="wait" initial={false}>
+                {zoomedSector === null ? (
+                  <MacroMap
+                    key="macro"
+                    onZoom={(id) => setZoomedSector(id)}
+                  />
+                ) : (
+                  <SectorZoomView
+                    key={`zoom-${zoomedSector}`}
+                    sectorId={zoomedSector}
+                    onBack={() => setZoomedSector(null)}
+                    onJumpToSector={(nextId) => setZoomedSector(nextId)}
+                    onOpenCand={setDrawerCand}
+                    matchesQuery={matchesQuery}
+                    query={q}
+                  />
+                )}
+              </AnimatePresence>
+            </LayoutGroup>
           </m.div>
         ) : (
-          <m.div key="map" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, ease: EASE }} style={{ marginTop: 22 }}>
-            <MapView candidates={filtered} activeClusters={activeClusters} query={q} onOpenDrawer={setDrawerDot} />
+          <m.div
+            key="list"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: EASE }}
+            style={{ marginTop: 22 }}
+          >
+            <FlatList candidates={CANDIDATES.filter(matchesQuery)} onOpenCand={setDrawerCand} />
           </m.div>
         )}
       </AnimatePresence>
 
-      {/* Drawer */}
-      <DrawerCandidate dot={drawerDot} onClose={() => setDrawerDot(null)} />
+      <DrawerCandidate cand={drawerCand} onClose={() => setDrawerCand(null)} />
     </main>
   )
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * View toggle
+ * Header — titre + toggle vue
  * ────────────────────────────────────────────────────────────────────────── */
+
+function Header({ view, setView }: { view: "list" | "map"; setView: (v: "list" | "map") => void }) {
+  return (
+    <m.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: EASE }}>
+      <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        Vivier — Aperçu visuel
+      </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginTop: 4 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
+            Mon vivier
+          </h1>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6B7280", maxWidth: 720, lineHeight: 1.6 }}>
+            {CANDIDATES.length} candidats répartis sur {CLUSTERS.length} secteurs détectés par Nora.
+          </p>
+        </div>
+        <ViewToggle view={view} onChange={setView} />
+      </div>
+    </m.div>
+  )
+}
 
 function ViewToggle({ view, onChange }: { view: "list" | "map"; onChange: (v: "list" | "map") => void }) {
   return (
     <div style={{
       display: "inline-flex", background: "white", border: "1px solid #E5E7EB",
-      borderRadius: 100, padding: 3, gap: 2,
+      borderRadius: 100, padding: 3, gap: 2, position: "relative",
     }}>
-      {(["list", "map"] as const).map((v) => (
-        <button
-          key={v}
-          onClick={() => onChange(v)}
-          style={{
-            fontFamily: "inherit",
-            padding: "6px 14px", borderRadius: 100,
-            fontSize: 12, fontWeight: 700,
-            cursor: "pointer",
-            color: view === v ? "white" : "#6B7280",
-            background: view === v ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)" : "transparent",
-            border: "none",
-          }}
-        >
-          {v === "list" ? "≡ Liste" : "◍ Carte"}
-        </button>
-      ))}
+      {(["map", "list"] as const).map((v) => {
+        const active = view === v
+        return (
+          <button
+            key={v}
+            onClick={() => onChange(v)}
+            style={{
+              fontFamily: "inherit",
+              position: "relative",
+              padding: "7px 16px", borderRadius: 100,
+              fontSize: 12, fontWeight: 700,
+              cursor: "pointer",
+              color: active ? "white" : "#6B7280",
+              background: "transparent",
+              border: "none",
+              zIndex: 1,
+            }}
+          >
+            {active && (
+              <m.span
+                layoutId="view-toggle-active"
+                transition={SPRING}
+                style={{
+                  position: "absolute", inset: 0, borderRadius: 100,
+                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  zIndex: -1,
+                }}
+              />
+            )}
+            {v === "map" ? "◍ Carte" : "≡ Liste"}
+          </button>
+        )
+      })}
     </div>
   )
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * List view — pile de cartes candidat (scale à 200+ en virtualisant plus tard)
+ * Search bar — recherche libre
  * ────────────────────────────────────────────────────────────────────────── */
 
-function ListView({ candidates, onOpenDrawer }: { candidates: CvDot[]; onOpenDrawer: (d: CvDot) => void }) {
-  if (candidates.length === 0) {
-    return (
-      <div style={{
-        padding: "60px 24px", textAlign: "center",
-        background: "white", border: "1px dashed #E5E7EB", borderRadius: 14,
-      }}>
-        <p style={{ margin: 0, fontSize: 14, color: "#6B7280" }}>
-          Aucun candidat ne correspond.
-        </p>
-      </div>
-    )
-  }
+function SearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
-      {candidates.map((c, i) => (
-        <CandidateCard key={c.id} c={c} index={i} onOpen={() => onOpenDrawer(c)} />
-      ))}
-    </div>
+    <m.div
+      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: EASE, delay: 0.04 }}
+      style={{ marginTop: 18 }}
+    >
+      <input
+        type="search"
+        placeholder="Rechercher par nom, poste, compétence, ref C-…"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          fontSize: 13.5, color: "#111827",
+          padding: "12px 16px",
+          background: "white",
+          border: "1px solid #E5E7EB",
+          borderRadius: 12,
+          outline: "none",
+          fontFamily: "inherit",
+          boxShadow: "0 1px 2px rgba(17,24,39,0.03)",
+        }}
+      />
+    </m.div>
   )
 }
 
-function CandidateCard({ c, index, onOpen }: { c: CvDot; index: number; onOpen: () => void }) {
-  const primary = clusterById(c.primary)!
-  const secondary = c.secondary ? clusterById(c.secondary) : null
+/* ──────────────────────────────────────────────────────────────────────────
+ * MacroMap — zones colorées seules, pas de dots. Vue stratégique pure.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function MacroMap({ onZoom }: { onZoom: (id: string) => void }) {
+  const W = 900
+  const H = 580
+
+  return (
+    <m.div
+      initial={{ opacity: 0, scale: 0.985 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.99 }}
+      transition={{ duration: 0.4, ease: EASE }}
+      style={{ position: "relative", borderRadius: 20, overflow: "hidden" }}
+    >
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="auto" style={{ display: "block" }}>
+        <defs>
+          {CLUSTERS.map((c) => (
+            <radialGradient key={c.id} id={`grad-macro-${c.id}`} cx="50%" cy="50%" r="50%">
+              <stop offset="0%"  stopColor={hsl(c.hue, 78, 72)} stopOpacity={0.65} />
+              <stop offset="65%" stopColor={hsl(c.hue, 65, 80)} stopOpacity={0.30} />
+              <stop offset="100%" stopColor={hsl(c.hue, 55, 85)} stopOpacity={0} />
+            </radialGradient>
+          ))}
+        </defs>
+
+        {/* Zones colorées */}
+        {CLUSTERS.map((c) => {
+          const r = c.radius * Math.min(W, H) * 1.25
+          return (
+            <circle
+              key={c.id}
+              cx={c.cx * W}
+              cy={c.cy * H}
+              r={r}
+              fill={`url(#grad-macro-${c.id})`}
+            />
+          )
+        })}
+      </svg>
+
+      {/* Surcouche interactive : un bouton par zone, en HTML, pour les
+          interactions (hover scale, focus) — l'SVG ne gère que le fond. */}
+      <div style={{ position: "absolute", inset: 0 }}>
+        {CLUSTERS.map((c) => {
+          const count = candidatesInSector(c.id).length
+          const sizePx = c.radius * 540
+          return (
+            <m.button
+              key={c.id}
+              layoutId={`zone-${c.id}`}
+              onClick={() => onZoom(c.id)}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.98 }}
+              transition={SPRING}
+              style={{
+                position: "absolute",
+                left: `${c.cx * 100}%`,
+                top: `${c.cy * 100}%`,
+                width: sizePx, height: sizePx,
+                transform: "translate(-50%, -50%)",
+                borderRadius: "50%",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: hsl(c.hue, 60, 25),
+                fontFamily: "inherit",
+                display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                padding: 0,
+              }}
+              aria-label={`Explorer le secteur ${c.label} (${count} candidats)`}
+            >
+              <m.span
+                style={{
+                  fontSize: Math.max(14, sizePx / 12),
+                  fontWeight: 800,
+                  letterSpacing: "0.02em",
+                  textTransform: "uppercase",
+                  textShadow: "0 1px 0 rgba(255,255,255,0.6)",
+                  pointerEvents: "none",
+                }}
+              >
+                {c.label}
+              </m.span>
+              <m.span
+                style={{
+                  fontSize: Math.max(10, sizePx / 22),
+                  fontWeight: 700,
+                  color: hsl(c.hue, 45, 38),
+                  opacity: 0.85,
+                  marginTop: 4,
+                  pointerEvents: "none",
+                }}
+              >
+                {count} profils
+              </m.span>
+            </m.button>
+          )
+        })}
+      </div>
+
+      <m.p
+        initial={{ opacity: 0 }} animate={{ opacity: 0.7 }}
+        transition={{ duration: 0.5, ease: EASE, delay: 0.4 }}
+        style={{
+          position: "absolute", bottom: 14, left: "50%", transform: "translateX(-50%)",
+          margin: 0, fontSize: 11, color: "#9CA3AF", fontStyle: "italic",
+          pointerEvents: "none",
+        }}
+      >
+        Cliquez une zone pour explorer ses profils.
+      </m.p>
+    </m.div>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * SectorZoomView — la zone cliquée s'agrandit jusqu'au plein canvas et
+ * révèle la liste des candidats du secteur (primaires + hybrides).
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function SectorZoomView({
+  sectorId,
+  onBack,
+  onJumpToSector,
+  onOpenCand,
+  matchesQuery,
+  query,
+}: {
+  sectorId: string
+  onBack: () => void
+  onJumpToSector: (id: string) => void
+  onOpenCand: (c: CvCand) => void
+  matchesQuery: (c: CvCand) => boolean
+  query: string
+}) {
+  const cluster = clusterById(sectorId)
+  const all = useMemo(() => candidatesInSector(sectorId).filter(matchesQuery), [sectorId, matchesQuery])
+  const primaries = all.filter((c) => c.primary === sectorId)
+  const hybrids   = all.filter((c) => c.secondary === sectorId)
+
+  return (
+    <m.div
+      layoutId={`zone-${sectorId}`}
+      transition={SPRING}
+      style={{
+        position: "relative",
+        background: `radial-gradient(120% 100% at 50% 0%, ${hsl(cluster.hue, 70, 92)} 0%, ${hsl(cluster.hue, 55, 97)} 50%, white 100%)`,
+        border: `1px solid ${hsl(cluster.hue, 55, 82)}`,
+        borderRadius: 22,
+        padding: "26px 28px 32px",
+        overflow: "hidden",
+        boxShadow: `0 12px 40px ${hsl(cluster.hue, 50, 60)}26`,
+      }}
+    >
+      {/* Halo radial doux en haut, ambiance secteur */}
+      <m.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, ease: EASE, delay: 0.1 }}
+        style={{
+          position: "absolute", top: -120, left: "50%", transform: "translateX(-50%)",
+          width: 700, height: 400, borderRadius: "50%",
+          background: `radial-gradient(closest-side, ${hsl(cluster.hue, 75, 80)}55, transparent 70%)`,
+          filter: "blur(40px)", pointerEvents: "none",
+        }}
+      />
+
+      {/* Header zoom : retour + titre secteur + count */}
+      <m.div
+        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: EASE, delay: 0.15 }}
+        style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 22 }}
+      >
+        <button
+          onClick={onBack}
+          style={{
+            fontFamily: "inherit", fontSize: 12, fontWeight: 700,
+            color: hsl(cluster.hue, 50, 35),
+            background: "rgba(255,255,255,0.7)",
+            border: `1px solid ${hsl(cluster.hue, 55, 80)}`,
+            borderRadius: 100, padding: "7px 14px", cursor: "pointer",
+            backdropFilter: "blur(8px)",
+            display: "inline-flex", alignItems: "center", gap: 6,
+          }}
+        >
+          ← Retour à la carte
+        </button>
+
+        <div style={{ textAlign: "right" }}>
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: hsl(cluster.hue, 50, 50), letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Secteur
+          </p>
+          <h2 style={{ margin: "2px 0 0", fontSize: 22, fontWeight: 800, color: hsl(cluster.hue, 60, 28), letterSpacing: "-0.01em" }}>
+            {cluster.label}
+          </h2>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: hsl(cluster.hue, 35, 45) }}>
+            {all.length} profil{all.length > 1 ? "s" : ""}
+            {hybrids.length > 0 && <> · <strong>{hybrids.length}</strong> hybride{hybrids.length > 1 ? "s" : ""}</>}
+            {query && <> · filtré sur « {query} »</>}
+          </p>
+        </div>
+      </m.div>
+
+      {/* Empty state si filtre vide */}
+      {all.length === 0 && (
+        <p style={{ margin: "40px 0", fontSize: 13, color: "#9CA3AF", textAlign: "center" }}>
+          Aucun candidat dans ce secteur ne correspond à la recherche.
+        </p>
+      )}
+
+      {/* Grille candidats — stagger fade-in pour de la légèreté */}
+      <div style={{
+        position: "relative",
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+        gap: 12,
+      }}>
+        {primaries.map((c, i) => (
+          <CandidateCardLight key={c.id} c={c} index={i} cluster={cluster} onOpen={() => onOpenCand(c)} onJumpToSector={onJumpToSector} />
+        ))}
+        {hybrids.length > 0 && primaries.length > 0 && (
+          <m.div
+            initial={{ opacity: 0 }} animate={{ opacity: 0.6 }}
+            transition={{ duration: 0.35, ease: EASE, delay: 0.1 + primaries.length * 0.03 }}
+            style={{
+              gridColumn: "1 / -1",
+              display: "flex", alignItems: "center", gap: 10, margin: "14px 0 4px",
+              fontSize: 10, fontWeight: 700, color: hsl(cluster.hue, 35, 45),
+              letterSpacing: "0.08em", textTransform: "uppercase",
+            }}
+          >
+            <span style={{ flex: 1, height: 1, background: hsl(cluster.hue, 35, 75) }} />
+            Profils hybrides
+            <span style={{ flex: 1, height: 1, background: hsl(cluster.hue, 35, 75) }} />
+          </m.div>
+        )}
+        {hybrids.map((c, i) => (
+          <CandidateCardLight
+            key={`h-${c.id}`}
+            c={c}
+            index={primaries.length + i}
+            cluster={cluster}
+            onOpen={() => onOpenCand(c)}
+            onJumpToSector={onJumpToSector}
+            isHybridContext
+          />
+        ))}
+      </div>
+    </m.div>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * CandidateCardLight — carte aérée pour la vue zoom
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function CandidateCardLight({
+  c, index, cluster, onOpen, onJumpToSector, isHybridContext = false,
+}: {
+  c: CvCand
+  index: number
+  cluster: Cluster   // cluster contextuel (la zone dans laquelle on est)
+  onOpen: () => void
+  onJumpToSector: (id: string) => void
+  isHybridContext?: boolean
+}) {
+  const otherSectorId = c.primary === cluster.id ? c.secondary : c.primary
+  const otherSector = otherSectorId ? clusterById(otherSectorId) : null
   return (
     <m.button
-      initial={{ opacity: 0, y: 4 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay: Math.min(index * 0.015, 0.2), ease: EASE }}
+      transition={{ duration: 0.4, ease: EASE, delay: 0.18 + Math.min(index * 0.025, 0.25) }}
+      whileHover={{ y: -2, boxShadow: `0 12px 24px ${hsl(cluster.hue, 50, 60)}22` }}
       onClick={onOpen}
       style={{
         position: "relative",
         textAlign: "left", cursor: "pointer", fontFamily: "inherit",
-        background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
-        padding: "12px 14px 12px 18px",
-        display: "flex", flexDirection: "column", gap: 6,
+        background: "rgba(255,255,255,0.92)",
+        backdropFilter: "blur(10px)",
+        border: `1px solid ${hsl(cluster.hue, 40, 86)}`,
+        borderRadius: 14,
+        padding: "14px 16px 14px 20px",
+        display: "flex", flexDirection: "column", gap: 7,
         overflow: "hidden",
+        boxShadow: "0 1px 2px rgba(17,24,39,0.04)",
+        transition: "box-shadow 200ms ease, transform 200ms ease",
       }}
     >
-      {/* Pastille couleur secteur — bord gauche */}
+      {/* Bande verticale couleur secteur */}
       <span style={{
         position: "absolute", top: 0, bottom: 0, left: 0, width: 4,
-        background: secondary
-          ? `linear-gradient(180deg, ${clusterColor(primary.hue, 70, 55)} 0%, ${clusterColor(secondary.hue, 70, 55)} 100%)`
-          : clusterColor(primary.hue, 70, 55),
+        background: hsl(cluster.hue, 60, 55),
       }} />
 
-      {/* Ligne 1 : avatar + nom + ref */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{
-          width: 30, height: 30, borderRadius: "50%",
-          background: clusterColor(primary.hue, 65, 92),
-          color: clusterColor(primary.hue, 55, 35),
-          fontSize: 11, fontWeight: 800,
+          width: 32, height: 32, borderRadius: "50%",
+          background: hsl(cluster.hue, 70, 92),
+          color: hsl(cluster.hue, 60, 30),
+          fontSize: 11.5, fontWeight: 800,
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0,
         }}>
           {c.initials}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 13.5, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {c.fullName}
           </div>
           <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
             {c.ref}
           </div>
         </div>
+        {isHybridContext && otherSector && (
+          <span
+            onClick={(e) => { e.stopPropagation(); onJumpToSector(otherSector.id) }}
+            style={{
+              fontSize: 10, fontWeight: 700,
+              color: hsl(otherSector.hue, 55, 38),
+              background: hsl(otherSector.hue, 70, 95),
+              border: `1px solid ${hsl(otherSector.hue, 50, 80)}`,
+              padding: "2px 8px", borderRadius: 100,
+              cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 4,
+              flexShrink: 0,
+            }}
+            title={`Voir aussi dans ${otherSector.label}`}
+          >
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: hsl(otherSector.hue, 60, 55) }} />
+            {otherSector.label.split(" ")[0]} →
+          </span>
+        )}
       </div>
 
-      {/* Ligne 2 : poste + entreprise */}
-      <div style={{ fontSize: 12, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingLeft: 40 }}>
+      <div style={{ fontSize: 12, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingLeft: 42 }}>
         {c.title}{c.company ? ` · ${c.company}` : ""}
       </div>
 
-      {/* Ligne 3 : badges secteur + lieu + xp */}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingLeft: 40, marginTop: 2 }}>
-        <SectorBadge cluster={primary} />
-        {secondary && <SectorBadge cluster={secondary} muted />}
-        <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>
-          {c.location} · {c.yearsExperience}j XP
-        </span>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", paddingLeft: 42, fontSize: 10.5, color: "#9CA3AF" }}>
+        {c.location} · {c.yearsExperience} an{c.yearsExperience !== 1 ? "s" : ""} XP
       </div>
 
-      {/* Skills chips */}
       {c.skills.length > 0 && (
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", paddingLeft: 40, marginTop: 2 }}>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", paddingLeft: 42, marginTop: 2 }}>
           {c.skills.slice(0, 4).map((s) => (
             <span key={s} style={{
-              fontSize: 10, color: "#4B5563",
-              background: "#F8F6FF", border: "1px solid #F0ECF8",
-              padding: "2px 7px", borderRadius: 6,
+              fontSize: 10, color: hsl(cluster.hue, 35, 38),
+              background: hsl(cluster.hue, 60, 95),
+              border: `1px solid ${hsl(cluster.hue, 50, 88)}`,
+              padding: "2px 8px", borderRadius: 6,
             }}>
               {s}
             </span>
@@ -400,141 +639,62 @@ function CandidateCard({ c, index, onOpen }: { c: CvDot; index: number; onOpen: 
   )
 }
 
-function SectorBadge({ cluster, muted }: { cluster: Cluster; muted?: boolean }) {
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 4,
-      fontSize: 10, fontWeight: 700,
-      color: muted ? clusterColor(cluster.hue, 40, 50) : clusterColor(cluster.hue, 55, 40),
-      background: muted ? "transparent" : clusterColor(cluster.hue, 65, 95),
-      border: `1px solid ${clusterColor(cluster.hue, 55, muted ? 80 : 75)}`,
-      padding: "1.5px 7px", borderRadius: 100,
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: clusterColor(cluster.hue, 65, 55) }} />
-      {cluster.label}
-    </span>
-  )
-}
-
 /* ──────────────────────────────────────────────────────────────────────────
- * Map view — le nuage, mais avec recherche/filtres qui mettent en évidence
+ * FlatList — vue Liste cross-secteurs (fallback pour ceux qui scrollent)
  * ────────────────────────────────────────────────────────────────────────── */
 
-function MapView({
-  candidates, activeClusters, query, onOpenDrawer,
-}: {
-  candidates: CvDot[]
-  activeClusters: Set<string>
-  query: string
-  onOpenDrawer: (d: CvDot) => void
-}) {
-  const W = 900
-  const H = 600
-
-  return (
-    <div style={{ position: "relative" }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="auto" style={{ display: "block", overflow: "visible" }}>
-        <defs>
-          {CLUSTERS.map((c) => (
-            <radialGradient key={c.id} id={`grad-${c.id}`} cx="50%" cy="50%" r="50%">
-              <stop offset="0%"  stopColor={clusterColor(c.hue, 75, 75)} stopOpacity={activeClusters.has(c.id) ? 0.55 : 0.06} />
-              <stop offset="60%" stopColor={clusterColor(c.hue, 65, 80)} stopOpacity={activeClusters.has(c.id) ? 0.3  : 0.03} />
-              <stop offset="100%" stopColor={clusterColor(c.hue, 60, 85)} stopOpacity={0} />
-            </radialGradient>
-          ))}
-        </defs>
-
-        {/* Zones colorées */}
-        {CLUSTERS.map((c) => (
-          <circle key={c.id} cx={c.cx * W} cy={c.cy * H} r={c.radius * Math.min(W, H) * 1.25} fill={`url(#grad-${c.id})`} />
-        ))}
-
-        {/* Titres clusters */}
-        {CLUSTERS.map((c) => {
-          const active = activeClusters.has(c.id)
-          return (
-            <g key={`label-${c.id}`} style={{ pointerEvents: "none" }}>
-              <text x={c.cx * W} y={c.cy * H - 6} fontSize={15} fontWeight={800} textAnchor="middle" fill={clusterColor(c.hue, 70, 30)} opacity={active ? 0.85 : 0.3} style={{ letterSpacing: "0.02em" }}>
-                {c.label.toUpperCase()}
-              </text>
-              <text x={c.cx * W} y={c.cy * H + 12} fontSize={11} textAnchor="middle" fill={clusterColor(c.hue, 50, 45)} opacity={active ? 0.6 : 0.2}>
-                {CV_DOTS.filter((d) => d.primary === c.id || d.secondary === c.id).length} profils
-              </text>
-            </g>
-          )
-        })}
-
-        {/* Dots */}
-        {CV_DOTS.map((dot) => {
-          const pos = positionFor(dot)
-          const inFilters = candidates.some((c) => c.id === dot.id)
-          const highlighted = query.length > 0 && inFilters
-          const dimmed = !inFilters
-          return (
-            <g
-              key={dot.id}
-              onClick={() => onOpenDrawer(dot)}
-              style={{ cursor: "pointer", transition: "opacity 200ms ease" }}
-            >
-              <circle cx={pos.x * W} cy={pos.y * H} r={16} fill="white" opacity={dimmed ? 0.4 : 0.75} />
-              <circle
-                cx={pos.x * W} cy={pos.y * H}
-                r={highlighted ? 16 : 13}
-                fill={dotColor(dot)}
-                stroke={highlighted ? "#7C63C8" : "white"}
-                strokeWidth={highlighted ? 3 : 2}
-                opacity={dimmed ? 0.18 : 1}
-                style={{ transition: "r 160ms ease, stroke 160ms ease" }}
-              />
-              <text
-                x={pos.x * W} y={pos.y * H + 4}
-                fontSize={9.5} fontWeight={800} textAnchor="middle" fill="white"
-                style={{ pointerEvents: "none", letterSpacing: "0.02em" }}
-                opacity={dimmed ? 0.2 : 1}
-              >
-                {dot.initials}
-              </text>
-            </g>
-          )
-        })}
-      </svg>
-
-      <p style={{
-        margin: "10px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.5, fontStyle: "italic",
+function FlatList({ candidates, onOpenCand }: { candidates: CvCand[]; onOpenCand: (c: CvCand) => void }) {
+  if (candidates.length === 0) {
+    return (
+      <div style={{
+        padding: "60px 24px", textAlign: "center",
+        background: "white", border: "1px dashed #E5E7EB", borderRadius: 14,
+        color: "#6B7280", fontSize: 14,
       }}>
-        Astuce : clique un dot pour ouvrir le candidat dans le drawer · double-clic sur une chip secteur pour isoler ce groupe.
-      </p>
+        Aucun candidat ne correspond à la recherche.
+      </div>
+    )
+  }
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
+      {candidates.map((c, i) => {
+        const primary = clusterById(c.primary)
+        return (
+          <CandidateCardLight key={c.id} c={c} index={i} cluster={primary} onOpen={() => onOpenCand(c)} onJumpToSector={() => {}} />
+        )
+      })}
     </div>
   )
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Drawer — aperçu candidat à droite, ne quitte pas la vue
+ * Drawer candidat — slide depuis la droite, fluid
  * ────────────────────────────────────────────────────────────────────────── */
 
-function DrawerCandidate({ dot, onClose }: { dot: CvDot | null; onClose: () => void }) {
+function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () => void }) {
   return (
     <AnimatePresence>
-      {dot && (
+      {cand && (
         <>
           <m.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: EASE }}
+            transition={{ duration: 0.2, ease: EASE }}
             onClick={onClose}
-            style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(17,24,39,0.35)", backdropFilter: "blur(2px)" }}
+            style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(17,24,39,0.35)", backdropFilter: "blur(3px)" }}
           />
           <m.aside
-            initial={{ x: 360, opacity: 0 }}
+            initial={{ x: 380, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 360, opacity: 0 }}
-            transition={{ duration: 0.28, ease: EASE }}
+            exit={{ x: 380, opacity: 0 }}
+            transition={SPRING}
             style={{
-              position: "fixed", top: 0, right: 0, bottom: 0, width: "min(380px, 90vw)", zIndex: 90,
+              position: "fixed", top: 0, right: 0, bottom: 0,
+              width: "min(400px, 92vw)", zIndex: 90,
               background: "white", borderLeft: "1px solid #E9E2F7",
-              padding: "22px 22px 28px",
-              boxShadow: "-12px 0 40px rgba(17,24,39,0.10)",
+              padding: "24px 24px 30px",
+              boxShadow: "-16px 0 50px rgba(17,24,39,0.12)",
               fontFamily: "var(--font-inter), sans-serif",
-              display: "flex", flexDirection: "column", gap: 14,
+              display: "flex", flexDirection: "column", gap: 16,
               overflowY: "auto",
             }}
           >
@@ -552,50 +712,48 @@ function DrawerCandidate({ dot, onClose }: { dot: CvDot | null; onClose: () => v
             </div>
 
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{
-                  width: 40, height: 40, borderRadius: "50%",
-                  background: clusterColor(clusterById(dot.primary)!.hue, 65, 92),
-                  color: clusterColor(clusterById(dot.primary)!.hue, 55, 35),
-                  fontSize: 14, fontWeight: 800,
+                  width: 44, height: 44, borderRadius: "50%",
+                  background: hsl(clusterById(cand.primary).hue, 70, 92),
+                  color: hsl(clusterById(cand.primary).hue, 55, 30),
+                  fontSize: 15, fontWeight: 800,
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  {dot.initials}
+                  {cand.initials}
                 </span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{dot.fullName}</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+                    {cand.fullName}
+                  </div>
                   <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
-                    {dot.ref}
+                    {cand.ref}
                   </div>
                 </div>
               </div>
-              <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#374151" }}>
-                {dot.title}{dot.company ? ` · ${dot.company}` : ""}
+              <p style={{ margin: "10px 0 0", fontSize: 13, color: "#374151" }}>
+                {cand.title}{cand.company ? ` · ${cand.company}` : ""}
               </p>
               <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF" }}>
-                {dot.location} · {dot.yearsExperience} an{dot.yearsExperience !== 1 ? "s" : ""} d&apos;expérience
+                {cand.location} · {cand.yearsExperience} an{cand.yearsExperience !== 1 ? "s" : ""} d&apos;expérience
               </p>
             </div>
 
             <div>
-              <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>
-                Secteurs
-              </div>
+              <SectionLabel>Secteurs</SectionLabel>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <SectorBadge cluster={clusterById(dot.primary)!} />
-                {dot.secondary && <SectorBadge cluster={clusterById(dot.secondary)!} muted />}
+                <SectorChip cluster={clusterById(cand.primary)} />
+                {cand.secondary && <SectorChip cluster={clusterById(cand.secondary)} muted />}
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>
-                Compétences
-              </div>
+              <SectionLabel>Compétences</SectionLabel>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {dot.skills.map((s) => (
+                {cand.skills.map((s) => (
                   <span key={s} style={{
                     fontSize: 10.5, color: "#4B5563", background: "#F8F6FF",
-                    border: "1px solid #F0ECF8", padding: "2px 8px", borderRadius: 6,
+                    border: "1px solid #F0ECF8", padding: "2.5px 9px", borderRadius: 6,
                   }}>
                     {s}
                   </span>
@@ -606,9 +764,10 @@ function DrawerCandidate({ dot, onClose }: { dot: CvDot | null; onClose: () => v
             <button style={{
               marginTop: "auto",
               fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: "white",
-              padding: "10px 16px", borderRadius: 9,
+              padding: "11px 16px", borderRadius: 10,
               background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
               border: "none", cursor: "pointer",
+              boxShadow: "0 6px 18px -8px rgba(124,99,200,0.6)",
             }}>
               Ouvrir la fiche complète →
             </button>
@@ -616,5 +775,29 @@ function DrawerCandidate({ dot, onClose }: { dot: CvDot | null; onClose: () => v
         </>
       )}
     </AnimatePresence>
+  )
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 7 }}>
+      {children}
+    </div>
+  )
+}
+
+function SectorChip({ cluster, muted }: { cluster: Cluster; muted?: boolean }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      fontSize: 10.5, fontWeight: 700,
+      color: muted ? hsl(cluster.hue, 40, 50) : hsl(cluster.hue, 55, 35),
+      background: muted ? "transparent" : hsl(cluster.hue, 70, 94),
+      border: `1px solid ${hsl(cluster.hue, 50, muted ? 80 : 78)}`,
+      padding: "2px 9px", borderRadius: 100,
+    }}>
+      <span style={{ width: 5.5, height: 5.5, borderRadius: "50%", background: hsl(cluster.hue, 65, 55) }} />
+      {cluster.label}
+    </span>
   )
 }
