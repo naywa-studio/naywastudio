@@ -32,6 +32,7 @@ import type { Candidate, Job, Profile } from "@/lib/database.types"
 import { PRESETS, detectSeniority, type SenioritePreset } from "@/lib/pricing/preset"
 import { missionMonthProfile, MONTH_ABBR_FR } from "@/lib/pricing/calendar"
 import { getSupabase } from "@/lib/supabase"
+import { candidateRefLabel } from "@/lib/candidate-ref"
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Preset séniorité — extraits dans @/lib/pricing/preset pour partage avec
@@ -396,6 +397,7 @@ function PricingWidgetInner({
       {/* ═══ VERDICT HERO ═══ */}
       <VerdictHero
         candidateName={candidate.full_name ?? "Sans nom"}
+        candidateRef={candidateRefLabel(candidate.id)}
         candidateTitle={candidate.current_title ?? ""}
         candidateYears={candidate.years_experience ?? null}
         margePct={margePct}
@@ -607,12 +609,13 @@ function PricingWidgetInner({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function VerdictHero({
-  candidateName, candidateTitle, candidateYears,
+  candidateName, candidateRef, candidateTitle, candidateYears,
   margePct, margeMensuelleEur, margeTotaleEur,
   margeMinPct, margeTargetPct, monthCount,
   seniority, detectedPreset, onSenioritySelect,
 }: {
   candidateName: string
+  candidateRef: string
   candidateTitle: string
   candidateYears: number | null
   margePct: number
@@ -657,6 +660,13 @@ function VerdictHero({
         </div>
         <div style={{ fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
           {candidateTitle && <>{candidateTitle}{candidateYears != null && ` · ${candidateYears} ans XP`}</>}
+        </div>
+        <div style={{
+          fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+          letterSpacing: "0.04em", marginTop: 3,
+          fontFamily: "var(--font-space-grotesk), monospace",
+        }}>
+          {candidateRef}
         </div>
         {/* Sélecteur séniorité, compact */}
         <div style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>

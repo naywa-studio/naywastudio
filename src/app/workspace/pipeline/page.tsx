@@ -80,17 +80,16 @@ export default function PipelinePage() {
   const [overCell, setOverCell] = useState<string | null>(null) // `${jobId}:${stage}`
   const [overTerminal, setOverTerminal] = useState<PipelineStage | null>(null)
   const [jobFilter, setJobFilter] = useState<string>("")
-  const [showWeak, setShowWeak] = useState(false)
+  // Les candidats dans la pipeline ont été ajoutés explicitement par le
+  // sourceur — on ne re-filtre PAS par score ici. La notion de "matchs
+  // faibles" n'a de sens qu'au niveau du matching (fiche mission), pas du
+  // pipeline. Le toggle a donc été retiré.
   // Lanes (missions) are collapsed by default — click a mission to reveal its
   // candidates. We track the OPEN ones so new missions appear collapsed.
   const [expandedLanes, setExpandedLanes] = useState<Set<string>>(new Set())
   // When set, the board is replaced by a read-only list of that terminal
   // state's candidates (Recruté / Écarté).
   const [terminalView, setTerminalView] = useState<PipelineStage | null>(null)
-
-  /** Below-threshold matches clutter the pipeline. Manually assigned
-   *  candidates (score === null) are always kept visible. */
-  const SCORE_THRESHOLD = 60
 
   const toggleLane = (jobId: string) => {
     setExpandedLanes((prev) => {
@@ -158,18 +157,8 @@ export default function PipelinePage() {
   // Filter by job (if user selected one), then by score, then bucket by stage.
   // Manually assigned matches have score === null and are always kept.
   const filteredRows = useMemo(() => {
-    let out = jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows
-    if (!showWeak) {
-      out = out.filter((r) => r.score == null || r.score >= SCORE_THRESHOLD)
-    }
-    return out
-  }, [rows, jobFilter, showWeak])
-
-  const weakCount = useMemo(
-    () => (jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows)
-      .filter((r) => r.score != null && r.score < SCORE_THRESHOLD).length,
-    [rows, jobFilter],
-  )
+    return jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows
+  }, [rows, jobFilter])
 
   // Swimlanes : one lane per mission, each lane bucketed by active stage.
   // Terminal rows (hired/rejected) are excluded — they live in the chips.
@@ -271,23 +260,6 @@ export default function PipelinePage() {
                 />
               </div>
             )}
-            {weakCount > 0 && (
-              <button
-                onClick={() => setShowWeak((v) => !v)}
-                title="Les matches < 60 sont masqués par défaut pour ne pas parasiter le pipeline"
-                style={{
-                  fontSize: 12, fontWeight: 600,
-                  color: showWeak ? "#7C63C8" : "#9CA3AF",
-                  background: showWeak ? "rgba(124,99,200,0.08)" : "white",
-                  border: `1px solid ${showWeak ? "rgba(124,99,200,0.25)" : "#E5E7EB"}`,
-                  borderRadius: 9, padding: "7px 12px",
-                  cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                {showWeak ? "✓ " : ""}Inclure les {weakCount} match{weakCount > 1 ? "s" : ""} faible{weakCount > 1 ? "s" : ""} (&lt;60)
-              </button>
-            )}
-
             {/* Issues terminales — chips cliquables + zones de drop */}
             <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
               {TERMINAL_STAGES.map((s) => {

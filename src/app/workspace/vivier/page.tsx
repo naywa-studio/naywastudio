@@ -6,6 +6,7 @@ import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import { CANDIDATE_COLUMNS, type Candidate } from "@/lib/database.types"
 import { customTagsOf } from "@/lib/tags"
+import { matchesCandidateRef, candidateRefLabel } from "@/lib/candidate-ref"
 import Select from "@/components/ui/Select"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { showUndoToast } from "@/components/ui/UndoToast"
@@ -281,6 +282,9 @@ export default function VivierPage() {
     const skillQ = skillFilter.trim().toLowerCase()
     return candidates.filter((c) => {
       if (q) {
+        // Match aussi sur la ref candidat (ex. "C-1A2B3C4D" ou "1A2B3C4D") :
+        // utile quand un client rappelle un profil par sa ref anonyme.
+        if (matchesCandidateRef(c.id, q)) return true
         const hay = [
           c.full_name, c.current_title, c.current_company, c.location, c.email,
           ...(c.skills ?? []),
@@ -479,7 +483,7 @@ export default function VivierPage() {
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <input
             type="search"
-            placeholder="Rechercher par nom, poste, compétence…"
+            placeholder="Rechercher par nom, poste, compétence, ref C-…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             style={{
@@ -925,6 +929,13 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
           }}>
             {c.current_title ?? (errored ? c.parse_error ?? "Erreur" : "—")}
             {c.current_company ? <> · <span style={{ color: "#9CA3AF" }}>{c.current_company}</span></> : null}
+          </p>
+          <p style={{
+            margin: "3px 0 0", fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+            letterSpacing: "0.04em",
+            fontFamily: "var(--font-space-grotesk), monospace",
+          }}>
+            {candidateRefLabel(c.id)}
           </p>
         </div>
       </div>

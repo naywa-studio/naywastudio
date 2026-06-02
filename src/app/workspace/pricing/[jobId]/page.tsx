@@ -21,6 +21,7 @@ import type { Candidate, Job, MatchTier, Profile } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import PricingWidget from "@/components/workspace/PricingWidget"
 import { computeQuickMargin } from "@/lib/pricing/quick-margin"
+import { candidateRefLabel } from "@/lib/candidate-ref"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -1060,6 +1061,14 @@ function CompactCandidatesList({
                   {c.score}
                 </span>
               )}
+            </div>
+            {/* Ligne 1.5 : ref candidate */}
+            <div style={{
+              paddingLeft: 34, fontSize: 9.5, color: "#9CA3AF",
+              fontFamily: "var(--font-space-grotesk), monospace",
+              letterSpacing: "0.04em", marginTop: -2,
+            }}>
+              {candidateRefLabel(c.candidate.id)}
             </div>
             {/* Ligne 2 : brut + marge — uniquement quand le sourceur a
                 explicitement chiffré ce candidat (TJM ou brut persisté).

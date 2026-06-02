@@ -7,6 +7,7 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import { CANDIDATE_COLUMNS, type Candidate, type ParsedCv, type MatchTier } from "@/lib/database.types"
 import { customTagsOf, SYSTEM_TAGS } from "@/lib/tags"
+import { candidateRefLabel } from "@/lib/candidate-ref"
 import TagPicker from "@/components/workspace/TagPicker"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { showUndoToast } from "@/components/ui/UndoToast"
@@ -21,6 +22,7 @@ interface JobMatch {
   score: number | null
   match_tier: MatchTier | null
   pipeline_stage: string
+  in_pipeline: boolean
 }
 
 const TIER_COLOR: Record<MatchTier, { fg: string; bg: string; bd: string }> = {
@@ -105,7 +107,7 @@ export default function CandidatePage() {
       tasks.push((async () => {
         const { data: matches } = await sb
           .from("match_assessments")
-          .select("id, job_id, score, match_tier, pipeline_stage, job:jobs(id, title)")
+          .select("id, job_id, score, match_tier, pipeline_stage, in_pipeline, job:jobs(id, title)")
           .eq("candidate_id", c.id)
           .order("score", { ascending: false, nullsFirst: false })
         if (!mounted || !matches) return
@@ -114,6 +116,7 @@ export default function CandidatePage() {
         for (const m of matches as unknown as Array<{
           id: string; job_id: string; score: number | null; match_tier: MatchTier | null
           pipeline_stage: string
+          in_pipeline: boolean
           job: { id: string; title: string } | null
         }>) {
           if (!m.job || seen.has(m.job.id)) continue
@@ -122,6 +125,7 @@ export default function CandidatePage() {
             id: m.id, job_id: m.job.id, job_title: m.job.title,
             score: m.score, match_tier: m.match_tier,
             pipeline_stage: m.pipeline_stage,
+            in_pipeline: m.in_pipeline,
           })
         }
         setJobMatches(out)
@@ -238,9 +242,12 @@ export default function CandidatePage() {
                 {initials(candidate.full_name ?? candidate.cv_file_name)}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
-                  {candidate.full_name ?? "Nom à compléter"}
-                </h1>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
+                    {candidate.full_name ?? "Nom à compléter"}
+                  </h1>
+                  <RefBadge candidateId={candidate.id} />
+                </div>
                 <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6B7280" }}>
                   {candidate.current_title ?? "—"}
                   {candidate.current_company ? <> · <span>{candidate.current_company}</span></> : null}
@@ -252,6 +259,7 @@ export default function CandidatePage() {
                 <ProfileButton href={cv?.malt_url ?? null} brand="malt" />
                 <ProfileButton href={cv?.portfolio_url ?? null} brand="portfolio" />
               </div>
+              <PricingShortcut matches={jobMatches} />
               <button
                 onClick={handleDelete}
                 style={{
@@ -652,6 +660,93 @@ const PROFILE_BRANDS: Record<ProfileBrand, { label: string; color: string; path:
     label: "Site", color: "#7C63C8",
     path: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm6.93 6h-2.95a15.65 15.65 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.92 8zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.08 16zm2.95-8H5.08a7.99 7.99 0 0 1 4.33-3.56A15.65 15.65 0 0 0 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z",
   },
+}
+
+/* Bouton "Voir le pricing" — direct si 1 seule mission en pipeline, dropdown
+ * si N missions. Caché quand le candidat n'est sur aucune mission active. */
+export function PricingShortcut({ matches }: { matches: JobMatch[] }) {
+  const [open, setOpen] = useState(false)
+  const pipelineMatches = matches.filter((m) => m.in_pipeline)
+  if (pipelineMatches.length === 0) return null
+
+  const btnStyle: React.CSSProperties = {
+    fontFamily: "inherit", fontSize: 12, fontWeight: 700,
+    color: "white",
+    padding: "7px 12px", borderRadius: 9,
+    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+    border: "1px solid rgba(124,99,200,0.40)",
+    cursor: "pointer",
+    display: "inline-flex", alignItems: "center", gap: 6,
+  }
+
+  if (pipelineMatches.length === 1) {
+    const only = pipelineMatches[0]
+    return (
+      <Link href={`/workspace/pricing/${only.job_id}`} style={{ ...btnStyle, textDecoration: "none" }}>
+        € Voir le pricing
+      </Link>
+    )
+  }
+
+  // Plusieurs missions → dropdown
+  return (
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setOpen((v) => !v)} style={btnStyle}>
+        € Voir le pricing
+        <span style={{ fontSize: 10 }}>▾</span>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 50 }} />
+          <div style={{
+            position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 60,
+            background: "white", border: "1px solid #E9E2F7", borderRadius: 10,
+            boxShadow: "0 8px 28px rgba(124,99,200,0.18)",
+            padding: 6, minWidth: 260, maxHeight: 320, overflowY: "auto",
+          }}>
+            <div style={{
+              fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+              letterSpacing: "0.05em", textTransform: "uppercase",
+              padding: "6px 10px 4px",
+            }}>
+              Choisir la mission
+            </div>
+            {pipelineMatches.map((m) => (
+              <Link key={m.id} href={`/workspace/pricing/${m.job_id}`} style={{
+                display: "block", fontSize: 12.5, color: "#374151", fontWeight: 600,
+                padding: "8px 10px", borderRadius: 7, textDecoration: "none",
+              }}>
+                {m.job_title}
+                {m.score != null && (
+                  <span style={{ marginLeft: 6, fontSize: 11, color: "#9CA3AF" }}>· {m.score}</span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* Réf candidat — même valeur que celle imprimée dans le PDF anonymisé.
+ * Affichée en badge violet pour la repérer immédiatement (utile quand le
+ * client rappelle "ah le candidat C-1A2B3C4D…"). */
+export function RefBadge({ candidateId }: { candidateId: string }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+      letterSpacing: "0.04em",
+      background: "rgba(124,99,200,0.08)",
+      border: "1px solid rgba(124,99,200,0.22)",
+      borderRadius: 7,
+      padding: "2px 8px",
+      fontFamily: "var(--font-space-grotesk), monospace",
+    }}>
+      Ref · {candidateRefLabel(candidateId)}
+    </span>
+  )
 }
 
 function ProfileButton({ href, brand }: { href: string | null; brand: ProfileBrand }) {

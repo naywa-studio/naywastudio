@@ -20,10 +20,7 @@ export const maxDuration = 30
 
 const TTL_SECONDS = 5 * 60
 
-/** Short human reference, stable per candidate (first 8 chars of the id). */
-function refFor(id: string): string {
-  return id.replace(/-/g, "").slice(0, 8).toUpperCase()
-}
+import { candidateRefSlug as refFor } from "@/lib/candidate-ref"
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params

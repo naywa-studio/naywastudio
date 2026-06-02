@@ -11,6 +11,94 @@ import AnonymizeForJob from "@/components/workspace/AnonymizeForJob"
 import CandidateMiniKanban from "@/components/workspace/CandidateMiniKanban"
 import Select from "@/components/ui/Select"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import { candidateRefLabel } from "@/lib/candidate-ref"
+
+/* Bouton "Voir le pricing" — direct si 1 mission en pipeline, dropdown si N. */
+function PricingShortcut({ targets }: {
+  targets: Array<{ job: { id: string; title: string } | null; score: number | null }>
+}) {
+  const [open, setOpen] = useState(false)
+  const withJob = targets.filter((t) => t.job?.id)
+  if (withJob.length === 0) return null
+
+  const btnStyle: React.CSSProperties = {
+    fontFamily: "inherit", fontSize: 12, fontWeight: 700,
+    color: "white",
+    padding: "8px 12px", borderRadius: 9,
+    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+    border: "1px solid rgba(124,99,200,0.40)",
+    cursor: "pointer",
+    display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none",
+  }
+
+  if (withJob.length === 1) {
+    const only = withJob[0]
+    return (
+      <Link href={`/workspace/pricing/${only.job!.id}`} style={btnStyle}>
+        € Voir le pricing
+      </Link>
+    )
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setOpen((v) => !v)} style={btnStyle}>
+        € Voir le pricing
+        <span style={{ fontSize: 10 }}>▾</span>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 50 }} />
+          <div style={{
+            position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 60,
+            background: "white", border: "1px solid #E9E2F7", borderRadius: 10,
+            boxShadow: "0 8px 28px rgba(124,99,200,0.18)",
+            padding: 6, minWidth: 260, maxHeight: 320, overflowY: "auto",
+          }}>
+            <div style={{
+              fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+              letterSpacing: "0.05em", textTransform: "uppercase",
+              padding: "6px 10px 4px",
+            }}>
+              Choisir la mission
+            </div>
+            {withJob.map((t) => (
+              <Link key={t.job!.id} href={`/workspace/pricing/${t.job!.id}`} style={{
+                display: "block", fontSize: 12.5, color: "#374151", fontWeight: 600,
+                padding: "8px 10px", borderRadius: 7, textDecoration: "none",
+              }}>
+                {t.job!.title}
+                {t.score != null && (
+                  <span style={{ marginLeft: 6, fontSize: 11, color: "#9CA3AF" }}>· {t.score}</span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* Réf candidat — même valeur que celle imprimée dans le PDF anonymisé.
+ * Permet au sourceur de retrouver instantanément qui est derrière une ref
+ * quand le client en mentionne une au téléphone. */
+function RefBadge({ candidateId }: { candidateId: string }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+      letterSpacing: "0.04em",
+      background: "rgba(124,99,200,0.08)",
+      border: "1px solid rgba(124,99,200,0.22)",
+      borderRadius: 7,
+      padding: "2px 8px",
+      fontFamily: "var(--font-space-grotesk), monospace",
+    }}>
+      Ref · {candidateRefLabel(candidateId)}
+    </span>
+  )
+}
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -37,6 +125,7 @@ interface MatchSummary {
   score: number | null
   match_tier: MatchTier | null
   pipeline_stage: PipelineStage
+  in_pipeline: boolean
   job: { id: string; title: string } | null
 }
 
@@ -102,7 +191,7 @@ export default function MatchPage() {
     ;(async () => {
       const { data } = await sb
         .from("match_assessments")
-        .select("id, job_id, score, match_tier, pipeline_stage, job:jobs(id, title)")
+        .select("id, job_id, score, match_tier, pipeline_stage, in_pipeline, job:jobs(id, title)")
         .eq("candidate_id", candidate.id)
         .order("score", { ascending: false, nullsFirst: false })
       if (!mounted || !data) return
@@ -187,6 +276,7 @@ export default function MatchPage() {
               {candidate.full_name ?? "Candidat sans nom"}
               <span style={{ fontWeight: 500, color: "#9CA3AF", fontSize: 15 }}> — pour </span>
             </h1>
+            <RefBadge candidateId={candidate.id} />
             <div style={{ minWidth: 280, maxWidth: 420 }}>
               <Select
                 value={match.id}
@@ -246,6 +336,18 @@ export default function MatchPage() {
               {match.score} · {tier.label}
             </span>
           )}
+          {/* Raccourci pricing — si ce match est en pipeline, on permet
+              d'ouvrir directement la fiche pricing de la mission. Si le
+              candidat est dans la pipeline sur plusieurs missions, on
+              propose un mini-dropdown. */}
+          {(() => {
+            const pipelineSiblings = siblingMatches.filter((m) => m.in_pipeline && m.job?.id)
+            if (pipelineSiblings.length === 0 && !match.in_pipeline) return null
+            const targets = pipelineSiblings.length > 0
+              ? pipelineSiblings
+              : [{ id: match.id, job: job ? { id: job.id, title: job.title } : null, score: match.score, match_tier: match.match_tier, in_pipeline: true }]
+            return <PricingShortcut targets={targets} />
+          })()}
           <Link href={`/workspace/vivier/${candidate.id}`} style={{
             fontSize: 12, fontWeight: 700, color: "#7C63C8",
             background: "white", border: "1px solid rgba(124,99,200,0.25)",

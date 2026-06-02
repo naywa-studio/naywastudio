@@ -45,6 +45,11 @@ export default function JobDetailPage() {
   const [notFound, setNotFound] = useState(false)
   const [matchError, setMatchError] = useState<string | null>(null)
   const [showWeak, setShowWeak] = useState(false)
+  // Si on a moins de 3 matchs forts (≥60), c'est que le vivier n'a pas de
+  // profil 100% aligné — on déplie automatiquement les matchs plus faibles
+  // pour ne pas laisser le sourceur croire qu'il n'y a "rien". Idée : mieux
+  // vaut montrer ce qu'on a et l'assumer qu'afficher une page vide.
+  const SCARCE_THRESHOLD = 3
   const [assignOpen, setAssignOpen] = useState(false)
   const [briefing, setBriefing] = useState("")
   const [briefingSaving, setBriefingSaving] = useState<"idle" | "saving" | "saved">("idle")
@@ -387,24 +392,44 @@ export default function JobDetailPage() {
             <TierBlock key={g.tier} tier={g.tier} rows={g.rows} onTogglePipeline={togglePipeline} />
           ))}
 
-          {weakCount > 0 && (
-            <div style={{ marginTop: 8 }}>
-              <button onClick={() => setShowWeak((v) => !v)} style={{
-                fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
-                background: "transparent", border: "none", cursor: "pointer",
-                padding: "8px 0", fontFamily: "inherit",
-              }}>
-                {showWeak ? "▾ Masquer" : "▸ Afficher"} les {weakCount} match{weakCount > 1 ? "s" : ""} à plus faible affinité
-              </button>
-              <AnimatePresence>
-                {showWeak && (
-                  <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ overflow: "hidden" }}>
-                    {weak.map((g) => g.rows.length > 0 && <TierBlock key={g.tier} tier={g.tier} rows={g.rows} onTogglePipeline={togglePipeline} />)}
-                  </m.div>
+          {weakCount > 0 && (() => {
+            const scarce = strongCount < SCARCE_THRESHOLD
+            const expanded = scarce || showWeak
+            return (
+              <div style={{ marginTop: 8 }}>
+                {/* Bannière de transparence quand le vivier ne sort pas de
+                    profil très aligné : on déplie d'office et on l'assume. */}
+                {scarce && (
+                  <div style={{
+                    margin: "10px 0 14px", padding: "11px 14px",
+                    background: "rgba(217,119,6,0.06)",
+                    border: "1px solid rgba(217,119,6,0.25)",
+                    borderRadius: 11,
+                    fontSize: 12.5, color: "#374151", lineHeight: 1.55,
+                  }}>
+                    <strong style={{ color: "#B45309" }}>Peu de profils correspondent à 100 %.</strong>{" "}
+                    Voici les meilleurs candidats de votre vivier sur cette mission — l&apos;affinité est moindre mais à examiner.
+                  </div>
                 )}
-              </AnimatePresence>
-            </div>
-          )}
+                {!scarce && (
+                  <button onClick={() => setShowWeak((v) => !v)} style={{
+                    fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
+                    background: "transparent", border: "none", cursor: "pointer",
+                    padding: "8px 0", fontFamily: "inherit",
+                  }}>
+                    {showWeak ? "▾ Masquer" : "▸ Afficher"} les {weakCount} match{weakCount > 1 ? "s" : ""} à plus faible affinité
+                  </button>
+                )}
+                <AnimatePresence>
+                  {expanded && (
+                    <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ overflow: "hidden" }}>
+                      {weak.map((g) => g.rows.length > 0 && <TierBlock key={g.tier} tier={g.tier} rows={g.rows} onTogglePipeline={togglePipeline} />)}
+                    </m.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )
+          })()}
         </>
       )}
       </div>{/* /mission-right */}
