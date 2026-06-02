@@ -232,17 +232,11 @@ export default function VivierCloudPreview() {
         })}
       </m.div>
 
-      {/* Carte SVG */}
+      {/* Carte SVG — sans wrapper, le nuage respire à pleine largeur */}
       <m.div
         initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: EASE, delay: 0.08 }}
-        style={{
-          background: "white",
-          border: "1px solid #F0ECF8",
-          borderRadius: 18,
-          padding: 12,
-          position: "relative",
-        }}
+        style={{ position: "relative" }}
       >
         <svg
           viewBox={`0 0 ${W} ${H}`}
