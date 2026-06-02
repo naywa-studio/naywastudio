@@ -358,6 +358,10 @@ export type Database = {
            *  job.target_gross_salary comme valeur de départ. */
           pricing_tjm: number | null
           pricing_brut: number | null
+          /** Raison du rejet quand pipeline_stage = rejected. NULL sinon. */
+          reject_reason: 'too_expensive' | 'not_available' | 'wrong_stack' | 'seniority_mismatch' | 'location_mismatch' | 'other' | null
+          /** Note libre du sourceur, optionnelle (utile quand reject_reason=other). */
+          reject_reason_note: string | null
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -378,6 +382,8 @@ export type Database = {
           in_pipeline?: boolean
           pricing_tjm?: number | null
           pricing_brut?: number | null
+          reject_reason?: 'too_expensive' | 'not_available' | 'wrong_stack' | 'seniority_mismatch' | 'location_mismatch' | 'other' | null
+          reject_reason_note?: string | null
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null

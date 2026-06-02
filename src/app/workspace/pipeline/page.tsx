@@ -7,6 +7,8 @@ import { getSupabase } from "@/lib/supabase"
 import type { MatchAssessment, PipelineStage } from "@/lib/database.types"
 import Select from "@/components/ui/Select"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import RejectReasonPicker from "@/components/workspace/RejectReasonPicker"
+import type { RejectReason } from "@/lib/reject-reasons"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -90,6 +92,10 @@ export default function PipelinePage() {
   // When set, the board is replaced by a read-only list of that terminal
   // state's candidates (Recruté / Écarté).
   const [terminalView, setTerminalView] = useState<PipelineStage | null>(null)
+  /** Quand le sourceur drop une carte sur "Écarté", on diffère la mise à
+   *  jour : la modale RejectReasonPicker s'ouvre, et c'est elle qui appelle
+   *  l'API avec la raison choisie (ou null si "Sans préciser"). */
+  const [pendingReject, setPendingReject] = useState<{ rowId: string; name: string } | null>(null)
 
   const toggleLane = (jobId: string) => {
     setExpandedLanes((prev) => {
@@ -129,19 +135,35 @@ export default function PipelinePage() {
     return () => { mounted = false; if (channel) sb.removeChannel(channel) }
   }, [sb, load])
 
-  const moveCard = async (rowId: string, stage: PipelineStage) => {
-    const row = rows.find((r) => r.id === rowId)
-    if (!row || row.pipeline_stage === stage) return
-    // Optimistic
+  const commitMove = async (
+    rowId: string,
+    stage: PipelineStage,
+    extra: { reject_reason?: RejectReason | null; reject_reason_note?: string | null } = {},
+  ) => {
     setRows((prev) => prev.map((r) =>
       r.id === rowId ? { ...r, pipeline_stage: stage, updated_at: new Date().toISOString() } : r,
     ))
     const res = await fetch(`/api/match/${rowId}/stage`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pipeline_stage: stage }),
+      body: JSON.stringify({ pipeline_stage: stage, ...extra }),
     })
-    if (!res.ok) load() // revert via re-fetch on failure
+    if (!res.ok) load()
+  }
+
+  const moveCard = async (rowId: string, stage: PipelineStage) => {
+    const row = rows.find((r) => r.id === rowId)
+    if (!row || row.pipeline_stage === stage) return
+    // Passage à 'rejected' : on diffère le commit jusqu'à ce que le sourceur
+    // ait choisi une raison (ou cliqué "Sans préciser") dans la modale.
+    if (stage === "rejected") {
+      setPendingReject({
+        rowId,
+        name: row.candidate?.full_name ?? "ce candidat",
+      })
+      return
+    }
+    void commitMove(rowId, stage)
   }
 
   // Unique jobs across all rows — used by the filter selector.
@@ -455,6 +477,21 @@ export default function PipelinePage() {
         )}
 
       </div>
+
+      <RejectReasonPicker
+        open={pendingReject !== null}
+        candidateName={pendingReject?.name ?? "ce candidat"}
+        onCancel={() => setPendingReject(null)}
+        onConfirm={(reason, note) => {
+          const target = pendingReject
+          setPendingReject(null)
+          if (!target) return
+          void commitMove(target.rowId, "rejected", {
+            reject_reason: reason,
+            reject_reason_note: note,
+          })
+        }}
+      />
     </main>
   )
 }

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { getSupabase } from "@/lib/supabase"
 import type { MatchAssessment, PipelineStage } from "@/lib/database.types"
+import RejectReasonPicker from "@/components/workspace/RejectReasonPicker"
+import type { RejectReason } from "@/lib/reject-reasons"
 
 /**
  * Mini horizontal kanban scoped to one candidate.
@@ -42,11 +44,15 @@ function displayStage(s: PipelineStage): PipelineStage {
 
 export default function CandidateMiniKanban({
   candidateId,
+  candidateName = null,
   highlightMatchId,
   layout = "horizontal",
   onlyMatchId,
 }: {
   candidateId: string
+  /** Nom du candidat — utilisé dans la modale "raison du rejet" pour
+   *  personnaliser la question. */
+  candidateName?: string | null
   /** The current match's id — that card gets the purple "vous êtes ici" treatment. */
   highlightMatchId: string
   /** "horizontal" = column-per-stage scrolling row (default).
@@ -62,6 +68,9 @@ export default function CandidateMiniKanban({
   const [loading, setLoading] = useState(true)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overStage, setOverStage] = useState<PipelineStage | null>(null)
+  /** Quand on déclenche un passage vers 'rejected', on n'écrit pas tout de
+   *  suite : on ouvre une modale qui collecte la raison, puis on commit. */
+  const [pendingReject, setPendingReject] = useState<{ rowId: string; name: string } | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -77,25 +86,41 @@ export default function CandidateMiniKanban({
     return () => { mounted = false }
   }, [candidateId, sb])
 
-  const moveCard = async (rowId: string, stage: PipelineStage) => {
-    const row = rows.find((r) => r.id === rowId)
-    if (!row || row.pipeline_stage === stage) return
+  const commitMove = async (
+    rowId: string,
+    stage: PipelineStage,
+    extra: { reject_reason?: RejectReason | null; reject_reason_note?: string | null } = {},
+  ) => {
     setRows((prev) => prev.map((r) =>
       r.id === rowId ? { ...r, pipeline_stage: stage, updated_at: new Date().toISOString() } : r,
     ))
     const res = await fetch(`/api/match/${rowId}/stage`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pipeline_stage: stage }),
+      body: JSON.stringify({ pipeline_stage: stage, ...extra }),
     })
     if (!res.ok) {
-      // Re-fetch on failure to revert.
       const { data } = await sb
         .from("match_assessments")
         .select("id, job_id, score, match_tier, pipeline_stage, updated_at, job:jobs(id, title)")
         .eq("candidate_id", candidateId)
       setRows((data ?? []) as unknown as Row[])
     }
+  }
+
+  const moveCard = async (rowId: string, stage: PipelineStage) => {
+    const row = rows.find((r) => r.id === rowId)
+    if (!row || row.pipeline_stage === stage) return
+    // Passage vers 'rejected' : on diffère le commit, on ouvre la modale
+    // qui collecte la raison et appelle commitMove avec l'extra.
+    if (stage === "rejected") {
+      setPendingReject({
+        rowId,
+        name: candidateName?.trim() || "ce candidat",
+      })
+      return
+    }
+    void commitMove(rowId, stage)
   }
 
   const visibleRows = useMemo(
@@ -223,6 +248,21 @@ export default function CandidateMiniKanban({
           )
         })}
       </div>
+
+      <RejectReasonPicker
+        open={pendingReject !== null}
+        candidateName={pendingReject?.name ?? "ce candidat"}
+        onCancel={() => setPendingReject(null)}
+        onConfirm={(reason, note) => {
+          const target = pendingReject
+          setPendingReject(null)
+          if (!target) return
+          void commitMove(target.rowId, "rejected", {
+            reject_reason: reason,
+            reject_reason_note: note,
+          })
+        }}
+      />
     </section>
   )
 }

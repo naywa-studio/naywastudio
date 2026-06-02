@@ -8,6 +8,7 @@ import { getSupabase } from "@/lib/supabase"
 import type { Job, Candidate, MatchAssessment, MatchTier } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { seniorityIntervalLabel } from "@/lib/seniority"
+import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -201,6 +202,25 @@ export default function JobDetailPage() {
   const strongCount = strong.reduce((n, g) => n + g.rows.length, 0)
   const weakCount = weak.reduce((n, g) => n + g.rows.length, 0)
 
+  // Stats sourcing — vu / retenu / écarté + raison dominante des rejets.
+  // "Vu" = tous les matchs scorés (le sourceur a parcouru les profils que
+  // Nora a remontés). "Retenu" = ceux en pipeline. "Écarté" = stage rejected.
+  const sourcingStats = (() => {
+    const seen = rows.filter((r) => r.score != null).length
+    const retained = rows.filter((r) => r.in_pipeline && r.pipeline_stage !== "rejected").length
+    const rejected = rows.filter((r) => r.pipeline_stage === "rejected")
+    const reasonCounts = new Map<RejectReason | "null", number>()
+    for (const r of rejected) {
+      const key = (r.reject_reason ?? "null") as RejectReason | "null"
+      reasonCounts.set(key, (reasonCounts.get(key) ?? 0) + 1)
+    }
+    let topReason: { key: RejectReason | "null"; count: number } | null = null
+    for (const [key, count] of reasonCounts) {
+      if (!topReason || count > topReason.count) topReason = { key, count }
+    }
+    return { seen, retained, rejected: rejected.length, topReason }
+  })()
+
   return (
     <main style={{
       padding: "32px 24px 80px", maxWidth: 1320, margin: "0 auto",
@@ -382,6 +402,35 @@ export default function JobDetailPage() {
             {manualRows.length > 0 && <> · <strong style={{ color: "#7C63C8" }}>{manualRows.length}</strong> assigné{manualRows.length > 1 ? "s" : ""} manuellement</>}
             {weakCount > 0 && <> · {weakCount} autre{weakCount > 1 ? "s" : ""} à plus faible affinité</>}
           </div>
+
+          {/* Stats sourcing — vue d'ensemble pour reporter au client + signal
+              de calibration interne (quel motif d'écart domine). */}
+          {(sourcingStats.seen > 0 || sourcingStats.rejected > 0) && (
+            <div style={{
+              marginBottom: 16,
+              display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+              gap: 8,
+            }}>
+              <SourcingStatTile label="Vus" value={String(sourcingStats.seen)} />
+              <SourcingStatTile
+                label="Retenus"
+                value={String(sourcingStats.retained)}
+                tone={sourcingStats.retained > 0 ? "good" : undefined}
+              />
+              <SourcingStatTile
+                label="Écartés"
+                value={String(sourcingStats.rejected)}
+                tone={sourcingStats.rejected > 0 ? "warn" : undefined}
+              />
+              {sourcingStats.topReason && sourcingStats.topReason.key !== "null" && (
+                <SourcingStatTile
+                  label="Top motif d'écart"
+                  value={rejectReasonLabel(sourcingStats.topReason.key as RejectReason)}
+                  hint={`${sourcingStats.topReason.count} candidat${sourcingStats.topReason.count > 1 ? "s" : ""}`}
+                />
+              )}
+            </div>
+          )}
 
           {/* Manually assigned — always first, no score by definition */}
           {manualRows.length > 0 && (
@@ -949,6 +998,51 @@ function Meta({ children }: { children: React.ReactNode }) {
     <span style={{ background: "#F9FAFB", border: "1px solid #F0ECF8", padding: "3px 8px", borderRadius: 6 }}>
       {children}
     </span>
+  )
+}
+
+/* ───────────────────────── Sourcing stats ─────────────────────────────────
+ * Tuile récap sourcing (vus / retenus / écartés + top motif d'écart).
+ * Ton neutre par défaut, "good" si les retenus existent, "warn" si on rejette
+ * beaucoup. Volontairement minimaliste — la valeur est dans le chiffre.
+ */
+function SourcingStatTile({
+  label, value, hint, tone,
+}: {
+  label: string
+  value: string
+  hint?: string
+  tone?: "good" | "warn"
+}) {
+  const palette = tone === "good"
+    ? { fg: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.22)" }
+    : tone === "warn"
+      ? { fg: "#B45309", bg: "rgba(217,119,6,0.06)", bd: "rgba(217,119,6,0.22)" }
+      : { fg: "#111827", bg: "white",                bd: "#F0ECF8" }
+  return (
+    <div style={{
+      background: palette.bg, border: `1px solid ${palette.bd}`,
+      borderRadius: 10, padding: "10px 12px",
+      display: "flex", flexDirection: "column", gap: 2,
+    }}>
+      <div style={{
+        fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
+        letterSpacing: "0.05em", textTransform: "uppercase",
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontSize: 17, fontWeight: 800, color: palette.fg,
+        fontVariantNumeric: "tabular-nums", lineHeight: 1.2,
+      }}>
+        {value}
+      </div>
+      {hint && (
+        <div style={{ fontSize: 10.5, color: "#9CA3AF" }}>
+          {hint}
+        </div>
+      )}
+    </div>
   )
 }
 

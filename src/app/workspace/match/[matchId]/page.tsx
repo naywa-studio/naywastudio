@@ -512,6 +512,7 @@ export default function MatchPage() {
         }}>
           <CandidateMiniKanban
             candidateId={candidate.id}
+            candidateName={candidate.full_name}
             highlightMatchId={match.id}
             layout="vertical"
             onlyMatchId={match.id}
