@@ -1,26 +1,24 @@
 /**
- * Anonymized CV template — Sprint 2, single "Naywa" template,
- * Sprint 6.x: now oriented towards a specific job when one is supplied.
+ * Anonymized CV template — v2.
  *
- * Built from the structured `parsed_cv`, NOT the original PDF, so the output
- * is fully controlled: no name, no photo, no contact details, no precise
- * school names. Experience (titles + companies) is kept — that's what makes
- * a profile worth presenting.
+ * Philosophie (vague 2) :
+ *   - On préserve le FOND du CV tel que parsé : expériences, formations,
+ *     descriptions, dates, ordre d'origine. Pas de réorganisation par
+ *     pertinence ni de mise en avant de skills "alignées au poste". Le
+ *     candidat reste le candidat — on ne triche pas sur son CV.
+ *   - On anonymise UNIQUEMENT l'identité : nom, prénom, email, téléphone,
+ *     photo, adresse précise, écoles. Les sociétés où il a bossé restent
+ *     visibles (c'est du factuel pertinent pour le client).
+ *   - On ajoute un en-tête mission "Présenté pour : <titre>" et,
+ *     juste en dessous, un executive summary court (LLM) qui explique en
+ *     2-3 phrases formelles pourquoi le profil est pertinent. Le reste
+ *     du CV est intouché.
  *
- * When a `job` context is passed, the document is reoriented around it:
- *   - title shows the job's title ("Présenté pour : <job>")
- *   - skills that match the job's must-have / required list are pinned at
- *     the top of the chip row and emphasised
- *   - experiences relevant to the dominant role family (counts_toward_role)
- *     are listed first
- *
- * Later: multi-template + client logo upload (the client uploads their
- * logo / company name and it replaces the Naywa brand). Hooks for this
- * are isolated in BRAND_NAME below — swap when ready.
+ *   - Branding : logo + nom du cabinet en haut, ref candidat à droite.
  */
 
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
-import type { ParsedCv, ParsedExperience, Candidate } from "./database.types"
+import type { ParsedCv, Candidate } from "./database.types"
 
 const PURPLE = "#7C63C8"
 const INK = "#1F2937"
@@ -37,7 +35,11 @@ const s = StyleSheet.create({
   brandTag: { fontSize: 8, color: MUTED, letterSpacing: 0.5 },
   rule: { borderBottomWidth: 1.4, borderBottomColor: PURPLE, marginTop: 8, marginBottom: 18 },
 
-  headline: { fontSize: 22, fontFamily: "Helvetica-Bold", color: INK, marginBottom: 14, marginTop: 4 },
+  preheadline: { fontSize: 8.5, color: PURPLE, fontFamily: "Helvetica-Bold", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 },
+  headline: { fontSize: 20, fontFamily: "Helvetica-Bold", color: INK, marginBottom: 14, marginTop: 0 },
+
+  /** Executive summary — phrase d'accroche mission-oriented (LLM). */
+  execSummary: { fontSize: 10.5, color: "#374151", lineHeight: 1.6, marginBottom: 18, fontStyle: "italic" },
 
   metaRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
   metaItem: { marginRight: 22, marginBottom: 4 },
@@ -45,10 +47,8 @@ const s = StyleSheet.create({
   metaValue: { fontSize: 10, color: INK, fontFamily: "Helvetica-Bold" },
 
   sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", color: MUTED, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, marginTop: 4 },
-  summary: { fontSize: 10, color: "#374151", lineHeight: 1.55, marginBottom: 16 },
 
   expItem: { marginBottom: 10, paddingLeft: 12, borderLeftWidth: 1.5, borderLeftColor: LINE },
-  expItemHL: { marginBottom: 10, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: PURPLE },
   expTitle: { fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK },
   expCompany: { fontSize: 9.5, color: MUTED },
   expDate: { fontSize: 8, color: "#9CA3AF", marginTop: 1, marginBottom: 3 },
@@ -56,7 +56,6 @@ const s = StyleSheet.create({
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 14 },
   chip: { fontSize: 8.5, color: "#4B5563", backgroundColor: "#F4F1FB", borderWidth: 1, borderColor: LINE, borderRadius: 3, paddingVertical: 2, paddingHorizontal: 6, marginRight: 5, marginBottom: 5 },
-  chipHL: { fontSize: 8.5, color: "white", backgroundColor: PURPLE, borderWidth: 1, borderColor: PURPLE, borderRadius: 3, paddingVertical: 2, paddingHorizontal: 6, marginRight: 5, marginBottom: 5 },
 
   eduItem: { marginBottom: 5 },
   eduDegree: { fontSize: 9.5, fontFamily: "Helvetica-Bold", color: INK },
@@ -85,29 +84,6 @@ export interface AnonymizedBrand {
 
 const norm = (s: string) => s.toLowerCase().trim()
 
-/** Order skills by job relevance: must-have first, then required, then
- *  nice-to-have, then the rest. Returns the reordered list + a Set of
- *  the ones flagged as job-relevant (for highlighting). */
-function pickAndOrderSkills(
-  candidateSkills: string[],
-  job: AnonymizedJobContext | null,
-  cap = 16,
-): { ordered: string[]; highlighted: Set<string> } {
-  if (!job) {
-    return { ordered: dedupe(candidateSkills).slice(0, cap), highlighted: new Set() }
-  }
-  const jobAll = [...job.must_have_skills, ...job.required_skills, ...job.nice_to_have_skills]
-  const jobSet = new Set(jobAll.map(norm))
-  const matched: string[] = []
-  const rest: string[] = []
-  for (const s of dedupe(candidateSkills)) {
-    if (jobSet.has(norm(s))) matched.push(s)
-    else rest.push(s)
-  }
-  const ordered = [...matched, ...rest].slice(0, cap)
-  return { ordered, highlighted: new Set(matched.map(norm)) }
-}
-
 function dedupe(arr: string[]): string[] {
   const seen = new Set<string>()
   const out: string[] = []
@@ -120,24 +96,20 @@ function dedupe(arr: string[]): string[] {
   return out
 }
 
-/** Reorder experiences so the ones marked relevant to the dominant role
- *  appear first. Within each group, original chronological order is kept. */
-function orderExperiences(exps: ParsedExperience[]): { items: ParsedExperience[]; relevantCount: number } {
-  const relevant = exps.filter((e) => e.counts_toward_role !== false)
-  const others = exps.filter((e) => e.counts_toward_role === false)
-  return { items: [...relevant, ...others], relevantCount: relevant.length }
-}
-
 export function AnonymizedCv({
   candidate,
   reference,
   job = null,
   brand = null,
+  executiveSummary = null,
 }: {
   candidate: Candidate
   reference: string
   job?: AnonymizedJobContext | null
   brand?: AnonymizedBrand | null
+  /** Executive summary mission-oriented, produit côté serveur par le LLM.
+   *  Si null, on retombe sur cv.summary tel que parsé (sans orientation). */
+  executiveSummary?: string | null
 }) {
   const brandName = (brand?.name ?? "").trim() || DEFAULT_BRAND
   const brandLogo = brand?.logoUrl ?? null
@@ -145,30 +117,38 @@ export function AnonymizedCv({
   const roleFamily = candidate.taxonomy?.role_family?.[0] ?? null
   const seniority = candidate.seniority_level ?? cv.seniority_level ?? null
   const years = candidate.years_experience ?? cv.years_experience ?? null
-  const candSkills = (candidate.taxonomy?.core_skills?.length
-    ? candidate.taxonomy.core_skills
-    : (candidate.skills ?? []))
-  const { ordered: skills, highlighted } = pickAndOrderSkills(candSkills, job)
-  const { items: experience } = orderExperiences(cv.experience ?? [])
+  // Compétences : on ne réordonne PAS par pertinence mission. Le client lit
+  // le CV tel qu'il est, sans tri orienté. Juste dédupe + cap raisonnable.
+  const skills = dedupe(
+    (candidate.taxonomy?.core_skills?.length
+      ? candidate.taxonomy.core_skills
+      : (candidate.skills ?? [])),
+  ).slice(0, 24)
+  // Expériences : ordre d'origine du parser (qui suit le CV — généralement
+  // antichronologique). On NE pousse PAS les expériences "pertinentes mission"
+  // en haut : préserver le fond, c'est respecter le récit du candidat.
+  const experience = cv.experience ?? []
   const education = cv.education ?? []
   const languages = cv.languages ?? candidate.languages ?? []
 
-  // Headline = formal job title (from normalised role_family) when oriented,
-  // else the candidate's own current title. No subtitle: the client cares
-  // about fit, not about what the candidate is doing right now.
+  // Texte d'en-tête : si on a un contexte mission, on l'affiche au-dessus
+  // du H1 comme un "présenté pour", et le H1 reste le titre formel mission.
+  // Sinon, fallback : titre courant du candidat ou son role_family.
+  const hasJob = !!job
   const headline = job ? job.title : (candidate.current_title ?? roleFamily ?? "Profil professionnel")
+
+  // Choix du résumé affiché : executive summary mission-oriented si dispo,
+  // sinon cv.summary tel que parsé (résumé que le candidat avait écrit).
+  const summaryText = executiveSummary?.trim() || cv.summary?.trim() || null
 
   return (
     <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
       <Page size="A4" style={s.page}>
         {/* Brand header — logo (if set) + cabinet name on the left,
-            reference + "anonymised profile" tag on the right. */}
+            reference on the right. */}
         <View style={s.brandRow}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             {brandLogo && (
-              // Fixed height (so tiny source logos scale UP instead of staying
-              // 22px wide) + a generous max-width cap for very wide / banner
-              // style logos. objectFit:contain preserves the aspect ratio.
               // @react-pdf Image doesn't expose alt; jsx-a11y rule is irrelevant here.
               // eslint-disable-next-line jsx-a11y/alt-text
               <Image src={brandLogo} style={{ height: 56, maxWidth: 200, marginRight: 12, objectFit: "contain" }} />
@@ -179,12 +159,19 @@ export function AnonymizedCv({
         </View>
         <View style={s.rule} />
 
-        {/* Headline — job title (normalised), used as the dominant heading.
-            No pitch banner anymore: the title speaks for itself, the doc
-            structure already says "this is what we're presenting for". */}
+        {/* Headline — "Présenté pour : <mission>" quand on est mission-oriented,
+            sinon simple titre courant du candidat. */}
+        {hasJob && <Text style={s.preheadline}>Présenté pour</Text>}
         <Text style={s.headline}>{headline}</Text>
 
-        {/* Meta row — keep only what's not already obvious from the pitch */}
+        {/* Executive summary — LLM 2-3 phrases formelles si on a un job.
+            Fallback sur cv.summary tel que parsé sinon. */}
+        {summaryText && (
+          <Text style={s.execSummary}>{summaryText}</Text>
+        )}
+
+        {/* Meta — séniorité / XP / zone / langues. Pas d'adresse précise,
+            seulement la zone (ville/région) qui est utile pour la mission. */}
         <View style={s.metaRow}>
           {seniority && (
             <View style={s.metaItem}>
@@ -212,40 +199,26 @@ export function AnonymizedCv({
           )}
         </View>
 
-        {/* Summary */}
-        {cv.summary && (
-          <>
-            <Text style={s.sectionTitle}>Résumé</Text>
-            <Text style={s.summary}>{cv.summary}</Text>
-          </>
-        )}
-
-        {/* Skills — job-relevant ones still pinned first + highlighted, but
-            the section title stays neutral. The client doesn't need the
-            "alignées au poste" tag; the visual sorting does the talking. */}
+        {/* Skills — telles que parsées (pas de highlight mission). */}
         {skills.length > 0 && (
           <>
             <Text style={s.sectionTitle}>Compétences clés</Text>
             <View style={s.chipRow}>
               {skills.map((sk, i) => (
-                <Text key={i} style={highlighted.has(norm(sk)) ? s.chipHL : s.chip}>
-                  {sk}
-                </Text>
+                <Text key={i} style={s.chip}>{sk}</Text>
               ))}
             </View>
           </>
         )}
 
-        {/* Experience — relevant-to-role pinned first via the thicker purple
-            border; section title stays neutral. */}
+        {/* Expérience — ordre d'origine, descriptions intactes. */}
         {experience.length > 0 && (
           <>
             <Text style={s.sectionTitle}>Parcours</Text>
             {experience.map((e, i) => {
               const dates = [e.start, e.end ?? "présent"].filter(Boolean).join(" – ")
-              const isRelevant = e.counts_toward_role !== false
               return (
-                <View key={i} style={job && isRelevant ? s.expItemHL : s.expItem} wrap={false}>
+                <View key={i} style={s.expItem} wrap={false}>
                   <Text style={s.expTitle}>{e.title || "Poste"}</Text>
                   {e.company ? <Text style={s.expCompany}>{e.company}</Text> : null}
                   {dates ? <Text style={s.expDate}>{dates}</Text> : null}
@@ -256,9 +229,7 @@ export function AnonymizedCv({
           </>
         )}
 
-        {/* Education — degree + field only, school name dropped for anonymity.
-            We previously showed "Établissement non communiqué" on every row;
-            it added visual noise without info. Now we just show the degree. */}
+        {/* Formation — degré + filière, école retirée pour anonymat. */}
         {education.length > 0 && (
           <>
             <Text style={s.sectionTitle}>Formation</Text>
@@ -277,9 +248,7 @@ export function AnonymizedCv({
           </>
         )}
 
-        {/* Footer — brand on the left, reference on the right. The
-            "identité retirée" mention was dropped: the client doesn't
-            need the reminder, the absence of contact info is obvious. */}
+        {/* Footer */}
         <View style={s.footer} fixed>
           <Text style={s.footerText}>{brandName}</Text>
           <Text style={s.footerText}>Réf. {reference}</Text>

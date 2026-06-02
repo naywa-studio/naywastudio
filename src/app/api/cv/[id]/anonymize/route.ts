@@ -14,6 +14,7 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { AnonymizedCv, type AnonymizedJobContext } from "@/lib/anonymized-cv"
 import type { Candidate } from "@/lib/database.types"
+import { openrouterChat } from "@/lib/openrouter"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -90,11 +91,25 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const reference = refFor(candidate.id)
 
+  // Executive summary mission-oriented — 2-3 phrases formelles qui expliquent
+  // pourquoi ce profil correspond à la mission. Best-effort : si le LLM rate
+  // ou prend trop de temps, on tombe sur cv.summary tel que parsé côté PDF.
+  let executiveSummary: string | null = null
+  if (jobContext) {
+    executiveSummary = await buildExecutiveSummary(candidate as Candidate, jobContext)
+  }
+
   let buffer: Buffer
   try {
     buffer = Buffer.from(
       await renderToBuffer(
-        AnonymizedCv({ candidate: candidate as Candidate, reference, job: jobContext, brand }),
+        AnonymizedCv({
+          candidate: candidate as Candidate,
+          reference,
+          job: jobContext,
+          brand,
+          executiveSummary,
+        }),
       ),
     )
   } catch (err) {
@@ -169,4 +184,70 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     download_url: downloadSigned?.signedUrl ?? previewSigned.signedUrl,
     expires_in: TTL_SECONDS,
   })
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Executive summary mission-oriented
+ *
+ * Snapshot compact du candidat + de la mission envoyé au LLM, qui produit
+ * 2-3 phrases formelles en français. Best-effort : on swallow toute erreur
+ * (timeout, parse, key manquante) — le PDF se rendra avec cv.summary à la
+ * place et le sourceur pourra ré-anonymiser plus tard.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const EXEC_SUMMARY_PROMPT = `Tu es Nora, assistante recrutement Naywa. On te donne un candidat et une mission. Produis un résumé exécutif de 2 à 3 phrases (60 à 90 mots) qui explique pourquoi ce profil est pertinent pour la mission.
+
+Règles :
+- Réponds en JSON strict : { "summary": string }.
+- Ton formel, professionnel, vouvoiement (jamais de tutoiement). Le texte est destiné au client final du cabinet.
+- Ne JAMAIS citer le nom du candidat, ni d'école, ni de coordonnées (on est dans un document anonymisé).
+- N'invente AUCUNE information qui n'est pas dans le snapshot. Si l'info manque, n'en parle pas.
+- Mentionne 2-3 points concrets de pertinence (compétences alignées, séniorité adaptée, type de contexte déjà rencontré).
+- Pas d'envolée lyrique, pas de "candidat idéal" — reste factuel et confiant.`
+
+async function buildExecutiveSummary(
+  candidate: Candidate,
+  job: AnonymizedJobContext,
+): Promise<string | null> {
+  try {
+    const cv = candidate.parsed_cv ?? {}
+    const snapshot = {
+      mission: {
+        titre: job.title,
+        seniorite_attendue: job.seniority,
+        competences_must_have: job.must_have_skills.slice(0, 10),
+        competences_required: job.required_skills.slice(0, 10),
+      },
+      candidat: {
+        titre_actuel: candidate.current_title,
+        ans_xp: candidate.years_experience,
+        seniorite: candidate.seniority_level,
+        competences_principales: (candidate.taxonomy?.core_skills?.slice(0, 12)) ?? candidate.skills?.slice(0, 12) ?? [],
+        experience_recap: (cv.experience ?? []).slice(0, 4).map((e) => ({
+          titre: e.title,
+          societe: e.company,
+          duree: [e.start, e.end ?? "présent"].filter(Boolean).join(" – "),
+        })),
+      },
+    }
+
+    const result = await openrouterChat({
+      model: "openai/gpt-4o-mini",
+      temperature: 0.3,
+      maxTokens: 320,
+      timeoutMs: 20_000,
+      responseFormat: "json_object",
+      messages: [
+        { role: "system", content: EXEC_SUMMARY_PROMPT },
+        { role: "user", content: JSON.stringify(snapshot) },
+      ],
+    })
+    const parsed = JSON.parse(result.content) as { summary?: unknown }
+    if (typeof parsed.summary !== "string") return null
+    const text = parsed.summary.trim()
+    if (text.length < 20) return null
+    return text
+  } catch {
+    return null
+  }
 }
