@@ -23,6 +23,7 @@ import { m, AnimatePresence, LayoutGroup } from "framer-motion"
 import type { Candidate } from "@/lib/database.types"
 import { buildClusters, candidateClusters, hsl, type VivierCluster } from "@/lib/vivier-clusters"
 import { candidateRefLabel } from "@/lib/candidate-ref"
+import NoraLoader from "@/components/workspace/NoraLoader"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const SPRING = { type: "spring" as const, stiffness: 220, damping: 28, mass: 0.9 }
@@ -84,11 +85,9 @@ export default function VivierMapView({
         gap: 12, flexWrap: "wrap",
       }}>
         <p style={{ margin: 0, fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
-          {busy
-            ? "✦ Nora analyse votre vivier et regroupe les profils similaires…"
-            : everClassified
-              ? "Carte structurée par Nora à partir de vos candidats."
-              : "Lancez une analyse pour que Nora regroupe les profils en secteurs cohérents."}
+          {everClassified
+            ? "Carte structurée par Nora à partir de vos candidats."
+            : "Lancez une analyse pour que Nora regroupe les profils en secteurs cohérents."}
         </p>
         <button
           onClick={runClustering}
@@ -119,15 +118,21 @@ export default function VivierMapView({
         </div>
       )}
 
-      {clusters.length === 0 ? (
+      {busy ? (
+        <div style={{
+          background: "white", border: "1px solid #F0ECF8", borderRadius: 14,
+          padding: 32, minHeight: 320,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <NoraLoader label="Nora analyse votre vivier" />
+        </div>
+      ) : clusters.length === 0 ? (
         <div style={{
           padding: "60px 24px", textAlign: "center",
           background: "white", border: "1px dashed #E5E7EB", borderRadius: 14,
           color: "#6B7280", fontSize: 14,
         }}>
-          {busy
-            ? "Patience, Nora structure votre vivier."
-            : "Aucun candidat ne correspond."}
+          Aucun candidat ne correspond.
         </div>
       ) : (
         <LayoutGroup>
@@ -449,9 +454,14 @@ function CandidateCardLight({
           color: "inherit",
         }}
       >
+        {/* Bande verticale couleur secteur — bicolore en dégradé si profil
+            hybride, pour qu'on voie d'un coup d'œil les deux teintes du
+            candidat. La couleur du secteur où on se trouve reste en haut. */}
         <span style={{
           position: "absolute", top: 0, bottom: 0, left: 0, width: 4,
-          background: hsl(cluster.hue, 60, 55),
+          background: isHybridContext && otherCluster
+            ? `linear-gradient(180deg, ${hsl(cluster.hue, 60, 55)} 0%, ${hsl(otherCluster.hue, 60, 55)} 100%)`
+            : hsl(cluster.hue, 60, 55),
         }} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

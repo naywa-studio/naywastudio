@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase"
 import { CANDIDATE_COLUMNS, type Candidate } from "@/lib/database.types"
 import { customTagsOf } from "@/lib/tags"
 import { matchesCandidateRef, candidateRefLabel } from "@/lib/candidate-ref"
+import { candidateClusters, clusterHue } from "@/lib/vivier-clusters"
 import Select from "@/components/ui/Select"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import VivierMapView from "@/components/workspace/VivierMapView"
@@ -820,6 +821,16 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
   const parsing = c.parse_status === "parsing" || c.parse_status === "pending"
   const errored = c.parse_status === "error"
 
+  // Couleurs de secteur, reprises de la Carte. Quand Nora a classé le
+  // candidat, on prend la couleur de son secteur primaire (et un dégradé
+  // vers le secondaire pour les hybrides). Sinon, fallback neutre.
+  const { primary, secondary } = candidateClusters(c)
+  const primaryHue = clusterHue(primary)
+  const secondaryHue = secondary ? clusterHue(secondary) : null
+  const barBackground = secondaryHue != null
+    ? `linear-gradient(180deg, hsl(${primaryHue}, 60%, 55%) 0%, hsl(${secondaryHue}, 60%, 55%) 100%)`
+    : `hsl(${primaryHue}, 60%, 55%)`
+
   return (
     <m.div
       initial={{ opacity: 0, y: 14 }}
@@ -828,13 +839,20 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
       style={{
         background: "white", borderRadius: 14,
         border: `1px solid ${errored ? "#FECACA" : "#F0ECF8"}`,
-        padding: 18,
+        padding: "18px 18px 18px 22px",
         display: "flex", flexDirection: "column", gap: 12,
-        position: "relative",
+        position: "relative", overflow: "hidden",
         transition: "transform 180ms ease, box-shadow 180ms ease, border-color 180ms",
       }}
       whileHover={{ y: -2 }}
     >
+      {/* Bande couleur secteur — gradient si profil hybride (Nora) */}
+      {!errored && !parsing && (
+        <span style={{
+          position: "absolute", top: 0, bottom: 0, left: 0, width: 4,
+          background: barBackground,
+        }} />
+      )}
       {/* Status chip */}
       {(parsing || errored) && (
         <span style={{
@@ -908,15 +926,24 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#9CA3AF", flexWrap: "wrap" }}>
           {c.location ?? "—"}
           {c.years_experience != null && <span>· {c.years_experience}a</span>}
-          {c.parsed_cv?.sector && SECTOR_META[c.parsed_cv.sector] && (
+          {/* Secteur Nora — couleur reprise de la Carte pour cohérence
+              visuelle. Bicolore (gradient) si profil hybride. */}
+          {!parsing && !errored && (
             <span style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
               fontSize: 10, fontWeight: 700,
-              color: SECTOR_META[c.parsed_cv.sector].fg,
-              background: SECTOR_META[c.parsed_cv.sector].bg,
-              border: `1px solid ${SECTOR_META[c.parsed_cv.sector].bd}`,
-              borderRadius: 100, padding: "1px 7px",
+              color: `hsl(${primaryHue}, 55%, 35%)`,
+              background: `hsl(${primaryHue}, 70%, 94%)`,
+              border: `1px solid hsl(${primaryHue}, 50%, 80%)`,
+              borderRadius: 100, padding: "1px 8px",
             }}>
-              {SECTOR_META[c.parsed_cv.sector].label}
+              <span style={{
+                width: 5, height: 5, borderRadius: "50%",
+                background: secondaryHue != null
+                  ? `linear-gradient(180deg, hsl(${primaryHue}, 65%, 55%) 0%, hsl(${secondaryHue}, 65%, 55%) 100%)`
+                  : `hsl(${primaryHue}, 65%, 55%)`,
+              }} />
+              {primary}
             </span>
           )}
           {customTagsOf(c.tags).slice(0, 2).map((t) => (

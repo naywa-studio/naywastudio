@@ -238,4 +238,11 @@ export function hsl(hue: number, sat = 65, lit = 60): string {
   return `hsl(${hue}, ${sat}%, ${lit}%)`
 }
 
+/** Renvoie la teinte HSL d'un cluster identifié par son label libre.
+ *  Utile depuis n'importe quelle UI (carte, liste, drawer) qui veut
+ *  colorer un élément en cohérence avec la Carte. */
+export function clusterHue(label: string): number {
+  return hashHue(label)
+}
+
 export const VIVIER_CLUSTER_FALLBACK = FALLBACK_CLUSTER
