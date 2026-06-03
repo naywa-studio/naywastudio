@@ -157,8 +157,9 @@ export default function VivierMapView({
 function MacroMap({ clusters, onZoom }: { clusters: VivierCluster[]; onZoom: (id: string) => void }) {
   const W = 900
   const H = 580
-  // overflow: visible sur le SVG + une marge sur le wrapper laissent les
-  // gradients déborder en douceur — fini la délimitation rectiligne en haut.
+  // Pas de overflow:hidden sur le wrapper — sinon les gradients qui touchent
+  // les bords se font couper rectilignement (« délimitation » au-dessus de la
+  // zone). On laisse les halos déborder en douceur.
 
   return (
     <m.div
@@ -166,20 +167,15 @@ function MacroMap({ clusters, onZoom }: { clusters: VivierCluster[]; onZoom: (id
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.99 }}
       transition={{ duration: 0.4, ease: EASE }}
-      style={{ position: "relative", borderRadius: 20, overflow: "hidden", padding: "30px 0" }}
+      style={{ position: "relative", padding: "20px 0" }}
     >
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="auto" style={{ display: "block", overflow: "visible" }}>
         <defs>
           {clusters.map((c) => (
-            // Gradient adouci : transition continue de 0 → 100, opacité qui
-            // descend doucement vers 0, pour qu'aucun « disque dur » ne se
-            // dessine. Le rayon r est plus grand que le cercle lui-même pour
-            // que la bordure visible soit totalement diffuse.
-            <radialGradient key={c.id} id={`grad-macro-${c.id}`} cx="50%" cy="50%" r="60%">
-              <stop offset="0%"   stopColor={hsl(c.hue, 78, 72)} stopOpacity={0.62} />
-              <stop offset="40%"  stopColor={hsl(c.hue, 70, 78)} stopOpacity={0.40} />
-              <stop offset="75%"  stopColor={hsl(c.hue, 60, 84)} stopOpacity={0.18} />
-              <stop offset="100%" stopColor={hsl(c.hue, 55, 88)} stopOpacity={0} />
+            <radialGradient key={c.id} id={`grad-macro-${c.id}`} cx="50%" cy="50%" r="50%">
+              <stop offset="0%"  stopColor={hsl(c.hue, 78, 72)} stopOpacity={0.65} />
+              <stop offset="65%" stopColor={hsl(c.hue, 65, 80)} stopOpacity={0.30} />
+              <stop offset="100%" stopColor={hsl(c.hue, 55, 85)} stopOpacity={0} />
             </radialGradient>
           ))}
         </defs>
@@ -188,9 +184,7 @@ function MacroMap({ clusters, onZoom }: { clusters: VivierCluster[]; onZoom: (id
             key={c.id}
             cx={c.cx * W}
             cy={c.cy * H}
-            // Rayon visuel élargi pour que la transition de transparence
-            // commence avant le bord réel du cluster — pas de cassure nette.
-            r={c.radius * Math.min(W, H) * 1.45}
+            r={c.radius * Math.min(W, H) * 1.25}
             fill={`url(#grad-macro-${c.id})`}
           />
         ))}

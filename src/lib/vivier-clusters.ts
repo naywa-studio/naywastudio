@@ -169,72 +169,64 @@ export function buildClusters(candidates: Candidate[]): VivierCluster[] {
   if (N === 0) return []
   const maxTotal = rows[0].total
 
-  /* Layout adaptatif :
-   *   - Le plus gros cluster au CENTRE (occupe l'espace, sinon donut).
-   *   - Anneau interne (jusqu'à 5 clusters) autour à distance 0.27.
-   *   - Anneau externe (le reste) à distance 0.42, décalé d'un demi-angle
-   *     pour ne pas se superposer aux clusters de l'anneau interne.
+  /* Layout organique :
+   *   - Pour 1 à 8 clusters, on utilise des positions hand-tuned qui se
+   *     chevauchent visuellement (mêmes positions que le mockup
+   *     /cloud-preview, validé par le sourceur).
+   *   - Au-delà, on génère en spirale dorée à partir du centre — chaque
+   *     nouveau cluster prend une place naturelle.
    *
-   * Les positions sont déterministes (tri stable par total + id) — entre
-   * deux runs avec exactement les mêmes clusters, les zones ne bougent
-   * pas. Quand un nouveau cluster apparait, on réindexe : l'arrangement
-   * s'adapte intelligemment.
-   *
-   * Toutes les coordonnées sont clampées à [0.18, 0.82] sur les deux axes
-   * pour que les cercles ne se fassent jamais couper par le bord du canvas
-   * (ce qui créait une délimitation rectiligne en haut). */
+   * Positions déterministes (tri stable par total desc + id en tiebreaker)
+   * → entre deux affichages avec les mêmes clusters, zéro mouvement.
+   * Si un nouveau cluster apparait après un "Réorganiser avec Nora", les
+   * positions se recalculent intelligemment. */
   const layout = computeLayout(N)
   const positioned = rows.map((r, i) => {
     const pos = layout[i]
-    // Rayon visuel : √(total / maxTotal), un peu plus grand pour le cluster
-    // central (qui a l'espace), un peu plus petit pour les périphériques.
+    // Rayon visuel proche du mockup validé : 0.20 → 0.30 selon l'importance.
     const sizeFactor = Math.sqrt(Math.max(r.total, 1) / maxTotal)
-    const baseRadius = 0.13 + sizeFactor * 0.13
-    const radius = i === 0 ? baseRadius * 1.15 : baseRadius
+    const radius = 0.20 + sizeFactor * 0.10
     return { ...r, cx: pos.cx, cy: pos.cy, radius }
   })
 
   return positioned
 }
 
-/** Pré-calcule les positions normalisées (cx, cy) pour N clusters, en
- *  respectant l'invariant : index 0 au centre, suivants en anneau interne
- *  puis externe. Toujours clampé pour éviter de toucher le bord du canvas. */
+/** Positions organiques hand-tuned pour 1 à 8 clusters, identiques à celles
+ *  du mockup /workspace/vivier/cloud-preview. Au-delà, spirale dorée pour
+ *  garder un placement naturel et déterministe. */
 function computeLayout(n: number): Array<{ cx: number; cy: number }> {
+  if (n === 0) return []
+  const fixed = FIXED_LAYOUTS[n]
+  if (fixed) return fixed.map(([cx, cy]) => ({ cx, cy }))
+  // Fallback spirale dorée pour n > 8 (très rare en V1).
   const positions: Array<{ cx: number; cy: number }> = []
-  if (n === 0) return positions
-  if (n === 1) {
-    positions.push({ cx: 0.5, cy: 0.5 })
-    return positions
-  }
-  // Cluster #0 : centre
-  positions.push({ cx: 0.5, cy: 0.5 })
-
-  const inner = Math.min(n - 1, 5)
-  const outer = n - 1 - inner
-
-  // Anneau interne, partant du haut, dans le sens horaire
-  const angleOffsetInner = -Math.PI / 2
-  for (let k = 0; k < inner; k++) {
-    const angle = angleOffsetInner + (k / inner) * Math.PI * 2
+  const golden = Math.PI * (3 - Math.sqrt(5))
+  for (let i = 0; i < n; i++) {
+    const t = i / Math.max(n - 1, 1)
+    const radius = 0.10 + t * 0.34
+    const angle = i * golden
     positions.push({
-      cx: clamp(0.5 + Math.cos(angle) * 0.27, 0.18, 0.82),
-      cy: clamp(0.5 + Math.sin(angle) * 0.27, 0.18, 0.82),
+      cx: clamp(0.5 + Math.cos(angle) * radius, 0.20, 0.80),
+      cy: clamp(0.5 + Math.sin(angle) * radius, 0.20, 0.80),
     })
   }
-
-  // Anneau externe : décalé d'un demi-angle pour offset visuel
-  if (outer > 0) {
-    const angleOffsetOuter = -Math.PI / 2 + Math.PI / Math.max(outer, 1)
-    for (let k = 0; k < outer; k++) {
-      const angle = angleOffsetOuter + (k / outer) * Math.PI * 2
-      positions.push({
-        cx: clamp(0.5 + Math.cos(angle) * 0.42, 0.18, 0.82),
-        cy: clamp(0.5 + Math.sin(angle) * 0.42, 0.18, 0.82),
-      })
-    }
-  }
   return positions
+}
+
+/** Positions [cx, cy] préréglées pour les configurations courantes (1 à 8
+ *  clusters). Reprend exactement la disposition du mockup validé pour
+ *  N=5 (Data, Backend, Quant, Étudiants, DevOps), et étend ce style aux
+ *  autres tailles avec des positions qui se chevauchent harmonieusement. */
+const FIXED_LAYOUTS: Record<number, ReadonlyArray<readonly [number, number]>> = {
+  1: [[0.50, 0.50]],
+  2: [[0.34, 0.50], [0.66, 0.50]],
+  3: [[0.30, 0.36], [0.70, 0.36], [0.50, 0.70]],
+  4: [[0.30, 0.34], [0.70, 0.30], [0.30, 0.72], [0.70, 0.72]],
+  5: [[0.30, 0.34], [0.56, 0.28], [0.80, 0.52], [0.22, 0.74], [0.60, 0.78]],
+  6: [[0.28, 0.32], [0.55, 0.26], [0.78, 0.42], [0.22, 0.60], [0.50, 0.72], [0.78, 0.74]],
+  7: [[0.26, 0.30], [0.50, 0.24], [0.74, 0.34], [0.20, 0.56], [0.50, 0.55], [0.78, 0.62], [0.50, 0.80]],
+  8: [[0.24, 0.28], [0.50, 0.22], [0.76, 0.30], [0.18, 0.52], [0.50, 0.52], [0.82, 0.55], [0.30, 0.78], [0.70, 0.78]],
 }
 
 function clamp(v: number, min: number, max: number): number {

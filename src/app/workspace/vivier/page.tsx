@@ -24,7 +24,7 @@ interface UploadJob {
   candidateId?: string
 }
 
-type ViewMode = "flat" | "by-sector" | "map"
+type ViewMode = "flat" | "map"
 
 const SECTOR_META: Record<NonNullable<NonNullable<Candidate["parsed_cv"]>["sector"]>, { label: string; fg: string; bg: string; bd: string }> = {
   tech:       { label: "Tech",         fg: "#2563EB", bg: "rgba(37,99,235,0.07)",  bd: "rgba(37,99,235,0.22)" },
@@ -65,7 +65,7 @@ export default function VivierPage() {
 
   // Filters & view — default to sector grouping with everything collapsed
   // so the page lands as a tidy overview, not a wall of cards.
-  const [viewMode, setViewMode] = useState<ViewMode>("by-sector")
+  const [viewMode, setViewMode] = useState<ViewMode>("map")
   const [seniorityFilter, setSeniorityFilter] = useState<string>("")
   const [locationFilter, setLocationFilter] = useState<string>("")
   const [skillFilter, setSkillFilter] = useState<string>("")
@@ -73,13 +73,6 @@ export default function VivierPage() {
   const [sectorFilter, setSectorFilter] = useState<string>("")
   const [tagFilter, setTagFilter] = useState<string>("")
   const [filtersOpen, setFiltersOpen] = useState(false)
-  // Sectors are collapsed by default. Tracking the OPEN ones (rather than
-  // the closed ones) means new sectors appear closed automatically.
-  const [openSectors, setOpenSectors] = useState<Set<string>>(new Set())
-  const toggleSector = (s: string) => setOpenSectors((prev) => {
-    const next = new Set(prev); if (next.has(s)) next.delete(s); else next.add(s); return next
-  })
-
   // 1. Initial load + realtime
   useEffect(() => {
     let mounted = true
@@ -332,18 +325,6 @@ export default function VivierPage() {
     [filtered],
   )
 
-  // Group by sector (for the "by-sector" view) — parsed/errored rows only.
-  const bySector = useMemo(() => {
-    const map = new Map<string, Candidate[]>()
-    for (const c of parsedOrErrored) {
-      const s = c.parsed_cv?.sector ?? "autre"
-      const arr = map.get(s); if (arr) arr.push(c); else map.set(s, [c])
-    }
-    return SECTOR_ORDER
-      .map((s) => ({ sector: s, items: map.get(s) ?? [] }))
-      .filter((g) => g.items.length > 0)
-  }, [parsedOrErrored])
-
   const activeFilters =
     (seniorityFilter ? 1 : 0) +
     (locationFilter.trim() ? 1 : 0) +
@@ -576,9 +557,8 @@ export default function VivierPage() {
             </button>
             <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
               {([
-                { key: "map" as ViewMode,       label: "◍ Carte" },
-                { key: "by-sector" as ViewMode, label: "Par secteur" },
-                { key: "flat" as ViewMode,      label: "À plat" },
+                { key: "map" as ViewMode,  label: "◍ Carte" },
+                { key: "flat" as ViewMode, label: "≡ Liste" },
               ]).map((m) => (
                 <button
                   key={m.key}
@@ -772,59 +752,6 @@ export default function VivierPage() {
             setCandidates((data ?? []) as unknown as Candidate[])
           }}
         />
-      ) : viewMode === "by-sector" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {bySector.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
-              Aucun candidat ne correspond aux filtres.
-            </div>
-          ) : (
-            bySector.map(({ sector, items }) => {
-              const meta = SECTOR_META[sector]
-              const open = openSectors.has(sector)
-              return (
-                <section key={sector} style={{
-                  background: "white", border: `1px solid ${meta.bd}`, borderRadius: 14,
-                  overflow: "hidden",
-                }}>
-                  <button
-                    onClick={() => toggleSector(sector)}
-                    style={{
-                      width: "100%", display: "flex", alignItems: "center", gap: 10,
-                      padding: "12px 16px", background: meta.bg, border: "none",
-                      cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-                    }}
-                  >
-                    <span style={{ fontSize: 12, color: meta.fg, transform: open ? "rotate(90deg)" : "none", transition: "transform 140ms", display: "inline-block", width: 10 }}>›</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: meta.fg, letterSpacing: "0.02em" }}>
-                      {meta.label}
-                    </span>
-                    <span style={{
-                      marginLeft: "auto",
-                      fontSize: 11, fontWeight: 700, color: meta.fg,
-                      background: "white", border: `1px solid ${meta.bd}`,
-                      borderRadius: 100, padding: "1px 8px",
-                    }}>
-                      {items.length}
-                    </span>
-                  </button>
-                  {open && (
-                    <div style={{
-                      padding: 14,
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                      gap: 14,
-                    }}>
-                      {items.map((c, i) => (
-                        <CandidateCard key={c.id} c={c} delay={Math.min(i * 0.02, 0.15)} onDelete={() => handleDelete(c.id)} />
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )
-            })
-          )}
-        </div>
       ) : (
         <div style={{
           display: "grid",

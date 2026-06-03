@@ -588,7 +588,8 @@ export type Database = {
 export const CANDIDATE_COLUMNS =
   "id, user_id, full_name, email, phone, location, linkedin_url, " +
   "current_title, current_company, years_experience, seniority_level, " +
-  "skills, languages, parsed_cv, taxonomy, cv_file_path, cv_file_name, " +
+  "skills, languages, parsed_cv, taxonomy, cluster_assignments, cluster_assigned_at, " +
+  "cv_file_path, cv_file_name, " +
   "cv_file_size, cv_mime_type, anonymized_pdf_path, anonymized_at, " +
   "outreach_draft, outreach_meta, parse_status, parse_error, parsed_at, " +
   "notes, tags, created_at, updated_at, consulted_at"
