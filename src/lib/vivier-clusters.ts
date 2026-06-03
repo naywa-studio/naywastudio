@@ -161,29 +161,84 @@ export function buildClusters(candidates: Candidate[]): VivierCluster[] {
     secondary: v.secondary,
     total: v.primary.length + v.secondary.length,
   }))
-  rows.sort((a, b) => b.total - a.total)
+  // Tie-breaker stable : à total égal, on classe par id pour que l'ordre
+  // ne dépende pas de l'ordre d'insertion dans la Map.
+  rows.sort((a, b) => (b.total - a.total) || a.id.localeCompare(b.id))
 
-  // Disposition radiale : on place les clusters en couronne autour du centre,
-  // taille du cercle proportionnelle à √total (sinon le plus gros mange tout).
   const N = rows.length
   if (N === 0) return []
   const maxTotal = rows[0].total
-  const angleOffset = -Math.PI / 2 // commencer en haut
 
-  return rows.map((r, i) => {
-    let cx: number, cy: number
-    if (N === 1) {
-      cx = 0.5; cy = 0.5
-    } else {
-      // Distribution en couronne, avec un rayon de placement de 0.30 du canvas.
-      const angle = angleOffset + (i / N) * Math.PI * 2
-      cx = 0.5 + Math.cos(angle) * 0.30
-      cy = 0.5 + Math.sin(angle) * 0.30
-    }
-    // Rayon visuel proportionnel à √(total / maxTotal), borné.
-    const radius = 0.10 + Math.sqrt(r.total / maxTotal) * 0.18
-    return { ...r, cx, cy, radius }
+  /* Layout adaptatif :
+   *   - Le plus gros cluster au CENTRE (occupe l'espace, sinon donut).
+   *   - Anneau interne (jusqu'à 5 clusters) autour à distance 0.27.
+   *   - Anneau externe (le reste) à distance 0.42, décalé d'un demi-angle
+   *     pour ne pas se superposer aux clusters de l'anneau interne.
+   *
+   * Les positions sont déterministes (tri stable par total + id) — entre
+   * deux runs avec exactement les mêmes clusters, les zones ne bougent
+   * pas. Quand un nouveau cluster apparait, on réindexe : l'arrangement
+   * s'adapte intelligemment.
+   *
+   * Toutes les coordonnées sont clampées à [0.18, 0.82] sur les deux axes
+   * pour que les cercles ne se fassent jamais couper par le bord du canvas
+   * (ce qui créait une délimitation rectiligne en haut). */
+  const layout = computeLayout(N)
+  const positioned = rows.map((r, i) => {
+    const pos = layout[i]
+    // Rayon visuel : √(total / maxTotal), un peu plus grand pour le cluster
+    // central (qui a l'espace), un peu plus petit pour les périphériques.
+    const sizeFactor = Math.sqrt(Math.max(r.total, 1) / maxTotal)
+    const baseRadius = 0.13 + sizeFactor * 0.13
+    const radius = i === 0 ? baseRadius * 1.15 : baseRadius
+    return { ...r, cx: pos.cx, cy: pos.cy, radius }
   })
+
+  return positioned
+}
+
+/** Pré-calcule les positions normalisées (cx, cy) pour N clusters, en
+ *  respectant l'invariant : index 0 au centre, suivants en anneau interne
+ *  puis externe. Toujours clampé pour éviter de toucher le bord du canvas. */
+function computeLayout(n: number): Array<{ cx: number; cy: number }> {
+  const positions: Array<{ cx: number; cy: number }> = []
+  if (n === 0) return positions
+  if (n === 1) {
+    positions.push({ cx: 0.5, cy: 0.5 })
+    return positions
+  }
+  // Cluster #0 : centre
+  positions.push({ cx: 0.5, cy: 0.5 })
+
+  const inner = Math.min(n - 1, 5)
+  const outer = n - 1 - inner
+
+  // Anneau interne, partant du haut, dans le sens horaire
+  const angleOffsetInner = -Math.PI / 2
+  for (let k = 0; k < inner; k++) {
+    const angle = angleOffsetInner + (k / inner) * Math.PI * 2
+    positions.push({
+      cx: clamp(0.5 + Math.cos(angle) * 0.27, 0.18, 0.82),
+      cy: clamp(0.5 + Math.sin(angle) * 0.27, 0.18, 0.82),
+    })
+  }
+
+  // Anneau externe : décalé d'un demi-angle pour offset visuel
+  if (outer > 0) {
+    const angleOffsetOuter = -Math.PI / 2 + Math.PI / Math.max(outer, 1)
+    for (let k = 0; k < outer; k++) {
+      const angle = angleOffsetOuter + (k / outer) * Math.PI * 2
+      positions.push({
+        cx: clamp(0.5 + Math.cos(angle) * 0.42, 0.18, 0.82),
+        cy: clamp(0.5 + Math.sin(angle) * 0.42, 0.18, 0.82),
+      })
+    }
+  }
+  return positions
+}
+
+function clamp(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v))
 }
 
 /** HSL stable pour les éléments UI (chips, bandeaux, gradients). */
