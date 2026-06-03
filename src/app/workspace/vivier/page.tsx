@@ -8,7 +8,6 @@ import { CANDIDATE_COLUMNS, type Candidate } from "@/lib/database.types"
 import { customTagsOf } from "@/lib/tags"
 import { matchesCandidateRef, candidateRefLabel } from "@/lib/candidate-ref"
 import { candidateClusters, clusterHue } from "@/lib/vivier-clusters"
-import Select from "@/components/ui/Select"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import VivierMapView from "@/components/workspace/VivierMapView"
 import { showUndoToast } from "@/components/ui/UndoToast"
@@ -27,32 +26,9 @@ interface UploadJob {
 
 type ViewMode = "flat" | "map"
 
-const SECTOR_META: Record<NonNullable<NonNullable<Candidate["parsed_cv"]>["sector"]>, { label: string; fg: string; bg: string; bd: string }> = {
-  tech:       { label: "Tech",         fg: "#2563EB", bg: "rgba(37,99,235,0.07)",  bd: "rgba(37,99,235,0.22)" },
-  finance:    { label: "Finance",      fg: "#0F766E", bg: "rgba(15,118,110,0.07)", bd: "rgba(15,118,110,0.22)" },
-  retail:     { label: "Retail",       fg: "#B45309", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
-  sante:      { label: "Santé",        fg: "#DC2626", bg: "rgba(220,38,38,0.06)",  bd: "rgba(220,38,38,0.22)" },
-  industrie:  { label: "Industrie",    fg: "#4B5563", bg: "rgba(75,85,99,0.07)",   bd: "rgba(75,85,99,0.22)" },
-  conseil:    { label: "Conseil",      fg: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.22)" },
-  marketing:  { label: "Marketing",    fg: "#DB2777", bg: "rgba(219,39,119,0.06)", bd: "rgba(219,39,119,0.22)" },
-  rh:         { label: "RH",           fg: "#0891B2", bg: "rgba(8,145,178,0.07)",  bd: "rgba(8,145,178,0.22)" },
-  public:     { label: "Public",       fg: "#1E40AF", bg: "rgba(30,64,175,0.06)",  bd: "rgba(30,64,175,0.22)" },
-  education:  { label: "Éducation",    fg: "#16a34a", bg: "rgba(34,197,94,0.07)",  bd: "rgba(34,197,94,0.25)" },
-  autre:      { label: "Autre",        fg: "#6B7280", bg: "#F9FAFB",               bd: "#E5E7EB" },
-}
-const SECTOR_ORDER: NonNullable<NonNullable<Candidate["parsed_cv"]>["sector"]>[] = [
-  "tech", "finance", "conseil", "marketing", "retail", "sante", "industrie", "rh", "public", "education", "autre",
-]
-
-const SENIORITY_OPTIONS = [
-  { key: "etudiant",  label: "Étudiant" },
-  { key: "stagiaire", label: "Stagiaire" },
-  { key: "junior",    label: "Junior" },
-  { key: "mid",       label: "Mid" },
-  { key: "senior",    label: "Senior" },
-  { key: "lead",      label: "Lead" },
-  { key: "principal", label: "Principal" },
-] as const
+// SECTOR_META / SECTOR_ORDER / SENIORITY_OPTIONS retirés : la classification
+// est désormais 100 % faite par Nora (cluster_assignments). Plus de liste
+// fermée de secteurs ni de filtres avancés sur la page Vivier.
 
 export default function VivierPage() {
   const sb = useMemo(() => getSupabase(), [])
@@ -67,13 +43,9 @@ export default function VivierPage() {
   // Filters & view — default to sector grouping with everything collapsed
   // so the page lands as a tidy overview, not a wall of cards.
   const [viewMode, setViewMode] = useState<ViewMode>("map")
-  const [seniorityFilter, setSeniorityFilter] = useState<string>("")
-  const [locationFilter, setLocationFilter] = useState<string>("")
-  const [skillFilter, setSkillFilter] = useState<string>("")
-  const [completenessFilter, setCompletenessFilter] = useState<"any" | "complete" | "partial">("any")
-  const [sectorFilter, setSectorFilter] = useState<string>("")
-  const [tagFilter, setTagFilter] = useState<string>("")
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  // Les filtres avancés (séniorité, lieu, skill, complétude, secteur,
+  // tag) ont été retirés au profit d'une seule barre de recherche large
+  // — la recherche libre fait déjà le job sur ces 6 axes.
   // 1. Initial load + realtime
   useEffect(() => {
     let mounted = true
@@ -273,45 +245,19 @@ export default function VivierPage() {
   // 4. Filtering
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const locQ = locationFilter.trim().toLowerCase()
-    const skillQ = skillFilter.trim().toLowerCase()
+    if (!q) return candidates
     return candidates.filter((c) => {
-      if (q) {
-        // Match aussi sur la ref candidat (ex. "C-1A2B3C4D" ou "1A2B3C4D") :
-        // utile quand un client rappelle un profil par sa ref anonyme.
-        if (matchesCandidateRef(c.id, q)) return true
-        const hay = [
-          c.full_name, c.current_title, c.current_company, c.location, c.email,
-          ...(c.skills ?? []),
-        ].filter(Boolean).join(" ").toLowerCase()
-        if (!hay.includes(q)) return false
-      }
-      if (seniorityFilter && (c.seniority_level ?? "") !== seniorityFilter) return false
-      if (locQ && !(c.location ?? "").toLowerCase().includes(locQ)) return false
-      if (skillQ) {
-        const skills = (c.skills ?? []).map((s) => s.toLowerCase())
-        if (!skills.some((s) => s.includes(skillQ))) return false
-      }
-      if (completenessFilter !== "any") {
-        const score = c.parsed_cv?.completeness ?? 0
-        if (completenessFilter === "complete" && score < 75) return false
-        if (completenessFilter === "partial"  && score >= 75) return false
-      }
-      if (sectorFilter && (c.parsed_cv?.sector ?? "autre") !== sectorFilter) return false
-      if (tagFilter) {
-        const ct = customTagsOf(c.tags).map((t) => t.toLowerCase())
-        if (!ct.includes(tagFilter.toLowerCase())) return false
-      }
-      return true
+      // Match aussi sur la ref candidat (ex. "C-1A2B3C4D" ou "1A2B3C4D") :
+      // utile quand un client rappelle un profil par sa ref anonyme.
+      if (matchesCandidateRef(c.id, q)) return true
+      const hay = [
+        c.full_name, c.current_title, c.current_company, c.location, c.email,
+        ...(c.skills ?? []),
+        ...customTagsOf(c.tags),
+      ].filter(Boolean).join(" ").toLowerCase()
+      return hay.includes(q)
     })
-  }, [candidates, query, seniorityFilter, locationFilter, skillFilter, completenessFilter, sectorFilter, tagFilter])
-
-  // Distinct custom tags across the vivier — drives the filter dropdown.
-  const allCustomTags = useMemo(() => {
-    const seen = new Set<string>()
-    for (const c of candidates) for (const t of customTagsOf(c.tags)) seen.add(t)
-    return Array.from(seen).sort((a, b) => a.localeCompare(b))
-  }, [candidates])
+  }, [candidates, query])
 
   // Split into parsing vs parsed pools. Parsing candidates have no sector
   // yet (parsed_cv is null) — putting them in "Autre" makes them feel lost.
@@ -325,19 +271,6 @@ export default function VivierPage() {
     () => filtered.filter((c) => c.parse_status !== "pending" && c.parse_status !== "parsing"),
     [filtered],
   )
-
-  const activeFilters =
-    (seniorityFilter ? 1 : 0) +
-    (locationFilter.trim() ? 1 : 0) +
-    (skillFilter.trim() ? 1 : 0) +
-    (completenessFilter !== "any" ? 1 : 0) +
-    (sectorFilter ? 1 : 0) +
-    (tagFilter ? 1 : 0)
-
-  const resetFilters = () => {
-    setSeniorityFilter(""); setLocationFilter(""); setSkillFilter("")
-    setCompletenessFilter("any"); setSectorFilter(""); setTagFilter("")
-  }
 
   // 5. Deletion — optimistic UI + undo toast (5 sec). The actual API
   // call only fires if the sourcer doesn't click "Annuler" in the toast.
@@ -401,7 +334,7 @@ export default function VivierPage() {
         position: "relative",
         minHeight: "calc(100vh - 60px)",
         padding: "40px 24px 80px",
-        maxWidth: 1280, margin: "0 auto",
+        maxWidth: 1640, margin: "0 auto",
         fontFamily: "var(--font-inter), sans-serif",
       }}
     >
@@ -464,25 +397,6 @@ export default function VivierPage() {
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <input
-            type="search"
-            placeholder="Rechercher par nom, poste, compétence, ref C-…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{
-              minWidth: 260,
-              fontSize: 13.5, color: "#111827",
-              padding: "10px 14px",
-              background: "white",
-              border: "1px solid #E5E7EB",
-              borderRadius: 10,
-              outline: "none",
-              fontFamily: "inherit",
-              transition: "border-color 150ms, box-shadow 150ms",
-            }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,99,200,0.10)" }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none" }}
-          />
           <button
             onClick={() => inputRef.current?.click()}
             style={{
@@ -539,23 +453,28 @@ export default function VivierPage() {
         )}
       </AnimatePresence>
 
-      {/* Filters + view toggle */}
+      {/* Search bar pleine largeur + view toggle */}
       {candidates.length > 0 && (
         <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              onClick={() => setFiltersOpen((v) => !v)}
+            <input
+              type="search"
+              placeholder="Rechercher par nom, poste, compétence, ref C-, tag…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
               style={{
-                fontSize: 12.5, fontWeight: 600,
-                color: activeFilters > 0 ? "#7C63C8" : "#6B7280",
-                background: activeFilters > 0 ? "rgba(124,99,200,0.08)" : "white",
-                border: `1px solid ${activeFilters > 0 ? "rgba(124,99,200,0.25)" : "#E5E7EB"}`,
-                borderRadius: 9, padding: "7px 12px",
-                cursor: "pointer", fontFamily: "inherit",
+                flex: 1, minWidth: 260,
+                fontSize: 13.5, color: "#111827",
+                padding: "10px 14px",
+                background: "white",
+                border: "1px solid #E5E7EB",
+                borderRadius: 10,
+                outline: "none", fontFamily: "inherit",
+                transition: "border-color 150ms, box-shadow 150ms",
               }}
-            >
-              {filtersOpen ? "▾" : "▸"} Filtres{activeFilters > 0 ? ` · ${activeFilters}` : ""}
-            </button>
+              onFocus={(e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,99,200,0.10)" }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none" }}
+            />
             <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
               {([
                 { key: "map" as ViewMode,  label: "◍ Carte" },
@@ -565,7 +484,7 @@ export default function VivierPage() {
                   key={m.key}
                   onClick={() => setViewMode(m.key)}
                   style={{
-                    fontSize: 12, fontWeight: 600, padding: "7px 12px",
+                    fontSize: 12, fontWeight: 600, padding: "9px 14px",
                     border: "none", cursor: "pointer", fontFamily: "inherit",
                     background: viewMode === m.key ? "#7C63C8" : "white",
                     color: viewMode === m.key ? "white" : "#6B7280",
@@ -578,83 +497,7 @@ export default function VivierPage() {
             <span style={{ fontSize: 12, color: "#9CA3AF" }}>
               {filtered.length}{filtered.length !== candidates.length ? ` / ${candidates.length}` : ""} candidat{filtered.length > 1 ? "s" : ""}
             </span>
-            {activeFilters > 0 && (
-              <button onClick={resetFilters} style={{
-                fontSize: 11.5, color: "#9CA3AF", background: "transparent",
-                border: "none", cursor: "pointer", fontFamily: "inherit",
-                textDecoration: "underline",
-              }}>
-                Tout effacer
-              </button>
-            )}
           </div>
-          {filtersOpen && (
-            <div style={{
-              padding: 14, background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
-              display: "grid", gap: 12,
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            }}>
-              <FilterField label="Séniorité">
-                <Select
-                  value={seniorityFilter}
-                  onChange={setSeniorityFilter}
-                  options={[
-                    { value: "", label: "Toutes" },
-                    ...SENIORITY_OPTIONS.map((s) => ({ value: s.key, label: s.label })),
-                  ]}
-                />
-              </FilterField>
-              <FilterField label="Secteur">
-                <Select
-                  value={sectorFilter}
-                  onChange={setSectorFilter}
-                  options={[
-                    { value: "", label: "Tous" },
-                    ...SECTOR_ORDER.map((s) => ({ value: s, label: SECTOR_META[s].label })),
-                  ]}
-                />
-              </FilterField>
-              <FilterField label="Localisation">
-                <input
-                  value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value)}
-                  placeholder="Paris, Lyon…"
-                  style={filterInputStyle}
-                />
-              </FilterField>
-              <FilterField label="Skill">
-                <input
-                  value={skillFilter}
-                  onChange={(e) => setSkillFilter(e.target.value)}
-                  placeholder="Python, SQL…"
-                  style={filterInputStyle}
-                />
-              </FilterField>
-              <FilterField label="Complétude CV">
-                <Select
-                  value={completenessFilter}
-                  onChange={(v) => setCompletenessFilter(v as typeof completenessFilter)}
-                  options={[
-                    { value: "any",      label: "Indifférent" },
-                    { value: "complete", label: "CV complet (≥75)" },
-                    { value: "partial",  label: "CV partiel (<75)" },
-                  ]}
-                />
-              </FilterField>
-              {allCustomTags.length > 0 && (
-                <FilterField label="Tag">
-                  <Select
-                    value={tagFilter}
-                    onChange={setTagFilter}
-                    options={[
-                      { value: "", label: "Tous" },
-                      ...allCustomTags.map((t) => ({ value: t, label: t })),
-                    ]}
-                  />
-                </FilterField>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -775,24 +618,6 @@ export default function VivierPage() {
 
 /* ─── Sub-components ──────────────────────────────────────────────── */
 
-const filterInputStyle: React.CSSProperties = {
-  width: "100%", boxSizing: "border-box",
-  fontSize: 13, color: "#111827", padding: "8px 10px",
-  background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 8,
-  outline: "none", fontFamily: "inherit",
-}
-
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      <span style={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-        {label}
-      </span>
-      {children}
-    </label>
-  )
-}
-
 function JobIcon({ status }: { status: UploadJob["status"] }) {
   const map = {
     uploading: { color: "#7C63C8", anim: true,  icon: "↑" },
@@ -833,14 +658,14 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
 
   return (
     <m.div
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay, ease: EASE }}
+      transition={{ duration: 0.35, delay, ease: EASE }}
       style={{
-        background: "white", borderRadius: 14,
+        background: "white", borderRadius: 12,
         border: `1px solid ${errored ? "#FECACA" : "#F0ECF8"}`,
-        padding: "18px 18px 18px 22px",
-        display: "flex", flexDirection: "column", gap: 12,
+        padding: "12px 14px 12px 16px",
+        display: "flex", flexDirection: "column", gap: 8,
         position: "relative", overflow: "hidden",
         transition: "transform 180ms ease, box-shadow 180ms ease, border-color 180ms",
       }}
@@ -868,11 +693,11 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
         </span>
       )}
 
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <div style={{
-          width: 42, height: 42, borderRadius: "50%",
+          width: 32, height: 32, borderRadius: "50%",
           background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-          color: "#7C63C8", fontSize: 14, fontWeight: 800,
+          color: "#7C63C8", fontSize: 11.5, fontWeight: 800,
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0,
         }}>
@@ -880,20 +705,20 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <p style={{
-            margin: 0, fontSize: 15, fontWeight: 700, color: "#111827",
+            margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {c.full_name ?? (parsing ? "Parsing en cours…" : c.cv_file_name ?? "Sans nom")}
           </p>
           <p style={{
-            margin: "2px 0 0", fontSize: 12, color: "#6B7280",
+            margin: "1px 0 0", fontSize: 11.5, color: "#6B7280",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {c.current_title ?? (errored ? c.parse_error ?? "Erreur" : "—")}
             {c.current_company ? <> · <span style={{ color: "#9CA3AF" }}>{c.current_company}</span></> : null}
           </p>
           <p style={{
-            margin: "3px 0 0", fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+            margin: "2px 0 0", fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
             letterSpacing: "0.04em",
             fontFamily: "var(--font-space-grotesk), monospace",
           }}>
@@ -902,21 +727,21 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
         </div>
       </div>
 
-      {/* Skills chips */}
+      {/* Skills chips — limité à 3 pour garder la carte compacte. */}
       {c.skills && c.skills.length > 0 && (
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {c.skills.slice(0, 5).map((s) => (
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {c.skills.slice(0, 3).map((s) => (
             <span key={s} style={{
-              fontSize: 11, color: "#4B5563",
+              fontSize: 10, color: "#4B5563",
               background: "#F8F6FF", border: "1px solid #F0ECF8",
-              padding: "3px 8px", borderRadius: 6,
+              padding: "2px 7px", borderRadius: 5,
             }}>
               {s}
             </span>
           ))}
-          {c.skills.length > 5 && (
-            <span style={{ fontSize: 11, color: "#9CA3AF", padding: "3px 4px" }}>
-              +{c.skills.length - 5}
+          {c.skills.length > 3 && (
+            <span style={{ fontSize: 10, color: "#9CA3AF", padding: "2px 3px" }}>
+              +{c.skills.length - 3}
             </span>
           )}
         </div>
@@ -970,12 +795,12 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
             </span>
           )}
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 4 }}>
           <Link
             href={`/workspace/vivier/${c.id}`}
             style={{
-              fontSize: 12, fontWeight: 600, color: "#7C63C8",
-              padding: "6px 12px", borderRadius: 8,
+              fontSize: 11, fontWeight: 600, color: "#7C63C8",
+              padding: "5px 10px", borderRadius: 7,
               background: "rgba(124,99,200,0.08)",
               border: "1px solid rgba(124,99,200,0.16)",
               textDecoration: "none",
@@ -988,9 +813,9 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
             title="Supprimer du vivier"
             style={{
               background: "transparent", border: "1px solid #E5E7EB",
-              borderRadius: 8, padding: "6px 9px", cursor: "pointer",
+              borderRadius: 7, padding: "5px 8px", cursor: "pointer",
               color: "#9CA3AF",
-              fontSize: 12,
+              fontSize: 11,
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "#9CA3AF"; e.currentTarget.style.borderColor = "#E5E7EB" }}

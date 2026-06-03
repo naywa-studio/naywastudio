@@ -284,8 +284,23 @@ function SectorZoomView({
 }) {
   const primaries = cluster.primary
   const hybrids   = cluster.secondary
+  const otherClusters = clusters.filter((c) => c.id !== cluster.id)
 
   return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "minmax(140px, 180px) minmax(0, 1fr)",
+      gap: 16, alignItems: "start",
+    }}>
+      {/* Side rail — autres secteurs cliquables. Profite de l'espace blanc
+          à gauche pour donner un accès direct aux autres zones sans
+          repasser par la carte macro. */}
+      <SideRailClusters
+        clusters={otherClusters}
+        onPick={onJumpToCluster}
+        onBackToMap={onBack}
+      />
+
     <m.div
       layoutId={`zone-${cluster.id}`}
       transition={SPRING}
@@ -352,7 +367,9 @@ function SectorZoomView({
       <div style={{
         position: "relative",
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+        gridAutoRows: "1fr",     // toutes les cartes d'une même rangée ont
+                                  // exactement la même hauteur
         gap: 12,
       }}>
         {primaries.map((c, i) => (
@@ -394,6 +411,77 @@ function SectorZoomView({
         ))}
       </div>
     </m.div>
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * SideRailClusters — chips verticales des autres secteurs à gauche du zoom.
+ *
+ * Profite de l'espace blanc à gauche du conteneur principal pour donner un
+ * accès direct vers les autres zones, sans repasser par la carte macro.
+ * Bouton "Carte" au-dessus pour revenir à la vue d'ensemble.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function SideRailClusters({
+  clusters, onPick, onBackToMap,
+}: {
+  clusters: VivierCluster[]
+  onPick: (id: string) => void
+  onBackToMap: () => void
+}) {
+  if (clusters.length === 0) return <div />
+  return (
+    <aside style={{
+      position: "sticky", top: 16,
+      display: "flex", flexDirection: "column", gap: 6,
+    }}>
+      <button
+        onClick={onBackToMap}
+        style={{
+          fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          background: "rgba(124,99,200,0.06)",
+          border: "1px solid rgba(124,99,200,0.22)",
+          borderRadius: 9, padding: "8px 12px", cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        ◍ Vue d&apos;ensemble
+      </button>
+      <div style={{
+        fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
+        letterSpacing: "0.08em", textTransform: "uppercase",
+        padding: "10px 4px 4px",
+      }}>
+        Autres secteurs
+      </div>
+      {clusters.map((c) => (
+        <button
+          key={c.id}
+          onClick={() => onPick(c.id)}
+          style={{
+            fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
+            color: hsl(c.hue, 50, 30),
+            background: hsl(c.hue, 70, 95),
+            border: `1px solid ${hsl(c.hue, 50, 82)}`,
+            borderRadius: 9, padding: "8px 10px", cursor: "pointer",
+            textAlign: "left",
+            display: "flex", alignItems: "center", gap: 7,
+          }}
+        >
+          <span style={{
+            width: 7, height: 7, borderRadius: "50%",
+            background: hsl(c.hue, 65, 55), flexShrink: 0,
+          }} />
+          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {c.label}
+          </span>
+          <span style={{ fontSize: 10, color: hsl(c.hue, 35, 45), fontWeight: 700 }}>
+            {c.total}
+          </span>
+        </button>
+      ))}
+    </aside>
   )
 }
 
@@ -436,12 +524,13 @@ function CandidateCardLight({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: EASE, delay: 0.18 + Math.min(index * 0.025, 0.25) }}
       whileHover={{ y: -2, boxShadow: `0 12px 24px ${hsl(cluster.hue, 50, 60)}22` }}
-      style={{ position: "relative" }}
+      style={{ position: "relative", display: "flex" }}
     >
       <Link
         href={`/workspace/vivier/${c.id}`}
         style={{
-          display: "block",
+          display: "flex", flexDirection: "column",
+          width: "100%",          // fill grid cell width
           position: "relative",
           textAlign: "left", textDecoration: "none", cursor: "pointer", fontFamily: "inherit",
           background: "rgba(255,255,255,0.92)",
@@ -452,6 +541,7 @@ function CandidateCardLight({
           overflow: "hidden",
           boxShadow: "0 1px 2px rgba(17,24,39,0.04)",
           color: "inherit",
+          gap: 7,
         }}
       >
         {/* Bande verticale couleur secteur — bicolore en dégradé si profil
