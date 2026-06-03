@@ -758,7 +758,20 @@ export default function VivierPage() {
       {empty ? (
         <EmptyDropZone onPick={() => inputRef.current?.click()} />
       ) : viewMode === "map" ? (
-        <VivierMapView candidates={parsedOrErrored.filter((c) => c.parse_status === "parsed")} />
+        <VivierMapView
+          candidates={parsedOrErrored.filter((c) => c.parse_status === "parsed")}
+          onClusteringDone={async () => {
+            if (!userId) return
+            const { data } = await sb
+              .from("candidates")
+              .select(CANDIDATE_COLUMNS)
+              .eq("user_id", userId)
+              .not("tags", "cs", "{ancien}")
+              .order("created_at", { ascending: false })
+              .limit(200)
+            setCandidates((data ?? []) as unknown as Candidate[])
+          }}
+        />
       ) : viewMode === "by-sector" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {bySector.length === 0 ? (

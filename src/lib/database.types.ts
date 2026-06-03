@@ -77,6 +77,16 @@ export type ScoreDimensions = {
   [key: string]: number | undefined
 }
 
+// ── Cluster assignment — produit par Nora lors d'un passage de clustering
+// du vivier. Un candidat a 1 à 3 entries (rarement 4). Les labels sont libres,
+// déterminés holistiquement par Nora à partir de tout le vivier.
+export interface ClusterAssignment {
+  /** Libellé du cluster (libre, défini par Nora pour le vivier courant). */
+  label: string
+  /** 0.5 à 1.0 — poids du candidat dans ce cluster. 1.0 = cœur de cible. */
+  weight: number
+}
+
 // ── Taxonomy: multi-axis tag set produced at parse time, enriched by matching ──
 export type CandidateTaxonomy = {
   role_family?: string[]      // ["Data Engineer", "ML Engineer"]
@@ -283,6 +293,10 @@ export type Database = {
           languages: string[] | null
           parsed_cv: ParsedCv | null
           taxonomy: CandidateTaxonomy | null
+          /** Assignations de clusters produites par Nora lors d'un passage
+           *  de clustering du vivier. NULL = pas encore classé. */
+          cluster_assignments: ClusterAssignment[] | null
+          cluster_assigned_at: string | null
           raw_text: string | null
           search_tsv: unknown
           cv_file_path: string | null
@@ -318,6 +332,8 @@ export type Database = {
           languages?: string[] | null
           parsed_cv?: ParsedCv | null
           taxonomy?: CandidateTaxonomy | null
+          cluster_assignments?: ClusterAssignment[] | null
+          cluster_assigned_at?: string | null
           raw_text?: string | null
           cv_file_path?: string | null
           cv_file_name?: string | null

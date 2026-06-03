@@ -17,7 +17,7 @@
  * `candidates` filtrée par la page parente (qui gère search + filtres).
  */
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { m, AnimatePresence, LayoutGroup } from "framer-motion"
 import type { Candidate } from "@/lib/database.types"
@@ -27,40 +27,126 @@ import { candidateRefLabel } from "@/lib/candidate-ref"
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const SPRING = { type: "spring" as const, stiffness: 220, damping: 28, mass: 0.9 }
 
-export default function VivierMapView({ candidates }: { candidates: Candidate[] }) {
+export default function VivierMapView({
+  candidates,
+  onClusteringDone,
+}: {
+  candidates: Candidate[]
+  /** Appelé après un passage de clustering réussi pour que le parent
+   *  recharge ses données — la carte se redessine alors avec les nouveaux
+   *  cluster_assignments. */
+  onClusteringDone?: () => void
+}) {
   const clusters = useMemo(() => buildClusters(candidates), [candidates])
   const [zoomedId, setZoomedId] = useState<string | null>(null)
 
-  if (clusters.length === 0) {
-    return (
-      <div style={{
-        padding: "60px 24px", textAlign: "center",
-        background: "white", border: "1px dashed #E5E7EB", borderRadius: 14,
-        color: "#6B7280", fontSize: 14,
-      }}>
-        Aucun candidat ne correspond.
-      </div>
-    )
+  // État du clustering : busy = appel API en cours ; error = message à
+  // afficher si rate. Pas de cache — le parent rafraîchit après ok.
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const triggerRunRef = useRef(false)
+  const everClassified = candidates.some((c) => (c.cluster_assignments ?? []).length > 0)
+
+  const runClustering = async () => {
+    if (busy) return
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch(`/api/vivier/cluster`, { method: "POST" })
+      const data = await res.json().catch(() => null) as { error?: string; message?: string } | null
+      if (!res.ok) throw new Error(data?.message ?? data?.error ?? `HTTP ${res.status}`)
+      onClusteringDone?.()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
   }
+
+  // Auto-déclenche au premier passage si aucun candidat n'a jamais été
+  // classé. Évite un état vide intimidant au premier arrivée sur la Carte.
+  useEffect(() => {
+    if (triggerRunRef.current) return
+    if (busy) return
+    if (candidates.length === 0) return
+    if (everClassified) return
+    triggerRunRef.current = true
+    void runClustering()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidates.length, everClassified])
 
   const zoomed = zoomedId ? clusters.find((c) => c.id === zoomedId) ?? null : null
 
   return (
-    <LayoutGroup>
-      <AnimatePresence mode="wait" initial={false}>
-        {!zoomed ? (
-          <MacroMap key="macro" clusters={clusters} onZoom={setZoomedId} />
-        ) : (
-          <SectorZoomView
-            key={`zoom-${zoomed.id}`}
-            cluster={zoomed}
-            clusters={clusters}
-            onBack={() => setZoomedId(null)}
-            onJumpToCluster={setZoomedId}
-          />
-        )}
-      </AnimatePresence>
-    </LayoutGroup>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Toolbar — état + bouton "Réorganiser avec Nora" */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 12, flexWrap: "wrap",
+      }}>
+        <p style={{ margin: 0, fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+          {busy
+            ? "✦ Nora analyse votre vivier et regroupe les profils similaires…"
+            : everClassified
+              ? "Carte structurée par Nora à partir de vos candidats."
+              : "Lancez une analyse pour que Nora regroupe les profils en secteurs cohérents."}
+        </p>
+        <button
+          onClick={runClustering}
+          disabled={busy}
+          style={{
+            fontFamily: "inherit", fontSize: 12, fontWeight: 700,
+            color: "white",
+            padding: "7px 14px", borderRadius: 9,
+            background: busy
+              ? "rgba(124,99,200,0.5)"
+              : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            border: "none",
+            cursor: busy ? "wait" : "pointer",
+            boxShadow: busy ? "none" : "0 6px 16px -8px rgba(124,99,200,0.5)",
+          }}
+        >
+          {busy ? "Analyse en cours…" : everClassified ? "✦ Réorganiser avec Nora" : "✦ Analyser le vivier"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{
+          padding: "9px 12px", fontSize: 12, color: "#B91C1C",
+          background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
+          borderRadius: 9,
+        }}>
+          ⚠ {error}
+        </div>
+      )}
+
+      {clusters.length === 0 ? (
+        <div style={{
+          padding: "60px 24px", textAlign: "center",
+          background: "white", border: "1px dashed #E5E7EB", borderRadius: 14,
+          color: "#6B7280", fontSize: 14,
+        }}>
+          {busy
+            ? "Patience, Nora structure votre vivier."
+            : "Aucun candidat ne correspond."}
+        </div>
+      ) : (
+        <LayoutGroup>
+          <AnimatePresence mode="wait" initial={false}>
+            {!zoomed ? (
+              <MacroMap key="macro" clusters={clusters} onZoom={setZoomedId} />
+            ) : (
+              <SectorZoomView
+                key={`zoom-${zoomed.id}`}
+                cluster={zoomed}
+                clusters={clusters}
+                onBack={() => setZoomedId(null)}
+                onJumpToCluster={setZoomedId}
+              />
+            )}
+          </AnimatePresence>
+        </LayoutGroup>
+      )}
+    </div>
   )
 }
 

@@ -60,9 +60,10 @@ export interface VivierCluster {
   label: string
   /** Hue HSL stable, dérivé du slug. */
   hue: number
-  /** Candidats dont c'est le secteur primaire. */
+  /** Candidats dont c'est le secteur primaire (poids le plus élevé). */
   primary: Candidate[]
-  /** Candidats dont c'est le secteur secondaire (profils hybrides). */
+  /** Candidats hybrides — c'est l'un de leurs secteurs secondaires (poids ≥ 0.5
+   *  mais inférieur au poids de leur secteur primaire). */
   secondary: Candidate[]
   /** Total visible dans ce secteur (primaires + secondaires). */
   total: number
@@ -74,19 +75,35 @@ export interface VivierCluster {
   radius: number
 }
 
-/** Lit le cluster primaire / secondaire d'un candidat. On lit la role_family
- *  fine produite par le LLM puis on la consolide vers une famille macro
- *  (BROAD_CLUSTERS) pour que l'atlas reste lisible. Si la primaire et la
- *  secondaire retombent sur la MÊME famille macro après consolidation, on
- *  oublie la secondaire (pas d'hybride artificiel). */
-export function candidateClusters(c: Candidate): { primary: string; secondary: string | null } {
+/** Lit les clusters d'un candidat.
+ *
+ *  Priorité 1 : cluster_assignments produit par Nora lors d'un passage de
+ *  clustering (POST /api/vivier/cluster). C'est la vérité — Nora a regardé
+ *  le profil entier et a décidé.
+ *
+ *  Priorité 2 (fallback, pas encore classé) : on consolide la role_family
+ *  fine du parsing vers une famille macro. Permet d'afficher quelque chose
+ *  sur la carte même avant le premier passage de clustering. */
+export function candidateClusters(c: Candidate): { primary: string; secondary: string | null; extras: string[] } {
+  const assigns = c.cluster_assignments ?? []
+  if (assigns.length > 0) {
+    // Garantir le tri par poids décroissant (la route trie déjà mais on
+    // se reblinde en lecture).
+    const sorted = [...assigns].sort((a, b) => b.weight - a.weight)
+    const primary = sorted[0].label
+    const secondary = sorted[1]?.label ?? null
+    const extras = sorted.slice(2).map((a) => a.label)
+    return { primary, secondary, extras }
+  }
+  // Fallback : on n'a pas encore lancé le clustering, on retombe sur la
+  // consolidation heuristique.
   const family = c.taxonomy?.role_family ?? []
   const rawPrimary = (family[0] ?? "").trim()
   const rawSecondary = (family[1] ?? "").trim()
   const primary = rawPrimary ? consolidateClusterLabel(rawPrimary) : FALLBACK_CLUSTER
   const secondary = rawSecondary ? consolidateClusterLabel(rawSecondary) : null
-  if (secondary && secondary === primary) return { primary, secondary: null }
-  return { primary, secondary }
+  if (secondary && secondary === primary) return { primary, secondary: null, extras: [] }
+  return { primary, secondary, extras: [] }
 }
 
 /** Clé safe pour HTML/SVG (pas d'espaces, accents, caractères spéciaux).
@@ -119,15 +136,18 @@ export function buildClusters(candidates: Candidate[]): VivierCluster[] {
   const bucket = new Map<string, { label: string; primary: Candidate[]; secondary: Candidate[] }>()
 
   for (const c of candidates) {
-    const { primary, secondary } = candidateClusters(c)
+    const { primary, secondary, extras } = candidateClusters(c)
     const pk = clusterKey(primary)
     const pEntry = bucket.get(pk) ?? { label: primary, primary: [], secondary: [] }
     pEntry.primary.push(c)
     bucket.set(pk, pEntry)
 
-    if (secondary) {
-      const sk = clusterKey(secondary)
-      const sEntry = bucket.get(sk) ?? { label: secondary, primary: [], secondary: [] }
+    // Tous les clusters non-primaires reçoivent le candidat en hybride
+    // (rare au-delà du secondaire — max 3 ou 4 dans des cas vraiment
+    // ambigus, c'est ce que Nora décide).
+    for (const lbl of [secondary, ...extras].filter((x): x is string => !!x)) {
+      const sk = clusterKey(lbl)
+      const sEntry = bucket.get(sk) ?? { label: lbl, primary: [], secondary: [] }
       sEntry.secondary.push(c)
       bucket.set(sk, sEntry)
     }
