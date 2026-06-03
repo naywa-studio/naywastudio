@@ -284,7 +284,6 @@ function SectorZoomView({
 }) {
   const primaries = cluster.primary
   const hybrids   = cluster.secondary
-  const otherClusters = clusters.filter((c) => c.id !== cluster.id)
 
   return (
     <div style={{
@@ -292,11 +291,12 @@ function SectorZoomView({
       gridTemplateColumns: "minmax(140px, 180px) minmax(0, 1fr)",
       gap: 16, alignItems: "start",
     }}>
-      {/* Side rail — autres secteurs cliquables. Profite de l'espace blanc
-          à gauche pour donner un accès direct aux autres zones sans
-          repasser par la carte macro. */}
+      {/* Side rail — TOUS les secteurs, avec le courant mis en évidence.
+          Stable : aucun ne disparait quand on change de zone, on voit
+          toujours l'atlas complet et où on se trouve. */}
       <SideRailClusters
-        clusters={otherClusters}
+        clusters={clusters}
+        currentId={cluster.id}
         onPick={onJumpToCluster}
         onBackToMap={onBack}
       />
@@ -424,9 +424,10 @@ function SectorZoomView({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function SideRailClusters({
-  clusters, onPick, onBackToMap,
+  clusters, currentId, onPick, onBackToMap,
 }: {
   clusters: VivierCluster[]
+  currentId: string
   onPick: (id: string) => void
   onBackToMap: () => void
 }) {
@@ -453,34 +454,49 @@ function SideRailClusters({
         letterSpacing: "0.08em", textTransform: "uppercase",
         padding: "10px 4px 4px",
       }}>
-        Autres secteurs
+        Secteurs
       </div>
-      {clusters.map((c) => (
-        <button
-          key={c.id}
-          onClick={() => onPick(c.id)}
-          style={{
-            fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
-            color: hsl(c.hue, 50, 30),
-            background: hsl(c.hue, 70, 95),
-            border: `1px solid ${hsl(c.hue, 50, 82)}`,
-            borderRadius: 9, padding: "8px 10px", cursor: "pointer",
-            textAlign: "left",
-            display: "flex", alignItems: "center", gap: 7,
-          }}
-        >
-          <span style={{
-            width: 7, height: 7, borderRadius: "50%",
-            background: hsl(c.hue, 65, 55), flexShrink: 0,
-          }} />
-          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {c.label}
-          </span>
-          <span style={{ fontSize: 10, color: hsl(c.hue, 35, 45), fontWeight: 700 }}>
-            {c.total}
-          </span>
-        </button>
-      ))}
+      {clusters.map((c) => {
+        const active = c.id === currentId
+        return (
+          <button
+            key={c.id}
+            onClick={() => { if (!active) onPick(c.id) }}
+            aria-current={active ? "true" : undefined}
+            style={{
+              fontFamily: "inherit", fontSize: 11.5,
+              fontWeight: active ? 800 : 600,
+              color: hsl(c.hue, active ? 60 : 50, active ? 20 : 30),
+              background: active ? hsl(c.hue, 75, 88) : hsl(c.hue, 70, 96),
+              border: `${active ? "1.5px" : "1px"} solid ${hsl(c.hue, active ? 55 : 50, active ? 60 : 82)}`,
+              borderRadius: 9, padding: "8px 10px",
+              cursor: active ? "default" : "pointer",
+              textAlign: "left",
+              display: "flex", alignItems: "center", gap: 7,
+              boxShadow: active ? `0 4px 14px -6px ${hsl(c.hue, 50, 50)}` : "none",
+              position: "relative",
+            }}
+          >
+            {active && (
+              <span style={{
+                position: "absolute", left: -3, top: "20%", bottom: "20%", width: 3,
+                borderRadius: 2,
+                background: hsl(c.hue, 65, 45),
+              }} />
+            )}
+            <span style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: hsl(c.hue, 65, 55), flexShrink: 0,
+            }} />
+            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {c.label}
+            </span>
+            <span style={{ fontSize: 10, color: hsl(c.hue, 35, active ? 30 : 45), fontWeight: 700 }}>
+              {c.total}
+            </span>
+          </button>
+        )
+      })}
     </aside>
   )
 }
