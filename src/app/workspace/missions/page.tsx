@@ -4,21 +4,52 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
-import type { Job } from "@/lib/database.types"
+import type { Candidate, Job } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { seniorityIntervalLabel } from "@/lib/seniority"
+import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
+import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
-// La séniorité se saisit désormais en intervalle d'expérience (années).
-// CONTRACTS retiré — le type de contrat (CDI/CDD/...) sera demandé au
-// moment du chiffrage dans l'onglet Pricing, pas à la création de mission.
+/** Pour chaque mission : couleurs dérivées de ses candidats matchés.
+ *  - clusterBars : 1 ou 2 hues dominantes pour la bande verticale gauche.
+ *  - top1Label / count : pour le badge contextuel sous le titre. */
+interface MissionVisual {
+  hues: number[]            // 0..2 éléments
+  top1Label: string | null
+  totalMatches: number
+}
+
+/** Stats globales sourcing pour la sidebar gauche — fenêtre "cette semaine". */
+interface WeeklyStats {
+  mailsSent: number
+  replies: number
+  interviews: number
+  topRejectReasons: Array<{ reason: RejectReason; count: number }>
+}
+
+const WEEK_START_ISO = (() => {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - d.getDay() + 1) // lundi
+  return d.toISOString()
+})()
+const MONTH_START_ISO = (() => {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - 30)
+  return d.toISOString()
+})()
 
 export default function MissionsPage() {
   const sb = useMemo(() => getSupabase(), [])
   const [jobs, setJobs] = useState<Job[]>([])
+  const [visuals, setVisuals] = useState<Record<string, MissionVisual>>({})
+  const [stats, setStats] = useState<WeeklyStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
+  const [query, setQuery] = useState("")
 
   useEffect(() => {
     let mounted = true
@@ -26,9 +57,56 @@ export default function MissionsPage() {
     ;(async () => {
       const { data: { user } } = await sb.auth.getUser()
       if (!user || !mounted) return
-      const { data } = await sb.from("jobs").select("*").order("created_at", { ascending: false })
+
+      // 1) Missions
+      const { data: jobsData } = await sb
+        .from("jobs").select("*").order("created_at", { ascending: false })
       if (!mounted) return
-      setJobs((data ?? []) as Job[])
+      const jobsRows = (jobsData ?? []) as Job[]
+      setJobs(jobsRows)
+
+      // 2) Matches scorés (score ≥ 50) → couleurs cluster par mission.
+      //    On récupère uniquement ce dont a besoin (cluster + taxonomy).
+      const { data: matchRows } = await sb
+        .from("match_assessments")
+        .select("job_id, candidate:candidates(id, cluster_assignments, taxonomy, parse_status, tags)")
+        .gte("score", 50)
+      if (!mounted) return
+      const byJob = new Map<string, Array<Candidate>>()
+      for (const r of (matchRows ?? []) as unknown as Array<{ job_id: string; candidate: Candidate | null }>) {
+        const cand = r.candidate
+        if (!cand || cand.parse_status !== "parsed") continue
+        if (cand.tags?.includes("ancien")) continue
+        const arr = byJob.get(r.job_id) ?? []
+        arr.push(cand); byJob.set(r.job_id, arr)
+      }
+      const vMap: Record<string, MissionVisual> = {}
+      for (const [jobId, cands] of byJob) {
+        vMap[jobId] = computeMissionVisual(cands)
+      }
+      setVisuals(vMap)
+
+      // 3) Stats hebdo : mails in/out, entretiens, top motifs d'écart (30j).
+      const [mailsRes, interviewsRes, rejectsRes] = await Promise.all([
+        sb.from("email_messages").select("id, direction").gte("created_at", WEEK_START_ISO),
+        sb.from("match_assessments").select("id").gte("interview_at", WEEK_START_ISO).not("interview_at", "is", null),
+        sb.from("match_assessments").select("reject_reason").not("reject_reason", "is", null).gte("updated_at", MONTH_START_ISO),
+      ])
+      if (!mounted) return
+      const mails = (mailsRes.data ?? []) as Array<{ direction: string }>
+      const mailsSent = mails.filter((m) => m.direction === "outbound").length
+      const replies = mails.filter((m) => m.direction === "inbound").length
+      const interviews = (interviewsRes.data ?? []).length
+      const reasonCount = new Map<RejectReason, number>()
+      for (const r of (rejectsRes.data ?? []) as Array<{ reject_reason: RejectReason | null }>) {
+        if (!r.reject_reason) continue
+        reasonCount.set(r.reject_reason, (reasonCount.get(r.reject_reason) ?? 0) + 1)
+      }
+      const topRejectReasons = Array.from(reasonCount, ([reason, count]) => ({ reason, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3)
+      setStats({ mailsSent, replies, interviews, topRejectReasons })
+
       setLoading(false)
 
       channel = sb
@@ -50,6 +128,19 @@ export default function MissionsPage() {
     return () => { mounted = false; if (channel) sb.removeChannel(channel) }
   }, [sb])
 
+  const filteredJobs = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return jobs
+    return jobs.filter((j) => {
+      const hay = [
+        j.title, j.role_name, j.location, j.seniority,
+        ...(j.required_skills ?? []),
+        ...(j.nice_to_have_skills ?? []),
+      ].filter(Boolean).join(" ").toLowerCase()
+      return hay.includes(q)
+    })
+  }, [jobs, query])
+
   const handleCreated = useCallback((job: Job) => {
     setJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)])
     setFormOpen(false)
@@ -58,11 +149,12 @@ export default function MissionsPage() {
   return (
     <main style={{
       minHeight: "calc(100vh - 60px)",
-      padding: "40px 24px 80px",
-      maxWidth: 1100, margin: "0 auto",
+      padding: "32px 24px 80px",
+      maxWidth: 1640, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
+      {/* Header — titre + bouton créer */}
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 22 }}>
         <div>
           <span style={{
             display: "inline-block",
@@ -74,7 +166,7 @@ export default function MissionsPage() {
             Missions
           </span>
           <h1 style={{ margin: 0, fontSize: "clamp(26px, 3vw, 34px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
-            Vos missions ouvertes
+            Vos missions
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
             {jobs.length === 0
@@ -106,14 +198,153 @@ export default function MissionsPage() {
       ) : (
         <div style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-          gap: 16,
+          gridTemplateColumns: "minmax(220px, 260px) minmax(0, 1fr)",
+          gap: 16, alignItems: "start",
         }}>
-          {jobs.map((j, i) => <JobCard key={j.id} job={j} delay={Math.min(i * 0.04, 0.3)} />)}
+          {/* Sidebar — récap activité + top motifs d'écart */}
+          <SidebarStats stats={stats} totalJobs={jobs.length} />
+
+          {/* Right — search bar pleine largeur + grid missions */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+            <input
+              type="search"
+              placeholder="Rechercher par titre, lieu, compétence…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{
+                width: "100%",
+                fontSize: 13.5, color: "#111827",
+                padding: "11px 14px",
+                background: "white",
+                border: "1px solid #E5E7EB",
+                borderRadius: 10,
+                outline: "none", fontFamily: "inherit",
+                transition: "border-color 150ms, box-shadow 150ms",
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,99,200,0.10)" }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none" }}
+            />
+            {filteredJobs.length === 0 ? (
+              <div style={{
+                padding: "40px 24px", textAlign: "center",
+                background: "white", border: "1px dashed #E5E7EB", borderRadius: 14,
+                color: "#6B7280", fontSize: 14,
+              }}>
+                Aucune mission ne correspond.
+              </div>
+            ) : (
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                gridAutoRows: "1fr",
+                gap: 12,
+              }}>
+                {filteredJobs.map((j, i) => (
+                  <JobCard
+                    key={j.id}
+                    job={j}
+                    visual={visuals[j.id]}
+                    delay={Math.min(i * 0.03, 0.2)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </main>
   )
+}
+
+/* ─── Sidebar ──────────────────────────────────────────────────── */
+
+function SidebarStats({ stats, totalJobs }: { stats: WeeklyStats | null; totalJobs: number }) {
+  return (
+    <aside style={{
+      position: "sticky", top: 16,
+      display: "flex", flexDirection: "column", gap: 14,
+      paddingTop: 38,  // aligne avec le bas de la recherche
+    }}>
+      <StatGroup title="Cette semaine">
+        <StatRow label="Mails envoyés"     value={stats?.mailsSent ?? 0} />
+        <StatRow label="Réponses"          value={stats?.replies ?? 0} tone={(stats?.replies ?? 0) > 0 ? "good" : undefined} />
+        <StatRow label="Entretiens passés" value={stats?.interviews ?? 0} tone={(stats?.interviews ?? 0) > 0 ? "good" : undefined} />
+      </StatGroup>
+
+      {stats && stats.topRejectReasons.length > 0 && (
+        <StatGroup title="Top motifs d'écart (30 j)">
+          {stats.topRejectReasons.map((r) => (
+            <StatRow
+              key={r.reason}
+              label={rejectReasonLabel(r.reason)}
+              value={r.count}
+              tone="warn"
+            />
+          ))}
+        </StatGroup>
+      )}
+
+      <StatGroup title="Vivier mission">
+        <StatRow label="Missions totales" value={totalJobs} />
+      </StatGroup>
+    </aside>
+  )
+}
+
+function StatGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
+      padding: 12,
+    }}>
+      <div style={{
+        fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
+        letterSpacing: "0.08em", textTransform: "uppercase",
+        marginBottom: 8, padding: "0 2px",
+      }}>
+        {title}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function StatRow({ label, value, tone }: { label: string; value: number | string; tone?: "good" | "warn" }) {
+  const valueColor = tone === "good" ? "#15803d" : tone === "warn" ? "#B45309" : "#111827"
+  return (
+    <div style={{
+      display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8,
+      padding: "4px 2px",
+      fontSize: 12,
+    }}>
+      <span style={{ color: "#6B7280" }}>{label}</span>
+      <span style={{ fontWeight: 800, color: valueColor, fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+/* ─── Cluster color helper ────────────────────────────────────── */
+
+function computeMissionVisual(candidates: Candidate[]): MissionVisual {
+  const counts = new Map<string, number>()
+  for (const c of candidates) {
+    const { primary } = candidateClusters(c)
+    counts.set(primary, (counts.get(primary) ?? 0) + 1)
+  }
+  const sorted = Array.from(counts, ([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count)
+  if (sorted.length === 0) return { hues: [], top1Label: null, totalMatches: 0 }
+  const top1 = sorted[0]
+  const total = candidates.length
+  const hues: number[] = [clusterHue(top1.label)]
+  // Bicolore si le 2ᵉ représente ≥ 30 % du total — sinon couleur unique.
+  if (sorted.length > 1 && sorted[1].count / total >= 0.3) {
+    hues.push(clusterHue(sorted[1].label))
+  }
+  return { hues, top1Label: top1.label, totalMatches: total }
 }
 
 /* ─── Helpers ──────────────────────────────────────────────────── */
@@ -133,26 +364,47 @@ function seniorityLabel(job: Job): string | null {
 
 /* ─── Job card ─────────────────────────────────────────────────── */
 
-function JobCard({ job, delay }: { job: Job; delay: number }) {
+function JobCard({ job, visual, delay }: {
+  job: Job
+  visual: MissionVisual | undefined
+  delay: number
+}) {
   const ms = job.match_status
+
+  // Bande couleur secteur — dérivée des candidats matchés. Monochrome ou
+  // bicolore en gradient selon la composition du matching. Gris si pas
+  // encore de matching.
+  const hues = visual?.hues ?? []
+  const barBackground =
+    hues.length === 0   ? "#E5E7EB" :
+    hues.length === 1   ? hsl(hues[0], 60, 55) :
+    `linear-gradient(180deg, ${hsl(hues[0], 60, 55)} 0%, ${hsl(hues[1], 60, 55)} 100%)`
+
   return (
     <m.div
-      initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay, ease: EASE }}
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay, ease: EASE }}
       whileHover={{ y: -2 }}
       style={{
-        background: "white", borderRadius: 14, border: "1px solid #F0ECF8",
-        padding: 18, display: "flex", flexDirection: "column", gap: 12,
+        background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
+        padding: "14px 16px 14px 20px",
+        display: "flex", flexDirection: "column", gap: 9,
+        position: "relative", overflow: "hidden",
       }}
     >
+      {/* Bande verticale couleur secteur dominant */}
+      <span style={{
+        position: "absolute", top: 0, bottom: 0, left: 0, width: 4,
+        background: barBackground,
+      }} />
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
         <div style={{ minWidth: 0 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#111827", lineHeight: 1.3 }}>
+          <h2 style={{ margin: 0, fontSize: 14.5, fontWeight: 800, color: "#111827", lineHeight: 1.3 }}>
             {job.role_name?.trim() || job.title}
           </h2>
-          {/* Intitulé indicatif affiché en second s'il diffère du nom du poste */}
           {job.role_name?.trim() && job.title && job.title !== job.role_name && (
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {job.title}
             </p>
           )}
@@ -160,37 +412,47 @@ function JobCard({ job, delay }: { job: Job; delay: number }) {
         <StatusChip status={job.status} />
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 12, color: "#6B7280" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: 11, color: "#6B7280" }}>
         {job.location && <Meta>{job.location}</Meta>}
         {seniorityLabel(job) && <Meta>{seniorityLabel(job)}</Meta>}
         {job.contract_type && <Meta>{job.contract_type}</Meta>}
       </div>
 
-      {job.required_skills && job.required_skills.length > 0 && (
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {job.required_skills.slice(0, 4).map((s) => (
-            <span key={s} style={{
-              fontSize: 11, color: "#4B5563",
-              background: "#F8F6FF", border: "1px solid #F0ECF8",
-              padding: "3px 8px", borderRadius: 6,
-            }}>{s}</span>
-          ))}
-          {job.required_skills.length > 4 && (
-            <span style={{ fontSize: 11, color: "#9CA3AF", padding: "3px 4px" }}>+{job.required_skills.length - 4}</span>
-          )}
+      {/* Badge cluster dominant — la "saveur" du sourcing pour cette mission */}
+      {visual?.top1Label && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            fontSize: 10, fontWeight: 700,
+            color: hsl(hues[0], 55, 35),
+            background: hsl(hues[0], 70, 95),
+            border: `1px solid ${hsl(hues[0], 50, 80)}`,
+            borderRadius: 100, padding: "1.5px 8px",
+          }}>
+            <span style={{
+              width: 5, height: 5, borderRadius: "50%",
+              background: hues.length > 1
+                ? `linear-gradient(180deg, ${hsl(hues[0], 65, 55)} 0%, ${hsl(hues[1], 65, 55)} 100%)`
+                : hsl(hues[0], 65, 55),
+            }} />
+            {visual.top1Label}
+          </span>
+          <span style={{ fontSize: 10, color: "#9CA3AF" }}>
+            · {visual.totalMatches} match{visual.totalMatches > 1 ? "s" : ""}
+          </span>
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 4 }}>
-        <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 2 }}>
+        <span style={{ fontSize: 11, color: "#9CA3AF" }}>
           {ms === "matching" ? "✦ Matching en cours…"
             : ms === "done" ? "✓ Matché"
             : ms === "error" ? "Erreur matching"
             : "Pas encore matché"}
         </span>
         <Link href={`/workspace/missions/${job.id}`} style={{
-          fontSize: 12, fontWeight: 600, color: "#7C63C8",
-          padding: "6px 12px", borderRadius: 8,
+          fontSize: 11, fontWeight: 600, color: "#7C63C8",
+          padding: "5px 10px", borderRadius: 7,
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.16)",
           textDecoration: "none",
         }}>
