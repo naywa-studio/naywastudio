@@ -1,12 +1,13 @@
 /**
  * vivier-clusters — dérive les secteurs (clusters) d'un vivier à partir de
- * la liste des candidats. Pas de migration DB pour V1 : on lit
- * `candidate.taxonomy.role_family[0]` comme cluster primaire, et
- * `role_family[1]` comme cluster secondaire si présent (profils hybrides).
+ * la liste des candidats.
  *
- * Les noms de clusters viennent donc directement du LLM côté parsing CV.
- * Si le LLM produit "Data engineer" et "Data Engineer" pour deux profils,
- * la dédupe ci-dessous les fusionne (clé : lowercase trim).
+ * Pas de migration DB pour V1 : on lit `candidate.taxonomy.role_family[0]`
+ * comme cluster primaire et `role_family[1]` comme cluster secondaire si
+ * présent (profils hybrides). MAIS les role_family produits par le LLM sont
+ * très fins ("Senior Data Engineer Spark", "Big Data Developer"…) — ça
+ * créerait 1 zone par profil, ce qui casse l'idée d'atlas. On consolide
+ * donc d'abord vers ~10 grandes familles métier via consolidateClusterLabel.
  *
  * Couleurs / positions : déterministes à partir du nom du cluster (hash →
  * hue), pour que les couleurs restent stables entre les renders.
@@ -16,6 +17,41 @@ import type { Candidate } from "./database.types"
 
 /** Etiquette de fallback quand le LLM n'a pas pu déterminer un rôle. */
 const FALLBACK_CLUSTER = "À reclasser"
+
+/** Familles métier macro — l'atlas du vivier reste lisible quel que soit le
+ *  niveau de finesse renvoyé par le LLM. Ordonné par fréquence présumée. */
+const BROAD_CLUSTERS: ReadonlyArray<{ label: string; tokens: string[] }> = [
+  { label: "Data",              tokens: ["data engineer", "data engineering", "data eng", "data scientist", "data science", "data analyst", "analytics engineer", "big data", "data platform", "data ops", "machine learning", "ml engineer", "ml ops", "ia engineer", "ai engineer", "data"] },
+  { label: "Backend",           tokens: ["backend", "back-end", "back end", "api", "node.js", "node engineer", "software engineer", "software developer", "ingénieur logiciel", "ingénieur software", "java engineer", "python engineer", "golang", "go engineer", "kotlin", "scala engineer", "rust engineer", "platform engineer"] },
+  { label: "Frontend",          tokens: ["frontend", "front-end", "front end", "ui engineer", "ux engineer", "react developer", "vue developer", "angular", "javascript developer", "design system"] },
+  { label: "Fullstack",         tokens: ["full stack", "fullstack", "full-stack", "développeur full", "développeuse full", "full stack developer", "fullstack engineer", "développeur"] },
+  { label: "Mobile",            tokens: ["ios", "android", "mobile", "react native", "flutter", "swift", "kotlin android"] },
+  { label: "DevOps / Cloud",    tokens: ["devops", "sre", "site reliability", "cloud engineer", "cloud architect", "platform engineer", "infrastructure", "kubernetes", "terraform", "infra", "ingénieur devops", "ingénieur cloud"] },
+  { label: "Cybersécurité",     tokens: ["security", "cyber", "sécurité", "infosec", "pentest", "appsec", "soc analyst"] },
+  { label: "Quant / Finance",   tokens: ["quant", "trading", "actuaire", "actuary", "risk analyst", "compliance officer", "compliance", "finance", "audit"] },
+  { label: "Produit / PM",      tokens: ["product manager", "product owner", "product designer", "pm", "po"] },
+  { label: "Design",            tokens: ["ux designer", "ui designer", "designer produit", "design ops"] },
+  { label: "Étudiants",         tokens: ["étudiant", "étudiante", "stagiaire", "stage", "junior", "alternant", "alternance"] },
+]
+
+/** Ramène un libellé fin (role_family produit par le LLM) vers une famille
+ *  métier macro. Si rien ne matche, on garde le libellé d'origine (capitalisé
+ *  proprement) pour ne pas perdre l'info — ça générera une petite zone "À
+ *  reclasser" ou un libellé fin isolé. */
+export function consolidateClusterLabel(raw: string): string {
+  const norm = raw.toLowerCase().trim()
+  if (!norm) return FALLBACK_CLUSTER
+  for (const broad of BROAD_CLUSTERS) {
+    if (broad.tokens.some((t) => norm.includes(t))) return broad.label
+  }
+  // Capitaliser proprement le libellé d'origine pour les niches.
+  return raw
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ")
+    .trim()
+}
 
 export interface VivierCluster {
   /** Clé stable (slug lowercase) pour comparer et router. */
@@ -38,16 +74,31 @@ export interface VivierCluster {
   radius: number
 }
 
-/** Lit le cluster primaire / secondaire d'un candidat depuis son parsing.
- *  Renvoie FALLBACK_CLUSTER pour les CVs sans role_family. */
+/** Lit le cluster primaire / secondaire d'un candidat. On lit la role_family
+ *  fine produite par le LLM puis on la consolide vers une famille macro
+ *  (BROAD_CLUSTERS) pour que l'atlas reste lisible. Si la primaire et la
+ *  secondaire retombent sur la MÊME famille macro après consolidation, on
+ *  oublie la secondaire (pas d'hybride artificiel). */
 export function candidateClusters(c: Candidate): { primary: string; secondary: string | null } {
   const family = c.taxonomy?.role_family ?? []
-  const primary = (family[0] ?? "").trim() || FALLBACK_CLUSTER
-  const secondary = (family[1] ?? "").trim() || null
+  const rawPrimary = (family[0] ?? "").trim()
+  const rawSecondary = (family[1] ?? "").trim()
+  const primary = rawPrimary ? consolidateClusterLabel(rawPrimary) : FALLBACK_CLUSTER
+  const secondary = rawSecondary ? consolidateClusterLabel(rawSecondary) : null
+  if (secondary && secondary === primary) return { primary, secondary: null }
   return { primary, secondary }
 }
 
-const clusterKey = (label: string) => label.toLowerCase().trim()
+/** Clé safe pour HTML/SVG (pas d'espaces, accents, caractères spéciaux).
+ *  Une id de gradient SVG avec espace casse la résolution `url(#…)`. */
+const clusterKey = (label: string) =>
+  label
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .trim() || "x"
 
 /** Hash léger string → hue 0-360 (stable). FNV-1a-ish. */
 function hashHue(label: string): number {

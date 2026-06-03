@@ -21,7 +21,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { m, AnimatePresence, LayoutGroup } from "framer-motion"
 import type { Candidate } from "@/lib/database.types"
-import { buildClusters, hsl, type VivierCluster } from "@/lib/vivier-clusters"
+import { buildClusters, candidateClusters, hsl, type VivierCluster } from "@/lib/vivier-clusters"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -314,14 +314,16 @@ function CandidateCardLight({
   const initials = (c.full_name ?? c.cv_file_name ?? "?")
     .split(" ").slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase() || "?"
 
-  // Pour l'hybride contexte : on cherche l'autre secteur (≠ celui où on est).
-  // On regarde role_family[0] et [1] du candidat.
-  const family = c.taxonomy?.role_family ?? []
+  // Pour l'hybride contexte : on cherche l'autre famille macro du candidat.
+  // candidateClusters() applique déjà la consolidation : on récupère les
+  // labels consolidés, on prend celui ≠ du cluster où on se trouve, puis
+  // on retrouve le VivierCluster correspondant (id = slug du label).
+  const { primary: primaryLabel, secondary: secondaryLabel } = candidateClusters(c)
   const otherLabel = isHybridContext
-    ? (family[0] && family[0].toLowerCase().trim() !== cluster.id ? family[0] : family[1] ?? null)
+    ? (primaryLabel !== cluster.label ? primaryLabel : secondaryLabel)
     : null
   const otherCluster = otherLabel
-    ? clusters.find((cc) => cc.id === otherLabel.toLowerCase().trim()) ?? null
+    ? clusters.find((cc) => cc.label === otherLabel) ?? null
     : null
 
   const yearsExperience = c.years_experience ?? null
