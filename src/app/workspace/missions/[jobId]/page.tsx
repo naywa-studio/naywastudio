@@ -9,6 +9,7 @@ import type { Job, Candidate, MatchAssessment, MatchTier } from "@/lib/database.
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
+import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -221,6 +222,32 @@ export default function JobDetailPage() {
     return { seen, retained, rejected: rejected.length, topReason }
   })()
 
+  // Visuel cluster mission — couleurs des secteurs des candidats matchés
+  // (score ≥ 50). Mêmes règles que la liste des missions : 1 hue dominante
+  // ou 2 si la 2ᵉ représente ≥ 30 % du matching.
+  const clusterVisual = (() => {
+    const counts = new Map<string, number>()
+    let total = 0
+    for (const r of rows) {
+      if ((r.score ?? 0) < 50) continue
+      if (!r.candidate || r.candidate.parse_status !== "parsed") continue
+      const { primary } = candidateClusters(r.candidate)
+      counts.set(primary, (counts.get(primary) ?? 0) + 1)
+      total++
+    }
+    const sorted = Array.from(counts, ([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count)
+    if (sorted.length === 0) return null
+    const hues = [clusterHue(sorted[0].label)]
+    if (sorted.length > 1 && sorted[1].count / total >= 0.3) {
+      hues.push(clusterHue(sorted[1].label))
+    }
+    return {
+      hues,
+      top: sorted.slice(0, 2),
+      total,
+    }
+  })()
+
   return (
     <main style={{
       padding: "32px 24px 80px", maxWidth: 1320, margin: "0 auto",
@@ -241,8 +268,21 @@ export default function JobDetailPage() {
         className="mission-left"
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        style={{ background: "white", borderRadius: 16, border: "1px solid #F0ECF8", padding: 24, position: "sticky", top: 24 }}
+        style={{
+          background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+          padding: "24px 24px 24px 28px",
+          position: "sticky", top: 24, overflow: "hidden",
+        }}
       >
+        {/* Bande couleur secteur — dérivée des candidats matchés ; bicolore
+            si 2 secteurs dominent. Grise si pas encore de matching. */}
+        <span style={{
+          position: "absolute", top: 0, bottom: 0, left: 0, width: 5,
+          background:
+            !clusterVisual                ? "#E5E7EB" :
+            clusterVisual.hues.length === 1 ? hsl(clusterVisual.hues[0], 60, 55) :
+            `linear-gradient(180deg, ${hsl(clusterVisual.hues[0], 60, 55)} 0%, ${hsl(clusterVisual.hues[1], 60, 55)} 100%)`,
+        }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
@@ -256,6 +296,34 @@ export default function JobDetailPage() {
               {jobSeniorityLabel(job) && <Meta>{jobSeniorityLabel(job)}</Meta>}
               {job.contract_type && <Meta>{job.contract_type}</Meta>}
             </div>
+            {/* Secteurs Nora — top 1 ou 2 issus du vivier. Pastille bicolore
+                identique à la liste des missions pour cohérence visuelle. */}
+            {clusterVisual && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10, alignItems: "center" }}>
+                {clusterVisual.top.map((c, i) => (
+                  <span key={c.label} style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    fontSize: 10.5, fontWeight: 700,
+                    color: hsl(clusterVisual.hues[i] ?? clusterVisual.hues[0], 55, 35),
+                    background: hsl(clusterVisual.hues[i] ?? clusterVisual.hues[0], 70, 95),
+                    border: `1px solid ${hsl(clusterVisual.hues[i] ?? clusterVisual.hues[0], 50, 80)}`,
+                    borderRadius: 100, padding: "2px 9px",
+                  }}>
+                    <span style={{
+                      width: 5.5, height: 5.5, borderRadius: "50%",
+                      background: i === 0 && clusterVisual.hues.length > 1
+                        ? `linear-gradient(180deg, ${hsl(clusterVisual.hues[0], 65, 55)} 0%, ${hsl(clusterVisual.hues[1], 65, 55)} 100%)`
+                        : hsl(clusterVisual.hues[i] ?? clusterVisual.hues[0], 65, 55),
+                    }} />
+                    {c.label}
+                    <span style={{ color: "#9CA3AF", fontWeight: 600 }}>· {c.count}</span>
+                  </span>
+                ))}
+                <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>
+                  / {clusterVisual.total} match{clusterVisual.total > 1 ? "s" : ""}
+                </span>
+              </div>
+            )}
           </div>
           <button onClick={handleDelete} title="Supprimer la mission" style={{
             flexShrink: 0,

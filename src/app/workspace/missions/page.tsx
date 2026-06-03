@@ -21,20 +21,15 @@ interface MissionVisual {
   totalMatches: number
 }
 
-/** Stats globales sourcing pour la sidebar gauche — fenêtre "cette semaine". */
-interface WeeklyStats {
-  mailsSent: number
-  replies: number
-  interviews: number
+/** Stats sourcing affichées dans la sidebar (top motifs d'écart + activité
+ *  réelle dont on a la donnée). Les mails ne sont pas encore intégrés. */
+interface SidebarStatsData {
   topRejectReasons: Array<{ reason: RejectReason; count: number }>
+  totalCandidatsMatches: number
+  totalInPipeline: number
+  totalRecruited: number
 }
 
-const WEEK_START_ISO = (() => {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() - d.getDay() + 1) // lundi
-  return d.toISOString()
-})()
 const MONTH_START_ISO = (() => {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
@@ -46,7 +41,7 @@ export default function MissionsPage() {
   const sb = useMemo(() => getSupabase(), [])
   const [jobs, setJobs] = useState<Job[]>([])
   const [visuals, setVisuals] = useState<Record<string, MissionVisual>>({})
-  const [stats, setStats] = useState<WeeklyStats | null>(null)
+  const [stats, setStats] = useState<SidebarStatsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -86,26 +81,38 @@ export default function MissionsPage() {
       }
       setVisuals(vMap)
 
-      // 3) Stats hebdo : mails in/out, entretiens, top motifs d'écart (30j).
-      const [mailsRes, interviewsRes, rejectsRes] = await Promise.all([
-        sb.from("email_messages").select("id, direction").gte("created_at", WEEK_START_ISO),
-        sb.from("match_assessments").select("id").gte("interview_at", WEEK_START_ISO).not("interview_at", "is", null),
-        sb.from("match_assessments").select("reject_reason").not("reject_reason", "is", null).gte("updated_at", MONTH_START_ISO),
-      ])
+      // 3) Stats sourcing : top motifs d'écart (30j) + compteurs pipeline.
+      //    Pas de mails ici tant que l'intégration mail n'est pas en place.
+      const { data: maRows } = await sb
+        .from("match_assessments")
+        .select("in_pipeline, pipeline_stage, reject_reason, updated_at")
       if (!mounted) return
-      const mails = (mailsRes.data ?? []) as Array<{ direction: string }>
-      const mailsSent = mails.filter((m) => m.direction === "outbound").length
-      const replies = mails.filter((m) => m.direction === "inbound").length
-      const interviews = (interviewsRes.data ?? []).length
       const reasonCount = new Map<RejectReason, number>()
-      for (const r of (rejectsRes.data ?? []) as Array<{ reject_reason: RejectReason | null }>) {
-        if (!r.reject_reason) continue
-        reasonCount.set(r.reject_reason, (reasonCount.get(r.reject_reason) ?? 0) + 1)
+      let inPipeline = 0
+      let recruited = 0
+      let totalMatches = 0
+      for (const r of (maRows ?? []) as Array<{
+        in_pipeline: boolean | null
+        pipeline_stage: string | null
+        reject_reason: RejectReason | null
+        updated_at: string | null
+      }>) {
+        totalMatches++
+        if (r.in_pipeline) inPipeline++
+        if (r.pipeline_stage === "hired") recruited++
+        if (r.reject_reason && r.updated_at && r.updated_at >= MONTH_START_ISO) {
+          reasonCount.set(r.reject_reason, (reasonCount.get(r.reject_reason) ?? 0) + 1)
+        }
       }
       const topRejectReasons = Array.from(reasonCount, ([reason, count]) => ({ reason, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 3)
-      setStats({ mailsSent, replies, interviews, topRejectReasons })
+      setStats({
+        topRejectReasons,
+        totalCandidatsMatches: totalMatches,
+        totalInPipeline: inPipeline,
+        totalRecruited: recruited,
+      })
 
       setLoading(false)
 
@@ -258,17 +265,26 @@ export default function MissionsPage() {
 
 /* ─── Sidebar ──────────────────────────────────────────────────── */
 
-function SidebarStats({ stats, totalJobs }: { stats: WeeklyStats | null; totalJobs: number }) {
+function SidebarStats({ stats, totalJobs }: { stats: SidebarStatsData | null; totalJobs: number }) {
   return (
     <aside style={{
       position: "sticky", top: 16,
       display: "flex", flexDirection: "column", gap: 14,
       paddingTop: 38,  // aligne avec le bas de la recherche
     }}>
-      <StatGroup title="Cette semaine">
-        <StatRow label="Mails envoyés"     value={stats?.mailsSent ?? 0} />
-        <StatRow label="Réponses"          value={stats?.replies ?? 0} tone={(stats?.replies ?? 0) > 0 ? "good" : undefined} />
-        <StatRow label="Entretiens passés" value={stats?.interviews ?? 0} tone={(stats?.interviews ?? 0) > 0 ? "good" : undefined} />
+      <StatGroup title="Vue d'ensemble">
+        <StatRow label="Missions"            value={totalJobs} />
+        <StatRow label="Candidats matchés"   value={stats?.totalCandidatsMatches ?? 0} />
+        <StatRow
+          label="En pipeline"
+          value={stats?.totalInPipeline ?? 0}
+          tone={(stats?.totalInPipeline ?? 0) > 0 ? "good" : undefined}
+        />
+        <StatRow
+          label="Recrutés"
+          value={stats?.totalRecruited ?? 0}
+          tone={(stats?.totalRecruited ?? 0) > 0 ? "good" : undefined}
+        />
       </StatGroup>
 
       {stats && stats.topRejectReasons.length > 0 && (
@@ -283,10 +299,6 @@ function SidebarStats({ stats, totalJobs }: { stats: WeeklyStats | null; totalJo
           ))}
         </StatGroup>
       )}
-
-      <StatGroup title="Vivier mission">
-        <StatRow label="Missions totales" value={totalJobs} />
-      </StatGroup>
     </aside>
   )
 }
