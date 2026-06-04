@@ -123,7 +123,6 @@ export default function WorkspaceHome() {
           .in("match_tier", ["excellent", "good"])
           .gte("created_at", sevenDaysAgo),
         sb.from("match_assessments").select("id", { count: "exact", head: true })
-          .eq("pipeline_stage", "pricing")
           .eq("in_pipeline", true),
         sb.from("candidates")
           .select("id, full_name, current_title, current_company, created_at")
@@ -142,7 +141,6 @@ export default function WorkspaceHome() {
           .limit(5),
         sb.from("match_assessments")
           .select(`job_id, job:jobs(id, title)`)
-          .eq("pipeline_stage", "pricing")
           .eq("in_pipeline", true),
       ])
 
