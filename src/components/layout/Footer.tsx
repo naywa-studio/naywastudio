@@ -14,7 +14,11 @@ const footerLinks: Record<string, FooterLink[]> = {
   Ressources: [
     { label: 'Comment ça marche', href: '/comment-ca-marche' },
     { label: 'FAQ', href: '/faq' },
+  ],
+  Légal: [
     { label: 'Mentions légales', href: '/mentions-legales' },
+    { label: 'Politique de confidentialité', href: '/politique-confidentialite' },
+    { label: "Conditions d'utilisation", href: '/cgu' },
   ],
   Contact: [
     { label: 'LinkedIn', href: 'https://linkedin.com/company/naywastudio', external: true },
