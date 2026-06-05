@@ -21,13 +21,18 @@ function LoginInner() {
   const searchParams = useSearchParams()
   const nextPath = searchParams.get("next") ?? "/workspace"
 
-  const initialMode = (searchParams.get("mode") === "signup" ? "signup" : "login") as Mode
+  const expired = searchParams.get("expired") === "1"
+  const initialMode = (searchParams.get("mode") === "signup" || expired ? "signup" : "login") as Mode
   const [mode, setMode] = useState<Mode>(initialMode)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [firstName, setFirstName] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(
+    expired
+      ? "Le lien de confirmation a expiré ou a déjà été utilisé. Recommencez l'inscription pour recevoir un nouveau lien."
+      : null,
+  )
   const [success, setSuccess] = useState<string | null>(null)
 
   // Redirect if already logged in
@@ -53,7 +58,13 @@ function LoginInner() {
       }
       router.replace(nextPath)
     } else {
-      const { data, error: err } = await sb.auth.signUp({ email, password })
+      const { data, error: err } = await sb.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/workspace`,
+        },
+      })
       if (err) {
         setError(err.message)
         setLoading(false)
