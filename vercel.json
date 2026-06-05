@@ -2,6 +2,12 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "regions": ["cdg1"],
+  "crons": [
+    {
+      "path": "/api/cron/wipe-expired-orgs",
+      "schedule": "0 3 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
