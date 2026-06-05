@@ -9,15 +9,14 @@ import { getSupabase } from "@/lib/supabase"
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 /**
- * /cabinet — Console cabinet (owner area).
+ * /cabinet — Console cabinet (owner area), dashboard-style.
  *
- * Sections :
- *   1. Identité  : nom du cabinet + logo + mailing domain (masqué V1)
- *   2. Membres   : liste de l'équipe + bouton "Inviter" (UI seule pour V1,
- *                  l'API d'invitation arrive à l'étape suivante)
- *   3. Abonnement: statut Package Sourcing — placeholder tant que Stripe
- *                  n'est pas branché
- *   4. Danger    : supprimer le cabinet (immédiat si solo, grace 30 j sinon)
+ * 12-col landscape grid:
+ *   Hero (12)
+ *   Identité (7)              | Membres (5)
+ *   Abonnement (7)            | Zone de danger (5)
+ *
+ * Designed to fit on a single screen at 1440×900 without scrolling.
  */
 
 interface MemberRow {
@@ -26,29 +25,47 @@ interface MemberRow {
   role: "owner" | "member"
 }
 
+interface PendingInvite {
+  id: string
+  email: string
+  role: "owner" | "member"
+  expires_at: string
+  created_at: string
+}
+
 export default function CabinetPage() {
   const { profile, organization, userEmail, isOwner, refetch } = useCabinet()
   const router = useRouter()
   const sb = useMemo(() => getSupabase(), [])
 
   const [members, setMembers] = useState<MemberRow[]>([])
+  const [invites, setInvites] = useState<PendingInvite[]>([])
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
 
-  // Load org members
+  const loadMembers = async () => {
+    const { data } = await sb
+      .from("profiles")
+      .select("user_id, first_name, role")
+      .eq("organization_id", organization.id)
+      .order("role", { ascending: true })
+    setMembers((data ?? []) as MemberRow[])
+  }
+  const loadInvites = async () => {
+    const { data } = await sb
+      .from("org_invites")
+      .select("id, email, role, expires_at, created_at")
+      .eq("organization_id", organization.id)
+      .is("accepted_at", null)
+      .order("created_at", { ascending: false })
+    setInvites((data ?? []) as PendingInvite[])
+  }
+
   useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      const { data } = await sb
-        .from("profiles")
-        .select("user_id, first_name, role")
-        .eq("organization_id", organization.id)
-        .order("role", { ascending: true })
-      if (mounted) setMembers((data ?? []) as MemberRow[])
-    })()
-    return () => { mounted = false }
+    void loadMembers()
+    void loadInvites()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sb, organization.id])
 
-  // Sign URL for the org logo
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -60,55 +77,153 @@ export default function CabinetPage() {
     return () => { mounted = false }
   }, [sb, organization.brand_logo_path])
 
-  const seatsUsed = members.length
+  const seatsUsed = members.length + invites.length
 
   return (
     <main style={{
-      maxWidth: 920, margin: "0 auto",
-      padding: "44px 24px 80px",
+      maxWidth: 1280, margin: "0 auto",
+      padding: "28px 24px 48px",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
-      <m.div
-        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.55, ease: EASE }}
+      {/* ── Hero ──────────────────────────────────────────── */}
+      <m.section
+        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: EASE }}
+        style={{
+          display: "flex", alignItems: "center", gap: 18,
+          marginBottom: 22,
+        }}
       >
-        <h1 style={{
-          margin: 0, fontSize: "clamp(24px, 3.2vw, 32px)", fontWeight: 800,
-          color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15,
-        }}>
-          {organization.name}
-        </h1>
-        <p style={{ margin: "8px 0 32px", fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
-          Vous êtes <strong style={{ color: "#111827" }}>{profile.role === "owner" ? "owner" : "member"}</strong> de ce cabinet. {isOwner && "Vous pouvez modifier l'identité, gérer les membres et résilier."}
-        </p>
-      </m.div>
+        <HeroAvatar logoUrl={logoUrl} name={organization.brand_name ?? organization.name} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 style={{
+            margin: 0, fontSize: "clamp(22px, 2.4vw, 28px)", fontWeight: 800,
+            color: "#111827", letterSpacing: "-0.02em", lineHeight: 1.1,
+          }}>
+            {organization.brand_name ?? organization.name}
+          </h1>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <HeroPill kind={profile.role === "owner" ? "primary" : "neutral"}>
+              {profile.role === "owner" ? "Owner" : "Member"}
+            </HeroPill>
+            <HeroPill kind="neutral">
+              {members.length} membre{members.length > 1 ? "s" : ""}
+            </HeroPill>
+            {invites.length > 0 && (
+              <HeroPill kind="warn">
+                {invites.length} invitation{invites.length > 1 ? "s" : ""} en attente
+              </HeroPill>
+            )}
+            <HeroPill kind={organization.package_sourcing_active && !organization.pending_deletion_at ? "success" : "warn"}>
+              {organization.pending_deletion_at ? "Résiliation en cours" : "Package Sourcing actif"}
+            </HeroPill>
+          </div>
+        </div>
+      </m.section>
 
-      <IdentitySection
-        organization={organization}
-        logoUrl={logoUrl}
-        isOwner={isOwner}
-        onUpdated={refetch}
-      />
+      {/* ── 12-col grid ───────────────────────────────────── */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+        gap: 16,
+      }}>
+        <div style={{ gridColumn: "span 7" }}>
+          <IdentitySection
+            organization={organization}
+            logoUrl={logoUrl}
+            isOwner={isOwner}
+            onUpdated={refetch}
+          />
+        </div>
+        <div style={{ gridColumn: "span 5" }}>
+          <MembersSection
+            members={members}
+            invites={invites}
+            seatsUsed={seatsUsed}
+            seatsTotal={organization.seats_total}
+            currentUserId={profile.user_id}
+            userEmail={userEmail}
+            isOwner={isOwner}
+            onChange={() => { void loadInvites() }}
+          />
+        </div>
 
-      <MembersSection
-        members={members}
-        seatsTotal={organization.seats_total}
-        seatsUsed={seatsUsed}
-        currentUserId={profile.user_id}
-        userEmail={userEmail}
-        isOwner={isOwner}
-      />
+        <div style={{ gridColumn: "span 7" }}>
+          <SubscriptionSection organization={organization} />
+        </div>
+        <div style={{ gridColumn: "span 5" }}>
+          {isOwner && (
+            <DangerSection
+              organization={organization}
+              seatsUsed={seatsUsed}
+              onDeleted={() => router.replace("/")}
+            />
+          )}
+        </div>
+      </div>
 
-      <SubscriptionSection organization={organization} />
-
-      {isOwner && (
-        <DangerSection
-          organization={organization}
-          seatsUsed={seatsUsed}
-          onDeleted={() => router.replace("/")}
-        />
-      )}
+      <style>{`
+        @media (max-width: 880px) {
+          [data-cabinet-grid] > div { grid-column: span 12 !important; }
+        }
+      `}</style>
     </main>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Hero bits                                                            */
+/* ────────────────────────────────────────────────────────────────── */
+
+function HeroAvatar({ logoUrl, name }: { logoUrl: string | null; name: string | null }) {
+  const initials = (name ?? "")
+    .split(/\s+/).slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "").join("") || "—"
+  if (logoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={logoUrl} alt=""
+        style={{
+          width: 60, height: 60, borderRadius: 14,
+          objectFit: "cover",
+          border: "1px solid #F0ECF8", background: "white",
+          flexShrink: 0,
+        }}
+      />
+    )
+  }
+  return (
+    <div style={{
+      width: 60, height: 60, borderRadius: 14,
+      background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+      border: "1px solid rgba(124,99,200,0.30)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#7C63C8", fontWeight: 800, fontSize: 20,
+      flexShrink: 0,
+    }}>
+      {initials}
+    </div>
+  )
+}
+
+type PillKind = "primary" | "neutral" | "success" | "warn"
+const PILL_STYLE: Record<PillKind, React.CSSProperties> = {
+  primary: { color: "#7C63C8", background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.22)" },
+  neutral: { color: "#6B7280", background: "#F3F4F6",               border: "1px solid #E5E7EB" },
+  success: { color: "#15803d", background: "rgba(34,197,94,0.10)",  border: "1px solid rgba(34,197,94,0.30)" },
+  warn:    { color: "#B45309", background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.30)" },
+}
+function HeroPill({ kind, children }: { kind: PillKind; children: React.ReactNode }) {
+  return (
+    <span style={{
+      ...PILL_STYLE[kind],
+      fontSize: 11.5, fontWeight: 700,
+      padding: "3px 10px", borderRadius: 100,
+      letterSpacing: "0.04em", textTransform: "uppercase",
+    }}>
+      {children}
+    </span>
   )
 }
 
@@ -154,17 +269,13 @@ function IdentitySection({
     const path = `${organization.id}/${Date.now()}.${ext}`
     const { error: upErr } = await sb.storage.from("brand-logos").upload(path, file, { upsert: true })
     if (upErr) { setError(upErr.message); setBusy("idle"); return }
-
     const res = await fetch("/api/cabinet", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ brand_logo_path: path }),
     })
-    if (!res.ok) {
-      setError("Logo téléversé mais sauvegarde en échec.")
-    } else {
-      await onUpdated()
-    }
+    if (!res.ok) setError("Logo téléversé mais sauvegarde en échec.")
+    else await onUpdated()
     setBusy("idle")
   }
 
@@ -184,8 +295,8 @@ function IdentitySection({
   }
 
   return (
-    <Section title="Identité du cabinet" subtitle="Apparaît sur les CV anonymisés et dans tous vos emails sortants.">
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 240px", gap: 24, alignItems: "flex-start" }}>
+    <Card title="Identité du cabinet" subtitle="Apparaît sur les CV anonymisés et vos emails sortants.">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 130px", gap: 16, alignItems: "flex-start" }}>
         <div>
           <Label>Nom du cabinet</Label>
           <input
@@ -196,62 +307,51 @@ function IdentitySection({
             onBlur={saveName}
             style={inputStyle}
           />
-          {busy === "saving" && <Hint>Sauvegarde…</Hint>}
+          <Hint>
+            {busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}
+          </Hint>
 
-          <div style={{ marginTop: 18 }}>
-            <Label>Domaine d&apos;envoi (futur)</Label>
+          <div style={{ marginTop: 14 }}>
+            <Label>Domaine d&apos;envoi</Label>
             <input
               value=""
               placeholder="Bientôt — envoi depuis votre propre domaine"
               disabled
               style={{ ...inputStyle, background: "#F8F6FF", color: "#9CA3AF", cursor: "not-allowed" }}
             />
-            <Hint>Pour l&apos;instant, vos emails partent depuis le domaine partagé Naywa. Le routage sur votre propre nom de domaine arrive bientôt.</Hint>
+            <Hint>Pour l&apos;instant, vos emails partent depuis le domaine partagé Naywa.</Hint>
           </div>
         </div>
 
         <div>
           <Label>Logo</Label>
           <div style={{
-            width: "100%", aspectRatio: "1 / 1",
+            width: 130, height: 130,
             borderRadius: 14, border: "1.5px dashed #E2DAF6",
             background: "#FAFAFA",
             display: "flex", alignItems: "center", justifyContent: "center",
             overflow: "hidden",
-            position: "relative",
           }}>
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 14 }} />
+              <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 10 }} />
             ) : (
-              <span style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: 10 }}>
-                Aucun logo
-              </span>
+              <span style={{ fontSize: 11, color: "#9CA3AF" }}>Aucun logo</span>
             )}
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button
-              type="button"
-              onClick={() => fileInput.current?.click()}
+          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+            <button type="button" onClick={() => fileInput.current?.click()}
               disabled={!isOwner || busy !== "idle"}
-              style={smallBtnPrimary}
-            >
-              {busy === "uploading" ? "Téléversement…" : logoUrl ? "Remplacer" : "Téléverser"}
+              style={smallBtnPrimary}>
+              {busy === "uploading" ? "…" : logoUrl ? "Remplacer" : "Téléverser"}
             </button>
             {logoUrl && isOwner && (
-              <button
-                type="button"
-                onClick={removeLogo}
-                disabled={busy !== "idle"}
-                style={smallBtnGhost}
-              >
+              <button type="button" onClick={removeLogo} disabled={busy !== "idle"} style={smallBtnGhost}>
                 Retirer
               </button>
             )}
           </div>
-          <input
-            ref={fileInput}
-            type="file"
+          <input ref={fileInput} type="file"
             accept="image/png,image/jpeg,image/webp,image/svg+xml"
             style={{ display: "none" }}
             onChange={(e) => {
@@ -261,89 +361,165 @@ function IdentitySection({
           />
         </div>
       </div>
-      {error && <p style={{ margin: "12px 0 0", fontSize: 13, color: "#EF4444" }}>{error}</p>}
-    </Section>
+      {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
+    </Card>
   )
 }
 
 /* ────────────────────────────────────────────────────────────────── */
-/* Membres                                                             */
+/* Membres + invitations                                               */
 /* ────────────────────────────────────────────────────────────────── */
 
 function MembersSection({
-  members, seatsTotal, seatsUsed, currentUserId, userEmail, isOwner,
+  members, invites, seatsUsed, seatsTotal, currentUserId, userEmail, isOwner, onChange,
 }: {
   members: MemberRow[]
-  seatsTotal: number
+  invites: PendingInvite[]
   seatsUsed: number
+  seatsTotal: number
   currentUserId: string
   userEmail: string
   isOwner: boolean
+  onChange: () => void
 }) {
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [okMessage, setOkMessage] = useState<string | null>(null)
+
+  const sendInvite = async () => {
+    const trimmed = inviteEmail.trim().toLowerCase()
+    if (!trimmed || !trimmed.includes("@")) {
+      setError("Adresse email invalide."); return
+    }
+    setBusy(true); setError(null); setOkMessage(null)
+    const res = await fetch("/api/cabinet/invite", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: trimmed }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Erreur lors de l'envoi.")
+    } else {
+      setInviteEmail("")
+      setOkMessage(`Invitation envoyée à ${trimmed}.`)
+      onChange()
+    }
+    setBusy(false)
+  }
+
+  const revokeInvite = async (id: string) => {
+    setBusy(true); setError(null); setOkMessage(null)
+    const res = await fetch(`/api/cabinet/invite?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Erreur lors de la révocation.")
+    } else {
+      onChange()
+    }
+    setBusy(false)
+  }
+
   return (
-    <Section
-      title="Membres"
-      subtitle={`${seatsUsed} sur ${Math.max(seatsTotal, seatsUsed)} sièges utilisés. Tous les membres partagent le même vivier.`}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <Card title="Membres" subtitle={`${seatsUsed} sur ${Math.max(seatsTotal, seatsUsed)} sièges · vivier partagé`}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflow: "auto" }}>
         {members.map((m) => (
           <div key={m.user_id} style={memberRowStyle}>
-            <div style={{
-              width: 34, height: 34, borderRadius: "50%",
-              background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-              border: "1px solid rgba(124,99,200,0.30)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#7C63C8", fontWeight: 700, fontSize: 13,
-              flexShrink: 0,
-            }}>
-              {(m.first_name?.[0] ?? "?").toUpperCase()}
-            </div>
+            <Avatar letter={(m.first_name?.[0] ?? "?").toUpperCase()} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{
-                margin: 0, fontSize: 14, fontWeight: 600, color: "#111827",
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>
+              <p style={memberNameStyle}>
                 {m.first_name ?? "Sans prénom"}
                 {m.user_id === currentUserId && (
                   <span style={{ color: "#9CA3AF", fontWeight: 500 }}> · vous</span>
                 )}
               </p>
               {m.user_id === currentUserId && (
-                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA3AF" }}>
-                  {userEmail}
-                </p>
+                <p style={memberSubStyle}>{userEmail}</p>
               )}
             </div>
-            <span style={{
-              fontSize: 11, fontWeight: 700,
-              color: m.role === "owner" ? "#7C63C8" : "#6B7280",
-              background: m.role === "owner" ? "rgba(124,99,200,0.08)" : "#F3F4F6",
-              border: m.role === "owner" ? "1px solid rgba(124,99,200,0.22)" : "1px solid #E5E7EB",
-              borderRadius: 100, padding: "3px 10px",
-              textTransform: "uppercase", letterSpacing: "0.06em",
-              flexShrink: 0,
-            }}>
-              {m.role === "owner" ? "Owner" : "Member"}
-            </span>
+            <RolePill role={m.role} />
+          </div>
+        ))}
+
+        {invites.map((inv) => (
+          <div key={inv.id} style={{
+            ...memberRowStyle,
+            background: "rgba(245,158,11,0.04)",
+            border: "1px solid rgba(245,158,11,0.20)",
+          }}>
+            <Avatar letter={inv.email[0]?.toUpperCase() ?? "?"} dim />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={memberNameStyle}>{inv.email}</p>
+              <p style={memberSubStyle}>Invitation envoyée · en attente</p>
+            </div>
+            {isOwner && (
+              <button type="button" onClick={() => void revokeInvite(inv.id)} disabled={busy} style={iconBtnStyle}>
+                Annuler
+              </button>
+            )}
           </div>
         ))}
       </div>
 
       {isOwner && (
-        <button
-          type="button"
-          disabled
-          title="Le flow d'invitation arrive très bientôt"
-          style={{
-            ...smallBtnPrimary,
-            marginTop: 14,
-            opacity: 0.55, cursor: "not-allowed",
-          }}
-        >
-          Inviter un membre · bientôt
-        </button>
+        <div style={{ marginTop: 14 }}>
+          <Label>Inviter un membre par email</Label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="collegue@cabinet.com"
+              disabled={busy}
+              onKeyDown={(e) => { if (e.key === "Enter") void sendInvite() }}
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button type="button" onClick={sendInvite} disabled={busy || !inviteEmail.trim()} style={{
+              ...smallBtnPrimary,
+              opacity: busy || !inviteEmail.trim() ? 0.5 : 1,
+              cursor: busy || !inviteEmail.trim() ? "not-allowed" : "pointer",
+            }}>
+              {busy ? "Envoi…" : "Inviter"}
+            </button>
+          </div>
+          {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
+          {okMessage && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#15803d" }}>{okMessage}</p>}
+        </div>
       )}
-    </Section>
+    </Card>
+  )
+}
+
+function Avatar({ letter, dim }: { letter: string; dim?: boolean }) {
+  return (
+    <div style={{
+      width: 30, height: 30, borderRadius: "50%",
+      background: dim ? "#F3F4F6" : "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+      border: dim ? "1px solid #E5E7EB" : "1px solid rgba(124,99,200,0.30)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: dim ? "#9CA3AF" : "#7C63C8",
+      fontWeight: 700, fontSize: 12,
+      flexShrink: 0,
+    }}>
+      {letter}
+    </div>
+  )
+}
+
+function RolePill({ role }: { role: "owner" | "member" }) {
+  return (
+    <span style={{
+      fontSize: 10.5, fontWeight: 700,
+      color: role === "owner" ? "#7C63C8" : "#6B7280",
+      background: role === "owner" ? "rgba(124,99,200,0.08)" : "#F3F4F6",
+      border: role === "owner" ? "1px solid rgba(124,99,200,0.22)" : "1px solid #E5E7EB",
+      borderRadius: 100, padding: "2px 8px",
+      textTransform: "uppercase", letterSpacing: "0.06em",
+      flexShrink: 0,
+    }}>
+      {role === "owner" ? "Owner" : "Member"}
+    </span>
   )
 }
 
@@ -351,51 +527,50 @@ function MembersSection({
 /* Abonnement                                                          */
 /* ────────────────────────────────────────────────────────────────── */
 
-function SubscriptionSection({ organization }: { organization: { package_sourcing_active: boolean; seats_total: number; pending_deletion_at: string | null } }) {
+function SubscriptionSection({ organization }: {
+  organization: { package_sourcing_active: boolean; seats_total: number; pending_deletion_at: string | null }
+}) {
   if (organization.pending_deletion_at) {
     const date = new Date(organization.pending_deletion_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
     return (
-      <Section title="Abonnement" subtitle="Statut du Package Sourcing.">
+      <Card title="Abonnement" subtitle="Statut du Package Sourcing.">
         <div style={{
-          padding: "14px 16px", borderRadius: 12,
+          padding: "12px 14px", borderRadius: 10,
           background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.25)",
         }}>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#D97706" }}>
-            Résiliation en cours.
+          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#D97706" }}>
+            Résiliation en cours
           </p>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#92400E", lineHeight: 1.5 }}>
+          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#92400E", lineHeight: 1.5 }}>
             Le cabinet et toutes ses données seront supprimés le <strong>{date}</strong>.
           </p>
         </div>
-      </Section>
+      </Card>
     )
   }
 
   return (
-    <Section title="Abonnement" subtitle="Statut du Package Sourcing.">
+    <Card title="Abonnement" subtitle="Statut du Package Sourcing.">
       <div style={{
-        padding: "14px 16px", borderRadius: 12,
+        padding: "12px 14px", borderRadius: 10,
         background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.20)",
         display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+        flexWrap: "wrap",
       }}>
         <div>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>
+          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
             Package Sourcing · actif
           </p>
-          <p style={{ margin: "3px 0 0", fontSize: 13, color: "#6B7280" }}>
+          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6B7280" }}>
             {organization.seats_total} siège{organization.seats_total > 1 ? "s" : ""} · facturation pas encore active (beta)
           </p>
         </div>
-        <button
-          type="button"
-          disabled
-          title="Stripe arrivera bientôt"
-          style={{ ...smallBtnGhost, opacity: 0.55, cursor: "not-allowed" }}
-        >
-          Gérer le paiement · bientôt
+        <button type="button" disabled title="Stripe arrivera bientôt"
+          style={{ ...smallBtnGhost, opacity: 0.55, cursor: "not-allowed" }}>
+          Gérer · bientôt
         </button>
       </div>
-    </Section>
+    </Card>
   )
 }
 
@@ -429,7 +604,6 @@ function DangerSection({
       setBusy(false)
       return
     }
-    // Sign out + bounce
     await getSupabase().auth.signOut()
     onDeleted()
   }
@@ -438,42 +612,32 @@ function DangerSection({
 
   return (
     <section style={{
-      marginTop: 32,
-      padding: "20px 22px",
+      padding: "18px 20px",
       background: "white",
-      border: "1px solid rgba(239,68,68,0.35)",
-      borderRadius: 16,
+      border: "1px solid rgba(239,68,68,0.30)",
+      borderRadius: 14,
     }}>
-      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#B91C1C" }}>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
         Zone de danger
       </h2>
-      <p style={{ margin: "6px 0 16px", fontSize: 13.5, color: "#6B7280", lineHeight: 1.55 }}>
+      <p style={{ margin: "5px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
         Supprimer définitivement le cabinet et toutes ses données.{" "}
-        {hasOtherMembers && (
-          <>
-            <strong style={{ color: "#111827" }}>{seatsUsed - 1} collègue{seatsUsed - 1 > 1 ? "s" : ""}</strong> garderont accès pendant 30 jours, puis tout sera supprimé.
-          </>
-        )}
-        {!hasOtherMembers && "La suppression est immédiate et définitive."}
+        {hasOtherMembers
+          ? <>Les autres membres garderont accès 30 jours.</>
+          : <>La suppression est immédiate et définitive.</>}
       </p>
-
-      <button
-        type="button"
-        onClick={() => setShowModal(true)}
+      <button type="button" onClick={() => setShowModal(true)}
         style={{
-          padding: "10px 18px", borderRadius: 10,
+          padding: "8px 14px", borderRadius: 9,
           border: "1px solid rgba(239,68,68,0.35)",
           background: "white", color: "#B91C1C",
-          fontSize: 13, fontWeight: 700, cursor: "pointer",
-        }}
-      >
+          fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+        }}>
         Supprimer mon cabinet
       </button>
 
       {showModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
+        <div role="dialog" aria-modal="true"
           style={{
             position: "fixed", inset: 0, zIndex: 100,
             background: "rgba(17,24,39,0.55)",
@@ -493,49 +657,29 @@ function DangerSection({
             </h3>
             <p style={{ margin: "10px 0 18px", fontSize: 13.5, color: "#4B5563", lineHeight: 1.6 }}>
               {hasOtherMembers ? (
-                <>
-                  Vos collègues garderont l&apos;accès au workspace pendant <strong>30 jours</strong>. Passé ce délai, le cabinet et toutes ses données (vivier, missions, pipeline, emails) seront supprimés définitivement et sans retour possible.
-                </>
+                <>Vos collègues garderont l&apos;accès au workspace pendant <strong>30 jours</strong>. Passé ce délai, le cabinet et toutes ses données seront supprimés définitivement.</>
               ) : (
-                <>
-                  Toutes vos données (vivier, missions, pipeline, emails, paramètres) seront supprimées <strong>immédiatement et définitivement</strong>. Cette action est irréversible.
-                </>
+                <>Toutes vos données (vivier, missions, pipeline, emails, paramètres) seront supprimées <strong>immédiatement et définitivement</strong>. Cette action est irréversible.</>
               )}
             </p>
-
             <Label>Tapez le nom du cabinet pour confirmer&nbsp;: <code style={{ background: "#F3F4F6", padding: "1px 6px", borderRadius: 4, color: "#111827" }}>{expectedConfirm}</code></Label>
-            <input
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder={expectedConfirm}
-              autoFocus
-              style={inputStyle}
-            />
-
+            <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={expectedConfirm} autoFocus style={inputStyle} />
             {error && <p style={{ margin: "12px 0 0", fontSize: 13, color: "#EF4444" }}>{error}</p>}
-
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 22 }}>
-              <button
-                type="button"
-                onClick={() => { setShowModal(false); setConfirmText(""); setError(null) }}
-                disabled={busy}
-                style={smallBtnGhost}
-              >
+              <button type="button" onClick={() => { setShowModal(false); setConfirmText(""); setError(null) }}
+                disabled={busy} style={smallBtnGhost}>
                 Annuler
               </button>
-              <button
-                type="button"
-                onClick={doDelete}
-                disabled={!canDelete}
+              <button type="button" onClick={doDelete} disabled={!canDelete}
                 style={{
                   padding: "10px 18px", borderRadius: 10,
                   border: "none", color: "white",
                   background: canDelete ? "#B91C1C" : "#FCA5A5",
                   fontSize: 13, fontWeight: 700,
                   cursor: canDelete ? "pointer" : "not-allowed",
-                }}
-              >
-                {busy ? "Suppression…" : "Confirmer la suppression"}
+                }}>
+                {busy ? "Suppression…" : "Confirmer"}
               </button>
             </div>
           </div>
@@ -549,17 +693,18 @@ function DangerSection({
 /* Shared building blocks                                              */
 /* ────────────────────────────────────────────────────────────────── */
 
-function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <section style={{
-      marginTop: 22,
-      padding: "22px 24px",
+      padding: "18px 20px",
       background: "white",
       border: "1px solid #F0ECF8",
-      borderRadius: 16,
+      borderRadius: 14,
+      height: "100%",
+      boxSizing: "border-box",
     }}>
-      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#111827" }}>{title}</h2>
-      <p style={{ margin: "4px 0 18px", fontSize: 13, color: "#9CA3AF" }}>{subtitle}</p>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>{title}</h2>
+      <p style={{ margin: "4px 0 14px", fontSize: 12.5, color: "#9CA3AF" }}>{subtitle}</p>
       {children}
     </section>
   )
@@ -568,8 +713,8 @@ function Section({ title, subtitle, children }: { title: string; subtitle: strin
 function Label({ children }: { children: React.ReactNode }) {
   return (
     <label style={{
-      display: "block", marginBottom: 6,
-      fontSize: 12, fontWeight: 700, color: "#6B7280",
+      display: "block", marginBottom: 5,
+      fontSize: 11.5, fontWeight: 700, color: "#6B7280",
       letterSpacing: "0.03em",
     }}>
       {children}
@@ -579,39 +724,57 @@ function Label({ children }: { children: React.ReactNode }) {
 
 function Hint({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ margin: "6px 0 0", fontSize: 12, color: "#9CA3AF", lineHeight: 1.55 }}>{children}</p>
+    <p style={{ margin: "5px 0 0", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>{children}</p>
   )
 }
 
 const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "10px 13px",
-  borderRadius: 9, border: "1.5px solid #E5E7EB",
-  fontSize: 14, color: "#111827",
+  width: "100%", padding: "8px 11px",
+  borderRadius: 8, border: "1.5px solid #E5E7EB",
+  fontSize: 13.5, color: "#111827",
   outline: "none", transition: "border-color 150ms",
   fontFamily: "var(--font-inter), sans-serif",
   boxSizing: "border-box",
 }
 
 const smallBtnPrimary: React.CSSProperties = {
-  padding: "9px 14px", borderRadius: 9,
+  padding: "8px 13px", borderRadius: 8,
   border: "none", color: "white",
   background: "#7C63C8",
-  fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+  fontSize: 12, fontWeight: 700, cursor: "pointer",
   fontFamily: "var(--font-inter), sans-serif",
+  whiteSpace: "nowrap",
 }
 
 const smallBtnGhost: React.CSSProperties = {
-  padding: "9px 14px", borderRadius: 9,
+  padding: "8px 13px", borderRadius: 8,
   border: "1px solid #E5E7EB", background: "white",
   color: "#374151",
-  fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+  fontSize: 12, fontWeight: 600, cursor: "pointer",
+  fontFamily: "var(--font-inter), sans-serif",
+  whiteSpace: "nowrap",
+}
+
+const iconBtnStyle: React.CSSProperties = {
+  padding: "5px 10px", borderRadius: 7,
+  border: "1px solid #E5E7EB", background: "white",
+  color: "#6B7280", fontSize: 11.5, fontWeight: 600,
+  cursor: "pointer", flexShrink: 0,
   fontFamily: "var(--font-inter), sans-serif",
 }
 
 const memberRowStyle: React.CSSProperties = {
-  display: "flex", alignItems: "center", gap: 12,
-  padding: "10px 12px",
+  display: "flex", alignItems: "center", gap: 10,
+  padding: "8px 10px",
   background: "#FAFAFA",
   border: "1px solid #F0ECF8",
-  borderRadius: 12,
+  borderRadius: 10,
+}
+const memberNameStyle: React.CSSProperties = {
+  margin: 0, fontSize: 13, fontWeight: 600, color: "#111827",
+  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+}
+const memberSubStyle: React.CSSProperties = {
+  margin: "1px 0 0", fontSize: 11.5, color: "#9CA3AF",
+  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }
