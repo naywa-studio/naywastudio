@@ -538,26 +538,54 @@ function MembersSection({
     setBusy(false)
   }
 
+  const removeMember = async (userId: string, label: string) => {
+    if (!confirm(`Retirer ${label} du cabinet ? Son compte et son accès au workspace seront supprimés. Le siège sera libéré et réutilisable.`)) return
+    setBusy(true); setError(null); setOkMessage(null)
+    const res = await fetch(`/api/cabinet/members/${encodeURIComponent(userId)}`, { method: "DELETE" })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Erreur lors du retrait.")
+    } else {
+      setOkMessage(`${label} a été retiré du cabinet.`)
+      onChange()
+    }
+    setBusy(false)
+  }
+
   return (
     <Card title="Membres" subtitle={`${seatsUsed} sur ${Math.max(seatsTotal, seatsUsed)} sièges · vivier partagé`}>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflow: "auto" }}>
-        {members.map((m) => (
-          <div key={m.user_id} style={memberRowStyle}>
-            <Avatar letter={(m.first_name?.[0] ?? "?").toUpperCase()} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={memberNameStyle}>
-                {m.first_name ?? "Sans prénom"}
+        {members.map((m) => {
+          const canRemove = isOwner && m.role !== "owner" && m.user_id !== currentUserId
+          return (
+            <div key={m.user_id} style={memberRowStyle}>
+              <Avatar letter={(m.first_name?.[0] ?? "?").toUpperCase()} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={memberNameStyle}>
+                  {m.first_name ?? "Sans prénom"}
+                  {m.user_id === currentUserId && (
+                    <span style={{ color: "#9CA3AF", fontWeight: 500 }}> · vous</span>
+                  )}
+                </p>
                 {m.user_id === currentUserId && (
-                  <span style={{ color: "#9CA3AF", fontWeight: 500 }}> · vous</span>
+                  <p style={memberSubStyle}>{userEmail}</p>
                 )}
-              </p>
-              {m.user_id === currentUserId && (
-                <p style={memberSubStyle}>{userEmail}</p>
+              </div>
+              <RolePill role={m.role} />
+              {canRemove && (
+                <button
+                  type="button"
+                  onClick={() => void removeMember(m.user_id, m.first_name ?? "ce membre")}
+                  disabled={busy}
+                  title="Retirer du cabinet"
+                  style={iconBtnStyle}
+                >
+                  Retirer
+                </button>
               )}
             </div>
-            <RolePill role={m.role} />
-          </div>
-        ))}
+          )
+        })}
 
         {invites.map((inv) => (
           <div key={inv.id} style={{
