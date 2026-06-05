@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { m } from "framer-motion"
 import { useWorkspace } from "./layout"
-import BrandingCard from "@/components/workspace/BrandingCard"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { getSupabase } from "@/lib/supabase"
 import type { MatchTier } from "@/lib/database.types"
@@ -61,7 +60,7 @@ const TIER_COLOR: Record<MatchTier, { fg: string; bg: string; bd: string }> = {
 }
 
 export default function WorkspaceHome() {
-  const { profile, hasSubscription, refetchProfile } = useWorkspace()
+  const { profile, organization, hasSubscription, refetchProfile } = useWorkspace()
   const sb = useMemo(() => getSupabase(), [])
   const granted = useRef(false)
 
@@ -84,17 +83,17 @@ export default function WorkspaceHome() {
     })()
   }, [hasSubscription, refetchProfile])
 
-  // Brand logo — signed URL for 1 h preview, mirrors BrandingCard.
+  // Brand logo — signed URL for 1 h preview from the org bucket.
   useEffect(() => {
     let mounted = true
     ;(async () => {
-      if (!profile?.brand_logo_path) { setBrandLogoUrl(null); return }
+      if (!organization?.brand_logo_path) { setBrandLogoUrl(null); return }
       const { data: signed } = await sb.storage.from("brand-logos")
-        .createSignedUrl(profile.brand_logo_path, 60 * 60)
+        .createSignedUrl(organization.brand_logo_path, 60 * 60)
       if (mounted) setBrandLogoUrl(signed?.signedUrl ?? null)
     })()
     return () => { mounted = false }
-  }, [sb, profile?.brand_logo_path])
+  }, [sb, organization?.brand_logo_path])
 
   // Load stats + recent activity in parallel.
   useEffect(() => {
@@ -176,7 +175,7 @@ export default function WorkspaceHome() {
   }, [sb])
 
   const firstName = profile?.first_name?.trim() || null
-  const brandName = profile?.brand_name?.trim() || null
+  const brandName = (organization?.brand_name ?? organization?.name ?? "").trim() || null
   const brandInitials = brandName
     ? brandName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")
     : null
@@ -212,9 +211,9 @@ export default function WorkspaceHome() {
           </h1>
           {!brandName && (
             <p style={{ margin: "8px 0 0", fontSize: 13, color: "#6B7280" }}>
-              <a href="#identite" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "none" }}>
+              <Link href="/cabinet" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "none" }}>
                 Définir l&apos;identité de votre cabinet
-              </a>{" "}
+              </Link>{" "}
               · apparaît sur les CV anonymisés
             </p>
           )}
@@ -356,9 +355,6 @@ export default function WorkspaceHome() {
         </RecentPanel>
       </div>
 
-      <div id="identite">
-        <BrandingCard />
-      </div>
     </main>
   )
 }

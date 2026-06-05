@@ -4,14 +4,17 @@ import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
+import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+type Organization = Database["public"]["Tables"]["organizations"]["Row"]
 
 interface WorkspaceCtx {
   profile: Profile | null
+  organization: Organization | null
   userEmail: string
   hasSubscription: boolean
   refetchProfile: () => Promise<void>
@@ -37,6 +40,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [organization, setOrganization] = useState<Organization | null>(null)
   const [userEmail, setUserEmail] = useState("")
   const [ready, setReady] = useState(false)
 
@@ -64,7 +68,18 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       }
     }
 
+    let org: Organization | null = null
+    if (prof?.organization_id) {
+      const { data } = await sb
+        .from("organizations")
+        .select("*")
+        .eq("id", prof.organization_id)
+        .single()
+      org = data ?? null
+    }
+
     setProfile(prof ?? null)
+    setOrganization(org)
     setReady(true)
   }
 
@@ -139,7 +154,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   })
 
   return (
-    <WorkspaceContext.Provider value={{ profile, userEmail, hasSubscription, refetchProfile: fetchProfile }}>
+    <WorkspaceContext.Provider value={{ profile, organization, userEmail, hasSubscription, refetchProfile: fetchProfile }}>
       <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "var(--font-inter), sans-serif" }}>
         {/* Top bar */}
         <header
@@ -177,6 +192,14 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Link href="/cabinet" style={{
+              fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
+              background: "white", border: "1px solid rgba(124,99,200,0.25)",
+              borderRadius: 8, padding: "6px 12px", textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}>
+              Cabinet
+            </Link>
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               fontSize: 11, fontWeight: 700, color: "#7C63C8",
@@ -234,6 +257,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           }
         `}</style>
 
+        <PendingDeletionBanner />
         {children}
 
         <UndoToastHost />

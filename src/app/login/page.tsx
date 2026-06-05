@@ -58,11 +58,15 @@ function LoginInner() {
       }
       router.replace(nextPath)
     } else {
+      const trimmedFirstName = firstName.trim()
       const { data, error: err } = await sb.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/workspace`,
+          // Picked up by handle_new_auth_user() and used to seed the
+          // profile's first_name + the "Cabinet de {prénom}" org name.
+          data: trimmedFirstName ? { first_name: trimmedFirstName } : undefined,
         },
       })
       if (err) {
@@ -70,9 +74,10 @@ function LoginInner() {
         setLoading(false)
         return
       }
-      // Save first_name to profile
-      if (data.user && firstName.trim()) {
-        await sb.from("profiles").update({ first_name: firstName.trim() }).eq("user_id", data.user.id)
+      // Defensive: also persist first_name on the profile in case the
+      // trigger wasn't picking up metadata for any reason.
+      if (data.user && trimmedFirstName) {
+        await sb.from("profiles").update({ first_name: trimmedFirstName }).eq("user_id", data.user.id)
       }
       if (data.session) {
         router.replace(nextPath)
