@@ -14,7 +14,9 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
-  // Verify ownership via user-scoped client (RLS enforced)
+  // Verify access via user-scoped client. RLS is org-scoped (migration
+  // 019), so a returned row proves the caller is in the same org as
+  // the candidate — which is the required permission.
   const { data: candidate, error: fetchErr } = await sb
     .from("candidates")
     .select("id, user_id, cv_file_path")
@@ -23,9 +25,6 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
 
   if (fetchErr || !candidate) {
     return NextResponse.json({ error: "not_found" }, { status: 404 })
-  }
-  if (candidate.user_id !== user.id) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
   }
 
   const admin = getAdminSupabase()

@@ -172,10 +172,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2. Match: to-address → owning profile
+  // 2. Match: to-address → owning profile (+ its org so the candidate
+  //    lookup spans all members of the cabinet, not just the inbox owner).
   const { data: profile } = await admin
     .from("profiles")
-    .select("user_id")
+    .select("user_id, organization_id")
     .eq("inbox_address", toAddr)
     .maybeSingle()
   if (!profile) {
@@ -183,12 +184,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, ignored: true })
   }
   const userId = profile.user_id
+  const orgId = profile.organization_id
 
-  // from-address → that user's candidate
+  // from-address → any candidate of that organization (vivier is shared
+  // across members).
   const { data: candidate } = await admin
     .from("candidates")
     .select("id")
-    .eq("user_id", userId)
+    .eq("organization_id", orgId)
     .eq("email", fromAddr)
     .limit(1)
     .maybeSingle()

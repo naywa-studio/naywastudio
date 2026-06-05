@@ -165,7 +165,6 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     .eq("id", id)
     .single()
   if (error || !candidate) return NextResponse.json({ error: "not_found" }, { status: 404 })
-  if (candidate.user_id !== user.id) return NextResponse.json({ error: "forbidden" }, { status: 403 })
   if (!candidate.anonymized_pdf_path) return NextResponse.json({ error: "no_file" }, { status: 404 })
 
   const admin = getAdminSupabase()
