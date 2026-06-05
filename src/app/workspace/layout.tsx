@@ -68,6 +68,13 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       }
     }
 
+    // Gate: without a sourcing seat there's nothing to do in /workspace.
+    // The owner self-allocates from /cabinet.
+    if (prof && !prof.has_sourcing_seat) {
+      router.replace("/cabinet")
+      return
+    }
+
     let org: Organization | null = null
     if (prof?.organization_id) {
       const { data } = await sb

@@ -60,12 +60,14 @@ export async function POST(req: Request) {
     .single()
   const personalOrgId = profile?.organization_id
 
-  // Move profile to invited org as a member.
+  // Move profile to invited org as a member, with a sourcing seat (the
+  // whole point of being invited).
   const { error: moveErr } = await admin
     .from("profiles")
     .update({
       organization_id: invite.organization_id,
       role: invite.role,
+      has_sourcing_seat: true,
     })
     .eq("user_id", user.id)
 

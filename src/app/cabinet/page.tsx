@@ -121,6 +121,13 @@ export default function CabinetPage() {
         </div>
       </m.section>
 
+      {/* ── Mon siège — bandeau au-dessus du dashboard ─────── */}
+      <MySeatBanner
+        hasSeat={profile.has_sourcing_seat}
+        onToggle={refetch}
+        isOwner={isOwner}
+      />
+
       {/* ── 12-col grid ───────────────────────────────────── */}
       <div style={{
         display: "grid",
@@ -168,6 +175,116 @@ export default function CabinetPage() {
         }
       `}</style>
     </main>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Mon siège                                                            */
+/* ────────────────────────────────────────────────────────────────── */
+
+function MySeatBanner({ hasSeat, onToggle, isOwner }: {
+  hasSeat: boolean
+  onToggle: () => Promise<void>
+  isOwner: boolean
+}) {
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const allocate = async () => {
+    setBusy(true); setError(null)
+    const res = await fetch("/api/cabinet/seat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ allocate: true }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Erreur lors de l'allocation.")
+      setBusy(false)
+      return
+    }
+    await onToggle()
+    router.replace("/workspace")
+  }
+
+  const release = async () => {
+    if (!confirm("Libérer votre siège ? Vous perdrez l'accès au workspace jusqu'à ce que vous vous en allouiez un nouveau.")) return
+    setBusy(true); setError(null)
+    const res = await fetch("/api/cabinet/seat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ allocate: false }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Erreur.")
+    } else {
+      await onToggle()
+    }
+    setBusy(false)
+  }
+
+  if (hasSeat) {
+    return (
+      <section style={{
+        padding: "14px 18px", marginBottom: 18,
+        background: "rgba(34,197,94,0.06)",
+        border: "1px solid rgba(34,197,94,0.25)",
+        borderRadius: 14,
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+        flexWrap: "wrap",
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#15803d" }}>
+            Vous occupez un siège du Package Sourcing.
+          </p>
+          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#166534" }}>
+            Accès complet au workspace (vivier, missions, pricing, pipeline).
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" onClick={() => router.push("/workspace")} style={smallBtnPrimary}>
+            Ouvrir le workspace →
+          </button>
+          {isOwner && (
+            <button type="button" onClick={release} disabled={busy} style={smallBtnGhost}>
+              {busy ? "…" : "Libérer le siège"}
+            </button>
+          )}
+        </div>
+        {error && <p style={{ width: "100%", margin: 0, fontSize: 12, color: "#EF4444" }}>{error}</p>}
+      </section>
+    )
+  }
+
+  return (
+    <section style={{
+      padding: "16px 20px", marginBottom: 18,
+      background: "linear-gradient(135deg, rgba(124,99,200,0.06) 0%, rgba(184,174,222,0.10) 100%)",
+      border: "1px solid rgba(124,99,200,0.25)",
+      borderRadius: 14,
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+      flexWrap: "wrap",
+    }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#111827" }}>
+          Vous n&apos;avez pas encore alloué de siège du Package Sourcing.
+        </p>
+        <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+          Allouez-vous un siège pour accéder au workspace (vivier, missions, pipeline), ou invitez un collègue pour qu&apos;il utilise un siège à votre place.
+        </p>
+      </div>
+      <button type="button" onClick={allocate} disabled={busy || !isOwner}
+        style={{
+          ...smallBtnPrimary,
+          padding: "11px 18px", fontSize: 13,
+          opacity: !isOwner ? 0.5 : 1,
+        }}>
+        {busy ? "Allocation…" : "M'allouer un siège"}
+      </button>
+      {error && <p style={{ width: "100%", margin: 0, fontSize: 12, color: "#EF4444" }}>{error}</p>}
+    </section>
   )
 }
 

@@ -151,6 +151,10 @@ export type Database = {
            *  every authenticated user always belongs to exactly one org. */
           organization_id: string
           role: 'owner' | 'member'
+          /** True iff this profile occupies one of the org sourcing seats.
+           *  Owners default to false (admin-only); invitees default to true.
+           *  /workspace access is gated on this column. */
+          has_sourcing_seat: boolean
           inbox_address: string | null
           inbox_cc_self: boolean
           brand_name: string | null

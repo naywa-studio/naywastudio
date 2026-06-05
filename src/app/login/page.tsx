@@ -63,7 +63,9 @@ function LoginInner() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/workspace`,
+          // New signups land on /cabinet — no sourcing seat yet, the owner
+          // must choose to allocate one (or invite a colleague to use it).
+          emailRedirectTo: `${window.location.origin}/cabinet`,
           // Picked up by handle_new_auth_user() and used to seed the
           // profile's first_name + the "Cabinet de {prénom}" org name.
           data: trimmedFirstName ? { first_name: trimmedFirstName } : undefined,
