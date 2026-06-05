@@ -21,27 +21,22 @@ export default function AuthCallbackPage() {
         return
       }
 
-      // Retrieve onboarding data stored before the OAuth redirect
+      // Persist the first_name if the signup form stashed one before the
+      // OAuth redirect. The on_auth_user_created trigger already inserted
+      // the profile + org with a derived first_name; we only override if
+      // the user explicitly typed one in the signup form.
       const pending = sessionStorage.getItem("nawa_pending_profile")
       if (pending) {
-        const p = JSON.parse(pending) as {
-          first_name?: string
-          sector?: string
-          need?: string
-          budget?: string
-          agent_name?: string
-          agent_price?: string
-        }
-        const { error: profileError } = await getSupabase().from("profiles").upsert({
-          user_id: session.user.id,
-          first_name: p.first_name ?? null,
-          sector: p.sector ?? null,
-          need: p.need ?? null,
-          budget: p.budget ?? null,
-          agent_name: p.agent_name ?? null,
-          agent_price: p.agent_price ?? null,
-        })
-        if (profileError) console.error("Profile save error:", profileError.message)
+        try {
+          const p = JSON.parse(pending) as { first_name?: string }
+          if (p.first_name?.trim()) {
+            const { error: profileError } = await getSupabase()
+              .from("profiles")
+              .update({ first_name: p.first_name.trim() })
+              .eq("user_id", session.user.id)
+            if (profileError) console.error("Profile save error:", profileError.message)
+          }
+        } catch { /* ignore malformed payload */ }
         sessionStorage.removeItem("nawa_pending_profile")
       }
 

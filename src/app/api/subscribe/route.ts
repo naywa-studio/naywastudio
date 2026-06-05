@@ -1,18 +1,23 @@
 /**
- * POST /api/subscribe { level: "nora" }
+ * POST /api/subscribe
  *
- * The legacy multi-agent flow (Léo / Nora / Alex with per-client VPS)
- * has been retired. The product is now a single product around Nora —
- * the CV intelligence CRM. This endpoint stays as a no-op grant that
- * just attaches the user to the "nora" tier so the workspace UI loads.
+ * Legacy endpoint kept as a no-op for the workspace home auto-grant call.
+ * In the org model, every signed-in user already has an organization
+ * created by the on_auth_user_created trigger (migration 020), with
+ * `package_sourcing_active = true` by default. This route just confirms
+ * that state so the workspace UI can keep its "first-visit grant" loop
+ * happy.
+ *
+ * Once we wire Stripe, this is the entry point to flip
+ * `package_sourcing_active` on after a successful checkout.
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import type { Database } from "@/lib/database.types"
 
-export async function POST(_req: NextRequest) { void _req;
+export async function POST() {
   const cookieStore = await cookies()
   const sb = createServerClient<Database>(
     (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim(),
@@ -36,29 +41,13 @@ export async function POST(_req: NextRequest) { void _req;
 
   const { data: profile } = await sb
     .from("profiles")
-    .select("subscription_level")
+    .select("organization_id")
     .eq("user_id", user.id)
     .single()
 
-  if (profile?.subscription_level) {
-    return NextResponse.json({ ok: true, level: profile.subscription_level, status: "ready" })
+  if (!profile?.organization_id) {
+    return NextResponse.json({ error: "No organization" }, { status: 409 })
   }
 
-  const now = new Date().toISOString()
-  const { error: updateErr } = await sb
-    .from("profiles")
-    .update({
-      subscription_level: "nora",
-      subscribed_at: now,
-      vps_status:    "ready",
-      agent_status:  "running",
-    })
-    .eq("user_id", user.id)
-
-  if (updateErr) {
-    console.error("[subscribe] profile update error:", updateErr)
-    return NextResponse.json({ error: "DB error" }, { status: 500 })
-  }
-
-  return NextResponse.json({ ok: true, level: "nora", status: "ready" })
+  return NextResponse.json({ ok: true, organization_id: profile.organization_id })
 }

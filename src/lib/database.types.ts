@@ -1,12 +1,6 @@
 // Generated-style type definition compatible with @supabase/supabase-js v2
 // Sprint 1 — CV CRM (Naywa Studio / Nora)
 
-export type WorkspaceMsg = {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-}
-
 // ── Parsed CV structure (LLM output) ──────────────────────────────────────────
 export type ExperienceSeniority = 'stage' | 'junior' | 'mid' | 'senior' | 'lead' | 'principal'
 
@@ -153,22 +147,10 @@ export type Database = {
           id: string
           user_id: string
           first_name: string | null
-          sector: string | null
-          need: string | null
-          budget: string | null
-          agent_name: string | null
-          agent_price: string | null
-          subscription_level: 'leo' | 'nora' | 'alex' | null
-          subscribed_at: string | null
-          booking_url: string | null
-          vps_id: string | null
-          vps_ip: string | null
-          vps_status: 'pending' | 'provisioning' | 'ready' | 'error' | null
-          agent_status: 'not_deployed' | 'deploying' | 'running' | 'error'
-          workspace_memory: string | null
-          workspace_messages: WorkspaceMsg[] | null
-          apify_credits_used: number
-          apify_reset_at: string
+          /** FK → organizations.id. Set by the on_auth_user_created trigger,
+           *  every authenticated user always belongs to exactly one org. */
+          organization_id: string
+          role: 'owner' | 'member'
           inbox_address: string | null
           inbox_cc_self: boolean
           brand_name: string | null
@@ -204,10 +186,75 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['profiles']['Row']>
         Relationships: []
       }
+      organizations: {
+        Row: {
+          id: string
+          name: string
+          owner_user_id: string | null
+          brand_name: string | null
+          brand_logo_path: string | null
+          /** True while the cabinet has access to the sourcing workspace.
+           *  Set false when the owner cancels — combined with
+           *  `pending_deletion_at` for the grace-period flow. */
+          package_sourcing_active: boolean
+          seats_total: number
+          /** Cabinet outbound mailing domain (eg "cabinet-dupont.com"). NULL =
+           *  shared Naywa transactional domain. UI masks this field until the
+           *  Resend per-cabinet domain wiring ships. */
+          mailing_domain: string | null
+          /** When set, the cron will wipe this org and all its data at this
+           *  timestamp. Members keep access until then; owner is already gone. */
+          pending_deletion_at: string | null
+          // Pricing cabinet-wide defaults — single source of truth going
+          // forward. The legacy mirrors on `profiles` are kept temporarily
+          // until every read path moves here.
+          pricing_billable_days_per_month: number | null
+          pricing_margin_min_pct: number | null
+          pricing_margin_target_pct: number | null
+          pricing_default_lieu: 'paris_petite_couronne' | 'idf_grande_couronne' | 'lyon' | 'province' | null
+          pricing_default_modalite: 'modalite_1' | 'modalite_2' | 'modalite_3' | null
+          pricing_default_avantages: PricingDefaultAvantages | null
+          pricing_onboarded_at: string | null
+          pricing_rtt_days_per_year: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['organizations']['Row']> & { name: string }
+        Update: Partial<Database['public']['Tables']['organizations']['Row']>
+        Relationships: []
+      }
+      org_invites: {
+        Row: {
+          id: string
+          organization_id: string
+          email: string
+          token: string
+          role: 'owner' | 'member'
+          invited_by: string | null
+          expires_at: string
+          accepted_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          email: string
+          token?: string
+          role?: 'owner' | 'member'
+          invited_by?: string | null
+          expires_at?: string
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['org_invites']['Row']>
+        Relationships: []
+      }
       jobs: {
         Row: {
           id: string
           user_id: string
+          /** FK → organizations.id. Set automatically on insert. */
+          organization_id: string
           title: string
           role_name: string | null
           location: string | null
@@ -246,6 +293,7 @@ export type Database = {
         Insert: {
           id?: string
           user_id: string
+          organization_id?: string
           title: string
           role_name?: string | null
           location?: string | null
@@ -280,6 +328,7 @@ export type Database = {
         Row: {
           id: string
           user_id: string
+          organization_id: string
           full_name: string | null
           email: string | null
           phone: string | null
@@ -319,6 +368,7 @@ export type Database = {
         Insert: {
           id?: string
           user_id: string
+          organization_id?: string
           full_name?: string | null
           email?: string | null
           phone?: string | null
@@ -359,6 +409,7 @@ export type Database = {
         Row: {
           id: string
           user_id: string
+          organization_id: string
           candidate_id: string
           job_id: string
           score: number | null
@@ -388,6 +439,7 @@ export type Database = {
         Insert: {
           id?: string
           user_id: string
+          organization_id?: string
           candidate_id: string
           job_id: string
           score?: number | null
@@ -428,12 +480,14 @@ export type Database = {
       daily_usage: {
         Row: {
           user_id: string
+          organization_id: string
           day: string
           action: string
           count: number
         }
         Insert: {
           user_id: string
+          organization_id?: string
           day?: string
           action: string
           count?: number
@@ -445,6 +499,7 @@ export type Database = {
         Row: {
           id: string
           user_id: string
+          organization_id: string
           candidate_id: string | null
           job_id: string | null
           direction: 'outbound' | 'inbound'
@@ -464,6 +519,7 @@ export type Database = {
         Insert: {
           id?: string
           user_id: string
+          organization_id?: string
           candidate_id?: string | null
           job_id?: string | null
           direction: 'outbound' | 'inbound'
@@ -502,6 +558,7 @@ export type Database = {
         Row: {
           id: string
           user_id: string
+          organization_id: string | null
           candidate_id: string | null
           job_id: string | null
           match_id: string | null
@@ -523,6 +580,7 @@ export type Database = {
         Insert: {
           id?: string
           user_id: string
+          organization_id?: string | null
           candidate_id?: string | null
           job_id?: string | null
           match_id?: string | null
@@ -596,6 +654,9 @@ export const CANDIDATE_COLUMNS =
 
 // ── Aliases métier ────────────────────────────────────────────────────────────
 export type Profile = Database['public']['Tables']['profiles']['Row']
+export type Organization = Database['public']['Tables']['organizations']['Row']
+export type OrgInvite = Database['public']['Tables']['org_invites']['Row']
+export type OrgRole = Profile['role']
 export type Job = Database['public']['Tables']['jobs']['Row']
 export type Candidate = Database['public']['Tables']['candidates']['Row']
 export type MatchAssessment = Database['public']['Tables']['match_assessments']['Row']

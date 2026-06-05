@@ -89,7 +89,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     )
   }
 
-  const hasSubscription = !!profile?.subscription_level
+  // Every authenticated user gets an org with package_sourcing_active=true
+  // by default (see migration 020 trigger). The gate stays around so that
+  // when Stripe ships we can flip it back to its real meaning.
+  const hasSubscription = !!profile?.organization_id
   const firstName = profile?.first_name?.trim() || null
   const initial = (firstName?.[0] ?? userEmail[0] ?? "?").toUpperCase()
 
