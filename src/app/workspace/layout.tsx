@@ -199,14 +199,16 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Link href="/cabinet" style={{
-              fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
-              background: "white", border: "1px solid rgba(124,99,200,0.25)",
-              borderRadius: 8, padding: "6px 12px", textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}>
-              Cabinet
-            </Link>
+            {profile?.role === "owner" && (
+              <Link href="/cabinet" style={{
+                fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
+                background: "white", border: "1px solid rgba(124,99,200,0.25)",
+                borderRadius: 8, padding: "6px 12px", textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}>
+                Cabinet
+              </Link>
+            )}
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               fontSize: 11, fontWeight: 700, color: "#7C63C8",

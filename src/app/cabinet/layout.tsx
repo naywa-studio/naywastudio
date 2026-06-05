@@ -60,6 +60,9 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
 
     if (!org) { router.replace("/workspace"); return }
 
+    // Members never see the cabinet console — only the owner manages it.
+    if (profile.role !== "owner") { router.replace("/workspace"); return }
+
     setCtx({
       profile,
       organization: org,
