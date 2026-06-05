@@ -1,12 +1,16 @@
 /**
- * PATCH /api/match/:id/pricing-params   { pricing_tjm?, pricing_brut? }
+ * PATCH /api/match/:id/pricing-params
+ *   { pricing_tjm?, pricing_brut?, pricing_avantages_override? }
  *
- * Persiste les derniers réglages TJM/Brut ajustés par le sourceur sur un
- * candidat × mission précis. Au retour sur le même candidat, le widget les
- * relit pour restaurer la session.
+ * Persiste les derniers réglages TJM / Brut / avantages ajustés par le
+ * sourceur sur un candidat × mission précis. Au retour sur le même
+ * candidat, le widget les relit pour restaurer la session — pas de
+ * "sauvegarder ce scénario", le widget EST le scénario.
  *
- * Appelé en debounced (~600 ms) depuis le widget — pas critique, on accepte
- * une écriture par mouvement de stepper terminé.
+ * Appelé en debounced (~600 ms) depuis le widget.
+ *
+ * Passer `pricing_avantages_override: null` réinitialise (le bouton
+ * "Réinitialiser" du widget retombe alors sur les defaults cabinet).
  */
 
 import { NextRequest, NextResponse } from "next/server"
@@ -40,6 +44,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const update: MatchUpdate = {}
   if ("pricing_tjm" in body)  update.pricing_tjm  = cleanInt(body.pricing_tjm)
   if ("pricing_brut" in body) update.pricing_brut = cleanInt(body.pricing_brut)
+  if ("pricing_avantages_override" in body) {
+    // null wipes the override → cabinet defaults take over
+    const v = body.pricing_avantages_override
+    update.pricing_avantages_override = v && typeof v === "object" ? v as Record<string, unknown> : null
+  }
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ ok: true, noop: true })
   }

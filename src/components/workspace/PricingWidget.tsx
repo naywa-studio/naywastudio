@@ -589,6 +589,36 @@ function PricingWidgetInner({
         </div>
       </div>
 
+      {/* ═══ TOOLBAR — réinitialiser + export PDF ═══ */}
+      {matchId && (
+        <PricingToolbar
+          matchId={matchId}
+          onReset={() => {
+            // Replay the auto-derive logic: TJM from mission midpoint,
+            // brut from target gross. Then the debounced save effect
+            // pushes pricing_tjm=null and pricing_brut=null upstream.
+            const min = job?.client_tjm_min
+            const max = job?.client_tjm_max
+            const newTjm =
+              min != null && max != null ? Math.round((min + max) / 2)
+              : min ?? max ?? 550
+            setTjm(newTjm)
+            setBrutAnnuel(job?.target_gross_salary ?? 45000)
+            // Persist a clean wipe alongside the debounced numeric save so
+            // the next visit really starts from defaults.
+            void fetch(`/api/match/${matchId}/pricing-params`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                pricing_tjm: null,
+                pricing_brut: null,
+                pricing_avantages_override: null,
+              }),
+            }).then(() => onPricingChange?.(matchId, newTjm, job?.target_gross_salary ?? 45000))
+          }}
+        />
+      )}
+
       {/* Stack en colonne unique sur écran étroit pour garder la lisibilité. */}
       <style jsx>{`
         @media (max-width: 1100px) {
@@ -599,6 +629,65 @@ function PricingWidgetInner({
       `}</style>
     </section>
   )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Toolbar — réinitialiser + export PDF
+ * Affichée seulement quand on a un matchId (donc en contexte fiche pricing).
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function PricingToolbar({ matchId, onReset }: { matchId: string; onReset: () => void }) {
+  return (
+    <div style={{
+      marginTop: 14, paddingTop: 14,
+      borderTop: "1px solid #F0ECF8",
+      display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap",
+    }}>
+      <button
+        type="button"
+        onClick={() => {
+          if (confirm("Réinitialiser ce chiffrage aux valeurs par défaut de la mission ?")) onReset()
+        }}
+        style={toolbarBtnGhost}
+      >
+        Réinitialiser
+      </button>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <a
+          href={`/api/match/${matchId}/pricing-pdf`}
+          target="_blank" rel="noopener noreferrer"
+          style={toolbarBtnPrimary}
+        >
+          Télécharger PDF
+        </a>
+        <a
+          href={`/api/match/${matchId}/pricing-pdf?anonymize=1`}
+          target="_blank" rel="noopener noreferrer"
+          style={toolbarBtnGhost}
+          title="Le candidat sera identifié par sa référence courte (C-XXXXXXXX) — version partageable au client"
+        >
+          Version anonymisée
+        </a>
+      </div>
+    </div>
+  )
+}
+
+const toolbarBtnPrimary: React.CSSProperties = {
+  padding: "8px 14px", borderRadius: 9,
+  border: "none", background: "#7C63C8", color: "white",
+  fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+  textDecoration: "none",
+  fontFamily: "var(--font-inter), sans-serif",
+}
+
+const toolbarBtnGhost: React.CSSProperties = {
+  padding: "8px 14px", borderRadius: 9,
+  border: "1px solid #E5E7EB", background: "white", color: "#374151",
+  fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+  textDecoration: "none",
+  fontFamily: "var(--font-inter), sans-serif",
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
