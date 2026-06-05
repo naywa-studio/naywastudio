@@ -16,7 +16,8 @@ import {
   type Lieu,
   type PricingInputs,
 } from "@/lib/pricing/syntec"
-import type { Candidate, Job, Profile } from "@/lib/database.types"
+import type { Candidate, Job } from "@/lib/database.types"
+import type { CabinetPricingConfig } from "@/lib/cabinet-config"
 import { PRESETS, detectSeniority } from "@/lib/pricing/preset"
 
 const FALLBACK_AVANTAGES: Avantages = {
@@ -39,7 +40,8 @@ export interface QuickMarginResult {
 export function computeQuickMargin(args: {
   candidate: Candidate
   job: Job | null
-  profile: Pick<Profile,
+  /** Cabinet pricing defaults — read from organizations via getCabinetPricingConfig(). */
+  profile: Pick<CabinetPricingConfig,
     | "pricing_billable_days_per_month"
     | "pricing_rtt_days_per_year"
     | "pricing_default_lieu"

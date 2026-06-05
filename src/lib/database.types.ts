@@ -157,8 +157,6 @@ export type Database = {
           has_sourcing_seat: boolean
           inbox_address: string | null
           inbox_cc_self: boolean
-          brand_name: string | null
-          brand_logo_path: string | null
           calendly_access_token: string | null
           calendly_refresh_token: string | null
           calendly_token_expires_at: string | null
@@ -168,21 +166,6 @@ export type Database = {
           calendly_scheduling_url: string | null
           calendly_webhook_uri: string | null
           calendly_connected_at: string | null
-          // Pricing defaults — pre-fill every chiffrage on the fiche match.
-          pricing_billable_days_per_month: number | null
-          /** RTT par an accordés par le cabinet (configurable, défaut 0).
-           *  Soustraits du revenu facturable (proratisés par mois) car payés
-           *  mais non facturables au client. Les CP (25 j/an, obligation
-           *  légale) sont eux constants côté lib/pricing/syntec. */
-          pricing_rtt_days_per_year: number
-          pricing_margin_min_pct: number | null
-          pricing_margin_target_pct: number | null
-          pricing_default_lieu: 'paris_petite_couronne' | 'idf_grande_couronne' | 'lyon' | 'province' | null
-          pricing_default_modalite: 'modalite_1' | 'modalite_2' | 'modalite_3' | null
-          pricing_default_avantages: PricingDefaultAvantages | null
-          /** Set when the cabinet finishes the pricing onboarding wizard.
-           *  NULL ⇒ wizard not done, show it on next /workspace/pricing visit. */
-          pricing_onboarded_at: string | null
           created_at: string
           updated_at: string
         }

@@ -28,7 +28,8 @@ import {
 } from "@/lib/pricing/syntec"
 import MonthlyMarginChart from "@/components/workspace/MonthlyMarginChart"
 import RuptureRiskChart from "@/components/workspace/RuptureRiskChart"
-import type { Candidate, Job, Profile } from "@/lib/database.types"
+import type { Candidate, Job } from "@/lib/database.types"
+import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabinet-config"
 import { PRESETS, detectSeniority, type SenioritePreset } from "@/lib/pricing/preset"
 import { missionMonthProfile, MONTH_ABBR_FR } from "@/lib/pricing/calendar"
 import { getSupabase } from "@/lib/supabase"
@@ -80,7 +81,7 @@ const SYNTEC_CADRE_ROWS: { position: string; coefficient: number; label: string 
  * Outer wrapper — loads profile defaults
  * ────────────────────────────────────────────────────────────────────────── */
 
-type PricingProfile = Pick<Profile,
+type PricingProfile = Pick<CabinetPricingConfig,
   | "pricing_billable_days_per_month"
   | "pricing_rtt_days_per_year"
   | "pricing_margin_min_pct"
@@ -116,12 +117,8 @@ export default function PricingWidget({
     ;(async () => {
       const { data: { user } } = await sb.auth.getUser()
       if (!user || !mounted) return
-      const { data } = await sb
-        .from("profiles")
-        .select("pricing_billable_days_per_month, pricing_rtt_days_per_year, pricing_margin_min_pct, pricing_margin_target_pct, pricing_default_lieu, pricing_default_modalite, pricing_default_avantages")
-        .eq("user_id", user.id)
-        .maybeSingle()
-      if (mounted) setProfile(data ?? null)
+      const cfg = await getCabinetPricingConfig(sb, user.id)
+      if (mounted) setProfile(cfg)
     })()
     return () => { mounted = false }
   }, [sb])

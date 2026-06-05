@@ -17,7 +17,6 @@ const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
  *   - 5 raccourcis d'action vers les usages les plus fréquents
  *   - 4 indicateurs avec delta sur 7 jours
  *   - 3 panneaux d'activité récente (candidats / matches / à chiffrer)
- *   - BrandingCard en bas tant qu'il n'y a pas de page compte entreprise
  */
 
 interface Stats {

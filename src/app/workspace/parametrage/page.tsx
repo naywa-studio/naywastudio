@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
-import type { PricingDefaultAvantages, Profile } from "@/lib/database.types"
+import type { PricingDefaultAvantages } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import {
   AVANTAGES_CONFIG,
@@ -63,28 +63,34 @@ export default function ParametragePage() {
   const userIdRef = useRef<string | null>(null)
   const saveTimerRef = useRef<number | null>(null)
 
-  // Initial load
+  // Initial load — pricing config now lives on `organizations` (one
+  // source of truth) and reaches the user via profile.organization_id.
   useEffect(() => {
     let mounted = true
     ;(async () => {
       const { data: { user } } = await sb.auth.getUser()
       if (!user || !mounted) return
       userIdRef.current = user.id
-      const { data } = await sb
+      const { data: profile } = await sb
         .from("profiles")
-        .select("pricing_margin_min_pct, pricing_margin_target_pct, pricing_rtt_days_per_year, pricing_default_avantages")
+        .select("organization_id")
         .eq("user_id", user.id)
         .maybeSingle()
+      if (!mounted || !profile?.organization_id) return
+      const { data: org } = await sb
+        .from("organizations")
+        .select("pricing_margin_min_pct, pricing_margin_target_pct, pricing_rtt_days_per_year, pricing_default_avantages")
+        .eq("id", profile.organization_id)
+        .maybeSingle()
       if (!mounted) return
-      const profile = data as Partial<Profile> | null
-      const av = (profile?.pricing_default_avantages as PricingDefaultAvantages | null) ?? DEFAULT_FORM.pricing_default_avantages
+      const av = (org?.pricing_default_avantages as PricingDefaultAvantages | null) ?? DEFAULT_FORM.pricing_default_avantages
       setForm({
         pricing_margin_min_pct:
-          profile?.pricing_margin_min_pct ?? DEFAULT_FORM.pricing_margin_min_pct,
+          org?.pricing_margin_min_pct ?? DEFAULT_FORM.pricing_margin_min_pct,
         pricing_margin_target_pct:
-          profile?.pricing_margin_target_pct ?? DEFAULT_FORM.pricing_margin_target_pct,
+          org?.pricing_margin_target_pct ?? DEFAULT_FORM.pricing_margin_target_pct,
         pricing_rtt_days_per_year:
-          profile?.pricing_rtt_days_per_year ?? DEFAULT_FORM.pricing_rtt_days_per_year,
+          org?.pricing_rtt_days_per_year ?? DEFAULT_FORM.pricing_rtt_days_per_year,
         pricing_default_avantages: av,
         treiziemeMois: Boolean(av.treiziemeMois),
       })
@@ -92,16 +98,18 @@ export default function ParametragePage() {
     return () => { mounted = false }
   }, [sb])
 
-  // Debounced auto-save: schedule a save 800 ms after the last change.
+  // Debounced auto-save through the owner-only /api/cabinet PATCH so the
+  // org row is updated server-side under proper auth checks.
   const scheduleSave = useCallback(
     (next: Form) => {
       if (!userIdRef.current) return
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
       setSaveState("saving")
       saveTimerRef.current = window.setTimeout(async () => {
-        const { error: upErr } = await sb
-          .from("profiles")
-          .update({
+        const res = await fetch("/api/cabinet", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
             pricing_margin_min_pct: next.pricing_margin_min_pct,
             pricing_margin_target_pct: next.pricing_margin_target_pct,
             pricing_rtt_days_per_year: next.pricing_rtt_days_per_year,
@@ -109,11 +117,12 @@ export default function ParametragePage() {
               ...next.pricing_default_avantages,
               treiziemeMois: next.treiziemeMois,
             },
-          })
-          .eq("user_id", userIdRef.current!)
-        if (upErr) {
+          }),
+        })
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({} as { error?: string }))
           setSaveState("error")
-          setError(upErr.message)
+          setError(j.error ?? "Erreur lors de la sauvegarde.")
         } else {
           setSaveState("saved")
           setError(null)
@@ -121,7 +130,7 @@ export default function ParametragePage() {
         }
       }, 800)
     },
-    [sb],
+    [],
   )
 
   const update = useCallback(

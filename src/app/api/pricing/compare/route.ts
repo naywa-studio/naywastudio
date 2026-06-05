@@ -16,7 +16,8 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeQuota } from "@/lib/quota"
 import { openrouterChat } from "@/lib/openrouter"
 import { computeQuickMargin } from "@/lib/pricing/quick-margin"
-import type { Candidate, Job, Profile } from "@/lib/database.types"
+import type { Candidate, Job } from "@/lib/database.types"
+import { getCabinetPricingConfig } from "@/lib/cabinet-config"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -71,16 +72,16 @@ export async function POST(req: NextRequest) {
   }
   const job = jobsArr[0] as Job
 
-  // Profile (cabinet defaults) — needed for the margin compute.
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("pricing_billable_days_per_month, pricing_rtt_days_per_year, pricing_default_lieu, pricing_default_avantages")
-    .eq("user_id", user.id)
-    .maybeSingle()
-  const profileSlim = profile as Pick<
-    Profile,
-    "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
-  > | null
+  // Cabinet pricing defaults (org-scoped, single source of truth).
+  const cabinetConfig = await getCabinetPricingConfig(sb, user.id)
+  const profileSlim = cabinetConfig
+    ? {
+        pricing_billable_days_per_month: cabinetConfig.pricing_billable_days_per_month,
+        pricing_rtt_days_per_year: cabinetConfig.pricing_rtt_days_per_year,
+        pricing_default_lieu: cabinetConfig.pricing_default_lieu,
+        pricing_default_avantages: cabinetConfig.pricing_default_avantages,
+      }
+    : null
 
   // Re-order to match the client's A/B order.
   const rowA = rows.find((r) => r.id === a)!

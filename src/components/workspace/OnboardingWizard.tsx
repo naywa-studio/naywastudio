@@ -84,20 +84,23 @@ export default function OnboardingWizard({
     setSaving(true)
     saveTimerRef.current = window.setTimeout(async () => {
       if (!userIdRef.current) return
-      await sb
-        .from("profiles")
-        .update({
+      // Persist via /api/cabinet (owner-only PATCH) so the org row is
+      // the single source of truth for pricing defaults.
+      await fetch("/api/cabinet", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
           pricing_margin_min_pct: next.pricing_margin_min_pct,
           pricing_margin_target_pct: next.pricing_margin_target_pct,
           pricing_default_avantages: {
             ...next.pricing_default_avantages,
             treiziemeMois: next.treiziemeMois,
           },
-        })
-        .eq("user_id", userIdRef.current)
+        }),
+      })
       setSaving(false)
     }, 600)
-  }, [sb])
+  }, [])
 
   const update = useCallback(
     <K extends keyof WizardState>(key: K, value: WizardState[K]) => {
@@ -133,9 +136,10 @@ export default function OnboardingWizard({
       saveTimerRef.current = null
     }
     if (userIdRef.current) {
-      await sb
-        .from("profiles")
-        .update({
+      await fetch("/api/cabinet", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
           pricing_margin_min_pct: state.pricing_margin_min_pct,
           pricing_margin_target_pct: state.pricing_margin_target_pct,
           pricing_default_avantages: {
@@ -143,8 +147,8 @@ export default function OnboardingWizard({
             treiziemeMois: state.treiziemeMois,
           },
           pricing_onboarded_at: new Date().toISOString(),
-        })
-        .eq("user_id", userIdRef.current)
+        }),
+      })
     }
     onDone()
   }

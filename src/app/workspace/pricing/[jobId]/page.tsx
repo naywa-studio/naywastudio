@@ -17,7 +17,8 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
-import type { Candidate, Job, MatchTier, Profile } from "@/lib/database.types"
+import type { Candidate, Job, MatchTier } from "@/lib/database.types"
+import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabinet-config"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import PricingWidget from "@/components/workspace/PricingWidget"
 import { computeQuickMargin } from "@/lib/pricing/quick-margin"
@@ -40,7 +41,7 @@ export default function PricingMissionPage() {
   const sb = useMemo(() => getSupabase(), [])
 
   const [job, setJob] = useState<Job | null>(null)
-  const [profile, setProfile] = useState<Pick<Profile,
+  const [profile, setProfile] = useState<Pick<CabinetPricingConfig,
     | "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
   > | null>(null)
   const [candidates, setCandidates] = useState<PricingCandidate[]>([])
@@ -81,16 +82,13 @@ export default function PricingMissionPage() {
       }
       setJob(jobData as Job)
 
-      // Profil cabinet — sert au calcul de marge rapide par candidat dans
-      // la liste de gauche (transparence sur qui est rentable d'un coup d'œil).
+      // Cabinet pricing config — sert au calcul de marge rapide par
+      // candidat dans la liste de gauche (transparence sur qui est
+      // rentable d'un coup d'œil). Source unique : organizations.
       const { data: { user } } = await sb.auth.getUser()
       if (user) {
-        const { data: profileData } = await sb
-          .from("profiles")
-          .select("pricing_billable_days_per_month, pricing_rtt_days_per_year, pricing_default_lieu, pricing_default_avantages")
-          .eq("user_id", user.id)
-          .maybeSingle()
-        if (mounted) setProfile(profileData ?? null)
+        const cfg = await getCabinetPricingConfig(sb, user.id)
+        if (mounted) setProfile(cfg ?? null)
       }
 
       // Seuls les candidats explicitement ajoutés à la pipeline pour cette
@@ -945,7 +943,7 @@ function CompactCandidatesList({
 }: {
   candidates: PricingCandidate[]
   job: Job
-  profile: Pick<Profile,
+  profile: Pick<CabinetPricingConfig,
     | "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
   > | null
   selectedMatchId: string | null
@@ -1235,7 +1233,7 @@ function ComparisonPanel({
   candidates: PricingCandidate[]
   compareIds: string[]
   job: Job
-  profile: Pick<Profile,
+  profile: Pick<CabinetPricingConfig,
     | "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
   > | null
   onExit: () => void
@@ -1462,7 +1460,7 @@ function ComparisonCard({
   rank: number
   pc: PricingCandidate
   job: Job
-  profile: Pick<Profile,
+  profile: Pick<CabinetPricingConfig,
     | "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
   > | null
 }) {

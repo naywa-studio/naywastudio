@@ -41,21 +41,34 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     )
   }
 
-  // Per-client brand — name + signed logo URL (1h) so the PDF carries
-  // the cabinet's identity instead of Naywa's by default.
+  // Per-cabinet brand — name + signed logo URL (1h) so the PDF carries
+  // the cabinet's identity instead of Naywa's by default. Reads from
+  // organizations (the source of truth) via the caller's profile.
   const { data: profile } = await sb
-    .from("profiles").select("brand_name, brand_logo_path").eq("user_id", user.id).maybeSingle()
+    .from("profiles").select("organization_id").eq("user_id", user.id).maybeSingle()
+
+  let brandName: string | null = null
+  let brandLogoPath: string | null = null
+  if (profile?.organization_id) {
+    const { data: org } = await sb
+      .from("organizations")
+      .select("brand_name, brand_logo_path, name")
+      .eq("id", profile.organization_id)
+      .maybeSingle()
+    brandName = (org?.brand_name?.trim() || org?.name?.trim()) || null
+    brandLogoPath = org?.brand_logo_path ?? null
+  }
 
   let brandLogoUrl: string | null = null
-  if (profile?.brand_logo_path) {
+  if (brandLogoPath) {
     const adminTmp = getAdminSupabase()
     const { data: signed } = await adminTmp.storage
       .from("brand-logos")
-      .createSignedUrl(profile.brand_logo_path, 60 * 60)
+      .createSignedUrl(brandLogoPath, 60 * 60)
     brandLogoUrl = signed?.signedUrl ?? null
   }
   const brand = {
-    name: profile?.brand_name?.trim() || null,
+    name: brandName,
     logoUrl: brandLogoUrl,
   }
 

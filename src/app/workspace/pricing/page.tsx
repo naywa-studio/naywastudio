@@ -19,7 +19,8 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
-import type { Job, Profile } from "@/lib/database.types"
+import type { Job } from "@/lib/database.types"
+import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabinet-config"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import OnboardingWizard from "@/components/workspace/OnboardingWizard"
 import PricingIcon from "@/components/workspace/PricingIcon"
@@ -35,7 +36,7 @@ interface MissionRow {
   pricingCandidatesCount: number
 }
 
-type ProfilePricing = Pick<Profile,
+type ProfilePricing = Pick<CabinetPricingConfig,
   | "pricing_billable_days_per_month"
   | "pricing_margin_min_pct"
   | "pricing_default_avantages"
@@ -50,22 +51,24 @@ export default function PricingPage() {
   const loadAll = useCallback(async () => {
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return
-    const [{ data: jobs }, { data: prof }, { data: pricingMatches }] = await Promise.all([
+    const [{ data: jobs }, cabinetCfg, { data: pricingMatches }] = await Promise.all([
       sb
         .from("jobs")
         .select("id, title, location, contract_type, status, client_tjm_min, client_tjm_max, margin_min_pct, duration_months, target_gross_salary, created_at")
         .neq("status", "archived")
         .order("created_at", { ascending: false }),
-      sb
-        .from("profiles")
-        .select("pricing_billable_days_per_month, pricing_margin_min_pct, pricing_default_avantages, pricing_onboarded_at")
-        .eq("user_id", user.id)
-        .maybeSingle(),
+      getCabinetPricingConfig(sb, user.id),
       sb
         .from("match_assessments")
         .select("job_id")
         .eq("in_pipeline", true),
     ])
+    const prof = cabinetCfg ? {
+      pricing_billable_days_per_month: cabinetCfg.pricing_billable_days_per_month,
+      pricing_margin_min_pct: cabinetCfg.pricing_margin_min_pct,
+      pricing_default_avantages: cabinetCfg.pricing_default_avantages,
+      pricing_onboarded_at: cabinetCfg.pricing_onboarded_at,
+    } : null
     // Compte les candidats en pipeline par mission — c'est le pool réel à
     // chiffrer (le sourceur n'a ajouté que ceux qu'il poursuit vraiment).
     const countsByJob = new Map<string, number>()
