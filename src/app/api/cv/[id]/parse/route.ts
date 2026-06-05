@@ -222,6 +222,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       current_company: parsedCv?.current_company ?? null,
       years_experience: parsedCv?.years_experience ?? null,
       seniority_level:  parsedCv?.seniority_level ?? null,
+      is_apprentice:    parsedCv?.is_apprentice === true,
       skills:           parsedCv?.skills ?? [],
       languages:        parsedCv?.languages ?? [],
       // Preserve every existing tag (custom + "ancien") and only flip the

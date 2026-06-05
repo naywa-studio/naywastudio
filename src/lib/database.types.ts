@@ -41,6 +41,10 @@ export type ParsedCv = {
   seniority_level?: string | null
   /** Dominant role family the seniority applies to (e.g. "Data Engineer"). */
   seniority_role?: string | null
+  /** True if the candidate is currently in alternance / apprentissage /
+   *  contrat de professionnalisation. Drives the "Alternant" badge in
+   *  the UI and excludes the current experience from years_experience. */
+  is_apprentice?: boolean
   summary?: string | null
   /** Technical / verifiable skills (SQL, Agile, AWS…). Max 30. */
   skills?: string[]
@@ -236,6 +240,30 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['org_invites']['Row']>
         Relationships: []
       }
+      cluster_manifests: {
+        Row: {
+          id: string
+          organization_id: string
+          label: string
+          /** Short LLM-written "qui ressemble à ça". Re-read on every
+           *  subsequent clustering pass so Nora knows what fits each zone. */
+          description: string
+          candidate_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          label: string
+          description: string
+          candidate_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['cluster_manifests']['Row']>
+        Relationships: []
+      }
       jobs: {
         Row: {
           id: string
@@ -325,6 +353,8 @@ export type Database = {
           current_company: string | null
           years_experience: number | null
           seniority_level: string | null
+          /** True if currently in alternance/apprentissage — drives the UI badge. */
+          is_apprentice: boolean
           skills: string[] | null
           languages: string[] | null
           parsed_cv: ParsedCv | null
@@ -365,6 +395,7 @@ export type Database = {
           current_company?: string | null
           years_experience?: number | null
           seniority_level?: string | null
+          is_apprentice?: boolean
           skills?: string[] | null
           languages?: string[] | null
           parsed_cv?: ParsedCv | null
