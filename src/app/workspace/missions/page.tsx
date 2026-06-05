@@ -535,24 +535,140 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 
 /* ─── Create modal (centered) ──────────────────────────────────── */
 
+type ContractType = "cdi" | "cdd" | "freelance" | "portage" | "alternance"
+type PricingLieu = "paris_petite_couronne" | "idf_grande_couronne" | "lyon" | "province"
+
+const CONTRACT_LABELS: Record<ContractType, string> = {
+  cdi: "CDI",
+  cdd: "CDD",
+  freelance: "Freelance",
+  portage: "Portage salarial",
+  alternance: "Alternance",
+}
+const LIEU_LABELS: Record<PricingLieu, string> = {
+  paris_petite_couronne: "Paris + petite couronne (92, 93, 94)",
+  idf_grande_couronne: "Île-de-France grande couronne",
+  lyon: "Lyon",
+  province: "Province",
+}
+
+interface ExtractedFields {
+  role_name: string | null
+  seniority_min_years: number | null
+  seniority_max_years: number | null
+  contract_type: ContractType | null
+  location: string | null
+  pricing_lieu: PricingLieu | null
+  required_skills: string[]
+  nice_to_have_skills: string[]
+  duration_months: number | null
+  start_date: string | null
+  client_tjm_min: number | null
+  client_tjm_max: number | null
+  target_gross_salary: number | null
+  description: string | null
+}
+
+const EMPTY_EXTRACTED: ExtractedFields = {
+  role_name: null,
+  seniority_min_years: null,
+  seniority_max_years: null,
+  contract_type: null,
+  location: null,
+  pricing_lieu: null,
+  required_skills: [],
+  nice_to_have_skills: [],
+  duration_months: null,
+  start_date: null,
+  client_tjm_min: null,
+  client_tjm_max: null,
+  target_gross_salary: null,
+  description: null,
+}
+
 function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: Job) => void }) {
+  // Stage 1 : brief texte. Stage 2 : form pré-rempli.
+  const [stage, setStage] = useState<"brief" | "form" | "manual">("brief")
+  const [brief, setBrief] = useState("")
+  const [extracting, setExtracting] = useState(false)
+  const [extractError, setExtractError] = useState<string | null>(null)
+  const [briefExpanded, setBriefExpanded] = useState(false)
+  const [extracted, setExtracted] = useState<ExtractedFields>(EMPTY_EXTRACTED)
+
+  // Form fields (initialement remplis depuis extracted, puis éditables).
   const [roleName, setRoleName] = useState("")
-  const [title, setTitle] = useState("")
+  const [contractType, setContractType] = useState<ContractType | "">("")
   const [location, setLocation] = useState("")
+  const [pricingLieu, setPricingLieu] = useState<PricingLieu | "">("")
   const [seniorityMin, setSeniorityMin] = useState("")
   const [seniorityMax, setSeniorityMax] = useState("")
   const [reqSkills, setReqSkills] = useState<string[]>([])
+  const [niceSkills, setNiceSkills] = useState<string[]>([])
+  const [durationMonths, setDurationMonths] = useState("")
+  const [startDate, setStartDate] = useState("")
+  const [tjmMin, setTjmMin] = useState("")
+  const [tjmMax, setTjmMax] = useState("")
+  const [targetBrut, setTargetBrut] = useState("")
   const [description, setDescription] = useState("")
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Live, deterministic seniority detection from the experience interval.
   const minNum = seniorityMin === "" ? null : Number(seniorityMin)
   const maxNum = seniorityMax === "" ? null : Number(seniorityMax)
   const detected = seniorityIntervalLabel(minNum, maxNum)
 
+  const applyExtracted = (e: ExtractedFields) => {
+    setExtracted(e)
+    setRoleName(e.role_name ?? "")
+    setContractType(e.contract_type ?? "")
+    setLocation(e.location ?? "")
+    setPricingLieu(e.pricing_lieu ?? "")
+    setSeniorityMin(e.seniority_min_years != null ? String(e.seniority_min_years) : "")
+    setSeniorityMax(e.seniority_max_years != null ? String(e.seniority_max_years) : "")
+    setReqSkills(e.required_skills)
+    setNiceSkills(e.nice_to_have_skills)
+    setDurationMonths(e.duration_months != null ? String(e.duration_months) : "")
+    setStartDate(e.start_date ?? "")
+    setTjmMin(e.client_tjm_min != null ? String(e.client_tjm_min) : "")
+    setTjmMax(e.client_tjm_max != null ? String(e.client_tjm_max) : "")
+    setTargetBrut(e.target_gross_salary != null ? String(e.target_gross_salary) : "")
+    setDescription(e.description ?? "")
+  }
+
+  const runExtract = async () => {
+    if (!brief.trim()) { setExtractError("Collez votre brief, fiche de poste ou appel d'offre."); return }
+    setExtracting(true); setExtractError(null)
+    try {
+      const res = await fetch("/api/jobs/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brief: brief.trim() }),
+      })
+      const data = await res.json() as { ok?: boolean; extracted?: ExtractedFields; message?: string; error?: string }
+      if (!res.ok || !data.ok || !data.extracted) {
+        setExtractError(data.message ?? data.error ?? "Erreur d'analyse.")
+        setExtracting(false)
+        return
+      }
+      applyExtracted(data.extracted)
+      setStage("form")
+      setBriefExpanded(false)
+    } catch (err) {
+      setExtractError((err as Error).message ?? "Erreur réseau.")
+    } finally {
+      setExtracting(false)
+    }
+  }
+
   const submitForm = async () => {
     if (!roleName.trim()) { setError("Le nom du poste est requis."); return }
+    if (reqSkills.length === 0) { setError("Au moins une compétence requise."); return }
+    if (!contractType) { setError("Le type de contrat est requis."); return }
+    if (!location.trim()) { setError("Le lieu est requis."); return }
+    if (!durationMonths) { setError("La durée est requise."); return }
+    if (!startDate) { setError("La date de début est requise."); return }
+
     setSubmitting(true); setError(null)
     try {
       const res = await fetch("/api/jobs", {
@@ -560,12 +676,21 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           role_name: roleName,
-          title: title.trim() || roleName,
+          title: roleName,                            // on ne demande plus d'intitulé
           location,
+          pricing_lieu: pricingLieu || null,
+          contract_type: contractType,
           seniority_min_years: minNum,
           seniority_max_years: maxNum,
           required_skills: reqSkills,
+          nice_to_have_skills: niceSkills,
           description,
+          briefing: brief.trim() || null,             // on persiste le brief original
+          duration_months: durationMonths ? Number(durationMonths) : null,
+          start_date: startDate || null,
+          client_tjm_min: tjmMin ? Number(tjmMin) : null,
+          client_tjm_max: tjmMax ? Number(tjmMax) : null,
+          target_gross_salary: targetBrut ? Number(targetBrut) : null,
         }),
       })
       const data = await res.json()
@@ -580,6 +705,15 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
       setSubmitting(false)
     }
   }
+
+  /** Statut visuel d'un champ : "complet" / "manquant" / "à confirmer". */
+  const statusOf = (value: unknown, llmWasNull: boolean): "ok" | "missing" | "review" => {
+    const empty = value === "" || value == null || (Array.isArray(value) && value.length === 0)
+    if (empty) return "missing"
+    if (llmWasNull) return "ok"   // sourceur a complété → ok
+    return "ok"                    // LLM a donné, ok par défaut
+  }
+  void statusOf // helper réservé si on veut afficher 3 états ; pour l'instant on affiche ⚠ uniquement sur manquant
 
   return (
     <>
@@ -615,7 +749,7 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
                 Nouvelle mission
               </p>
               <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
-                Décrire le besoin
+                {stage === "brief" ? "Donnez votre brief à Nora" : stage === "manual" ? "Saisie manuelle" : "Vérifiez et complétez"}
               </h2>
             </div>
             <button onClick={onClose} aria-label="Fermer" style={{
@@ -624,114 +758,327 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
             }}>✕</button>
           </div>
 
-          {/* Body */}
-          <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 18 }}>
-            {/* Nom du poste + intitulé sur la même ligne */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <Field label="Nom du poste *" hint="utilisé par Nora pour matcher">
-                <input value={roleName} onChange={(e) => setRoleName(e.target.value)}
-                  placeholder="Ex : Data Engineer" style={inputStyle} autoFocus />
-              </Field>
-              <Field label="Intitulé de la mission" hint="indicatif, pour vous">
-                <input value={title} onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ex : DataLake — client BNP" style={inputStyle} />
-              </Field>
-            </div>
+          {/* ─── STAGE 1 : brief texte ─── */}
+          {stage === "brief" && (
+            <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 16 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "#6B7280", lineHeight: 1.6 }}>
+                Collez votre brief, votre fiche de poste ou l&apos;appel d&apos;offre du client.
+                Nora analyse, en extrait les détails et vous propose un formulaire pré-rempli
+                — vous compléterez ce qui manque.
+              </p>
 
-            {/* Lieu + séniorité intervalle */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <Field label="Localisation">
-                <input value={location} onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Paris, remote…" style={inputStyle} />
-              </Field>
-              <Field label="Expérience attendue" hint="en années">
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="number" min={0} max={40} value={seniorityMin}
-                    onChange={(e) => setSeniorityMin(e.target.value)}
-                    placeholder="5" style={{ ...inputStyle, width: 64, textAlign: "center" }}
-                  />
-                  <span style={{ fontSize: 13, color: "#9CA3AF" }}>à</span>
-                  <input
-                    type="number" min={0} max={40} value={seniorityMax}
-                    onChange={(e) => setSeniorityMax(e.target.value)}
-                    placeholder="10" style={{ ...inputStyle, width: 64, textAlign: "center" }}
-                  />
-                  <span style={{ fontSize: 13, color: "#9CA3AF" }}>ans</span>
+              <textarea
+                value={brief}
+                onChange={(e) => setBrief(e.target.value)}
+                placeholder="Ex : On cherche un Data Engineer Senior pour un client banque à Paris, démarrage septembre, mission 12 mois, stack Python + Spark + AWS, TJM autour de 600€…"
+                rows={briefExpanded ? 18 : 9}
+                style={{
+                  ...inputStyle, resize: "vertical", lineHeight: 1.6,
+                  fontFamily: "var(--font-inter), sans-serif",
+                  maxHeight: briefExpanded ? "60vh" : 280,
+                  overflowY: "auto",
+                }}
+                autoFocus
+              />
+
+              {brief.length > 0 && (
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  fontSize: 11.5, color: "#9CA3AF",
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setBriefExpanded((v) => !v)}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer",
+                      fontSize: 12, color: "#7C63C8", fontWeight: 600,
+                      padding: 0, textDecoration: "underline",
+                    }}
+                  >
+                    {briefExpanded ? "Réduire" : "Élargir la zone"}
+                  </button>
+                  <span>{brief.length.toLocaleString("fr-FR")} caractères · max 12 000</span>
                 </div>
-              </Field>
-            </div>
+              )}
 
-            {/* Détection séniorité live */}
-            {detected && (
-              <div style={{
-                marginTop: -6,
-                display: "inline-flex", alignItems: "center", gap: 8, alignSelf: "flex-start",
-                padding: "7px 13px", borderRadius: 100,
-                background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.20)",
-              }}>
-                <span style={{ fontSize: 13 }}>✦</span>
-                <span style={{ fontSize: 12.5, color: "#6B54B2" }}>
-                  Nora a compris : <strong style={{ color: "#7C63C8" }}>{detected}</strong>
-                </span>
+              {extractError && (
+                <div style={{
+                  padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA",
+                  borderRadius: 10, fontSize: 13, color: "#B91C1C",
+                }}>{extractError}</div>
+              )}
+
+              <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => setStage("manual")}
+                  style={{
+                    fontSize: 12.5, color: "#6B7280", background: "none", border: "none",
+                    cursor: "pointer", textDecoration: "underline", padding: 0,
+                  }}
+                >
+                  Sans brief — saisie manuelle
+                </button>
+                <button
+                  type="button"
+                  onClick={runExtract}
+                  disabled={extracting || !brief.trim()}
+                  style={{
+                    padding: "11px 22px", borderRadius: 10, border: "none",
+                    background: extracting || !brief.trim()
+                      ? "#C4B6E0"
+                      : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    color: "white", fontSize: 13, fontWeight: 700,
+                    cursor: extracting || !brief.trim() ? "default" : "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {extracting ? "Analyse en cours…" : "Analyser avec Nora"}
+                </button>
               </div>
-            )}
+            </div>
+          )}
 
-            <Field label="Compétences requises" hint="Entrée ou virgule pour ajouter">
-              <TagInput tags={reqSkills} onChange={setReqSkills} placeholder="Python, Spark, AWS…" />
-            </Field>
+          {/* ─── STAGE 2 : formulaire pré-rempli ou manual ─── */}
+          {(stage === "form" || stage === "manual") && (
+            <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 16 }}>
+              {stage === "form" && brief && (
+                <details style={{
+                  background: "#F8F6FF", border: "1px solid #E2DAF6", borderRadius: 10,
+                  padding: "10px 14px", fontSize: 12.5,
+                }}>
+                  <summary style={{ cursor: "pointer", fontWeight: 600, color: "#6B54B2" }}>
+                    Brief analysé par Nora ({brief.length} car.)
+                  </summary>
+                  <textarea
+                    value={brief}
+                    onChange={(e) => setBrief(e.target.value)}
+                    rows={6}
+                    style={{ ...inputStyle, marginTop: 10, resize: "vertical", lineHeight: 1.5 }}
+                  />
+                  <button type="button" onClick={runExtract} disabled={extracting}
+                    style={{
+                      marginTop: 8, padding: "7px 14px", borderRadius: 8, border: "1px solid #7C63C8",
+                      background: "white", color: "#7C63C8", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    }}>
+                    {extracting ? "Re-analyse…" : "Re-analyser"}
+                  </button>
+                </details>
+              )}
 
-            <Field label="Contexte de la mission" hint="optionnel — aide Nora à affiner">
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)}
-                rows={4} placeholder="Contexte client, contraintes, environnement technique…"
-                style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
-            </Field>
+              <FormFieldGrid
+                roleName={roleName} setRoleName={setRoleName}
+                contractType={contractType} setContractType={setContractType}
+                location={location} setLocation={setLocation}
+                pricingLieu={pricingLieu} setPricingLieu={setPricingLieu}
+                seniorityMin={seniorityMin} setSeniorityMin={setSeniorityMin}
+                seniorityMax={seniorityMax} setSeniorityMax={setSeniorityMax}
+                detected={detected}
+                durationMonths={durationMonths} setDurationMonths={setDurationMonths}
+                startDate={startDate} setStartDate={setStartDate}
+                reqSkills={reqSkills} setReqSkills={setReqSkills}
+                niceSkills={niceSkills} setNiceSkills={setNiceSkills}
+                tjmMin={tjmMin} setTjmMin={setTjmMin}
+                tjmMax={tjmMax} setTjmMax={setTjmMax}
+                targetBrut={targetBrut} setTargetBrut={setTargetBrut}
+                description={description} setDescription={setDescription}
+                extracted={stage === "form" ? extracted : null}
+              />
 
-            <p style={{
-              margin: 0, padding: "10px 12px", fontSize: 11.5, color: "#6B7280",
-              background: "#F8F6FF", border: "1px solid #F0ECF8", borderRadius: 9,
-              lineHeight: 1.5,
-            }}>
-              💡 <strong>Type de contrat, TJM, durée, brut, démarrage</strong> : à renseigner
-              au moment du chiffrage, dans l&apos;onglet Pricing.
-            </p>
-
-            {error && (
-              <div style={{
-                padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA",
-                borderRadius: 10, fontSize: 13, color: "#B91C1C",
-              }}>{error}</div>
-            )}
-          </div>
+              {error && (
+                <div style={{
+                  padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA",
+                  borderRadius: 10, fontSize: 13, color: "#B91C1C",
+                }}>{error}</div>
+              )}
+            </div>
+          )}
 
           {/* Footer */}
-          <div style={{ padding: "16px 28px", borderTop: "1px solid #F0ECF8", display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <button onClick={onClose} style={{
-              padding: "11px 18px", borderRadius: 10,
-              background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
-              fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-            }}>Annuler</button>
-            <button onClick={submitForm} disabled={submitting} style={{
-              padding: "11px 24px", borderRadius: 10, border: "none",
-              background: submitting ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              color: "white", fontSize: 13, fontWeight: 700,
-              cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
-            }}>
-              {submitting ? "Création + analyse…" : "Créer la mission"}
-            </button>
-          </div>
+          {stage !== "brief" && (
+            <div style={{ padding: "16px 28px", borderTop: "1px solid #F0ECF8", display: "flex", gap: 10, justifyContent: "space-between" }}>
+              <button onClick={() => setStage("brief")} style={{
+                padding: "11px 18px", borderRadius: 10,
+                background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
+                fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              }}>← Retour au brief</button>
+              <button onClick={submitForm} disabled={submitting} style={{
+                padding: "11px 24px", borderRadius: 10, border: "none",
+                background: submitting ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                color: "white", fontSize: 13, fontWeight: 700,
+                cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
+              }}>
+                {submitting ? "Création + matching…" : "Valider et lancer le matching"}
+              </button>
+            </div>
+          )}
         </m.div>
       </m.div>
     </>
   )
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+/* ─── Form fields grid — partagé entre stages "form" (avec extracted) et "manual" ─── */
+
+interface FormFieldGridProps {
+  roleName: string; setRoleName: (v: string) => void
+  contractType: ContractType | ""; setContractType: (v: ContractType | "") => void
+  location: string; setLocation: (v: string) => void
+  pricingLieu: PricingLieu | ""; setPricingLieu: (v: PricingLieu | "") => void
+  seniorityMin: string; setSeniorityMin: (v: string) => void
+  seniorityMax: string; setSeniorityMax: (v: string) => void
+  detected: string | null
+  durationMonths: string; setDurationMonths: (v: string) => void
+  startDate: string; setStartDate: (v: string) => void
+  reqSkills: string[]; setReqSkills: (v: string[]) => void
+  niceSkills: string[]; setNiceSkills: (v: string[]) => void
+  tjmMin: string; setTjmMin: (v: string) => void
+  tjmMax: string; setTjmMax: (v: string) => void
+  targetBrut: string; setTargetBrut: (v: string) => void
+  description: string; setDescription: (v: string) => void
+  extracted: ExtractedFields | null
+}
+function FormFieldGrid(p: FormFieldGridProps) {
+  // Helper : pastille "manquant" si vide, "rempli par Nora" si extrait, rien si saisie manuelle.
+  const renderStatus = (current: unknown, llmValue: unknown) => {
+    const empty = current === "" || current == null || (Array.isArray(current) && current.length === 0)
+    if (empty) return <StatusPill kind="missing">À compléter</StatusPill>
+    if (p.extracted && llmValue !== null && llmValue !== undefined && (!Array.isArray(llmValue) || llmValue.length > 0)) {
+      return <StatusPill kind="ok">Détecté</StatusPill>
+    }
+    return null
+  }
+
+  return (
+    <>
+      <Field label="Nom du poste *" hint="signal principal du matching"
+        status={renderStatus(p.roleName, p.extracted?.role_name)}>
+        <input value={p.roleName} onChange={(e) => p.setRoleName(e.target.value)}
+          placeholder="Ex : Data Engineer" style={inputStyle} autoFocus />
+      </Field>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <Field label="Type de contrat *" status={renderStatus(p.contractType, p.extracted?.contract_type)}>
+          <select value={p.contractType} onChange={(e) => p.setContractType(e.target.value as ContractType | "")}
+            style={inputStyle}>
+            <option value="">Sélectionner…</option>
+            {(Object.keys(CONTRACT_LABELS) as ContractType[]).map((k) => (
+              <option key={k} value={k}>{CONTRACT_LABELS[k]}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Expérience attendue" hint="optionnel — laissez vide pour ignorer">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input type="number" min={0} max={40} value={p.seniorityMin}
+              onChange={(e) => p.setSeniorityMin(e.target.value)}
+              placeholder="5" style={{ ...inputStyle, width: 64, textAlign: "center" }} />
+            <span style={{ fontSize: 13, color: "#9CA3AF" }}>à</span>
+            <input type="number" min={0} max={40} value={p.seniorityMax}
+              onChange={(e) => p.setSeniorityMax(e.target.value)}
+              placeholder="10" style={{ ...inputStyle, width: 64, textAlign: "center" }} />
+            <span style={{ fontSize: 13, color: "#9CA3AF" }}>ans</span>
+          </div>
+        </Field>
+      </div>
+      {p.detected && (
+        <div style={{
+          marginTop: -6, alignSelf: "flex-start",
+          display: "inline-flex", alignItems: "center", gap: 8,
+          padding: "5px 12px", borderRadius: 100,
+          background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.20)",
+          fontSize: 12, color: "#6B54B2",
+        }}>
+          Nora a compris : <strong style={{ color: "#7C63C8" }}>{p.detected}</strong>
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <Field label="Lieu (texte libre) *" status={renderStatus(p.location, p.extracted?.location)}>
+          <input value={p.location} onChange={(e) => p.setLocation(e.target.value)}
+            placeholder="Paris, Lyon, remote…" style={inputStyle} />
+        </Field>
+        <Field label="Zone pricing" hint="pour les calculs URSSAF / transport">
+          <select value={p.pricingLieu} onChange={(e) => p.setPricingLieu(e.target.value as PricingLieu | "")}
+            style={inputStyle}>
+            <option value="">— non renseigné —</option>
+            {(Object.keys(LIEU_LABELS) as PricingLieu[]).map((k) => (
+              <option key={k} value={k}>{LIEU_LABELS[k]}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <Field label="Durée (mois) *" status={renderStatus(p.durationMonths, p.extracted?.duration_months)}>
+          <input type="number" min={1} max={60} value={p.durationMonths}
+            onChange={(e) => p.setDurationMonths(e.target.value)}
+            placeholder="6" style={inputStyle} />
+        </Field>
+        <Field label="Date de début *" status={renderStatus(p.startDate, p.extracted?.start_date)}>
+          <input type="date" value={p.startDate}
+            onChange={(e) => p.setStartDate(e.target.value)}
+            style={inputStyle} />
+        </Field>
+      </div>
+
+      <Field label="Compétences requises *" hint="Entrée ou virgule pour ajouter"
+        status={renderStatus(p.reqSkills, p.extracted?.required_skills)}>
+        <TagInput tags={p.reqSkills} onChange={p.setReqSkills} placeholder="Python, Spark, AWS…" />
+      </Field>
+
+      <Field label="Compétences souhaitées (nice to have)" hint="optionnel">
+        <TagInput tags={p.niceSkills} onChange={p.setNiceSkills} placeholder="Terraform, Kafka…" />
+      </Field>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+        <Field label="TJM min (€/j HT)" hint="optionnel">
+          <input type="number" min={0} value={p.tjmMin}
+            onChange={(e) => p.setTjmMin(e.target.value)} placeholder="500" style={inputStyle} />
+        </Field>
+        <Field label="TJM max (€/j HT)" hint="optionnel">
+          <input type="number" min={0} value={p.tjmMax}
+            onChange={(e) => p.setTjmMax(e.target.value)} placeholder="600" style={inputStyle} />
+        </Field>
+        <Field label="Brut cible (€/an)" hint="optionnel">
+          <input type="number" min={0} value={p.targetBrut}
+            onChange={(e) => p.setTargetBrut(e.target.value)} placeholder="48000" style={inputStyle} />
+        </Field>
+      </div>
+
+      <Field label="Contexte / description" hint="affiché sur la fiche mission">
+        <textarea value={p.description} onChange={(e) => p.setDescription(e.target.value)}
+          rows={3} placeholder="Contexte client, environnement technique, contraintes…"
+          style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
+      </Field>
+    </>
+  )
+}
+
+function StatusPill({ kind, children }: { kind: "ok" | "missing" | "review"; children: React.ReactNode }) {
+  const map = {
+    ok:      { bg: "rgba(34,197,94,0.10)",  fg: "#15803d", bd: "rgba(34,197,94,0.25)" },
+    missing: { bg: "rgba(239,68,68,0.08)",  fg: "#B91C1C", bd: "rgba(239,68,68,0.22)" },
+    review:  { bg: "rgba(245,158,11,0.10)", fg: "#B45309", bd: "rgba(245,158,11,0.25)" },
+  }[kind]
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 700, color: map.fg,
+      background: map.bg, border: `1px solid ${map.bd}`,
+      padding: "2px 7px", borderRadius: 100,
+      textTransform: "uppercase", letterSpacing: "0.05em",
+    }}>
+      {children}
+    </span>
+  )
+}
+
+function Field({ label, hint, status, children }: { label: string; hint?: string; status?: React.ReactNode; children: React.ReactNode }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
-        {label}
-        {hint && <span style={{ fontWeight: 400, color: "#9CA3AF", marginLeft: 6 }}>· {hint}</span>}
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span>{label}</span>
+        {hint && <span style={{ fontWeight: 400, color: "#9CA3AF" }}>· {hint}</span>}
+        {status}
       </span>
       {children}
     </label>

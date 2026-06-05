@@ -78,6 +78,12 @@ export async function POST(req: NextRequest) {
   const interval = normalizeInterval(seniorityMin, seniorityMax)
   const derivedSeniority = primarySeniority(seniorityMin, seniorityMax)
 
+  const pricingLieuRaw = clean(body?.pricing_lieu)
+  const ALLOWED_LIEUX = ["paris_petite_couronne", "idf_grande_couronne", "lyon", "province"] as const
+  type PricingLieu = typeof ALLOWED_LIEUX[number]
+  const pricingLieu: PricingLieu | null = pricingLieuRaw && (ALLOWED_LIEUX as readonly string[]).includes(pricingLieuRaw)
+    ? pricingLieuRaw as PricingLieu
+    : null
   const payload = {
     user_id: user.id,
     title: title ?? roleName ?? "Sans titre",
@@ -89,6 +95,9 @@ export async function POST(req: NextRequest) {
     required_skills: cleanArr(body?.required_skills),
     nice_to_have_skills: cleanArr(body?.nice_to_have_skills),
     description: clean(body?.description),
+    /** Original brief / fiche de poste collée par le sourceur — utile pour
+     *  retracer l'origine, et pour l'analyse par Nora lors d'un re-matching. */
+    briefing: clean(body?.briefing),
     status: "open" as const,
     // Pricing — all optional, sourceur can fill them at creation or later.
     client_tjm_min: cleanNumber(body?.client_tjm_min),
@@ -96,6 +105,8 @@ export async function POST(req: NextRequest) {
     margin_min_pct: cleanNumber(body?.margin_min_pct),
     duration_months: cleanNumber(body?.duration_months),
     target_gross_salary: cleanNumber(body?.target_gross_salary),
+    start_date: clean(body?.start_date),
+    pricing_lieu: pricingLieu,
   }
 
   const { data: created, error: insertErr } = await sb
