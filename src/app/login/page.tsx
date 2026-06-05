@@ -19,7 +19,10 @@ export default function LoginPage() {
 function LoginInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const nextPath = searchParams.get("next") ?? "/workspace"
+  // Only allow internal redirects — block protocol-relative URLs (//evil.com)
+  // and absolute URLs to prevent open-redirect abuse.
+  const rawNext = searchParams.get("next") ?? "/workspace"
+  const nextPath = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/workspace"
 
   const expired = searchParams.get("expired") === "1"
   const initialMode = (searchParams.get("mode") === "signup" || expired ? "signup" : "login") as Mode

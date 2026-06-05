@@ -16,6 +16,18 @@ export async function POST(req: Request) {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 })
 
+  // Seat allocation is owner-only. Members get their seat at invite
+  // acceptance and don't toggle it themselves — if they need to leave,
+  // the owner removes them from the cabinet.
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single()
+  if (profile?.role !== "owner") {
+    return NextResponse.json({ error: "Only the owner can manage seats" }, { status: 403 })
+  }
+
   let body: { allocate?: unknown }
   try { body = await req.json() } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
   const allocate = body.allocate === true
