@@ -137,13 +137,15 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Link href="/workspace" style={{
-              fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
-              background: "white", border: "1px solid rgba(124,99,200,0.25)",
-              borderRadius: 8, padding: "7px 12px", textDecoration: "none",
-            }}>
-              Workspace →
-            </Link>
+            {ctx.profile.has_sourcing_seat && (
+              <Link href="/workspace" style={{
+                fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
+                background: "white", border: "1px solid rgba(124,99,200,0.25)",
+                borderRadius: 8, padding: "7px 12px", textDecoration: "none",
+              }}>
+                Workspace →
+              </Link>
+            )}
             <div title={ctx.userEmail}
               style={{
                 width: 32, height: 32, borderRadius: "50%",
