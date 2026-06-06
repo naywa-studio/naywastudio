@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { m } from "framer-motion"
+import { useCabinet } from "../layout"
 import { getSupabase } from "@/lib/supabase"
 import type { PricingDefaultAvantages } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
@@ -56,6 +57,7 @@ const DEFAULT_FORM: Form = {
 }
 
 export default function ParametragePage() {
+  const { isOwner } = useCabinet()
   const sb = useMemo(() => getSupabase(), [])
   const [form, setForm] = useState<Form | null>(null)
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
@@ -100,9 +102,12 @@ export default function ParametragePage() {
 
   // Debounced auto-save through the owner-only /api/cabinet PATCH so the
   // org row is updated server-side under proper auth checks.
+  // Member calls are silently ignored: inputs are disabled too, but the
+  // no-op here is a belt + bracelets for any edge case.
   const scheduleSave = useCallback(
     (next: Form) => {
       if (!userIdRef.current) return
+      if (!isOwner) return
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
       setSaveState("saving")
       saveTimerRef.current = window.setTimeout(async () => {
@@ -130,7 +135,7 @@ export default function ParametragePage() {
         }
       }, 800)
     },
-    [],
+    [isOwner],
   )
 
   const update = useCallback(
@@ -195,8 +200,26 @@ export default function ParametragePage() {
           standards que vous proposez à vos salariés. Les paramètres mission (TJM, durée,
           lieu, type de contrat) se renseignent au niveau de chaque mission.
         </p>
-        <SaveBadge state={saveState} error={error} />
+        {isOwner && <SaveBadge state={saveState} error={error} />}
       </div>
+
+      {!isOwner && (
+        <div style={{
+          padding: "12px 16px", marginBottom: 18,
+          background: "rgba(124,99,200,0.06)",
+          border: "1px solid rgba(124,99,200,0.20)",
+          borderRadius: 12, fontSize: 13, color: "#4B5563", lineHeight: 1.55,
+        }}>
+          <strong style={{ color: "#7C63C8" }}>Lecture seule.</strong>{" "}
+          Seul l&apos;owner du cabinet modifie ces paramètres. Vous les consultez pour
+          comprendre comment vos chiffrages sont calculés.
+        </div>
+      )}
+
+      <div style={{
+        pointerEvents: isOwner ? "auto" : "none",
+        opacity: isOwner ? 1 : 0.75,
+      }}>
 
       {/* Section 1 — Marges */}
       <m.section
@@ -337,6 +360,7 @@ export default function ParametragePage() {
           </span>
         </div>
       </m.section>
+      </div>
     </main>
   )
 }

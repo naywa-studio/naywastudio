@@ -60,9 +60,9 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
 
     if (!org) { router.replace("/workspace"); return }
 
-    // Members never see the cabinet console — only the owner manages it.
-    if (profile.role !== "owner") { router.replace("/workspace"); return }
-
+    // Gate is per-page now: the dashboard (/cabinet) stays owner-only,
+    // but /cabinet/parametrage is open to members in read-only so they
+    // can consult the cabinet's pricing policy.
     setCtx({
       profile,
       organization: org,

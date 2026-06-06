@@ -22,7 +22,7 @@ import { getSupabase } from "@/lib/supabase"
 import type { Job } from "@/lib/database.types"
 import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabinet-config"
 import NoraLoader from "@/components/workspace/NoraLoader"
-import OnboardingWizard from "@/components/workspace/OnboardingWizard"
+import { useWorkspace } from "../layout"
 import PricingIcon from "@/components/workspace/PricingIcon"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -44,6 +44,8 @@ type ProfilePricing = Pick<CabinetPricingConfig,
 > | null
 
 export default function PricingPage() {
+  const { profile: workspaceProfile } = useWorkspace()
+  const isOwner = workspaceProfile?.role === "owner"
   const sb = useMemo(() => getSupabase(), [])
   const [missions, setMissions] = useState<MissionRow[] | null>(null)
   const [profile, setProfile] = useState<ProfilePricing | undefined>(undefined)
@@ -102,7 +104,7 @@ export default function PricingPage() {
     return (
       <main style={mainStyle}>
         <Header missionCount={0} />
-        <OnboardingWizard onDone={() => { void loadAll() }} />
+        <NotConfiguredBanner isOwner={isOwner} />
       </main>
     )
   }
@@ -163,11 +165,11 @@ function Header({ missionCount }: { missionCount: number }) {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/workspace/parametrage" style={linkBtnStyle}>
-            ⚙ Paramètres entreprise
+          <Link href="/cabinet/parametrage" style={linkBtnStyle}>
+            Politique pricing cabinet
           </Link>
           <Link href="/workspace/pricing/reference" style={linkBtnStyle}>
-            📖 Référence Syntec
+            Référence Syntec
           </Link>
         </div>
       </div>
@@ -180,6 +182,63 @@ const linkBtnStyle: React.CSSProperties = {
   background: "white", border: "1px solid rgba(124,99,200,0.25)",
   borderRadius: 9, padding: "8px 14px", textDecoration: "none",
   whiteSpace: "nowrap",
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Banner : la politique pricing n'est pas encore configurée.
+ * - Owner : CTA "Configurer maintenant" → /cabinet/parametrage
+ * - Member : message d'attente, l'owner doit configurer
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
+  return (
+    <div style={{
+      marginTop: 28, padding: "26px 30px",
+      background: "white",
+      border: "1px solid #F0ECF8", borderRadius: 16,
+      boxShadow: "0 8px 24px -16px rgba(124,99,200,0.18)",
+    }}>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#D97706",
+        letterSpacing: "0.08em", textTransform: "uppercase",
+      }}>
+        Pricing à configurer
+      </p>
+      <h2 style={{ margin: "8px 0 12px", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
+        {isOwner ? "Configurez votre politique pricing" : "Le cabinet n'a pas encore configuré le pricing"}
+      </h2>
+      <p style={{ margin: "0 0 18px", fontSize: 14, color: "#4B5563", lineHeight: 1.65, maxWidth: 640 }}>
+        {isOwner
+          ? "Marge minimum, marge cible, avantages standards du cabinet : tout se règle dans la console cabinet. Sans ces paramètres, les chiffrages des missions retombent sur des valeurs par défaut peu pertinentes pour votre activité."
+          : "Demandez à l'owner de votre cabinet de configurer la politique pricing. En attendant, les chiffrages utilisent des valeurs par défaut génériques."}
+      </p>
+      {isOwner ? (
+        <Link
+          href="/cabinet/parametrage"
+          style={{
+            display: "inline-block",
+            padding: "11px 20px", borderRadius: 10,
+            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            color: "white", fontSize: 13.5, fontWeight: 700,
+            textDecoration: "none",
+          }}
+        >
+          Configurer maintenant
+        </Link>
+      ) : (
+        <Link
+          href="/workspace/pricing/reference"
+          style={{
+            display: "inline-block",
+            padding: "11px 20px", borderRadius: 10,
+            background: "white", border: "1px solid #E5E7EB", color: "#374151",
+            fontSize: 13.5, fontWeight: 600, textDecoration: "none",
+          }}
+        >
+          Consulter la référence Syntec
+        </Link>
+      )}
+    </div>
+  )
 }
 
 /* ──────────────────────────────────────────────────────────────────────────

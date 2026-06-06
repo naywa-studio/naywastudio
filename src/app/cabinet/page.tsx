@@ -38,6 +38,12 @@ export default function CabinetPage() {
   const router = useRouter()
   const sb = useMemo(() => getSupabase(), [])
 
+  // Le dashboard reste réservé à l'owner. /cabinet/parametrage est, lui,
+  // accessible aux members en read-only.
+  useEffect(() => {
+    if (!isOwner) router.replace("/workspace")
+  }, [isOwner, router])
+
   const [members, setMembers] = useState<MemberRow[]>([])
   const [invites, setInvites] = useState<PendingInvite[]>([])
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
@@ -157,6 +163,9 @@ export default function CabinetPage() {
 
         <div style={{ gridColumn: "span 7" }}>
           <SubscriptionSection organization={organization} />
+          <div style={{ marginTop: 16 }}>
+            <PricingPolicyCard />
+          </div>
         </div>
         <div style={{ gridColumn: "span 5" }}>
           {isOwner && (
@@ -722,6 +731,43 @@ function SubscriptionSection({ organization }: {
 /* ────────────────────────────────────────────────────────────────── */
 /* Zone de danger                                                      */
 /* ────────────────────────────────────────────────────────────────── */
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Politique pricing                                                    */
+/* ────────────────────────────────────────────────────────────────── */
+
+function PricingPolicyCard() {
+  return (
+    <Card title="Politique pricing" subtitle="Marges cibles + avantages standards du cabinet.">
+      <div style={{
+        padding: "12px 14px", borderRadius: 10,
+        background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.20)",
+        display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+        flexWrap: "wrap",
+      }}>
+        <div>
+          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+            Marges cibles + avantages standards
+          </p>
+          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6B7280" }}>
+            Réutilisé sur chaque chiffrage candidat × mission.
+          </p>
+        </div>
+        <a
+          href="/cabinet/parametrage"
+          style={{
+            padding: "8px 13px", borderRadius: 8,
+            background: "#7C63C8", color: "white",
+            fontSize: 12, fontWeight: 700,
+            textDecoration: "none", whiteSpace: "nowrap",
+          }}
+        >
+          Configurer →
+        </a>
+      </div>
+    </Card>
+  )
+}
 
 function DangerSection({
   organization, seatsUsed, onDeleted,
