@@ -130,13 +130,15 @@ export default function OnboardingWizard({
   const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS))
   const back = () => setStep((s) => Math.max(s - 1, 1))
 
+  const [finishError, setFinishError] = useState<string | null>(null)
   const finish = async () => {
     if (saveTimerRef.current) {
       window.clearTimeout(saveTimerRef.current)
       saveTimerRef.current = null
     }
-    if (userIdRef.current) {
-      await fetch("/api/cabinet", {
+    setSaving(true); setFinishError(null)
+    try {
+      const res = await fetch("/api/cabinet", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -149,7 +151,18 @@ export default function OnboardingWizard({
           pricing_onboarded_at: new Date().toISOString(),
         }),
       })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({} as { error?: string }))
+        setFinishError(j.error ?? `Erreur HTTP ${res.status}.`)
+        setSaving(false)
+        return
+      }
+    } catch (err) {
+      setFinishError((err as Error).message ?? "Erreur réseau.")
+      setSaving(false)
+      return
     }
+    setSaving(false)
     onDone()
   }
 
@@ -185,7 +198,16 @@ export default function OnboardingWizard({
         </AnimatePresence>
       </div>
 
-      <Footer step={step} total={TOTAL_STEPS} onBack={back} onNext={next} onFinish={finish} />
+      {finishError && (
+        <div style={{
+          margin: "0 32px 12px", padding: "10px 14px",
+          background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10,
+          fontSize: 13, color: "#B91C1C", fontFamily: "var(--font-inter), sans-serif",
+        }}>
+          {finishError}
+        </div>
+      )}
+      <Footer step={step} total={TOTAL_STEPS} onBack={back} onNext={next} onFinish={finish} saving={saving} />
     </div>
   )
 }
@@ -388,13 +410,14 @@ function StepAvantages({
 /* ──────────────────────────────────────────────────────────────────────── */
 
 function Footer({
-  step, total, onBack, onNext, onFinish,
+  step, total, onBack, onNext, onFinish, saving,
 }: {
   step: number
   total: number
   onBack: () => void
   onNext: () => void
   onFinish: () => void
+  saving?: boolean
 }) {
   return (
     <div style={{
@@ -429,14 +452,17 @@ function Footer({
       ) : (
         <button
           onClick={onFinish}
+          disabled={saving}
           style={{
             fontSize: 13, fontWeight: 700, color: "white",
-            background: "linear-gradient(120deg, #16a34a 0%, #15803d 100%)",
+            background: saving
+              ? "#9CA3AF"
+              : "linear-gradient(120deg, #16a34a 0%, #15803d 100%)",
             border: "none", borderRadius: 9, padding: "10px 22px",
-            cursor: "pointer", fontFamily: "inherit",
+            cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit",
           }}
         >
-          ✓ Terminer
+          {saving ? "Enregistrement…" : "✓ Terminer"}
         </button>
       )}
     </div>

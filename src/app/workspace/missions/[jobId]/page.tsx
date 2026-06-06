@@ -10,6 +10,7 @@ import NoraLoader from "@/components/workspace/NoraLoader"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
 import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
+import { JobForm } from "../page"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -55,6 +56,7 @@ export default function JobDetailPage() {
   const [assignOpen, setAssignOpen] = useState(false)
   const [briefing, setBriefing] = useState("")
   const [briefingSaving, setBriefingSaving] = useState<"idle" | "saving" | "saved">("idle")
+  const [showEdit, setShowEdit] = useState(false)
 
   const loadAll = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`)
@@ -325,12 +327,18 @@ export default function JobDetailPage() {
               </div>
             )}
           </div>
-          <button onClick={handleDelete} title="Supprimer la mission" style={{
-            flexShrink: 0,
-            fontSize: 12, fontWeight: 600, color: "#DC2626",
-            background: "transparent", border: "1px solid #FCA5A5",
-            borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
-          }}>Supprimer</button>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button onClick={() => setShowEdit(true)} title="Modifier la mission" style={{
+              fontSize: 12, fontWeight: 600, color: "#7C63C8",
+              background: "white", border: "1px solid rgba(124,99,200,0.30)",
+              borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
+            }}>Modifier</button>
+            <button onClick={handleDelete} title="Supprimer la mission" style={{
+              fontSize: 12, fontWeight: 600, color: "#DC2626",
+              background: "transparent", border: "1px solid #FCA5A5",
+              borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
+            }}>Supprimer</button>
+          </div>
         </div>
 
         {job.required_skills && job.required_skills.length > 0 && (
@@ -569,6 +577,22 @@ export default function JobDetailPage() {
           .mission-left { position: static !important; }
         }
       `}</style>
+
+      <AnimatePresence>
+        {showEdit && (
+          <JobForm
+            initialJob={job}
+            onClose={() => setShowEdit(false)}
+            onCreated={async (updated) => {
+              // Mise à jour optimiste + relance du matching auto (config
+              // pricing ou compétences peuvent avoir bougé).
+              setJob(updated)
+              setShowEdit(false)
+              await runMatch({ force: true })
+            }}
+          />
+        )}
+      </AnimatePresence>
     </main>
   )
 }

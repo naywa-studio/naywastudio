@@ -71,6 +71,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   let matchingInputsChanged = false
 
   if ("title" in body)               { update.title = clean(body.title) ?? job.title; matchingInputsChanged = true }
+  if ("role_name" in body)           { update.role_name = clean(body.role_name); matchingInputsChanged = true }
   if ("location" in body)            { update.location = clean(body.location) }
   if ("seniority" in body)           { update.seniority = clean(body.seniority); matchingInputsChanged = true }
   if ("contract_type" in body)       { update.contract_type = clean(body.contract_type) }

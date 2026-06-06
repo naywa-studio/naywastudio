@@ -586,30 +586,41 @@ const EMPTY_EXTRACTED: ExtractedFields = {
   description: null,
 }
 
-function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: Job) => void }) {
+export function JobForm({ onClose, onCreated, initialJob }: {
+  onClose: () => void
+  onCreated: (j: Job) => void
+  /** Si fourni, le modal s'ouvre en mode "edit" (skip brief stage, PATCH au lieu de POST). */
+  initialJob?: Job | null
+}) {
   // Stage 1 : brief texte. Stage 2 : form pré-rempli.
-  const [stage, setStage] = useState<"brief" | "form" | "manual">("brief")
-  const [brief, setBrief] = useState("")
+  const editMode = !!initialJob
+  const [stage, setStage] = useState<"brief" | "form" | "manual">(editMode ? "form" : "brief")
+  const [brief, setBrief] = useState(initialJob?.briefing ?? "")
   const [extracting, setExtracting] = useState(false)
   const [extractError, setExtractError] = useState<string | null>(null)
   const [briefExpanded, setBriefExpanded] = useState(false)
   const [extracted, setExtracted] = useState<ExtractedFields>(EMPTY_EXTRACTED)
 
-  // Form fields (initialement remplis depuis extracted, puis éditables).
-  const [roleName, setRoleName] = useState("")
-  const [contractType, setContractType] = useState<ContractType | "">("")
-  const [location, setLocation] = useState("")
-  const [pricingLieu, setPricingLieu] = useState<PricingLieu | "">("")
-  const [seniorityMin, setSeniorityMin] = useState("")
-  const [seniorityMax, setSeniorityMax] = useState("")
-  const [reqSkills, setReqSkills] = useState<string[]>([])
-  const [niceSkills, setNiceSkills] = useState<string[]>([])
-  const [durationMonths, setDurationMonths] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [tjmMin, setTjmMin] = useState("")
-  const [tjmMax, setTjmMax] = useState("")
-  const [targetBrut, setTargetBrut] = useState("")
-  const [description, setDescription] = useState("")
+  // Form fields. En edit-mode, pré-remplis depuis initialJob.
+  const j = initialJob
+  const [roleName, setRoleName] = useState(j?.role_name ?? j?.title ?? "")
+  const [contractType, setContractType] = useState<ContractType | "">((j?.contract_type as ContractType) ?? "")
+  const [location, setLocation] = useState(j?.location ?? "")
+  const [pricingLieu, setPricingLieu] = useState<PricingLieu | "">((j?.pricing_lieu as PricingLieu) ?? "")
+  const [seniorityMin, setSeniorityMin] = useState(
+    j?.normalized?.seniority_min_years != null ? String(j.normalized.seniority_min_years) : "",
+  )
+  const [seniorityMax, setSeniorityMax] = useState(
+    j?.normalized?.seniority_max_years != null ? String(j.normalized.seniority_max_years) : "",
+  )
+  const [reqSkills, setReqSkills] = useState<string[]>(j?.required_skills ?? [])
+  const [niceSkills, setNiceSkills] = useState<string[]>(j?.nice_to_have_skills ?? [])
+  const [durationMonths, setDurationMonths] = useState(j?.duration_months != null ? String(j.duration_months) : "")
+  const [startDate, setStartDate] = useState(j?.start_date ?? "")
+  const [tjmMin, setTjmMin] = useState(j?.client_tjm_min != null ? String(j.client_tjm_min) : "")
+  const [tjmMax, setTjmMax] = useState(j?.client_tjm_max != null ? String(j.client_tjm_max) : "")
+  const [targetBrut, setTargetBrut] = useState(j?.target_gross_salary != null ? String(j.target_gross_salary) : "")
+  const [description, setDescription] = useState(j?.description ?? "")
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -670,32 +681,36 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
     if (reqSkills.length === 0) { setError("Au moins une compétence requise."); return }
 
     setSubmitting(true); setError(null)
+    const payload = {
+      role_name: roleName,
+      title: roleName,                            // on ne demande plus d'intitulé
+      location,
+      pricing_lieu: pricingLieu || null,
+      contract_type: contractType || null,
+      seniority_min_years: minNum,
+      seniority_max_years: maxNum,
+      required_skills: reqSkills,
+      nice_to_have_skills: niceSkills,
+      description,
+      briefing: brief.trim() || null,             // on persiste le brief original
+      duration_months: durationMonths ? Number(durationMonths) : null,
+      start_date: startDate || null,
+      client_tjm_min: tjmMin ? Number(tjmMin) : null,
+      client_tjm_max: tjmMax ? Number(tjmMax) : null,
+      target_gross_salary: targetBrut ? Number(targetBrut) : null,
+    }
     try {
-      const res = await fetch("/api/jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role_name: roleName,
-          title: roleName,                            // on ne demande plus d'intitulé
-          location,
-          pricing_lieu: pricingLieu || null,
-          contract_type: contractType,
-          seniority_min_years: minNum,
-          seniority_max_years: maxNum,
-          required_skills: reqSkills,
-          nice_to_have_skills: niceSkills,
-          description,
-          briefing: brief.trim() || null,             // on persiste le brief original
-          duration_months: durationMonths ? Number(durationMonths) : null,
-          start_date: startDate || null,
-          client_tjm_min: tjmMin ? Number(tjmMin) : null,
-          client_tjm_max: tjmMax ? Number(tjmMax) : null,
-          target_gross_salary: targetBrut ? Number(targetBrut) : null,
-        }),
-      })
+      const res = await fetch(
+        editMode ? `/api/jobs/${initialJob!.id}` : "/api/jobs",
+        {
+          method: editMode ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      )
       const data = await res.json()
       if (!res.ok || !data.job) {
-        setError(data.message ?? data.error ?? "Erreur de création.")
+        setError(data.message ?? data.error ?? (editMode ? "Erreur de mise à jour." : "Erreur de création."))
         setSubmitting(false)
         return
       }
@@ -746,10 +761,14 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
           <div style={{ padding: "22px 28px 18px", borderBottom: "1px solid #F0ECF8", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                Nouvelle mission
+                {editMode ? "Modifier la mission" : "Nouvelle mission"}
               </p>
               <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
-                {stage === "brief" ? "Donnez votre brief à Nora" : stage === "manual" ? "Saisie manuelle" : "Vérifiez et complétez"}
+                {editMode
+                  ? "Édition de la mission"
+                  : stage === "brief" ? "Donnez votre brief à Nora"
+                  : stage === "manual" ? "Saisie manuelle"
+                  : "Vérifiez et complétez"}
               </h2>
             </div>
             <button onClick={onClose} aria-label="Fermer" style={{
@@ -897,18 +916,28 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
           {/* Footer */}
           {stage !== "brief" && (
             <div style={{ padding: "16px 28px", borderTop: "1px solid #F0ECF8", display: "flex", gap: 10, justifyContent: "space-between" }}>
-              <button onClick={() => setStage("brief")} style={{
-                padding: "11px 18px", borderRadius: 10,
-                background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
-                fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-              }}>← Retour au brief</button>
+              {editMode ? (
+                <button onClick={onClose} style={{
+                  padding: "11px 18px", borderRadius: 10,
+                  background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                }}>Annuler</button>
+              ) : (
+                <button onClick={() => setStage("brief")} style={{
+                  padding: "11px 18px", borderRadius: 10,
+                  background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                }}>← Retour au brief</button>
+              )}
               <button onClick={submitForm} disabled={submitting} style={{
                 padding: "11px 24px", borderRadius: 10, border: "none",
                 background: submitting ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
                 color: "white", fontSize: 13, fontWeight: 700,
                 cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
               }}>
-                {submitting ? "Création + matching…" : "Valider et lancer le matching"}
+                {submitting
+                  ? (editMode ? "Mise à jour + matching…" : "Création + matching…")
+                  : (editMode ? "Valider les modifications" : "Valider et lancer le matching")}
               </button>
             </div>
           )}
