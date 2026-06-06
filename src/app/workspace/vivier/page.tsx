@@ -585,11 +585,12 @@ export default function VivierPage() {
         <VivierMapView
           candidates={parsedOrErrored.filter((c) => c.parse_status === "parsed")}
           onClusteringDone={async () => {
-            if (!userId) return
+            // Recharge le vivier ENTIER de l'org (RLS scope l'org) — pas
+            // seulement les uploads de l'utilisateur courant, sinon les
+            // CVs des autres members manquent après re-clustering.
             const { data } = await sb
               .from("candidates")
               .select(CANDIDATE_COLUMNS)
-              .eq("user_id", userId)
               .not("tags", "cs", "{ancien}")
               .order("created_at", { ascending: false })
               .limit(200)

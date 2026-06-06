@@ -662,12 +662,12 @@ function JobForm({ onClose, onCreated }: { onClose: () => void; onCreated: (j: J
   }
 
   const submitForm = async () => {
+    // Obligatoires V1 : juste nom du poste + lieu + compétences. Tout le
+    // reste peut être complété plus tard (mission "ASAP" sans date, type
+    // de contrat à confirmer côté pricing, durée à voir avec le client…).
     if (!roleName.trim()) { setError("Le nom du poste est requis."); return }
-    if (reqSkills.length === 0) { setError("Au moins une compétence requise."); return }
-    if (!contractType) { setError("Le type de contrat est requis."); return }
     if (!location.trim()) { setError("Le lieu est requis."); return }
-    if (!durationMonths) { setError("La durée est requise."); return }
-    if (!startDate) { setError("La date de début est requise."); return }
+    if (reqSkills.length === 0) { setError("Au moins une compétence requise."); return }
 
     setSubmitting(true); setError(null)
     try {
@@ -939,43 +939,66 @@ interface FormFieldGridProps {
   extracted: ExtractedFields | null
 }
 function FormFieldGrid(p: FormFieldGridProps) {
-  // Helper : pastille "manquant" si vide, "rempli par Nora" si extrait, rien si saisie manuelle.
-  const renderStatus = (current: unknown, llmValue: unknown) => {
+  // États possibles d'un champ :
+  //   - rempli + extrait par Nora     → bordure verte + pastille verte "Détecté"
+  //   - rempli (manuel ou après edit) → bordure verte (pas de pastille)
+  //   - vide + obligatoire            → bordure rouge
+  //   - vide + optionnel              → bordure orange
+  const stateOf = (current: unknown, llmValue: unknown, required: boolean): {
+    border: string
+    statusPill: React.ReactNode | null
+  } => {
     const empty = current === "" || current == null || (Array.isArray(current) && current.length === 0)
-    if (empty) return <StatusPill kind="missing">À compléter</StatusPill>
-    if (p.extracted && llmValue !== null && llmValue !== undefined && (!Array.isArray(llmValue) || llmValue.length > 0)) {
-      return <StatusPill kind="ok">Détecté</StatusPill>
+    if (empty) {
+      return required
+        ? { border: BORDER.required, statusPill: <StatusPill kind="missing">À compléter</StatusPill> }
+        : { border: BORDER.optional, statusPill: null }
     }
-    return null
+    const detected = !!(p.extracted && llmValue !== null && llmValue !== undefined &&
+      (!Array.isArray(llmValue) || llmValue.length > 0))
+    return {
+      border: BORDER.ok,
+      statusPill: detected ? <StatusPill kind="ok">Détecté</StatusPill> : null,
+    }
   }
+  const ringStyle = (border: string): React.CSSProperties => ({ ...inputStyle, borderColor: border })
+
+  const role         = stateOf(p.roleName,        p.extracted?.role_name,           true)
+  const ct           = stateOf(p.contractType,    p.extracted?.contract_type,       false)
+  const loc          = stateOf(p.location,        p.extracted?.location,            true)
+  const pricingState = stateOf(p.pricingLieu,     p.extracted?.pricing_lieu,        false)
+  const senState     = stateOf(p.seniorityMin || p.seniorityMax, p.extracted?.seniority_min_years, false)
+  const durState     = stateOf(p.durationMonths,  p.extracted?.duration_months,     false)
+  const startState   = stateOf(p.startDate,       p.extracted?.start_date,          false)
+  const reqState     = stateOf(p.reqSkills,       p.extracted?.required_skills,     true)
+  const niceState    = stateOf(p.niceSkills,      p.extracted?.nice_to_have_skills, false)
+  const tjmMinState  = stateOf(p.tjmMin,          p.extracted?.client_tjm_min,      false)
+  const tjmMaxState  = stateOf(p.tjmMax,          p.extracted?.client_tjm_max,      false)
+  const brutState    = stateOf(p.targetBrut,      p.extracted?.target_gross_salary, false)
+  const descState    = stateOf(p.description,     p.extracted?.description,         false)
 
   return (
     <>
-      <Field label="Nom du poste *" hint="signal principal du matching"
-        status={renderStatus(p.roleName, p.extracted?.role_name)}>
+      <Field label="Nom du poste *" hint="signal principal du matching" status={role.statusPill}>
         <input value={p.roleName} onChange={(e) => p.setRoleName(e.target.value)}
-          placeholder="Ex : Data Engineer" style={inputStyle} autoFocus />
+          placeholder="Ex : Data Engineer" style={ringStyle(role.border)} autoFocus />
       </Field>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <Field label="Type de contrat *" status={renderStatus(p.contractType, p.extracted?.contract_type)}>
-          <select value={p.contractType} onChange={(e) => p.setContractType(e.target.value as ContractType | "")}
-            style={inputStyle}>
-            <option value="">Sélectionner…</option>
-            {(Object.keys(CONTRACT_LABELS) as ContractType[]).map((k) => (
-              <option key={k} value={k}>{CONTRACT_LABELS[k]}</option>
-            ))}
-          </select>
+        <Field label="Type de contrat" hint="optionnel" status={ct.statusPill}>
+          <StyledSelect value={p.contractType} onChange={(v) => p.setContractType(v as ContractType | "")}
+            border={ct.border} placeholder="Sélectionner…"
+            options={(Object.keys(CONTRACT_LABELS) as ContractType[]).map((k) => ({ value: k, label: CONTRACT_LABELS[k] }))} />
         </Field>
-        <Field label="Expérience attendue" hint="optionnel — laissez vide pour ignorer">
+        <Field label="Expérience attendue" hint="optionnel — vide = matching ignore" status={senState.statusPill}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input type="number" min={0} max={40} value={p.seniorityMin}
               onChange={(e) => p.setSeniorityMin(e.target.value)}
-              placeholder="5" style={{ ...inputStyle, width: 64, textAlign: "center" }} />
+              placeholder="5" style={{ ...ringStyle(senState.border), width: 64, textAlign: "center" }} />
             <span style={{ fontSize: 13, color: "#9CA3AF" }}>à</span>
             <input type="number" min={0} max={40} value={p.seniorityMax}
               onChange={(e) => p.setSeniorityMax(e.target.value)}
-              placeholder="10" style={{ ...inputStyle, width: 64, textAlign: "center" }} />
+              placeholder="10" style={{ ...ringStyle(senState.border), width: 64, textAlign: "center" }} />
             <span style={{ fontSize: 13, color: "#9CA3AF" }}>ans</span>
           </div>
         </Field>
@@ -993,64 +1016,107 @@ function FormFieldGrid(p: FormFieldGridProps) {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <Field label="Lieu (texte libre) *" status={renderStatus(p.location, p.extracted?.location)}>
+        <Field label="Lieu *" hint="texte libre" status={loc.statusPill}>
           <input value={p.location} onChange={(e) => p.setLocation(e.target.value)}
-            placeholder="Paris, Lyon, remote…" style={inputStyle} />
+            placeholder="Paris, Lyon, remote…" style={ringStyle(loc.border)} />
         </Field>
-        <Field label="Zone pricing" hint="pour les calculs URSSAF / transport">
-          <select value={p.pricingLieu} onChange={(e) => p.setPricingLieu(e.target.value as PricingLieu | "")}
-            style={inputStyle}>
-            <option value="">— non renseigné —</option>
-            {(Object.keys(LIEU_LABELS) as PricingLieu[]).map((k) => (
-              <option key={k} value={k}>{LIEU_LABELS[k]}</option>
-            ))}
-          </select>
+        <Field label="Zone pricing" hint="URSSAF / transport" status={pricingState.statusPill}>
+          <StyledSelect value={p.pricingLieu} onChange={(v) => p.setPricingLieu(v as PricingLieu | "")}
+            border={pricingState.border} placeholder="— non renseigné —"
+            options={(Object.keys(LIEU_LABELS) as PricingLieu[]).map((k) => ({ value: k, label: LIEU_LABELS[k] }))} />
         </Field>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <Field label="Durée (mois) *" status={renderStatus(p.durationMonths, p.extracted?.duration_months)}>
+        <Field label="Durée (mois)" hint="vide = à voir avec le client" status={durState.statusPill}>
           <input type="number" min={1} max={60} value={p.durationMonths}
             onChange={(e) => p.setDurationMonths(e.target.value)}
-            placeholder="6" style={inputStyle} />
+            placeholder="6" style={ringStyle(durState.border)} />
         </Field>
-        <Field label="Date de début *" status={renderStatus(p.startDate, p.extracted?.start_date)}>
+        <Field label="Date de début" hint="vide = ASAP" status={startState.statusPill}>
           <input type="date" value={p.startDate}
             onChange={(e) => p.setStartDate(e.target.value)}
-            style={inputStyle} />
+            style={ringStyle(startState.border)} />
         </Field>
       </div>
 
-      <Field label="Compétences requises *" hint="Entrée ou virgule pour ajouter"
-        status={renderStatus(p.reqSkills, p.extracted?.required_skills)}>
-        <TagInput tags={p.reqSkills} onChange={p.setReqSkills} placeholder="Python, Spark, AWS…" />
+      <Field label="Compétences requises *" hint="Entrée ou virgule pour ajouter" status={reqState.statusPill}>
+        <TagInput tags={p.reqSkills} onChange={p.setReqSkills} placeholder="Python, Spark, AWS…"
+          borderColor={reqState.border} />
       </Field>
 
-      <Field label="Compétences souhaitées (nice to have)" hint="optionnel">
-        <TagInput tags={p.niceSkills} onChange={p.setNiceSkills} placeholder="Terraform, Kafka…" />
+      <Field label="Compétences souhaitées (nice to have)" hint="optionnel" status={niceState.statusPill}>
+        <TagInput tags={p.niceSkills} onChange={p.setNiceSkills} placeholder="Terraform, Kafka…"
+          borderColor={niceState.border} />
       </Field>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-        <Field label="TJM min (€/j HT)" hint="optionnel">
+        <Field label="TJM min (€/j HT)" hint="optionnel" status={tjmMinState.statusPill}>
           <input type="number" min={0} value={p.tjmMin}
-            onChange={(e) => p.setTjmMin(e.target.value)} placeholder="500" style={inputStyle} />
+            onChange={(e) => p.setTjmMin(e.target.value)} placeholder="500" style={ringStyle(tjmMinState.border)} />
         </Field>
-        <Field label="TJM max (€/j HT)" hint="optionnel">
+        <Field label="TJM max (€/j HT)" hint="optionnel" status={tjmMaxState.statusPill}>
           <input type="number" min={0} value={p.tjmMax}
-            onChange={(e) => p.setTjmMax(e.target.value)} placeholder="600" style={inputStyle} />
+            onChange={(e) => p.setTjmMax(e.target.value)} placeholder="600" style={ringStyle(tjmMaxState.border)} />
         </Field>
-        <Field label="Brut cible (€/an)" hint="optionnel">
+        <Field label="Brut cible (€/an)" hint="optionnel" status={brutState.statusPill}>
           <input type="number" min={0} value={p.targetBrut}
-            onChange={(e) => p.setTargetBrut(e.target.value)} placeholder="48000" style={inputStyle} />
+            onChange={(e) => p.setTargetBrut(e.target.value)} placeholder="48000" style={ringStyle(brutState.border)} />
         </Field>
       </div>
 
-      <Field label="Contexte / description" hint="affiché sur la fiche mission">
+      <Field label="Contexte / description" hint="affiché sur la fiche mission" status={descState.statusPill}>
         <textarea value={p.description} onChange={(e) => p.setDescription(e.target.value)}
           rows={3} placeholder="Contexte client, environnement technique, contraintes…"
-          style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
+          style={{ ...ringStyle(descState.border), resize: "vertical", lineHeight: 1.6 }} />
       </Field>
     </>
+  )
+}
+
+/* ── Bordures par état ── */
+const BORDER = {
+  ok:       "#22C55E",   // vert
+  required: "#EF4444",   // rouge — obligatoire manquant
+  optional: "#F59E0B",   // orange — facultatif manquant
+} as const
+
+/* ── Select stylé (apparence custom + chevron) ── */
+function StyledSelect({ value, onChange, options, placeholder, border }: {
+  value: string
+  onChange: (v: string) => void
+  options: Array<{ value: string; label: string }>
+  placeholder: string
+  border: string
+}) {
+  return (
+    <div style={{ position: "relative" }}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          ...inputStyle, borderColor: border,
+          appearance: "none", WebkitAppearance: "none", MozAppearance: "none",
+          paddingRight: 36, cursor: "pointer",
+          background: "#FAFAFA",
+        }}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <svg
+        width="14" height="14" viewBox="0 0 20 20" fill="none"
+        style={{
+          position: "absolute", right: 12, top: "50%",
+          transform: "translateY(-50%)", pointerEvents: "none",
+          color: "#9CA3AF",
+        }}
+      >
+        <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
   )
 }
 
@@ -1093,7 +1159,7 @@ const inputStyle: React.CSSProperties = {
   outline: "none", fontFamily: "inherit",
 }
 
-function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (t: string[]) => void; placeholder?: string }) {
+function TagInput({ tags, onChange, placeholder, borderColor }: { tags: string[]; onChange: (t: string[]) => void; placeholder?: string; borderColor?: string }) {
   const [draft, setDraft] = useState("")
   const commit = () => {
     const v = draft.trim().replace(/,$/, "").trim()
@@ -1106,7 +1172,7 @@ function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (
     <div style={{
       display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
       padding: "7px 9px", background: "#FAFAFA",
-      border: "1px solid #E5E7EB", borderRadius: 9, minHeight: 38,
+      border: `1px solid ${borderColor ?? "#E5E7EB"}`, borderRadius: 9, minHeight: 38,
     }}>
       {tags.map((t) => (
         <span key={t} style={{

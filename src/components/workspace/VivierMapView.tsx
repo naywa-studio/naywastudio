@@ -55,6 +55,9 @@ export default function VivierMapView({
       const res = await fetch(`/api/vivier/cluster`, { method: "POST" })
       const data = await res.json().catch(() => null) as { error?: string; message?: string } | null
       if (!res.ok) throw new Error(data?.message ?? data?.error ?? `HTTP ${res.status}`)
+      // Reset zoom : les zones changent au re-cluster, l'id zoomé peut
+      // pointer sur une zone disparue → on revient à la macro-vue.
+      setZoomedId(null)
       onClusteringDone?.()
     } catch (err) {
       setError((err as Error).message)
@@ -62,6 +65,15 @@ export default function VivierMapView({
       setBusy(false)
     }
   }
+
+  // Belt + bracelets : si la liste de clusters change et que l'id zoomé
+  // n'existe plus, on dézoome (cas où le parent recharge sans qu'on ait
+  // déclenché le bouton — autre member, realtime…).
+  useEffect(() => {
+    if (zoomedId && !clusters.some((c) => c.id === zoomedId)) {
+      setZoomedId(null)
+    }
+  }, [clusters, zoomedId])
 
   // Auto-déclenche au premier passage si aucun candidat n'a jamais été
   // classé. Évite un état vide intimidant au premier arrivée sur la Carte.
