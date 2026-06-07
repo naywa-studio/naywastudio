@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
+import { TrialBanner } from "@/components/trial/TrialBanner"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -267,6 +268,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         `}</style>
 
         <PendingDeletionBanner />
+        <TrialBanner organization={organization} />
         {children}
 
         <UndoToastHost />

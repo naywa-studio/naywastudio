@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import UndoToastHost from "@/components/ui/UndoToast"
+import { TrialBanner } from "@/components/trial/TrialBanner"
+import { TrialActivationModal } from "@/components/trial/TrialActivationModal"
+import { trialStatus } from "@/lib/trial"
 import { getSupabase } from "@/lib/supabase"
 import type { Organization, Profile } from "@/lib/database.types"
 
@@ -169,8 +172,18 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           </div>
         </header>
 
+        <TrialBanner organization={ctx.organization} />
         {children}
         <UndoToastHost />
+
+        {/* Onboarding modal — only the owner of a pending trial sees it. */}
+        <TrialActivationModal
+          open={
+            ctx.isOwner &&
+            trialStatus(ctx.organization).state === "pending"
+          }
+          onActivated={() => { ctx.refetch() }}
+        />
       </div>
     </CabinetContext.Provider>
   )

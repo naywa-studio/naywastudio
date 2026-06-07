@@ -207,6 +207,10 @@ export type Database = {
           pricing_default_avantages: PricingDefaultAvantages | null
           pricing_onboarded_at: string | null
           pricing_rtt_days_per_year: number
+          /** When the 15-day free trial expires. NULL = owner hasn't activated
+           *  yet (shows the activation modal in /cabinet). Set to now() + 15
+           *  days when the owner clicks "Activer mon essai" in onboarding. */
+          trial_ends_at: string | null
           created_at: string
           updated_at: string
         }
