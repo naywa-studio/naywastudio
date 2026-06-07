@@ -9,6 +9,7 @@ const navLinks = [
   { label: "Comment ça marche", href: "/comment-ca-marche" },
   { label: "Tarifs",            href: "/tarifs" },
   { label: "FAQ",               href: "/faq" },
+  { label: "Contact",           href: "/contact" },
 ]
 
 interface AuthState {

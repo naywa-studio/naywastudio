@@ -21,8 +21,9 @@ const footerLinks: Record<string, FooterLink[]> = {
     { label: "Conditions d'utilisation", href: '/cgu' },
   ],
   Contact: [
-    { label: 'LinkedIn', href: 'https://linkedin.com/company/naywastudio', external: true },
+    { label: 'Nous contacter', href: '/contact' },
     { label: 'contact@naywastudio.com', href: 'mailto:contact@naywastudio.com' },
+    { label: 'LinkedIn', href: 'https://www.linkedin.com/in/elyas-malki-2a6b7933a/', external: true },
   ],
 }
 
@@ -152,7 +153,7 @@ export function Footer() {
             color: '#9CA3AF',
           }}
         >
-          Fait avec soin à Paris 🇫🇷
+          Fait avec soin à Paris
         </span>
       </div>
 
