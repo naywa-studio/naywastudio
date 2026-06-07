@@ -412,7 +412,44 @@ Bouton discret **"Sans brief — saisie manuelle"** en bas du stage 1 → saute 
 
 ---
 
-## 16. État des chantiers (juin 2026)
+## 16. Conventions de travail avec Elyas (owner Naywa)
+
+### Git
+- **Push direct sur `main`** — pas de PR pour la beta. La branche de travail est `claude/peaceful-montalcini-46269b` mais on push avec `git push origin claude/...:main` après chaque chantier validé.
+- **Commit messages détaillés** — ils servent de mémoire après compact, écrire pour le futur soi.
+- Jamais de `--no-verify`, jamais de `--force` sur main.
+
+### Compte de test
+- **Owner test** : `elyas.malki1003@gmail.com` (créé son compte sur naywastudio.com en prod). Pas de compte dev séparé.
+- Pour tester multi-user → invitations envoyées vers ses alias `elyas.malki1003+testX@gmail.com`.
+- En cas de wipe DB tu lui dis "recrée ton compte" — il n'a pas de migration vers la version anonyme.
+
+### Flow de travail
+- **Tests en parallèle côté Vercel** — il code pas, il teste en hard refresh dès que je push. Les retours arrivent vite et sont concrets ("le bouton fait rien", "la zone est cassée").
+- **Pas de preview locale** : ne pas suggérer `npm run dev` pour vérifier (cf. memory `feedback_no_local_preview.md`). Tout passe par Vercel.
+- Il fournit souvent des **screenshots** — lire visuellement avant de répondre.
+
+### Communication
+- **Style direct, concis**. Il critique quand c'est pas clair ou pas livré — ne pas s'en formaliser, ça fait avancer.
+- **Tutoiement systématique**.
+- Quand il pose une question architecturale → répondre avec **un avis tranché + alternatives + reco**, pas juste lister les options.
+- Quand il dit "tu peux y aller" / "OK je valide" → ne pas re-demander, attaquer.
+
+### Limites volontaires
+- **Pas de Stripe maintenant** — toute la mécanique est prête, on attendra qu'il dise "on branche Stripe".
+- **Pas d'emoji UI** sauf si demandé. Les commit messages peuvent en avoir, l'UI non.
+- Quand on a un doute sur une décision produit, **toujours demander**. Il préfère 30s de question à 1h de code à jeter.
+
+### "Vérités" établies qu'il faut ne pas remettre en cause
+- 1 user = 1 org max *(multi-org déféré)*
+- Owner sans siège ≠ member ; juste admin pur du cabinet
+- Vivier toujours partagé entre members
+- Missions / pipeline / pricing partagés aussi (V1) — l'isolation partielle viendra après
+- Email entrant = jamais déclencheur d'action auto (analyse LLM = suggestion seulement)
+
+---
+
+## 17. État des chantiers (juin 2026)
 
 ### ✅ Livré
 - Multi-user complet (orgs, invites, sièges, suppression cabinet avec grace, cron wipe)
