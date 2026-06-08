@@ -120,6 +120,12 @@ export interface MonthProfile {
   lastDay: Date
   /** Nombre de jours travaillés (Lun-Ven hors fériés français) dans cette plage. */
   workingDays: number
+  /** Jours travaillés que ce mois aurait si la mission le couvrait du 1er au
+   *  dernier jour. Sert à pro-rater les coûts fixes mensuels (salaire chargé,
+   *  haircut CP+RTT) sur un mois partiel — sinon on facture un mois plein de
+   *  salaire pour quelques jours de revenu, ce qui plombe artificiellement
+   *  la marge des mois de bord (ex : mission qui démarre un 21 juillet). */
+  fullMonthWorkingDays: number
   /** Année calendaire (pour affichage). */
   year: number
   /** Mois calendaire 0..11 (pour affichage). */
@@ -165,12 +171,17 @@ export function missionMonthProfile(startDate: Date, durationMonths: number): Mo
       firstDay.getDate() !== 1 || lastDay.getTime() !== lastDayOfMonth.getTime()
 
     const workingDays = workingDaysInRange(firstDay, lastDay)
+    const fullMonthWorkingDays = workingDaysInRange(
+      new Date(year, month, 1),
+      lastDayOfMonth,
+    )
 
     profiles.push({
       monthIndex,
       firstDay,
       lastDay,
       workingDays,
+      fullMonthWorkingDays,
       year,
       calendarMonth: month,
       isPartial,

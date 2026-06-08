@@ -71,9 +71,18 @@ export default function MonthlyMarginChart({
   const cpRttHaircut = useMemo(() => cpRttRevenueHaircutMonthly(tjm, inputs), [tjm, inputs])
 
   // Pour chaque mois : revenu, coût, marge €, marge %
+  // Les coûts fixes mensuels (salaire chargé, haircut CP+RTT) sont pro-ratés
+  // par la fraction du mois effectivement travaillée. Sans ça, un mois qui
+  // démarre le 21 facture un mois plein de salaire pour ~8 jours de revenu
+  // et la marge plonge artificiellement à -50 %.
   const points = useMemo(() => monthProfiles.map((mp) => {
-    const revenu = tjm * mp.workingDays - cpRttHaircut
-    const coutTotal = cost.coutFixeMensuel + cost.coutVariableJournalier * mp.workingDays
+    const prorata = mp.fullMonthWorkingDays > 0
+      ? mp.workingDays / mp.fullMonthWorkingDays
+      : 1
+    const revenu = tjm * mp.workingDays - cpRttHaircut * prorata
+    const coutTotal =
+      cost.coutFixeMensuel * prorata +
+      cost.coutVariableJournalier * mp.workingDays
     const marge = revenu - coutTotal
     const margePct = revenu > 0 ? (marge / revenu) * 100 : 0
     return {

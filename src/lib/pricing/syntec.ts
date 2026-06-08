@@ -574,11 +574,18 @@ export function computeMissionMargin(
   let totalCout = 0
   let totalDays = 0
   for (const m of months) {
-    // Revenu mensuel net = jours calendrier × TJM, moins l'haircut CP+RTT
-    // proratisé (jours payés non facturables). Le coût employeur ne change
-    // pas car le brut couvre déjà ces jours.
-    totalRevenu += tjm * m.workingDays - cpRttHaircutMensuel
-    totalCout += cost.coutFixeMensuel + cost.coutVariableJournalier * m.workingDays
+    // Mois partiel : on pro-rate le coût fixe mensuel (salaire chargé +
+    // 13e + prime + charges) ET le haircut CP+RTT par la fraction de jours
+    // ouvrés effectivement travaillée. Sans ça un mois de bord (mission qui
+    // démarre le 21 juillet) facture un mois plein de salaire pour 8 jours
+    // de revenu et la marge mensuelle plonge artificiellement.
+    const prorata = m.fullMonthWorkingDays > 0
+      ? m.workingDays / m.fullMonthWorkingDays
+      : 1
+    totalRevenu += tjm * m.workingDays - cpRttHaircutMensuel * prorata
+    totalCout +=
+      cost.coutFixeMensuel * prorata +
+      cost.coutVariableJournalier * m.workingDays
     totalDays += m.workingDays
   }
   const margeTotale = totalRevenu - totalCout
@@ -687,10 +694,16 @@ export function computeRuptureRiskProfile(
 
   for (const m of months) {
     cumulDays += m.workingDays
-    // Revenu cumulé net = jours calendrier × TJM − haircut CP+RTT (jours
-    // payés non facturables, même règle que computeMissionMargin).
-    cumulRevenu += tjm * m.workingDays - cpRttHaircutMensuel
-    cumulCost += cost.coutFixeMensuel + cost.coutVariableJournalier * m.workingDays
+    // Même règle de pro-rata mois partiel que computeMissionMargin :
+    // sans ça les mois de bord (premier ou dernier de la mission) chargent
+    // un mois plein de salaire pour quelques jours travaillés.
+    const prorata = m.fullMonthWorkingDays > 0
+      ? m.workingDays / m.fullMonthWorkingDays
+      : 1
+    cumulRevenu += tjm * m.workingDays - cpRttHaircutMensuel * prorata
+    cumulCost +=
+      cost.coutFixeMensuel * prorata +
+      cost.coutVariableJournalier * m.workingDays
 
     const isPostEssai = m.monthIndex > finEssai
     let coutRupture = 0

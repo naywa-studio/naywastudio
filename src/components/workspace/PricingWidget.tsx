@@ -311,8 +311,15 @@ function PricingWidgetInner({
       if (months.length === 0) return null
       const haircut = cpRttRevenueHaircutMonthly(tjm, { rttDaysPerYear })
       const points = months.map((m) => {
-        const revenu = tjm * m.workingDays - haircut
-        const coutTotal = cost.coutFixeMensuel + cost.coutVariableJournalier * m.workingDays
+        // Pro-rata mois partiel — même règle que MonthlyMarginChart et
+        // computeMissionMargin pour rester cohérent sur tout le widget.
+        const prorata = m.fullMonthWorkingDays > 0
+          ? m.workingDays / m.fullMonthWorkingDays
+          : 1
+        const revenu = tjm * m.workingDays - haircut * prorata
+        const coutTotal =
+          cost.coutFixeMensuel * prorata +
+          cost.coutVariableJournalier * m.workingDays
         return {
           calendarMonth: m.calendarMonth, year: m.year,
           workingDays: m.workingDays,
