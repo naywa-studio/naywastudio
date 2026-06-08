@@ -355,6 +355,7 @@ function PricingWidgetInner({
   // Pire moment pour rompre — issu du profil de risque rupture (recompute
   // côté widget pour pouvoir l'afficher dans la colonne gauche sans dépendre
   // de l'onglet actif).
+  const typeContrat: 'cdi' | 'cdd' = job?.contract_type === 'cdd' ? 'cdd' : 'cdi'
   const worstRuptureMonth = useMemo(() => {
     if (!job?.start_date || !job?.duration_months) return null
     const start = new Date(job.start_date)
@@ -365,12 +366,13 @@ function PricingWidgetInner({
         tjm,
         start,
         Math.max(1, job.duration_months),
+        { typeContrat },
       )
       return profile.worstMonth
     } catch {
       return null
     }
-  }, [job?.start_date, job?.duration_months, brutAnnuel, tjm, buildInputs])
+  }, [job?.start_date, job?.duration_months, brutAnnuel, tjm, buildInputs, typeContrat])
 
   // Brut max / idéal (pour les marqueurs du slider brut).
   //
@@ -578,17 +580,23 @@ function PricingWidgetInner({
             )}
             {tab === "rupture" && (
               <>
-                <EssaiRenouveleToggle
-                  jobId={job?.id ?? null}
-                  value={essaiRenouvele}
-                  onChange={setEssaiRenouvele}
-                />
+                {typeContrat === 'cdi' && (
+                  <EssaiRenouveleToggle
+                    jobId={job?.id ?? null}
+                    value={essaiRenouvele}
+                    onChange={setEssaiRenouvele}
+                  />
+                )}
+                {typeContrat === 'cdd' && (
+                  <CddBanner durationMonths={job?.duration_months ?? null} />
+                )}
                 <RuptureRiskChart
                   inputs={buildInputs(brutAnnuel)}
                   startDate={job?.start_date ?? null}
                   durationMonths={job?.duration_months ?? 12}
                   tjm={tjm}
                   margeMinPct={margeMinPct}
+                  typeContrat={typeContrat}
                 />
               </>
             )}
@@ -1646,6 +1654,43 @@ function EssaiRenouveleToggle({
           }}
         />
       </button>
+    </div>
+  )
+}
+
+function CddBanner({ durationMonths }: { durationMonths: number | null }) {
+  const essaiDays = durationMonths == null
+    ? null
+    : durationMonths <= 6 ? "2 semaines" : "1 mois"
+  return (
+    <div
+      style={{
+        background: "rgba(217,119,6,0.06)",
+        border: "1px solid rgba(217,119,6,0.30)",
+        borderRadius: 10,
+        padding: "10px 14px",
+        marginBottom: 10,
+        fontSize: 12.5,
+        color: "#92400E",
+        lineHeight: 1.6,
+      }}
+    >
+      <p style={{ margin: 0, fontWeight: 700, color: "#7C2D12" }}>
+        Mission en CDD — règles CDD appliquées
+      </p>
+      <p style={{ margin: "3px 0 0", color: "#92400E" }}>
+        Période d&apos;essai{" "}
+        <strong>
+          {essaiDays
+            ? `≈ ${essaiDays}`
+            : "1 jour par semaine de contrat"}
+        </strong>{" "}
+        (L1242-10). Hors essai, la rupture employeur coûte les{" "}
+        <strong>salaires restants jusqu&apos;au terme</strong> + indemnité
+        précarité 10 % (L1243-4). Au terme, prime de précarité 10 % de la
+        rémunération versée. Le toggle « renouvellement essai » ne
+        s&apos;applique qu&apos;au CDI.
+      </p>
     </div>
   )
 }

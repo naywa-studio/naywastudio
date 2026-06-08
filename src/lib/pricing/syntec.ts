@@ -696,12 +696,30 @@ export function computeRuptureRiskProfile(
   tjm: number,
   startDate: Date,
   durationMonths: number,
+  options: {
+    /** Type de contrat de la mission. Défaut CDI. */
+    typeContrat?: TypeContrat
+  } = {},
 ): RuptureRiskProfile {
+  const typeContrat: TypeContrat = options.typeContrat ?? 'cdi'
   const cost = computeEmployerCost(inputs)
   const months = missionMonthProfile(startDate, Math.max(1, durationMonths))
 
-  const preavisM = preavisMois(inputs.statut, durationMonths / 12, inputs.coefficient)
-  const finEssai = finPeriodeEssaiMois(inputs.statut, inputs.coefficient, inputs.essaiRenouvele ?? false)
+  // Préavis CDI : par statut + ancienneté. Pas applicable au CDD (le
+  // CDD n'a pas de préavis post-essai — la rupture anticipée coûte la
+  // totalité des salaires restants).
+  const preavisM = typeContrat === 'cdi'
+    ? preavisMois(inputs.statut, durationMonths / 12, inputs.coefficient)
+    : 0
+
+  // Fin d'essai :
+  //   CDI : grille Syntec (initiale ou renouvelée selon le toggle).
+  //   CDD : Code du travail L1242-10 → 1 jour ouvré par semaine de
+  //         contrat, plafonné à 2 sem (CDD ≤ 6 mois) ou 1 mois (sinon).
+  //         Conversion grossière en mois pour le seuil "isPostEssai".
+  const finEssai = typeContrat === 'cdi'
+    ? finPeriodeEssaiMois(inputs.statut, inputs.coefficient, inputs.essaiRenouvele ?? false)
+    : durationMonths <= 6 ? 0.5 : 1.0
 
   // Salaire chargé mensuel = base d'assiette pour les indemnités Syntec
   // (brut + 13e + prime + charges). Avantages exonérés non inclus.
@@ -738,14 +756,37 @@ export function computeRuptureRiskProfile(
     const isPostEssai = m.monthIndex > finEssai
     let coutRupture = 0
     if (isPostEssai) {
-      // Préavis = N mois de coût salarial chargé (le candidat est payé sans
-      // bosser pendant le préavis — pas de revenu en face).
-      const coutPreavis = preavisM * coutSalarialMensuel
-      // Indemnité Art 4.5 : 0 avant 8 mois d'ancienneté
-      const ancienneteAnnees = m.monthIndex / 12
-      const indemniteMois = indemniteLicenciementMois(inputs.statut, ancienneteAnnees)
-      const indemniteEuros = indemniteMois * remTotaleMensuelle
-      coutRupture = coutPreavis + indemniteEuros + indemniteCpAt(m.monthIndex)
+      if (typeContrat === 'cdi') {
+        // Préavis = N mois de coût salarial chargé (le candidat est payé
+        // sans bosser pendant le préavis — pas de revenu en face).
+        const coutPreavis = preavisM * coutSalarialMensuel
+        // Indemnité Art 4.5 : 0 avant 8 mois d'ancienneté
+        const ancienneteAnnees = m.monthIndex / 12
+        const indemniteMois = indemniteLicenciementMois(inputs.statut, ancienneteAnnees)
+        const indemniteEuros = indemniteMois * remTotaleMensuelle
+        coutRupture = coutPreavis + indemniteEuros + indemniteCpAt(m.monthIndex)
+      } else {
+        // CDD — rupture anticipée par l'employeur hors essai :
+        //   Art. L1243-1/L1243-4 → dommages-intérêts = salaires restants
+        //   jusqu'au terme + prime de précarité 10 %. On somme :
+        //     • salaires restants chargés jusqu'à la fin de la mission
+        //     • prime de précarité 10 % sur la rémunération versée (cumul)
+        //     • indemnité CP non pris (idem CDI, base salaire chargé)
+        const moisRestants = Math.max(0, durationMonths - m.monthIndex)
+        const coutSalairesRestants = moisRestants * coutSalarialMensuel
+        const remVerseeCumul = m.monthIndex * remTotaleMensuelle
+        const precarite = 0.10 * remVerseeCumul
+        coutRupture =
+          coutSalairesRestants +
+          precarite +
+          indemniteCpAt(m.monthIndex)
+      }
+    } else if (typeContrat === 'cdd' && m.monthIndex >= durationMonths) {
+      // CDD arrivé à terme : pas de coût "rupture" mais l'employeur doit
+      // verser l'indemnité de fin de contrat (prime de précarité) = 10 %
+      // de la rémunération totale brute versée pendant le CDD.
+      const remVerseeTotale = durationMonths * remTotaleMensuelle
+      coutRupture = 0.10 * remVerseeTotale
     }
 
     const margeNetteEur = cumulRevenu - cumulCost - coutRupture

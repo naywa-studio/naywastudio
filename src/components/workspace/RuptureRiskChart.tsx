@@ -39,6 +39,10 @@ interface Props {
   durationMonths: number
   tjm: number
   margeMinPct?: number
+  /** Type de contrat de la mission. Défaut CDI. Le coût rupture varie
+   *  beaucoup entre les deux : CDI = préavis + indemnité licenciement,
+   *  CDD = salaires restants + prime précarité 10 %. */
+  typeContrat?: 'cdi' | 'cdd'
 }
 
 const W = 760
@@ -52,7 +56,7 @@ const PLOT_W = W - PAD_L - PAD_R
 const PLOT_H = H - PAD_T - PAD_B
 
 export default function RuptureRiskChart({
-  inputs, startDate, durationMonths, tjm, margeMinPct,
+  inputs, startDate, durationMonths, tjm, margeMinPct, typeContrat = 'cdi',
 }: Props) {
   const start = useMemo(() => {
     if (!startDate) return new Date()
@@ -62,8 +66,12 @@ export default function RuptureRiskChart({
   }, [startDate])
 
   const profile = useMemo(
-    () => computeRuptureRiskProfile(inputs, tjm, start, Math.max(1, durationMonths || 12)),
-    [inputs, tjm, start, durationMonths],
+    () => computeRuptureRiskProfile(
+      inputs, tjm, start,
+      Math.max(1, durationMonths || 12),
+      { typeContrat },
+    ),
+    [inputs, tjm, start, durationMonths, typeContrat],
   )
 
   const points = profile.points
