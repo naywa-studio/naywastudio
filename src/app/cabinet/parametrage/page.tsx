@@ -173,8 +173,8 @@ export default function ParametragePage() {
   return (
     <main style={{
       minHeight: "calc(100vh - 60px)",
-      padding: "40px 24px 80px",
-      maxWidth: 880, margin: "0 auto",
+      padding: "32px 28px 72px",
+      maxWidth: 1280, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
       {/* Header */}
@@ -190,7 +190,7 @@ export default function ParametragePage() {
           padding: "4px 11px", borderRadius: 100,
           letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
         }}>
-          🏢 Paramètres cabinet
+          Paramètres cabinet
         </span>
         <h1 style={{ margin: 0, fontSize: "clamp(24px, 3vw, 30px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
           Réglages récurrents de votre cabinet
@@ -219,16 +219,22 @@ export default function ParametragePage() {
       <div style={{
         pointerEvents: isOwner ? "auto" : "none",
         opacity: isOwner ? 1 : 0.75,
-      }}>
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 5fr) minmax(0, 7fr)",
+        gap: 18,
+      }}
+      className="param-grid">
 
-      {/* Section 1 — Marges */}
+      {/* ── Colonne gauche : Marges + Jours non facturables ─────────────── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
       <m.section
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: EASE }}
         style={sectionStyle}
       >
-        <SectionHeader title="🎯 Seuils de marge" subtitle="Plancher et objectif de rentabilité de votre cabinet." />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <SectionHeader title="Seuils de marge" subtitle="Plancher et objectif de rentabilité de votre cabinet." />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label="Marge minimum acceptable" hint="En dessous, refus du chiffrage. Moyenne ESN : 12–18 %.">
             <NumberInput
               value={form.pricing_margin_min_pct}
@@ -252,20 +258,19 @@ export default function ParametragePage() {
             background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
             borderRadius: 9,
           }}>
-            ⚠ La marge cible doit être supérieure ou égale à la marge mini.
+            La marge cible doit être supérieure ou égale à la marge mini.
           </p>
         )}
       </m.section>
 
-      {/* Section 1.5 — Jours non facturables (CP + RTT) */}
       <m.section
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.38, ease: EASE }}
         style={sectionStyle}
       >
         <SectionHeader
-          title="📅 Jours payés non facturables"
-          subtitle="Les jours où le candidat est rémunéré mais ne facture pas — ils baissent la marge mensuelle de chaque mission."
+          title="Jours payés non facturables"
+          subtitle="Jours rémunérés sans revenu — baissent la marge mensuelle de chaque mission."
         />
 
         {/* Note informative CP — non modifiable, obligation légale */}
@@ -278,12 +283,12 @@ export default function ParametragePage() {
         }}>
           <strong style={{ color: "#7C63C8" }}>Congés payés — 25 jours/an (obligation légale)</strong>
           <br />
-          Tous les salariés cumulent 25 jours de congés payés par an (Code du travail, L3141-3). Ces jours sont payés par le cabinet mais non facturables au client — ils sont automatiquement déduits du revenu mensuel dans tous nos calculs. Non modifiable.
+          Tous les salariés cumulent 25 jours de CP par an (L3141-3). Ces jours sont payés par le cabinet mais non facturables — automatiquement déduits du revenu mensuel. Non modifiable.
         </div>
 
         <Field
           label="RTT accordés par votre cabinet"
-          hint="0 si vous n'accordez pas de RTT. Forfait 218 jours standard ≈ 10 RTT/an. Ces jours seront déduits du revenu facturable au même titre que les CP."
+          hint="0 si vous n'accordez pas de RTT. Forfait 218 j ≈ 10 RTT/an. Déduits du revenu facturable au même titre que les CP."
         >
           <NumberInput
             value={form.pricing_rtt_days_per_year}
@@ -294,14 +299,16 @@ export default function ParametragePage() {
         </Field>
       </m.section>
 
-      {/* Section 2 — Avantages */}
+      </div>
+
+      {/* ── Colonne droite : Avantages ──────────────────────────────────── */}
       <m.section
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: EASE }}
         style={sectionStyle}
       >
         <SectionHeader
-          title="🎁 Avantages standards"
+          title="Avantages standards"
           subtitle="Ce que votre cabinet propose à tous ses salariés, peu importe la mission."
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -361,6 +368,12 @@ export default function ParametragePage() {
         </div>
       </m.section>
       </div>
+
+      <style>{`
+        @media (max-width: 1024px) {
+          .param-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </main>
   )
 }
@@ -395,8 +408,8 @@ function SaveBadge({ state, error }: { state: "idle" | "saving" | "saved" | "err
   const bd = state === "error" ? "rgba(220,38,38,0.25)" : state === "saved" ? "rgba(34,197,94,0.25)" : "#E5E7EB"
   const text =
     state === "saving" ? "Enregistrement…"
-    : state === "saved" ? "✓ Enregistré"
-    : `⚠ Échec : ${error ?? "réessaie"}`
+    : state === "saved" ? "Enregistré"
+    : `Échec : ${error ?? "réessaie"}`
   return (
     <span style={{
       marginTop: 14, display: "inline-block",
