@@ -124,6 +124,11 @@ export interface PricingInputs {
   /** RTT par an accordés par le cabinet (défaut 0). Soustraits du revenu
    *  facturable au même titre que les CP (payés mais non facturables). */
   rttDaysPerYear?: number
+  /** Période d'essai renouvelée ? Article 3.4 : le renouvellement n'est
+   *  pas automatique, il exige un accord écrit. Défaut false (= durée
+   *  initiale seulement). Mettre true uniquement quand le contrat de la
+   *  mission prévoit explicitement le renouvellement. */
+  essaiRenouvele?: boolean
 }
 
 /** Breakdown of the employer's monthly cost for a candidate. */
@@ -373,25 +378,50 @@ function preavisMois(statut: Statut, ancienneteAnnees: number, coefficient: numb
   return bareme.preavis_cdi.etam_ge_2_ans_ancienne.licenciement_mois
 }
 
-/** Article 3.4 — total durée d'essai (initiale + renouvellement) en mois.
- *  Aligné sur la pratique cabinet (Excel pricing) :
- *  - ETAM jusqu'au coef 355  : 2 + 1 = 3 mois
- *  - ETAM coef 400 à 500     : 3 + 2 = 5 mois
- *  - Cadre (tous coefs)      : 4 + 3 = 7 mois
- *  (Le plafond légal max Syntec est 4+4=8 mois cadre mais la plupart des
- *   cabinets pratiquent 4+3=7 mois.) */
-function finPeriodeEssaiMois(statut: Statut, coefficient: number): number {
+/** Article 3.4 — durée de la période d'essai (en mois).
+ *
+ *  Deux régimes possibles, selon que la mission négocie le renouvellement
+ *  ou pas :
+ *
+ *   renouvele = false (défaut) : durée INITIALE
+ *     - ETAM ≤ coef 355  : 2 mois
+ *     - ETAM coef 400-500 : 3 mois
+ *     - Cadre             : 4 mois
+ *
+ *   renouvele = true            : durée initiale + renouvellement (max
+ *                                 pratique cabinet)
+ *     - ETAM ≤ coef 355  : 2 + 1 = 3 mois
+ *     - ETAM coef 400-500 : 3 + 2 = 5 mois
+ *     - Cadre             : 4 + 3 = 7 mois
+ *
+ *  Le renouvellement N'EST PAS automatique : il exige un accord écrit du
+ *  salarié et de l'employeur (Article 3.4). On le pose comme une variable
+ *  mission pour permettre au sourceur de simuler les deux scénarios.
+ *
+ *  Le plafond légal Syntec est 4+4=8 mois cadre mais la pratique cabinet
+ *  se contente de 4+3=7 mois (cf. Excel pricing template). */
+function finPeriodeEssaiMois(
+  statut: Statut,
+  coefficient: number,
+  renouvele: boolean = false,
+): number {
   // Le JSON a été refactoré (nouvelles clés) — TS ne voit pas le nouveau
   // shape, on lit via index dynamique typé.
-  const essai = (bareme.periode_essai as unknown as Record<string, { total_max_mois: number }>)
+  type EssaiKey = {
+    duree_initiale_mois: number
+    total_max_mois: number
+  }
+  const essai = bareme.periode_essai as unknown as Record<string, EssaiKey>
+  const fieldName: keyof EssaiKey = renouvele ? 'total_max_mois' : 'duree_initiale_mois'
+
   if (statut === 'cadre') {
-    return essai.cadre_tous_coefficients.total_max_mois
+    return essai.cadre_tous_coefficients[fieldName]
   }
   // ETAM (y compris assimilé cadre — la grille conventionnelle est ETAM)
   if (coefficient >= 400) {
-    return essai.etam_coef_400_a_500.total_max_mois
+    return essai.etam_coef_400_a_500[fieldName]
   }
-  return essai.etam_jusquau_coef_355.total_max_mois
+  return essai.etam_jusquau_coef_355[fieldName]
 }
 
 /** Article 4.5 — indemnité conventionnelle de licenciement (en mois de brut).
@@ -671,7 +701,7 @@ export function computeRuptureRiskProfile(
   const months = missionMonthProfile(startDate, Math.max(1, durationMonths))
 
   const preavisM = preavisMois(inputs.statut, durationMonths / 12, inputs.coefficient)
-  const finEssai = finPeriodeEssaiMois(inputs.statut, inputs.coefficient)
+  const finEssai = finPeriodeEssaiMois(inputs.statut, inputs.coefficient, inputs.essaiRenouvele ?? false)
 
   // Salaire chargé mensuel = base d'assiette pour les indemnités Syntec
   // (brut + 13e + prime + charges). Avantages exonérés non inclus.
@@ -902,7 +932,7 @@ export function computeRuptureScenarios(
     : 0.43
 
   const preavisM = preavisMois(input.statut, dureeMois / 12, input.coefficient)
-  const finEssai = finPeriodeEssaiMois(input.statut, input.coefficient)
+  const finEssai = finPeriodeEssaiMois(input.statut, input.coefficient, input.essaiRenouvele ?? false)
 
   // Période d'essai CDD — Code du travail L1242-10 : 1 jour ouvré par
   // semaine de contrat, plafonné à 2 semaines (CDD ≤ 6 mois) ou 1 mois

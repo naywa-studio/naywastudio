@@ -253,6 +253,23 @@ function PricingWidgetInner({
 
   const rttDaysPerYear = profile?.pricing_rtt_days_per_year ?? 0
 
+  // Variable mission : période d'essai renouvelée (art. 3.4 Syntec — pas
+  // automatique). Optimiste local pour rendre le chart réactif au toggle,
+  // puis PATCH /api/jobs/[id] pour persister. La valeur reseed quand on
+  // bascule sur un autre job (clé React) plutôt que via useEffect → évite
+  // le pattern setState-in-effect que l'eslint plugin warn.
+  const [essaiRenouvele, setEssaiRenouvele] = useState<boolean>(!!job?.essai_renouvele)
+  const lastJobIdRef = useRef<string | null>(job?.id ?? null)
+  if (lastJobIdRef.current !== (job?.id ?? null)) {
+    lastJobIdRef.current = job?.id ?? null
+    // Reseed quand on switch de mission. setState pendant le render est
+    // autorisé tant qu'on ne crée pas une boucle (early return inutile ici
+    // car la valeur reflète déjà le job courant).
+    if (essaiRenouvele !== !!job?.essai_renouvele) {
+      setEssaiRenouvele(!!job?.essai_renouvele)
+    }
+  }
+
   const buildInputs = useCallback(
     (brut: number): PricingInputs => ({
       brutAnnuel: brut,
@@ -264,8 +281,9 @@ function PricingWidgetInner({
       avantages,
       joursFacturablesParMois: joursParMois,
       rttDaysPerYear,
+      essaiRenouvele,
     }),
-    [preset.statut, effectivePosition, effectiveCoef, modalite, lieu, avantages, joursParMois, rttDaysPerYear],
+    [preset.statut, effectivePosition, effectiveCoef, modalite, lieu, avantages, joursParMois, rttDaysPerYear, essaiRenouvele],
   )
 
   // Triangle (résultante TJM/brut/marge) — pour le KPI marge mensuelle estim
@@ -559,13 +577,20 @@ function PricingWidgetInner({
               />
             )}
             {tab === "rupture" && (
-              <RuptureRiskChart
-                inputs={buildInputs(brutAnnuel)}
-                startDate={job?.start_date ?? null}
-                durationMonths={job?.duration_months ?? 12}
-                tjm={tjm}
-                margeMinPct={margeMinPct}
-              />
+              <>
+                <EssaiRenouveleToggle
+                  jobId={job?.id ?? null}
+                  value={essaiRenouvele}
+                  onChange={setEssaiRenouvele}
+                />
+                <RuptureRiskChart
+                  inputs={buildInputs(brutAnnuel)}
+                  startDate={job?.start_date ?? null}
+                  durationMonths={job?.duration_months ?? 12}
+                  tjm={tjm}
+                  margeMinPct={margeMinPct}
+                />
+              </>
             )}
             {tab === "detail" && (
               <CostBreakdown
@@ -1500,6 +1525,127 @@ function CostBreakdown({
         mois calendaire (19 j en novembre, 23 j en octobre…) — le coût total réel varie
         donc légèrement chaque mois.
       </p>
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Toggle variable mission — période d'essai renouvelée (art. 3.4 Syntec)
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function EssaiRenouveleToggle({
+  jobId, value, onChange,
+}: {
+  jobId: string | null
+  value: boolean
+  onChange: (next: boolean) => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const toggle = async () => {
+    if (saving || !jobId) {
+      // Sans jobId on bascule l'état local pour la simulation mais on ne
+      // peut pas persister (rare — devrait pas arriver depuis /pricing).
+      if (!jobId) onChange(!value)
+      return
+    }
+    const next = !value
+    setError(null)
+    setSaving(true)
+    // Optimiste : on flippe immédiatement pour que le chart réagisse,
+    // on revert si le PATCH échoue.
+    onChange(next)
+    try {
+      const res = await fetch(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ essai_renouvele: next }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? "Sauvegarde impossible")
+      }
+    } catch (err) {
+      onChange(value)  // revert
+      setError(err instanceof Error ? err.message : "Erreur")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        background: value ? "rgba(124,99,200,0.06)" : "#FAFAFA",
+        border: `1px solid ${value ? "rgba(124,99,200,0.30)" : "#F0ECF8"}`,
+        borderRadius: 10,
+        padding: "10px 14px",
+        marginBottom: 10,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ minWidth: 0, flex: "1 1 280px" }}>
+        <p style={{
+          margin: 0, fontSize: 12.5, fontWeight: 700, color: "#111827",
+          letterSpacing: "-0.005em",
+        }}>
+          Renouvellement de la période d&apos;essai
+        </p>
+        <p style={{
+          margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55,
+        }}>
+          {value
+            ? "Activé — durée totale (initiale + renouvellement) appliquée au chart."
+            : "Désactivé — seule la durée initiale est prise en compte (par défaut, conforme à l'art. 3.4 Syntec)."}
+        </p>
+        {error && (
+          <p style={{
+            margin: "5px 0 0", fontSize: 11, color: "#B91C1C", fontWeight: 600,
+          }}>
+            {error}
+          </p>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={saving}
+        aria-pressed={value}
+        style={{
+          position: "relative",
+          width: 42,
+          height: 24,
+          borderRadius: 999,
+          border: "none",
+          background: value ? "#7C63C8" : "#D1D5DB",
+          cursor: saving ? "wait" : "pointer",
+          padding: 0,
+          flexShrink: 0,
+          transition: "background 150ms ease",
+          opacity: saving ? 0.65 : 1,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 2,
+            left: value ? 20 : 2,
+            width: 20,
+            height: 20,
+            background: "white",
+            borderRadius: "50%",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+            transition: "left 150ms ease",
+          }}
+        />
+      </button>
     </div>
   )
 }

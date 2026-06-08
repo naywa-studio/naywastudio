@@ -310,6 +310,11 @@ export type Database = {
           has_grand_deplacement: boolean
           /** Mission expatriée → applique la prime expatriation cabinet. */
           is_expatriated: boolean
+          /** True si le contrat de mission prévoit explicitement le
+           *  renouvellement de la période d'essai (Article 3.4 Syntec : pas
+           *  automatique, accord écrit requis). Défaut false → seule la durée
+           *  initiale est appliquée dans le chart Risque rupture. */
+          essai_renouvele: boolean
           created_at: string
           updated_at: string
         }
@@ -341,6 +346,7 @@ export type Database = {
           pricing_lieu?: 'paris_petite_couronne' | 'idf_grande_couronne' | 'lyon' | 'province' | null
           has_grand_deplacement?: boolean
           is_expatriated?: boolean
+          essai_renouvele?: boolean
           created_at?: string
           updated_at?: string
         }

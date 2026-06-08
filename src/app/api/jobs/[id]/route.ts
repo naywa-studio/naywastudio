@@ -99,6 +99,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
   if ("has_grand_deplacement" in body) { update.has_grand_deplacement = Boolean(body.has_grand_deplacement) }
   if ("is_expatriated" in body)        { update.is_expatriated = Boolean(body.is_expatriated) }
+  if ("essai_renouvele" in body)       { update.essai_renouvele = Boolean(body.essai_renouvele) }
 
   if (matchingInputsChanged) {
     try {
