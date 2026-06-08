@@ -100,18 +100,13 @@ export default function PricingPage() {
   // apart from configured ones. The dedicated column fixes that.
   const onboardingDone = profile?.pricing_onboarded_at != null
 
-  if (!onboardingDone) {
-    return (
-      <main style={mainStyle}>
-        <Header missionCount={0} />
-        <NotConfiguredBanner isOwner={isOwner} />
-      </main>
-    )
-  }
-
   return (
     <main style={mainStyle}>
       <Header missionCount={missions.length} />
+
+      {!onboardingDone && (
+        <NotConfiguredBanner isOwner={isOwner} />
+      )}
 
       {missions.length === 0 ? (
         <EmptyState />
@@ -193,50 +188,43 @@ const linkBtnStyle: React.CSSProperties = {
 function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
   return (
     <div style={{
-      marginTop: 28, padding: "26px 30px",
-      background: "white",
-      border: "1px solid #F0ECF8", borderRadius: 16,
-      boxShadow: "0 8px 24px -16px rgba(124,99,200,0.18)",
+      marginTop: 18,
+      padding: "12px 16px",
+      background: "rgba(217,119,6,0.06)",
+      border: "1px solid rgba(217,119,6,0.25)",
+      borderRadius: 12,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      flexWrap: "wrap",
     }}>
-      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#D97706",
-        letterSpacing: "0.08em", textTransform: "uppercase",
-      }}>
-        Pricing à configurer
-      </p>
-      <h2 style={{ margin: "8px 0 12px", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
-        {isOwner ? "Configurez votre politique pricing" : "Le cabinet n'a pas encore configuré le pricing"}
-      </h2>
-      <p style={{ margin: "0 0 18px", fontSize: 14, color: "#4B5563", lineHeight: 1.65, maxWidth: 640 }}>
-        {isOwner
-          ? "Marge minimum, marge cible, avantages standards du cabinet : tout se règle dans la console cabinet. Sans ces paramètres, les chiffrages des missions retombent sur des valeurs par défaut peu pertinentes pour votre activité."
-          : "Demandez à l'owner de votre cabinet de configurer la politique pricing. En attendant, les chiffrages utilisent des valeurs par défaut génériques."}
-      </p>
+      <div style={{ minWidth: 0, flex: "1 1 280px" }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#92400E" }}>
+          {isOwner
+            ? "Politique pricing pas encore configurée"
+            : "Le cabinet n'a pas encore configuré sa politique pricing"}
+        </p>
+        <p style={{ margin: "2px 0 0", fontSize: 12, color: "#7C2D12", lineHeight: 1.5 }}>
+          {isOwner
+            ? "Les chiffrages tournent avec des valeurs par défaut. Réglez les marges et avantages standards dans la console cabinet pour des chiffrages adaptés."
+            : "Les chiffrages utilisent des valeurs par défaut génériques en attendant que l'owner règle marges et avantages."}
+        </p>
+      </div>
       {isOwner ? (
         <Link
           href="/cabinet/parametrage"
           style={{
             display: "inline-block",
-            padding: "11px 20px", borderRadius: 10,
+            padding: "8px 14px", borderRadius: 9,
             background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            color: "white", fontSize: 13.5, fontWeight: 700,
-            textDecoration: "none",
+            color: "white", fontSize: 12.5, fontWeight: 700,
+            textDecoration: "none", whiteSpace: "nowrap",
           }}
         >
-          Configurer maintenant
+          Configurer →
         </Link>
-      ) : (
-        <Link
-          href="/workspace/pricing/reference"
-          style={{
-            display: "inline-block",
-            padding: "11px 20px", borderRadius: 10,
-            background: "white", border: "1px solid #E5E7EB", color: "#374151",
-            fontSize: 13.5, fontWeight: 600, textDecoration: "none",
-          }}
-        >
-          Consulter la référence Syntec
-        </Link>
-      )}
+      ) : null}
     </div>
   )
 }

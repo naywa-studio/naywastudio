@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import type { Organization } from "@/lib/database.types"
 import { trialStatus } from "@/lib/trial"
@@ -26,28 +27,35 @@ interface Props {
 
 const STORAGE_KEY = "naywa.trialBanner.dismissed.session"
 
+/** Lit sessionStorage sans crasher en SSR. Utilisé comme initialiseur de
+ *  useState pour éviter le pattern setState-dans-useEffect que le nouveau
+ *  plugin React hooks signale en erreur. */
+function readDismissed(): boolean {
+  if (typeof window === "undefined") return false
+  try {
+    return sessionStorage.getItem(STORAGE_KEY) === "1"
+  } catch {
+    return false
+  }
+}
+
 export function TrialBanner({ organization, alwaysVisible = false }: Props) {
+  // État local pour pouvoir re-render quand l'utilisateur clique sur la
+  // croix. La valeur initiale lit sessionStorage côté client uniquement
+  // (en SSR on retourne false ; il y aura un éventuel flash 1 frame puis
+  // le re-render client cache la bannière si elle était déjà fermée).
+  const [dismissed, setDismissed] = useState(readDismissed)
+
   if (!organization) return null
   const status = trialStatus(organization)
   if (status.state === "pending") return null
 
-  // Per-session dismissal (skip on SSR).
-  if (!alwaysVisible && typeof window !== "undefined") {
-    try {
-      const dismissed = sessionStorage.getItem(STORAGE_KEY)
-      // Only dismiss if active + plenty of days left ; expired or critical
-      // stays visible no matter what.
-      if (
-        dismissed === "1" &&
-        status.state === "active" &&
-        status.daysLeft >= 4
-      ) {
-        return null
-      }
-    } catch {
-      /* sessionStorage blocked, ignore */
-    }
-  }
+  // Le dismiss n'est honoré que pour les bannières "informatives"
+  // (essai actif + au moins 4 j restants). En warning ou expiré, on
+  // ré-affiche systématiquement, le sourceur ne peut pas l'enterrer.
+  const dismissAllowed =
+    !alwaysVisible && status.state === "active" && status.daysLeft >= 4
+  if (dismissed && dismissAllowed) return null
 
   const isExpired = status.state === "expired"
   const isWarning = !isExpired && status.daysLeft <= 3
@@ -75,8 +83,7 @@ export function TrialBanner({ organization, alwaysVisible = false }: Props) {
 
   const dismiss = () => {
     try { sessionStorage.setItem(STORAGE_KEY, "1") } catch { /* ignore */ }
-    // Force a re-render — banner is unmounted by its parent on next paint.
-    window.dispatchEvent(new Event("naywa:trial-banner-dismissed"))
+    setDismissed(true)
   }
 
   return (
