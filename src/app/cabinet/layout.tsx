@@ -23,6 +23,7 @@ interface CabinetCtx {
   profile: Profile
   organization: Organization
   userEmail: string
+  emailConfirmed: boolean
   isOwner: boolean
   refetch: () => Promise<void>
 }
@@ -69,6 +70,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
       profile,
       organization: org,
       userEmail: user.email ?? "",
+      emailConfirmed: !!user.email_confirmed_at,
       isOwner: profile.role === "owner",
       refetch: fetchAll,
     })

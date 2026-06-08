@@ -2,21 +2,32 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { m } from "framer-motion"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
+import { trialStatus, TRIAL_DURATION_DAYS } from "@/lib/trial"
+import type { Organization } from "@/lib/database.types"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 /**
- * /cabinet — Console cabinet (owner area), dashboard-style.
+ * /cabinet — owner-facing console.
  *
- * 12-col landscape grid:
- *   Hero (12)
- *   Identité (7)              | Membres (5)
- *   Abonnement (7)            | Zone de danger (5)
+ * Reworked layout : we drop the old 7/5 split that pushed Subscription
+ * and Pricing Policy below the fold. The console now spreads on a
+ * 1440-wide canvas, three balanced columns at desktop sizes :
  *
- * Designed to fit on a single screen at 1440×900 without scrolling.
+ *   row 1 (12) : EmailConfirmation banner (only if user.email_confirmed_at null)
+ *   row 2 (12) : Hero — cabinet identity + KPI pills
+ *   row 3 (12) : MySeat banner
+ *   row 4      : Subscription (4) | Members (4) | Identity (4)
+ *   row 5      : Pricing Policy* (6) | Danger zone (6)
+ *
+ *   * Pricing Policy is hidden until the trial is activated — there's no
+ *     point configuring margins before you can use the workspace.
+ *
+ * Down at <= 1100px we collapse to 2 columns, then 1 column on mobile.
  */
 
 interface MemberRow {
@@ -34,12 +45,12 @@ interface PendingInvite {
 }
 
 export default function CabinetPage() {
-  const { profile, organization, userEmail, isOwner, refetch } = useCabinet()
+  const { profile, organization, userEmail, emailConfirmed, isOwner, refetch } = useCabinet()
   const router = useRouter()
   const sb = useMemo(() => getSupabase(), [])
 
-  // Le dashboard reste réservé à l'owner. /cabinet/parametrage est, lui,
-  // accessible aux members en read-only.
+  // Dashboard reste owner-only. /cabinet/parametrage gère les members
+  // séparément en read-only.
   useEffect(() => {
     if (!isOwner) router.replace("/workspace")
   }, [isOwner, router])
@@ -84,20 +95,26 @@ export default function CabinetPage() {
   }, [sb, organization.brand_logo_path])
 
   const seatsUsed = members.length + invites.length
+  const trial = trialStatus(organization)
+  const showPricingPolicy = trial.state !== "pending"
 
   return (
     <main style={{
-      maxWidth: 1280, margin: "0 auto",
-      padding: "28px 24px 48px",
+      maxWidth: 1440, margin: "0 auto",
+      padding: "24px 28px 56px",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
+      {!emailConfirmed && (
+        <EmailConfirmationBanner email={userEmail} />
+      )}
+
       {/* ── Hero ──────────────────────────────────────────── */}
       <m.section
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
         style={{
           display: "flex", alignItems: "center", gap: 18,
-          marginBottom: 22,
+          marginBottom: 18,
         }}
       >
         <HeroAvatar logoUrl={logoUrl} name={organization.brand_name ?? organization.name} />
@@ -109,9 +126,7 @@ export default function CabinetPage() {
             {organization.brand_name ?? organization.name}
           </h1>
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-            <HeroPill kind={profile.role === "owner" ? "primary" : "neutral"}>
-              {profile.role === "owner" ? "Owner" : "Member"}
-            </HeroPill>
+            <HeroPill kind="primary">Owner</HeroPill>
             <HeroPill kind="neutral">
               {members.length} membre{members.length > 1 ? "s" : ""}
             </HeroPill>
@@ -120,9 +135,15 @@ export default function CabinetPage() {
                 {invites.length} invitation{invites.length > 1 ? "s" : ""} en attente
               </HeroPill>
             )}
-            <HeroPill kind={organization.package_sourcing_active && !organization.pending_deletion_at ? "success" : "warn"}>
-              {organization.pending_deletion_at ? "Résiliation en cours" : "Package Sourcing actif"}
-            </HeroPill>
+            {organization.pending_deletion_at ? (
+              <HeroPill kind="warn">Résiliation en cours</HeroPill>
+            ) : trial.state === "active" ? (
+              <HeroPill kind="success">Essai · {trial.daysLeft} j restants</HeroPill>
+            ) : trial.state === "expired" ? (
+              <HeroPill kind="warn">Essai terminé</HeroPill>
+            ) : (
+              <HeroPill kind="neutral">Essai non activé</HeroPill>
+            )}
           </div>
         </div>
       </m.section>
@@ -134,56 +155,137 @@ export default function CabinetPage() {
         isOwner={isOwner}
       />
 
-      {/* ── 12-col grid ───────────────────────────────────── */}
-      <div style={{
+      {/* ── Grid principale 3 col ─────────────────────────── */}
+      <div className="cab-grid-3" style={{
         display: "grid",
-        gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
         gap: 16,
+        marginTop: 14,
       }}>
-        <div style={{ gridColumn: "span 7" }}>
-          <IdentitySection
-            organization={organization}
-            logoUrl={logoUrl}
-            isOwner={isOwner}
-            onUpdated={refetch}
-          />
-        </div>
-        <div style={{ gridColumn: "span 5" }}>
-          <MembersSection
-            members={members}
-            invites={invites}
-            seatsUsed={seatsUsed}
-            seatsTotal={organization.seats_total}
-            currentUserId={profile.user_id}
-            userEmail={userEmail}
-            isOwner={isOwner}
-            onChange={() => { void loadInvites() }}
-          />
-        </div>
+        <SubscriptionCard
+          organization={organization}
+          onActivated={refetch}
+          isOwner={isOwner}
+        />
+        <MembersSection
+          members={members}
+          invites={invites}
+          seatsUsed={seatsUsed}
+          seatsTotal={organization.seats_total}
+          currentUserId={profile.user_id}
+          userEmail={userEmail}
+          isOwner={isOwner}
+          onChange={() => { void loadInvites() }}
+        />
+        <IdentitySection
+          organization={organization}
+          logoUrl={logoUrl}
+          isOwner={isOwner}
+          onUpdated={refetch}
+        />
+      </div>
 
-        <div style={{ gridColumn: "span 7" }}>
-          <SubscriptionSection organization={organization} />
-          <div style={{ marginTop: 16 }}>
-            <PricingPolicyCard />
-          </div>
-        </div>
-        <div style={{ gridColumn: "span 5" }}>
-          {isOwner && (
-            <DangerSection
-              organization={organization}
-              seatsUsed={seatsUsed}
-              onDeleted={() => router.replace("/")}
-            />
-          )}
-        </div>
+      {/* ── Grid secondaire 2 col ─────────────────────────── */}
+      <div className="cab-grid-2" style={{
+        display: "grid",
+        gridTemplateColumns: showPricingPolicy ? "repeat(2, minmax(0, 1fr))" : "1fr",
+        gap: 16,
+        marginTop: 16,
+      }}>
+        {showPricingPolicy && <PricingPolicyCard />}
+        <DangerSection
+          organization={organization}
+          seatsUsed={seatsUsed}
+          onDeleted={() => router.replace("/")}
+        />
       </div>
 
       <style>{`
-        @media (max-width: 880px) {
-          [data-cabinet-grid] > div { grid-column: span 12 !important; }
+        @media (max-width: 1100px) {
+          .cab-grid-3 { grid-template-columns: 1fr 1fr !important; }
+        }
+        @media (max-width: 720px) {
+          .cab-grid-3, .cab-grid-2 { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </main>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Email confirmation                                                   */
+/* ────────────────────────────────────────────────────────────────── */
+
+function EmailConfirmationBanner({ email }: { email: string }) {
+  const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const resend = async () => {
+    setBusy(true); setError(null)
+    try {
+      const { error: err } = await getSupabase().auth.resend({
+        type: "signup",
+        email,
+      })
+      if (err) throw err
+      setSent(true)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Impossible de renvoyer")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section style={{
+      padding: "11px 16px",
+      marginBottom: 14,
+      borderRadius: 12,
+      background: "linear-gradient(90deg, rgba(254,243,199,0.95) 0%, rgba(253,230,138,0.85) 100%)",
+      border: "1px solid rgba(217,119,6,0.30)",
+      display: "flex", alignItems: "center", gap: 12,
+      flexWrap: "wrap",
+      fontSize: 13,
+      color: "#92400E",
+    }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+        <polyline points="22,6 12,13 2,6" />
+      </svg>
+      <span style={{ flex: 1, minWidth: 220 }}>
+        <strong style={{ color: "#7C2D12" }}>Confirmez votre adresse</strong>
+        {" — "}
+        un email a été envoyé à <strong>{email}</strong>. Vérifiez votre boîte
+        de réception (et le dossier spam) pour valider votre compte.
+      </span>
+      {sent ? (
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#15803D" }}>
+          Email renvoyé.
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={resend}
+          disabled={busy}
+          style={{
+            padding: "6px 12px", borderRadius: 8,
+            border: "1px solid rgba(217,119,6,0.40)",
+            background: "white", color: "#92400E",
+            fontSize: 12, fontWeight: 700, cursor: busy ? "wait" : "pointer",
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {busy ? "Envoi…" : "Renvoyer le lien"}
+        </button>
+      )}
+      {error && (
+        <span style={{ width: "100%", fontSize: 12, color: "#B91C1C", marginTop: 4 }}>
+          {error}
+        </span>
+      )}
+    </section>
   )
 }
 
@@ -237,20 +339,26 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
   if (hasSeat) {
     return (
       <section style={{
-        padding: "14px 18px", marginBottom: 18,
+        padding: "12px 18px",
         background: "rgba(34,197,94,0.06)",
         border: "1px solid rgba(34,197,94,0.25)",
-        borderRadius: 14,
+        borderRadius: 12,
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
         flexWrap: "wrap",
       }}>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#15803d" }}>
-            Vous occupez un siège du Package Sourcing.
-          </p>
-          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#166534" }}>
-            Accès complet au workspace (vivier, missions, pricing, pipeline).
-          </p>
+        <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: "50%",
+            background: "#22C55E", flexShrink: 0,
+          }} />
+          <div>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#15803d" }}>
+              Vous occupez un siège du Package Sourcing.
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#166534" }}>
+              Accès complet au workspace (vivier, missions, pricing, pipeline).
+            </p>
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button type="button" onClick={() => router.push("/workspace")} style={smallBtnPrimary}>
@@ -269,25 +377,25 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
 
   return (
     <section style={{
-      padding: "16px 20px", marginBottom: 18,
+      padding: "14px 18px",
       background: "linear-gradient(135deg, rgba(124,99,200,0.06) 0%, rgba(184,174,222,0.10) 100%)",
       border: "1px solid rgba(124,99,200,0.25)",
-      borderRadius: 14,
+      borderRadius: 12,
       display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
       flexWrap: "wrap",
     }}>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#111827" }}>
+        <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: "#111827" }}>
           Vous n&apos;avez pas encore alloué de siège du Package Sourcing.
         </p>
-        <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-          Allouez-vous un siège pour accéder au workspace (vivier, missions, pipeline), ou invitez un collègue pour qu&apos;il utilise un siège à votre place.
+        <p style={{ margin: "3px 0 0", fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+          Allouez-vous un siège pour accéder au workspace, ou invitez un collègue pour qu&apos;il utilise un siège à votre place.
         </p>
       </div>
       <button type="button" onClick={allocate} disabled={busy || !isOwner}
         style={{
           ...smallBtnPrimary,
-          padding: "11px 18px", fontSize: 13,
+          padding: "10px 16px", fontSize: 12.5,
           opacity: !isOwner ? 0.5 : 1,
         }}>
         {busy ? "Allocation…" : "M'allouer un siège"}
@@ -344,7 +452,7 @@ function HeroPill({ kind, children }: { kind: PillKind; children: React.ReactNod
   return (
     <span style={{
       ...PILL_STYLE[kind],
-      fontSize: 11.5, fontWeight: 700,
+      fontSize: 11, fontWeight: 700,
       padding: "3px 10px", borderRadius: 100,
       letterSpacing: "0.04em", textTransform: "uppercase",
     }}>
@@ -352,6 +460,187 @@ function HeroPill({ kind, children }: { kind: PillKind; children: React.ReactNod
     </span>
   )
 }
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Subscription (trial-aware)                                          */
+/* ────────────────────────────────────────────────────────────────── */
+
+function SubscriptionCard({
+  organization, onActivated, isOwner,
+}: {
+  organization: Organization
+  onActivated: () => Promise<void>
+  isOwner: boolean
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const status = trialStatus(organization)
+
+  if (organization.pending_deletion_at) {
+    const date = new Date(organization.pending_deletion_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+    return (
+      <Card title="Abonnement" subtitle="Statut du Package Sourcing.">
+        <Panel tone="warn">
+          <p style={panelTitle("#D97706")}>Résiliation en cours</p>
+          <p style={panelBody("#92400E")}>
+            Le cabinet et toutes ses données seront supprimés le <strong>{date}</strong>.
+          </p>
+        </Panel>
+      </Card>
+    )
+  }
+
+  const activate = async () => {
+    if (!isOwner) return
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch("/api/cabinet/activate-trial", { method: "POST" })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({} as { error?: string }))
+        throw new Error(j.error ?? "Activation impossible")
+      }
+      await onActivated()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card title="Abonnement" subtitle="Package Sourcing — votre essai et votre formule.">
+      {status.state === "pending" && (
+        <Panel tone="brand">
+          <p style={panelTitle("#7C63C8")}>Essai non activé</p>
+          <p style={panelBody("#374151")}>
+            Activez vos {TRIAL_DURATION_DAYS} jours d&apos;essai gratuit pour
+            débloquer le workspace.
+          </p>
+          <button
+            type="button"
+            onClick={activate}
+            disabled={busy || !isOwner}
+            style={{
+              marginTop: 10,
+              padding: "10px 16px",
+              borderRadius: 10,
+              border: "none",
+              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              color: "white",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: busy ? "wait" : "pointer",
+              opacity: busy ? 0.7 : 1,
+              boxShadow: "0 6px 16px -4px rgba(124,99,200,0.45)",
+              fontFamily: "inherit",
+              width: "100%",
+            }}
+          >
+            {busy ? "Activation…" : `Activer mes ${TRIAL_DURATION_DAYS} jours gratuits`}
+          </button>
+        </Panel>
+      )}
+
+      {status.state === "active" && (
+        <Panel tone="success">
+          <p style={panelTitle("#15803D")}>
+            Essai actif · {status.daysLeft} jour{status.daysLeft > 1 ? "s" : ""} restant{status.daysLeft > 1 ? "s" : ""}
+          </p>
+          <p style={panelBody("#166534")}>
+            Termine le{" "}
+            <strong>
+              {status.endsAt?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
+            </strong>
+            . Discutons d&apos;un abonnement adapté à votre équipe.
+          </p>
+          <Link
+            href="/contact"
+            style={{
+              display: "inline-block",
+              marginTop: 10,
+              padding: "9px 14px",
+              borderRadius: 10,
+              border: "1px solid rgba(124,99,200,0.30)",
+              background: "white",
+              color: "#7C63C8",
+              fontSize: 12.5,
+              fontWeight: 700,
+              textDecoration: "none",
+              textAlign: "center",
+              width: "100%",
+              boxSizing: "border-box",
+            }}
+          >
+            Discuter abonnement →
+          </Link>
+        </Panel>
+      )}
+
+      {status.state === "expired" && (
+        <Panel tone="warn">
+          <p style={panelTitle("#B91C1C")}>Période d&apos;essai terminée</p>
+          <p style={panelBody("#7F1D1D")}>
+            Vous gardez l&apos;accès à votre cabinet, mais nous aimerions
+            convenir d&apos;un abonnement avant d&apos;aller plus loin.
+          </p>
+          <Link
+            href="/contact"
+            style={{
+              display: "inline-block",
+              marginTop: 10,
+              padding: "9px 14px",
+              borderRadius: 10,
+              border: "none",
+              background: "linear-gradient(120deg, #DC2626 0%, #B91C1C 100%)",
+              color: "white",
+              fontSize: 12.5,
+              fontWeight: 700,
+              textDecoration: "none",
+              textAlign: "center",
+              width: "100%",
+              boxSizing: "border-box",
+              boxShadow: "0 6px 16px -4px rgba(220,38,38,0.40)",
+            }}
+          >
+            Contactez-nous pour activer →
+          </Link>
+        </Panel>
+      )}
+
+      {error && (
+        <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B91C1C" }}>{error}</p>
+      )}
+
+      <div style={{ marginTop: 14, fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.55 }}>
+        Facturation Stripe à venir. {organization.seats_total} siège{organization.seats_total > 1 ? "s" : ""} alloué{organization.seats_total > 1 ? "s" : ""}.
+      </div>
+    </Card>
+  )
+}
+
+function Panel({ tone, children }: { tone: "brand" | "success" | "warn"; children: React.ReactNode }) {
+  const styles: Record<typeof tone, { bg: string; border: string }> = {
+    brand:   { bg: "rgba(124,99,200,0.06)", border: "rgba(124,99,200,0.22)" },
+    success: { bg: "rgba(34,197,94,0.07)",  border: "rgba(34,197,94,0.28)" },
+    warn:    { bg: "rgba(220,38,38,0.06)",  border: "rgba(220,38,38,0.25)" },
+  }
+  const t = styles[tone]
+  return (
+    <div style={{
+      padding: "12px 14px", borderRadius: 10,
+      background: t.bg, border: `1px solid ${t.border}`,
+    }}>
+      {children}
+    </div>
+  )
+}
+
+const panelTitle = (color: string): React.CSSProperties => ({
+  margin: 0, fontSize: 13.5, fontWeight: 700, color,
+})
+const panelBody = (color: string): React.CSSProperties => ({
+  margin: "4px 0 0", fontSize: 12.5, color, lineHeight: 1.55,
+})
 
 /* ────────────────────────────────────────────────────────────────── */
 /* Identité                                                            */
@@ -422,50 +711,38 @@ function IdentitySection({
 
   return (
     <Card title="Identité du cabinet" subtitle="Apparaît sur les CV anonymisés et vos emails sortants.">
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 130px", gap: 16, alignItems: "flex-start" }}>
-        <div>
-          <Label>Nom du cabinet</Label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Cabinet Dupont Recrutement"
-            disabled={!isOwner || busy === "saving"}
-            onBlur={saveName}
-            style={inputStyle}
-          />
-          <Hint>
-            {busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}
-          </Hint>
+      <Label>Nom du cabinet</Label>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Cabinet Dupont Recrutement"
+        disabled={!isOwner || busy === "saving"}
+        onBlur={saveName}
+        style={inputStyle}
+      />
+      <Hint>
+        {busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}
+      </Hint>
 
-          <div style={{ marginTop: 14 }}>
-            <Label>Domaine d&apos;envoi</Label>
-            <input
-              value=""
-              placeholder="Bientôt — envoi depuis votre propre domaine"
-              disabled
-              style={{ ...inputStyle, background: "#F8F6FF", color: "#9CA3AF", cursor: "not-allowed" }}
-            />
-            <Hint>Pour l&apos;instant, vos emails partent depuis le domaine partagé Naywa.</Hint>
-          </div>
-        </div>
-
-        <div>
-          <Label>Logo</Label>
+      <div style={{ marginTop: 14 }}>
+        <Label>Logo</Label>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
-            width: 130, height: 130,
-            borderRadius: 14, border: "1.5px dashed #E2DAF6",
+            width: 64, height: 64,
+            borderRadius: 12, border: "1.5px dashed #E2DAF6",
             background: "#FAFAFA",
             display: "flex", alignItems: "center", justifyContent: "center",
             overflow: "hidden",
+            flexShrink: 0,
           }}>
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 10 }} />
+              <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
             ) : (
-              <span style={{ fontSize: 11, color: "#9CA3AF" }}>Aucun logo</span>
+              <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
             )}
           </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <button type="button" onClick={() => fileInput.current?.click()}
               disabled={!isOwner || busy !== "idle"}
               style={smallBtnPrimary}>
@@ -477,16 +754,17 @@ function IdentitySection({
               </button>
             )}
           </div>
-          <input ref={fileInput} type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) { void uploadLogo(f); e.target.value = "" }
-            }}
-          />
         </div>
+        <input ref={fileInput} type="file"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) { void uploadLogo(f); e.target.value = "" }
+          }}
+        />
       </div>
+
       {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
     </Card>
   )
@@ -548,7 +826,7 @@ function MembersSection({
   }
 
   const removeMember = async (userId: string, label: string) => {
-    if (!confirm(`Retirer ${label} du cabinet ? Son compte et son accès au workspace seront supprimés. Le siège sera libéré et réutilisable.`)) return
+    if (!confirm(`Retirer ${label} du cabinet ? Son compte et son accès au workspace seront supprimés.`)) return
     setBusy(true); setError(null); setOkMessage(null)
     const res = await fetch(`/api/cabinet/members/${encodeURIComponent(userId)}`, { method: "DELETE" })
     if (!res.ok) {
@@ -563,7 +841,7 @@ function MembersSection({
 
   return (
     <Card title="Membres" subtitle={`${seatsUsed} sur ${Math.max(seatsTotal, seatsUsed)} sièges · vivier partagé`}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflow: "auto" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 230, overflow: "auto" }}>
         {members.map((m) => {
           const canRemove = isOwner && m.role !== "owner" && m.user_id !== currentUserId
           return (
@@ -617,9 +895,9 @@ function MembersSection({
       </div>
 
       {isOwner && (
-        <div style={{ marginTop: 14 }}>
-          <Label>Inviter un membre par email</Label>
-          <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ marginTop: 12 }}>
+          <Label>Inviter par email</Label>
+          <div style={{ display: "flex", gap: 6 }}>
             <input
               type="email"
               value={inviteEmail}
@@ -634,11 +912,11 @@ function MembersSection({
               opacity: busy || !inviteEmail.trim() ? 0.5 : 1,
               cursor: busy || !inviteEmail.trim() ? "not-allowed" : "pointer",
             }}>
-              {busy ? "Envoi…" : "Inviter"}
+              {busy ? "…" : "Inviter"}
             </button>
           </div>
-          {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
-          {okMessage && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#15803d" }}>{okMessage}</p>}
+          {error && <p style={{ margin: "7px 0 0", fontSize: 12, color: "#EF4444" }}>{error}</p>}
+          {okMessage && <p style={{ margin: "7px 0 0", fontSize: 12, color: "#15803d" }}>{okMessage}</p>}
         </div>
       )}
     </Card>
@@ -648,12 +926,12 @@ function MembersSection({
 function Avatar({ letter, dim }: { letter: string; dim?: boolean }) {
   return (
     <div style={{
-      width: 30, height: 30, borderRadius: "50%",
+      width: 28, height: 28, borderRadius: "50%",
       background: dim ? "#F3F4F6" : "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
       border: dim ? "1px solid #E5E7EB" : "1px solid rgba(124,99,200,0.30)",
       display: "flex", alignItems: "center", justifyContent: "center",
       color: dim ? "#9CA3AF" : "#7C63C8",
-      fontWeight: 700, fontSize: 12,
+      fontWeight: 700, fontSize: 11.5,
       flexShrink: 0,
     }}>
       {letter}
@@ -664,11 +942,11 @@ function Avatar({ letter, dim }: { letter: string; dim?: boolean }) {
 function RolePill({ role }: { role: "owner" | "member" }) {
   return (
     <span style={{
-      fontSize: 10.5, fontWeight: 700,
+      fontSize: 10, fontWeight: 700,
       color: role === "owner" ? "#7C63C8" : "#6B7280",
       background: role === "owner" ? "rgba(124,99,200,0.08)" : "#F3F4F6",
       border: role === "owner" ? "1px solid rgba(124,99,200,0.22)" : "1px solid #E5E7EB",
-      borderRadius: 100, padding: "2px 8px",
+      borderRadius: 100, padding: "2px 7px",
       textTransform: "uppercase", letterSpacing: "0.06em",
       flexShrink: 0,
     }}>
@@ -676,61 +954,6 @@ function RolePill({ role }: { role: "owner" | "member" }) {
     </span>
   )
 }
-
-/* ────────────────────────────────────────────────────────────────── */
-/* Abonnement                                                          */
-/* ────────────────────────────────────────────────────────────────── */
-
-function SubscriptionSection({ organization }: {
-  organization: { package_sourcing_active: boolean; seats_total: number; pending_deletion_at: string | null }
-}) {
-  if (organization.pending_deletion_at) {
-    const date = new Date(organization.pending_deletion_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
-    return (
-      <Card title="Abonnement" subtitle="Statut du Package Sourcing.">
-        <div style={{
-          padding: "12px 14px", borderRadius: 10,
-          background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.25)",
-        }}>
-          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#D97706" }}>
-            Résiliation en cours
-          </p>
-          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#92400E", lineHeight: 1.5 }}>
-            Le cabinet et toutes ses données seront supprimés le <strong>{date}</strong>.
-          </p>
-        </div>
-      </Card>
-    )
-  }
-
-  return (
-    <Card title="Abonnement" subtitle="Statut du Package Sourcing.">
-      <div style={{
-        padding: "12px 14px", borderRadius: 10,
-        background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.20)",
-        display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-        flexWrap: "wrap",
-      }}>
-        <div>
-          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
-            Package Sourcing · actif
-          </p>
-          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6B7280" }}>
-            {organization.seats_total} siège{organization.seats_total > 1 ? "s" : ""} · facturation pas encore active (beta)
-          </p>
-        </div>
-        <button type="button" disabled title="Stripe arrivera bientôt"
-          style={{ ...smallBtnGhost, opacity: 0.55, cursor: "not-allowed" }}>
-          Gérer · bientôt
-        </button>
-      </div>
-    </Card>
-  )
-}
-
-/* ────────────────────────────────────────────────────────────────── */
-/* Zone de danger                                                      */
-/* ────────────────────────────────────────────────────────────────── */
 
 /* ────────────────────────────────────────────────────────────────── */
 /* Politique pricing                                                    */
@@ -747,7 +970,7 @@ function PricingPolicyCard() {
       }}>
         <div>
           <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
-            Marges cibles + avantages standards
+            Marges, avantages, lieux
           </p>
           <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6B7280" }}>
             Réutilisé sur chaque chiffrage candidat × mission.
@@ -768,6 +991,10 @@ function PricingPolicyCard() {
     </Card>
   )
 }
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Zone de danger                                                      */
+/* ────────────────────────────────────────────────────────────────── */
 
 function DangerSection({
   organization, seatsUsed, onDeleted,
@@ -803,19 +1030,21 @@ function DangerSection({
 
   return (
     <section style={{
-      padding: "18px 20px",
+      padding: "16px 18px",
       background: "white",
       border: "1px solid rgba(239,68,68,0.30)",
       borderRadius: 14,
+      height: "100%",
+      boxSizing: "border-box",
     }}>
       <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
         Zone de danger
       </h2>
-      <p style={{ margin: "5px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
         Supprimer définitivement le cabinet et toutes ses données.{" "}
         {hasOtherMembers
           ? <>Les autres membres garderont accès 30 jours.</>
-          : <>La suppression est immédiate et définitive.</>}
+          : <>La suppression est immédiate.</>}
       </p>
       <button type="button" onClick={() => setShowModal(true)}
         style={{
@@ -887,16 +1116,20 @@ function DangerSection({
 function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <section style={{
-      padding: "18px 20px",
+      padding: "16px 18px",
       background: "white",
       border: "1px solid #F0ECF8",
       borderRadius: 14,
       height: "100%",
       boxSizing: "border-box",
+      display: "flex",
+      flexDirection: "column",
     }}>
       <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>{title}</h2>
-      <p style={{ margin: "4px 0 14px", fontSize: 12.5, color: "#9CA3AF" }}>{subtitle}</p>
-      {children}
+      <p style={{ margin: "4px 0 12px", fontSize: 12, color: "#9CA3AF" }}>{subtitle}</p>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {children}
+      </div>
     </section>
   )
 }
@@ -947,25 +1180,25 @@ const smallBtnGhost: React.CSSProperties = {
 }
 
 const iconBtnStyle: React.CSSProperties = {
-  padding: "5px 10px", borderRadius: 7,
+  padding: "5px 9px", borderRadius: 7,
   border: "1px solid #E5E7EB", background: "white",
-  color: "#6B7280", fontSize: 11.5, fontWeight: 600,
+  color: "#6B7280", fontSize: 11, fontWeight: 600,
   cursor: "pointer", flexShrink: 0,
   fontFamily: "var(--font-inter), sans-serif",
 }
 
 const memberRowStyle: React.CSSProperties = {
-  display: "flex", alignItems: "center", gap: 10,
-  padding: "8px 10px",
+  display: "flex", alignItems: "center", gap: 9,
+  padding: "7px 9px",
   background: "#FAFAFA",
   border: "1px solid #F0ECF8",
   borderRadius: 10,
 }
 const memberNameStyle: React.CSSProperties = {
-  margin: 0, fontSize: 13, fontWeight: 600, color: "#111827",
+  margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827",
   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }
 const memberSubStyle: React.CSSProperties = {
-  margin: "1px 0 0", fontSize: 11.5, color: "#9CA3AF",
+  margin: "1px 0 0", fontSize: 11, color: "#9CA3AF",
   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }
