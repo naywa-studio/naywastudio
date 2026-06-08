@@ -38,8 +38,11 @@ export default function OnboardingPage() {
   const router = useRouter()
   const { profile, organization, isOwner, refetch } = useCabinet()
 
-  const [step, setStep] = useState<1 | 2>(1)
+  const [step, setStep] = useState<1 | 2 | 3>(1)
   const [cabinetName, setCabinetName] = useState("")
+  const [margeMinPct, setMargeMinPct] = useState<number>(15)
+  const [margeTargetPct, setMargeTargetPct] = useState<number>(22)
+  const [rttDaysPerYear, setRttDaysPerYear] = useState<number>(10)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -78,12 +81,39 @@ export default function OnboardingPage() {
     setStep(2)
   }
 
-  const finalize = async (opts: { activateTrial: boolean }) => {
+  /** Étape 2 — Activate trial → enchaîne sur l'étape 3 pricing. */
+  const goToPricingStep = async () => {
     if (submitting) return
     setSubmitting(true)
     setError(null)
     try {
-      // 1. Persist the cabinet name and stamp onboarding done.
+      const tr = await fetch("/api/cabinet/activate-trial", { method: "POST" })
+      if (!tr.ok) {
+        const body = await tr.json().catch(() => ({}))
+        throw new Error(body.error ?? "Activation impossible")
+      }
+      // Pas de stamp onboarding ici — on continue vers l'étape 3.
+      setStep(3)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  /** Étape 2 ou 3 — finalize : stamp onboarding done + optional pricing. */
+  const finalize = async (opts: {
+    persistPricing: boolean
+  }) => {
+    if (submitting) return
+    if (margeMinPct > margeTargetPct) {
+      setError("La marge cible doit être supérieure ou égale à la marge mini.")
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      // 1. Cabinet name + onboarding done stamp.
       const res = await fetch("/api/cabinet/onboarding-done", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -94,12 +124,21 @@ export default function OnboardingPage() {
         throw new Error(body.error ?? "Onboarding impossible")
       }
 
-      // 2. Optional trial activation.
-      if (opts.activateTrial) {
-        const tr = await fetch("/api/cabinet/activate-trial", { method: "POST" })
-        if (!tr.ok) {
-          const body = await tr.json().catch(() => ({}))
-          throw new Error(body.error ?? "Activation impossible")
+      // 2. Pricing policy + stamp.
+      if (opts.persistPricing) {
+        const pr = await fetch("/api/cabinet", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pricing_margin_min_pct:    margeMinPct,
+            pricing_margin_target_pct: margeTargetPct,
+            pricing_rtt_days_per_year: rttDaysPerYear,
+            pricing_onboarded_at:      new Date().toISOString(),
+          }),
+        })
+        if (!pr.ok) {
+          const body = await pr.json().catch(() => ({}))
+          throw new Error(body.error ?? "Sauvegarde du pricing impossible")
         }
       }
 
@@ -137,11 +176,13 @@ export default function OnboardingPage() {
             padding: "40px 36px 32px",
           }}
         >
-          {/* Step indicator */}
+          {/* Step indicator — 3 dots maintenant : nom / package / pricing */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28 }}>
             <StepDot active={step >= 1} done={step > 1} />
             <div style={{ flex: 1, height: 1, background: step > 1 ? "#7C63C8" : "#E2DAF6" }} />
-            <StepDot active={step >= 2} done={false} />
+            <StepDot active={step >= 2} done={step > 2} />
+            <div style={{ flex: 1, height: 1, background: step > 2 ? "#7C63C8" : "#E2DAF6" }} />
+            <StepDot active={step >= 3} done={false} />
           </div>
 
           {/* STEP 1 — Cabinet name */}
@@ -342,7 +383,7 @@ export default function OnboardingPage() {
               {error && <ErrorBox text={error} />}
 
               <button
-                onClick={() => finalize({ activateTrial: true })}
+                onClick={goToPricingStep}
                 disabled={submitting}
                 style={primaryBtn(submitting)}
               >
@@ -350,7 +391,7 @@ export default function OnboardingPage() {
               </button>
 
               <button
-                onClick={() => finalize({ activateTrial: false })}
+                onClick={() => finalize({ persistPricing: false })}
                 disabled={submitting}
                 style={{
                   width: "100%",
@@ -377,6 +418,100 @@ export default function OnboardingPage() {
                 lineHeight: 1.5,
               }}>
                 Vous pourrez activer ou réactiver l&apos;essai à tout moment depuis votre console.
+              </p>
+            </m.div>
+          )}
+
+          {/* STEP 3 — Politique pricing */}
+          {step === 3 && (
+            <m.div
+              key="step-3"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: EASE }}
+            >
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#7C63C8",
+                letterSpacing: "0.10em",
+                textTransform: "uppercase",
+              }}>
+                Dernière étape
+              </span>
+              <h1 style={{
+                margin: "10px 0 8px",
+                fontSize: 24,
+                fontWeight: 700,
+                color: "#111827",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.2,
+              }}>
+                Réglez votre{" "}
+                <span style={{
+                  fontFamily: "var(--font-instrument-serif), serif",
+                  fontWeight: 400,
+                  fontStyle: "italic",
+                  color: "#7C63C8",
+                }}>
+                  politique pricing
+                </span>
+              </h1>
+              <p style={{
+                margin: "0 0 22px",
+                fontSize: 14.5,
+                color: "#4B5563",
+                lineHeight: 1.65,
+              }}>
+                Ces 3 paramètres servent de base à tous vos chiffrages. Vous
+                pourrez les ajuster à tout moment, et configurer vos avantages
+                standards (mutuelle, transport, tickets resto…) dans la console
+                cabinet.
+              </p>
+
+              <div style={{ display: "grid", gap: 16, marginBottom: 14 }}>
+                <NumberRow
+                  label="Marge minimum acceptable"
+                  hint="En dessous, refus du chiffrage. Moyenne ESN : 12-18 %."
+                  value={margeMinPct}
+                  onChange={setMargeMinPct}
+                  min={0} max={50} step={0.5} suffix="%"
+                />
+                <NumberRow
+                  label="Marge cible"
+                  hint="Objectif de rentabilité. Moyenne marché : 18-25 %."
+                  value={margeTargetPct}
+                  onChange={setMargeTargetPct}
+                  min={0} max={50} step={0.5} suffix="%"
+                />
+                <NumberRow
+                  label="RTT accordés par votre cabinet"
+                  hint="0 si vous n'accordez pas de RTT. Forfait 218 jours = ~10 RTT/an."
+                  value={rttDaysPerYear}
+                  onChange={setRttDaysPerYear}
+                  min={0} max={25} step={1} suffix="j/an"
+                />
+              </div>
+
+              {error && <ErrorBox text={error} />}
+
+              <button
+                onClick={() => finalize({ persistPricing: true })}
+                disabled={submitting}
+                style={primaryBtn(submitting)}
+              >
+                {submitting ? "Enregistrement…" : "Terminer la configuration"}
+              </button>
+
+              <p style={{
+                margin: "14px 0 0",
+                fontSize: 11.5,
+                color: "#9CA3AF",
+                textAlign: "center",
+                lineHeight: 1.5,
+              }}>
+                Ces valeurs sont modifiables dans la console cabinet à tout
+                moment depuis le menu Paramètres.
               </p>
             </m.div>
           )}
@@ -415,6 +550,60 @@ function StepDot({ active, done }: { active: boolean; done: boolean }) {
         </svg>
       )}
     </span>
+  )
+}
+
+function NumberRow({
+  label, hint, value, onChange, min, max, step, suffix,
+}: {
+  label: string
+  hint: string
+  value: number
+  onChange: (v: number) => void
+  min: number
+  max: number
+  step: number
+  suffix: string
+}) {
+  return (
+    <label style={{ display: "grid", gap: 4 }}>
+      <span style={{
+        fontSize: 12.5, fontWeight: 700, color: "#374151",
+        letterSpacing: "-0.005em",
+      }}>
+        {label}
+      </span>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "10px 14px",
+        background: "#FAFAFA",
+        border: "1px solid #E2DAF6",
+        borderRadius: 10,
+      }}>
+        <input
+          type="number"
+          value={Number.isNaN(value) ? "" : value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          min={min} max={max} step={step}
+          style={{
+            flex: 1, minWidth: 0,
+            border: "none", background: "transparent",
+            fontSize: 15, fontWeight: 700, color: "#111827",
+            outline: "none",
+            fontFamily: "var(--font-inter), sans-serif",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        />
+        <span style={{
+          fontSize: 12, fontWeight: 600, color: "#7C63C8",
+        }}>
+          {suffix}
+        </span>
+      </div>
+      <span style={{ fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>
+        {hint}
+      </span>
+    </label>
   )
 }
 
