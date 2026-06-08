@@ -1,13 +1,11 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { TrialBanner } from "@/components/trial/TrialBanner"
-import { TrialActivationModal } from "@/components/trial/TrialActivationModal"
-import { trialStatus } from "@/lib/trial"
 import { getSupabase } from "@/lib/supabase"
 import type { Organization, Profile } from "@/lib/database.types"
 
@@ -39,6 +37,7 @@ export function useCabinet() {
 
 export default function CabinetLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [ctx, setCtx] = useState<CabinetCtx | null>(null)
   const [ready, setReady] = useState(false)
 
@@ -80,6 +79,18 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
     fetchAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router])
+
+  // First-time onboarding redirect : owners that never finished the
+  // two-step flow are pushed to /cabinet/onboarding on every visit
+  // until they either activate the trial or skip it. Members are
+  // never redirected.
+  useEffect(() => {
+    if (!ctx) return
+    if (!ctx.isOwner) return
+    if (ctx.organization.cabinet_onboarded_at) return
+    if (pathname === "/cabinet/onboarding") return
+    router.replace("/cabinet/onboarding")
+  }, [ctx, pathname, router])
 
   const handleLogout = async () => {
     await getSupabase().auth.signOut()
@@ -172,18 +183,13 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           </div>
         </header>
 
-        <TrialBanner organization={ctx.organization} />
+        {/* Hide the trial banner on the onboarding page itself — the
+            owner is mid-flow and doesn't need a redundant nudge. */}
+        {pathname !== "/cabinet/onboarding" && (
+          <TrialBanner organization={ctx.organization} />
+        )}
         {children}
         <UndoToastHost />
-
-        {/* Onboarding modal — only the owner of a pending trial sees it. */}
-        <TrialActivationModal
-          open={
-            ctx.isOwner &&
-            trialStatus(ctx.organization).state === "pending"
-          }
-          onActivated={() => { ctx.refetch() }}
-        />
       </div>
     </CabinetContext.Provider>
   )

@@ -208,9 +208,13 @@ export type Database = {
           pricing_onboarded_at: string | null
           pricing_rtt_days_per_year: number
           /** When the 15-day free trial expires. NULL = owner hasn't activated
-           *  yet (shows the activation modal in /cabinet). Set to now() + 15
-           *  days when the owner clicks "Activer mon essai" in onboarding. */
+           *  yet. Set to now() + 15 days when the owner clicks "Activer mon
+           *  essai" in onboarding. */
           trial_ends_at: string | null
+          /** Set when the owner finishes the /cabinet/onboarding flow (whether
+           *  they activated the trial or not). Drives the redirect : while
+           *  NULL the owner is pushed to /cabinet/onboarding on every visit. */
+          cabinet_onboarded_at: string | null
           created_at: string
           updated_at: string
         }
