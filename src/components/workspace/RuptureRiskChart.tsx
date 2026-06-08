@@ -26,7 +26,7 @@
  * ou marge négative.
  */
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import {
   computeRuptureRiskProfile,
   type PricingInputs,
@@ -58,6 +58,7 @@ const PLOT_H = H - PAD_T - PAD_B
 export default function RuptureRiskChart({
   inputs, startDate, durationMonths, tjm, margeMinPct, typeContrat = 'cdi',
 }: Props) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const start = useMemo(() => {
     if (!startDate) return new Date()
     if (startDate instanceof Date) return startDate
@@ -256,18 +257,14 @@ export default function RuptureRiskChart({
                 className="nw-point"
                 cx={xOf(i)}
                 cy={yOf(p.margePct)}
-                r={4}
+                r={hoveredIdx === i ? 6 : 4}
                 fill={pointColor(p.margePct)}
                 stroke="white"
                 strokeWidth={2}
-              >
-                <title>
-                  {MONTH_ABBR_FR[p.calendarMonth]} {p.year} (mois {p.monthIndex})
-                  {"\n"}Marge cumulée : {p.margePct.toFixed(1)} % ({formatEur(p.margeNetteEur)})
-                  {"\n"}Cumul revenu : {formatEur(p.cumulRevenu)} | Coût employeur : {formatEur(p.cumulCost)}
-                  {"\n"}Coût rupture : {p.coutRupture > 0 ? formatEur(p.coutRupture) : "0 € (essai)"}
-                </title>
-              </circle>
+                onMouseEnter={() => setHoveredIdx(i)}
+                onMouseLeave={() => setHoveredIdx(null)}
+                style={{ cursor: "pointer", transition: "r 140ms ease" }}
+              />
               {showLabel && (
                 <text
                   x={xOf(i)} y={yOf(p.margePct) - 9}
@@ -316,6 +313,44 @@ export default function RuptureRiskChart({
             </g>
           )
         })}
+
+        {/* Mini-tooltip survol : marge cumulée € si on rompt à ce mois. */}
+        {hoveredIdx !== null && points[hoveredIdx] && (() => {
+          const p = points[hoveredIdx]
+          const tooltipW = 110
+          const tooltipH = 30
+          let tx = xOf(hoveredIdx) - tooltipW / 2
+          tx = Math.max(PAD_L, Math.min(W - PAD_R - tooltipW, tx))
+          const pointY = yOf(p.margePct)
+          const aboveOk = pointY - tooltipH - 12 > PAD_T
+          const ty = aboveOk ? pointY - tooltipH - 12 : Math.min(pointY + 14, H - PAD_B - tooltipH)
+          const color = p.margePct < 0 ? "#B91C1C" : "#15803D"
+          return (
+            <foreignObject
+              x={tx} y={ty}
+              width={tooltipW} height={tooltipH}
+              style={{ overflow: "visible", pointerEvents: "none" }}
+            >
+              <div
+                style={{
+                  background: "white",
+                  border: "1px solid #E2DAF6",
+                  borderRadius: 8,
+                  boxShadow: "0 6px 16px -6px rgba(17,24,39,0.22)",
+                  padding: "6px 10px",
+                  fontFamily: "var(--font-inter), sans-serif",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color,
+                  textAlign: "center",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {formatEur(p.margeNetteEur)}
+              </div>
+            </foreignObject>
+          )
+        })()}
       </svg>
 
       {/* La carte « Pire moment pour rompre » est rendue par le widget dans la

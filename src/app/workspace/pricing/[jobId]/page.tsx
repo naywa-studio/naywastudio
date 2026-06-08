@@ -21,6 +21,7 @@ import type { Candidate, Job, MatchTier } from "@/lib/database.types"
 import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabinet-config"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import PricingWidget from "@/components/workspace/PricingWidget"
+import { StyledSelect } from "@/components/ui/StyledSelect"
 import { computeQuickMargin } from "@/lib/pricing/quick-margin"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 
@@ -880,23 +881,7 @@ function WizardSelectField({
 }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          padding: "10px 12px",
-          fontSize: 14, fontWeight: 700, color: "#111827",
-          background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
-          outline: "none", fontFamily: "inherit", appearance: "none",
-          backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\'><path fill=\'%239CA3AF\' d=\'M5 6L0 0h10z\'/></svg>")',
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "right 14px center",
-        }}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
+      <StyledSelect value={value} onChange={onChange} options={options} ariaLabel={label} />
       <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
       {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
     </label>

@@ -6,6 +6,7 @@ import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Candidate, Job } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import { StyledSelect } from "@/components/ui/StyledSelect"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
@@ -1110,44 +1111,7 @@ const BORDER = {
   optional: "#F59E0B",   // orange — facultatif manquant
 } as const
 
-/* ── Select stylé (apparence custom + chevron) ── */
-function StyledSelect({ value, onChange, options, placeholder, border }: {
-  value: string
-  onChange: (v: string) => void
-  options: Array<{ value: string; label: string }>
-  placeholder: string
-  border: string
-}) {
-  return (
-    <div style={{ position: "relative" }}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          ...inputStyle, borderColor: border,
-          appearance: "none", WebkitAppearance: "none", MozAppearance: "none",
-          paddingRight: 36, cursor: "pointer",
-          background: "#FAFAFA",
-        }}
-      >
-        <option value="">{placeholder}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-      <svg
-        width="14" height="14" viewBox="0 0 20 20" fill="none"
-        style={{
-          position: "absolute", right: 12, top: "50%",
-          transform: "translateY(-50%)", pointerEvents: "none",
-          color: "#9CA3AF",
-        }}
-      >
-        <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </div>
-  )
-}
+/* StyledSelect partagé dans @/components/ui/StyledSelect. */
 
 function StatusPill({ kind, children }: { kind: "ok" | "missing" | "review"; children: React.ReactNode }) {
   const map = {

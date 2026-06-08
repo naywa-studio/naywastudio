@@ -261,23 +261,20 @@ export default function MonthlyMarginChart({
           />
         )}
 
-        {/* Tooltip HTML survol — 4 infos clés, calé au-dessus de la barre,
-            redirigé sous la barre quand la barre est trop haute pour laisser
-            la place. */}
+        {/* Mini-tooltip : marge en euros uniquement. Compact, calé au-dessus
+            de la barre (en dessous si pas la place), ne mange pas le chart. */}
         {hoveredIdx !== null && points[hoveredIdx] && (() => {
           const p = points[hoveredIdx]
           const barTopY = p.margePct >= 0 ? yOf(p.margePct) : zeroY
-          const tooltipW = 200
-          const tooltipH = 96
-          // Ancrage X avec contraintes pour ne pas déborder du SVG.
+          const tooltipW = 110
+          const tooltipH = 30
           let tx = xOf(hoveredIdx) - tooltipW / 2
           tx = Math.max(PAD_L, Math.min(W - PAD_R - tooltipW, tx))
-          // Si la barre est dans le tiers haut du chart, on bascule en
-          // dessous de la barre plutôt qu'au-dessus.
-          const aboveOk = barTopY - tooltipH - 14 > PAD_T
+          const aboveOk = barTopY - tooltipH - 10 > PAD_T
           const ty = aboveOk
-            ? barTopY - tooltipH - 12
-            : Math.min(barTopY + 14, H - PAD_B - tooltipH)
+            ? barTopY - tooltipH - 8
+            : Math.min(barTopY + 8, H - PAD_B - tooltipH)
+          const color = p.margePct < 0 ? "#B91C1C" : "#15803D"
           return (
             <foreignObject
               x={tx} y={ty}
@@ -288,38 +285,18 @@ export default function MonthlyMarginChart({
                 style={{
                   background: "white",
                   border: "1px solid #E2DAF6",
-                  borderRadius: 10,
-                  boxShadow: "0 8px 24px -8px rgba(17,24,39,0.25)",
-                  padding: "10px 12px",
+                  borderRadius: 8,
+                  boxShadow: "0 6px 16px -6px rgba(17,24,39,0.22)",
+                  padding: "6px 10px",
                   fontFamily: "var(--font-inter), sans-serif",
-                  fontSize: 12,
-                  color: "#111827",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color,
+                  textAlign: "center",
+                  fontVariantNumeric: "tabular-nums",
                 }}
               >
-                <p style={{
-                  margin: 0, fontSize: 11.5, fontWeight: 700,
-                  color: "#7C63C8", letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                }}>
-                  {MONTH_ABBR_FR[p.calendarMonth]} {p.year}
-                  {p.isPartial && (
-                    <span style={{
-                      marginLeft: 6, fontSize: 10, color: "#D97706",
-                      letterSpacing: 0, textTransform: "none",
-                    }}>· partiel</span>
-                  )}
-                </p>
-                <div style={{ marginTop: 6, display: "grid", gap: 3 }}>
-                  <Row label="Jours" value={`${p.workingDays} j`} />
-                  <Row label="Revenu" value={formatEur(p.revenu)} />
-                  <Row label="Coût" value={formatEur(p.coutTotal)} />
-                  <Row
-                    label="Marge"
-                    value={`${formatEur(p.marge)} · ${p.margePct.toFixed(1)} %`}
-                    strong
-                    color={p.margePct < 0 ? "#B91C1C" : "#15803D"}
-                  />
-                </div>
+                {formatEur(p.marge)}
               </div>
             </foreignObject>
           )
@@ -370,32 +347,6 @@ export default function MonthlyMarginChart({
 }
 
 /* ──────────────────────────────────────────────────────────────────────── */
-
-function Row({
-  label, value, strong, color,
-}: {
-  label: string
-  value: string
-  strong?: boolean
-  color?: string
-}) {
-  return (
-    <div style={{
-      display: "flex", justifyContent: "space-between",
-      gap: 10, alignItems: "baseline",
-    }}>
-      <span style={{ color: "#9CA3AF", fontSize: 11 }}>{label}</span>
-      <span style={{
-        color: color ?? "#111827",
-        fontSize: strong ? 12.5 : 11.5,
-        fontWeight: strong ? 700 : 500,
-        fontVariantNumeric: "tabular-nums",
-      }}>
-        {value}
-      </span>
-    </div>
-  )
-}
 
 function formatEur(v: number): string {
   const sign = v < 0 ? "−" : ""
