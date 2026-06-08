@@ -15,35 +15,59 @@ const STEPS = [
     title: "Importez vos CVs dans le vivier",
     body:
       "Drag-drop n'importe quel CV : PDF, DOCX, photo. Nora extrait automatiquement le nom, l'expérience, les compétences, la localisation et les coordonnées. Tout est indexé et recherchable dans votre vivier privé.",
-    visual: "📁",
+    icon: (
+      <>
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+      </>
+    ),
   },
   {
     n: "02",
-    title: "Décrivez vos postes ouverts",
+    title: "Décrivez vos missions",
     body:
-      "Un brief court par poste (titre, lieu, séniorité, compétences clés). Nora score automatiquement TOUS les CVs du vivier contre ce poste avec une justification claire sur chaque match.",
-    visual: "📋",
+      "Un brief court par mission (titre, lieu, séniorité, compétences clés). Nora score automatiquement TOUS les candidats du vivier contre cette mission avec une justification claire sur chaque match.",
+    icon: (
+      <>
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </>
+    ),
   },
   {
     n: "03",
     title: "Recevez vos shortlists triées",
     body:
-      "Pour chaque poste, vos meilleurs candidats classés. Les profils sont groupés par qualité de match (excellent / bon / moyen). Vous gagnez des heures de tri manuel.",
-    visual: "🎯",
+      "Pour chaque mission, vos meilleurs candidats classés. Les profils sont groupés par qualité de match (excellent / bon / moyen). Vous gagnez des heures de tri manuel.",
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="12" cy="12" r="5" />
+        <circle cx="12" cy="12" r="1.5" />
+      </>
+    ),
   },
   {
     n: "04",
     title: "Anonymisez en 1 clic",
     body:
       "Cliquez « Anonymiser » sur un candidat : Nora génère un PDF sans nom, photo, contacts ni écoles précises. Prêt à présenter à votre client pour une décision sans biais.",
-    visual: "🔒",
+    icon: (
+      <>
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </>
+    ),
   },
   {
     n: "05",
-    title: "Suivez le pipeline candidat",
+    title: "Suivez le pipeline et le pricing",
     body:
-      "Identifié → Contacté → Réponse → Entretien → Offre. Nora suggère les relances au bon moment. Bientôt : connectez votre boîte mail pour log automatique des réponses.",
-    visual: "📞",
+      "Identifié → Contacté → Réponse → Entretien → Offre. Nora suggère les relances au bon moment et calcule la marge Syntec sur chaque chiffrage candidat × mission.",
+    icon: (
+      <>
+        <path d="M3 12h4l3 8 4-16 3 8h4" />
+      </>
+    ),
   },
 ] as const
 
@@ -101,12 +125,33 @@ export default function HowItWorksPage() {
           </h1>
           <p style={{
             fontSize: "clamp(15px, 1.1vw, 18px)", color: "#4B5563", lineHeight: 1.7,
-            margin: "0 0 56px", maxWidth: "62ch",
+            margin: "0 0 22px", maxWidth: "62ch",
             fontFamily: "var(--font-inter), sans-serif",
           }}>
             Cinq étapes. Vous gardez la main sur le sourcing, Nora gère la
             partie cognitive lourde — parsing, matching, anonymisation, suivi.
           </p>
+
+          {/* Trial reassurance */}
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            padding: "8px 14px", borderRadius: 999,
+            border: "1px solid rgba(34,197,94,0.30)",
+            background: "rgba(34,197,94,0.06)",
+            color: "#15803D",
+            fontFamily: "var(--font-inter), sans-serif",
+            fontSize: 13,
+            fontWeight: 600,
+            marginBottom: 56,
+          }}>
+            <span aria-hidden style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: "#22C55E",
+              boxShadow: "0 0 0 4px rgba(34,197,94,0.18)",
+              display: "inline-block",
+            }} />
+            <strong>15 jours offerts</strong> · sans carte · résiliable à tout moment
+          </div>
 
           {/* Steps */}
           <ol style={{
@@ -129,9 +174,11 @@ export default function HowItWorksPage() {
                   background: "rgba(124,99,200,0.08)",
                   border: "1px solid rgba(124,99,200,0.18)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 22, lineHeight: 1,
+                  color: "#7C63C8",
                 }}>
-                  {s.visual}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    {s.icon}
+                  </svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{

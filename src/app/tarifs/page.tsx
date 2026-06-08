@@ -1,323 +1,420 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
-import { Logo } from '@/components/ui/Logo'
+import type { Metadata } from "next"
+import Link from "next/link"
+import { Navbar } from "@/components/layout/Navbar"
+import { Footer } from "@/components/layout/Footer"
 
 export const metadata: Metadata = {
-  title: 'Tarifs',
+  title: "Tarifs",
   description:
-    "Naywa Studio — Nora le CRM IA pour sourceurs. Gratuit pendant la beta privée. Tarification publique à venir.",
+    "15 jours d'essai gratuit, sans carte. La grille tarifaire publique de Naywa Studio (Package Sourcing) sera communiquée à l'ouverture officielle de la beta.",
 }
 
 const INCLUDED = [
-  { icon: '⚡', label: 'Mise en service immédiate', desc: 'Compte créé, vivier prêt en quelques secondes.' },
-  { icon: '🔑', label: 'IA & parsing inclus',       desc: 'Aucune clé API à configurer de votre côté.' },
-  { icon: '🔒', label: 'Données privées',           desc: 'Vos CVs et candidats restent à vous. Pas de revente.' },
-  { icon: '💬', label: 'Support direct',            desc: 'Feedback bienvenu, on itère vite.' },
-]
+  {
+    label: "Vivier illimité",
+    body: "Upload PDF, parsing IA, clustering Nora — autant de candidats que vous voulez.",
+  },
+  {
+    label: "Missions et matching",
+    body: "Création par brief, extraction LLM, scoring justifié pour chaque candidat.",
+  },
+  {
+    label: "Anonymisation 1 clic",
+    body: "PDF anonymisé brandé au logo de votre cabinet, prêt à présenter au client.",
+  },
+  {
+    label: "Pricing Syntec automatisé",
+    body: "Engine de pricing Syntec maison, export PDF pour vos offres commerciales.",
+  },
+  {
+    label: "Pipeline candidat partagé",
+    body: "Kanban avec votre équipe, vivier partagé, missions assignables.",
+  },
+  {
+    label: "Support fondateurs",
+    body: "Vous parlez directement à Elyas et Hussein. Pas de tier-1, pas de chatbot.",
+  },
+] as const
 
 export default function TarifsPage() {
   return (
-    <div style={{ background: '#FAFAFA', minHeight: '100vh' }}>
-      {/* Header */}
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-          background: 'rgba(255,255,255,0.92)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid #F0ECF8',
-          padding: '0 24px',
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <Logo size="md" />
-        </Link>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <Link
-            href="/comment-ca-marche"
-            style={{
-              fontSize: 14, fontWeight: 500,
-              color: '#6B7280', textDecoration: 'none',
-              padding: '8px 16px',
-            }}
-          >
-            Comment ça marche
-          </Link>
-          <Link
-            href="/workspace"
-            style={{
-              fontSize: 14, fontWeight: 600,
-              color: '#7C63C8', textDecoration: 'none',
-              padding: '8px 16px',
-              borderRadius: 8,
-              border: '1.5px solid #E2DAF6',
-            }}
-          >
-            Mon espace
-          </Link>
-        </div>
-      </header>
+    <>
+      <Navbar />
 
-      {/* Hero */}
-      <section style={{ padding: '72px 24px 32px', textAlign: 'center', maxWidth: 720, margin: '0 auto' }}>
-        <span
-          style={{
-            display: 'inline-block',
-            fontSize: 12, fontWeight: 600,
-            letterSpacing: 1.5,
-            textTransform: 'uppercase',
-            color: '#7C63C8',
-            background: '#F0ECF8',
-            padding: '6px 16px',
-            borderRadius: 100,
-            marginBottom: 24,
-            fontFamily: 'var(--font-inter), sans-serif',
-          }}
-        >
-          Tarifs
-        </span>
-        <h1
-          style={{
-            fontSize: 'clamp(30px, 5vw, 48px)',
-            fontWeight: 800, color: '#111827',
-            lineHeight: 1.15,
-            margin: '0 0 16px',
-            letterSpacing: -0.5,
-            fontFamily: 'var(--font-space-grotesk), sans-serif',
-          }}
-        >
-          Gratuit pendant la beta privée
-        </h1>
-        <p
-          style={{
-            fontSize: 'clamp(15px, 2vw, 18px)',
-            color: '#6B7280', lineHeight: 1.65,
-            margin: 0,
-            fontFamily: 'var(--font-inter), sans-serif',
-          }}
-        >
-          Nora est en construction. Les premières testeuses ont accès aux nouvelles
-          fonctionnalités au fur et à mesure de leur livraison — aucune carte
-          bancaire requise. La tarification publique sera annoncée à la sortie
-          de beta.
-        </p>
-      </section>
-
-      {/* Single Nora card */}
-      <section style={{ padding: '0 24px 80px', maxWidth: 720, margin: '0 auto' }}>
-        <div
-          style={{
-            position: 'relative',
-            background: 'white',
-            borderRadius: 22,
-            border: '1.5px solid rgba(124,99,200,0.25)',
-            padding: '40px 36px',
-            boxShadow: '0 16px 48px rgba(124,99,200,0.10)',
-          }}
-        >
-          {/* Badge */}
-          <div
-            style={{
-              position: 'absolute',
-              top: -14, right: 24,
-              background: '#7C63C8',
-              color: 'white',
-              fontSize: 11, fontWeight: 700,
-              padding: '5px 14px',
-              borderRadius: 100,
-              letterSpacing: 0.5,
-              textTransform: 'uppercase',
-              fontFamily: 'var(--font-inter), sans-serif',
-            }}
-          >
-            Beta privée — accès libre
-          </div>
-
-          <div style={{ marginBottom: 22 }}>
+      <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>
+        {/* Hero */}
+        <section style={{ padding: "0 24px 56px", textAlign: "center" }}>
+          <div style={{ maxWidth: 740, margin: "0 auto" }}>
             <span
               style={{
-                fontSize: 11, fontWeight: 700,
-                letterSpacing: 1.5, textTransform: 'uppercase',
-                color: '#7C63C8',
-                fontFamily: 'var(--font-inter), sans-serif',
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#7C63C8",
+                letterSpacing: "0.10em",
+                textTransform: "uppercase",
+                fontFamily: "var(--font-inter), sans-serif",
               }}
             >
-              Le pack
+              Tarifs
             </span>
-            <h2
+            <h1
               style={{
-                fontSize: 28, fontWeight: 800,
-                color: '#111827',
-                margin: '8px 0 4px',
-                letterSpacing: -0.3,
-                fontFamily: 'var(--font-space-grotesk), sans-serif',
+                fontFamily: "var(--font-inter), sans-serif",
+                fontSize: "clamp(34px, 5vw, 56px)",
+                fontWeight: 800,
+                color: "#111827",
+                margin: "14px 0 18px",
+                lineHeight: 1.05,
+                letterSpacing: "-0.025em",
               }}
             >
-              Nora — CRM IA pour sourceurs
-            </h2>
+              Essayez{" "}
+              <span
+                style={{
+                  fontFamily: "var(--font-instrument-serif), serif",
+                  fontWeight: 400,
+                  fontStyle: "italic",
+                  color: "#7C63C8",
+                }}
+              >
+                gratuitement
+              </span>{" "}
+              pendant 15 jours.
+            </h1>
             <p
               style={{
-                fontSize: 14, color: '#6B7280',
-                margin: 0, fontWeight: 500,
-                fontFamily: 'var(--font-inter), sans-serif',
+                fontFamily: "var(--font-inter), sans-serif",
+                fontSize: 16,
+                color: "#4B5563",
+                lineHeight: 1.7,
+                margin: "0 auto",
+                maxWidth: "55ch",
               }}
             >
-              Vivier de CVs + matching automatique + anonymisation + pipeline
+              La grille tarifaire publique sera communiquée à l&apos;ouverture
+              officielle de la beta. En attendant, votre cabinet a accès au
+              workspace complet pendant 15 jours, sans carte bancaire.
             </p>
           </div>
+        </section>
 
-          {/* Price */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              gap: 8,
-              padding: '20px 0',
-              borderTop: '1px solid rgba(124,99,200,0.18)',
-              borderBottom: '1px solid rgba(124,99,200,0.18)',
-              flexWrap: 'wrap',
-              marginBottom: 22,
-            }}
-          >
-            <span
+        {/* Package card */}
+        <section style={{ padding: "0 24px 56px" }}>
+          <div style={{ maxWidth: 720, margin: "0 auto" }}>
+            <article
               style={{
-                fontSize: 38, fontWeight: 800,
-                color: '#111827',
-                lineHeight: 1,
-                fontFamily: 'var(--font-space-grotesk), sans-serif',
-                letterSpacing: -1,
+                position: "relative",
+                background: "white",
+                borderRadius: 24,
+                border: "1.5px solid rgba(124,99,200,0.30)",
+                padding: "44px 36px 36px",
+                boxShadow: "0 20px 48px -16px rgba(124,99,200,0.18)",
               }}
             >
-              Gratuit
-            </span>
-            <span
-              style={{
-                fontSize: 14,
-                color: '#9CA3AF',
-                paddingBottom: 5,
-                fontFamily: 'var(--font-inter), sans-serif',
-              }}
-            >
-              pendant la beta — sans carte bancaire
-            </span>
-          </div>
-
-          <ul
-            style={{
-              listStyle: 'none', padding: 0,
-              margin: '0 0 28px',
-              display: 'flex', flexDirection: 'column', gap: 10,
-            }}
-          >
-            {[
-              "Upload de CVs illimité (PDF / DOCX / photo)",
-              "Parsing IA structuré (nom, expérience, compétences)",
-              "Postes ouverts illimités + matching automatique",
-              "Anonymisation 1 clic — PDF prêt à présenter",
-              "Pipeline candidat avec relances suggérées",
-              "Support direct (feedback bienvenu)",
-            ].map((feat) => (
-              <li
-                key={feat}
-                style={{
-                  display: 'flex', gap: 12, alignItems: 'flex-start',
-                  fontSize: 14, color: '#374151', lineHeight: 1.55,
-                  fontFamily: 'var(--font-inter), sans-serif',
-                }}
-              >
-                <span style={{ color: '#7C63C8', fontSize: 16, lineHeight: '20px', flexShrink: 0 }}>✓</span>
-                {feat}
-              </li>
-            ))}
-          </ul>
-
-          <Link
-            href="/login?mode=signup"
-            style={{
-              display: 'block', width: '100%', textAlign: 'center',
-              padding: '14px 24px', borderRadius: 12,
-              fontWeight: 700, fontSize: 15,
-              color: 'white',
-              background: '#7C63C8',
-              textDecoration: 'none',
-              fontFamily: 'var(--font-inter), sans-serif',
-              boxSizing: 'border-box',
-              boxShadow: '0 6px 20px rgba(124,99,200,0.28)',
-            }}
-          >
-            Rejoindre la beta privée →
-          </Link>
-        </div>
-
-        <p style={{
-          textAlign: 'center', marginTop: 18,
-          fontSize: 13, color: '#9CA3AF',
-          fontFamily: 'var(--font-inter), sans-serif',
-        }}>
-          Aucune carte bancaire requise pendant la phase beta.
-        </p>
-      </section>
-
-      {/* Inclus */}
-      <section
-        style={{
-          background: '#F8F6FF',
-          borderTop: '1px solid #F0ECF8',
-          borderBottom: '1px solid #F0ECF8',
-          padding: '64px 24px',
-        }}
-      >
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <h2
-            style={{
-              textAlign: 'center',
-              fontSize: 26, fontWeight: 700,
-              color: '#111827',
-              marginBottom: 48,
-              fontFamily: 'var(--font-space-grotesk), sans-serif',
-            }}
-          >
-            Inclus pendant la beta
-          </h2>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: 32,
-            }}
-          >
-            {INCLUDED.map((item) => (
+              {/* Top ribbon */}
               <div
-                key={item.label}
                 style={{
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', textAlign: 'center', gap: 10,
+                  position: "absolute",
+                  top: -14,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  color: "white",
+                  fontFamily: "var(--font-inter), sans-serif",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: "5px 16px",
+                  borderRadius: 999,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  boxShadow: "0 8px 20px -6px rgba(124,99,200,0.55)",
                 }}
               >
-                <span style={{ fontSize: 32 }}>{item.icon}</span>
-                <p style={{
-                  margin: 0, fontSize: 15, fontWeight: 700,
-                  color: '#111827',
-                  fontFamily: 'var(--font-space-grotesk), sans-serif',
-                }}>
-                  {item.label}
-                </p>
-                <p style={{
-                  margin: 0, fontSize: 13, color: '#6B7280', lineHeight: 1.55,
-                  fontFamily: 'var(--font-inter), sans-serif',
-                }}>
-                  {item.desc}
-                </p>
+                Essai gratuit 15 jours
               </div>
-            ))}
+
+              <header style={{ marginBottom: 24 }}>
+                <p
+                  style={{
+                    fontFamily: "var(--font-inter), sans-serif",
+                    margin: "0 0 6px",
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    color: "#7C63C8",
+                    letterSpacing: "0.10em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Le package
+                </p>
+                <h2
+                  style={{
+                    fontFamily: "var(--font-inter), sans-serif",
+                    margin: 0,
+                    fontSize: 28,
+                    fontWeight: 800,
+                    color: "#111827",
+                    letterSpacing: "-0.02em",
+                    lineHeight: 1.15,
+                  }}
+                >
+                  Package Sourcing
+                </h2>
+                <p
+                  style={{
+                    fontFamily: "var(--font-inter), sans-serif",
+                    margin: "6px 0 0",
+                    fontSize: 14,
+                    color: "#6B7280",
+                  }}
+                >
+                  Tout le workspace Nora pour votre cabinet, partagé entre vos
+                  collègues.
+                </p>
+              </header>
+
+              {/* Price block */}
+              <div
+                style={{
+                  borderTop: "1px solid rgba(124,99,200,0.18)",
+                  borderBottom: "1px solid rgba(124,99,200,0.18)",
+                  padding: "22px 0",
+                  marginBottom: 24,
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "var(--font-inter), sans-serif",
+                    fontSize: 42,
+                    fontWeight: 800,
+                    color: "#111827",
+                    lineHeight: 1,
+                    letterSpacing: "-0.025em",
+                  }}
+                >
+                  Gratuit
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-inter), sans-serif",
+                    fontSize: 14,
+                    color: "#9CA3AF",
+                    paddingBottom: 4,
+                  }}
+                >
+                  pendant 15 jours · puis tarification à venir
+                </span>
+              </div>
+
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: "0 0 28px",
+                  display: "grid",
+                  gap: 14,
+                }}
+              >
+                {INCLUDED.map((feat) => (
+                  <li
+                    key={feat.label}
+                    style={{
+                      display: "flex",
+                      gap: 14,
+                      alignItems: "flex-start",
+                      fontFamily: "var(--font-inter), sans-serif",
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        background: "rgba(124,99,200,0.10)",
+                        color: "#7C63C8",
+                        flexShrink: 0,
+                        marginTop: 2,
+                      }}
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                    <div>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: "#111827",
+                        }}
+                      >
+                        {feat.label}
+                      </p>
+                      <p
+                        style={{
+                          margin: "2px 0 0",
+                          fontSize: 13,
+                          color: "#6B7280",
+                          lineHeight: 1.55,
+                        }}
+                      >
+                        {feat.body}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                href="/login?mode=signup"
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  color: "white",
+                  fontFamily: "var(--font-inter), sans-serif",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  padding: "14px 24px",
+                  borderRadius: 12,
+                  textDecoration: "none",
+                  boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              >
+                Démarrer mes 15 jours gratuits →
+              </Link>
+              <p
+                style={{
+                  margin: "12px 0 0",
+                  fontFamily: "var(--font-inter), sans-serif",
+                  fontSize: 12,
+                  color: "#9CA3AF",
+                  textAlign: "center",
+                  lineHeight: 1.55,
+                }}
+              >
+                Aucune carte requise. Vous gardez l&apos;accès à votre cabinet
+                même après l&apos;essai — sans coupure brutale.
+              </p>
+            </article>
           </div>
-        </div>
-      </section>
-    </div>
+        </section>
+
+        {/* FAQ mini */}
+        <section style={{ padding: "0 24px 96px" }}>
+          <div style={{ maxWidth: 720, margin: "0 auto" }}>
+            <h3
+              style={{
+                fontFamily: "var(--font-inter), sans-serif",
+                fontSize: 18,
+                fontWeight: 700,
+                color: "#111827",
+                margin: "0 0 18px",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Questions fréquentes
+            </h3>
+            <div style={{ display: "grid", gap: 12 }}>
+              {FAQ.map((q) => (
+                <details
+                  key={q.q}
+                  style={{
+                    background: "white",
+                    border: "1px solid #F0ECF8",
+                    borderRadius: 12,
+                    padding: "14px 18px",
+                    fontFamily: "var(--font-inter), sans-serif",
+                  }}
+                >
+                  <summary
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#111827",
+                      cursor: "pointer",
+                      listStyle: "none",
+                    }}
+                  >
+                    {q.q}
+                  </summary>
+                  <p
+                    style={{
+                      margin: "10px 0 0",
+                      fontSize: 13.5,
+                      color: "#4B5563",
+                      lineHeight: 1.65,
+                    }}
+                  >
+                    {q.a}
+                  </p>
+                </details>
+              ))}
+            </div>
+            <p
+              style={{
+                margin: "24px 0 0",
+                fontFamily: "var(--font-inter), sans-serif",
+                fontSize: 13.5,
+                color: "#6B7280",
+                textAlign: "center",
+              }}
+            >
+              Une autre question ?{" "}
+              <Link
+                href="/contact"
+                style={{ color: "#7C63C8", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
+              >
+                Écrivez-nous
+              </Link>
+              .
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </>
   )
 }
+
+const FAQ = [
+  {
+    q: "Est-ce que je dois renseigner une carte bancaire ?",
+    a: "Non. L'essai gratuit de 15 jours ne demande aucune carte. À l'expiration, vous gardez l'accès à votre cabinet et nous vous proposerons un abonnement adapté.",
+  },
+  {
+    q: "Que se passe-t-il à la fin des 15 jours ?",
+    a: "Pas de coupure brutale. Vous continuez d'accéder à votre cabinet et nous prenons contact pour vous proposer un abonnement adapté à votre équipe. La facturation se mettra en place une fois que vous aurez validé.",
+  },
+  {
+    q: "Quelle est la grille tarifaire publique ?",
+    a: "Elle sera annoncée à la sortie de beta, avec des paliers par taille d'équipe (1 siège, jusqu'à 5 sièges, illimité). Les premiers cabinets bénéficieront d'un tarif préférentiel à vie.",
+  },
+  {
+    q: "Combien de sièges sont inclus pendant l'essai ?",
+    a: "Tous vos membres invités occupent un siège, sans limite pendant la période d'essai. La facturation au siège commencera uniquement quand vous activerez votre abonnement.",
+  },
+] as const

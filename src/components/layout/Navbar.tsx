@@ -8,7 +8,7 @@ import { getSupabase } from "@/lib/supabase"
 const navLinks = [
   { label: "Comment ça marche", href: "/comment-ca-marche" },
   { label: "Tarifs",            href: "/tarifs" },
-  { label: "FAQ",               href: "/faq" },
+  { label: "À propos",          href: "/a-propos" },
   { label: "Contact",           href: "/contact" },
 ]
 

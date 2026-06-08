@@ -194,6 +194,38 @@ export function Hero() {
           </a>
         </m.div>
 
+        {/* Trial reassurance line */}
+        <m.p
+          {...fu(0.42)}
+          style={{
+            margin: '18px 0 0',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            fontFamily: 'var(--font-inter), sans-serif',
+            fontSize: 13,
+            color: '#6B7280',
+            fontWeight: 500,
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: '#22C55E',
+              boxShadow: '0 0 0 4px rgba(34,197,94,0.18)',
+              display: 'inline-block',
+              flexShrink: 0,
+            }}
+          />
+          <span>
+            <strong style={{ color: '#111827', fontWeight: 700 }}>15 jours offerts</strong>
+            {' · aucune carte requise · résiliable à tout moment'}
+          </span>
+        </m.p>
+
       </div>
 
       <style>{`
