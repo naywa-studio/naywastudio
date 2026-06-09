@@ -184,6 +184,10 @@ Les plus structurantes :
 | **024** | Trigger BEFORE INSERT — auto-fill `organization_id` (filet pour routes legacy) |
 | **026** | Drop des colonnes legacy `profiles.brand_*` / `profiles.pricing_*` (source unique = `organizations`) |
 | **028** | `cluster_manifests` (vivier vivant) + `candidates.is_apprentice` |
+| **029** | Security hardening — `search_path` pinned + `REVOKE EXECUTE` sur triggers SECURITY DEFINER |
+| **030** | `organizations.trial_ends_at` — essai 15 jours owner-activated |
+| **031** | `organizations.cabinet_onboarded_at` — flag onboarding terminé |
+| **032** | `jobs.essai_renouvele` — variable mission pour le chart Risque rupture |
 
 ---
 

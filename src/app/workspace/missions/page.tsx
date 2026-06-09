@@ -46,6 +46,8 @@ export default function MissionsPage() {
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [query, setQuery] = useState("")
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [members, setMembers] = useState<Map<string, string>>(new Map())
 
   useEffect(() => {
     let mounted = true
@@ -53,6 +55,21 @@ export default function MissionsPage() {
     ;(async () => {
       const { data: { user } } = await sb.auth.getUser()
       if (!user || !mounted) return
+      setCurrentUserId(user.id)
+
+      // 0) Members du cabinet — pour grouper les missions par créateur.
+      //    RLS scope = org du caller (cf. migration 019), donc le SELECT
+      //    ne ramène que les profils de la même org.
+      const { data: profilesData } = await sb
+        .from("profiles")
+        .select("user_id, first_name")
+      if (mounted && profilesData) {
+        const m = new Map<string, string>()
+        for (const p of profilesData as Array<{ user_id: string; first_name: string | null }>) {
+          m.set(p.user_id, (p.first_name?.trim() || "Sans prénom"))
+        }
+        setMembers(m)
+      }
 
       // 1) Missions
       const { data: jobsData } = await sb
@@ -117,10 +134,13 @@ export default function MissionsPage() {
 
       setLoading(false)
 
+      // Realtime sur la table jobs — pas de filtre user_id sinon les
+      // changements faits par les collègues ne propagent pas dans la
+      // liste. RLS org-scopée nous protège du cross-cabinet.
       channel = sb
-        .channel(`jobs:${user.id}`)
+        .channel(`jobs:org:${user.id}`)
         .on("postgres_changes",
-          { event: "*", schema: "public", table: "jobs", filter: `user_id=eq.${user.id}` },
+          { event: "*", schema: "public", table: "jobs" },
           (payload) => {
             setJobs((prev) => {
               if (payload.eventType === "DELETE") return prev.filter((j) => j.id !== (payload.old as Job).id)
@@ -148,6 +168,31 @@ export default function MissionsPage() {
       return hay.includes(q)
     })
   }, [jobs, query])
+
+  /** Regroupement par créateur :
+   *    Section 1 : "Mes missions" (user_id = caller, même vide on saute)
+   *    Section N : "Missions de Jean", "Missions de Sophie"… ordre alpha
+   *
+   *  Si le caller est seul dans l'org → on saute le titre de section et on
+   *  rend une simple grille (UX identique à l'ancien comportement). */
+  const groupedJobs = useMemo(() => {
+    if (!currentUserId) return null
+    const byUser = new Map<string, Job[]>()
+    for (const j of filteredJobs) {
+      const arr = byUser.get(j.user_id) ?? []
+      arr.push(j); byUser.set(j.user_id, arr)
+    }
+    const mine = byUser.get(currentUserId) ?? []
+    const others = Array.from(byUser.entries())
+      .filter(([uid]) => uid !== currentUserId)
+      .map(([uid, missions]) => ({
+        userId: uid,
+        firstName: members.get(uid) ?? "Membre",
+        missions,
+      }))
+      .sort((a, b) => a.firstName.localeCompare(b.firstName))
+    return { mine, others, hasOthers: others.length > 0 }
+  }, [filteredJobs, currentUserId, members])
 
   const handleCreated = useCallback((job: Job) => {
     setJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)])
@@ -240,6 +285,25 @@ export default function MissionsPage() {
               }}>
                 Aucune mission ne correspond.
               </div>
+            ) : groupedJobs && groupedJobs.hasOthers ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+                {groupedJobs.mine.length > 0 && (
+                  <MissionGroup
+                    title="Mes missions"
+                    isMine
+                    jobs={groupedJobs.mine}
+                    visuals={visuals}
+                  />
+                )}
+                {groupedJobs.others.map((g) => (
+                  <MissionGroup
+                    key={g.userId}
+                    title={`Missions de ${g.firstName}`}
+                    jobs={g.missions}
+                    visuals={visuals}
+                  />
+                ))}
+              </div>
             ) : (
               <div style={{
                 display: "grid",
@@ -261,6 +325,59 @@ export default function MissionsPage() {
         </div>
       )}
     </main>
+  )
+}
+
+/* ─── Group de missions par créateur ──────────────────────────────── */
+
+function MissionGroup({
+  title, jobs, visuals, isMine,
+}: {
+  title: string
+  jobs: Job[]
+  visuals: Record<string, MissionVisual>
+  isMine?: boolean
+}) {
+  const accent = isMine ? "#7C63C8" : "#9CA3AF"
+  return (
+    <section>
+      <header style={{
+        display: "flex", alignItems: "baseline", gap: 10,
+        marginBottom: 12,
+      }}>
+        <span style={{
+          width: 4, height: 16, borderRadius: 4,
+          background: accent, display: "inline-block",
+        }} />
+        <h2 style={{
+          margin: 0, fontSize: 14, fontWeight: 700,
+          color: isMine ? "#111827" : "#374151",
+          letterSpacing: "-0.005em",
+        }}>
+          {title}
+        </h2>
+        <span style={{
+          fontSize: 11.5, fontWeight: 600, color: "#9CA3AF",
+        }}>
+          · {jobs.length} mission{jobs.length > 1 ? "s" : ""}
+        </span>
+      </header>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+        gridAutoRows: "1fr",
+        gap: 12,
+      }}>
+        {jobs.map((j, i) => (
+          <JobCard
+            key={j.id}
+            job={j}
+            visual={visuals[j.id]}
+            delay={Math.min(i * 0.03, 0.2)}
+          />
+        ))}
+      </div>
+    </section>
   )
 }
 

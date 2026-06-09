@@ -64,9 +64,14 @@ npx tsc --noEmit  # type-check strict
 - `/auth/callback` — callback Supabase OAuth
 - `/accept-invite?token=…` — flow autonome pour rejoindre un cabinet sur invitation. 4 états : choix (accepter / refuser), formulaire signup (prénom + mdp), confirm (utilisateur déjà connecté avec le bon email), mauvais email.
 
+### Marketing extra
+- `/a-propos` — page À propos *(L'IA traite vous décidez + 3 piliers + Founders réutilisée + CTA contact)*
+- `/contact` — formulaire qui POST `/api/contact` *(Resend → contact@naywastudio.com)*
+
 ### Console cabinet `/cabinet` (protégée par `proxy.ts`)
-- `/cabinet` — dashboard owner (identité, sièges, membres, abonnement, zone danger). **Owner-only** (members → `/workspace`).
-- `/cabinet/parametrage` — politique pricing du cabinet (marges, RTT, avantages standards). **Édition owner**, **lecture seule member**.
+- `/cabinet` — dashboard owner (identité, sièges, membres, abonnement, zone danger). **Owner-only** (members → `/workspace`). Layout grid 3 colonnes.
+- `/cabinet/onboarding` — flow 3 étapes à la 1ère visite owner : nom cabinet → package sourcing → politique pricing. Redirige auto depuis `/cabinet/*` tant que `cabinet_onboarded_at` est NULL.
+- `/cabinet/parametrage` — politique pricing du cabinet (marges, RTT, avantages standards). **Édition owner**, **lecture seule member**. Layout grid 2 colonnes.
 
 ### Workspace sourcing `/workspace/*` (protégée par `proxy.ts`)
 - `/workspace` — accueil (4 piliers : vivier, missions, matches, pricing)
@@ -99,6 +104,9 @@ Le gate `/workspace` exige un **siège** (`profiles.has_sourcing_seat`) ; sans s
 | `POST /api/cabinet/accept-invite-signup` | Public — crée auth user + accepte invitation en un coup |
 | `POST /api/cabinet/decline-invite` | Public — supprime l'invitation |
 | `DELETE /api/cabinet/members/[userId]` | Owner retire un member |
+| `POST /api/cabinet/activate-trial` | Owner-only — stamp `trial_ends_at = now() + 15 j`, idempotent |
+| `POST /api/cabinet/onboarding-done` | Owner-only — stamp `cabinet_onboarded_at` + maj nom cabinet |
+| `POST /api/contact` | Public — formulaire contact, envoie via Resend vers `contact@naywastudio.com` |
 | `GET  /api/cron/wipe-expired-orgs` | Cron quotidien (3h00 UTC) — wipe orgs `pending_deletion_at <= now()` |
 
 ### Vivier + parsing
@@ -162,6 +170,9 @@ Le gate `/workspace` exige un **siège** (`profiles.has_sourcing_seat`) ; sans s
 | `resend.ts` | `sendEmail()`, `ensureInboxAddress()`, `fromHeader()` |
 | `anonymized-cv.tsx` | PDF anonymisé candidat |
 | `pricing-pdf.tsx` | PDF fiche pricing (header brand + 3 KPI + détail Syntec + avantages) |
+| `trial.ts` | `trialStatus()` + `computeTrialEndsAt()` — calcul état essai (pending/active/expired + daysLeft cappé à `TRIAL_DURATION_DAYS`) |
+| `components/ui/StyledSelect.tsx` | Composant `<select>` partagé (look design-system) avec 4 variantes de bordure : default / ok / required / optional |
+| `components/trial/TrialBanner.tsx` | Bannière sticky dans `/cabinet` + `/workspace` (3 modes : violet / ambre / rouge). Dismiss avec useState local. |
 | `pricing/syntec.ts` | `computeMissionMargin()`, `computeEmployerCost()`, charges par statut, plafonds URSSAF |
 | `pricing/calendar.ts` | Calendrier français avec fériés (working days réels) |
 | `pricing/preset.ts` | `detectSeniority()` + presets statut/position/coefficient |
@@ -222,6 +233,10 @@ Le gate `/workspace` exige un **siège** (`profiles.has_sourcing_seat`) ; sans s
 | 026 | Drop des colonnes legacy `brand_*` + `pricing_*` sur `profiles` (source unique = `organizations`) |
 | 027 | `match_assessments.pricing_avantages_override` |
 | 028 | `cluster_manifests` (vivier vivant) + `candidates.is_apprentice` |
+| 029 | Security hardening — `search_path` pinned + `REVOKE EXECUTE` sur SECURITY DEFINER triggers |
+| 030 | `organizations.trial_ends_at` (essai 15 j owner-activated) |
+| 031 | `organizations.cabinet_onboarded_at` (flag onboarding terminé) |
+| 032 | `jobs.essai_renouvele` (variable mission, défaut `false`) |
 
 ---
 
@@ -444,7 +459,7 @@ Bouton discret **"Sans brief — saisie manuelle"** en bas du stage 1 → saute 
 - 1 user = 1 org max *(multi-org déféré)*
 - Owner sans siège ≠ member ; juste admin pur du cabinet
 - Vivier toujours partagé entre members
-- Missions / pipeline / pricing partagés aussi (V1) — l'isolation partielle viendra après
+- Missions / pricing affichés groupés par créateur (Mes missions / Missions de X) — vivier reste 100 % partagé, pipeline reste vue unifiée. Pas d'isolation stricte : tout le monde voit tout, c'est juste visuellement organisé.
 - Email entrant = jamais déclencheur d'action auto (analyse LLM = suggestion seulement)
 
 ---
@@ -453,15 +468,23 @@ Bouton discret **"Sans brief — saisie manuelle"** en bas du stage 1 → saute 
 
 ### ✅ Livré
 - Multi-user complet (orgs, invites, sièges, suppression cabinet avec grace, cron wipe)
-- Sécurité multi-tenant auditée (RLS org-scopée partout, pas de secret exposé client, buckets privés)
+- Sécurité multi-tenant auditée (RLS org-scopée partout, pas de secret exposé client, buckets privés, migration 029 security hardening)
 - Pages légales complètes (Mentions / Politique de confidentialité / CGU via `<LegalPageShell />`)
-- Pricing : engine Syntec testé, widget en place, export PDF (anonymisé ou nominatif)
+- Pricing : engine Syntec testé, widget en place, export PDF (anonymisé ou nominatif), pro-rata mois partiels, CDD vs CDI dans le chart Risque rupture, toggle « renouvellement essai » par mission, tooltip mini € sur les charts
 - Vivier vivant (clustering avec manifestes, séniorité post-diplôme correcte, badge alternant)
 - Mission brief → LLM → formulaire pré-rempli + édition + re-matching auto
 - Suppression de colonnes legacy `profiles.brand_*` / `profiles.pricing_*`
+- **Trial 15 jours owner-activated** : migration 030 `trial_ends_at`, API `/api/cabinet/activate-trial` idempotente, bannière contextuelle 3 modes, dismiss qui marche
+- **Onboarding cabinet 3 étapes** : `/cabinet/onboarding` (nom cabinet → package sourcing → politique pricing), migration 031 `cabinet_onboarded_at`, redirect auto depuis `/cabinet/*` tant que NULL
+- **Refonte `/cabinet`** dashboard 3 colonnes (Subscription | Members | Identity) + bannière email à confirmer + Subscription Card trial-aware (pending/active/expired) + Politique pricing conditionnelle
+- **Refonte `/cabinet/parametrage`** layout 2 colonnes
+- **Refonte doc Syntec `/workspace/pricing/reference`** : 13 articles utilisés, 3 catégories (Convention Syntec / Barèmes 2026 / Code du travail), pas de formules
+- **Marketing public** : section Founders (homepage + /a-propos), page Contact avec formulaire POST `/api/contact` → Resend, mention « 15 jours offerts » Hero/Tarifs/Comment ça marche, Navbar reshuffled (À propos remplace FAQ), refonte `/tarifs` avec carte Package Sourcing
+- **Isolation missions/pricing** : groupement « Mes missions » / « Missions de X » par créateur dans `/workspace/missions` et `/workspace/pricing` (vivier reste 100 % partagé). Pipeline volontairement laissé en vue unifiée.
+- **StyledSelect partagé** dans `components/ui/StyledSelect.tsx` (4 bordures default / ok / required / optional) utilisé dans missions + pricing wizard
 
 ### 🔜 À venir
-- **Stripe** — Package Sourcing payant, sièges dégressifs, facturation
+- **Stripe** — Package Sourcing payant, sièges dégressifs, facturation (bloqué tant que SIRET pas arrivé)
 - **DPA** PDF téléchargeable (B2B audit)
 - **Email tracking V1** — webhook Resend `email.received/delivered/bounced` à activer côté Resend
 - **Email V2** — Gmail OAuth (CASA déféré)

@@ -12,18 +12,17 @@ const SECTIONS: LegalSection[] = [
     content: [
       "Le site naywastudio.com et le service Naywa Studio sont édités par :",
       "**Naywa Studio**",
-      "Forme juridique : [À compléter]",
-      "Capital social : [À compléter]",
-      "RCS : [À compléter]",
-      "SIREN / SIRET : [À compléter]",
-      "Siège social : Paris, France",
+      "Forme juridique : Entreprise individuelle (micro-entrepreneur)",
+      "Statut : **En cours d'immatriculation**",
+      "SIREN / SIRET : en cours d'attribution",
+      "Siège social : Vauréal (Val-d'Oise), France",
       "Email : contact@naywastudio.com",
     ],
   },
   {
     title: "2. Directeur de la publication",
     content: [
-      "Le directeur de la publication est le représentant légal de Naywa Studio.",
+      "Le directeur de la publication est Elyas Malki, fondateur de Naywa Studio.",
     ],
   },
   {

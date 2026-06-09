@@ -31,7 +31,7 @@ interface MissionRow {
   job: Pick<Job,
     | "id" | "title" | "location" | "contract_type" | "status"
     | "client_tjm_min" | "client_tjm_max" | "margin_min_pct"
-    | "duration_months" | "target_gross_salary" | "created_at"
+    | "duration_months" | "target_gross_salary" | "created_at" | "user_id"
   >
   pricingCandidatesCount: number
 }
@@ -49,14 +49,17 @@ export default function PricingPage() {
   const sb = useMemo(() => getSupabase(), [])
   const [missions, setMissions] = useState<MissionRow[] | null>(null)
   const [profile, setProfile] = useState<ProfilePricing | undefined>(undefined)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [members, setMembers] = useState<Map<string, string>>(new Map())
 
   const loadAll = useCallback(async () => {
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return
-    const [{ data: jobs }, cabinetCfg, { data: pricingMatches }] = await Promise.all([
+    setCurrentUserId(user.id)
+    const [{ data: jobs }, cabinetCfg, { data: pricingMatches }, { data: profilesData }] = await Promise.all([
       sb
         .from("jobs")
-        .select("id, title, location, contract_type, status, client_tjm_min, client_tjm_max, margin_min_pct, duration_months, target_gross_salary, created_at")
+        .select("id, title, location, contract_type, status, client_tjm_min, client_tjm_max, margin_min_pct, duration_months, target_gross_salary, created_at, user_id")
         .neq("status", "archived")
         .order("created_at", { ascending: false }),
       getCabinetPricingConfig(sb, user.id),
@@ -64,7 +67,15 @@ export default function PricingPage() {
         .from("match_assessments")
         .select("job_id")
         .eq("in_pipeline", true),
+      sb
+        .from("profiles")
+        .select("user_id, first_name"),
     ])
+    const m = new Map<string, string>()
+    for (const p of (profilesData ?? []) as Array<{ user_id: string; first_name: string | null }>) {
+      m.set(p.user_id, (p.first_name?.trim() || "Sans prénom"))
+    }
+    setMembers(m)
     const prof = cabinetCfg ? {
       pricing_billable_days_per_month: cabinetCfg.pricing_billable_days_per_month,
       pricing_margin_min_pct: cabinetCfg.pricing_margin_min_pct,
@@ -110,19 +121,96 @@ export default function PricingPage() {
 
       {missions.length === 0 ? (
         <EmptyState />
-      ) : (
-        <div style={{
-          marginTop: 22,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-          gap: 14,
-        }}>
-          {missions.map((m, i) => (
-            <MissionCard key={m.job.id} row={m} index={i} />
-          ))}
-        </div>
-      )}
+      ) : (() => {
+        // Regroupement par créateur. Mêmes règles que /workspace/missions :
+        // Mes missions d'abord, puis Missions de [prénom] par ordre alpha.
+        // Si je suis seul à avoir des missions, on saute le titre de section.
+        const byUser = new Map<string, MissionRow[]>()
+        for (const row of missions) {
+          const arr = byUser.get(row.job.user_id) ?? []
+          arr.push(row); byUser.set(row.job.user_id, arr)
+        }
+        const mine = currentUserId ? byUser.get(currentUserId) ?? [] : []
+        const others = Array.from(byUser.entries())
+          .filter(([uid]) => uid !== currentUserId)
+          .map(([uid, rows]) => ({
+            userId: uid,
+            firstName: members.get(uid) ?? "Membre",
+            rows,
+          }))
+          .sort((a, b) => a.firstName.localeCompare(b.firstName))
+        if (others.length === 0) {
+          return (
+            <div style={gridStyle}>
+              {missions.map((row, i) => (
+                <MissionCard key={row.job.id} row={row} index={i} />
+              ))}
+            </div>
+          )
+        }
+        return (
+          <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 22 }}>
+            {mine.length > 0 && (
+              <PricingGroup title="Mes missions" rows={mine} isMine />
+            )}
+            {others.map((g) => (
+              <PricingGroup
+                key={g.userId}
+                title={`Missions de ${g.firstName}`}
+                rows={g.rows}
+              />
+            ))}
+          </div>
+        )
+      })()}
     </main>
+  )
+}
+
+const gridStyle: React.CSSProperties = {
+  marginTop: 22,
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+  gap: 14,
+}
+
+function PricingGroup({ title, rows, isMine }: {
+  title: string
+  rows: MissionRow[]
+  isMine?: boolean
+}) {
+  const accent = isMine ? "#7C63C8" : "#9CA3AF"
+  return (
+    <section>
+      <header style={{
+        display: "flex", alignItems: "baseline", gap: 10,
+        marginBottom: 12,
+      }}>
+        <span style={{
+          width: 4, height: 16, borderRadius: 4,
+          background: accent, display: "inline-block",
+        }} />
+        <h2 style={{
+          margin: 0, fontSize: 14, fontWeight: 700,
+          color: isMine ? "#111827" : "#374151",
+          letterSpacing: "-0.005em",
+        }}>
+          {title}
+        </h2>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: "#9CA3AF" }}>
+          · {rows.length} mission{rows.length > 1 ? "s" : ""}
+        </span>
+      </header>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+        gap: 14,
+      }}>
+        {rows.map((row, i) => (
+          <MissionCard key={row.job.id} row={row} index={i} />
+        ))}
+      </div>
+    </section>
   )
 }
 
