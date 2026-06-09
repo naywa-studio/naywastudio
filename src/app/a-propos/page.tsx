@@ -7,7 +7,7 @@ import { Founders } from "@/components/sections/Founders"
 export const metadata: Metadata = {
   title: "À propos",
   description:
-    "Naywa Studio est porté par deux cousins. Notre conviction : l'IA traite, le sourceur décide. Naywa industrialise le traitement des CVs sans jamais retirer le contrôle au recruteur.",
+    "Naywa Studio est un studio produit qui conçoit des packages métier augmentés par l'intelligence artificielle. Notre conviction : l'IA traite, le sourceur décide. Naywa industrialise le traitement des CVs sans jamais retirer le contrôle au recruteur.",
 }
 
 export default function AProposPage() {
@@ -253,9 +253,9 @@ const PILLARS = [
     </>,
   },
   {
-    title: "Un produit fait par deux cousins",
+    title: "Un produit fait à taille humaine",
     body:
-      "Équipe à taille humaine. Le produit, le code, le design, le pricing : tout passe entre nos mains. Vous parlez aux fondateurs, pas à un support.",
+      "Le produit, le code, le design, le pricing : tout passe entre les mains de l'équipe fondatrice. Vous échangez avec les personnes qui conçoivent le produit, pas avec un support de niveau 1.",
     icon: <>
       <path d="M16 11a4 4 0 1 0-8 0c0 1.7.9 3.2 2.3 4l-2.1 7h7.6l-2.1-7c1.4-.8 2.3-2.3 2.3-4z" />
     </>,

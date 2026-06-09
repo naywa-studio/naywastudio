@@ -117,9 +117,10 @@ export function Hero() {
             margin: '0 0 40px',
           }}
         >
-          Nora range vos CVs, les matche avec vos postes ouverts, génère des
-          versions anonymisées et suit votre pipeline candidat. Vous gardez la
-          main, l&apos;IA gère la friction.
+          Nora range vos CVs, les matche avec vos missions, calcule la marge
+          selon la convention Syntec, génère des versions anonymisées et suit
+          votre pipeline candidat. Vous gardez la main, l&apos;IA gère la
+          friction.
         </m.p>
 
         {/* CTAs */}

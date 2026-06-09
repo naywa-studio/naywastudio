@@ -6,7 +6,7 @@ import { Footer } from "@/components/layout/Footer"
 export const metadata: Metadata = {
   title: "Comment ça marche",
   description:
-    "Comment Naywa Studio (Nora) organise votre vivier de CVs, le match avec vos postes ouverts et anonymise les profils à présenter — sans clé API à configurer.",
+    "Comment Naywa Studio (Nora) organise votre vivier de CVs, le match avec vos missions, calcule la marge Syntec et anonymise les profils à présenter — sans clé API à configurer.",
 }
 
 const STEPS = [

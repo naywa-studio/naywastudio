@@ -18,8 +18,13 @@ const metrics = [
   },
   {
     value: "IA",
-    title: "Matching automatique avec vos postes",
-    desc: "Pour chaque poste ouvert, la shortlist se construit toute seule avec un score justifié.",
+    title: "Matching automatique avec vos missions",
+    desc: "Pour chaque mission ouverte, la shortlist se construit toute seule avec un score justifié.",
+  },
+  {
+    value: "Syntec",
+    title: "Pricing automatisé selon la convention",
+    desc: "Charges, plafonds URSSAF, calendrier fériés, indemnité CP : la marge est calculée pour vous, prête à présenter.",
   },
   {
     value: "1 clic",

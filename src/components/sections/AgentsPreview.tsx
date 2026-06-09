@@ -14,7 +14,9 @@ const fu = (delay: number) => ({
 const NORA_FEATURES = [
   "Ingestion CV automatique (PDF, DOCX, photo — OCR + IA)",
   "Vivier centralisé, indexé et recherchable",
-  "Matching IA contre vos postes ouverts avec score justifié",
+  "Matching IA contre vos missions avec score justifié",
+  "Compose IA : email d'approche pré-rédigé à partir du CV + brief",
+  "Pricing Syntec automatisé : marge, charges, plafonds URSSAF, calendrier",
   "Anonymisation 1 clic — PDF prêt à présenter au client",
   "Pipeline candidat : Identifié → Contacté → Réponse → Entretien → Offre",
 ]
@@ -28,9 +30,9 @@ const COMING_SOON = [
     accent: "rgba(59,130,246,0.18)",
   },
   {
-    name: "Compose IA",
-    role: "Génération d'emails d'approche personnalisés",
-    desc: "À partir du CV + du brief, Nora rédige l'email de premier contact dans votre ton. Vous relisez, vous envoyez.",
+    name: "Domaine d'envoi personnalisé",
+    role: "Envoi depuis @votre-cabinet.fr",
+    desc: "Connectez votre propre domaine mail pour que vos approches partent depuis l'adresse de votre cabinet, pas depuis un sous-domaine Naywa. Délivrabilité et image de marque alignées.",
     color: "#7C3AED",
     accent: "rgba(124,58,237,0.18)",
   },

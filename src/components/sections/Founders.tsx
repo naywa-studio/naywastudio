@@ -31,7 +31,7 @@ const FOUNDERS: Founder[] = [
   {
     initials: "EM",
     name: "Elyas Malki",
-    role: "Co-fondateur — Produit & Tech",
+    role: "Fondateur — Produit & Tech",
     quote:
       "J'ai construit Naywa parce que je voulais que l'IA travaille pour les sourceurs, pas à leur place. Nora propose, vous décidez.",
     linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
@@ -40,7 +40,7 @@ const FOUNDERS: Founder[] = [
   {
     initials: "HM",
     name: "Hussein Malki",
-    role: "Co-fondateur — Marque & Communication",
+    role: "Direction artistique & Marque",
     quote:
       "On veut un produit qui se voit, se comprend, et qu'on a envie d'utiliser. La marque Naywa doit faire ressentir tout ça dès le premier coup d'œil.",
     avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
@@ -81,7 +81,7 @@ export function Founders() {
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
-            Qui sommes-nous
+            Qui sommes-nous&nbsp;?
           </span>
           <h2
             style={{
@@ -94,7 +94,7 @@ export function Founders() {
               lineHeight: 1.1,
             }}
           >
-            Deux cousins,{" "}
+            Une équipe{" "}
             <span
               style={{
                 fontFamily: "var(--font-instrument-serif), serif",
@@ -103,7 +103,7 @@ export function Founders() {
                 color: "#7C63C8",
               }}
             >
-              un projet
+              à taille humaine
             </span>
             .
           </h2>
@@ -117,8 +117,9 @@ export function Founders() {
               margin: 0,
             }}
           >
-            Naywa Studio est porté par une petite équipe à taille humaine.
-            Vous parlez aux fondateurs, pas à un support.
+            Naywa Studio est un projet porté par ses fondateurs. Vous échangez
+            directement avec les personnes qui conçoivent le produit, le
+            développent et le font évoluer — pas avec un support de niveau 1.
           </p>
         </m.div>
 
