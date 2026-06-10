@@ -3,6 +3,7 @@ import { Hero } from "@/components/sections/Hero"
 import { WhyNawa } from "@/components/sections/WhyNawa"
 import { AgentsPreview } from "@/components/sections/AgentsPreview"
 import { HowItWorks } from "@/components/sections/HowItWorks"
+import { PackageSourcingFlow } from "@/components/sections/PackageSourcingFlow"
 import { Founders } from "@/components/sections/Founders"
 import { Footer } from "@/components/layout/Footer"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
@@ -19,6 +20,7 @@ export default function Home() {
         <WhyNawa />
         <AgentsPreview />
         <HowItWorks />
+        <PackageSourcingFlow />
         <Founders />
       </main>
       <Footer />

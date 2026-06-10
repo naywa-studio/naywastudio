@@ -10,18 +10,20 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
 
   title: {
-    default: 'Naywa Studio — Le CRM IA pour sourceurs',
+    default: 'Naywa Studio — L\'optimisation de vos process métier',
     template: '%s | Naywa Studio',
   },
   description:
-    'Naywa Studio — Nora, le CRM IA pour sourceurs. Organisez votre vivier de CVs, matchez automatiquement avec vos postes, anonymisez et suivez votre pipeline candidat.',
+    'Naywa Studio conçoit des packages d\'optimisation de process métier. Notre premier package, Package Sourcing, est destiné aux ESN, cabinets de consulting et cabinets de recrutement : vivier, missions, matching, pricing Syntec, pipeline candidat.',
   keywords: [
-    'CRM recrutement',
-    'CRM sourceurs',
-    'matching CV IA',
+    'optimisation process métier',
+    'package sourcing',
+    'CRM cabinet recrutement',
+    'pricing Syntec',
+    'matching candidat',
     'anonymisation CV',
     'vivier candidats',
-    'IA recrutement',
+    'ESN cabinet consulting',
     'pipeline candidat',
   ],
   authors: [{ name: 'Naywa Studio', url: SITE_URL }],
@@ -33,9 +35,9 @@ export const metadata: Metadata = {
   },
 
   openGraph: {
-    title: 'Naywa Studio — Le CRM IA pour sourceurs',
+    title: 'Naywa Studio — Nous traitons. Vous décidez.',
     description:
-      'Nora organise votre vivier de CVs, match avec vos postes, anonymise et suit votre pipeline candidat.',
+      'L\'optimisation de vos process métier. Pensée pour votre équipe, pas à sa place. Package Sourcing : vivier, missions, pricing Syntec, pipeline candidat.',
     url: SITE_URL,
     siteName: 'Naywa Studio',
     locale: 'fr_FR',
@@ -45,16 +47,16 @@ export const metadata: Metadata = {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Naywa Studio — Le CRM IA pour sourceurs',
+        alt: 'Naywa Studio — L\'optimisation de vos process métier',
       },
     ],
   },
 
   twitter: {
     card: 'summary_large_image',
-    title: 'Naywa Studio — Le CRM IA pour sourceurs',
+    title: 'Naywa Studio — Nous traitons. Vous décidez.',
     description:
-      'Nora organise votre vivier de CVs, match avec vos postes, anonymise et suit votre pipeline.',
+      'L\'optimisation de vos process métier. Package Sourcing : vivier, missions, pricing Syntec, pipeline candidat.',
     images: ['/og-image.jpg'],
     creator: '@naywastudio',
   },
@@ -90,7 +92,7 @@ const organizationSchema = {
   url: SITE_URL,
   logo: `${SITE_URL}/naywa-logo-full.svg`,
   description:
-    "Naywa Studio — Le CRM IA pour sourceurs. Organisez votre vivier de CVs, matchez automatiquement avec vos postes ouverts, anonymisez et suivez votre pipeline.",
+    "Naywa Studio conçoit des packages d'optimisation de process métier. Package Sourcing : vivier, missions, matching, pricing Syntec, pipeline candidat — pour ESN, cabinets de consulting et cabinets de recrutement.",
   address: {
     '@type': 'PostalAddress',
     addressLocality: 'Paris',
@@ -100,7 +102,7 @@ const organizationSchema = {
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'sales',
-    email: 'hello@naywastudio.com',
+    email: 'contact@naywastudio.com',
     availableLanguage: ['French', 'English'],
   },
 }

@@ -794,7 +794,7 @@ export function JobForm({ onClose, onCreated, initialJob }: {
     // Obligatoires V1 : juste nom du poste + lieu + compétences. Tout le
     // reste peut être complété plus tard (mission "ASAP" sans date, type
     // de contrat à confirmer côté pricing, durée à voir avec le client…).
-    if (!roleName.trim()) { setError("Le nom du poste est requis."); return }
+    if (!roleName.trim()) { setError("Le nom de la mission est requis."); return }
     if (!location.trim()) { setError("Le lieu est requis."); return }
     if (reqSkills.length === 0) { setError("Au moins une compétence requise."); return }
 
@@ -1126,7 +1126,7 @@ function FormFieldGrid(p: FormFieldGridProps) {
 
   return (
     <>
-      <Field label="Nom du poste *" hint="signal principal du matching" status={role.statusPill}>
+      <Field label="Nom de la mission *" hint="signal principal du matching" status={role.statusPill}>
         <input value={p.roleName} onChange={(e) => p.setRoleName(e.target.value)}
           placeholder="Ex : Data Engineer" style={ringStyle(role.border)} autoFocus />
       </Field>

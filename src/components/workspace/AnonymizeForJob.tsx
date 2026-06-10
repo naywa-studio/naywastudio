@@ -102,8 +102,8 @@ export default function AnonymizeForJob({
         {!candidateParsed
           ? "Disponible une fois le CV parsé."
           : hasJob
-            ? <>Génère un PDF présentable au client, orienté pour le poste <strong style={{ color: "#111827" }}>{jobTitle}</strong>. Identité retirée.</>
-            : "Aucun poste sélectionné — le PDF sera générique."}
+            ? <>Génère un PDF présentable au client, orienté pour la mission <strong style={{ color: "#111827" }}>{jobTitle}</strong>. Identité retirée.</>
+            : "Aucune mission sélectionnée — le PDF sera générique."}
       </p>
       {error && (
         <p style={{ margin: "0 0 8px", fontSize: 12, color: "#B91C1C" }}>{error}</p>
@@ -112,7 +112,7 @@ export default function AnonymizeForJob({
         <button
           onClick={generate}
           disabled={!candidateParsed || !hasJob || state === "working"}
-          title={!hasJob ? "Aucun poste sélectionné" : undefined}
+          title={!hasJob ? "Aucune mission sélectionnée" : undefined}
           style={{
             fontSize: 12.5, fontWeight: 700,
             color: (!candidateParsed || !hasJob) ? "#9CA3AF" : "white",
@@ -125,8 +125,8 @@ export default function AnonymizeForJob({
           }}
         >
           {state === "working" ? "Génération…"
-            : state === "ready" ? "Régénérer pour ce poste"
-            : "Anonymiser pour ce poste"}
+            : state === "ready" ? "Régénérer pour cette mission"
+            : "Anonymiser pour cette mission"}
         </button>
         {state === "ready" && downloadUrl && (
           <a href={downloadUrl} style={{

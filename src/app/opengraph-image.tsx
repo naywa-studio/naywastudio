@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 
-export const alt = 'Naywa Studio — Sourcing automatisé pour recruteurs'
+export const alt = 'Naywa Studio — L\'optimisation de vos process métier'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -72,15 +72,15 @@ export default function OgImage() {
           style={{
             color: '#111827',
             fontWeight: 800,
-            fontSize: '74px',
-            lineHeight: 1.06,
+            fontSize: '88px',
+            lineHeight: 1.04,
             letterSpacing: '-0.035em',
-            maxWidth: '880px',
-            marginBottom: '24px',
+            maxWidth: '900px',
+            marginBottom: '28px',
             position: 'relative',
           }}
         >
-          Vos meilleurs candidats LinkedIn en 2 minutes.
+          Nous traitons. Vous décidez.
         </div>
 
         {/* Sub */}
@@ -88,20 +88,20 @@ export default function OgImage() {
           style={{
             color: '#4B5563',
             fontWeight: 400,
-            fontSize: '24px',
+            fontSize: '26px',
             lineHeight: 1.5,
-            maxWidth: '720px',
-            marginBottom: '40px',
+            maxWidth: '820px',
+            marginBottom: '44px',
             position: 'relative',
           }}
         >
-          Décrivez votre poste, Léo source jusqu&apos;à 60 profils triés par
-          pertinence. Tableur Excel exportable.
+          Naywa Studio — l&apos;optimisation de vos process métier. Pensée pour
+          votre équipe, pas à sa place.
         </div>
 
         {/* Pills */}
         <div style={{ display: 'flex', gap: '12px', position: 'relative' }}>
-          {['Beta gratuite', 'Aucune carte bancaire', 'Setup en 2 min'].map((label) => (
+          {['Package Sourcing', '15 jours offerts', 'Sans carte bancaire'].map((label) => (
             <div
               key={label}
               style={{

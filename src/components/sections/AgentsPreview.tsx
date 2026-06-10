@@ -167,9 +167,10 @@ export function AgentsPreview() {
               margin: 0, fontFamily: "var(--font-inter), sans-serif",
               fontSize: 15, color: "#374151", lineHeight: 1.7,
             }}>
-              Vous uploadez vos CVs et décrivez vos postes ouverts. Nora parse,
-              indexe, match et justifie ses scores. Vous obtenez des shortlists
-              prêtes à présenter — anonymisées si besoin.
+              Vous uploadez vos CVs et décrivez vos missions. Nora parse,
+              indexe, match, chiffre selon Syntec et justifie ses scores.
+              Vous obtenez des shortlists prêtes à présenter — anonymisées si
+              besoin.
             </p>
 
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>

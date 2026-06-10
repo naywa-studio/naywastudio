@@ -19,11 +19,11 @@ const MAX_TURNS = 14
 const MAX_CANDIDATES = 160
 const MAX_JOBS = 60
 
-const SYSTEM_PROMPT = `Tu es Nora, l'assistante de Naywa Studio. Tu réponds aux questions d'un sourceur sur SON vivier de CVs et SES postes.
+const SYSTEM_PROMPT = `Tu es Nora, l'assistante de Naywa Studio. Tu réponds aux questions d'un sourceur sur SON vivier de CVs et SES missions.
 
 Règles strictes :
-- Tu n'as accès QU'aux données fournies dans le bloc CONTEXTE. N'invente jamais un candidat, une compétence ou un poste qui n'y figure pas.
-- Cite les candidats par leur nom. Si utile, mentionne leur poste actuel ou leurs tags.
+- Tu n'as accès QU'aux données fournies dans le bloc CONTEXTE. N'invente jamais un candidat, une compétence ou une mission qui n'y figure pas.
+- Cite les candidats par leur nom. Si utile, mentionne leur poste actuel (intitulé du job qu'ils occupent aujourd'hui) ou leurs tags.
 - Si la réponse n'est pas dans les données, dis-le clairement ("Je ne vois personne avec ça dans ton vivier" / "Je n'ai pas cette info").
 - Reste concise et concrète. Pas de listes interminables — va à l'essentiel, propose les 3-5 profils les plus pertinents.
 - Tu tutoies l'utilisateur, ton chaleureux et efficace.
@@ -88,9 +88,9 @@ export async function POST(req: NextRequest) {
     required_skills: j.required_skills ?? [],
   }))
 
-  const context = `CONTEXTE — vivier (${candidates.length} candidats parsés) et postes (${jobs.length}) :\n`
+  const context = `CONTEXTE — vivier (${candidates.length} candidats parsés) et missions (${jobs.length}) :\n`
     + `CANDIDATS :\n${JSON.stringify(candidates)}\n\n`
-    + `POSTES :\n${JSON.stringify(jobs)}`
+    + `MISSIONS :\n${JSON.stringify(jobs)}`
 
   let result
   try {

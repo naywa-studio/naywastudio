@@ -29,9 +29,9 @@ const steps = [
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
-    title: "Décrivez vos postes ouverts",
-    subtitle: "1 minute par poste",
-    desc: "Brief court : titre, lieu, compétences, séniorité. Nora score immédiatement tous les CVs de votre vivier contre ce poste.",
+    title: "Décrivez vos missions",
+    subtitle: "1 minute par mission",
+    desc: "Brief court : titre, lieu, compétences, séniorité. Nora score immédiatement tous les CVs de votre vivier contre cette mission.",
   },
   {
     number: "03",
@@ -42,7 +42,7 @@ const steps = [
     ),
     title: "Présentez votre shortlist",
     subtitle: "Anonymisée si vous voulez",
-    desc: "Pour chaque poste, votre top candidats triés et justifiés. Génère un PDF anonymisé en 1 clic pour vos clients, suit la prise de contact dans le pipeline.",
+    desc: "Pour chaque mission, votre top candidats triés et justifiés. Génère un PDF anonymisé en 1 clic pour vos clients, suit la prise de contact dans le pipeline.",
   },
 ]
 

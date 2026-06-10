@@ -25,14 +25,14 @@ Tu réponds UNIQUEMENT en JSON valide :
 Règles :
 - Le message est écrit À LA PREMIÈRE PERSONNE, du point de vue du sourceur, prêt à être copié-collé.
 - Personnalise : appuie-toi sur le parcours réel du candidat (poste actuel, expérience marquante, compétences). Montre que ce n'est pas un copier-coller générique.
-- Si un poste est fourni, oriente le message autour de cette opportunité, sans tout déballer — donne envie d'en savoir plus.
+- Si une mission est fournie, oriente le message autour de cette opportunité, sans tout déballer — donne envie d'en savoir plus.
 - Ton chaleureux, direct, respectueux. Pas de flatterie excessive, pas de jargon RH creux.
 - Canal "email" : "subject" = objet court et accrocheur ; "body" = 90-150 mots, salutation + corps + appel à l'action léger + signature.
 - Canal "linkedin" : "subject" = null ; "body" = 60-110 mots, plus direct et informel, pas de signature lourde.
 - Termine par une signature au prénom du sourceur s'il est fourni, sinon "[Votre prénom]".
 - Pas de markdown, pas de placeholders inutiles. Le candidat est nommé par son prénom si on le connaît.
 - Propose un échange / un appel pour la suite sans inventer de lien ou de créneau spécifique : on laisse le sourceur cadrer la logistique dans son échange suivant.
-- Si le poste contient un champ "briefing", il liste les contraintes/préférences du client (budget, démarrage, profils à éviter, etc.). Tiens-en compte sans le citer brut au candidat : adapte le ton, les détails évoqués et la promesse. NE révèle PAS le budget ni les info confidentielles du briefing au candidat.`
+- Si la mission contient un champ "briefing", il liste les contraintes/préférences du client (budget, démarrage, profils à éviter, etc.). Tiens-en compte sans le citer brut au candidat : adapte le ton, les détails évoqués et la promesse. NE révèle PAS le budget ni les info confidentielles du briefing au candidat.`
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params

@@ -6,7 +6,7 @@ import { Footer } from "@/components/layout/Footer"
 export const metadata: Metadata = {
   title: "FAQ",
   description:
-    "Questions fréquentes sur Naywa Studio — Nora, le CRM IA pour sourceurs. Vivier de CVs, matching, anonymisation, pipeline.",
+    "Questions fréquentes sur Naywa Studio et Package Sourcing. Vivier de CVs, matching, pricing Syntec, anonymisation, pipeline candidat — pour ESN, cabinets de consulting et cabinets de recrutement.",
 }
 
 const CATEGORIES = [
@@ -15,15 +15,15 @@ const CATEGORIES = [
     questions: [
       {
         q: "Qu'est-ce que Naywa Studio ?",
-        a: "Naywa Studio édite Nora, un CRM IA pensé pour les sourceurs et petites équipes de recrutement. Vous gardez la main sur le sourcing (LinkedIn, jobboards, réseau) ; Nora prend le relais une fois que les CVs entrent dans votre espace : parsing, matching avec vos postes, anonymisation, suivi du pipeline.",
+        a: "Naywa Studio est un studio produit qui conçoit des packages d'optimisation de process métier. Notre premier package — Package Sourcing — est dédié aux ESN, cabinets de consulting et cabinets de recrutement. Nora, l'assistante du package, range votre vivier, score vos candidats sur vos missions, calcule la marge selon Syntec et suit le pipeline candidat. Vous gardez la main sur chaque décision.",
       },
       {
-        q: "À qui s'adresse Nora ?",
-        a: "Aux sourceurs freelance, indépendants et petites équipes RH (jusqu'à ~15 personnes). Si vous gérez quelques dizaines à quelques milliers de CVs et que vos process actuels passent par Excel + Drive, Nora vous fait gagner des heures.",
+        q: "À qui s'adresse Package Sourcing ?",
+        a: "Aux ESN, cabinets de consulting et cabinets de recrutement de toute taille — des indépendants aux équipes de 15-20 personnes. Si vous gérez quelques dizaines à quelques milliers de CVs et que vos process actuels passent par Excel + Drive, Naywa vous fait gagner des heures sur le traitement et le chiffrage.",
       },
       {
         q: "En quoi est-ce différent d'un ATS classique ?",
-        a: "Un ATS gère des candidatures entrantes. Nora gère votre vivier proactif : les CVs que vous collectez vous-même via LinkedIn, jobboards et réseau. L'IA est au cœur du produit — pas un module en option facturé en plus.",
+        a: "Un ATS gère des candidatures entrantes. Naywa gère votre vivier proactif : les CVs que vous collectez vous-même via LinkedIn, jobboards et réseau. Et surtout, Naywa intègre nativement le pricing selon la convention Syntec — calcul de marge, charges patronales, plafonds URSSAF, calendrier fériés — ce qu'aucun ATS ne propose.",
       },
     ],
   },
@@ -53,7 +53,7 @@ const CATEGORIES = [
     questions: [
       {
         q: "Comment fonctionne le matching ?",
-        a: "Vous décrivez vos postes ouverts (titre, séniorité, compétences clés, lieu). Nora score chaque CV du vivier contre chaque poste et justifie son score sur plusieurs dimensions. Vous voyez immédiatement vos meilleurs candidats par poste, triés et expliqués.",
+        a: "Vous décrivez vos missions (titre, séniorité, compétences clés, lieu) — soit en collant un brief texte que Nora analyse automatiquement, soit en remplissant le formulaire. Nora score chaque CV du vivier contre chaque mission et justifie son score sur plusieurs dimensions. Vous voyez immédiatement vos meilleurs candidats par mission, triés et expliqués.",
       },
       {
         q: "L'anonymisation, ça marche comment ?",
@@ -79,15 +79,36 @@ const CATEGORIES = [
     ],
   },
   {
+    title: "Pricing Syntec",
+    questions: [
+      {
+        q: "Qu'est-ce que le pricing Syntec dans Naywa ?",
+        a: "Une fois qu'un candidat est positionné sur une mission, vous devez chiffrer pour le client. Naywa calcule en temps réel la marge mensuelle réelle selon la convention Syntec — charges patronales par statut (38%, 42%, 44% ou 22% selon position et coefficient), plafonds URSSAF, calendrier fériés français, indemnité de congés payés, période d'essai. Vous réglez le TJM facturable et le brut consultant, le reste se calcule.",
+      },
+      {
+        q: "À quoi sert le chart 'risque de rupture' ?",
+        a: "La période d'essai est un risque financier pour vous : si le consultant rompt pendant la période, vous perdez. Naywa visualise mois par mois où sont les zones de risque selon le type de contrat (CDI ou CDD avec L1243-4), la position et le coefficient. Vous voyez immédiatement si la marge cumulée sur la période d'essai justifie d'accepter la mission.",
+      },
+      {
+        q: "Mon cabinet a des standards pricing différents — c'est paramétrable ?",
+        a: "Oui. Dans /cabinet/parametrage, vous définissez vos seuils de marge (min/cible), vos avantages standards (mutuelle, tickets resto, indemnités), vos jours RTT/an. Tout pricing à venir hérite de ces valeurs et reste éditable mission par mission, candidat par candidat.",
+      },
+      {
+        q: "Le PDF de chiffrage est exportable ?",
+        a: "Oui, en 1 clic — version nominative (avec le nom du candidat) ou anonymisée (référence interne C-XXXXXXXX). Brandé à votre cabinet, prêt à envoyer au client.",
+      },
+    ],
+  },
+  {
     title: "Tarification",
     questions: [
       {
         q: "Combien ça coûte ?",
-        a: "Gratuit pendant la beta privée — aucune carte bancaire requise. La tarification publique sera annoncée à la sortie de beta, calée sur le volume mensuel de CVs parsés.",
+        a: "15 jours d'essai offerts, sans carte bancaire requise. Au-delà, le Package Sourcing reste accessible le temps de la beta privée. La grille tarifaire publique sera communiquée à l'ouverture officielle, sur un modèle calé sur le nombre de sièges dans votre cabinet.",
       },
       {
         q: "Comment rejoindre la beta ?",
-        a: "Créez un compte (email ou Google). L'accès est immédiat. Si vous avez un retour ou un besoin spécifique, écrivez-nous à contact@naywastudio.com — nous itérons vite.",
+        a: "Créez un compte (email ou Google). L'accès est immédiat — 15 jours d'essai s'activent en 1 clic depuis votre console cabinet. Si vous avez un retour ou un besoin spécifique, écrivez-nous à contact@naywastudio.com — nous itérons vite.",
       },
     ],
   },
