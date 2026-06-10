@@ -14,11 +14,12 @@ export default function OgImage() {
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'flex-start',
+          alignItems: 'center',
           justifyContent: 'center',
-          padding: '80px',
+          padding: '70px 90px',
           fontFamily: 'sans-serif',
           position: 'relative',
+          textAlign: 'center',
         }}
       >
         {/* Soft violet wash */}
@@ -38,7 +39,7 @@ export default function OgImage() {
             display: 'flex',
             alignItems: 'baseline',
             gap: '14px',
-            marginBottom: '48px',
+            marginBottom: '32px',
             position: 'relative',
           }}
         >
@@ -72,11 +73,11 @@ export default function OgImage() {
           style={{
             color: '#111827',
             fontWeight: 800,
-            fontSize: '88px',
-            lineHeight: 1.04,
+            fontSize: '72px',
+            lineHeight: 1.05,
             letterSpacing: '-0.035em',
             maxWidth: '900px',
-            marginBottom: '28px',
+            marginBottom: '24px',
             position: 'relative',
           }}
         >
@@ -88,14 +89,14 @@ export default function OgImage() {
           style={{
             color: '#4B5563',
             fontWeight: 400,
-            fontSize: '26px',
+            fontSize: '24px',
             lineHeight: 1.5,
-            maxWidth: '820px',
-            marginBottom: '44px',
+            maxWidth: '780px',
+            marginBottom: '36px',
             position: 'relative',
           }}
         >
-          Naywa Studio — l&apos;optimisation de vos process métier. Pensée pour
+          Naywa Studio, l&apos;optimisation de vos process métier. Pensée pour
           votre équipe, pas à sa place.
         </div>
 

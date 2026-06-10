@@ -199,8 +199,8 @@ export default function FAQPage() {
             display: "flex", flexWrap: "wrap", gap: 14,
             fontFamily: "var(--font-inter), sans-serif",
           }}>
-            <Link href="/comment-ca-marche" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-              Comment ça marche →
+            <Link href="/solutions" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+              Découvrir nos solutions →
             </Link>
             <Link href="/tarifs" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
               Voir les tarifs →

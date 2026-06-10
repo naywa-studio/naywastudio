@@ -7,12 +7,13 @@ type FooterLink = { label: string; href: string; external?: boolean }
 
 const footerLinks: Record<string, FooterLink[]> = {
   Produit: [
+    { label: 'Solutions', href: '/solutions' },
     { label: 'Tarifs', href: '/tarifs' },
     { label: 'Mon espace', href: '/workspace' },
     { label: "S'inscrire", href: '/login?mode=signup' },
   ],
   Ressources: [
-    { label: 'Comment ça marche', href: '/comment-ca-marche' },
+    { label: 'À propos', href: '/a-propos' },
     { label: 'FAQ', href: '/faq' },
   ],
   Légal: [
@@ -62,7 +63,7 @@ export function Footer() {
               maxWidth: '28ch',
             }}
           >
-            Nora, le CRM IA pour sourceurs. Vivier de CVs, matching automatique, anonymisation, pipeline.
+            Naywa Studio conçoit des packages d&apos;optimisation de process métier. Nous traitons. Vous décidez.
           </p>
         </div>
 

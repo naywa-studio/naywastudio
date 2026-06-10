@@ -28,6 +28,13 @@ const nextConfig: NextConfig = {
         destination: 'https://naywastudio.com/:path*',
         permanent: true,
       },
+      // L'ancienne page /comment-ca-marche a fusionné avec /solutions.
+      // 301 propre pour préserver le SEO et les liens externes.
+      {
+        source: '/comment-ca-marche',
+        destination: '/solutions',
+        permanent: true,
+      },
     ]
   },
 }

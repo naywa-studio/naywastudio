@@ -6,10 +6,10 @@ import { Logo } from "@/components/ui/Logo"
 import { getSupabase } from "@/lib/supabase"
 
 const navLinks = [
-  { label: "Comment ça marche", href: "/comment-ca-marche" },
-  { label: "Tarifs",            href: "/tarifs" },
-  { label: "À propos",          href: "/a-propos" },
-  { label: "Contact",           href: "/contact" },
+  { label: "À propos", href: "/a-propos" },
+  { label: "Solutions", href: "/solutions" },
+  { label: "Tarifs",   href: "/tarifs" },
+  { label: "Contact",  href: "/contact" },
 ]
 
 interface AuthState {

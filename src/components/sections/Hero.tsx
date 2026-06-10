@@ -164,7 +164,7 @@ export function Hero() {
           </Link>
 
           <a
-            href="/comment-ca-marche"
+            href="/solutions"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -191,7 +191,7 @@ export function Hero() {
               e.currentTarget.style.color = '#4B5563'
             }}
           >
-            Voir comment ça marche
+            Découvrir nos solutions
           </a>
         </m.div>
 
