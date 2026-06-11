@@ -210,8 +210,8 @@ export default function WorkspaceHome() {
           </h1>
           {!brandName && (
             <p style={{ margin: "8px 0 0", fontSize: 13, color: "#6B7280" }}>
-              <Link href="/cabinet" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "none" }}>
-                Définir l&apos;identité de votre cabinet
+              <Link href="/organisation" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "none" }}>
+                Définir l&apos;identité de votre organisation
               </Link>{" "}
               · apparaît sur les CV anonymisés
             </p>

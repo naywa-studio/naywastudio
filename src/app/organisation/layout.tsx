@@ -90,8 +90,8 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
     if (!ctx) return
     if (!ctx.isOwner) return
     if (ctx.organization.cabinet_onboarded_at) return
-    if (pathname === "/cabinet/onboarding") return
-    router.replace("/cabinet/onboarding")
+    if (pathname === "/organisation/onboarding") return
+    router.replace("/organisation/onboarding")
   }, [ctx, pathname, router])
 
   const handleLogout = async () => {
@@ -159,7 +159,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
               letterSpacing: "0.08em", textTransform: "uppercase",
               marginLeft: 12,
             }}>
-              Console cabinet
+              Console organisation
             </span>
           </div>
 
@@ -226,7 +226,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
 
         {/* Hide the trial banner on the onboarding page itself — the
             owner is mid-flow and doesn't need a redundant nudge. */}
-        {pathname !== "/cabinet/onboarding" && (
+        {pathname !== "/organisation/onboarding" && (
           <TrialBanner organization={ctx.organization} />
         )}
         {children}

@@ -248,8 +248,8 @@ function Header({ missionCount }: { missionCount: number }) {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/cabinet/parametrage" style={linkBtnStyle}>
-            Politique pricing cabinet
+          <Link href="/organisation/parametrage" style={linkBtnStyle}>
+            Politique pricing organisation
           </Link>
           <Link href="/workspace/pricing/reference" style={linkBtnStyle}>
             Référence Syntec
@@ -301,7 +301,7 @@ function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
       </div>
       {isOwner ? (
         <Link
-          href="/cabinet/parametrage"
+          href="/organisation/parametrage"
           style={{
             display: "inline-block",
             padding: "8px 14px", borderRadius: 9,

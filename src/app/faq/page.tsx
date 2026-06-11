@@ -91,7 +91,7 @@ const CATEGORIES = [
       },
       {
         q: "Mon cabinet a des standards pricing différents, c'est paramétrable ?",
-        a: "Oui. Dans /cabinet/parametrage, vous définissez vos seuils de marge (min/cible), vos avantages standards (mutuelle, tickets resto, indemnités), vos jours RTT/an. Tout pricing à venir hérite de ces valeurs et reste éditable mission par mission, candidat par candidat.",
+        a: "Oui. Dans /organisation/parametrage, vous définissez vos seuils de marge (min/cible), vos avantages standards (mutuelle, tickets resto, indemnités), vos jours RTT/an. Tout pricing à venir hérite de ces valeurs et reste éditable mission par mission, candidat par candidat.",
       },
       {
         q: "Le PDF de chiffrage est exportable ?",

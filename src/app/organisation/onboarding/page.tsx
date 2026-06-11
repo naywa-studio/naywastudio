@@ -48,14 +48,14 @@ export default function OnboardingPage() {
 
   // Owner-only route. Bounce members back to /cabinet.
   useEffect(() => {
-    if (!isOwner) router.replace("/cabinet")
+    if (!isOwner) router.replace("/organisation")
   }, [isOwner, router])
 
   // Bail out if the owner already finished onboarding (e.g. browser
   // history landing). Avoids re-running activation by accident.
   useEffect(() => {
     if (organization?.cabinet_onboarded_at) {
-      router.replace("/cabinet")
+      router.replace("/organisation")
     }
   }, [organization?.cabinet_onboarded_at, router])
 
@@ -75,7 +75,7 @@ export default function OnboardingPage() {
   const finishStep1 = () => {
     setError(null)
     if (!cabinetName.trim()) {
-      setError("Donnez un nom à votre cabinet pour continuer.")
+      setError("Donnez un nom à votre organisation pour continuer.")
       return
     }
     setStep(2)
@@ -143,7 +143,7 @@ export default function OnboardingPage() {
       }
 
       await refetch()
-      router.replace("/cabinet")
+      router.replace("/organisation")
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erreur inconnue")
       setSubmitting(false)
@@ -209,7 +209,7 @@ export default function OnboardingPage() {
                 color: "#4B5563",
                 lineHeight: 1.65,
               }}>
-                Commencez par donner un nom à votre cabinet. Ce nom sera
+                Commencez par donner un nom à votre organisation. Ce nom sera
                 visible par vos collègues, et apparaîtra sur les documents
                 que vous générez (PDF anonymisé, fiche pricing…).
               </p>
@@ -227,7 +227,7 @@ export default function OnboardingPage() {
                   type="text"
                   value={cabinetName}
                   onChange={(e) => setCabinetName(e.target.value)}
-                  placeholder="Cabinet Dupont"
+                  placeholder={profile?.first_name ? `Organisation de ${profile.first_name}` : "Organisation Dupont"}
                   maxLength={120}
                   autoFocus
                   style={{
@@ -300,7 +300,7 @@ export default function OnboardingPage() {
                 color: "#4B5563",
                 lineHeight: 1.65,
               }}>
-                Tout le workspace Nora pour votre cabinet : vivier illimité,
+                Tout le workspace Nora pour votre organisation : vivier illimité,
                 missions, matching, anonymisation, pricing.{" "}
                 <strong style={{ color: "#111827" }}>Aucune carte requise</strong>{" "}
                 pour démarrer l&apos;essai.
@@ -485,7 +485,7 @@ export default function OnboardingPage() {
                   min={0} max={50} step={0.5} suffix="%"
                 />
                 <NumberRow
-                  label="RTT accordés par votre cabinet"
+                  label="RTT accordés par votre organisation"
                   hint="0 si vous n'accordez pas de RTT. Forfait 218 jours = ~10 RTT/an."
                   value={rttDaysPerYear}
                   onChange={setRttDaysPerYear}

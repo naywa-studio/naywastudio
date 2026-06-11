@@ -72,7 +72,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     // Gate: without a sourcing seat there's nothing to do in /workspace.
     // The owner self-allocates from /cabinet.
     if (prof && !prof.has_sourcing_seat) {
-      router.replace("/cabinet")
+      router.replace("/organisation")
       return
     }
 
@@ -267,8 +267,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                     Mon profil
                   </Link>
                   {profile?.role === "owner" && (
-                    <Link href="/cabinet" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
-                      Mon cabinet
+                    <Link href="/organisation" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
+                      Mon organisation
                     </Link>
                   )}
                   <button

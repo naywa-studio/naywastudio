@@ -190,10 +190,10 @@ export default function ParametragePage() {
           padding: "4px 11px", borderRadius: 100,
           letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
         }}>
-          Paramètres cabinet
+          Paramètres organisation
         </span>
         <h1 style={{ margin: 0, fontSize: "clamp(24px, 3vw, 30px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
-          Réglages récurrents de votre cabinet
+          Réglages récurrents de votre organisation
         </h1>
         <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6, maxWidth: 640 }}>
           Tout ce qui ne change pas d&apos;une mission à l&apos;autre : vos marges et les avantages
@@ -233,7 +233,7 @@ export default function ParametragePage() {
         transition={{ duration: 0.35, ease: EASE }}
         style={sectionStyle}
       >
-        <SectionHeader title="Seuils de marge" subtitle="Plancher et objectif de rentabilité de votre cabinet." />
+        <SectionHeader title="Seuils de marge" subtitle="Plancher et objectif de rentabilité de votre organisation." />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label="Marge minimum acceptable" hint="En dessous, refus du chiffrage. Moyenne ESN : 12–18 %.">
             <NumberInput
@@ -287,7 +287,7 @@ export default function ParametragePage() {
         </div>
 
         <Field
-          label="RTT accordés par votre cabinet"
+          label="RTT accordés par votre organisation"
           hint="0 si vous n'accordez pas de RTT. Forfait 218 j ≈ 10 RTT/an. Déduits du revenu facturable au même titre que les CP."
         >
           <NumberInput
@@ -309,7 +309,7 @@ export default function ParametragePage() {
       >
         <SectionHeader
           title="Avantages standards"
-          subtitle="Ce que votre cabinet propose à tous ses salariés, peu importe la mission."
+          subtitle="Ce que votre organisation propose à tous ses salariés, peu importe la mission."
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Obligatoires groupés en tête */}

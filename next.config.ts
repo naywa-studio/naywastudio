@@ -35,6 +35,20 @@ const nextConfig: NextConfig = {
         destination: '/solutions',
         permanent: true,
       },
+      // /cabinet est renommée en /organisation (URL + UI). 301 pour
+      // préserver les bookmarks et les liens dans les emails déjà
+      // envoyés. Le matcher /:path* propage les sous-routes
+      // (/cabinet/onboarding, /cabinet/parametrage).
+      {
+        source: '/cabinet',
+        destination: '/organisation',
+        permanent: true,
+      },
+      {
+        source: '/cabinet/:path*',
+        destination: '/organisation/:path*',
+        permanent: true,
+      },
     ]
   },
 }

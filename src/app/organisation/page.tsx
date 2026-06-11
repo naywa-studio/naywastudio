@@ -580,7 +580,7 @@ function SubscriptionCard({
         <Panel tone="warn">
           <p style={panelTitle("#B91C1C")}>Période d&apos;essai terminée</p>
           <p style={panelBody("#7F1D1D")}>
-            Vous gardez l&apos;accès à votre cabinet, mais nous aimerions
+            Vous gardez l&apos;accès à votre organisation, mais nous aimerions
             convenir d&apos;un abonnement avant d&apos;aller plus loin.
           </p>
           <Link
@@ -715,7 +715,7 @@ function IdentitySection({
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Cabinet Dupont Recrutement"
+        placeholder="Organisation Dupont"
         disabled={!isOwner || busy === "saving"}
         onBlur={saveName}
         style={inputStyle}
@@ -977,7 +977,7 @@ function PricingPolicyCard() {
           </p>
         </div>
         <a
-          href="/cabinet/parametrage"
+          href="/organisation/parametrage"
           style={{
             padding: "8px 13px", borderRadius: 8,
             background: "#7C63C8", color: "white",

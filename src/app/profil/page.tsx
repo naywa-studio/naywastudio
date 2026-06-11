@@ -182,8 +182,8 @@ export default function ProfilPage() {
               </Card>
 
               {/* ── Cabinet ─── */}
-              <Card title="Mon cabinet" subtitle="Cabinet auquel votre compte est rattaché.">
-                <Field label="Nom du cabinet">
+              <Card title="Mon organisation" subtitle="Organisation à laquelle votre compte est rattaché.">
+                <Field label="Nom de l&apos;organisation">
                   <input
                     type="text"
                     value={profile?.org_name ?? "—"}
@@ -206,8 +206,8 @@ export default function ProfilPage() {
                       {profile?.role === "owner" ? "Owner" : "Membre"}
                     </span>
                     {profile?.role === "owner" && (
-                      <Link href="/cabinet" style={{ fontSize: 13, color: "#7C63C8", textDecoration: "none", fontWeight: 600 }}>
-                        Gérer le cabinet →
+                      <Link href="/organisation" style={{ fontSize: 13, color: "#7C63C8", textDecoration: "none", fontWeight: 600 }}>
+                        Gérer mon organisation →
                       </Link>
                     )}
                   </div>
