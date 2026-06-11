@@ -105,8 +105,7 @@ export function PackageSourcingFlow() {
     <section
       style={{
         background: "transparent",
-        padding: "112px 24px 96px",
-        borderTop: "1px solid rgba(240,236,248,0.6)",
+        padding: "16px 24px 80px",
         position: "relative",
       }}
     >
@@ -126,38 +125,18 @@ export function PackageSourcingFlow() {
             marginBottom: 56,
           }}
         >
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              background: "rgba(124,99,200,0.07)",
-              border: "1px solid rgba(124,99,200,0.18)",
-              borderRadius: 100,
-              padding: "5px 14px",
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#7C63C8",
-              letterSpacing: "0.10em",
-              textTransform: "uppercase" as const,
-              fontFamily: "var(--font-inter), sans-serif",
-            }}
-          >
-            Notre premier package
-          </span>
-          <h2
+          <h3
             style={{
               fontFamily: "var(--font-inter), sans-serif",
-              fontSize: "clamp(28px, 4vw, 44px)",
+              fontSize: "clamp(22px, 2.8vw, 30px)",
               fontWeight: 800,
-              letterSpacing: "-0.025em",
+              letterSpacing: "-0.02em",
               color: "#111827",
               margin: 0,
-              lineHeight: 1.1,
-              maxWidth: "20ch",
+              lineHeight: 1.15,
             }}
           >
-            Package Sourcing —{" "}
+            Le process en{" "}
             <span
               style={{
                 fontFamily: "var(--font-instrument-serif), serif",
@@ -166,22 +145,22 @@ export function PackageSourcingFlow() {
                 color: "#7C63C8",
               }}
             >
-              le process en 6 étapes
+              6 étapes
             </span>
-          </h2>
+          </h3>
           <p
             style={{
               fontFamily: "var(--font-inter), sans-serif",
-              fontSize: 15,
+              fontSize: 14.5,
               color: "#4B5563",
-              lineHeight: 1.7,
+              lineHeight: 1.65,
               maxWidth: "58ch",
               margin: 0,
             }}
           >
-            Cliquez sur une étape pour voir comment Naywa optimise votre
-            process — du premier CV qui rentre dans votre vivier jusqu&apos;à
-            l&apos;offre signée avec votre client.
+            Cliquez sur une étape pour voir comment Naywa l&apos;optimise. Du
+            premier CV qui rentre dans votre vivier jusqu&apos;à l&apos;offre
+            signée avec votre client.
           </p>
         </m.div>
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
+import { PackageSourcingFlow } from "@/components/sections/PackageSourcingFlow"
 
 export const metadata: Metadata = {
   title: "Solutions",
@@ -29,39 +30,6 @@ const ONBOARDING_STEPS = [
     n: "04",
     title: "Utilisez le package au quotidien",
     body: "Votre équipe travaille dans son workspace. Nous faisons évoluer le package, vous bénéficiez des améliorations.",
-  },
-] as const
-
-const SOURCING_CAPABILITIES = [
-  {
-    n: "01",
-    title: "Vivier",
-    body: "Nora parse chaque CV uploadé. Elle extrait l'expérience post-diplôme réelle, les compétences, la séniorité. Le candidat rejoint sa zone métier automatiquement.",
-  },
-  {
-    n: "02",
-    title: "Missions",
-    body: "Vous collez un brief client. Nora pré-remplit le formulaire de mission en 5 secondes. Vous validez, le matching démarre.",
-  },
-  {
-    n: "03",
-    title: "Matching",
-    body: "Nora score chaque candidat sur chaque mission. Chaque score est justifié dimension par dimension. Pas de boîte noire.",
-  },
-  {
-    n: "04",
-    title: "Pricing Syntec",
-    body: "Vous réglez le TJM facturable et le brut consultant. Naywa calcule la marge mensuelle réelle. Charges patronales, plafonds URSSAF, calendrier fériés, indemnité de congés payés, période d'essai : tout est intégré.",
-  },
-  {
-    n: "05",
-    title: "Anonymisation",
-    body: "Un clic. Le PDF sort sans nom ni photo, brandé à votre cabinet, avec une référence interne pour suivre le candidat sans révéler son identité.",
-  },
-  {
-    n: "06",
-    title: "Pipeline",
-    body: "Kanban partagé entre vos collègues. Vous suivez chaque candidat depuis l'identification jusqu'à l'offre. Nora suggère, vous décidez.",
   },
 ] as const
 
@@ -294,77 +262,14 @@ export default function SolutionsPage() {
                 pipeline. Aucune action ne se déclenche sans votre validation.
               </p>
             </header>
+          </div>
+        </section>
 
-            {/* Capacités */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                gap: 16,
-                marginBottom: 56,
-              }}
-            >
-              {SOURCING_CAPABILITIES.map((c) => (
-                <article
-                  key={c.n}
-                  style={{
-                    background: "white",
-                    border: "1px solid #F0ECF8",
-                    borderRadius: 18,
-                    padding: "26px 26px 28px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12,
-                    boxShadow: "0 4px 16px rgba(124,99,200,0.05)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "baseline",
-                      gap: 14,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "var(--font-instrument-serif), serif",
-                        fontStyle: "italic",
-                        fontSize: 36,
-                        lineHeight: 0.9,
-                        color: "#7C63C8",
-                        letterSpacing: "-0.03em",
-                      }}
-                    >
-                      {c.n}
-                    </span>
-                    <h3
-                      style={{
-                        margin: 0,
-                        fontFamily: "var(--font-inter), sans-serif",
-                        fontSize: 17,
-                        fontWeight: 700,
-                        color: "#111827",
-                        letterSpacing: "-0.01em",
-                      }}
-                    >
-                      {c.title}
-                    </h3>
-                  </div>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontFamily: "var(--font-inter), sans-serif",
-                      fontSize: 14,
-                      color: "#4B5563",
-                      lineHeight: 1.7,
-                    }}
-                  >
-                    {c.body}
-                  </p>
-                </article>
-              ))}
-            </div>
+        {/* Frise interactive Package Sourcing */}
+        <PackageSourcingFlow />
 
+        <section style={{ padding: "0 24px 80px" }}>
+          <div style={{ maxWidth: 1040, margin: "0 auto" }}>
             {/* Sécurité */}
             <div
               style={{

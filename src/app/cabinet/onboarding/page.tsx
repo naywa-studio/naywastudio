@@ -26,8 +26,8 @@ import { TRIAL_DURATION_DAYS } from "@/lib/trial"
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 const PACKAGE_FEATURES = [
-  "Vivier illimité — upload PDF, OCR + parsing IA",
-  "Clustering Nora — vos candidats rangés en zones métier",
+  "Vivier illimité, upload PDF, OCR et parsing IA",
+  "Clustering Nora, vos candidats rangés en zones métier",
   "Matching IA contre vos missions avec score justifié",
   "Anonymisation PDF en 1 clic",
   "Pipeline candidat + suivi des interviews Calendly",
@@ -284,7 +284,7 @@ export default function OnboardingPage() {
                 letterSpacing: "-0.02em",
                 lineHeight: 1.2,
               }}>
-                Package Sourcing —{" "}
+                Package Sourcing,{" "}
                 <span style={{
                   fontFamily: "var(--font-instrument-serif), serif",
                   fontWeight: 400,
@@ -337,7 +337,7 @@ export default function OnboardingPage() {
                       color: "#7C63C8",
                       fontWeight: 600,
                     }}>
-                      Nora — l&apos;assistante IA du sourceur
+                      Nora, l&apos;assistante IA du sourceur
                     </p>
                   </div>
                   <span style={{

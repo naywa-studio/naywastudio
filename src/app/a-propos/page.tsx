@@ -69,7 +69,7 @@ export default function AProposPage() {
               augmentés par l&apos;intelligence artificielle. Notre premier
               package est dédié au sourcing&nbsp;: <strong>Nora</strong>,
               l&apos;assistante IA qui range, score, anonymise et suit votre
-              vivier de candidats — sans jamais agir à votre place.
+              vivier de candidats, sans jamais agir à votre place.
             </p>
           </div>
         </section>

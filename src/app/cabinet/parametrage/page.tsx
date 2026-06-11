@@ -270,7 +270,7 @@ export default function ParametragePage() {
       >
         <SectionHeader
           title="Jours payés non facturables"
-          subtitle="Jours rémunérés sans revenu — baissent la marge mensuelle de chaque mission."
+          subtitle="Jours rémunérés sans revenu. Baissent la marge mensuelle de chaque mission."
         />
 
         {/* Note informative CP — non modifiable, obligation légale */}
@@ -281,9 +281,9 @@ export default function ParametragePage() {
           borderRadius: 9,
           fontSize: 12, color: "#374151", lineHeight: 1.55,
         }}>
-          <strong style={{ color: "#7C63C8" }}>Congés payés — 25 jours/an (obligation légale)</strong>
+          <strong style={{ color: "#7C63C8" }}>Congés payés : 25 jours/an (obligation légale)</strong>
           <br />
-          Tous les salariés cumulent 25 jours de CP par an (L3141-3). Ces jours sont payés par le cabinet mais non facturables — automatiquement déduits du revenu mensuel. Non modifiable.
+          Tous les salariés cumulent 25 jours de CP par an (L3141-3). Ces jours sont payés par le cabinet mais non facturables. Ils sont automatiquement déduits du revenu mensuel. Non modifiable.
         </div>
 
         <Field
@@ -529,7 +529,7 @@ function SmartAvantageRow({
           <span style={{
             display: "inline-block", width: 8, height: 8, borderRadius: "50%",
             background: "#7C63C8", margin: "0 6px",
-          }} title="Obligation légale — toujours actif" />
+          }} title="Obligation légale, toujours actif" />
         ) : (
           <Checkbox checked={enabled} onChange={handleToggle} />
         )}

@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { LegalPageShell, type LegalSection } from "@/components/layout/LegalPageShell"
 
 export const metadata: Metadata = {
-  title: "Conditions générales d'utilisation — Naywa Studio",
+  title: "Conditions générales d'utilisation | Naywa Studio",
   description: "Conditions générales d'utilisation du service Naywa Studio.",
 }
 
@@ -18,11 +18,11 @@ const SECTIONS: LegalSection[] = [
     title: "2. Description du service",
     content: [
       "Naywa Studio met à disposition un workspace permettant à un cabinet de recrutement de :",
-      "— importer des CVs et conserver un vivier centralisé ;",
-      "— créer des missions et lancer un matching candidats × missions ;",
-      "— suivre les candidats dans un pipeline (Identifié → Contacté → Réponse → Entretien → Pricing → Offre → Recruté) ;",
-      "— calculer un chiffrage pricing à partir des paramètres Syntec ;",
-      "— préparer et envoyer des messages d'approche, gérer les emails sortants et entrants.",
+      "•importer des CVs et conserver un vivier centralisé ;",
+      "•créer des missions et lancer un matching candidats × missions ;",
+      "•suivre les candidats dans un pipeline (Identifié → Contacté → Réponse → Entretien → Pricing → Offre → Recruté) ;",
+      "•calculer un chiffrage pricing à partir des paramètres Syntec ;",
+      "•préparer et envoyer des messages d'approche, gérer les emails sortants et entrants.",
       "Naywa Studio s'appuie sur des modèles d'intelligence artificielle pour analyser les CVs, scorer la pertinence d'un candidat sur une mission, et générer des brouillons de messages.",
     ],
   },
@@ -56,8 +56,8 @@ const SECTIONS: LegalSection[] = [
     title: "6. Abonnement et résiliation",
     content: [
       "Le service Package Sourcing est commercialisé par siège. La grille tarifaire en vigueur est publiée sur la page Tarifs.",
-      "**Suppression du compte** — l'Owner peut supprimer son cabinet à tout moment depuis la console. Si d'autres membres sont actifs, ils conservent l'accès au workspace jusqu'à la fin de la période payée. Passé ce délai, toutes les données du cabinet sont supprimées définitivement et sans retour possible.",
-      "**Cession de siège** — un siège libéré pendant une période payée peut être ré-attribué par l'Owner sans surcoût.",
+      "**Suppression du compte** : l'Owner peut supprimer son cabinet à tout moment depuis la console. Si d'autres membres sont actifs, ils conservent l'accès au workspace jusqu'à la fin de la période payée. Passé ce délai, toutes les données du cabinet sont supprimées définitivement et sans retour possible.",
+      "**Cession de siège** : un siège libéré pendant une période payée peut être ré-attribué par l'Owner sans surcoût.",
       "Pendant la phase beta, aucune facturation n'est active.",
     ],
   },
@@ -66,7 +66,7 @@ const SECTIONS: LegalSection[] = [
     content: [
       "Naywa Studio met en œuvre les meilleurs efforts pour assurer la disponibilité du Service. Compte tenu de la nature d'Internet et des services tiers utilisés, **aucun engagement de disponibilité chiffré n'est donné en phase beta**.",
       "Naywa Studio se réserve le droit d'interrompre temporairement le Service pour maintenance, avec préavis dans la mesure du possible.",
-      "Aucune garantie de résultat n'est donnée concernant la qualité des suggestions de l'IA. Le score de matching, l'analyse de sentiment ou le brouillon de message restent des aides — le Client conserve son entière responsabilité dans le choix final.",
+      "Aucune garantie de résultat n'est donnée concernant la qualité des suggestions de l'IA. Le score de matching, l'analyse de sentiment ou le brouillon de message restent des aides. Le Client conserve son entière responsabilité dans le choix final.",
     ],
   },
   {
@@ -81,10 +81,10 @@ const SECTIONS: LegalSection[] = [
     title: "9. Obligations du Client",
     content: [
       "Le Client s'engage à :",
-      "— n'importer que des CVs collectés conformément à la réglementation applicable ;",
-      "— ne pas utiliser le Service à des fins illicites, discriminatoires ou contraires aux bonnes mœurs ;",
-      "— ne pas tenter d'accéder aux données d'un autre cabinet, ni d'interférer avec le fonctionnement technique du Service ;",
-      "— respecter les obligations légales applicables au recrutement, notamment la non-discrimination, la protection des candidats mineurs, et la transparence sur l'usage de l'IA en sourcing.",
+      "•n'importer que des CVs collectés conformément à la réglementation applicable ;",
+      "•ne pas utiliser le Service à des fins illicites, discriminatoires ou contraires aux bonnes mœurs ;",
+      "•ne pas tenter d'accéder aux données d'un autre cabinet, ni d'interférer avec le fonctionnement technique du Service ;",
+      "•respecter les obligations légales applicables au recrutement, notamment la non-discrimination, la protection des candidats mineurs, et la transparence sur l'usage de l'IA en sourcing.",
     ],
   },
   {
@@ -124,7 +124,7 @@ export default function CGUPage() {
       badge="CGU"
       title="Conditions générales d'utilisation"
       lastUpdated="juin 2026"
-      intro="Ces conditions encadrent l'utilisation du service Naywa Studio. Elles précisent notamment ce que Naywa Studio fait pour vous, ce que vous gardez sous votre responsabilité, et comment l'intelligence artificielle agit en assistance — jamais en remplacement de votre décision."
+      intro="Ces conditions encadrent l'utilisation du service Naywa Studio. Elles précisent notamment ce que Naywa Studio fait pour vous, ce que vous gardez sous votre responsabilité, et comment l'intelligence artificielle agit en assistance, jamais en remplacement de votre décision."
       sections={SECTIONS}
     />
   )

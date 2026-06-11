@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
 
   title: {
-    default: 'Naywa Studio — L\'optimisation de vos process métier',
+    default: 'Naywa Studio, l\'optimisation de vos process métier',
     template: '%s | Naywa Studio',
   },
   description:
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   },
 
   openGraph: {
-    title: 'Naywa Studio — Nous traitons. Vous décidez.',
+    title: 'Naywa Studio, nous traitons, vous décidez',
     description:
       'L\'optimisation de vos process métier. Pensée pour votre équipe, pas à sa place. Package Sourcing : vivier, missions, pricing Syntec, pipeline candidat.',
     url: SITE_URL,
@@ -47,14 +47,14 @@ export const metadata: Metadata = {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Naywa Studio — L\'optimisation de vos process métier',
+        alt: 'Naywa Studio, l\'optimisation de vos process métier',
       },
     ],
   },
 
   twitter: {
     card: 'summary_large_image',
-    title: 'Naywa Studio — Nous traitons. Vous décidez.',
+    title: 'Naywa Studio, nous traitons, vous décidez',
     description:
       'L\'optimisation de vos process métier. Package Sourcing : vivier, missions, pricing Syntec, pipeline candidat.',
     images: ['/og-image.jpg'],
@@ -92,7 +92,7 @@ const organizationSchema = {
   url: SITE_URL,
   logo: `${SITE_URL}/naywa-logo-full.svg`,
   description:
-    "Naywa Studio conçoit des packages d'optimisation de process métier. Package Sourcing : vivier, missions, matching, pricing Syntec, pipeline candidat — pour ESN, cabinets de consulting et cabinets de recrutement.",
+    "Naywa Studio conçoit des packages d'optimisation de process métier. Package Sourcing : vivier, missions, matching, pricing Syntec, pipeline candidat. Pour ESN, cabinets de consulting et cabinets de recrutement.",
   address: {
     '@type': 'PostalAddress',
     addressLocality: 'Paris',

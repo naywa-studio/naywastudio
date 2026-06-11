@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
   if (candidates.length > MAX_CANDIDATES_PER_RUN) {
     return NextResponse.json({
       error: "vivier_too_large",
-      message: `Le vivier dépasse ${MAX_CANDIDATES_PER_RUN} candidats. Le batching n'est pas encore en place — contactez le support.`,
+      message: `Le vivier dépasse ${MAX_CANDIDATES_PER_RUN} candidats. Le batching n'est pas encore en place, contactez le support.`,
     }, { status: 400 })
   }
 
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
       `ZONES EXISTANTES (créées lors des passages précédents, à réutiliser au maximum) :`,
       existingManifests.length > 0
         ? JSON.stringify(existingManifests, null, 2)
-        : "(aucune — c'est le premier passage de clustering)",
+        : "(aucune, c'est le premier passage de clustering)",
       "",
       `CANDIDATS À RANGER (n=${snapshots.length}) :`,
       JSON.stringify(snapshots, null, 2),

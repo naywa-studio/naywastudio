@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { LegalPageShell, type LegalSection } from "@/components/layout/LegalPageShell"
 
 export const metadata: Metadata = {
-  title: "Mentions légales — Naywa Studio",
+  title: "Mentions légales | Naywa Studio",
   description: "Mentions légales de Naywa Studio.",
 }
 
@@ -15,7 +15,7 @@ const SECTIONS: LegalSection[] = [
       "Forme juridique : Entreprise individuelle (micro-entrepreneur)",
       "SIREN : 106 031 917",
       "SIRET (établissement principal) : 10603191700011",
-      "Code APE : 6311Z — Traitement de données, hébergement et activités connexes",
+      "Code APE : 6311Z (Traitement de données, hébergement et activités connexes)",
       "Siège social : 2 rue du Voyage, 95490 Vauréal, France",
       "Email : contact@naywastudio.com",
     ],
@@ -30,19 +30,19 @@ const SECTIONS: LegalSection[] = [
     title: "3. Hébergement",
     content: [
       "L'application web est hébergée par :",
-      "**Vercel Inc.** — 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis — vercel.com",
+      "**Vercel Inc.**, 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis. Site : vercel.com",
       "La base de données et les fichiers (CVs, logos) sont hébergés par :",
-      "**Supabase Inc.** — 970 Toa Payoh North, Singapour — supabase.com — région de stockage : eu-central-1 (Francfort).",
+      "**Supabase Inc.**, 970 Toa Payoh North, Singapour. Site : supabase.com. Région de stockage : eu-central-1 (Francfort).",
     ],
   },
   {
     title: "4. Sous-traitants techniques",
     content: [
       "Naywa Studio s'appuie sur les prestataires suivants pour le fonctionnement du service :",
-      "— **Supabase** — base de données, authentification, stockage fichiers",
-      "— **Vercel** — hébergement de l'application web",
-      "— **Resend** — envoi et réception des emails (mail.naywastudio.com)",
-      "— **OpenRouter** — passerelle d'accès aux modèles d'IA (gpt-4o-mini pour le parsing, le scoring et la génération de messages)",
+      "• **Supabase** : base de données, authentification, stockage fichiers.",
+      "• **Vercel** : hébergement de l'application web.",
+      "• **Resend** : envoi et réception des emails (mail.naywastudio.com).",
+      "• **OpenRouter** : passerelle d'accès aux modèles d'IA (gpt-4o-mini pour le parsing, le scoring et la génération de messages).",
       "La liste détaillée et les engagements de chaque prestataire sont décrits dans la politique de confidentialité.",
     ],
   },

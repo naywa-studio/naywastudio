@@ -6,10 +6,11 @@ import { Logo } from "@/components/ui/Logo"
 import { getSupabase } from "@/lib/supabase"
 
 const navLinks = [
-  { label: "À propos", href: "/a-propos" },
+  { label: "Accueil",   href: "/" },
+  { label: "À propos",  href: "/a-propos" },
   { label: "Solutions", href: "/solutions" },
-  { label: "Tarifs",   href: "/tarifs" },
-  { label: "Contact",  href: "/contact" },
+  { label: "Tarifs",    href: "/tarifs" },
+  { label: "Contact",   href: "/contact" },
 ]
 
 interface AuthState {
@@ -100,58 +101,54 @@ export function Navbar() {
           transition: "background 300ms ease, box-shadow 300ms ease",
         }}
       >
-        {/* LEFT: logo + nav links */}
-        <div style={{ display: "flex", alignItems: "center", gap: 24, minWidth: 0 }}>
-          <Link href="/" style={{ textDecoration: "none", display: "inline-flex" }} onClick={() => setMobileOpen(false)}>
-            <Logo size="lg" markOnly />
-          </Link>
+        {/* LEFT: logo only */}
+        <Link href="/" style={{ textDecoration: "none", display: "inline-flex", flexShrink: 0 }} onClick={() => setMobileOpen(false)}>
+          <Logo size="md" />
+        </Link>
 
-          {/* Desktop nav */}
+        {/* RIGHT: nav links + CTAs */}
+        <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <nav className="nv-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          {navLinks.map((link, i) => (
-            <span key={link.href} style={{ display: "inline-flex", alignItems: "center" }}>
-              {i > 0 && (
-                <span
-                  aria-hidden
+            {navLinks.map((link, i) => (
+              <span key={link.href} style={{ display: "inline-flex", alignItems: "center" }}>
+                {i > 0 && (
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 3,
+                      height: 3,
+                      borderRadius: "50%",
+                      background: "rgba(184,174,222,0.6)",
+                      margin: "0 4px",
+                    }}
+                  />
+                )}
+                <Link
+                  href={link.href}
                   style={{
-                    width: 3,
-                    height: 3,
-                    borderRadius: "50%",
-                    background: "rgba(184,174,222,0.6)",
-                    margin: "0 4px",
+                    fontSize: 13.5,
+                    fontWeight: 500,
+                    color: "#4B5563",
+                    textDecoration: "none",
+                    padding: "8px 14px",
+                    borderRadius: 999,
+                    transition: "color 160ms ease, background 160ms ease",
+                    fontFamily: "var(--font-inter), sans-serif",
                   }}
-                />
-              )}
-              <Link
-                href={link.href}
-                style={{
-                  fontSize: 13.5,
-                  fontWeight: 500,
-                  color: "#4B5563",
-                  textDecoration: "none",
-                  padding: "8px 14px",
-                  borderRadius: 999,
-                  transition: "color 160ms ease, background 160ms ease",
-                  fontFamily: "var(--font-inter), sans-serif",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "#111827"
-                  e.currentTarget.style.background = "rgba(124,99,200,0.06)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "#4B5563"
-                  e.currentTarget.style.background = "transparent"
-                }}
-              >
-                {link.label}
-              </Link>
-            </span>
-          ))}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "#111827"
+                    e.currentTarget.style.background = "rgba(124,99,200,0.06)"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "#4B5563"
+                    e.currentTarget.style.background = "transparent"
+                  }}
+                >
+                  {link.label}
+                </Link>
+              </span>
+            ))}
           </nav>
-        </div>
-
-        {/* RIGHT: desktop CTAs — auth-aware */}
-        <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {auth.loading ? (
             // Skeleton placeholder while session loads (avoids flash)
             <div style={{ width: 220, height: 38 }} />
@@ -237,6 +234,15 @@ export function Navbar() {
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
                     >
                       Mon workspace
+                    </Link>
+                    <Link
+                      href="/profil"
+                      onClick={() => setProfileOpen(false)}
+                      style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: "#374151", textDecoration: "none", transition: "background 150ms" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#F8F6FF" }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+                    >
+                      Mon profil
                     </Link>
                     <button
                       onClick={handleLogout}

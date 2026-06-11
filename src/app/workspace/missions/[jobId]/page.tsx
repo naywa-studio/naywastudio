@@ -806,8 +806,8 @@ function MatchingProgress({
     : elapsedSec < 14 ? "Nora score les profils pertinents…"
     : elapsedSec < 28 ? "Comparaison taxonomies et expérience…"
     : !stalling ? "Finalisation du classement…"
-    : canForceRetry ? "Le matching a probablement été interrompu — relancez."
-    : "Plus long que d'habitude — encore quelques secondes."
+    : canForceRetry ? "Le matching a probablement été interrompu. Relancez."
+    : "Plus long que d'habitude, encore quelques secondes."
 
   return (
     <div style={{

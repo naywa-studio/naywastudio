@@ -14,7 +14,7 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import CalendlyEmbed from "@/components/booking/CalendlyEmbed"
 
 export const metadata: Metadata = {
-  title: "Réserver un entretien — Naywa Studio",
+  title: "Réserver un entretien | Naywa Studio",
   robots: { index: false, follow: false },
 }
 

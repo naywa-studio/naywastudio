@@ -255,7 +255,7 @@ export default function PipelinePage() {
             {rows.length === 0
               ? "Vos candidats matchés apparaîtront ici, étape par étape."
               : terminalView
-                ? "Issues finales — glissez une carte vers le pipeline pour la réactiver."
+                ? "Issues finales. Glissez une carte vers le pipeline pour la réactiver."
                 : "Glissez une carte d'une colonne à l'autre pour faire avancer un candidat."}
           </p>
         </div>
@@ -298,7 +298,7 @@ export default function PipelinePage() {
                       if (dragId) moveCard(dragId, s.key)
                       setDragId(null); setOverTerminal(null)
                     }}
-                    title={`${s.label} — cliquez pour voir, ou glissez une carte ici`}
+                    title={`${s.label}, cliquez pour voir, ou glissez une carte ici`}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 7,
                       fontSize: 12, fontWeight: 700, fontFamily: "inherit",
@@ -335,7 +335,7 @@ export default function PipelinePage() {
             <span style={{ fontSize: 14 }}>⏰</span>
             <span>
               <strong>{relanceCount} relance{relanceCount > 1 ? "s" : ""} suggérée{relanceCount > 1 ? "s" : ""}</strong>
-              {" — "}des candidats stagnent dans une étape (badge ⏰ sur les cartes).
+              {" : "}des candidats stagnent dans une étape (badge ⏰ sur les cartes).
             </span>
           </div>
         )}
@@ -653,7 +653,7 @@ function Card({
         <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>{timeAgo(row.updated_at)}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {relance && (
-            <span title="À relancer — stagne dans cette étape" style={{
+            <span title="À relancer, stagne dans cette étape" style={{
               fontSize: 10, fontWeight: 700, color: "#92400E",
               background: "rgba(245,158,11,0.14)", border: "1px solid rgba(245,158,11,0.3)",
               borderRadius: 100, padding: "1px 6px",

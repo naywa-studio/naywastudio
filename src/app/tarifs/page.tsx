@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const INCLUDED = [
   {
     label: "Vivier illimité",
-    body: "Upload PDF, parsing IA, clustering Nora — autant de candidats que vous voulez.",
+    body: "Upload PDF, parsing IA, clustering Nora. Autant de candidats que vous voulez.",
   },
   {
     label: "Missions et matching",
@@ -316,7 +316,7 @@ export default function TarifsPage() {
                 }}
               >
                 Aucune carte requise. Vous gardez l&apos;accès à votre cabinet
-                même après l&apos;essai — sans coupure brutale.
+                même après l&apos;essai, sans coupure brutale.
               </p>
             </article>
           </div>

@@ -6,7 +6,7 @@ import { Footer } from "@/components/layout/Footer"
 export const metadata: Metadata = {
   title: "FAQ",
   description:
-    "Questions fréquentes sur Naywa Studio et Package Sourcing. Vivier de CVs, matching, pricing Syntec, anonymisation, pipeline candidat — pour ESN, cabinets de consulting et cabinets de recrutement.",
+    "Questions fréquentes sur Naywa Studio et Package Sourcing. Vivier de CVs, matching, pricing Syntec, anonymisation, pipeline candidat. Pour ESN, cabinets de consulting et cabinets de recrutement.",
 }
 
 const CATEGORIES = [
@@ -15,15 +15,15 @@ const CATEGORIES = [
     questions: [
       {
         q: "Qu'est-ce que Naywa Studio ?",
-        a: "Naywa Studio est un studio produit qui conçoit des packages d'optimisation de process métier. Notre premier package — Package Sourcing — est dédié aux ESN, cabinets de consulting et cabinets de recrutement. Nora, l'assistante du package, range votre vivier, score vos candidats sur vos missions, calcule la marge selon Syntec et suit le pipeline candidat. Vous gardez la main sur chaque décision.",
+        a: "Naywa Studio est un studio produit qui conçoit des packages d'optimisation de process métier. Notre premier package, Package Sourcing, est dédié aux ESN, cabinets de consulting et cabinets de recrutement. Nora, l'assistante du package, range votre vivier, score vos candidats sur vos missions, calcule la marge selon Syntec et suit le pipeline candidat. Vous gardez la main sur chaque décision.",
       },
       {
         q: "À qui s'adresse Package Sourcing ?",
-        a: "Aux ESN, cabinets de consulting et cabinets de recrutement de toute taille — des indépendants aux équipes de 15-20 personnes. Si vous gérez quelques dizaines à quelques milliers de CVs et que vos process actuels passent par Excel + Drive, Naywa vous fait gagner des heures sur le traitement et le chiffrage.",
+        a: "Aux ESN, cabinets de consulting et cabinets de recrutement de toute taille, des indépendants aux équipes de 15-20 personnes. Si vous gérez quelques dizaines à quelques milliers de CVs et que vos process actuels passent par Excel + Drive, Naywa vous fait gagner des heures sur le traitement et le chiffrage.",
       },
       {
         q: "En quoi est-ce différent d'un ATS classique ?",
-        a: "Un ATS gère des candidatures entrantes. Naywa gère votre vivier proactif : les CVs que vous collectez vous-même via LinkedIn, jobboards et réseau. Et surtout, Naywa intègre nativement le pricing selon la convention Syntec — calcul de marge, charges patronales, plafonds URSSAF, calendrier fériés — ce qu'aucun ATS ne propose.",
+        a: "Un ATS gère des candidatures entrantes. Naywa gère votre vivier proactif : les CVs que vous collectez vous-même via LinkedIn, jobboards et réseau. Et surtout, Naywa intègre nativement le pricing selon la convention Syntec (calcul de marge, charges patronales, plafonds URSSAF, calendrier fériés). Ce qu'aucun ATS ne propose.",
       },
     ],
   },
@@ -44,7 +44,7 @@ const CATEGORIES = [
       },
       {
         q: "Que se passe-t-il en cas de doublon ?",
-        a: "Nora détecte automatiquement les doublons par email ou téléphone et tague le CV — vous gardez les deux versions et choisissez laquelle prime. Pas de suppression silencieuse.",
+        a: "Nora détecte automatiquement les doublons par email ou téléphone et tague le CV. Vous gardez les deux versions et choisissez laquelle prime. Pas de suppression silencieuse.",
       },
     ],
   },
@@ -53,7 +53,7 @@ const CATEGORIES = [
     questions: [
       {
         q: "Comment fonctionne le matching ?",
-        a: "Vous décrivez vos missions (titre, séniorité, compétences clés, lieu) — soit en collant un brief texte que Nora analyse automatiquement, soit en remplissant le formulaire. Nora score chaque CV du vivier contre chaque mission et justifie son score sur plusieurs dimensions. Vous voyez immédiatement vos meilleurs candidats par mission, triés et expliqués.",
+        a: "Vous décrivez vos missions (titre, séniorité, compétences clés, lieu), soit en collant un brief texte que Nora analyse automatiquement, soit en remplissant le formulaire. Nora score chaque CV du vivier contre chaque mission et justifie son score sur plusieurs dimensions. Vous voyez immédiatement vos meilleurs candidats par mission, triés et expliqués.",
       },
       {
         q: "L'anonymisation, ça marche comment ?",
@@ -83,19 +83,19 @@ const CATEGORIES = [
     questions: [
       {
         q: "Qu'est-ce que le pricing Syntec dans Naywa ?",
-        a: "Une fois qu'un candidat est positionné sur une mission, vous devez chiffrer pour le client. Naywa calcule en temps réel la marge mensuelle réelle selon la convention Syntec — charges patronales par statut (38%, 42%, 44% ou 22% selon position et coefficient), plafonds URSSAF, calendrier fériés français, indemnité de congés payés, période d'essai. Vous réglez le TJM facturable et le brut consultant, le reste se calcule.",
+        a: "Une fois qu'un candidat est positionné sur une mission, vous devez chiffrer pour le client. Naywa calcule en temps réel la marge mensuelle réelle selon la convention Syntec : charges patronales par statut (38%, 42%, 44% ou 22% selon position et coefficient), plafonds URSSAF, calendrier fériés français, indemnité de congés payés, période d'essai. Vous réglez le TJM facturable et le brut consultant, le reste se calcule.",
       },
       {
         q: "À quoi sert le chart 'risque de rupture' ?",
         a: "La période d'essai est un risque financier pour vous : si le consultant rompt pendant la période, vous perdez. Naywa visualise mois par mois où sont les zones de risque selon le type de contrat (CDI ou CDD avec L1243-4), la position et le coefficient. Vous voyez immédiatement si la marge cumulée sur la période d'essai justifie d'accepter la mission.",
       },
       {
-        q: "Mon cabinet a des standards pricing différents — c'est paramétrable ?",
+        q: "Mon cabinet a des standards pricing différents, c'est paramétrable ?",
         a: "Oui. Dans /cabinet/parametrage, vous définissez vos seuils de marge (min/cible), vos avantages standards (mutuelle, tickets resto, indemnités), vos jours RTT/an. Tout pricing à venir hérite de ces valeurs et reste éditable mission par mission, candidat par candidat.",
       },
       {
         q: "Le PDF de chiffrage est exportable ?",
-        a: "Oui, en 1 clic — version nominative (avec le nom du candidat) ou anonymisée (référence interne C-XXXXXXXX). Brandé à votre cabinet, prêt à envoyer au client.",
+        a: "Oui, en 1 clic. Version nominative (avec le nom du candidat) ou anonymisée (référence interne C-XXXXXXXX). Brandé à votre cabinet, prêt à envoyer au client.",
       },
     ],
   },
@@ -108,7 +108,7 @@ const CATEGORIES = [
       },
       {
         q: "Comment rejoindre la beta ?",
-        a: "Créez un compte (email ou Google). L'accès est immédiat — 15 jours d'essai s'activent en 1 clic depuis votre console cabinet. Si vous avez un retour ou un besoin spécifique, écrivez-nous à contact@naywastudio.com — nous itérons vite.",
+        a: "Créez un compte (email ou Google). L'accès est immédiat. 15 jours d'essai s'activent en 1 clic depuis votre console cabinet. Si vous avez un retour ou un besoin spécifique, écrivez-nous à contact@naywastudio.com, nous itérons vite.",
       },
     ],
   },
@@ -151,7 +151,7 @@ export default function FAQPage() {
             Si une question manque,{" "}
             <a href="mailto:contact@naywastudio.com" style={{ color: "#7C63C8", fontWeight: 600 }}>
               écrivez-nous
-            </a>{" "}— on ajoute la réponse ici.
+            </a>{" "}: on ajoute la réponse ici.
           </p>
 
           {CATEGORIES.map((cat) => (

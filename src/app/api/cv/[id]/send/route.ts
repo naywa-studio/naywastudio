@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (error || !candidate) return NextResponse.json({ error: "not_found" }, { status: 404 })
   if (!candidate.email) {
     return NextResponse.json(
-      { error: "no_email", message: "Ce candidat n'a pas d'adresse email — impossible de lui écrire." },
+      { error: "no_email", message: "Ce candidat n'a pas d'adresse email, impossible de lui écrire." },
       { status: 400 },
     )
   }

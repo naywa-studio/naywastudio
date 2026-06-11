@@ -149,11 +149,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       // with a clear message before Vercel kills us at 60 s.
       await admin.from("candidates").update({
         parse_status: "error",
-        parse_error: "Le parsing a pris trop de temps (>50 s). Le PDF est peut-être trop volumineux ou complexe — réessayez ou recompressez-le.",
+        parse_error: "Le parsing a pris trop de temps (>50 s). Le PDF est peut-être trop volumineux ou complexe. Réessayez ou recompressez-le.",
       }).eq("id", candidate.id)
       return NextResponse.json({
         ok: false, error: "parse_timeout",
-        message: "Parsing trop long — réessayez.",
+        message: "Parsing trop long, réessayez.",
       }, { status: 200 })
     }
     throw raceErr

@@ -223,7 +223,7 @@ export default function MissionsPage() {
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
             {jobs.length === 0
-              ? "Décrivez une mission — Nora la matche avec votre vivier."
+              ? "Décrivez une mission. Nora la matche avec votre vivier."
               : `${jobs.length} mission${jobs.length > 1 ? "s" : ""}.`}
           </p>
         </div>
@@ -1137,7 +1137,7 @@ function FormFieldGrid(p: FormFieldGridProps) {
             border={ct.border} placeholder="Sélectionner…"
             options={(Object.keys(CONTRACT_LABELS) as ContractType[]).map((k) => ({ value: k, label: CONTRACT_LABELS[k] }))} />
         </Field>
-        <Field label="Expérience attendue" hint="optionnel — vide = matching ignore" status={senState.statusPill}>
+        <Field label="Expérience attendue" hint="optionnel, vide = matching ignore" status={senState.statusPill}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input type="number" min={0} max={40} value={p.seniorityMin}
               onChange={(e) => p.setSeniorityMin(e.target.value)}
@@ -1169,7 +1169,7 @@ function FormFieldGrid(p: FormFieldGridProps) {
         </Field>
         <Field label="Zone pricing" hint="URSSAF / transport" status={pricingState.statusPill}>
           <StyledSelect value={p.pricingLieu} onChange={(v) => p.setPricingLieu(v as PricingLieu | "")}
-            border={pricingState.border} placeholder="— non renseigné —"
+            border={pricingState.border} placeholder="non renseigné"
             options={(Object.keys(LIEU_LABELS) as PricingLieu[]).map((k) => ({ value: k, label: LIEU_LABELS[k] }))} />
         </Field>
       </div>

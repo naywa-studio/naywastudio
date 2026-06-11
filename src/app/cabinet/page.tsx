@@ -255,7 +255,7 @@ function EmailConfirmationBanner({ email }: { email: string }) {
       </svg>
       <span style={{ flex: 1, minWidth: 220 }}>
         <strong style={{ color: "#7C2D12" }}>Confirmez votre adresse</strong>
-        {" — "}
+        {" : "}
         un email a été envoyé à <strong>{email}</strong>. Vérifiez votre boîte
         de réception (et le dossier spam) pour valider votre compte.
       </span>
@@ -412,7 +412,7 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
 function HeroAvatar({ logoUrl, name }: { logoUrl: string | null; name: string | null }) {
   const initials = (name ?? "")
     .split(/\s+/).slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "").join("") || "—"
+    .map((w) => w[0]?.toUpperCase() ?? "").join("") || "?"
   if (logoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -508,7 +508,7 @@ function SubscriptionCard({
   }
 
   return (
-    <Card title="Abonnement" subtitle="Package Sourcing — votre essai et votre formule.">
+    <Card title="Abonnement" subtitle="Package Sourcing : votre essai et votre formule.">
       {status.state === "pending" && (
         <Panel tone="brand">
           <p style={panelTitle("#7C63C8")}>Essai non activé</p>

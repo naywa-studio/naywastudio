@@ -98,7 +98,7 @@ export async function POST(req: Request) {
         `Cliquez sur ce lien pour accepter (valable 7 jours, à usage unique) :\n` +
         `${acceptLink}\n\n` +
         `Si vous ne reconnaissez pas l'expéditeur, ignorez ce mail.\n\n` +
-        `— Naywa Studio`,
+        `Naywa Studio`,
       html: buildInviteHtml({ inviterName, cabinetLabel, acceptLink }),
     })
   } catch (err) {

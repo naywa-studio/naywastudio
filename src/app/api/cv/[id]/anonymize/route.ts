@@ -215,7 +215,7 @@ Règles :
 - Ne JAMAIS citer le nom du candidat, ni d'école, ni de coordonnées (on est dans un document anonymisé).
 - N'invente AUCUNE information qui n'est pas dans le snapshot. Si l'info manque, n'en parle pas.
 - Mentionne 2-3 points concrets de pertinence (compétences alignées, séniorité adaptée, type de contexte déjà rencontré).
-- Pas d'envolée lyrique, pas de "candidat idéal" — reste factuel et confiant.`
+- Pas d'envolée lyrique, pas de "candidat idéal", reste factuel et confiant.`
 
 async function buildExecutiveSummary(
   candidate: Candidate,

@@ -32,7 +32,7 @@ Règles :
 - Sois discriminant. Si le message est correct → verdict "ok", flags [].
 - Cible ce qui pourrait nuire à la réponse : ton inadapté (trop sec, trop familier, trop formel pour le profil), longueur (>200 mots = trop long), absence de mention du poste, formulations bateau ("J'espère que vous allez bien"), fautes d'orthographe évidentes, appel à l'action absent ou flou, signature manquante, jargon RH creux.
 - Pas de flatterie, pas de "bonne lettre", pas de suggestions vagues. Une remarque utile vaut mieux que trois génériques.
-- Chaque flag : <90 caractères, action ou diagnostic. Ex : "Ouverture générique — supprime 'J'espère que vous allez bien'", "Aucun appel à l'action clair".
+- Chaque flag : <90 caractères, action ou diagnostic. Ex : "Ouverture générique, supprime 'J'espère que vous allez bien'", "Aucun appel à l'action clair".
 - 0 flag si tout est bon. Max 4.`
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
