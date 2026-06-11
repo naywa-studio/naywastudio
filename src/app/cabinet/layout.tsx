@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
@@ -99,6 +99,17 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
     router.replace("/")
   }
 
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!menuOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener("mousedown", onClick)
+    return () => document.removeEventListener("mousedown", onClick)
+  }, [menuOpen])
+
   if (!ready || !ctx) {
     return (
       <div style={{
@@ -153,35 +164,63 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {ctx.profile.has_sourcing_seat && (
-              <Link href="/workspace" style={{
-                fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
-                background: "white", border: "1px solid rgba(124,99,200,0.25)",
-                borderRadius: 8, padding: "7px 12px", textDecoration: "none",
-              }}>
-                Workspace →
-              </Link>
-            )}
-            <div title={ctx.userEmail}
-              style={{
-                width: 32, height: 32, borderRadius: "50%",
-                background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-                border: "1px solid rgba(124,99,200,0.30)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#7C63C8", fontWeight: 700, fontSize: 13,
-              }}>
-              {initial}
+            <div ref={menuRef} style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-label="Mon profil"
+                title={ctx.userEmail}
+                style={{
+                  width: 34, height: 34, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+                  border: "1px solid rgba(124,99,200,0.30)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#7C63C8", fontWeight: 700, fontSize: 13,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                {initial}
+              </button>
+              {menuOpen && (
+                <div style={{
+                  position: "absolute", top: 42, right: 0,
+                  minWidth: 220, background: "white",
+                  border: "1px solid #F0ECF8", borderRadius: 12,
+                  boxShadow: "0 12px 32px rgba(124,99,200,0.18)",
+                  padding: 6, zIndex: 50,
+                  fontFamily: "var(--font-inter), sans-serif",
+                }}>
+                  <div style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid #F0ECF8", marginBottom: 4,
+                  }}>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                      Connecté en tant que
+                    </p>
+                    <p style={{
+                      margin: "2px 0 0", fontSize: 13, fontWeight: 600, color: "#111827",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {ctx.userEmail}
+                    </p>
+                  </div>
+                  <Link href="/profil" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
+                    Mon profil
+                  </Link>
+                  {ctx.profile.has_sourcing_seat && (
+                    <Link href="/workspace" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
+                      Mon workspace
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => { setMenuOpen(false); handleLogout() }}
+                    style={MENU_ITEM_DANGER}
+                  >
+                    Se déconnecter
+                  </button>
+                </div>
+              )}
             </div>
-            <button
-              onClick={handleLogout}
-              style={{
-                fontSize: 12, fontWeight: 500, color: "#6B7280",
-                background: "transparent", border: "1px solid #E5E7EB",
-                borderRadius: 8, padding: "6px 12px", cursor: "pointer",
-              }}
-            >
-              Déconnexion
-            </button>
           </div>
         </header>
 
@@ -195,6 +234,21 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
       </div>
     </CabinetContext.Provider>
   )
+}
+
+const MENU_ITEM: React.CSSProperties = {
+  display: "block", padding: "9px 12px", borderRadius: 8,
+  fontSize: 13, fontWeight: 500, color: "#374151",
+  textDecoration: "none", transition: "background 150ms",
+  cursor: "pointer",
+}
+
+const MENU_ITEM_DANGER: React.CSSProperties = {
+  display: "block", width: "100%", padding: "9px 12px",
+  borderRadius: 8, fontSize: 13, fontWeight: 500,
+  color: "#EF4444", background: "transparent", border: "none",
+  textAlign: "left", cursor: "pointer",
+  fontFamily: "inherit", transition: "background 150ms",
 }
 
 function Spinner() {

@@ -22,7 +22,6 @@ import { getSupabase } from "@/lib/supabase"
 
 interface ProfileState {
   first_name:               string | null
-  calendly_event_type_uri:  string | null
   role:                     "owner" | "member"
   org_name:                 string | null
 }
@@ -51,7 +50,7 @@ export default function ProfilPage() {
 
       const { data: prof } = await sb
         .from("profiles")
-        .select("first_name, calendly_event_type_uri, role, organization_id")
+        .select("first_name, role, organization_id")
         .eq("user_id", user.id)
         .single()
 
@@ -68,10 +67,9 @@ export default function ProfilPage() {
       if (!mounted) return
       if (prof) {
         const next: ProfileState = {
-          first_name:              prof.first_name ?? null,
-          calendly_event_type_uri: prof.calendly_event_type_uri ?? null,
-          role:                    prof.role as "owner" | "member",
-          org_name:                orgName,
+          first_name: prof.first_name ?? null,
+          role:       prof.role as "owner" | "member",
+          org_name:   orgName,
         }
         setProfile(next)
         setFirstName(next.first_name ?? "")
@@ -101,15 +99,6 @@ export default function ProfilPage() {
       setTimeout(() => setSavedAt(null), 2200)
     } finally {
       setSaving(false)
-    }
-  }
-
-  // Calendly connect / disconnect
-  const calendlyConnected = !!profile?.calendly_event_type_uri
-  const disconnectCalendly = async () => {
-    const r = await fetch("/api/calendly/disconnect", { method: "DELETE" })
-    if (r.ok) {
-      setProfile((p) => p ? { ...p, calendly_event_type_uri: null } : p)
     }
   }
 
@@ -223,47 +212,6 @@ export default function ProfilPage() {
                     )}
                   </div>
                 </Field>
-              </Card>
-
-              {/* ── Calendly ─── */}
-              <Card
-                title="Intégration Calendly"
-                subtitle="Connectez votre Calendly pour proposer des créneaux d'entretien directement depuis les messages d'approche."
-              >
-                {calendlyConnected ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{
-                        width: 8, height: 8, borderRadius: "50%",
-                        background: "#22C55E",
-                        boxShadow: "0 0 0 4px rgba(34,197,94,0.18)",
-                      }} />
-                      <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
-                        Calendly connecté
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={disconnectCalendly}
-                      style={SECONDARY_BUTTON_DANGER}
-                    >
-                      Déconnecter Calendly
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <p style={{ margin: 0, fontSize: 13.5, color: "#6B7280", lineHeight: 1.6 }}>
-                      Aucun compte Calendly connecté. Connectez-vous pour insérer
-                      automatiquement vos liens de rendez-vous dans les emails.
-                    </p>
-                    <a
-                      href="/api/calendly/oauth/start"
-                      style={PRIMARY_BUTTON}
-                    >
-                      Connecter Calendly
-                    </a>
-                  </div>
-                )}
               </Card>
 
               {/* ── Sécurité ─── */}
