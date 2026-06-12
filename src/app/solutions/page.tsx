@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
+import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import { PackageSourcingFlow } from "@/components/sections/PackageSourcingFlow"
 
 export const metadata: Metadata = {
@@ -43,6 +44,7 @@ const SECURITY = [
 export default function SolutionsPage() {
   return (
     <>
+      <ShaderBackground variant="solutions" />
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
+import { ShaderBackground } from "@/components/ui/ShaderBackground"
 
 export const metadata: Metadata = {
   title: "Tarifs",
@@ -39,6 +40,7 @@ const INCLUDED = [
 export default function TarifsPage() {
   return (
     <>
+      <ShaderBackground variant="tarifs" />
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>
