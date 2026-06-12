@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
 import { TrialBanner } from "@/components/trial/TrialBanner"
+import { trialStatus } from "@/lib/trial"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -70,8 +71,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       }
     }
 
-    // Gate: without a sourcing seat there's nothing to do in /workspace.
-    // The owner self-allocates from /cabinet.
+    // Gate 1 : without a sourcing seat there's nothing to do in /workspace.
+    // The owner self-allocates from /organisation.
     if (prof && !prof.has_sourcing_seat) {
       router.replace("/organisation")
       return
@@ -85,6 +86,19 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         .eq("id", prof.organization_id)
         .single()
       org = data ?? null
+    }
+
+    // Gate 2 : tant que le package n'est pas actif (trial ou Stripe), le
+    // workspace est verrouillé. Bounce sur /organisation où l'owner active
+    // l'essai et le member voit le statut de son cabinet. Stripe sera OR-é
+    // dans la condition quand A4 atterrira.
+    if (org) {
+      const status = trialStatus(org)
+      const packageActive = status.state === "active"
+      if (!packageActive) {
+        router.replace("/organisation")
+        return
+      }
     }
 
     setProfile(prof ?? null)

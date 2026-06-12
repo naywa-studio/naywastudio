@@ -213,7 +213,7 @@ export default function OnboardingPage() {
           {step === 1 && (
             <m.div key="s1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
               <h1 style={titleStyle}>
-                {greetingName ? `Bienvenue ${greetingName}` : "Bienvenue"} sur Naywa
+                {greetingName ? `Bienvenue dans votre espace ${greetingName}` : "Bienvenue dans votre espace"}
               </h1>
               <p style={subtitleStyle}>
                 Donnez un nom à votre organisation. Il sera visible par vos
@@ -373,7 +373,7 @@ export default function OnboardingPage() {
                 disabled={submitting}
                 style={skipBtnStyle(submitting)}
               >
-                Continuer sans activer pour l&apos;instant
+                {submitting ? "Enregistrement…" : "Continuer sans activer pour l'instant"}
               </button>
 
               <p style={{ margin: "16px 0 0", fontSize: 11.5, color: "#9CA3AF", textAlign: "center", lineHeight: 1.5 }}>
