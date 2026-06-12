@@ -29,7 +29,7 @@ interface Props {
 export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, sections }: Props) {
   return (
     <div style={{ background: "#FAFAFA", minHeight: "100vh", position: "relative" }}>
-      <ShaderBackground variant="legal" />
+      <ShaderBackground />
       {/* Header */}
       <header
         style={{

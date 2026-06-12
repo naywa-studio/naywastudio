@@ -1,9 +1,10 @@
 "use client"
 
 import { createContext, useContext, useEffect, useRef, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
+import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { TrialBanner } from "@/components/trial/TrialBanner"
 import { getSupabase } from "@/lib/supabase"
@@ -38,7 +39,6 @@ export function useCabinet() {
 
 export default function CabinetLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const pathname = usePathname()
   const [ctx, setCtx] = useState<CabinetCtx | null>(null)
   const [ready, setReady] = useState(false)
 
@@ -83,16 +83,14 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
   }, [router])
 
   // First-time onboarding redirect : owners that never finished the
-  // two-step flow are pushed to /cabinet/onboarding on every visit
-  // until they either activate the trial or skip it. Members are
-  // never redirected.
+  // 3-step flow are pushed to /onboarding on every visit until they
+  // either activate the trial or skip it. Members are never redirected.
   useEffect(() => {
     if (!ctx) return
     if (!ctx.isOwner) return
     if (ctx.organization.cabinet_onboarded_at) return
-    if (pathname === "/organisation/onboarding") return
-    router.replace("/organisation/onboarding")
-  }, [ctx, pathname, router])
+    router.replace("/onboarding")
+  }, [ctx, router])
 
   const handleLogout = async () => {
     await getSupabase().auth.signOut()
@@ -125,7 +123,8 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
 
   return (
     <CabinetContext.Provider value={ctx}>
-      <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "var(--font-inter), sans-serif" }}>
+      <ShaderBackground />
+      <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 2, fontFamily: "var(--font-inter), sans-serif" }}>
         <header style={{
           position: "sticky", top: 0, zIndex: 40,
           height: 60,
@@ -224,11 +223,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           </div>
         </header>
 
-        {/* Hide the trial banner on the onboarding page itself — the
-            owner is mid-flow and doesn't need a redundant nudge. */}
-        {pathname !== "/organisation/onboarding" && (
-          <TrialBanner organization={ctx.organization} />
-        )}
+        <TrialBanner organization={ctx.organization} />
         {children}
         <UndoToastHost />
       </div>

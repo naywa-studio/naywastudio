@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function AProposPage() {
   return (
     <>
-      <ShaderBackground variant="about" />
+      <ShaderBackground />
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>

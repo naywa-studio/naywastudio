@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
+import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
 import { TrialBanner } from "@/components/trial/TrialBanner"
 import UndoToastHost from "@/components/ui/UndoToast"
@@ -174,7 +175,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
   return (
     <WorkspaceContext.Provider value={{ profile, organization, userEmail, hasSubscription, refetchProfile: fetchProfile }}>
-      <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "var(--font-inter), sans-serif" }}>
+      <ShaderBackground />
+      <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 2, fontFamily: "var(--font-inter), sans-serif" }}>
         {/* Top bar */}
         <header
           style={{

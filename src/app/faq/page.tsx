@@ -118,7 +118,7 @@ const CATEGORIES = [
 export default function FAQPage() {
   return (
     <div style={{ background: "#FAFAFA", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <ShaderBackground variant="faq" />
+      <ShaderBackground />
       <Navbar />
 
       <main style={{ flex: 1, padding: "120px 24px 80px" }}>

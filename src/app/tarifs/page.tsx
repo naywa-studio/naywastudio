@@ -40,7 +40,7 @@ const INCLUDED = [
 export default function TarifsPage() {
   return (
     <>
-      <ShaderBackground variant="tarifs" />
+      <ShaderBackground />
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>

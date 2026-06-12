@@ -44,7 +44,7 @@ const SECURITY = [
 export default function SolutionsPage() {
   return (
     <>
-      <ShaderBackground variant="solutions" />
+      <ShaderBackground />
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>

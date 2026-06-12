@@ -740,6 +740,22 @@ export function computeRuptureRiskProfile(
   let cumulDays = 0
   const cpRttHaircutMensuel = cpRttRevenueHaircutMonthly(tjm, inputs)
 
+  // Dénominateur stable pour le % : revenu projeté total de la mission si
+  // elle va à son terme. Sans ça, le % au m2 explose (cumulRevenu minuscule
+  // face à un coût rupture CDD qui couvre 9 mois restants). Avec ce
+  // dénominateur, margePct s'interprète comme « % de marge de la mission
+  // finale en cas de rupture à T » — directement comparable au seuil mini.
+  const revenuProjeteTotal = (() => {
+    let sum = 0
+    for (const m of months) {
+      const prorata = m.fullMonthWorkingDays > 0
+        ? m.workingDays / m.fullMonthWorkingDays
+        : 1
+      sum += tjm * m.workingDays - cpRttHaircutMensuel * prorata
+    }
+    return sum
+  })()
+
   for (const m of months) {
     cumulDays += m.workingDays
     // Même règle de pro-rata mois partiel que computeMissionMargin :
@@ -790,7 +806,11 @@ export function computeRuptureRiskProfile(
     }
 
     const margeNetteEur = cumulRevenu - cumulCost - coutRupture
-    const margePct = cumulRevenu > 0 ? (margeNetteEur / cumulRevenu) * 100 : 0
+    // % rapporté au revenu total projeté de la mission (dénominateur stable),
+    // pas au cumul à T — évite les % aberrants en début de mission CDD.
+    const margePct = revenuProjeteTotal > 0
+      ? (margeNetteEur / revenuProjeteTotal) * 100
+      : 0
 
     points.push({
       monthIndex: m.monthIndex,
