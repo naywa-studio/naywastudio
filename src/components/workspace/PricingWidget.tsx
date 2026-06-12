@@ -397,7 +397,19 @@ function PricingWidgetInner({
       const margeTargetNette = revenuMensuelNet * (margeTargetPct / 100)
       const brutMax = computeTriangle("brut", { tjm, margeMensuelle: margeMinNette + haircut }, baseInputs).brutAnnuel
       const brutIdeal = computeTriangle("brut", { tjm, margeMensuelle: margeTargetNette + haircut }, baseInputs).brutAnnuel
-      return { brutMax, brutIdeal, brutMin: Math.max(Math.round((minimumCheck.minimumMensuel ?? 0) * 12), 20000) }
+      // Symétrique côté TJM : avec le brut courant, quel TJM atteint la
+      // marge min (plancher) et la marge cible ? Permet au sourceur de
+      // savoir s'il a marge à baisser le TJM client sans casser le seuil.
+      // Note : on raisonne sur le haircut du TJM courant (cohérent avec
+      // les sliders côté brut). Pour un TJM cible, le haircut bouge un
+      // poil mais l'écart est marginal pour des plages réalistes.
+      const tjmMin    = computeTriangle("tjm", { brutAnnuel, margeMensuelle: margeMinNette    + haircut }, baseInputs).tjm
+      const tjmIdeal  = computeTriangle("tjm", { brutAnnuel, margeMensuelle: margeTargetNette + haircut }, baseInputs).tjm
+      return {
+        brutMax, brutIdeal,
+        brutMin: Math.max(Math.round((minimumCheck.minimumMensuel ?? 0) * 12), 20000),
+        tjmMin, tjmIdeal,
+      }
     } catch {
       return null
     }
@@ -479,9 +491,15 @@ function PricingWidgetInner({
             max={2000}
             suffix="€/j"
             onChange={setTjm}
-            markers={job?.client_tjm_min != null ? [
-              { value: job.client_tjm_min, label: "cible mission", color: "#D97706" },
-            ] : []}
+            markers={[
+              ...(limits ? [
+                { value: Math.round(limits.tjmMin),   label: `plancher ${margeMinPct}%`, color: "#D97706" },
+                { value: Math.round(limits.tjmIdeal), label: `cible ${margeTargetPct}%`, color: "#15803d" },
+              ] : []),
+              ...(job?.client_tjm_min != null ? [
+                { value: job.client_tjm_min, label: "cible mission", color: "#7C63C8" },
+              ] : []),
+            ]}
           />
           <StepperField
             label="Salaire brut annuel"
@@ -915,45 +933,35 @@ function RecommendationBanner({
   brutMax: number
   tjm: number
 }) {
+  // Phrases courtes : le sourceur sait ce qu'il fait, on lui donne juste
+  // la valeur clé à viser et l'angle. Pas de redite des seuils, ils sont
+  // déjà sur les markers des steppers.
   const fmt = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €/an`
+  // Variables hors-scope du tone gardées pour rendu / debug. Évite le
+  // warning eslint sur les paramètres non utilisés sans toucher l'API.
+  void brutAnnuel; void brutMin; void tjm
   const reco = (() => {
-    // Au-dessus de la cible : marge confortable, marge de manœuvre disponible.
     if (margePct >= margeTargetPct) {
       return {
         tone: "success" as const,
-        text:
-          `Belle marge sur cette mission. Vous pouvez remonter le brut jusqu'à ${fmt(brutIdeal)} ` +
-          `pour rester sur la cible ${margeTargetPct}%, ou jusqu'à ${fmt(brutMax)} ` +
-          `pour rester au-dessus du plancher ${margeMinPct}%.`,
+        text: `Marge confortable. Brut max à ce TJM : ${fmt(brutMax)}.`,
       }
     }
-    // Entre plancher et cible : encore rentable, mais sous-optimal.
     if (margePct >= margeMinPct) {
       return {
         tone: "warn" as const,
-        text:
-          `La marge est sous la cible ${margeTargetPct}%. Pour l'atteindre, il faut descendre ` +
-          `le brut à ${fmt(brutIdeal)} (actuel ${fmt(brutAnnuel)}), ou conserver le brut et ` +
-          `négocier un TJM plus haut.`,
+        text: `Sous la cible ${margeTargetPct} %. Descendre le brut à ${fmt(brutIdeal)} ou remonter le TJM.`,
       }
     }
-    // Sous le plancher : danger commercial.
     if (margePct >= 0) {
       return {
         tone: "alert" as const,
-        text:
-          `Attention, la marge passe sous le plancher ${margeMinPct}%. Brut max acceptable ` +
-          `à ce TJM : ${fmt(brutMax)} (actuel ${fmt(brutAnnuel)}). Sinon, il faudrait remonter ` +
-          `le TJM (${tjm} €/j aujourd'hui).`,
+        text: `Sous le plancher ${margeMinPct} %. Brut max à ce TJM : ${fmt(brutMax)}.`,
       }
     }
-    // Perte sèche.
     return {
       tone: "alert" as const,
-      text:
-        `Cette mission est en perte : le coût employeur dépasse le revenu. ` +
-        `Plancher Syntec ${fmt(brutMin)} ; brut max à la marge mini ${fmt(brutMax)}. ` +
-        `Il faut revoir le TJM ou le brut avant d'engager le candidat.`,
+      text: "Mission en perte. Revoir TJM ou brut avant d'engager.",
     }
   })()
 

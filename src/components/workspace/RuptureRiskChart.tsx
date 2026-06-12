@@ -55,10 +55,13 @@ const PAD_B = 70
 const PLOT_W = W - PAD_L - PAD_R
 const PLOT_H = H - PAD_T - PAD_B
 
+type ChartMode = "pct" | "eur"
+
 export default function RuptureRiskChart({
   inputs, startDate, durationMonths, tjm, margeMinPct, typeContrat = 'cdi',
 }: Props) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+  const [mode, setMode] = useState<ChartMode>("pct")
   const start = useMemo(() => {
     if (!startDate) return new Date()
     if (startDate instanceof Date) return startDate
@@ -88,11 +91,16 @@ export default function RuptureRiskChart({
     )
   }
 
-  // Y range — inclut 0 et seuil mini
-  const allPct = points.map((p) => p.margePct)
-  const yMinRaw = Math.min(0, ...allPct, margeMinPct ?? 0)
-  const yMaxRaw = Math.max(0, ...allPct)
-  const span = Math.max(yMaxRaw - yMinRaw, 1)
+  // Y range — selon le mode courant (% ou marge cumulée €).
+  // Le mode % inclut le seuil mini cabinet ; le mode € prend la ligne
+  // zéro comme seuil implicite (« ne pas perdre d'argent »).
+  const valueOf = (p: typeof points[number]): number =>
+    mode === "pct" ? p.margePct : p.margeNetteEur
+  const allVals = points.map(valueOf)
+  const seuilVal = mode === "pct" ? (margeMinPct ?? 0) : 0
+  const yMinRaw = Math.min(0, ...allVals, seuilVal)
+  const yMaxRaw = Math.max(0, ...allVals)
+  const span = Math.max(yMaxRaw - yMinRaw, mode === "pct" ? 1 : 1000)
   const yMin = yMinRaw - span * 0.10
   const yMax = yMaxRaw + span * 0.12
   const yRange = yMax - yMin
@@ -103,9 +111,11 @@ export default function RuptureRiskChart({
     if (points.length === 1) return PAD_L + PLOT_W / 2
     return PAD_L + (PLOT_W * i) / (points.length - 1)
   }
-  const yOf = (pct: number): number =>
-    PAD_T + (1 - (pct - yMin) / yRange) * PLOT_H
+  const yOf = (val: number): number =>
+    PAD_T + (1 - (val - yMin) / yRange) * PLOT_H
   const zeroY = yOf(0)
+  const fmtY = (v: number): string =>
+    mode === "pct" ? `${v.toFixed(0)} %` : compactEur(v)
 
   // Y ticks — 5 paliers en %
   const yTickVals: number[] = []
@@ -122,7 +132,7 @@ export default function RuptureRiskChart({
   // Path SVG de la courbe lissée via splines de Bezier cubiques
   // (Catmull-Rom → Bezier conversion). Effet organique sans avoir à
   // calculer chaque semaine — la formule mensuelle reste source de vérité.
-  const xys = points.map((p, i) => ({ x: xOf(i), y: yOf(p.margePct) }))
+  const xys = points.map((p, i) => ({ x: xOf(i), y: yOf(valueOf(p)) }))
   const linePath = buildSmoothPath(xys)
 
   // Path SVG de l'aire sous la courbe (mêmes splines, refermées sur l'axe zéro)
@@ -146,13 +156,35 @@ export default function RuptureRiskChart({
       padding: 16, marginTop: 14,
     }}>
       <header style={{
-        display: "flex", justifyContent: "space-between", alignItems: "baseline",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
         flexWrap: "wrap", gap: 10, marginBottom: 10,
       }}>
-        <div>
-          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
-            Risque rupture employeur
-          </h4>
+        <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
+          Risque rupture employeur
+        </h4>
+        <div style={{
+          display: "inline-flex", borderRadius: 8,
+          border: "1px solid #E2DAF6", overflow: "hidden",
+          fontFamily: "var(--font-inter), sans-serif",
+        }}>
+          {(["pct", "eur"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              style={{
+                padding: "4px 11px",
+                background: mode === m ? "#7C63C8" : "white",
+                color: mode === m ? "white" : "#6B7280",
+                border: "none",
+                fontSize: 11, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit",
+                transition: "all 140ms",
+              }}
+            >
+              {m === "pct" ? "Marge %" : "Marge cumulée"}
+            </button>
+          ))}
         </div>
       </header>
 
@@ -203,15 +235,15 @@ export default function RuptureRiskChart({
               fontSize={10} fill="#6B7280" textAnchor="end"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
-              {`${v.toFixed(0)} %`}
+              {fmtY(v)}
             </text>
           </g>
         ))}
 
-        {/* Seuil mini cabinet — label collé à GAUCHE (zone vide près de l'axe Y)
-            pour ne jamais chevaucher la courbe ou les labels % en fin de
-            mission. Pastille blanche en arrière-plan pour la lisibilité. */}
-        {margeMinPct !== undefined && (
+        {/* Seuil mini cabinet — uniquement en mode %. En mode €, la
+            ligne zéro fait office de seuil naturel (« ne pas perdre
+            d'argent »). */}
+        {mode === "pct" && margeMinPct !== undefined && (
           <g>
             <line
               x1={PAD_L} y1={yOf(margeMinPct)} x2={W - PAD_R} y2={yOf(margeMinPct)}
@@ -248,17 +280,20 @@ export default function RuptureRiskChart({
           strokeLinecap="round"
         />
 
-        {/* Points + labels (un point coloré par mois selon la valeur) */}
+        {/* Points + labels (couleur basée sur margePct, valeur Y selon le
+            mode courant). */}
         {points.map((p, i) => {
           const showLabel = points.length <= 18 || i % 2 === 0 || i === points.length - 1
+          const y = yOf(valueOf(p))
+          const color = pointColor(p.margePct)
           return (
             <g key={p.monthIndex}>
               <circle
                 className="nw-point"
                 cx={xOf(i)}
-                cy={yOf(p.margePct)}
+                cy={y}
                 r={hoveredIdx === i ? 6 : 4}
-                fill={pointColor(p.margePct)}
+                fill={color}
                 stroke="white"
                 strokeWidth={2}
                 onMouseEnter={() => setHoveredIdx(i)}
@@ -267,11 +302,11 @@ export default function RuptureRiskChart({
               />
               {showLabel && (
                 <text
-                  x={xOf(i)} y={yOf(p.margePct) - 9}
-                  fontSize={9.5} fill={pointColor(p.margePct)} textAnchor="middle" fontWeight={700}
+                  x={xOf(i)} y={y - 9}
+                  fontSize={9.5} fill={color} textAnchor="middle" fontWeight={700}
                   style={{ fontVariantNumeric: "tabular-nums" }}
                 >
-                  {p.margePct.toFixed(0)}%
+                  {mode === "pct" ? `${p.margePct.toFixed(0)}%` : compactEur(p.margeNetteEur)}
                 </text>
               )}
             </g>
@@ -314,14 +349,16 @@ export default function RuptureRiskChart({
           )
         })}
 
-        {/* Mini-tooltip survol : marge cumulée € si on rompt à ce mois. */}
+        {/* Mini-tooltip survol : montre TOUJOURS les 2 vues (marge cumulée
+            € + marge %) pour que le sourceur voie l'impact projet et le
+            seuil simultanément, quel que soit le mode du graphique. */}
         {hoveredIdx !== null && points[hoveredIdx] && (() => {
           const p = points[hoveredIdx]
-          const tooltipW = 110
-          const tooltipH = 30
+          const tooltipW = 130
+          const tooltipH = 44
           let tx = xOf(hoveredIdx) - tooltipW / 2
           tx = Math.max(PAD_L, Math.min(W - PAD_R - tooltipW, tx))
-          const pointY = yOf(p.margePct)
+          const pointY = yOf(valueOf(p))
           const aboveOk = pointY - tooltipH - 12 > PAD_T
           const ty = aboveOk ? pointY - tooltipH - 12 : Math.min(pointY + 14, H - PAD_B - tooltipH)
           const color = p.margePct < 0 ? "#B91C1C" : "#15803D"
@@ -339,14 +376,16 @@ export default function RuptureRiskChart({
                   boxShadow: "0 6px 16px -6px rgba(17,24,39,0.22)",
                   padding: "6px 10px",
                   fontFamily: "var(--font-inter), sans-serif",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color,
                   textAlign: "center",
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
-                {formatEur(p.margeNetteEur)}
+                <div style={{ fontSize: 13, fontWeight: 700, color }}>
+                  {formatEur(p.margeNetteEur)}
+                </div>
+                <div style={{ fontSize: 11, color: "#6B7280", marginTop: 1 }}>
+                  {p.margePct.toFixed(1)} %
+                </div>
               </div>
             </foreignObject>
           )
@@ -374,6 +413,18 @@ export default function RuptureRiskChart({
 function formatEur(v: number): string {
   const sign = v < 0 ? "−" : ""
   return `${sign}${Math.abs(Math.round(v)).toLocaleString("fr-FR")} €`
+}
+
+/** Format compact pour les labels d'axe Y et les markers en mode €
+ *  (12 k€, 1.2 k€, −3 k€). Sous 1000 €, on garde les chiffres ronds
+ *  (impossible de scaler en k€ sans perdre la précision). */
+function compactEur(v: number): string {
+  const sign = v < 0 ? "−" : ""
+  const abs = Math.abs(v)
+  if (abs < 1000) return `${sign}${Math.round(abs)} €`
+  const kEur = abs / 1000
+  const digits = kEur >= 10 ? 0 : 1
+  return `${sign}${kEur.toFixed(digits)} k€`
 }
 
 /** Construit un path SVG smooth (splines Bezier cubiques) qui passe
