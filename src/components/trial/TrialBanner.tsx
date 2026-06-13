@@ -6,17 +6,17 @@ import type { Organization } from "@/lib/database.types"
 import { trialStatus } from "@/lib/trial"
 
 /**
- * Sticky banner displayed on top of /cabinet and /workspace layouts
- * whenever the trial is active or expired. Pending state shows
- * nothing (the activation modal handles that case).
+ * Sticky banner sur /organisation et /workspace.
  *
- * Three visual modes :
- *   - default (≥ 4 days left) -> soft violet, informational
- *   - warning (1-3 days left) -> warmer amber
- *   - expired                 -> red but non-blocking
+ * Couvre 4 cas, prioritisés dans cet ordre :
+ *   1. subscription past_due / unpaid   -> ROUGE (action requise)
+ *   2. trial expired sans sub           -> ROUGE
+ *   3. trial <= 3 j sans sub            -> AMBRE
+ *   4. trial 4-15 j ou sub renew < 5 j  -> VIOLET informationnel
  *
- * Dismissable per-session only via localStorage flag — we want the
- * owner to see it again the next morning if expiry is close.
+ * Rien ne s'affiche si :
+ *   - le trial n'est pas activé (l'onboarding gère ce cas)
+ *   - une sub Stripe est active et le renouvellement est > 5 j
  */
 
 interface Props {
@@ -45,20 +45,84 @@ export function TrialBanner({ organization, alwaysVisible = false }: Props) {
   // (en SSR on retourne false ; il y aura un éventuel flash 1 frame puis
   // le re-render client cache la bannière si elle était déjà fermée).
   const [dismissed, setDismissed] = useState(readDismissed)
+  // Date.now() capturé au mount (pattern react-hooks/purity, idem
+  // `dismissed` au-dessus). Hooks toujours appelés en premier — pas
+  // de return conditionnel entre eux.
+  const [nowMs] = useState(() => Date.now())
 
   if (!organization) return null
-  const status = trialStatus(organization)
-  if (status.state === "pending") return null
 
-  // Le dismiss n'est honoré que pour les bannières "informatives"
-  // (essai actif + au moins 4 j restants). En warning ou expiré, on
-  // ré-affiche systématiquement, le sourceur ne peut pas l'enterrer.
-  const dismissAllowed =
-    !alwaysVisible && status.state === "active" && status.daysLeft >= 4
+  // Subscription Stripe a la priorité — si elle est past_due, expired
+  // ou renouvellement imminent, c'est ce qu'on affiche, pas le trial.
+  const subStatus = organization.subscription_status
+  const daysToRenewal = (() => {
+    if (!organization.current_period_end) return null
+    const end = new Date(organization.current_period_end).getTime()
+    return Math.ceil((end - nowMs) / (24 * 60 * 60 * 1000))
+  })()
+
+  let mode: "info" | "warning" | "expired" = "info"
+  let message: string | null = null
+  let ctaLabel = "Discutons abonnement"
+  let ctaHref = "/contact"
+
+  if (subStatus === "past_due" || subStatus === "unpaid") {
+    mode = "expired"
+    message = "Échec du dernier prélèvement. "
+    ctaLabel = "Mettre à jour mon moyen de paiement"
+    ctaHref = "/organisation"
+  } else if (subStatus === "canceled" || subStatus === "incomplete_expired") {
+    mode = "expired"
+    message = "Abonnement annulé. "
+    ctaLabel = "Souscrire à nouveau"
+    ctaHref = "/organisation"
+  } else if (
+    (subStatus === "active" || subStatus === "trialing") &&
+    daysToRenewal !== null && daysToRenewal >= 0 && daysToRenewal <= 5
+  ) {
+    mode = daysToRenewal <= 2 ? "warning" : "info"
+    message = subStatus === "trialing"
+      ? `Période d'essai Stripe terminée dans ${daysToRenewal} jour${daysToRenewal > 1 ? "s" : ""}. `
+      : `Renouvellement de votre abonnement dans ${daysToRenewal} jour${daysToRenewal > 1 ? "s" : ""}. `
+    ctaLabel = "Gérer mon abonnement"
+    ctaHref = "/organisation"
+  } else if (
+    subStatus === "active" || subStatus === "trialing"
+  ) {
+    // Sub Stripe saine + renouvellement loin -> on cache la bannière.
+    return null
+  } else {
+    // Pas de sub Stripe -> on tombe sur l'ancienne logique de trial.
+    const status = trialStatus(organization)
+    if (status.state === "pending") return null
+
+    if (status.state === "expired") {
+      mode = "expired"
+      message = "Période d'essai terminée. "
+      ctaLabel = "Souscrire au Package Sourcing"
+      ctaHref = "/organisation"
+    } else if (status.daysLeft <= 3) {
+      mode = "warning"
+      message = `Plus que ${status.daysLeft} jour${status.daysLeft > 1 ? "s" : ""} d'essai. `
+      ctaLabel = "Souscrire maintenant"
+      ctaHref = "/organisation"
+    } else {
+      mode = "info"
+      message = `Essai gratuit — il vous reste ${status.daysLeft} jours. `
+      ctaLabel = "Souscrire maintenant"
+      ctaHref = "/organisation"
+    }
+  }
+
+  if (!message) return null
+
+  // Le dismiss n'est honoré que pour les bannières "info". En warning
+  // ou expired, l'owner doit voir le pb à chaque chargement.
+  const dismissAllowed = !alwaysVisible && mode === "info"
   if (dismissed && dismissAllowed) return null
 
-  const isExpired = status.state === "expired"
-  const isWarning = !isExpired && status.daysLeft <= 3
+  const isExpired = mode === "expired"
+  const isWarning = mode === "warning"
 
   const palette = isExpired
     ? {
@@ -118,13 +182,9 @@ export function TrialBanner({ organization, alwaysVisible = false }: Props) {
         }}
       />
       <span style={{ flex: "0 1 auto" }}>
-        {isExpired
-          ? "Période d'essai terminée. "
-          : isWarning
-          ? `Plus que ${status.daysLeft} jour${status.daysLeft > 1 ? "s" : ""} d'essai. `
-          : `Essai gratuit — il vous reste ${status.daysLeft} jours. `}
+        {message}
         <Link
-          href="/contact"
+          href={ctaHref}
           style={{
             color: palette.accent,
             fontWeight: 700,
@@ -132,10 +192,10 @@ export function TrialBanner({ organization, alwaysVisible = false }: Props) {
             textUnderlineOffset: 2,
           }}
         >
-          {isExpired ? "Contactez-nous pour activer votre abonnement" : "Discutons abonnement"}
+          {ctaLabel}
         </Link>
       </span>
-      {!alwaysVisible && !isExpired && status.daysLeft >= 4 && (
+      {!alwaysVisible && mode === "info" && (
         <button
           onClick={dismiss}
           aria-label="Masquer pour la session"
