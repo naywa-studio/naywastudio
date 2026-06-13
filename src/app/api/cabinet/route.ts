@@ -183,7 +183,6 @@ export async function DELETE() {
     .from("organizations")
     .update({
       pending_deletion_at: deletionDate.toISOString(),
-      package_sourcing_active: false,
       owner_user_id: null,
     })
     .eq("id", profile.organization_id)

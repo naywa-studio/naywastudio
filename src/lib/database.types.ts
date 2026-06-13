@@ -184,10 +184,6 @@ export type Database = {
           owner_user_id: string | null
           brand_name: string | null
           brand_logo_path: string | null
-          /** True while the cabinet has access to the sourcing workspace.
-           *  Set false when the owner cancels — combined with
-           *  `pending_deletion_at` for the grace-period flow. */
-          package_sourcing_active: boolean
           seats_total: number
           /** Cabinet outbound mailing domain (eg "cabinet-dupont.com"). NULL =
            *  shared Naywa transactional domain. UI masks this field until the
@@ -215,6 +211,24 @@ export type Database = {
            *  they activated the trial or not). Drives the redirect : while
            *  NULL the owner is pushed to /cabinet/onboarding on every visit. */
           cabinet_onboarded_at: string | null
+          /** Stripe Customer ID, created on first Checkout and reused after.
+           *  NULL = the owner has never reached the Checkout step. */
+          stripe_customer_id: string | null
+          /** Stripe Subscription ID, active or fully canceled. */
+          stripe_subscription_id: string | null
+          /** Mirror of stripe.subscription.status. NULL = never subscribed. */
+          subscription_status:
+            | 'trialing' | 'active' | 'past_due' | 'canceled'
+            | 'unpaid' | 'incomplete' | 'incomplete_expired' | 'paused'
+            | null
+          /** lookup_key of the active price (sourcing_1..4, sourcing_pro_1..4). */
+          subscription_price_lookup: string | null
+          /** Number of seats the cabinet is paying for. */
+          subscription_seats: number | null
+          /** True if the active plan is the Pro variant (Suite Pricing Syntec). */
+          subscription_has_pricing: boolean
+          /** End of the currently paid Stripe billing period. */
+          current_period_end: string | null
           created_at: string
           updated_at: string
         }

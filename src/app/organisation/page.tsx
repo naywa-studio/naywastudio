@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { m } from "framer-motion"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
 import { trialStatus, TRIAL_DURATION_DAYS } from "@/lib/trial"
+import { subscriptionAccess } from "@/lib/subscription"
+import { PLAN_PRICES_EUR, type PlanTier, type PlanSeats } from "@/lib/stripe"
 import type { Organization } from "@/lib/database.types"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -474,7 +475,13 @@ function SubscriptionCard({
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const status = trialStatus(organization)
+  const [showPicker, setShowPicker] = useState(false)
+  const trial = trialStatus(organization)
+  const access = subscriptionAccess(organization)
+  const hasStripeSub =
+    organization.subscription_status === "active" ||
+    organization.subscription_status === "trialing" ||
+    organization.subscription_status === "past_due"
 
   if (organization.pending_deletion_at) {
     const date = new Date(organization.pending_deletion_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
@@ -490,7 +497,7 @@ function SubscriptionCard({
     )
   }
 
-  const activate = async () => {
+  const activateTrial = async () => {
     if (!isOwner) return
     setBusy(true); setError(null)
     try {
@@ -507,114 +514,398 @@ function SubscriptionCard({
     }
   }
 
+  const openPortal = async () => {
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" })
+      const j = await res.json().catch(() => ({} as { url?: string; error?: string }))
+      if (!res.ok || !j.url) throw new Error(j.error ?? "Portail indisponible")
+      window.location.href = j.url
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur")
+      setBusy(false)
+    }
+  }
+
   return (
-    <Card title="Abonnement" subtitle="Package Sourcing : votre essai et votre formule.">
-      {status.state === "pending" && (
-        <Panel tone="brand">
-          <p style={panelTitle("#7C63C8")}>Essai non activé</p>
-          <p style={panelBody("#374151")}>
-            Activez vos {TRIAL_DURATION_DAYS} jours d&apos;essai gratuit pour
-            débloquer le workspace.
+    <>
+      <Card title="Abonnement" subtitle="Package Sourcing : votre essai et votre formule.">
+        {/* Stripe sub — affichage prioritaire si présente */}
+        {hasStripeSub && (
+          <Panel tone={access.state === "paid" ? "success" : access.state === "trialing" ? "brand" : "warn"}>
+            <p style={panelTitle(access.state === "paid" ? "#15803D" : access.state === "trialing" ? "#7C63C8" : "#B91C1C")}>
+              {planLabel(organization)}
+            </p>
+            <p style={panelBody("#374151")}>
+              {organization.subscription_status === "past_due"
+                ? "Échec du dernier paiement. Mettez à jour votre moyen de paiement."
+                : access.state === "trialing" && "until" in access
+                  ? <>Période d&apos;essai jusqu&apos;au <strong>{access.until?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</strong>.</>
+                  : access.state === "paid" && "until" in access
+                    ? <>Prochain prélèvement le <strong>{access.until?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</strong>.</>
+                    : null}
+            </p>
+            <button
+              type="button"
+              onClick={openPortal}
+              disabled={busy || !isOwner}
+              style={ctaSecondaryBtn(busy)}
+            >
+              {busy ? "Ouverture du portail…" : "Gérer mon abonnement"}
+            </button>
+          </Panel>
+        )}
+
+        {/* Pas de Stripe sub — afficher l'état d'essai + bouton souscrire */}
+        {!hasStripeSub && trial.state === "pending" && (
+          <Panel tone="brand">
+            <p style={panelTitle("#7C63C8")}>Essai non activé</p>
+            <p style={panelBody("#374151")}>
+              Activez vos {TRIAL_DURATION_DAYS} jours d&apos;essai gratuit pour
+              débloquer le workspace.
+            </p>
+            <button
+              type="button"
+              onClick={activateTrial}
+              disabled={busy || !isOwner}
+              style={ctaPrimaryBtn(busy)}
+            >
+              {busy ? "Activation…" : `Activer mes ${TRIAL_DURATION_DAYS} jours gratuits`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPicker(true)}
+              disabled={!isOwner}
+              style={{ ...ctaSecondaryBtn(false), marginTop: 8 }}
+            >
+              Souscrire directement
+            </button>
+          </Panel>
+        )}
+
+        {!hasStripeSub && trial.state === "active" && (
+          <Panel tone="success">
+            <p style={panelTitle("#15803D")}>
+              Essai actif · {trial.daysLeft} jour{trial.daysLeft > 1 ? "s" : ""} restant{trial.daysLeft > 1 ? "s" : ""}
+            </p>
+            <p style={panelBody("#166534")}>
+              Termine le{" "}
+              <strong>
+                {trial.endsAt?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
+              </strong>
+              . Souscrivez maintenant pour continuer sans coupure.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowPicker(true)}
+              disabled={!isOwner}
+              style={ctaPrimaryBtn(false)}
+            >
+              Souscrire au Package Sourcing →
+            </button>
+          </Panel>
+        )}
+
+        {!hasStripeSub && trial.state === "expired" && (
+          <Panel tone="warn">
+            <p style={panelTitle("#B91C1C")}>Période d&apos;essai terminée</p>
+            <p style={panelBody("#7F1D1D")}>
+              Souscrivez pour reprendre l&apos;accès à votre workspace.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowPicker(true)}
+              disabled={!isOwner}
+              style={{
+                ...ctaPrimaryBtn(false),
+                background: "linear-gradient(120deg, #DC2626 0%, #B91C1C 100%)",
+                boxShadow: "0 6px 16px -4px rgba(220,38,38,0.40)",
+              }}
+            >
+              Souscrire au Package Sourcing →
+            </button>
+          </Panel>
+        )}
+
+        {error && (
+          <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B91C1C" }}>{error}</p>
+        )}
+
+        <div style={{ marginTop: 14, fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.55 }}>
+          {organization.seats_total} siège{organization.seats_total > 1 ? "s" : ""} alloué{organization.seats_total > 1 ? "s" : ""}.
+        </div>
+      </Card>
+
+      {showPicker && (
+        <PlanPickerModal
+          initialTier={organization.subscription_has_pricing ? "sourcing_pro" : "sourcing"}
+          initialSeats={(organization.subscription_seats as PlanSeats) ?? 1}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+    </>
+  )
+}
+
+function planLabel(org: Organization): string {
+  const tier = org.subscription_has_pricing ? "Package Sourcing Pro" : "Package Sourcing"
+  const seats = org.subscription_seats ?? 1
+  return `${tier} · ${seats} siège${seats > 1 ? "s" : ""}`
+}
+
+const ctaPrimaryBtn = (busy: boolean): React.CSSProperties => ({
+  marginTop: 10,
+  padding: "10px 16px",
+  borderRadius: 10,
+  border: "none",
+  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+  color: "white",
+  fontSize: 13,
+  fontWeight: 700,
+  cursor: busy ? "wait" : "pointer",
+  opacity: busy ? 0.7 : 1,
+  boxShadow: "0 6px 16px -4px rgba(124,99,200,0.45)",
+  fontFamily: "inherit",
+  width: "100%",
+})
+const ctaSecondaryBtn = (busy: boolean): React.CSSProperties => ({
+  marginTop: 10,
+  padding: "9px 14px",
+  borderRadius: 10,
+  border: "1px solid rgba(124,99,200,0.30)",
+  background: "white",
+  color: "#7C63C8",
+  fontSize: 12.5,
+  fontWeight: 700,
+  cursor: busy ? "wait" : "pointer",
+  opacity: busy ? 0.7 : 1,
+  fontFamily: "inherit",
+  width: "100%",
+})
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Plan Picker Modal — Stripe Checkout entry point                     */
+/* ────────────────────────────────────────────────────────────────── */
+
+function PlanPickerModal({
+  initialTier, initialSeats, onClose,
+}: {
+  initialTier: PlanTier
+  initialSeats: PlanSeats
+  onClose: () => void
+}) {
+  const [tier, setTier] = useState<PlanTier>(initialTier)
+  const [seats, setSeats] = useState<PlanSeats>(initialSeats)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const price = PLAN_PRICES_EUR[tier][seats]
+
+  const subscribe = async () => {
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier, seats }),
+      })
+      const j = await res.json().catch(() => ({} as { url?: string; error?: string }))
+      if (!res.ok || !j.url) throw new Error(j.error ?? "Checkout indisponible")
+      window.location.href = j.url
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur")
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(17,24,39,0.40)",
+        backdropFilter: "blur(2px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <m.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: EASE }}
+        style={{
+          background: "white",
+          borderRadius: 20,
+          padding: "28px 28px 24px",
+          maxWidth: 520,
+          width: "100%",
+          boxShadow: "0 24px 64px -24px rgba(17,24,39,0.30)",
+          fontFamily: "var(--font-inter), sans-serif",
+        }}
+      >
+        <header style={{ marginBottom: 18 }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase" }}>
+            Souscrire au Package Sourcing
           </p>
+          <h2 style={{ margin: "6px 0 0", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
+            Choisissez votre formule
+          </h2>
+        </header>
+
+        {/* Tier toggle */}
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18,
+        }}>
+          {(["sourcing", "sourcing_pro"] as const).map((t) => {
+            const active = tier === t
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTier(t)}
+                style={{
+                  padding: "14px 12px",
+                  borderRadius: 14,
+                  border: active ? "2px solid #7C63C8" : "1px solid #E2DAF6",
+                  background: active ? "rgba(124,99,200,0.08)" : "white",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontFamily: "inherit",
+                }}
+              >
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
+                  {t === "sourcing" ? "Package Sourcing" : "Package Sourcing Pro"}
+                </p>
+                <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.45 }}>
+                  {t === "sourcing"
+                    ? "Vivier, matching, anonymisation."
+                    : "+ Suite Pricing Syntec (engine + chart + PDF)."}
+                </p>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Seats picker */}
+        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "#374151", letterSpacing: "0.01em" }}>
+          Nombre de sièges
+        </p>
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18,
+        }}>
+          {([1, 2, 3, 4] as const).map((s) => {
+            const active = seats === s
+            const featured = s === 3
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSeats(s)}
+                style={{
+                  position: "relative",
+                  padding: "12px 6px",
+                  borderRadius: 12,
+                  border: active ? "2px solid #7C63C8" : "1px solid #E2DAF6",
+                  background: active ? "rgba(124,99,200,0.08)" : "white",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  textAlign: "center",
+                }}
+              >
+                {featured && (
+                  <span style={{
+                    position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)",
+                    background: "#7C63C8", color: "white",
+                    fontSize: 8.5, fontWeight: 800, padding: "2px 6px",
+                    borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase",
+                  }}>
+                    Reco
+                  </span>
+                )}
+                <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827" }}>{s}</p>
+                <p style={{ margin: 0, fontSize: 10.5, color: "#6B7280" }}>
+                  siège{s > 1 ? "s" : ""}
+                </p>
+                <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "#7C63C8", fontWeight: 700 }}>
+                  {PLAN_PRICES_EUR[tier][s].toFixed(2)} €
+                </p>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Price summary */}
+        <div style={{
+          background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
+          border: "1px solid #E2DAF6",
+          borderRadius: 14,
+          padding: "14px 16px",
+          marginBottom: 16,
+          display: "flex", justifyContent: "space-between", alignItems: "baseline",
+        }}>
+          <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+            Total mensuel HT
+          </span>
+          <span style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+            {price.toFixed(2)} €
+          </span>
+        </div>
+
+        <p style={{ margin: "0 0 16px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
+          Pas de TVA appliquée (micro-entreprise). Annulation à tout moment depuis votre portail Stripe.
+          {seats >= 4 && " Au-delà de 4 sièges, contactez-nous pour un devis."}
+        </p>
+
+        {error && (
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "#B91C1C" }}>{error}</p>
+        )}
+
+        <div style={{ display: "flex", gap: 10 }}>
           <button
             type="button"
-            onClick={activate}
-            disabled={busy || !isOwner}
+            onClick={onClose}
+            disabled={busy}
             style={{
-              marginTop: 10,
-              padding: "10px 16px",
-              borderRadius: 10,
+              flex: 1,
+              padding: "12px 16px",
+              borderRadius: 12,
+              border: "1px solid #E2DAF6",
+              background: "white",
+              color: "#6B7280",
+              fontSize: 13.5,
+              fontWeight: 600,
+              cursor: busy ? "wait" : "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={subscribe}
+            disabled={busy}
+            style={{
+              flex: 2,
+              padding: "12px 16px",
+              borderRadius: 12,
               border: "none",
               background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
               color: "white",
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 700,
               cursor: busy ? "wait" : "pointer",
               opacity: busy ? 0.7 : 1,
-              boxShadow: "0 6px 16px -4px rgba(124,99,200,0.45)",
+              boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
               fontFamily: "inherit",
-              width: "100%",
             }}
           >
-            {busy ? "Activation…" : `Activer mes ${TRIAL_DURATION_DAYS} jours gratuits`}
+            {busy ? "Redirection…" : `Continuer vers le paiement →`}
           </button>
-        </Panel>
-      )}
-
-      {status.state === "active" && (
-        <Panel tone="success">
-          <p style={panelTitle("#15803D")}>
-            Essai actif · {status.daysLeft} jour{status.daysLeft > 1 ? "s" : ""} restant{status.daysLeft > 1 ? "s" : ""}
-          </p>
-          <p style={panelBody("#166534")}>
-            Termine le{" "}
-            <strong>
-              {status.endsAt?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
-            </strong>
-            . Discutons d&apos;un abonnement adapté à votre équipe.
-          </p>
-          <Link
-            href="/contact"
-            style={{
-              display: "inline-block",
-              marginTop: 10,
-              padding: "9px 14px",
-              borderRadius: 10,
-              border: "1px solid rgba(124,99,200,0.30)",
-              background: "white",
-              color: "#7C63C8",
-              fontSize: 12.5,
-              fontWeight: 700,
-              textDecoration: "none",
-              textAlign: "center",
-              width: "100%",
-              boxSizing: "border-box",
-            }}
-          >
-            Discuter abonnement →
-          </Link>
-        </Panel>
-      )}
-
-      {status.state === "expired" && (
-        <Panel tone="warn">
-          <p style={panelTitle("#B91C1C")}>Période d&apos;essai terminée</p>
-          <p style={panelBody("#7F1D1D")}>
-            Vous gardez l&apos;accès à votre organisation, mais nous aimerions
-            convenir d&apos;un abonnement avant d&apos;aller plus loin.
-          </p>
-          <Link
-            href="/contact"
-            style={{
-              display: "inline-block",
-              marginTop: 10,
-              padding: "9px 14px",
-              borderRadius: 10,
-              border: "none",
-              background: "linear-gradient(120deg, #DC2626 0%, #B91C1C 100%)",
-              color: "white",
-              fontSize: 12.5,
-              fontWeight: 700,
-              textDecoration: "none",
-              textAlign: "center",
-              width: "100%",
-              boxSizing: "border-box",
-              boxShadow: "0 6px 16px -4px rgba(220,38,38,0.40)",
-            }}
-          >
-            Contactez-nous pour activer →
-          </Link>
-        </Panel>
-      )}
-
-      {error && (
-        <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B91C1C" }}>{error}</p>
-      )}
-
-      <div style={{ marginTop: 14, fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.55 }}>
-        Facturation Stripe à venir. {organization.seats_total} siège{organization.seats_total > 1 ? "s" : ""} alloué{organization.seats_total > 1 ? "s" : ""}.
-      </div>
-    </Card>
+        </div>
+      </m.div>
+    </div>
   )
 }
 

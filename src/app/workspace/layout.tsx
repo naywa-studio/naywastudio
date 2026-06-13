@@ -7,7 +7,7 @@ import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
 import { TrialBanner } from "@/components/trial/TrialBanner"
-import { trialStatus } from "@/lib/trial"
+import { hasActiveAccess } from "@/lib/subscription"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -89,16 +89,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     }
 
     // Gate 2 : tant que le package n'est pas actif (trial ou Stripe), le
-    // workspace est verrouillé. Bounce sur /organisation où l'owner active
-    // l'essai et le member voit le statut de son cabinet. Stripe sera OR-é
-    // dans la condition quand A4 atterrira.
-    if (org) {
-      const status = trialStatus(org)
-      const packageActive = status.state === "active"
-      if (!packageActive) {
-        router.replace("/organisation")
-        return
-      }
+    // workspace est verrouillé. Bounce sur /organisation où l'owner peut
+    // activer l'essai ou souscrire au package.
+    if (org && !hasActiveAccess(org)) {
+      router.replace("/organisation")
+      return
     }
 
     setProfile(prof ?? null)
@@ -138,9 +133,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     )
   }
 
-  // Every authenticated user gets an org with package_sourcing_active=true
-  // by default (see migration 020 trigger). The gate stays around so that
-  // when Stripe ships we can flip it back to its real meaning.
+  // Whether the cabinet has reached the workspace at all. Real gating
+  // (trial / Stripe subscription) is done above in the fetch effect.
   const hasSubscription = !!profile?.organization_id
   const firstName = profile?.first_name?.trim() || null
   const initial = (firstName?.[0] ?? userEmail[0] ?? "?").toUpperCase()
