@@ -474,7 +474,7 @@ function SubscriptionCard({
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showPicker, setShowPicker] = useState(false)
+  const [pickerMode, setPickerMode] = useState<"closed" | "trial" | "paid">("closed")
   const trial = trialStatus(organization)
   const access = subscriptionAccess(organization)
   const hasStripeSub =
@@ -496,22 +496,10 @@ function SubscriptionCard({
     )
   }
 
-  const activateTrial = async () => {
-    if (!isOwner) return
-    setBusy(true); setError(null)
-    try {
-      const res = await fetch("/api/cabinet/activate-trial", { method: "POST" })
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({} as { error?: string }))
-        throw new Error(j.error ?? "Activation impossible")
-      }
-      await onActivated()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur")
-    } finally {
-      setBusy(false)
-    }
-  }
+  // Le trial est désormais une sub Stripe avec trial_period_days=15 :
+  // l'user passe par Checkout, dépose son moyen de paiement, et la sub
+  // démarre en `trialing`. Suppression de l'appel à /api/cabinet/activate-trial.
+  void onActivated  // gardé pour signature, plus utilisé en chemin trial.
 
   const openPortal = async () => {
     setBusy(true); setError(null)
@@ -555,25 +543,26 @@ function SubscriptionCard({
           </Panel>
         )}
 
-        {/* Pas de Stripe sub — afficher l'état d'essai + bouton souscrire */}
+        {/* Pas de Stripe sub — proposer trial OU souscription directe */}
         {!hasStripeSub && trial.state === "pending" && (
           <Panel tone="brand">
-            <p style={panelTitle("#7C63C8")}>Essai non activé</p>
+            <p style={panelTitle("#7C63C8")}>Aucun abonnement actif</p>
             <p style={panelBody("#374151")}>
-              Activez vos {TRIAL_DURATION_DAYS} jours d&apos;essai gratuit pour
-              débloquer le workspace.
+              Démarrez votre essai gratuit {TRIAL_DURATION_DAYS} jours
+              (2 sièges, Pricing Pro inclus) ou souscrivez directement
+              à la formule de votre choix.
             </p>
             <button
               type="button"
-              onClick={activateTrial}
-              disabled={busy || !isOwner}
-              style={ctaPrimaryBtn(busy)}
+              onClick={() => setPickerMode("trial")}
+              disabled={!isOwner}
+              style={ctaPrimaryBtn(false)}
             >
-              {busy ? "Activation…" : `Activer mes ${TRIAL_DURATION_DAYS} jours gratuits`}
+              Démarrer l&apos;essai gratuit {TRIAL_DURATION_DAYS} j →
             </button>
             <button
               type="button"
-              onClick={() => setShowPicker(true)}
+              onClick={() => setPickerMode("paid")}
               disabled={!isOwner}
               style={{ ...ctaSecondaryBtn(false), marginTop: 8 }}
             >
@@ -582,6 +571,9 @@ function SubscriptionCard({
           </Panel>
         )}
 
+        {/* États legacy `trial active/expired` (avant migration Stripe trial
+            natif) — l'owner doit re-souscrire via Stripe Checkout pour
+            convertir son trial app-side en sub trialing. */}
         {!hasStripeSub && trial.state === "active" && (
           <Panel tone="success">
             <p style={panelTitle("#15803D")}>
@@ -592,11 +584,11 @@ function SubscriptionCard({
               <strong>
                 {trial.endsAt?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
               </strong>
-              . Souscrivez maintenant pour continuer sans coupure.
+              . Souscrivez pour continuer sans coupure.
             </p>
             <button
               type="button"
-              onClick={() => setShowPicker(true)}
+              onClick={() => setPickerMode("paid")}
               disabled={!isOwner}
               style={ctaPrimaryBtn(false)}
             >
@@ -613,7 +605,7 @@ function SubscriptionCard({
             </p>
             <button
               type="button"
-              onClick={() => setShowPicker(true)}
+              onClick={() => setPickerMode("paid")}
               disabled={!isOwner}
               style={{
                 ...ctaPrimaryBtn(false),
@@ -635,11 +627,12 @@ function SubscriptionCard({
         </div>
       </Card>
 
-      {showPicker && (
+      {pickerMode !== "closed" && (
         <PlanPickerModal
           initialTier={organization.subscription_has_pricing ? "sourcing_pro" : "sourcing"}
           initialSeats={(organization.subscription_seats as PlanSeats) ?? 1}
-          onClose={() => setShowPicker(false)}
+          initialWithTrial={pickerMode === "trial"}
+          onClose={() => setPickerMode("closed")}
         />
       )}
     </>
@@ -687,18 +680,24 @@ const ctaSecondaryBtn = (busy: boolean): React.CSSProperties => ({
 /* ────────────────────────────────────────────────────────────────── */
 
 function PlanPickerModal({
-  initialTier, initialSeats, onClose,
+  initialTier, initialSeats, initialWithTrial = false, onClose,
 }: {
   initialTier: PlanTier
   initialSeats: PlanSeats
+  initialWithTrial?: boolean
   onClose: () => void
 }) {
-  const [tier, setTier] = useState<PlanTier>(initialTier)
-  const [seats, setSeats] = useState<PlanSeats>(initialSeats)
+  const [withTrial, setWithTrial] = useState<boolean>(initialWithTrial)
+  // Quand on est en mode trial, on FORCE pro + 2 sièges. Côté API c'est
+  // aussi forcé : si l'user bidouille le payload on s'en fout.
+  const [tier, setTier] = useState<PlanTier>(initialWithTrial ? "sourcing_pro" : initialTier)
+  const [seats, setSeats] = useState<PlanSeats>(initialWithTrial ? 2 : initialSeats)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const price = PLAN_PRICES_EUR[tier][seats]
+  const effectiveTier: PlanTier = withTrial ? "sourcing_pro" : tier
+  const effectiveSeats: PlanSeats = withTrial ? 2 : seats
+  const price = PLAN_PRICES_EUR[effectiveTier][effectiveSeats]
 
   const subscribe = async () => {
     setBusy(true); setError(null)
@@ -706,7 +705,11 @@ function PlanPickerModal({
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier, seats }),
+        body: JSON.stringify({
+          tier: effectiveTier,
+          seats: effectiveSeats,
+          withTrial,
+        }),
       })
       const j = await res.json().catch(() => ({} as { url?: string; error?: string }))
       if (!res.ok || !j.url) throw new Error(j.error ?? "Checkout indisponible")
@@ -753,23 +756,53 @@ function PlanPickerModal({
           </h2>
         </header>
 
+        {/* Trial toggle */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          padding: "12px 14px", marginBottom: 16,
+          borderRadius: 12,
+          border: withTrial ? "2px solid #7C63C8" : "1px solid #E2DAF6",
+          background: withTrial ? "rgba(124,99,200,0.06)" : "white",
+        }}>
+          <input
+            type="checkbox"
+            id="trial-toggle"
+            checked={withTrial}
+            onChange={(e) => setWithTrial(e.target.checked)}
+            disabled={busy}
+            style={{ width: 16, height: 16, accentColor: "#7C63C8", cursor: "pointer" }}
+          />
+          <label htmlFor="trial-toggle" style={{ flex: 1, cursor: "pointer" }}>
+            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+              Essai gratuit 15 jours
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
+              Plan d&apos;essai fixe : 2 sièges, Suite Pricing Syntec incluse.
+              Prélèvement au jour 16 si vous n&apos;annulez pas.
+            </p>
+          </label>
+        </div>
+
         {/* Tier toggle */}
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18,
+          opacity: withTrial ? 0.5 : 1,
+          pointerEvents: withTrial ? "none" : "auto",
         }}>
           {(["sourcing", "sourcing_pro"] as const).map((t) => {
-            const active = tier === t
+            const active = effectiveTier === t
             return (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTier(t)}
+                disabled={withTrial}
                 style={{
                   padding: "14px 12px",
                   borderRadius: 14,
                   border: active ? "2px solid #7C63C8" : "1px solid #E2DAF6",
                   background: active ? "rgba(124,99,200,0.08)" : "white",
-                  cursor: "pointer",
+                  cursor: withTrial ? "not-allowed" : "pointer",
                   textAlign: "left",
                   fontFamily: "inherit",
                 }}
@@ -793,22 +826,25 @@ function PlanPickerModal({
         </p>
         <div style={{
           display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18,
+          opacity: withTrial ? 0.5 : 1,
+          pointerEvents: withTrial ? "none" : "auto",
         }}>
           {([1, 2, 3, 4] as const).map((s) => {
-            const active = seats === s
+            const active = effectiveSeats === s
             const featured = s === 3
             return (
               <button
                 key={s}
                 type="button"
                 onClick={() => setSeats(s)}
+                disabled={withTrial}
                 style={{
                   position: "relative",
                   padding: "12px 6px",
                   borderRadius: 12,
                   border: active ? "2px solid #7C63C8" : "1px solid #E2DAF6",
                   background: active ? "rgba(124,99,200,0.08)" : "white",
-                  cursor: "pointer",
+                  cursor: withTrial ? "not-allowed" : "pointer",
                   fontFamily: "inherit",
                   textAlign: "center",
                 }}
@@ -844,17 +880,28 @@ function PlanPickerModal({
           marginBottom: 16,
           display: "flex", justifyContent: "space-between", alignItems: "baseline",
         }}>
-          <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
-            Total mensuel HT
-          </span>
+          <div>
+            <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+              {withTrial ? "Aujourd'hui" : "Total mensuel HT"}
+            </span>
+            {withTrial && (
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#7C63C8", fontWeight: 700 }}>
+                puis {price.toFixed(2)} € / mois au jour 16
+              </p>
+            )}
+          </div>
           <span style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-            {price.toFixed(2)} €
+            {withTrial ? "0,00 €" : `${price.toFixed(2)} €`}
           </span>
         </div>
 
         <p style={{ margin: "0 0 16px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
           Pas de TVA appliquée (micro-entreprise). Annulation à tout moment depuis votre portail Stripe.
-          {seats >= 4 && " Au-delà de 4 sièges, contactez-nous pour un devis."}
+          {withTrial
+            ? " Vous fournissez votre moyen de paiement maintenant ; rien n'est prélevé pendant l'essai."
+            : effectiveSeats >= 4
+              ? " Au-delà de 4 sièges, contactez-nous pour un devis."
+              : ""}
         </p>
 
         {error && (
@@ -900,7 +947,7 @@ function PlanPickerModal({
               fontFamily: "inherit",
             }}
           >
-            {busy ? "Redirection…" : `Continuer vers le paiement →`}
+            {busy ? "Redirection…" : withTrial ? "Démarrer mon essai gratuit →" : "Continuer vers le paiement →"}
           </button>
         </div>
       </m.div>

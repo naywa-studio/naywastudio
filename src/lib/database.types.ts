@@ -229,6 +229,9 @@ export type Database = {
           subscription_has_pricing: boolean
           /** End of the currently paid Stripe billing period. */
           current_period_end: string | null
+          /** When the org entered read-only mode (past_due / unpaid /
+           *  canceled). Daily cron wipes data at +15 days. NULL = active. */
+          lockdown_started_at: string | null
           created_at: string
           updated_at: string
         }
@@ -260,6 +263,22 @@ export type Database = {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['org_invites']['Row']>
+        Relationships: []
+      }
+      trial_consumed_emails: {
+        Row: {
+          email: string
+          consumed_at: string
+          organization_id: string | null
+          notes: string | null
+        }
+        Insert: {
+          email: string
+          consumed_at?: string
+          organization_id?: string | null
+          notes?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['trial_consumed_emails']['Row']>
         Relationships: []
       }
       cluster_manifests: {
