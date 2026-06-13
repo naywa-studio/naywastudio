@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { m } from "framer-motion"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
@@ -48,7 +49,14 @@ interface PendingInvite {
 export default function CabinetPage() {
   const { profile, organization, userEmail, emailConfirmed, isOwner, refetch } = useCabinet()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const sb = useMemo(() => getSupabase(), [])
+
+  const rawTab = searchParams.get("tab")
+  const activeTab: OrgTab = (() => {
+    if (rawTab === "equipe" || rawTab === "identite" || rawTab === "pricing" || rawTab === "securite") return rawTab
+    return "abonnement"
+  })()
 
   // Dashboard reste owner-only. /cabinet/parametrage gère les members
   // séparément en read-only.
@@ -101,7 +109,7 @@ export default function CabinetPage() {
 
   return (
     <main style={{
-      maxWidth: 1440, margin: "0 auto",
+      maxWidth: 1120, margin: "0 auto",
       padding: "24px 28px 56px",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
@@ -115,7 +123,7 @@ export default function CabinetPage() {
         transition={{ duration: 0.5, ease: EASE }}
         style={{
           display: "flex", alignItems: "center", gap: 18,
-          marginBottom: 18,
+          marginBottom: 20,
         }}
       >
         <HeroAvatar logoUrl={logoUrl} name={organization.brand_name ?? organization.name} />
@@ -149,66 +157,125 @@ export default function CabinetPage() {
         </div>
       </m.section>
 
-      {/* ── Mon siège — bandeau au-dessus du dashboard ─────── */}
-      <MySeatBanner
-        hasSeat={profile.has_sourcing_seat}
-        onToggle={refetch}
-        isOwner={isOwner}
-      />
+      {/* ── Tabs ──────────────────────────────────────────── */}
+      <OrgTabs activeTab={activeTab} showPricing={showPricingPolicy} />
 
-      {/* ── Grid principale 3 col ─────────────────────────── */}
-      <div className="cab-grid-3" style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-        gap: 16,
-        marginTop: 14,
-      }}>
-        <SubscriptionCard
-          organization={organization}
-          onActivated={refetch}
-          isOwner={isOwner}
-        />
-        <MembersSection
-          members={members}
-          invites={invites}
-          seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
-          currentUserId={profile.user_id}
-          userEmail={userEmail}
-          isOwner={isOwner}
-          onChange={() => { void loadInvites() }}
-        />
-        <IdentitySection
-          organization={organization}
-          logoUrl={logoUrl}
-          isOwner={isOwner}
-          onUpdated={refetch}
-        />
+      {/* ── Tab content ───────────────────────────────────── */}
+      <div style={{ marginTop: 22 }}>
+        {activeTab === "abonnement" && (
+          <div style={{ display: "grid", gap: 16 }}>
+            <MySeatBanner
+              hasSeat={profile.has_sourcing_seat}
+              onToggle={refetch}
+              isOwner={isOwner}
+            />
+            <SubscriptionCard
+              organization={organization}
+              onActivated={refetch}
+              isOwner={isOwner}
+            />
+          </div>
+        )}
+
+        {activeTab === "equipe" && (
+          <MembersSection
+            members={members}
+            invites={invites}
+            seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
+            currentUserId={profile.user_id}
+            userEmail={userEmail}
+            isOwner={isOwner}
+            onChange={() => { void loadInvites() }}
+          />
+        )}
+
+        {activeTab === "identite" && (
+          <IdentitySection
+            organization={organization}
+            logoUrl={logoUrl}
+            isOwner={isOwner}
+            onUpdated={refetch}
+          />
+        )}
+
+        {activeTab === "pricing" && showPricingPolicy && (
+          <PricingPolicyCard />
+        )}
+
+        {activeTab === "securite" && (
+          <DangerSection
+            organization={organization}
+            seatsUsed={seatsUsed}
+            onDeleted={() => router.replace("/")}
+          />
+        )}
       </div>
-
-      {/* ── Grid secondaire 2 col ─────────────────────────── */}
-      <div className="cab-grid-2" style={{
-        display: "grid",
-        gridTemplateColumns: showPricingPolicy ? "repeat(2, minmax(0, 1fr))" : "1fr",
-        gap: 16,
-        marginTop: 16,
-      }}>
-        {showPricingPolicy && <PricingPolicyCard />}
-        <DangerSection
-          organization={organization}
-          seatsUsed={seatsUsed}
-          onDeleted={() => router.replace("/")}
-        />
-      </div>
-
-      <style>{`
-        @media (max-width: 1100px) {
-          .cab-grid-3 { grid-template-columns: 1fr 1fr !important; }
-        }
-        @media (max-width: 720px) {
-          .cab-grid-3, .cab-grid-2 { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </main>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* OrgTabs — barre d'onglets de la console                              */
+/* ────────────────────────────────────────────────────────────────── */
+
+type OrgTab = "abonnement" | "equipe" | "identite" | "pricing" | "securite"
+
+const ALL_TABS: { id: OrgTab; label: string }[] = [
+  { id: "abonnement", label: "Abonnement" },
+  { id: "equipe",     label: "Équipe" },
+  { id: "identite",   label: "Identité" },
+  { id: "pricing",    label: "Politique pricing" },
+  { id: "securite",   label: "Sécurité" },
+]
+
+function OrgTabs({ activeTab, showPricing }: { activeTab: OrgTab; showPricing: boolean }) {
+  const tabs = ALL_TABS.filter((t) => t.id !== "pricing" || showPricing)
+  return (
+    <nav
+      role="tablist"
+      style={{
+        display: "flex", gap: 4,
+        borderBottom: "1px solid #E5E7EB",
+        overflowX: "auto",
+      }}
+    >
+      {tabs.map((t) => {
+        const active = activeTab === t.id
+        const href = `/organisation${t.id === "abonnement" ? "" : `?tab=${t.id}`}`
+        return (
+          <Link
+            key={t.id}
+            href={href}
+            role="tab"
+            aria-selected={active}
+            style={{
+              position: "relative",
+              padding: "10px 16px",
+              fontSize: 13.5,
+              fontWeight: active ? 700 : 500,
+              color: active ? "#111827" : "#6B7280",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              transition: "color 140ms",
+            }}
+          >
+            {t.label}
+            {active && (
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: 12, right: 12, bottom: -1,
+                  height: 2,
+                  background: "#7C63C8",
+                  borderRadius: 2,
+                }}
+              />
+            )}
+          </Link>
+        )
+      })}
+    </nav>
   )
 }
 
