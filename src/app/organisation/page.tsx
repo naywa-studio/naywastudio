@@ -171,8 +171,7 @@ export default function CabinetPage() {
         <MembersSection
           members={members}
           invites={invites}
-          seatsUsed={seatsUsed}
-          seatsTotal={organization.seats_total}
+          seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
           currentUserId={profile.user_id}
           userEmail={userEmail}
           isOwner={isOwner}
@@ -1066,21 +1065,30 @@ function IdentitySection({
 /* ────────────────────────────────────────────────────────────────── */
 
 function MembersSection({
-  members, invites, seatsUsed, seatsTotal, currentUserId, userEmail, isOwner, onChange,
+  members, invites, seatsBudget, currentUserId, userEmail, isOwner, onChange,
 }: {
   members: MemberRow[]
   invites: PendingInvite[]
-  seatsUsed: number
-  seatsTotal: number
+  /** Nombre total de sièges payés (sub Stripe) ou alloués (legacy). */
+  seatsBudget: number
   currentUserId: string
   userEmail: string
   isOwner: boolean
   onChange: () => void
 }) {
+  // Index du siège vide actuellement "ouvert" (en mode saisie email).
+  // -1 = aucun siège en édition.
+  const [editingSlot, setEditingSlot] = useState<number>(-1)
   const [inviteEmail, setInviteEmail] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [okMessage, setOkMessage] = useState<string | null>(null)
+
+  const seatsUsed = members.length + invites.length
+  // On affiche au moins `seatsBudget`, et plus si pour une raison
+  // historique le cabinet a déjà plus de monde que de sièges payés
+  // (cas peu courant mais qu'on ne veut pas cacher).
+  const seatsTotal = Math.max(seatsBudget, seatsUsed, 1)
 
   const sendInvite = async () => {
     const trimmed = inviteEmail.trim().toLowerCase()
@@ -1098,6 +1106,7 @@ function MembersSection({
       setError(j.error ?? "Erreur lors de l'envoi.")
     } else {
       setInviteEmail("")
+      setEditingSlot(-1)
       setOkMessage(`Invitation envoyée à ${trimmed}.`)
       onChange()
     }
@@ -1130,88 +1139,187 @@ function MembersSection({
     setBusy(false)
   }
 
+  // Construction de la liste des sièges :
+  //   1. Owner first
+  //   2. Autres membres
+  //   3. Invitations en attente
+  //   4. Sièges vides jusqu'au budget
+  type Slot =
+    | { kind: "member"; member: MemberRow }
+    | { kind: "invite"; invite: PendingInvite }
+    | { kind: "empty"; index: number }
+
+  const orderedMembers: MemberRow[] = [
+    ...members.filter((m) => m.role === "owner"),
+    ...members.filter((m) => m.role !== "owner"),
+  ]
+  const slots: Slot[] = [
+    ...orderedMembers.map((m): Slot => ({ kind: "member", member: m })),
+    ...invites.map((inv): Slot => ({ kind: "invite", invite: inv })),
+  ]
+  for (let i = slots.length; i < seatsTotal; i++) {
+    slots.push({ kind: "empty", index: i })
+  }
+
   return (
-    <Card title="Membres" subtitle={`${seatsUsed} sur ${Math.max(seatsTotal, seatsUsed)} sièges · vivier partagé`}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 230, overflow: "auto" }}>
-        {members.map((m) => {
-          const canRemove = isOwner && m.role !== "owner" && m.user_id !== currentUserId
-          return (
-            <div key={m.user_id} style={memberRowStyle}>
-              <Avatar letter={(m.first_name?.[0] ?? "?").toUpperCase()} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={memberNameStyle}>
-                  {m.first_name ?? "Sans prénom"}
+    <Card title="Membres" subtitle={`${seatsUsed} sur ${seatsTotal} sièges · vivier partagé`}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflow: "auto" }}>
+        {slots.map((slot, idx) => {
+          if (slot.kind === "member") {
+            const m = slot.member
+            const canRemove = isOwner && m.role !== "owner" && m.user_id !== currentUserId
+            return (
+              <div key={`m-${m.user_id}`} style={memberRowStyle}>
+                <Avatar letter={(m.first_name?.[0] ?? "?").toUpperCase()} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={memberNameStyle}>
+                    {m.first_name ?? "Sans prénom"}
+                    {m.user_id === currentUserId && (
+                      <span style={{ color: "#9CA3AF", fontWeight: 500 }}> · vous</span>
+                    )}
+                  </p>
                   {m.user_id === currentUserId && (
-                    <span style={{ color: "#9CA3AF", fontWeight: 500 }}> · vous</span>
+                    <p style={memberSubStyle}>{userEmail}</p>
                   )}
-                </p>
-                {m.user_id === currentUserId && (
-                  <p style={memberSubStyle}>{userEmail}</p>
+                </div>
+                <RolePill role={m.role} />
+                {canRemove && (
+                  <button
+                    type="button"
+                    onClick={() => void removeMember(m.user_id, m.first_name ?? "ce membre")}
+                    disabled={busy}
+                    title="Retirer du cabinet"
+                    style={iconBtnStyle}
+                  >
+                    Retirer
+                  </button>
                 )}
               </div>
-              <RolePill role={m.role} />
-              {canRemove && (
+            )
+          }
+
+          if (slot.kind === "invite") {
+            const inv = slot.invite
+            return (
+              <div key={`i-${inv.id}`} style={{
+                ...memberRowStyle,
+                background: "rgba(245,158,11,0.04)",
+                border: "1px solid rgba(245,158,11,0.20)",
+              }}>
+                <Avatar letter={inv.email[0]?.toUpperCase() ?? "?"} dim />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={memberNameStyle}>{inv.email}</p>
+                  <p style={memberSubStyle}>Invitation envoyée par email · en attente</p>
+                </div>
+                {isOwner && (
+                  <button type="button" onClick={() => void revokeInvite(inv.id)} disabled={busy} style={iconBtnStyle}>
+                    Annuler
+                  </button>
+                )}
+              </div>
+            )
+          }
+
+          // Siège vide — affichage CTA ou mode édition inline.
+          const isEditing = editingSlot === slot.index
+          if (isEditing) {
+            return (
+              <div key={`e-${idx}`} style={emptySeatRowStyle(true)}>
+                <Avatar letter="+" dim />
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="email@cabinet.com"
+                  autoFocus
+                  disabled={busy}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void sendInvite()
+                    if (e.key === "Escape") { setEditingSlot(-1); setInviteEmail("") }
+                  }}
+                  style={{ ...inputStyle, flex: 1, fontSize: 13, padding: "7px 10px" }}
+                />
                 <button
                   type="button"
-                  onClick={() => void removeMember(m.user_id, m.first_name ?? "ce membre")}
-                  disabled={busy}
-                  title="Retirer du cabinet"
-                  style={iconBtnStyle}
+                  onClick={sendInvite}
+                  disabled={busy || !inviteEmail.trim()}
+                  style={{
+                    ...smallBtnPrimary,
+                    opacity: busy || !inviteEmail.trim() ? 0.5 : 1,
+                    cursor: busy || !inviteEmail.trim() ? "not-allowed" : "pointer",
+                  }}
                 >
-                  Retirer
+                  {busy ? "…" : "Envoyer"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEditingSlot(-1); setInviteEmail(""); setError(null) }}
+                  disabled={busy}
+                  style={iconBtnStyle}
+                  title="Annuler"
+                >
+                  ✕
+                </button>
+              </div>
+            )
+          }
+
+          return (
+            <div key={`e-${idx}`} style={emptySeatRowStyle(false)}>
+              <Avatar letter="·" dim />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ ...memberNameStyle, color: "#9CA3AF", fontWeight: 600 }}>
+                  Siège vide
+                </p>
+              </div>
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => { setEditingSlot(slot.index); setError(null); setOkMessage(null) }}
+                  disabled={busy}
+                  style={addMemberBtnStyle}
+                >
+                  + Ajouter un membre
                 </button>
               )}
             </div>
           )
         })}
-
-        {invites.map((inv) => (
-          <div key={inv.id} style={{
-            ...memberRowStyle,
-            background: "rgba(245,158,11,0.04)",
-            border: "1px solid rgba(245,158,11,0.20)",
-          }}>
-            <Avatar letter={inv.email[0]?.toUpperCase() ?? "?"} dim />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={memberNameStyle}>{inv.email}</p>
-              <p style={memberSubStyle}>Invitation envoyée · en attente</p>
-            </div>
-            {isOwner && (
-              <button type="button" onClick={() => void revokeInvite(inv.id)} disabled={busy} style={iconBtnStyle}>
-                Annuler
-              </button>
-            )}
-          </div>
-        ))}
       </div>
 
-      {isOwner && (
-        <div style={{ marginTop: 12 }}>
-          <Label>Inviter par email</Label>
-          <div style={{ display: "flex", gap: 6 }}>
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="collegue@cabinet.com"
-              disabled={busy}
-              onKeyDown={(e) => { if (e.key === "Enter") void sendInvite() }}
-              style={{ ...inputStyle, flex: 1 }}
-            />
-            <button type="button" onClick={sendInvite} disabled={busy || !inviteEmail.trim()} style={{
-              ...smallBtnPrimary,
-              opacity: busy || !inviteEmail.trim() ? 0.5 : 1,
-              cursor: busy || !inviteEmail.trim() ? "not-allowed" : "pointer",
-            }}>
-              {busy ? "…" : "Inviter"}
-            </button>
-          </div>
-          {error && <p style={{ margin: "7px 0 0", fontSize: 12, color: "#EF4444" }}>{error}</p>}
-          {okMessage && <p style={{ margin: "7px 0 0", fontSize: 12, color: "#15803d" }}>{okMessage}</p>}
-        </div>
-      )}
+      {error && <p style={{ margin: "10px 0 0", fontSize: 12, color: "#EF4444" }}>{error}</p>}
+      {okMessage && <p style={{ margin: "10px 0 0", fontSize: 12, color: "#15803d" }}>{okMessage}</p>}
+
+      <p style={{
+        margin: "12px 0 0",
+        fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.55,
+      }}>
+        Les invitations sont envoyées par email. Le membre clique sur le lien
+        reçu, choisit son mot de passe, et accède directement au workspace.
+      </p>
     </Card>
   )
+}
+
+const emptySeatRowStyle = (editing: boolean): React.CSSProperties => ({
+  display: "flex", alignItems: "center", gap: 10,
+  padding: editing ? "8px 10px" : "10px 12px",
+  borderRadius: 10,
+  background: editing ? "rgba(124,99,200,0.06)" : "rgba(243,244,246,0.55)",
+  border: editing ? "1px solid rgba(124,99,200,0.30)" : "1px dashed #E5E7EB",
+})
+
+const addMemberBtnStyle: React.CSSProperties = {
+  padding: "6px 11px",
+  borderRadius: 8,
+  border: "1px solid rgba(124,99,200,0.30)",
+  background: "white",
+  color: "#7C63C8",
+  fontSize: 11.5,
+  fontWeight: 700,
+  cursor: "pointer",
+  fontFamily: "inherit",
+  whiteSpace: "nowrap",
 }
 
 function Avatar({ letter, dim }: { letter: string; dim?: boolean }) {
