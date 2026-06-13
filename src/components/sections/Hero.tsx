@@ -223,7 +223,7 @@ export function Hero() {
           />
           <span>
             <strong style={{ color: '#111827', fontWeight: 700 }}>15 jours offerts</strong>
-            {' · aucune carte requise · résiliable à tout moment'}
+            {' · sans engagement · annulable à tout moment'}
           </span>
         </m.p>
 

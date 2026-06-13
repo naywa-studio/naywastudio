@@ -7,7 +7,7 @@ import { ShaderBackground } from "@/components/ui/ShaderBackground"
 export const metadata: Metadata = {
   title: "Tarifs",
   description:
-    "15 jours d'essai gratuit, sans carte. La grille tarifaire publique de Naywa Studio (Package Sourcing) sera communiquée à l'ouverture officielle de la beta.",
+    "15 jours d'essai gratuit, sans engagement. La grille tarifaire publique de Naywa Studio (Package Sourcing) sera communiquée à l'ouverture officielle de la beta.",
 }
 
 const INCLUDED = [
@@ -95,7 +95,7 @@ export default function TarifsPage() {
             >
               La grille tarifaire publique sera communiquée à l&apos;ouverture
               officielle de la beta. En attendant, votre cabinet a accès au
-              workspace complet pendant 15 jours, sans carte bancaire.
+              workspace complet pendant 15 jours, sans engagement.
             </p>
           </div>
         </section>
@@ -317,7 +317,7 @@ export default function TarifsPage() {
                   lineHeight: 1.55,
                 }}
               >
-                Aucune carte requise. Vous gardez l&apos;accès à votre cabinet
+                Annulable à tout moment depuis votre console. Vous gardez l&apos;accès à votre organisation
                 même après l&apos;essai, sans coupure brutale.
               </p>
             </article>
@@ -405,7 +405,7 @@ export default function TarifsPage() {
 const FAQ = [
   {
     q: "Est-ce que je dois renseigner une carte bancaire ?",
-    a: "Non. L'essai gratuit de 15 jours ne demande aucune carte. À l'expiration, vous gardez l'accès à votre cabinet et nous vous proposerons un abonnement adapté.",
+    a: "L'essai gratuit de 15 jours est sans engagement, annulable à tout moment depuis votre console Stripe. Vous configurez votre moyen de paiement à l'activation, mais rien n'est prélevé pendant les 15 jours. Au terme, vous choisissez votre formule (ou annulez) et le prélèvement démarre.",
   },
   {
     q: "Que se passe-t-il à la fin des 15 jours ?",

@@ -105,7 +105,7 @@ const CATEGORIES = [
     questions: [
       {
         q: "Combien ça coûte ?",
-        a: "15 jours d'essai offerts, sans carte bancaire requise. Au-delà, le Package Sourcing reste accessible le temps de la beta privée. La grille tarifaire publique sera communiquée à l'ouverture officielle, sur un modèle calé sur le nombre de sièges dans votre cabinet.",
+        a: "15 jours d'essai offerts, sans engagement. Vous fournissez votre moyen de paiement (CB ou SEPA) à l'activation, mais rien n'est prélevé pendant les 15 jours. Vous choisissez votre formule (1 à 4+ sièges, Sourcing ou Sourcing Pro) avant la fin de l'essai ou annulez à tout moment.",
       },
       {
         q: "Comment rejoindre la beta ?",

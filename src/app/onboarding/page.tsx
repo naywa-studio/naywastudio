@@ -325,7 +325,7 @@ export default function OnboardingPage() {
                 <span style={italicAccentStyle}>{TRIAL_DURATION_DAYS} jours offerts</span>
               </h1>
               <p style={subtitleStyle}>
-                Tout le workspace Nora pour votre organisation. <strong style={{ color: "#111827" }}>Aucune carte requise</strong> pour démarrer.
+                Tout le workspace Nora pour votre organisation. <strong style={{ color: "#111827" }}>Sans engagement</strong>, annulable à tout moment.
               </p>
 
               <div style={{

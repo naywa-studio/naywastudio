@@ -186,7 +186,7 @@ export default function AProposPage() {
               }}
             >
               On répond personnellement à chaque message. 15 jours d&apos;essai
-              offerts, aucune carte requise.
+              offerts, sans engagement.
             </p>
             <div
               style={{

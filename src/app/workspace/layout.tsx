@@ -6,8 +6,9 @@ import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
+import { LockdownBanner } from "@/components/workspace/LockdownBanner"
 import { TrialBanner } from "@/components/trial/TrialBanner"
-import { hasActiveAccess } from "@/lib/subscription"
+import { hasActiveAccess, isInLockdown } from "@/lib/subscription"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -88,10 +89,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       org = data ?? null
     }
 
-    // Gate 2 : tant que le package n'est pas actif (trial ou Stripe), le
-    // workspace est verrouillé. Bounce sur /organisation où l'owner peut
-    // activer l'essai ou souscrire au package.
-    if (org && !hasActiveAccess(org)) {
+    // Gate 2 : tant que le package n'est pas actif ET qu'on n'est pas
+    // en lockdown (15 j grace après past_due), le workspace est verrouillé.
+    // En lockdown : accès AUTORISÉ en lecture seule pour permettre l'export
+    // RGPD et donner une dernière chance de régulariser.
+    if (org && !hasActiveAccess(org) && !isInLockdown(org)) {
       router.replace("/organisation")
       return
     }
@@ -315,6 +317,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         `}</style>
 
         <PendingDeletionBanner />
+        <LockdownBanner organization={organization} />
         <TrialBanner organization={organization} />
         {children}
 

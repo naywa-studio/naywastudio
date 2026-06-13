@@ -73,3 +73,27 @@ export function hasActiveAccess(
   const acc = subscriptionAccess(org)
   return acc.state === "trial" || acc.state === "paid" || acc.state === "trialing"
 }
+
+/** Lockdown actif = sub past_due/unpaid/canceled mais avant le wipe à
+ *  J+15. Le workspace doit rester accessible en LECTURE SEULE pour
+ *  permettre l'export RGPD et donner une dernière chance de régulariser.
+ *
+ *  Pas de lockdown si :
+ *    - lockdown_started_at n'est pas posé
+ *    - le cron de wipe a déjà passé (lockdown_started_at + 15 j)
+ *    - l'org a une access active (trial/paid/trialing) — le webhook
+ *      aurait dû clear le lockdown_started_at mais on est défensif. */
+export function isInLockdown(
+  org: Pick<
+    Organization,
+    "trial_ends_at" | "subscription_status" | "current_period_end" | "lockdown_started_at"
+  > | null | undefined,
+  /** Optionnel — passé en paramètre pour tester (Date.now() en prod). */
+  nowMs: number = Date.now(),
+): boolean {
+  if (!org?.lockdown_started_at) return false
+  if (hasActiveAccess(org)) return false
+  const startMs = new Date(org.lockdown_started_at).getTime()
+  const elapsedDays = (nowMs - startMs) / (24 * 60 * 60 * 1000)
+  return elapsedDays >= 0 && elapsedDays <= 15
+}

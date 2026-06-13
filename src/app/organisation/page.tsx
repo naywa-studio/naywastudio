@@ -54,7 +54,7 @@ export default function CabinetPage() {
 
   const rawTab = searchParams.get("tab")
   const activeTab: OrgTab = (() => {
-    if (rawTab === "abonnement" || rawTab === "pricing" || rawTab === "securite") return rawTab
+    if (rawTab === "abonnement" || rawTab === "securite") return rawTab
     return "org"
   })()
 
@@ -108,12 +108,10 @@ export default function CabinetPage() {
   const showPricingPolicy = trial.state !== "pending"
 
   const orgDisplayName = organization.brand_name ?? organization.name
-  // Pricing affichée inline dans l'onglet org quand l'abo inclut le
-  // module Pro. Sinon, on garde un onglet "Politique pricing" séparé
-  // pour les comptes sans Pro qui veulent quand même configurer leur
-  // marge cible (le pricing est consultable même hors abonnement).
+  // Pricing visible inline dans l'onglet org quand l'abo inclut la
+  // Suite Pricing Syntec (Pro). Hors Pro, pas de pricing : le module
+  // n'est pas inclus dans l'offre, donc pas de paramètres à régler.
   const pricingInline = showPricingPolicy && organization.subscription_has_pricing
-  const showPricingStandaloneTab = showPricingPolicy && !pricingInline
 
   return (
     <main style={{
@@ -129,7 +127,6 @@ export default function CabinetPage() {
       <OrgTabs
         activeTab={activeTab}
         orgLabel={orgDisplayName}
-        showPricing={showPricingStandaloneTab}
       />
 
       {/* ── Tab content ───────────────────────────────────── */}
@@ -184,12 +181,6 @@ export default function CabinetPage() {
           </div>
         )}
 
-        {activeTab === "pricing" && showPricingPolicy && (
-          <div style={{ maxWidth: 980 }}>
-            <PricingPolicyCard />
-          </div>
-        )}
-
         {activeTab === "securite" && (
           <div style={{ maxWidth: 720 }}>
             <DangerSection
@@ -208,22 +199,20 @@ export default function CabinetPage() {
 /* OrgTabs — barre d'onglets de la console                              */
 /* ────────────────────────────────────────────────────────────────── */
 
-type OrgTab = "org" | "abonnement" | "pricing" | "securite"
+type OrgTab = "org" | "abonnement" | "securite"
 
 function OrgTabs({
-  activeTab, orgLabel, showPricing,
+  activeTab, orgLabel,
 }: {
   activeTab: OrgTab
   orgLabel: string
-  showPricing: boolean
 }) {
-  // L'onglet "org" est nommé d'après le cabinet ; c'est l'onglet par
-  // défaut. Pricing standalone reste pour les comptes sans Pro (sub-pro
-  // l'a déjà inline dans l'onglet org).
+  // L'onglet "org" est nommé d'après l'organisation et est le tab par
+  // défaut. Politique pricing inline dans cet onglet quand Pro actif —
+  // pas d'onglet séparé.
   const tabs: { id: OrgTab; label: string }[] = [
-    { id: "org", label: orgLabel || "Cabinet" },
+    { id: "org", label: orgLabel || "Organisation" },
     { id: "abonnement", label: "Abonnement" },
-    ...(showPricing ? [{ id: "pricing" as const, label: "Politique pricing" }] : []),
     { id: "securite", label: "Sécurité" },
   ]
 
@@ -505,7 +494,7 @@ function SubscriptionCard({
         <Panel tone="warn">
           <p style={panelTitle("#D97706")}>Résiliation en cours</p>
           <p style={panelBody("#92400E")}>
-            Le cabinet et toutes ses données seront supprimés le <strong>{date}</strong>.
+            L&apos;organisation et toutes ses données seront supprimées le <strong>{date}</strong>.
           </p>
         </Panel>
       </Card>
@@ -1185,8 +1174,8 @@ function IdentitySection({
   }
 
   return (
-    <Card title="Identité du cabinet" subtitle="Apparaît sur les CV anonymisés et vos emails sortants.">
-      <Label>Nom du cabinet</Label>
+    <Card title="Identité de l'organisation" subtitle="Apparaît sur les CV anonymisés et vos emails sortants.">
+      <Label>Nom de l&apos;organisation</Label>
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -1311,14 +1300,14 @@ function MembersSection({
   }
 
   const removeMember = async (userId: string, label: string) => {
-    if (!confirm(`Retirer ${label} du cabinet ? Son compte et son accès au workspace seront supprimés.`)) return
+    if (!confirm(`Retirer ${label} de l'organisation ? Son compte et son accès au workspace seront supprimés.`)) return
     setBusy(true); setError(null); setOkMessage(null)
     const res = await fetch(`/api/cabinet/members/${encodeURIComponent(userId)}`, { method: "DELETE" })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
       setError(j.error ?? "Erreur lors du retrait.")
     } else {
-      setOkMessage(`${label} a été retiré du cabinet.`)
+      setOkMessage(`${label} a été retiré de l'organisation.`)
       onChange()
     }
     setBusy(false)
@@ -1373,7 +1362,7 @@ function MembersSection({
                     type="button"
                     onClick={() => void removeMember(m.user_id, m.first_name ?? "ce membre")}
                     disabled={busy}
-                    title="Retirer du cabinet"
+                    title="Retirer de l'organisation"
                     style={iconBtnStyle}
                   >
                     Retirer
@@ -1415,7 +1404,7 @@ function MembersSection({
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="email@cabinet.com"
+                  placeholder="email@organisation.com"
                   autoFocus
                   disabled={busy}
                   onKeyDown={(e) => {
@@ -1545,7 +1534,7 @@ function RolePill({ role }: { role: "owner" | "member" }) {
 
 function PricingPolicyCard() {
   return (
-    <Card title="Politique pricing" subtitle="Marges cibles + avantages standards du cabinet.">
+    <Card title="Politique pricing" subtitle="Marges cibles + avantages standards de l'organisation.">
       <div style={{
         padding: "12px 14px", borderRadius: 10,
         background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.20)",
@@ -1627,7 +1616,7 @@ function DangerSection({
           Zone de danger
         </h2>
         <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-          Supprimer définitivement le cabinet et toutes ses données.{" "}
+          Supprimer définitivement l&apos;organisation et toutes ses données.{" "}
           {hasOtherMembers
             ? <>Les autres membres garderont accès 30 jours.</>
             : <>La suppression est immédiate.</>}
@@ -1639,7 +1628,7 @@ function DangerSection({
             background: "white", color: "#B91C1C",
             fontSize: 12.5, fontWeight: 700, cursor: "pointer",
           }}>
-          Supprimer mon cabinet
+          Supprimer mon organisation
         </button>
 
       {showModal && (
@@ -1663,12 +1652,12 @@ function DangerSection({
             </h3>
             <p style={{ margin: "10px 0 18px", fontSize: 13.5, color: "#4B5563", lineHeight: 1.6 }}>
               {hasOtherMembers ? (
-                <>Vos collègues garderont l&apos;accès au workspace pendant <strong>30 jours</strong>. Passé ce délai, le cabinet et toutes ses données seront supprimés définitivement.</>
+                <>Vos collègues garderont l&apos;accès au workspace pendant <strong>30 jours</strong>. Passé ce délai, l&apos;organisation et toutes ses données seront supprimées définitivement.</>
               ) : (
                 <>Toutes vos données (vivier, missions, pipeline, emails, paramètres) seront supprimées <strong>immédiatement et définitivement</strong>. Cette action est irréversible.</>
               )}
             </p>
-            <Label>Tapez le nom du cabinet pour confirmer&nbsp;: <code style={{ background: "#F3F4F6", padding: "1px 6px", borderRadius: 4, color: "#111827" }}>{expectedConfirm}</code></Label>
+            <Label>Tapez le nom de l&apos;organisation pour confirmer&nbsp;: <code style={{ background: "#F3F4F6", padding: "1px 6px", borderRadius: 4, color: "#111827" }}>{expectedConfirm}</code></Label>
             <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
               placeholder={expectedConfirm} autoFocus style={inputStyle} />
             {error && <p style={{ margin: "12px 0 0", fontSize: 13, color: "#EF4444" }}>{error}</p>}
@@ -1732,7 +1721,7 @@ function ExportDataCard() {
         Exporter mes données
       </h2>
       <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-        Téléchargez un fichier JSON avec l&apos;intégralité de votre cabinet :
+        Téléchargez un fichier JSON avec l&apos;intégralité de votre organisation :
         candidats, missions, matches, mails et paramétrage. Conservez-le
         comme archive.
       </p>
