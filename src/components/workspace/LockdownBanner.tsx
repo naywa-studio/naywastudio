@@ -55,13 +55,13 @@ export function LockdownBanner({ organization }: Props) {
           ? <>Plus que <strong>{daysLeft} jour{daysLeft > 1 ? "s" : ""}</strong> avant la suppression des données. </>
           : <>Suppression des données dans les prochaines heures. </>}
         <Link
-          href="/organisation"
+          href="/organisation?action=subscribe"
           style={{
             color: "#DC2626", fontWeight: 700,
             textDecoration: "underline", textUnderlineOffset: 2,
           }}
         >
-          Régulariser mon abonnement
+          Souscrire à nouveau
         </Link>
         {" "}·{" "}
         <Link

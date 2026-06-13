@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import type { Organization } from "@/lib/database.types"
 import { trialStatus } from "@/lib/trial"
+import { isInLockdown } from "@/lib/subscription"
 
 /**
  * Sticky banner sur /organisation et /workspace.
@@ -51,6 +52,10 @@ export function TrialBanner({ organization, alwaysVisible = false }: Props) {
   const [nowMs] = useState(() => Date.now())
 
   if (!organization) return null
+
+  // En lockdown : la LockdownBanner (rouge, non-dismissable) prend le
+  // relais. On ne double pas avec un message d'essai/sub.
+  if (isInLockdown(organization, nowMs)) return null
 
   // Subscription Stripe a la priorité — si elle est past_due, expired
   // ou renouvellement imminent, c'est ce qu'on affiche, pas le trial.

@@ -54,7 +54,12 @@ export default function CabinetPage() {
   const sb = useMemo(() => getSupabase(), [])
 
   const rawTab = searchParams.get("tab")
+  const action = searchParams.get("action")
   const activeTab: OrgTab = (() => {
+    // Si ?action=subscribe (deep-link depuis la bannière lockdown ou un
+    // mail Stripe), on force l'onglet Abonnement où le SubscriptionCard
+    // détectera le param et ouvrira directement le PlanPicker.
+    if (action === "subscribe") return "abonnement"
     if (rawTab === "abonnement" || rawTab === "securite") return rawTab
     return "org"
   })()
@@ -106,7 +111,16 @@ export default function CabinetPage() {
 
   const seatsUsed = members.length + invites.length
   const trial = trialStatus(organization)
-  const showPricingPolicy = trial.state !== "pending"
+  // La politique pricing est visible dès qu'on a un accès actif :
+  //   - trial app-side actif (legacy, avant migration Stripe natif)
+  //   - sub Stripe active OR trialing
+  // Avant on bloquait à trial.state !== "pending", ce qui cachait la
+  // carte aux comptes qui souscrivent direct sans utiliser le trial.
+  const hasAnyAccess =
+    trial.state === "active" ||
+    organization.subscription_status === "active" ||
+    organization.subscription_status === "trialing"
+  const showPricingPolicy = hasAnyAccess
 
   // Visite guidée Package Sourcing : auto-open la première fois pour
   // l'owner après souscription, dismissable session-only.
@@ -251,6 +265,7 @@ export default function CabinetPage() {
               organization={organization}
               onActivated={refetch}
               isOwner={isOwner}
+              autoOpenPicker={action === "subscribe"}
             />
           </div>
         )}
@@ -545,15 +560,20 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
 /* ────────────────────────────────────────────────────────────────── */
 
 function SubscriptionCard({
-  organization, onActivated, isOwner,
+  organization, onActivated, isOwner, autoOpenPicker = false,
 }: {
   organization: Organization
   onActivated: () => Promise<void>
   isOwner: boolean
+  /** Si true (deep-link ?action=subscribe), ouvre le PlanPicker en mode
+   *  paid dès le mount. Évite à l'owner de cliquer 2x après un lockdown. */
+  autoOpenPicker?: boolean
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pickerMode, setPickerMode] = useState<"closed" | "trial" | "paid">("closed")
+  const [pickerMode, setPickerMode] = useState<"closed" | "trial" | "paid">(
+    autoOpenPicker && isOwner ? "paid" : "closed",
+  )
   const trial = trialStatus(organization)
   const access = subscriptionAccess(organization)
   const hasStripeSub =
