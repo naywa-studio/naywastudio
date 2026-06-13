@@ -28,8 +28,9 @@ interface Props {
 
 export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, sections }: Props) {
   return (
-    <div style={{ background: "#FAFAFA", minHeight: "100vh", position: "relative" }}>
+    <div style={{ background: "transparent", minHeight: "100vh", position: "relative" }}>
       <ShaderBackground />
+      <div style={{ position: "relative", zIndex: 2 }}>
       {/* Header */}
       <header
         style={{
@@ -166,6 +167,7 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
           contact@naywastudio.com
         </a>
       </footer>
+      </div>
     </div>
   )
 }

@@ -72,7 +72,7 @@ function Inner() {
           if (mounted) setPreviewError(({
             not_found:        "Ce lien d'invitation n'existe pas ou a été révoqué.",
             already_accepted: "Cette invitation a déjà été acceptée.",
-            expired:          "Cette invitation a expiré. Demandez-en une nouvelle à votre cabinet.",
+            expired:          "Cette invitation a expiré. Demandez-en une nouvelle à votre organisation.",
           } as Record<string, string>)[j.error ?? ""] ?? "Lien invalide.")
         } else {
           const data = (await r.json()) as InvitePreview
@@ -201,7 +201,7 @@ function Inner() {
       <Shell>
         <Title>Rejoindre {preview.organization_name} ?</Title>
         <p style={subTextStyle}>
-          En acceptant, vous quitterez votre cabinet personnel et accéderez au workspace
+          En acceptant, vous quitterez votre organisation personnelle et accéderez au workspace
           partagé (vivier, missions, pipeline) de {preview.organization_name}.
         </p>
         {error && <p style={errorStyle}>{error}</p>}
@@ -232,7 +232,7 @@ function Inner() {
         <Title>Vous êtes invité à rejoindre {preview.organization_name}.</Title>
         <p style={subTextStyle}>
           Adresse invitée&nbsp;: <strong style={{ color: "#111827" }}>{preview.email}</strong>.
-          En acceptant, vous créerez votre compte et accéderez au workspace partagé du cabinet
+          En acceptant, vous créerez votre compte et accéderez au workspace partagé de l&apos;organisation
           (vivier, missions, pipeline).
         </p>
         <div style={{ display: "flex", gap: 10, marginTop: 22, flexWrap: "wrap" }}>

@@ -63,7 +63,7 @@ const STEPS: Step[] = [
   {
     number: "05",
     title:  "Anonymisez en 1 clic",
-    short:  "PDF brandé à votre cabinet, nom et photo retirés",
+    short:  "PDF brandé à votre organisation, nom et photo retirés",
     body:   "Sur chaque fiche candidat, bouton « Anonymiser pour cette mission ». PDF généré sans nom, sans photo, sans coordonnées, avec votre logo en header et une référence interne C-XXXXXXXX. Le CV original reste intact dans votre vivier.",
     cta:    { label: "Voir le vivier", href: "/workspace/vivier" },
   },

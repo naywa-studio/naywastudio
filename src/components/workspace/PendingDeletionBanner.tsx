@@ -43,7 +43,7 @@ export default function PendingDeletionBanner() {
       textAlign: "center",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
-      Le cabinet sera fermé le <strong>{dateLabel}</strong>. Sauvegardez les données que vous souhaitez conserver d&apos;ici là.
+      L&apos;organisation sera fermée le <strong>{dateLabel}</strong>. Sauvegardez les données que vous souhaitez conserver d&apos;ici là.
     </div>
   )
 }

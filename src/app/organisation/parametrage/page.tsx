@@ -211,7 +211,7 @@ export default function ParametragePage() {
           borderRadius: 12, fontSize: 13, color: "#4B5563", lineHeight: 1.55,
         }}>
           <strong style={{ color: "#7C63C8" }}>Lecture seule.</strong>{" "}
-          Seul l&apos;owner du cabinet modifie ces paramètres. Vous les consultez pour
+          Seul l&apos;owner de l&apos;organisation modifie ces paramètres. Vous les consultez pour
           comprendre comment vos chiffrages sont calculés.
         </div>
       )}

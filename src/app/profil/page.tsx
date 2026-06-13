@@ -138,7 +138,7 @@ export default function ProfilPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {/* ── Informations personnelles ─── */}
-              <Card title="Informations personnelles" subtitle="Visible par vos collègues du cabinet.">
+              <Card title="Informations personnelles" subtitle="Visible par vos collègues de l'organisation.">
                 <Field label="Prénom">
                   <input
                     type="text"
@@ -289,10 +289,10 @@ function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
           border: "1px solid rgba(245,158,11,0.25)",
           fontSize: 12.5, color: "#92400E", lineHeight: 1.55,
         }}>
-          Vous êtes propriétaire d&apos;un cabinet. Si d&apos;autres
+          Vous êtes propriétaire d&apos;une organisation. Si d&apos;autres
           membres en font partie, vous devrez d&apos;abord les retirer
-          (ou supprimer le cabinet) depuis l&apos;onglet Sécurité de
-          votre console. Si vous êtes seul, votre cabinet sera supprimé
+          (ou supprimer l&apos;organisation) depuis l&apos;onglet Sécurité de
+          votre console. Si vous êtes seul, votre organisation sera supprimée
           en même temps que votre compte.
         </p>
       )}
@@ -330,7 +330,7 @@ function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
             </h3>
             <p style={{ margin: "10px 0 16px", fontSize: 13.5, color: "#4B5563", lineHeight: 1.6 }}>
               Votre profil, vos préférences et votre accès au workspace seront
-              supprimés. {isOwner ? "Votre cabinet sera également supprimé si vous en êtes le seul membre." : ""}
+              supprimés. {isOwner ? "Votre organisation sera également supprimée si vous en êtes le seul membre." : ""}
             </p>
             <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#374151" }}>
               Tapez <strong>SUPPRIMER</strong> pour confirmer

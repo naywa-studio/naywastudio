@@ -92,7 +92,7 @@ const CATEGORIES = [
       },
       {
         q: "Mon cabinet a des standards pricing différents, c'est paramétrable ?",
-        a: "Oui. Dans /organisation/parametrage, vous définissez vos seuils de marge (min/cible), vos avantages standards (mutuelle, tickets resto, indemnités), vos jours RTT/an. Tout pricing à venir hérite de ces valeurs et reste éditable mission par mission, candidat par candidat.",
+        a: "Oui. Dans /organisation/parametrage, vous définissez vos seuils de marge (min/cible), vos avantages standards (mutuelle, tickets resto, indemnités), vos jours RTT/an. Tout chiffrage à venir hérite de ces valeurs et reste éditable mission par mission, candidat par candidat.",
       },
       {
         q: "Le PDF de chiffrage est exportable ?",
@@ -105,11 +105,11 @@ const CATEGORIES = [
     questions: [
       {
         q: "Combien ça coûte ?",
-        a: "15 jours d'essai offerts, sans engagement. Vous fournissez votre moyen de paiement (CB ou SEPA) à l'activation, mais rien n'est prélevé pendant les 15 jours. Vous choisissez votre formule (1 à 4+ sièges, Sourcing ou Sourcing Pro) avant la fin de l'essai ou annulez à tout moment.",
+        a: "15 jours d'essai offerts, sans engagement. Vous fournissez votre moyen de paiement (CB ou SEPA) à l'activation, mais rien n'est prélevé pendant les 15 jours. La grille tarifaire publique sera communiquée à l'ouverture officielle de la beta. Vous pouvez annuler à tout moment depuis votre console.",
       },
       {
         q: "Comment rejoindre la beta ?",
-        a: "Créez un compte (email ou Google). L'accès est immédiat. 15 jours d'essai s'activent en 1 clic depuis votre console cabinet. Si vous avez un retour ou un besoin spécifique, écrivez-nous à contact@naywastudio.com, nous itérons vite.",
+        a: "Créez un compte (email ou Google). L'accès est immédiat. 15 jours d'essai s'activent en 1 clic depuis votre console organisation. Si vous avez un retour ou un besoin spécifique, écrivez-nous à contact@naywastudio.com, nous itérons vite.",
       },
     ],
   },
@@ -117,11 +117,11 @@ const CATEGORIES = [
 
 export default function FAQPage() {
   return (
-    <div style={{ background: "#FAFAFA", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ background: "transparent", minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
       <ShaderBackground />
       <Navbar />
 
-      <main style={{ flex: 1, padding: "120px 24px 80px" }}>
+      <main style={{ flex: 1, padding: "120px 24px 80px", position: "relative", zIndex: 2 }}>
         <div style={{ maxWidth: 880, margin: "0 auto" }}>
           {/* Hero */}
           <span style={{

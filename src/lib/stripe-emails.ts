@@ -161,12 +161,12 @@ export async function sendLockdownNotice(opts: {
 
   const ownerBody = `${greeting}
 
-L'abonnement de votre cabinet Naywa Studio est suspendu : le dernier
+L'abonnement de votre organisation Naywa Studio est suspendu : le dernier
 prélèvement a échoué ou l'abonnement a été annulé.
 
 Votre workspace passe en lecture seule pendant 15 jours. Pendant cette
 période vous pouvez consulter vos données, mais plus les modifier. Au
-terme des 15 jours, les données du cabinet seront supprimées.
+terme des 15 jours, les données de l'organisation seront supprimées.
 
 Pour reprendre l'accès complet, mettez à jour votre moyen de paiement
 ou souscrivez à nouveau depuis votre console :
@@ -179,11 +179,11 @@ l'onglet Sécurité.
 
   const memberBody = `${greeting}
 
-L'abonnement du cabinet auquel vous appartenez est suspendu. Le
+L'abonnement de l'organisation à laquelle vous appartenez est suspendu. Le
 workspace passe en lecture seule pendant 15 jours, puis les données
 seront supprimées.
 
-Demandez à l'owner du cabinet de régulariser. Vous pouvez aussi
+Demandez à l'owner de l'organisation de régulariser. Vous pouvez aussi
 exporter vos données depuis l'onglet Sécurité de votre console :
 ${APP_URL}/organisation?tab=securite
 
@@ -195,13 +195,13 @@ ${APP_URL}/organisation?tab=securite
     heading: "Workspace en lecture seule",
     body: `<p>${greeting}</p>
 <p>${isOwner
-        ? "L'abonnement de votre cabinet Naywa Studio est suspendu. Votre workspace passe en <strong>lecture seule pendant 15 jours</strong>, puis les données seront supprimées."
-        : "L'abonnement du cabinet auquel vous appartenez est suspendu. Le workspace passe en <strong>lecture seule pendant 15 jours</strong>, puis les données seront supprimées."}
+        ? "L'abonnement de votre organisation Naywa Studio est suspendu. Votre workspace passe en <strong>lecture seule pendant 15 jours</strong>, puis les données seront supprimées."
+        : "L'abonnement de l'organisation à laquelle vous appartenez est suspendu. Le workspace passe en <strong>lecture seule pendant 15 jours</strong>, puis les données seront supprimées."}
 </p>
 <p style="color:#6B7280;font-size:13.5px;">
   ${isOwner
         ? "Pour reprendre l'accès complet, mettez à jour votre moyen de paiement ou souscrivez à nouveau."
-        : "Demandez à l'owner du cabinet de régulariser. En attendant, vous pouvez exporter vos données."}
+        : "Demandez à l'owner de l'organisation de régulariser. En attendant, vous pouvez exporter vos données."}
 </p>`,
     ctaLabel: isOwner ? "Régulariser mon abonnement" : "Exporter mes données",
     ctaUrl: isOwner ? `${APP_URL}/organisation` : `${APP_URL}/organisation?tab=securite`,

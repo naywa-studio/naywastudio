@@ -285,7 +285,7 @@ export default function WorkspaceHome() {
             margin: 0, fontSize: 12, fontWeight: 700, color: "#9CA3AF",
             letterSpacing: "0.08em", textTransform: "uppercase",
           }}>
-            {brandName ?? "Cabinet sans nom"}
+            {brandName ?? "Organisation sans nom"}
           </p>
           <h1 style={{
             margin: "4px 0 0", fontSize: "clamp(26px, 3.4vw, 34px)", fontWeight: 800,

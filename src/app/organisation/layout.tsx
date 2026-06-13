@@ -147,7 +147,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
                 <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </Link>
-            <Link href="/workspace" style={{ textDecoration: "none" }}>
+            <Link href="/" style={{ textDecoration: "none" }} title="Accueil naywastudio.com">
               <Logo size="md" />
             </Link>
             <span style={{
