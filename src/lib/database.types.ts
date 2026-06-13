@@ -232,6 +232,10 @@ export type Database = {
           /** When the org entered read-only mode (past_due / unpaid /
            *  canceled). Daily cron wipes data at +15 days. NULL = active. */
           lockdown_started_at: string | null
+          /** Set quand l'owner a complété ou skippé la visite guidée
+           *  Package Sourcing post-souscription. NULL = la bannière
+           *  reminder s'affiche sur /organisation. */
+          package_sourcing_onboarded_at: string | null
           created_at: string
           updated_at: string
         }
