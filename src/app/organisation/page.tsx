@@ -37,6 +37,7 @@ interface MemberRow {
   user_id: string
   first_name: string | null
   role: "owner" | "member"
+  has_sourcing_seat: boolean
 }
 
 interface PendingInvite {
@@ -77,7 +78,7 @@ export default function CabinetPage() {
   const loadMembers = async () => {
     const { data } = await sb
       .from("profiles")
-      .select("user_id, first_name, role")
+      .select("user_id, first_name, role, has_sourcing_seat")
       .eq("organization_id", organization.id)
       .order("role", { ascending: true })
     setMembers((data ?? []) as MemberRow[])
@@ -109,7 +110,10 @@ export default function CabinetPage() {
     return () => { mounted = false }
   }, [sb, organization.brand_logo_path])
 
-  const seatsUsed = members.length + invites.length
+  // Seats used = members AYANT un siège alloué + invitations en attente.
+  // Un owner sans siège alloué ne compte pas. Le toggle siège est piloté
+  // par la MembersSection (allocation explicite).
+  const seatsUsed = members.filter((m) => m.has_sourcing_seat).length + invites.length
   const trial = trialStatus(organization)
   // La politique pricing est visible dès qu'on a un accès actif :
   //   - trial app-side actif (legacy, avant migration Stripe natif)
@@ -1352,10 +1356,15 @@ function MembersSection({
   const [error, setError] = useState<string | null>(null)
   const [okMessage, setOkMessage] = useState<string | null>(null)
 
-  const seatsUsed = members.length + invites.length
+  // Seats used = uniquement les membres ALLOUÉS + invitations en
+  // attente. Owner sans siège alloué = pas comptabilisé.
+  const seatsUsed = members.filter((m) => m.has_sourcing_seat).length + invites.length
+  // Members sans siège alloué : peuvent être listés dans le menu
+  // "+ Allouer un membre existant" sur les sièges vides.
+  const unallocatedMembers = members.filter((m) => !m.has_sourcing_seat)
   // On affiche au moins `seatsBudget`, et plus si pour une raison
-  // historique le cabinet a déjà plus de monde que de sièges payés
-  // (cas peu courant mais qu'on ne veut pas cacher).
+  // historique l'organisation a déjà plus de monde alloué que de sièges
+  // payés (cas peu courant mais qu'on ne veut pas cacher).
   const seatsTotal = Math.max(seatsBudget, seatsUsed, 1)
 
   const sendInvite = async () => {
@@ -1393,40 +1402,80 @@ function MembersSection({
     setBusy(false)
   }
 
-  const removeMember = async (userId: string, label: string) => {
-    if (!confirm(`Retirer ${label} de l'organisation ? Son compte et son accès au workspace seront supprimés.`)) return
-    setBusy(true); setError(null); setOkMessage(null)
-    const res = await fetch(`/api/cabinet/members/${encodeURIComponent(userId)}`, { method: "DELETE" })
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Erreur lors du retrait.")
-    } else {
-      setOkMessage(`${label} a été retiré de l'organisation.`)
-      onChange()
-    }
-    setBusy(false)
-  }
+  // removeMember conservé pour les workflows admin futurs (retrait
+  // total d'un membre, pas juste libération de siège). Pour l'instant
+  // l'UI passe par deallocateMember : libérer un siège ne supprime pas
+  // le profil. Le retrait full restera dispo via le bouton "Retirer
+  // de l'organisation" sur la fiche membre individuelle si on l'ajoute
+  // un jour.
+  void (async (userId: string, label: string) => {
+    if (!confirm(`Retirer ${label} de l'organisation ?`)) return
+    await fetch(`/api/cabinet/members/${encodeURIComponent(userId)}`, { method: "DELETE" })
+    onChange()
+  })
 
   // Construction de la liste des sièges :
-  //   1. Owner first
-  //   2. Autres membres
-  //   3. Invitations en attente
-  //   4. Sièges vides jusqu'au budget
+  //   1. Membres ALLOUÉS (owner alloué first), peu importe leur rôle
+  //   2. Invitations en attente
+  //   3. Sièges vides jusqu'au budget
+  // Les membres sans siège alloué (typiquement l'owner par défaut) ne
+  // sont PAS rendus comme occupant un siège — ils apparaissent dans
+  // la liste de sélection "Allouer un membre existant" sur les sièges
+  // vides.
   type Slot =
     | { kind: "member"; member: MemberRow }
     | { kind: "invite"; invite: PendingInvite }
     | { kind: "empty"; index: number }
 
-  const orderedMembers: MemberRow[] = [
-    ...members.filter((m) => m.role === "owner"),
-    ...members.filter((m) => m.role !== "owner"),
+  const allocatedMembers = members.filter((m) => m.has_sourcing_seat)
+  const orderedAllocated: MemberRow[] = [
+    ...allocatedMembers.filter((m) => m.role === "owner"),
+    ...allocatedMembers.filter((m) => m.role !== "owner"),
   ]
   const slots: Slot[] = [
-    ...orderedMembers.map((m): Slot => ({ kind: "member", member: m })),
+    ...orderedAllocated.map((m): Slot => ({ kind: "member", member: m })),
     ...invites.map((inv): Slot => ({ kind: "invite", invite: inv })),
   ]
   for (let i = slots.length; i < seatsTotal; i++) {
     slots.push({ kind: "empty", index: i })
+  }
+
+  /** Alloue un siège à un membre existant (owner ou member sans siège).
+   *  Endpoint partagé avec le toggle self-seat owner. */
+  const allocateExistingMember = async (userId: string) => {
+    setBusy(true); setError(null); setOkMessage(null)
+    const res = await fetch("/api/cabinet/seat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, allocate: true }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Allocation impossible.")
+    } else {
+      onChange()
+    }
+    setBusy(false)
+  }
+
+  /** Désalloue un siège (owner peut désallouer n'importe qui ; un member
+   *  peut désallouer son propre siège). */
+  const deallocateMember = async (userId: string, label: string) => {
+    if (!confirm(`Libérer le siège de ${label} ? L'utilisateur reste dans l'organisation mais perd l'accès au workspace.`)) return
+    setBusy(true); setError(null); setOkMessage(null)
+    const res = await fetch("/api/cabinet/seat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, allocate: false }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Libération impossible.")
+    } else {
+      setOkMessage(`Siège de ${label} libéré.`)
+      onChange()
+    }
+    setBusy(false)
   }
 
   return (
@@ -1435,7 +1484,7 @@ function MembersSection({
         {slots.map((slot, idx) => {
           if (slot.kind === "member") {
             const m = slot.member
-            const canRemove = isOwner && m.role !== "owner" && m.user_id !== currentUserId
+            const canDeallocate = isOwner
             return (
               <div key={`m-${m.user_id}`} style={memberRowStyle}>
                 <Avatar letter={(m.first_name?.[0] ?? "?").toUpperCase()} />
@@ -1451,15 +1500,15 @@ function MembersSection({
                   )}
                 </div>
                 <RolePill role={m.role} />
-                {canRemove && (
+                {canDeallocate && (
                   <button
                     type="button"
-                    onClick={() => void removeMember(m.user_id, m.first_name ?? "ce membre")}
+                    onClick={() => void deallocateMember(m.user_id, m.first_name ?? "ce membre")}
                     disabled={busy}
-                    title="Retirer de l'organisation"
+                    title="Libérer ce siège"
                     style={iconBtnStyle}
                   >
-                    Retirer
+                    Libérer
                   </button>
                 )}
               </div>
@@ -1541,14 +1590,13 @@ function MembersSection({
                 </p>
               </div>
               {isOwner && (
-                <button
-                  type="button"
-                  onClick={() => { setEditingSlot(slot.index); setError(null); setOkMessage(null) }}
-                  disabled={busy}
-                  style={addMemberBtnStyle}
-                >
-                  + Ajouter un membre
-                </button>
+                <EmptySeatActions
+                  unallocated={unallocatedMembers}
+                  currentUserId={currentUserId}
+                  busy={busy}
+                  onInviteEmail={() => { setEditingSlot(slot.index); setError(null); setOkMessage(null) }}
+                  onAllocate={(userId) => void allocateExistingMember(userId)}
+                />
               )}
             </div>
           )
@@ -1576,6 +1624,125 @@ const emptySeatRowStyle = (editing: boolean): React.CSSProperties => ({
   background: editing ? "rgba(124,99,200,0.06)" : "rgba(243,244,246,0.55)",
   border: editing ? "1px solid rgba(124,99,200,0.30)" : "1px dashed #E5E7EB",
 })
+
+/** Menu d'action sur un siège vide.
+ *
+ *  Si aucun membre sans siège n'existe -> simple bouton "+ Ajouter un
+ *  membre" (invite par mail).
+ *  Sinon -> dropdown qui propose :
+ *    - "+ Ajouter un membre" (invite email, comme avant)
+ *    - "M'allouer un siège" si l'owner courant n'a pas de siège
+ *    - "Allouer à {first_name}" pour chaque membre non-alloué
+ */
+function EmptySeatActions({
+  unallocated, currentUserId, busy, onInviteEmail, onAllocate,
+}: {
+  unallocated: MemberRow[]
+  currentUserId: string
+  busy: boolean
+  onInviteEmail: () => void
+  onAllocate: (userId: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!open) return
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", onClick)
+    return () => document.removeEventListener("mousedown", onClick)
+  }, [open])
+
+  // Aucun membre disponible -> bouton simple, pas de dropdown.
+  if (unallocated.length === 0) {
+    return (
+      <button
+        type="button"
+        onClick={onInviteEmail}
+        disabled={busy}
+        style={addMemberBtnStyle}
+      >
+        + Ajouter un membre
+      </button>
+    )
+  }
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        disabled={busy}
+        style={addMemberBtnStyle}
+      >
+        + Allouer un siège ▾
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            minWidth: 240,
+            background: "white",
+            border: "1px solid #E5E7EB",
+            borderRadius: 10,
+            boxShadow: "0 12px 32px -8px rgba(17,24,39,0.20)",
+            padding: 5,
+            zIndex: 10,
+            fontFamily: "var(--font-inter), sans-serif",
+          }}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setOpen(false); onInviteEmail() }}
+            style={dropdownItemStyle}
+          >
+            + Inviter un nouveau membre (email)
+          </button>
+          <div style={{ height: 1, background: "#F0ECF8", margin: "4px 0" }} />
+          {unallocated.map((m) => {
+            const isSelf = m.user_id === currentUserId
+            return (
+              <button
+                key={m.user_id}
+                type="button"
+                role="menuitem"
+                onClick={() => { setOpen(false); onAllocate(m.user_id) }}
+                style={dropdownItemStyle}
+              >
+                {isSelf ? "M'allouer un siège" : `Allouer à ${m.first_name ?? "Sans prénom"}`}
+                {m.role === "owner" && !isSelf && (
+                  <span style={{ marginLeft: 6, fontSize: 10.5, color: "#9CA3AF", fontWeight: 500 }}>
+                    (owner)
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const dropdownItemStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  textAlign: "left",
+  padding: "8px 10px",
+  borderRadius: 6,
+  border: "none",
+  background: "transparent",
+  color: "#374151",
+  fontSize: 12.5,
+  fontWeight: 600,
+  cursor: "pointer",
+  fontFamily: "inherit",
+}
 
 const addMemberBtnStyle: React.CSSProperties = {
   padding: "6px 11px",
