@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { m } from "framer-motion"
-import { PackageOnboardingModal } from "@/components/organisation/PackageOnboardingModal"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
 import { trialStatus, TRIAL_DURATION_DAYS } from "@/lib/trial"
@@ -126,28 +125,9 @@ export default function CabinetPage() {
     organization.subscription_status === "trialing"
   const showPricingPolicy = hasAnyAccess
 
-  // Visite guidée Package Sourcing : auto-open la première fois pour
-  // l'owner après souscription, dismissable session-only.
-  const [packageOnboardingDismissed, setPackageOnboardingDismissed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false
-    try { return sessionStorage.getItem("naywa.packageOnboarding.dismissed") === "1" } catch { return false }
-  })
-  const [showPackageOnboarding, setShowPackageOnboarding] = useState(false)
-  const hasActiveSub =
-    organization.subscription_status === "active" ||
-    organization.subscription_status === "trialing"
-  const shouldShowPackageOnboarding =
-    isOwner &&
-    !organization.package_sourcing_onboarded_at &&
-    (hasActiveSub || trial.state === "active") &&
-    !organization.pending_deletion_at &&
-    !organization.lockdown_started_at
-
-  useEffect(() => {
-    if (shouldShowPackageOnboarding && !packageOnboardingDismissed) {
-      setShowPackageOnboarding(true)
-    }
-  }, [shouldShowPackageOnboarding, packageOnboardingDismissed])
+  // La visite guidée 6 étapes Package Sourcing est désormais déclenchée
+  // sur /workspace (premier accès après souscription), pas ici --
+  // c'est dans le workspace que les CTAs des étapes ont du sens.
 
   const orgDisplayName = organization.brand_name ?? organization.name
   // Pricing visible inline dans l'onglet org quand l'abo inclut la
@@ -163,56 +143,6 @@ export default function CabinetPage() {
     }}>
       {!emailConfirmed && (
         <EmailConfirmationBanner email={userEmail} />
-      )}
-
-      {/* Reminder à reprendre la visite guidée si dismissée mais pas finie */}
-      {shouldShowPackageOnboarding && !showPackageOnboarding && (
-        <div style={{
-          marginBottom: 18,
-          padding: "12px 16px",
-          background: "linear-gradient(90deg, rgba(243,232,255,0.95) 0%, rgba(233,213,255,0.95) 100%)",
-          border: "1px solid rgba(124,99,200,0.25)",
-          borderRadius: 12,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          gap: 14, flexWrap: "wrap",
-        }}>
-          <p style={{
-            margin: 0, fontSize: 13.5, fontWeight: 600, color: "#5B45A8",
-          }}>
-            Bienvenue sur Naywa. Découvrez le Package Sourcing en 6 étapes.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              try { sessionStorage.removeItem("naywa.packageOnboarding.dismissed") } catch {}
-              setPackageOnboardingDismissed(false)
-              setShowPackageOnboarding(true)
-            }}
-            style={{
-              padding: "7px 14px", borderRadius: 9,
-              border: "none",
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              color: "white", fontSize: 12.5, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            Reprendre la visite →
-          </button>
-        </div>
-      )}
-
-      {showPackageOnboarding && (
-        <PackageOnboardingModal
-          onDone={() => {
-            setShowPackageOnboarding(false)
-            void refetch()
-          }}
-          onDismiss={() => {
-            setShowPackageOnboarding(false)
-            try { sessionStorage.setItem("naywa.packageOnboarding.dismissed", "1") } catch {}
-            setPackageOnboardingDismissed(true)
-          }}
-        />
       )}
 
       {/* ── Tabs ──────────────────────────────────────────── */}
