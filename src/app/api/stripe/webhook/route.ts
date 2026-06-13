@@ -24,6 +24,7 @@ import {
   sendSubscriptionWelcome,
   sendPaymentFailed,
   sendTrialEndingSoon,
+  sendLockdownNotice,
 } from "@/lib/stripe-emails"
 
 export const runtime = "nodejs"
@@ -131,11 +132,12 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
     (sub as unknown as { current_period_end?: number }).current_period_end ??
     null
 
-  // Read previous state to detect a fresh activation (welcome mail) and
-  // to know whether seats_total needs to be raised.
+  // Read previous state to detect a fresh activation (welcome mail), a
+  // fresh lockdown entry, and to know whether seats_total needs to be
+  // raised.
   const { data: prev } = await admin
     .from("organizations")
-    .select("subscription_status, seats_total")
+    .select("subscription_status, seats_total, lockdown_started_at")
     .eq("id", orgId)
     .single()
 
@@ -145,6 +147,21 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
   const nextSeatsTotal = seats != null
     ? Math.max(prev?.seats_total ?? 0, seats)
     : prev?.seats_total ?? 0
+
+  // Lockdown : on entre en read-only quand le statut tombe en past_due
+  // ou unpaid. On en sort dès qu'il repasse en active/trialing.
+  const lockdownStates: Stripe.Subscription.Status[] = ["past_due", "unpaid"]
+  const isLockdown = lockdownStates.includes(sub.status)
+  const isActiveStatus = sub.status === "active" || sub.status === "trialing"
+
+  let lockdownStartedAt = prev?.lockdown_started_at ?? null
+  let lockdownJustStarted = false
+  if (isLockdown && !lockdownStartedAt) {
+    lockdownStartedAt = new Date().toISOString()
+    lockdownJustStarted = true
+  } else if (isActiveStatus && lockdownStartedAt) {
+    lockdownStartedAt = null
+  }
 
   await admin
     .from("organizations")
@@ -159,6 +176,7 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
         ? new Date(periodEndSec * 1000).toISOString()
         : null,
       seats_total: nextSeatsTotal,
+      lockdown_started_at: lockdownStartedAt,
     })
     .eq("id", orgId)
 
@@ -168,9 +186,12 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
   const wasActive =
     prev?.subscription_status === "active" ||
     prev?.subscription_status === "trialing"
-  const isActive = sub.status === "active" || sub.status === "trialing"
-  if (!wasActive && isActive) {
+  if (!wasActive && isActiveStatus) {
     await notifyOwnerWelcome(orgId, lookup, seats, hasPricing)
+  }
+  // Lockdown : mail aux membres (owner + invités) à la 1ère bascule.
+  if (lockdownJustStarted) {
+    await notifyLockdownStart(orgId)
   }
 }
 
@@ -179,14 +200,17 @@ async function onSubscriptionDeleted(sub: Stripe.Subscription) {
   const orgId = await resolveOrgId(sub)
   if (!orgId) return
 
+  // Annulation = bascule immédiate en lockdown (15 j read-only puis wipe).
   await admin
     .from("organizations")
     .update({
       subscription_status: "canceled",
       stripe_subscription_id: null,
       current_period_end: null,
+      lockdown_started_at: new Date().toISOString(),
     })
     .eq("id", orgId)
+  await notifyLockdownStart(orgId)
 }
 
 async function onInvoicePaid(invoice: Stripe.Invoice) {
@@ -251,6 +275,31 @@ async function onTrialWillEnd(sub: Stripe.Subscription) {
     firstName: owner.firstName,
     daysLeft,
   })
+}
+
+async function notifyLockdownStart(orgId: string): Promise<void> {
+  // Mail à tous les membres de l'org (owner + invités acceptés) pour
+  // les prévenir du passage en lecture seule et du countdown de 15 j
+  // avant suppression des données. Lien d'export inclus.
+  const admin = getAdminSupabase()
+  const { data: members } = await admin
+    .from("profiles")
+    .select("user_id, first_name, role")
+    .eq("organization_id", orgId)
+
+  if (!members || members.length === 0) return
+
+  await Promise.allSettled(
+    members.map(async (m) => {
+      const { data: { user } } = await admin.auth.admin.getUserById(m.user_id)
+      if (!user?.email) return
+      await sendLockdownNotice({
+        to: user.email,
+        firstName: m.first_name,
+        role: m.role,
+      })
+    })
+  )
 }
 
 async function notifyOwnerWelcome(

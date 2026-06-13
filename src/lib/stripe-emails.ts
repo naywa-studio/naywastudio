@@ -151,6 +151,76 @@ Si vous avez une question, répondez simplement à ce mail.
   }
 }
 
+export async function sendLockdownNotice(opts: {
+  to: string
+  firstName: string | null
+  role: "owner" | "member"
+}): Promise<void> {
+  const greeting = opts.firstName?.trim() ? `Bonjour ${opts.firstName.trim()},` : "Bonjour,"
+  const isOwner = opts.role === "owner"
+
+  const ownerBody = `${greeting}
+
+L'abonnement de votre cabinet Naywa Studio est suspendu : le dernier
+prélèvement a échoué ou l'abonnement a été annulé.
+
+Votre workspace passe en lecture seule pendant 15 jours. Pendant cette
+période vous pouvez consulter vos données, mais plus les modifier. Au
+terme des 15 jours, les données du cabinet seront supprimées.
+
+Pour reprendre l'accès complet, mettez à jour votre moyen de paiement
+ou souscrivez à nouveau depuis votre console :
+${APP_URL}/organisation
+
+Vous pouvez aussi télécharger un export complet de vos données depuis
+l'onglet Sécurité.
+
+— L'équipe Naywa Studio`
+
+  const memberBody = `${greeting}
+
+L'abonnement du cabinet auquel vous appartenez est suspendu. Le
+workspace passe en lecture seule pendant 15 jours, puis les données
+seront supprimées.
+
+Demandez à l'owner du cabinet de régulariser. Vous pouvez aussi
+exporter vos données depuis l'onglet Sécurité de votre console :
+${APP_URL}/organisation?tab=securite
+
+— L'équipe Naywa Studio`
+
+  const text = isOwner ? ownerBody : memberBody
+
+  const html = wrap({
+    heading: "Workspace en lecture seule",
+    body: `<p>${greeting}</p>
+<p>${isOwner
+        ? "L'abonnement de votre cabinet Naywa Studio est suspendu. Votre workspace passe en <strong>lecture seule pendant 15 jours</strong>, puis les données seront supprimées."
+        : "L'abonnement du cabinet auquel vous appartenez est suspendu. Le workspace passe en <strong>lecture seule pendant 15 jours</strong>, puis les données seront supprimées."}
+</p>
+<p style="color:#6B7280;font-size:13.5px;">
+  ${isOwner
+        ? "Pour reprendre l'accès complet, mettez à jour votre moyen de paiement ou souscrivez à nouveau."
+        : "Demandez à l'owner du cabinet de régulariser. En attendant, vous pouvez exporter vos données."}
+</p>`,
+    ctaLabel: isOwner ? "Régulariser mon abonnement" : "Exporter mes données",
+    ctaUrl: isOwner ? `${APP_URL}/organisation` : `${APP_URL}/organisation?tab=securite`,
+  })
+
+  try {
+    await sendEmail({
+      from: FROM,
+      to: opts.to,
+      replyTo: REPLY_TO,
+      subject: "Workspace Naywa Studio en lecture seule",
+      text,
+      html,
+    })
+  } catch (err) {
+    console.error("[stripe-emails] sendLockdownNotice failed:", err)
+  }
+}
+
 export async function sendTrialEndingSoon(opts: {
   to: string
   firstName: string | null

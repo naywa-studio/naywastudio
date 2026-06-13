@@ -1664,32 +1664,34 @@ function DangerSection({
   if (organization.pending_deletion_at) return null
 
   return (
-    <section style={{
-      padding: "16px 18px",
-      background: "white",
-      border: "1px solid rgba(239,68,68,0.30)",
-      borderRadius: 14,
-      height: "100%",
-      boxSizing: "border-box",
-    }}>
-      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
-        Zone de danger
-      </h2>
-      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-        Supprimer définitivement le cabinet et toutes ses données.{" "}
-        {hasOtherMembers
-          ? <>Les autres membres garderont accès 30 jours.</>
-          : <>La suppression est immédiate.</>}
-      </p>
-      <button type="button" onClick={() => setShowModal(true)}
-        style={{
-          padding: "8px 14px", borderRadius: 9,
-          border: "1px solid rgba(239,68,68,0.35)",
-          background: "white", color: "#B91C1C",
-          fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-        }}>
-        Supprimer mon cabinet
-      </button>
+    <div style={{ display: "grid", gap: 16 }}>
+      <ExportDataCard />
+
+      <section style={{
+        padding: "16px 18px",
+        background: "white",
+        border: "1px solid rgba(239,68,68,0.30)",
+        borderRadius: 14,
+        boxSizing: "border-box",
+      }}>
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
+          Zone de danger
+        </h2>
+        <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+          Supprimer définitivement le cabinet et toutes ses données.{" "}
+          {hasOtherMembers
+            ? <>Les autres membres garderont accès 30 jours.</>
+            : <>La suppression est immédiate.</>}
+        </p>
+        <button type="button" onClick={() => setShowModal(true)}
+          style={{
+            padding: "8px 14px", borderRadius: 9,
+            border: "1px solid rgba(239,68,68,0.35)",
+            background: "white", color: "#B91C1C",
+            fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+          }}>
+          Supprimer mon cabinet
+        </button>
 
       {showModal && (
         <div role="dialog" aria-modal="true"
@@ -1740,6 +1742,70 @@ function DangerSection({
           </div>
         </div>
       )}
+      </section>
+    </div>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Export RGPD — bouton de téléchargement                              */
+/* ────────────────────────────────────────────────────────────────── */
+
+function ExportDataCard() {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const download = () => {
+    setBusy(true); setError(null)
+    // Le navigateur déclenche le download via Content-Disposition. On
+    // utilise un anchor invisible pour porter les credentials cookies.
+    const a = document.createElement("a")
+    a.href = "/api/export/me"
+    a.download = ""
+    a.rel = "noopener"
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => {
+      document.body.removeChild(a)
+      setBusy(false)
+    }, 1500)
+  }
+
+  return (
+    <section style={{
+      padding: "16px 18px",
+      background: "white",
+      border: "1px solid #F0ECF8",
+      borderRadius: 14,
+      boxSizing: "border-box",
+    }}>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>
+        Exporter mes données
+      </h2>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+        Téléchargez un fichier JSON avec l&apos;intégralité de votre cabinet :
+        candidats, missions, matches, mails et paramétrage. Conservez-le
+        comme archive.
+      </p>
+      <p style={{ margin: "0 0 14px", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.55 }}>
+        En raison des mises à jour produit, nous ne pouvons pas garantir la
+        restauration complète de ces données dans une future version du service.
+      </p>
+      <button
+        type="button"
+        onClick={download}
+        disabled={busy}
+        style={{
+          padding: "8px 14px", borderRadius: 9,
+          border: "1px solid rgba(124,99,200,0.30)",
+          background: "white", color: "#7C63C8",
+          fontSize: 12.5, fontWeight: 700,
+          cursor: busy ? "wait" : "pointer",
+        }}
+      >
+        {busy ? "Préparation…" : "Télécharger l'export JSON"}
+      </button>
+      {error && <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B91C1C" }}>{error}</p>}
     </section>
   )
 }
