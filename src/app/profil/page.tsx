@@ -224,12 +224,160 @@ export default function ProfilPage() {
                   Se déconnecter
                 </button>
               </Card>
+
+              {/* ── Suppression de compte ─── */}
+              <DeleteAccountCard isOwner={profile?.role === "owner"} />
             </div>
           )}
         </div>
       </main>
       <Footer />
     </>
+  )
+}
+
+function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
+  const router = useRouter()
+  const [showModal, setShowModal] = useState(false)
+  const [confirmText, setConfirmText] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const canDelete = confirmText.trim().toUpperCase() === "SUPPRIMER" && !busy
+
+  const doDelete = async () => {
+    if (!canDelete) return
+    setBusy(true); setError(null)
+    const res = await fetch("/api/account/me", { method: "DELETE" })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Erreur lors de la suppression.")
+      setBusy(false)
+      return
+    }
+    await getSupabase().auth.signOut()
+    router.replace("/")
+  }
+
+  return (
+    <section style={{
+      background: "white",
+      border: "1px solid rgba(239,68,68,0.30)",
+      borderRadius: 18,
+      padding: "26px 28px 28px",
+      boxShadow: "0 4px 18px rgba(239,68,68,0.05)",
+    }}>
+      <header style={{ marginBottom: 14 }}>
+        <h2 style={{
+          margin: 0, fontFamily: "var(--font-inter), sans-serif",
+          fontSize: 17, fontWeight: 700, color: "#B91C1C",
+          letterSpacing: "-0.01em",
+        }}>
+          Supprimer mon compte
+        </h2>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
+          Suppression définitive de votre compte et de toutes les données
+          associées. Cette action est irréversible.
+        </p>
+      </header>
+
+      {isOwner && (
+        <p style={{
+          margin: "0 0 14px",
+          padding: "10px 12px", borderRadius: 8,
+          background: "rgba(245,158,11,0.08)",
+          border: "1px solid rgba(245,158,11,0.25)",
+          fontSize: 12.5, color: "#92400E", lineHeight: 1.55,
+        }}>
+          Vous êtes propriétaire d&apos;un cabinet. Si d&apos;autres
+          membres en font partie, vous devrez d&apos;abord les retirer
+          (ou supprimer le cabinet) depuis l&apos;onglet Sécurité de
+          votre console. Si vous êtes seul, votre cabinet sera supprimé
+          en même temps que votre compte.
+        </p>
+      )}
+
+      <button type="button" onClick={() => setShowModal(true)}
+        style={{
+          padding: "9px 16px", borderRadius: 9,
+          border: "1px solid rgba(239,68,68,0.35)",
+          background: "white", color: "#B91C1C",
+          fontSize: 13, fontWeight: 700, cursor: "pointer",
+          fontFamily: "var(--font-inter), sans-serif",
+        }}>
+        Supprimer mon compte
+      </button>
+
+      {showModal && (
+        <div role="dialog" aria-modal="true"
+          style={{
+            position: "fixed", inset: 0, zIndex: 100,
+            background: "rgba(17,24,39,0.55)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false) }}
+        >
+          <div style={{
+            width: "100%", maxWidth: 480,
+            background: "white", borderRadius: 16, padding: 28,
+            border: "1px solid rgba(239,68,68,0.25)",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+            fontFamily: "var(--font-inter), sans-serif",
+          }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#B91C1C" }}>
+              Supprimer définitivement votre compte ?
+            </h3>
+            <p style={{ margin: "10px 0 16px", fontSize: 13.5, color: "#4B5563", lineHeight: 1.6 }}>
+              Votre profil, vos préférences et votre accès au workspace seront
+              supprimés. {isOwner ? "Votre cabinet sera également supprimé si vous en êtes le seul membre." : ""}
+            </p>
+            <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#374151" }}>
+              Tapez <strong>SUPPRIMER</strong> pour confirmer
+            </p>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="SUPPRIMER"
+              style={{
+                width: "100%", padding: "9px 12px", borderRadius: 8,
+                border: "1.5px solid #E5E7EB", fontSize: 14,
+                color: "#111827", marginBottom: 12, boxSizing: "border-box",
+                fontFamily: "inherit",
+              }}
+            />
+            {error && (
+              <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => { setShowModal(false); setConfirmText("") }}
+                disabled={busy}
+                style={{
+                  padding: "8px 14px", borderRadius: 8,
+                  border: "1px solid #E5E7EB", background: "white",
+                  color: "#374151", fontSize: 13, fontWeight: 600,
+                  cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
+                }}>
+                Annuler
+              </button>
+              <button type="button" onClick={() => void doDelete()}
+                disabled={!canDelete}
+                style={{
+                  padding: "8px 14px", borderRadius: 8,
+                  border: "none",
+                  background: canDelete ? "#DC2626" : "#FCA5A5",
+                  color: "white", fontSize: 13, fontWeight: 700,
+                  cursor: canDelete ? "pointer" : "not-allowed",
+                  fontFamily: "inherit",
+                }}>
+                {busy ? "Suppression…" : "Confirmer la suppression"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 

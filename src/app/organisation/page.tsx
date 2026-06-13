@@ -54,8 +54,8 @@ export default function CabinetPage() {
 
   const rawTab = searchParams.get("tab")
   const activeTab: OrgTab = (() => {
-    if (rawTab === "equipe" || rawTab === "identite" || rawTab === "pricing" || rawTab === "securite") return rawTab
-    return "abonnement"
+    if (rawTab === "abonnement" || rawTab === "pricing" || rawTab === "securite") return rawTab
+    return "org"
   })()
 
   // Dashboard reste owner-only. /cabinet/parametrage gère les members
@@ -107,63 +107,70 @@ export default function CabinetPage() {
   const trial = trialStatus(organization)
   const showPricingPolicy = trial.state !== "pending"
 
+  const orgDisplayName = organization.brand_name ?? organization.name
+  // Pricing affichée inline dans l'onglet org quand l'abo inclut le
+  // module Pro. Sinon, on garde un onglet "Politique pricing" séparé
+  // pour les comptes sans Pro qui veulent quand même configurer leur
+  // marge cible (le pricing est consultable même hors abonnement).
+  const pricingInline = showPricingPolicy && organization.subscription_has_pricing
+  const showPricingStandaloneTab = showPricingPolicy && !pricingInline
+
   return (
     <main style={{
-      maxWidth: 1120, margin: "0 auto",
-      padding: "24px 28px 56px",
+      maxWidth: 1320, margin: "0 auto",
+      padding: "28px 32px 64px",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
       {!emailConfirmed && (
         <EmailConfirmationBanner email={userEmail} />
       )}
 
-      {/* ── Hero ──────────────────────────────────────────── */}
-      <m.section
-        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: EASE }}
-        style={{
-          display: "flex", alignItems: "center", gap: 18,
-          marginBottom: 20,
-        }}
-      >
-        <HeroAvatar logoUrl={logoUrl} name={organization.brand_name ?? organization.name} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{
-            margin: 0, fontSize: "clamp(22px, 2.4vw, 28px)", fontWeight: 800,
-            color: "#111827", letterSpacing: "-0.02em", lineHeight: 1.1,
-          }}>
-            {organization.brand_name ?? organization.name}
-          </h1>
-          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-            <HeroPill kind="primary">Owner</HeroPill>
-            <HeroPill kind="neutral">
-              {members.length} membre{members.length > 1 ? "s" : ""}
-            </HeroPill>
-            {invites.length > 0 && (
-              <HeroPill kind="warn">
-                {invites.length} invitation{invites.length > 1 ? "s" : ""} en attente
-              </HeroPill>
-            )}
-            {organization.pending_deletion_at ? (
-              <HeroPill kind="warn">Résiliation en cours</HeroPill>
-            ) : trial.state === "active" ? (
-              <HeroPill kind="success">Essai · {trial.daysLeft} j restants</HeroPill>
-            ) : trial.state === "expired" ? (
-              <HeroPill kind="warn">Essai terminé</HeroPill>
-            ) : (
-              <HeroPill kind="neutral">Essai non activé</HeroPill>
-            )}
-          </div>
-        </div>
-      </m.section>
-
       {/* ── Tabs ──────────────────────────────────────────── */}
-      <OrgTabs activeTab={activeTab} showPricing={showPricingPolicy} />
+      <OrgTabs
+        activeTab={activeTab}
+        orgLabel={orgDisplayName}
+        showPricing={showPricingStandaloneTab}
+      />
 
       {/* ── Tab content ───────────────────────────────────── */}
-      <div style={{ marginTop: 22 }}>
+      <div style={{ marginTop: 24 }}>
+        {activeTab === "org" && (
+          <div className="org-tab-grid" style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
+            gap: 18,
+            alignItems: "start",
+          }}>
+            <IdentitySection
+              organization={organization}
+              logoUrl={logoUrl}
+              isOwner={isOwner}
+              onUpdated={refetch}
+            />
+            <MembersSection
+              members={members}
+              invites={invites}
+              seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
+              currentUserId={profile.user_id}
+              userEmail={userEmail}
+              isOwner={isOwner}
+              onChange={() => { void loadInvites() }}
+            />
+            {pricingInline && (
+              <div style={{ gridColumn: "1 / -1" }}>
+                <PricingPolicyCard />
+              </div>
+            )}
+            <style>{`
+              @media (max-width: 980px) {
+                .org-tab-grid { grid-template-columns: 1fr !important; }
+              }
+            `}</style>
+          </div>
+        )}
+
         {activeTab === "abonnement" && (
-          <div style={{ display: "grid", gap: 16 }}>
+          <div style={{ display: "grid", gap: 16, maxWidth: 720 }}>
             <MySeatBanner
               hasSeat={profile.has_sourcing_seat}
               onToggle={refetch}
@@ -177,37 +184,20 @@ export default function CabinetPage() {
           </div>
         )}
 
-        {activeTab === "equipe" && (
-          <MembersSection
-            members={members}
-            invites={invites}
-            seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
-            currentUserId={profile.user_id}
-            userEmail={userEmail}
-            isOwner={isOwner}
-            onChange={() => { void loadInvites() }}
-          />
-        )}
-
-        {activeTab === "identite" && (
-          <IdentitySection
-            organization={organization}
-            logoUrl={logoUrl}
-            isOwner={isOwner}
-            onUpdated={refetch}
-          />
-        )}
-
         {activeTab === "pricing" && showPricingPolicy && (
-          <PricingPolicyCard />
+          <div style={{ maxWidth: 980 }}>
+            <PricingPolicyCard />
+          </div>
         )}
 
         {activeTab === "securite" && (
-          <DangerSection
-            organization={organization}
-            seatsUsed={seatsUsed}
-            onDeleted={() => router.replace("/")}
-          />
+          <div style={{ maxWidth: 720 }}>
+            <DangerSection
+              organization={organization}
+              seatsUsed={seatsUsed}
+              onDeleted={() => router.replace("/")}
+            />
+          </div>
         )}
       </div>
     </main>
@@ -218,18 +208,25 @@ export default function CabinetPage() {
 /* OrgTabs — barre d'onglets de la console                              */
 /* ────────────────────────────────────────────────────────────────── */
 
-type OrgTab = "abonnement" | "equipe" | "identite" | "pricing" | "securite"
+type OrgTab = "org" | "abonnement" | "pricing" | "securite"
 
-const ALL_TABS: { id: OrgTab; label: string }[] = [
-  { id: "abonnement", label: "Abonnement" },
-  { id: "equipe",     label: "Équipe" },
-  { id: "identite",   label: "Identité" },
-  { id: "pricing",    label: "Politique pricing" },
-  { id: "securite",   label: "Sécurité" },
-]
+function OrgTabs({
+  activeTab, orgLabel, showPricing,
+}: {
+  activeTab: OrgTab
+  orgLabel: string
+  showPricing: boolean
+}) {
+  // L'onglet "org" est nommé d'après le cabinet ; c'est l'onglet par
+  // défaut. Pricing standalone reste pour les comptes sans Pro (sub-pro
+  // l'a déjà inline dans l'onglet org).
+  const tabs: { id: OrgTab; label: string }[] = [
+    { id: "org", label: orgLabel || "Cabinet" },
+    { id: "abonnement", label: "Abonnement" },
+    ...(showPricing ? [{ id: "pricing" as const, label: "Politique pricing" }] : []),
+    { id: "securite", label: "Sécurité" },
+  ]
 
-function OrgTabs({ activeTab, showPricing }: { activeTab: OrgTab; showPricing: boolean }) {
-  const tabs = ALL_TABS.filter((t) => t.id !== "pricing" || showPricing)
   return (
     <nav
       role="tablist"
@@ -241,7 +238,7 @@ function OrgTabs({ activeTab, showPricing }: { activeTab: OrgTab; showPricing: b
     >
       {tabs.map((t) => {
         const active = activeTab === t.id
-        const href = `/organisation${t.id === "abonnement" ? "" : `?tab=${t.id}`}`
+        const href = `/organisation${t.id === "org" ? "" : `?tab=${t.id}`}`
         return (
           <Link
             key={t.id}
@@ -250,13 +247,14 @@ function OrgTabs({ activeTab, showPricing }: { activeTab: OrgTab; showPricing: b
             aria-selected={active}
             style={{
               position: "relative",
-              padding: "10px 16px",
-              fontSize: 13.5,
+              padding: "12px 18px",
+              fontSize: 14,
               fontWeight: active ? 700 : 500,
               color: active ? "#111827" : "#6B7280",
               textDecoration: "none",
               whiteSpace: "nowrap",
               transition: "color 140ms",
+              letterSpacing: t.id === "org" ? "-0.01em" : "0",
             }}
           >
             {t.label}
@@ -265,7 +263,7 @@ function OrgTabs({ activeTab, showPricing }: { activeTab: OrgTab; showPricing: b
                 aria-hidden
                 style={{
                   position: "absolute",
-                  left: 12, right: 12, bottom: -1,
+                  left: 14, right: 14, bottom: -1,
                   height: 2,
                   background: "#7C63C8",
                   borderRadius: 2,
@@ -476,57 +474,8 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
 /* Hero bits                                                            */
 /* ────────────────────────────────────────────────────────────────── */
 
-function HeroAvatar({ logoUrl, name }: { logoUrl: string | null; name: string | null }) {
-  const initials = (name ?? "")
-    .split(/\s+/).slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "").join("") || "?"
-  if (logoUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={logoUrl} alt=""
-        style={{
-          width: 60, height: 60, borderRadius: 14,
-          objectFit: "cover",
-          border: "1px solid #F0ECF8", background: "white",
-          flexShrink: 0,
-        }}
-      />
-    )
-  }
-  return (
-    <div style={{
-      width: 60, height: 60, borderRadius: 14,
-      background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-      border: "1px solid rgba(124,99,200,0.30)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      color: "#7C63C8", fontWeight: 800, fontSize: 20,
-      flexShrink: 0,
-    }}>
-      {initials}
-    </div>
-  )
-}
-
-type PillKind = "primary" | "neutral" | "success" | "warn"
-const PILL_STYLE: Record<PillKind, React.CSSProperties> = {
-  primary: { color: "#7C63C8", background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.22)" },
-  neutral: { color: "#6B7280", background: "#F3F4F6",               border: "1px solid #E5E7EB" },
-  success: { color: "#15803d", background: "rgba(34,197,94,0.10)",  border: "1px solid rgba(34,197,94,0.30)" },
-  warn:    { color: "#B45309", background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.30)" },
-}
-function HeroPill({ kind, children }: { kind: PillKind; children: React.ReactNode }) {
-  return (
-    <span style={{
-      ...PILL_STYLE[kind],
-      fontSize: 11, fontWeight: 700,
-      padding: "3px 10px", borderRadius: 100,
-      letterSpacing: "0.04em", textTransform: "uppercase",
-    }}>
-      {children}
-    </span>
-  )
-}
+// HeroAvatar / HeroPill supprimés avec le hero — l'org info est désormais
+// portée par l'onglet org lui-même.
 
 /* ────────────────────────────────────────────────────────────────── */
 /* Subscription (trial-aware)                                          */
