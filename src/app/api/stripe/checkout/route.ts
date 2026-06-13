@@ -1,20 +1,21 @@
 /**
  * POST /api/stripe/checkout
  *
- * Owner-only. Creates a Stripe Checkout Session and returns its hosted URL.
+ * Owner-only. Crée une Stripe Checkout Session pour souscrire à un plan
+ * et retourne son URL hostée.
  *
- * Body :
- *   { tier: 'sourcing' | 'sourcing_pro', seats: 1|2|3|4, withTrial?: boolean }
+ * Body : { tier: 'sourcing' | 'sourcing_pro', seats: 1|2|3|4 }
  *
- * If withTrial=true :
- *   - tier is forced to 'sourcing_pro', seats to 2 (the fixed trial plan)
- *   - the subscription is created with trial_period_days = 15
- *   - the customer's email is recorded in trial_consumed_emails to
- *     prevent re-using the trial later from another cabinet
- *   - 409 is returned if that email has already used a trial
+ * Si l'org a un trial app-side encore actif (trial_ends_at > now), on
+ * propage les jours restants à Stripe via `trial_period_days` pour que
+ * l'user ne paie pas avant l'expiry de son essai. Sinon, prélèvement
+ * immédiat normal.
  *
- * The webhook (/api/stripe/webhook) does the actual DB mirroring after
- * the subscription is created — this route only kicks the flow off.
+ * L'activation du trial passe désormais par /api/cabinet/activate-trial,
+ * pas par cette route — d'où la suppression du withTrial flag.
+ *
+ * Le webhook (/api/stripe/webhook) gère la mise à jour DB après la
+ * création de la subscription.
  */
 
 import { NextResponse } from "next/server"
@@ -33,17 +34,6 @@ export const runtime = "nodejs"
 interface CheckoutBody {
   tier?: PlanTier
   seats?: PlanSeats
-  withTrial?: boolean
-}
-
-/** Le trial est fixe : 2 sièges Pro pendant 15 j. Le user peut souscrire
- *  à plus gros plus tard, mais l'essai démarre ici. */
-const TRIAL_TIER: PlanTier = "sourcing_pro"
-const TRIAL_SEATS: PlanSeats = 2
-const TRIAL_DAYS = 15
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase()
 }
 
 export async function POST(req: Request) {
@@ -54,12 +44,8 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json().catch(() => ({}))) as CheckoutBody
-  const withTrial = body.withTrial === true
-
-  // Si withTrial : on force le plan trial fixe (2 sièges Pro). L'user
-  // peut switcher après. Sinon on prend ce que l'UI a envoyé.
-  const tier: PlanTier | undefined = withTrial ? TRIAL_TIER : body.tier
-  const seats: PlanSeats | undefined = withTrial ? TRIAL_SEATS : body.seats
+  const tier = body.tier
+  const seats = body.seats
 
   if (tier !== "sourcing" && tier !== "sourcing_pro") {
     return NextResponse.json({ error: "Tier invalide" }, { status: 400 })
@@ -87,27 +73,22 @@ export async function POST(req: Request) {
   const admin = getAdminSupabase()
   const { data: org, error: orgErr } = await admin
     .from("organizations")
-    .select("id, name, stripe_customer_id")
+    .select("id, name, stripe_customer_id, trial_ends_at")
     .eq("id", profile.organization_id)
     .single()
   if (orgErr || !org) {
     return NextResponse.json({ error: "Cabinet introuvable" }, { status: 404 })
   }
 
-  // Garde anti double-trial : un même email ne peut pas re-tirer un
-  // essai en supprimant son cabinet et en re-souscrivant ailleurs.
-  const ownerEmail = user.email ? normalizeEmail(user.email) : null
-  if (withTrial && ownerEmail) {
-    const { data: consumed } = await admin
-      .from("trial_consumed_emails")
-      .select("email")
-      .eq("email", ownerEmail)
-      .maybeSingle()
-    if (consumed) {
-      return NextResponse.json(
-        { error: "Vous avez déjà utilisé votre essai gratuit. Souscrivez directement pour reprendre l'accès." },
-        { status: 409 },
-      )
+  // Si trial app-side encore actif, on propage les jours restants à
+  // Stripe (trial_period_days) — l'user conserve son essai même en
+  // souscrivant maintenant, et le prélèvement n'arrive qu'à expiry.
+  let trialPeriodDays: number | undefined
+  if (org.trial_ends_at) {
+    const endMs = new Date(org.trial_ends_at).getTime()
+    const remaining = Math.ceil((endMs - Date.now()) / (24 * 60 * 60 * 1000))
+    if (remaining > 0) {
+      trialPeriodDays = Math.min(remaining, 30)  // safety cap
     }
   }
 
@@ -147,12 +128,12 @@ export async function POST(req: Request) {
     allow_promotion_codes: true,
     billing_address_collection: "auto",
     subscription_data: {
-      ...(withTrial ? { trial_period_days: TRIAL_DAYS } : {}),
+      ...(trialPeriodDays ? { trial_period_days: trialPeriodDays } : {}),
       metadata: {
         organization_id: org.id,
         tier,
         seats: String(seats),
-        with_trial: withTrial ? "true" : "false",
+        trial_period_days: trialPeriodDays ? String(trialPeriodDays) : "0",
       },
     },
     success_url: `${appUrl}/organisation?checkout=success`,
@@ -162,22 +143,8 @@ export async function POST(req: Request) {
       organization_id: org.id,
       tier,
       seats: String(seats),
-      with_trial: withTrial ? "true" : "false",
     },
   })
-
-  // On marque l'email comme trial-consommé immédiatement (avant même
-  // que Stripe confirme). Si l'user abandonne le Checkout, c'est tant
-  // pis — il avait l'occasion d'utiliser son essai et n'a pas continué.
-  // Évite la fuite via "click activate, cancel, click again, repeat".
-  if (withTrial && ownerEmail) {
-    await admin
-      .from("trial_consumed_emails")
-      .upsert(
-        { email: ownerEmail, organization_id: org.id },
-        { onConflict: "email" },
-      )
-  }
 
   return NextResponse.json({ url: session.url })
 }

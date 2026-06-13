@@ -127,10 +127,13 @@ export default function OnboardingPage() {
   }
 
   /** Étape 3 — stamp onboarding done puis :
-   *    - activateTrial: redirige vers Stripe Checkout en mode trial 15 j
-   *      (subscription Stripe trialing, plan fixe 2 sièges Pro)
-   *    - sinon: atterrissage /organisation où l'owner pourra choisir
-   *      sa formule plus tard. */
+   *    - activateTrial: POST /api/cabinet/activate-trial (stamp + consume),
+   *      atterrissage /organisation où l'owner choisira d'ajouter son
+   *      moyen de paiement maintenant ou plus tard (via TrialChoiceModal).
+   *    - sinon: redirige /organisation sans rien activer.
+   *
+   *  Si activate-trial répond 409 (déjà consommé), on remonte le message
+   *  utilisateur pour qu'il puisse souscrire directement. */
   const finalize = async (opts: { activateTrial: boolean }) => {
     if (submitting) return
     setSubmitting(true)
@@ -146,19 +149,14 @@ export default function OnboardingPage() {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? "Onboarding impossible")
       }
-      // 2. Si trial demandé -> Stripe Checkout en mode withTrial.
+      // 2. Si trial demandé -> stamp app-side. L'owner configurera son
+      // moyen de paiement plus tard depuis /organisation.
       if (opts.activateTrial) {
-        const tr = await fetch("/api/stripe/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ withTrial: true }),
-        })
-        const j = await tr.json().catch(() => ({} as { url?: string; error?: string }))
-        if (!tr.ok || !j.url) {
-          throw new Error(j.error ?? "Checkout indisponible")
+        const tr = await fetch("/api/cabinet/activate-trial", { method: "POST" })
+        if (!tr.ok) {
+          const body = await tr.json().catch(() => ({}))
+          throw new Error(body.error ?? "Activation impossible")
         }
-        window.location.href = j.url
-        return
       }
       router.replace("/organisation")
     } catch (err: unknown) {

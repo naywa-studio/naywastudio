@@ -1,16 +1,28 @@
 /**
  * POST /api/cabinet/activate-trial
  *
- * Owner-only. Stamps `organizations.trial_ends_at = now() + 15 days`.
- * Idempotent : if the trial is already activated (even expired), we
- * leave it untouched and return the current value. Prevents the owner
- * from refreshing the trial by clicking the activation button twice.
+ * Owner-only. Stamps `organizations.trial_ends_at = now() + 15 days`
+ * et marque l'email comme trial-consommé (table trial_consumed_emails)
+ * pour empêcher un même email de re-tirer un trial en supprimant son
+ * cabinet et en en re-créant un autre.
+ *
+ * Idempotent : si le trial est déjà activé, retourne la valeur existante.
+ *
+ * Si trial_consumed_emails contient déjà l'email -> 409.
+ *
+ * Le moyen de paiement est OPTIONNEL — l'user peut l'ajouter via
+ * /api/stripe/setup-intent ou attendre le reminder. Cette route ne
+ * touche pas Stripe.
  */
 
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { computeTrialEndsAt, TRIAL_DURATION_DAYS } from "@/lib/trial"
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
 
 export const runtime = "nodejs"
 
@@ -59,9 +71,26 @@ export async function POST() {
     })
   }
 
+  const admin = getAdminSupabase()
+
+  // Anti-double-trial : si l'email a déjà tiré un trial ailleurs, refus.
+  const ownerEmail = user.email ? normalizeEmail(user.email) : null
+  if (ownerEmail) {
+    const { data: consumed } = await admin
+      .from("trial_consumed_emails")
+      .select("email")
+      .eq("email", ownerEmail)
+      .maybeSingle()
+    if (consumed) {
+      return NextResponse.json(
+        { error: "Vous avez déjà utilisé votre essai gratuit. Souscrivez directement pour reprendre l'accès." },
+        { status: 409 },
+      )
+    }
+  }
+
   const endsAt = computeTrialEndsAt()
 
-  const admin = getAdminSupabase()
   const { error: updateErr } = await admin
     .from("organizations")
     .update({ trial_ends_at: endsAt.toISOString() })
@@ -73,6 +102,16 @@ export async function POST() {
       { error: "Activation impossible pour le moment" },
       { status: 500 },
     )
+  }
+
+  // Marque l'email immédiatement après stamp réussi.
+  if (ownerEmail) {
+    await admin
+      .from("trial_consumed_emails")
+      .upsert(
+        { email: ownerEmail, organization_id: org.id },
+        { onConflict: "email" },
+      )
   }
 
   return NextResponse.json({
