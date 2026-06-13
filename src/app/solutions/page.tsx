@@ -8,13 +8,13 @@ import { PackageSourcingFlow } from "@/components/sections/PackageSourcingFlow"
 export const metadata: Metadata = {
   title: "Solutions",
   description:
-    "Naywa Studio conçoit des packages qui automatisent vos process métier. Découvrez Package Sourcing, dédié aux ESN, cabinets de consulting et cabinets de recrutement.",
+    "Naywa Studio conçoit des packages d'optimisation de process métier. Nous traitons, vous décidez. Découvrez Package Sourcing, dédié aux ESN, cabinets de consulting et cabinets de recrutement.",
 }
 
 const ONBOARDING_STEPS = [
   {
     n: "01",
-    title: "Créez votre compte cabinet",
+    title: "Créez votre compte",
     body: "Email ou Google. 30 secondes.",
   },
   {
@@ -36,9 +36,9 @@ const ONBOARDING_STEPS = [
 
 const SECURITY = [
   "Hébergement européen (Vercel Paris, Supabase Francfort).",
-  "Isolation stricte par cabinet via RLS Postgres.",
+  "Isolation stricte par organisation via RLS Postgres.",
   "Aucun entraînement de modèle sur vos données.",
-  "Suppression de votre vivier à tout moment, depuis votre console cabinet.",
+  "Suppression de votre vivier à tout moment, depuis votre console organisation.",
 ] as const
 
 export default function SolutionsPage() {
@@ -74,8 +74,7 @@ export default function SolutionsPage() {
                 letterSpacing: "-0.025em",
               }}
             >
-              Des packages qui{" "}
-              <span
+              Des packages d&apos;<span
                 style={{
                   fontFamily: "var(--font-instrument-serif), serif",
                   fontWeight: 400,
@@ -83,9 +82,9 @@ export default function SolutionsPage() {
                   color: "#7C63C8",
                 }}
               >
-                automatisent
+                optimisation
               </span>{" "}
-              vos process métier.
+              de vos process métier.
             </h1>
             <p
               style={{
@@ -97,7 +96,7 @@ export default function SolutionsPage() {
                 maxWidth: "55ch",
               }}
             >
-              Vos équipes décident. Nos packages traitent. Choisissez celui qui
+              Nous traitons. Vous décidez. Choisissez le package qui
               correspond à votre activité.
             </p>
           </div>
