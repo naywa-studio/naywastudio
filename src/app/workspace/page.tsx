@@ -60,7 +60,7 @@ const TIER_COLOR: Record<MatchTier, { fg: string; bg: string; bd: string }> = {
 }
 
 export default function WorkspaceHome() {
-  const { profile, organization, hasSubscription, refetchProfile } = useWorkspace()
+  const { profile, organization, hasSubscription, isReadOnly, refetchProfile } = useWorkspace()
   const sb = useMemo(() => getSupabase(), [])
   const granted = useRef(false)
 
@@ -299,10 +299,17 @@ export default function WorkspaceHome() {
           gap: 10, marginBottom: 28,
         }}
       >
-        <ActionTile href="/workspace/vivier" label="Ajouter un CV"  icon={<IconUpload />} />
-        <ActionTile href="/workspace/missions" label="Créer une mission" icon={<IconPlus />} />
-        <ActionTile href="/workspace/missions" label="Lancer un matching" icon={<IconTarget />} />
-        <ActionTile href="/workspace/pricing" label="Chiffrer une mission" icon={<IconEuro />} />
+        {/* En lecture seule (lockdown), on masque les CTAs créateurs.
+            "Suivre le pipeline" et la navigation restent visibles --
+            tout est encore consultable, juste plus modifiable. */}
+        {!isReadOnly && (
+          <>
+            <ActionTile href="/workspace/vivier" label="Ajouter un CV"  icon={<IconUpload />} />
+            <ActionTile href="/workspace/missions" label="Créer une mission" icon={<IconPlus />} />
+            <ActionTile href="/workspace/missions" label="Lancer un matching" icon={<IconTarget />} />
+            <ActionTile href="/workspace/pricing" label="Chiffrer une mission" icon={<IconEuro />} />
+          </>
+        )}
         <ActionTile href="/workspace/pipeline" label="Suivre le pipeline" icon={<IconKanban />} />
       </m.div>
 

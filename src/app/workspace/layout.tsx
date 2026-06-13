@@ -21,6 +21,10 @@ interface WorkspaceCtx {
   organization: Organization | null
   userEmail: string
   hasSubscription: boolean
+  /** En lockdown (sub past_due / canceled, dans la fenêtre de 15 j
+   *  avant wipe). True = workspace en lecture seule : les composants
+   *  doivent masquer leurs CTAs de mutation et désactiver les actions. */
+  isReadOnly: boolean
   refetchProfile: () => Promise<void>
 }
 
@@ -184,7 +188,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   })
 
   return (
-    <WorkspaceContext.Provider value={{ profile, organization, userEmail, hasSubscription, refetchProfile: fetchProfile }}>
+    <WorkspaceContext.Provider value={{
+      profile, organization, userEmail, hasSubscription,
+      isReadOnly: isInLockdown(organization),
+      refetchProfile: fetchProfile,
+    }}>
       <ShaderBackground />
       <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 2, fontFamily: "var(--font-inter), sans-serif" }}>
         {/* Top bar */}
