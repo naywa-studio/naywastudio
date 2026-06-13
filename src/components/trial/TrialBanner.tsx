@@ -22,6 +22,9 @@ import { isInLockdown } from "@/lib/subscription"
 
 interface Props {
   organization: Organization | null | undefined
+  /** True = owner du cabinet. Les CTAs "Souscrire" / "Régulariser" ne
+   *  sont rendus que pour l'owner ; un member voit le statut sans action. */
+  isOwner?: boolean
   /** Hide the dismiss button. Default false. */
   alwaysVisible?: boolean
 }
@@ -40,7 +43,7 @@ function readDismissed(): boolean {
   }
 }
 
-export function TrialBanner({ organization, alwaysVisible = false }: Props) {
+export function TrialBanner({ organization, isOwner = true, alwaysVisible = false }: Props) {
   // État local pour pouvoir re-render quand l'utilisateur clique sur la
   // croix. La valeur initiale lit sessionStorage côté client uniquement
   // (en SSR on retourne false ; il y aura un éventuel flash 1 frame puis
@@ -188,17 +191,19 @@ export function TrialBanner({ organization, alwaysVisible = false }: Props) {
       />
       <span style={{ flex: "0 1 auto" }}>
         {message}
-        <Link
-          href={ctaHref}
-          style={{
-            color: palette.accent,
-            fontWeight: 700,
-            textDecoration: "underline",
-            textUnderlineOffset: 2,
-          }}
-        >
-          {ctaLabel}
-        </Link>
+        {isOwner && (
+          <Link
+            href={ctaHref}
+            style={{
+              color: palette.accent,
+              fontWeight: 700,
+              textDecoration: "underline",
+              textUnderlineOffset: 2,
+            }}
+          >
+            {ctaLabel}
+          </Link>
+        )}
       </span>
       {!alwaysVisible && mode === "info" && (
         <button

@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
 import { LockdownBanner } from "@/components/workspace/LockdownBanner"
+import { MemberWaitingBanner } from "@/components/workspace/MemberWaitingBanner"
 import { TrialBanner } from "@/components/trial/TrialBanner"
 import { hasActiveAccess, isInLockdown } from "@/lib/subscription"
 import UndoToastHost from "@/components/ui/UndoToast"
@@ -76,13 +77,6 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       }
     }
 
-    // Gate 1 : without a sourcing seat there's nothing to do in /workspace.
-    // The owner self-allocates from /organisation.
-    if (prof && !prof.has_sourcing_seat) {
-      router.replace("/organisation")
-      return
-    }
-
     let org: Organization | null = null
     if (prof?.organization_id) {
       const { data } = await sb
@@ -93,11 +87,31 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       org = data ?? null
     }
 
-    // Gate 2 : tant que le package n'est pas actif ET qu'on n'est pas
-    // en lockdown (15 j grace après past_due), le workspace est verrouillé.
-    // En lockdown : accès AUTORISÉ en lecture seule pour permettre l'export
-    // RGPD et donner une dernière chance de régulariser.
-    if (org && !hasActiveAccess(org) && !isInLockdown(org)) {
+    // Gates accès workspace, différents selon rôle :
+    //
+    //   OWNER
+    //     - Pas de siège alloué -> bounce /organisation (il s'alloue)
+    //     - Org sans accès actif ET pas en lockdown -> bounce /organisation
+    //       (il souscrit ou réactive l'essai)
+    //
+    //   MEMBER
+    //     - Toujours autorisé à entrer dans /workspace. Si org sans accès
+    //       il voit le workspace nu avec un MemberWaitingBanner. Il ne
+    //       peut pas modifier ce qui n'est pas là ; pas de risque produit.
+    //     - Si pas de siège alloué : workspace en lecture seule (le member
+    //       a accepté l'invite donc has_sourcing_seat=true par défaut ;
+    //       cas où l'owner le désalloue plus tard).
+    //
+    // Sans cette différenciation, owner sans sub + member redirigé
+    // /organisation -> /workspace -> /organisation -> ... boucle infinie.
+    const isOwner = prof?.role === "owner"
+
+    if (isOwner && prof && !prof.has_sourcing_seat) {
+      router.replace("/organisation")
+      return
+    }
+
+    if (isOwner && org && !hasActiveAccess(org) && !isInLockdown(org)) {
       router.replace("/organisation")
       return
     }
@@ -190,7 +204,13 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   return (
     <WorkspaceContext.Provider value={{
       profile, organization, userEmail, hasSubscription,
-      isReadOnly: isInLockdown(organization),
+      // Read-only si :
+      //   - lockdown actif (sub past_due / canceled, 15 j grace)
+      //   - OU member dont l'org n'a pas d'accès actif (l'owner n'a pas
+      //     encore souscrit) -> le member peut explorer mais rien créer.
+      isReadOnly:
+        isInLockdown(organization) ||
+        (profile?.role === "member" && !!organization && !hasActiveAccess(organization)),
       refetchProfile: fetchProfile,
     }}>
       <ShaderBackground />
@@ -325,8 +345,18 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         `}</style>
 
         <PendingDeletionBanner />
-        <LockdownBanner organization={organization} />
-        <TrialBanner organization={organization} />
+        <LockdownBanner
+          organization={organization}
+          isOwner={profile?.role === "owner"}
+        />
+        <MemberWaitingBanner
+          organization={organization}
+          role={profile?.role}
+        />
+        <TrialBanner
+          organization={organization}
+          isOwner={profile?.role === "owner"}
+        />
         {children}
 
         <UndoToastHost />

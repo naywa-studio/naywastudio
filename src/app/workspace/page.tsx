@@ -7,7 +7,14 @@ import { useWorkspace } from "./layout"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { PackageOnboardingModal } from "@/components/organisation/PackageOnboardingModal"
 import { getSupabase } from "@/lib/supabase"
-import type { MatchTier } from "@/lib/database.types"
+import { trialStatus } from "@/lib/trial"
+import type { MatchTier, Organization } from "@/lib/database.types"
+
+/** Helper local : trial app-side actif. Évite de réimporter le helper
+ *  complet juste pour ça. */
+function trialStatusActive(org: Organization): boolean {
+  return trialStatus(org).state === "active"
+}
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -72,14 +79,22 @@ export default function WorkspaceHome() {
   const [loading, setLoading] = useState(true)
 
   // Visite guidée Package Sourcing : auto-déclenchée à la PREMIÈRE
-  // entrée dans le workspace pour l'owner après souscription. Dismissable
-  // session-only ; reminder bannière au prochain refresh tant que pas
-  // stampée.
-  const isOwner = profile?.role === "owner"
+  // entrée dans le workspace pour CHAQUE user (owner ou member), tant
+  // qu'il n'a pas stampé son propre flag sur profile.
+  // Conditions :
+  //   - org existe et a un accès actif (trial OU sub Stripe)
+  //   - profile.package_sourcing_onboarded_at est NULL
+  //   - pas en pending_deletion ni lockdown
+  const orgHasAccess = !!organization && (
+    trialStatusActive(organization) ||
+    organization.subscription_status === "active" ||
+    organization.subscription_status === "trialing"
+  )
   const onboardingNeeded =
-    isOwner &&
+    !!profile &&
     !!organization &&
-    !organization.package_sourcing_onboarded_at &&
+    !profile.package_sourcing_onboarded_at &&
+    orgHasAccess &&
     !organization.pending_deletion_at &&
     !organization.lockdown_started_at
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(() => {

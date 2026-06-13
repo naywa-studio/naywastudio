@@ -130,10 +130,15 @@ export default function CabinetPage() {
   // c'est dans le workspace que les CTAs des étapes ont du sens.
 
   const orgDisplayName = organization.brand_name ?? organization.name
-  // Pricing visible inline dans l'onglet org quand l'abo inclut la
-  // Suite Pricing Syntec (Pro). Hors Pro, pas de pricing : le module
-  // n'est pas inclus dans l'offre, donc pas de paramètres à régler.
-  const pricingInline = showPricingPolicy && organization.subscription_has_pricing
+  // Pricing visible inline dans l'onglet org dans 2 cas :
+  //   1. Sub Stripe avec Suite Pricing (sourcing_pro_*)
+  //   2. Trial actif app-side -> le trial donne 2 sièges Pro par
+  //      construction (cf TrialChoiceModal), pricing inclus pendant
+  //      les 15 jours pour que l'owner teste.
+  const pricingInline = showPricingPolicy && (
+    organization.subscription_has_pricing ||
+    trial.state === "active"
+  )
 
   return (
     <main style={{

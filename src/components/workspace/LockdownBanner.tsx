@@ -17,9 +17,13 @@ import { isInLockdown } from "@/lib/subscription"
 
 interface Props {
   organization: Organization | null | undefined
+  /** True = owner du cabinet. Les CTAs "Souscrire à nouveau" /
+   *  "Régulariser" ne sont rendus que pour l'owner ; un member voit
+   *  juste le countdown et le lien export RGPD. */
+  isOwner?: boolean
 }
 
-export function LockdownBanner({ organization }: Props) {
+export function LockdownBanner({ organization, isOwner = true }: Props) {
   // Date.now() capturé au mount via useState init (pattern react-hooks/purity).
   const [nowMs] = useState(() => Date.now())
 
@@ -54,25 +58,42 @@ export function LockdownBanner({ organization }: Props) {
         Workspace en lecture seule. {daysLeft > 0
           ? <>Plus que <strong>{daysLeft} jour{daysLeft > 1 ? "s" : ""}</strong> avant la suppression des données. </>
           : <>Suppression des données dans les prochaines heures. </>}
-        <Link
-          href="/organisation?action=subscribe"
-          style={{
-            color: "#DC2626", fontWeight: 700,
-            textDecoration: "underline", textUnderlineOffset: 2,
-          }}
-        >
-          Souscrire à nouveau
-        </Link>
-        {" "}·{" "}
-        <Link
-          href="/organisation?tab=securite"
-          style={{
-            color: "#DC2626", fontWeight: 700,
-            textDecoration: "underline", textUnderlineOffset: 2,
-          }}
-        >
-          Exporter mes données
-        </Link>
+        {isOwner ? (
+          <>
+            <Link
+              href="/organisation?action=subscribe"
+              style={{
+                color: "#DC2626", fontWeight: 700,
+                textDecoration: "underline", textUnderlineOffset: 2,
+              }}
+            >
+              Souscrire à nouveau
+            </Link>
+            {" "}·{" "}
+            <Link
+              href="/organisation?tab=securite"
+              style={{
+                color: "#DC2626", fontWeight: 700,
+                textDecoration: "underline", textUnderlineOffset: 2,
+              }}
+            >
+              Exporter mes données
+            </Link>
+          </>
+        ) : (
+          <>
+            Demandez à l&apos;owner de régulariser l&apos;abonnement.{" "}
+            <Link
+              href="/organisation?tab=securite"
+              style={{
+                color: "#DC2626", fontWeight: 700,
+                textDecoration: "underline", textUnderlineOffset: 2,
+              }}
+            >
+              Exporter mes données
+            </Link>
+          </>
+        )}
       </span>
     </div>
   )

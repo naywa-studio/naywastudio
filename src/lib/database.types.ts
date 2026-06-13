@@ -170,6 +170,10 @@ export type Database = {
           calendly_scheduling_url: string | null
           calendly_webhook_uri: string | null
           calendly_connected_at: string | null
+          /** Set quand cet utilisateur a complété/skippé la visite
+           *  guidée Package Sourcing sur /workspace (per-user, indépendant
+           *  du flag org). NULL = la modale s'ouvre au prochain accès. */
+          package_sourcing_onboarded_at: string | null
           created_at: string
           updated_at: string
         }
