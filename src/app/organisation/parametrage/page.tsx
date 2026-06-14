@@ -57,13 +57,37 @@ const DEFAULT_FORM: Form = {
 }
 
 export default function ParametragePage() {
-  const { isOwner } = useCabinet()
+  const { isOwner, organization, refetch } = useCabinet()
   const sb = useMemo(() => getSupabase(), [])
   const [form, setForm] = useState<Form | null>(null)
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const userIdRef = useRef<string | null>(null)
   const saveTimerRef = useRef<number | null>(null)
+
+  const onboarded = !!organization.pricing_onboarded_at
+
+  const confirmConfiguration = useCallback(async () => {
+    if (!isOwner || confirming) return
+    setConfirming(true)
+    const res = await fetch("/api/cabinet", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pricing_onboarded_at: new Date().toISOString() }),
+    })
+    setConfirming(false)
+    if (res.ok) {
+      setSaveState("saved")
+      setError(null)
+      await refetch()
+      window.setTimeout(() => setSaveState("idle"), 2000)
+    } else {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setSaveState("error")
+      setError(j.error ?? "Erreur lors de la confirmation.")
+    }
+  }, [isOwner, confirming, refetch])
 
   // Initial load — pricing config now lives on `organizations` (one
   // source of truth) and reaches the user via profile.organization_id.
@@ -368,6 +392,58 @@ export default function ParametragePage() {
         </div>
       </m.section>
       </div>
+
+      {/* Confirmation bar : stampe pricing_onboarded_at pour faire disparaître
+          la bannière "Politique pricing pas encore configurée" sur /workspace/pricing. */}
+      {isOwner && (
+        <div style={{
+          marginTop: 22,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          gap: 14, flexWrap: "wrap",
+          padding: "16px 20px", borderRadius: 12,
+          background: onboarded ? "rgba(34,197,94,0.06)" : "rgba(124,99,200,0.06)",
+          border: onboarded ? "1px solid rgba(34,197,94,0.25)" : "1px solid rgba(124,99,200,0.25)",
+        }}>
+          <div style={{ minWidth: 0, flex: "1 1 280px" }}>
+            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+              {onboarded ? "Politique pricing confirmée" : "Confirmer ces paramètres"}
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
+              {onboarded
+                ? "Vous pouvez modifier librement ; les changements sont enregistrés automatiquement."
+                : "Vos chiffrages utiliseront ces valeurs. Confirmez pour marquer la politique comme configurée et masquer la bannière du pricing."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={confirmConfiguration}
+            disabled={confirming || margesInvalid}
+            style={{
+              padding: "10px 18px", borderRadius: 10,
+              background: confirming || margesInvalid
+                ? "#E5E7EB"
+                : onboarded
+                  ? "white"
+                  : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              color: confirming || margesInvalid
+                ? "#9CA3AF"
+                : onboarded ? "#7C63C8" : "white",
+              border: onboarded ? "1px solid rgba(124,99,200,0.30)" : "none",
+              fontSize: 13, fontWeight: 700, fontFamily: "inherit",
+              cursor: confirming || margesInvalid ? "default" : "pointer",
+              whiteSpace: "nowrap",
+              boxShadow: !onboarded && !confirming && !margesInvalid
+                ? "0 6px 18px -8px rgba(124,99,200,0.55)" : "none",
+            }}
+          >
+            {confirming
+              ? "Enregistrement…"
+              : onboarded
+                ? "Re-confirmer"
+                : "✓ Sauvegarder ces paramètres"}
+          </button>
+        </div>
+      )}
 
       <style>{`
         @media (max-width: 1024px) {

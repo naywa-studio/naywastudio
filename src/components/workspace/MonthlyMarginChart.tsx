@@ -153,14 +153,15 @@ export default function MonthlyMarginChart({
       padding: 16,
     }}>
       <header style={{
-        display: "flex", justifyContent: "space-between", alignItems: "baseline",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
         flexWrap: "wrap", gap: 10, marginBottom: 10,
       }}>
-        <div>
-          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
-            Marge mensuelle
-          </h4>
-        </div>
+        <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
+          Marge mensuelle
+        </h4>
+        {margeMinPct !== undefined && (
+          <ChartLegend margeMinPct={margeMinPct} />
+        )}
       </header>
 
       <svg
@@ -189,39 +190,42 @@ export default function MonthlyMarginChart({
           </g>
         ))}
 
-        {/* Seuil mini cabinet — ligne pointillée ambre. Maintenant que l'axe
-            est en %, le seuil tombe pile sur sa valeur en %, plus besoin de
-            convertir en € via le revenu moyen (ce qui faussait sur les mois
-            partiels). */}
+        {/* Seuil mini organisation — ligne pointillée ambre sans label
+            inline (chevauchait les barres). Le seuil est repris dans la
+            légende au-dessus du chart. */}
         {margeMinPct !== undefined && (
-          <g>
-            <line
-              x1={PAD_L} y1={yOf(margeMinPct)} x2={W - PAD_R} y2={yOf(margeMinPct)}
-              stroke="#D97706" strokeWidth={1.2} strokeDasharray="5 4" opacity={0.7}
-            />
-            <rect
-              x={PAD_L + 4} y={yOf(margeMinPct) - 13}
-              width={92} height={14} rx={3}
-              fill="white" opacity={0.92}
-            />
-            <text
-              x={PAD_L + 8} y={yOf(margeMinPct) - 3}
-              fontSize={10} fill="#D97706" textAnchor="start" fontWeight={700}
-            >
-              seuil mini {margeMinPct} %
-            </text>
-          </g>
+          <line
+            x1={PAD_L} y1={yOf(margeMinPct)} x2={W - PAD_R} y2={yOf(margeMinPct)}
+            stroke="#D97706" strokeWidth={1.2} strokeDasharray="5 4" opacity={0.7}
+          />
         )}
 
-        {/* Bars : hauteur = marge %. Au survol on agrandit légèrement la
-            barre (scale 1.04 ancré sur le bas) et on rend une infobulle
-            HTML via foreignObject — auto-scalée par le viewBox SVG. */}
+        {/* Bars : hauteur = marge %. Au survol :
+            1) halo violet pâle derrière la barre représentant le coût
+               employeur ce mois-là (proportionnel à la hauteur pleine 0..100%)
+               pour matérialiser visuellement la part coût;
+            2) légère scaleY sur la barre + drop-shadow. */}
         {points.map((p, i) => {
           const h = p.margePct >= 0 ? zeroY - yOf(p.margePct) : yOf(p.margePct) - zeroY
           const y = p.margePct >= 0 ? yOf(p.margePct) : zeroY
           const isHovered = hoveredIdx === i
+          // Coût en % du revenu (100 - marge%). Le halo violet pâle au-dessus
+          // de la barre matérialise visuellement la part coût employeur.
+          const coutPct = Math.max(0, 100 - p.margePct)
+          const coutHeight = (coutPct / 100) * PLOT_H * 0.6
           return (
             <g key={p.monthIndex}>
+              {isHovered && coutHeight > 0 && (
+                <rect
+                  x={xOf(i) - barW / 2 - 2}
+                  y={Math.max(PAD_T, y - coutHeight)}
+                  width={barW + 4}
+                  height={Math.min(coutHeight, y - PAD_T)}
+                  fill="rgba(124,99,200,0.18)"
+                  rx={3}
+                  style={{ pointerEvents: "none" }}
+                />
+              )}
               <rect
                 className="nw-bar"
                 x={xOf(i) - barW / 2}
@@ -238,8 +242,7 @@ export default function MonthlyMarginChart({
                   filter: isHovered ? "drop-shadow(0 3px 8px rgba(17,24,39,0.25))" : "none",
                 }}
               />
-              {/* % label au sommet de la barre si la barre est assez large
-                  (redondant avec l'axe Y mais aide à lire d'un coup d'œil). */}
+              {/* % label au sommet de la barre si la barre est assez large. */}
               {barW >= 18 && (
                 <text
                   x={xOf(i)} y={y - 4}
@@ -261,20 +264,20 @@ export default function MonthlyMarginChart({
           />
         )}
 
-        {/* Mini-tooltip : marge en euros uniquement. Compact, calé au-dessus
-            de la barre (en dessous si pas la place), ne mange pas le chart. */}
+        {/* Tooltip survol : marge € (couleur santé), coût employeur €
+            (violet, fait écho au halo derrière la barre), jours travaillés. */}
         {hoveredIdx !== null && points[hoveredIdx] && (() => {
           const p = points[hoveredIdx]
           const barTopY = p.margePct >= 0 ? yOf(p.margePct) : zeroY
-          const tooltipW = 110
-          const tooltipH = 30
+          const tooltipW = 150
+          const tooltipH = 64
           let tx = xOf(hoveredIdx) - tooltipW / 2
           tx = Math.max(PAD_L, Math.min(W - PAD_R - tooltipW, tx))
           const aboveOk = barTopY - tooltipH - 10 > PAD_T
           const ty = aboveOk
             ? barTopY - tooltipH - 8
             : Math.min(barTopY + 8, H - PAD_B - tooltipH)
-          const color = p.margePct < 0 ? "#B91C1C" : "#15803D"
+          const margeColor = p.margePct < 0 ? "#B91C1C" : "#15803D"
           return (
             <foreignObject
               x={tx} y={ty}
@@ -287,16 +290,35 @@ export default function MonthlyMarginChart({
                   border: "1px solid #E2DAF6",
                   borderRadius: 8,
                   boxShadow: "0 6px 16px -6px rgba(17,24,39,0.22)",
-                  padding: "6px 10px",
+                  padding: "7px 11px",
                   fontFamily: "var(--font-inter), sans-serif",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color,
-                  textAlign: "center",
                   fontVariantNumeric: "tabular-nums",
+                  display: "flex", flexDirection: "column", gap: 3,
                 }}
               >
-                {formatEur(p.marge)}
+                <div style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
+                }}>
+                  <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600 }}>Marge</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: margeColor }}>
+                    {formatEur(p.marge)}
+                  </span>
+                </div>
+                <div style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
+                }}>
+                  <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600 }}>Coût emp.</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#7C63C8" }}>
+                    {formatEur(p.coutTotal)}
+                  </span>
+                </div>
+                <div style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
+                  marginTop: 1,
+                }}>
+                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>{p.workingDays} j ouvrés</span>
+                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>{formatEur(p.revenu)} revenu</span>
+                </div>
               </div>
             </foreignObject>
           )
@@ -351,4 +373,45 @@ export default function MonthlyMarginChart({
 function formatEur(v: number): string {
   const sign = v < 0 ? "−" : ""
   return `${sign}${Math.abs(Math.round(v)).toLocaleString("fr-FR")} €`
+}
+
+/** Légende partagée par MonthlyMarginChart et RuptureRiskChart : explique
+ *  les codes couleurs sans surcharger le SVG (avant on avait des "seuil
+ *  mini X %" inscrits dans le chart qui chevauchaient les barres). */
+export function ChartLegend({
+  margeMinPct, showRuptureSwatch = false,
+}: { margeMinPct: number; showRuptureSwatch?: boolean }) {
+  return (
+    <div style={{
+      display: "inline-flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+      fontFamily: "var(--font-inter), sans-serif",
+      fontSize: 10.5, color: "#6B7280",
+    }}>
+      <LegendItem color="#16A34A" label="OK" />
+      <LegendItem color="#F59E0B" label="à surveiller" />
+      <LegendItem color="#DC2626" label="sous seuil" />
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 5,
+      }}>
+        <span style={{
+          width: 14, height: 0, borderTop: "1.5px dashed #D97706",
+          display: "inline-block",
+        }} />
+        <span>seuil mini {margeMinPct} %</span>
+      </span>
+      {showRuptureSwatch && <LegendItem color="rgba(124,99,200,0.55)" label="coût rupture (survol)" />}
+    </div>
+  )
+}
+
+function LegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+      <span style={{
+        width: 9, height: 9, borderRadius: 2, background: color,
+        display: "inline-block",
+      }} />
+      <span>{label}</span>
+    </span>
+  )
 }

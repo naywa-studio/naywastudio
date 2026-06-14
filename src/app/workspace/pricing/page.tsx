@@ -464,7 +464,7 @@ function Tag({ children }: { children: React.ReactNode }) {
 }
 
 function PricingStatus({
-  allRequiredFilled, filledCount, tjmLabel,
+  allRequiredFilled, tjmLabel,
 }: {
   allRequiredFilled: boolean
   filledCount: number
@@ -485,7 +485,7 @@ function PricingStatus({
       fontSize: 11, fontWeight: 600, color: "#B45309",
       display: "inline-flex", alignItems: "center", gap: 5,
     }}>
-      ⚠ {filledCount}/3 paramètres remplis
+      ⚠ À compléter
     </span>
   )
 }

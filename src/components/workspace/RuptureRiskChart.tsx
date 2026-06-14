@@ -32,6 +32,7 @@ import {
   type PricingInputs,
 } from "@/lib/pricing/syntec"
 import { MONTH_ABBR_FR } from "@/lib/pricing/calendar"
+import { ChartLegend } from "./MonthlyMarginChart"
 
 interface Props {
   inputs: PricingInputs
@@ -45,11 +46,14 @@ interface Props {
   typeContrat?: 'cdi' | 'cdd'
 }
 
+// Dimensions alignées sur MonthlyMarginChart pour que le switch d'onglet
+// (Marge mensuelle ↔ Risque rupture) donne l'impression d'une continuité,
+// pas d'un saut de hauteur / padding.
 const W = 760
-const H = 260
-const PAD_L = 60
+const H = 280
+const PAD_L = 56
 const PAD_R = 16
-const PAD_T = 32
+const PAD_T = 30
 const PAD_B = 70
 
 const PLOT_W = W - PAD_L - PAD_R
@@ -162,29 +166,34 @@ export default function RuptureRiskChart({
         <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
           Risque rupture employeur
         </h4>
-        <div style={{
-          display: "inline-flex", borderRadius: 8,
-          border: "1px solid #E2DAF6", overflow: "hidden",
-          fontFamily: "var(--font-inter), sans-serif",
-        }}>
-          {(["pct", "eur"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              style={{
-                padding: "4px 11px",
-                background: mode === m ? "#7C63C8" : "white",
-                color: mode === m ? "white" : "#6B7280",
-                border: "none",
-                fontSize: 11, fontWeight: 700,
-                cursor: "pointer", fontFamily: "inherit",
-                transition: "all 140ms",
-              }}
-            >
-              {m === "pct" ? "Marge %" : "Marge cumulée"}
-            </button>
-          ))}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          {margeMinPct !== undefined && mode === "pct" && (
+            <ChartLegend margeMinPct={margeMinPct} />
+          )}
+          <div style={{
+            display: "inline-flex", borderRadius: 8,
+            border: "1px solid #E2DAF6", overflow: "hidden",
+            fontFamily: "var(--font-inter), sans-serif",
+          }}>
+            {(["pct", "eur"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                style={{
+                  padding: "4px 11px",
+                  background: mode === m ? "#7C63C8" : "white",
+                  color: mode === m ? "white" : "#6B7280",
+                  border: "none",
+                  fontSize: 11, fontWeight: 700,
+                  cursor: "pointer", fontFamily: "inherit",
+                  transition: "all 140ms",
+                }}
+              >
+                {m === "pct" ? "Marge %" : "Marge cumulée"}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -194,7 +203,9 @@ export default function RuptureRiskChart({
         aria-label={`Risque rupture marge sur ${points.length} mois`}
         style={{ display: "block", overflow: "visible" }}
       >
-        {/* Zone essai (background rose pâle) */}
+        {/* Zone essai (background rose pâle) + ligne fin d'essai.
+            Labels "Période d'essai" et "fin essai" retirés : la zone
+            rose suffit, et le sourceur connaît le terme essai. */}
         {finEssaiX !== null && (
           <>
             <rect
@@ -202,22 +213,10 @@ export default function RuptureRiskChart({
               width={finEssaiX - PAD_L} height={PLOT_H}
               fill="rgba(220,38,38,0.04)"
             />
-            <text
-              x={(PAD_L + finEssaiX) / 2} y={PAD_T - 14}
-              fontSize={10} fill="#B91C1C" textAnchor="middle" fontWeight={700}
-            >
-              Période d&apos;essai (rupture gratuite)
-            </text>
             <line
               x1={finEssaiX} y1={PAD_T} x2={finEssaiX} y2={PAD_T + PLOT_H}
               stroke="#B91C1C" strokeWidth={1.5} strokeDasharray="4 3" opacity={0.6}
             />
-            <text
-              x={finEssaiX + 4} y={PAD_T - 4}
-              fontSize={10} fill="#B91C1C" fontWeight={700}
-            >
-              fin essai
-            </text>
           </>
         )}
 
@@ -240,27 +239,13 @@ export default function RuptureRiskChart({
           </g>
         ))}
 
-        {/* Seuil mini cabinet — uniquement en mode %. En mode €, la
-            ligne zéro fait office de seuil naturel (« ne pas perdre
-            d'argent »). */}
+        {/* Seuil mini organisation — uniquement en mode %. Label retiré
+            (chevauchait la courbe) → repris dans la légende ChartLegend. */}
         {mode === "pct" && margeMinPct !== undefined && (
-          <g>
-            <line
-              x1={PAD_L} y1={yOf(margeMinPct)} x2={W - PAD_R} y2={yOf(margeMinPct)}
-              stroke="#D97706" strokeWidth={1.2} strokeDasharray="5 4" opacity={0.7}
-            />
-            <rect
-              x={PAD_L + 4} y={yOf(margeMinPct) - 13}
-              width={92} height={14} rx={3}
-              fill="white" opacity={0.92}
-            />
-            <text
-              x={PAD_L + 8} y={yOf(margeMinPct) - 3}
-              fontSize={10} fill="#D97706" textAnchor="start" fontWeight={700}
-            >
-              seuil mini {margeMinPct.toFixed(0)} %
-            </text>
-          </g>
+          <line
+            x1={PAD_L} y1={yOf(margeMinPct)} x2={W - PAD_R} y2={yOf(margeMinPct)}
+            stroke="#D97706" strokeWidth={1.2} strokeDasharray="5 4" opacity={0.7}
+          />
         )}
 
         {/* Aire sous la courbe (fond violet pâle) */}
