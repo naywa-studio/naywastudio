@@ -21,7 +21,7 @@ import type { Candidate, Job, MatchTier } from "@/lib/database.types"
 import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabinet-config"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import PricingWidget from "@/components/workspace/PricingWidget"
-import { StyledSelect } from "@/components/ui/StyledSelect"
+import Select from "@/components/ui/Select"
 import { computeQuickMargin } from "@/lib/pricing/quick-margin"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 
@@ -455,9 +455,11 @@ function MissionConfigWizard({
   const [startDate, setStartDate] = useState<string>(job.start_date ?? "")
   const [lieu, setLieu] = useState<string>(job.pricing_lieu ?? "paris_petite_couronne")
 
-  // Optionnels — le brut ciblé n'a plus de champ dédié dans le wizard mission
-  // (dérivable depuis TJM + marge cible via les markers du widget pricing).
-  // On préserve la valeur déjà persistée si elle existe.
+  // Brut cible candidat — réintroduit dans le wizard. Sans saisie, le widget
+  // pricing aval tombait silencieusement sur 45 000 €/an, ce qui faussait
+  // les chiffrages quand le sourceur ne le savait pas.
+  const [targetGrossSalary, setTargetGrossSalary] = useState<string>(numToStr(job.target_gross_salary))
+
   const [marginMin, setMarginMin] = useState<string>(numToStr(job.margin_min_pct))
   const [marginTarget, setMarginTarget] = useState<string>(numToStr(job.margin_target_pct))
 
@@ -485,6 +487,7 @@ function MissionConfigWizard({
 
   const tjmNum = parseNum(tjm)
   const durationNum = parseNum(duration)
+  const brutNum = parseNum(targetGrossSalary)
   const marginMinNum = parseNum(marginMin)
   const marginTargetNum = parseNum(marginTarget)
   // Validation override marges si saisis : cible ≥ mini
@@ -505,7 +508,7 @@ function MissionConfigWizard({
           client_tjm_min: tjmNum,
           client_tjm_max: null,
           duration_months: durationNum,
-          target_gross_salary: job.target_gross_salary,
+          target_gross_salary: brutNum,
           contract_type: contractType,
           start_date: startDate || null,
           pricing_lieu: lieu,
@@ -620,10 +623,16 @@ function MissionConfigWizard({
             { value: "province",              label: "Province" },
           ]}
         />
-        {/* Brut ciblé candidat retiré — il est dérivable à partir du TJM + de
-            la marge cible. Le widget pricing propose un brut idéal et un brut
-            max via ses markers de stepper, donc pas la peine de le saisir ici.
-            La valeur déjà en base reste lue par le widget pour rétro-compat. */}
+        <WizardField
+          label="Brut cible candidat"
+          hint="brut annuel proposé. Si vide, le widget pricing utilise 45 000 €/an"
+          value={targetGrossSalary}
+          onChange={setTargetGrossSalary}
+          suffix="€/an"
+          placeholder="45000"
+          max={250000}
+          step={500}
+        />
       </div>
 
       {/* Activations conditionnelles — tarifs cabinet appliqués si oui */}
@@ -880,11 +889,11 @@ function WizardSelectField({
   options: { value: string; label: string }[]
 }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <StyledSelect value={value} onChange={onChange} options={options} ariaLabel={label} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <Select value={value} onChange={onChange} options={options} ariaLabel={label} />
       <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
       {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
-    </label>
+    </div>
   )
 }
 
