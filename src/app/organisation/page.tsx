@@ -7,9 +7,10 @@ import { m } from "framer-motion"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
 import { trialStatus, TRIAL_DURATION_DAYS } from "@/lib/trial"
-import { subscriptionAccess } from "@/lib/subscription"
+import { subscriptionAccess, hasActiveAccess } from "@/lib/subscription"
 import { PLAN_PRICES_EUR, type PlanTier, type PlanSeats } from "@/lib/stripe"
 import type { Organization } from "@/lib/database.types"
+import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -219,7 +220,49 @@ export default function CabinetPage() {
           </div>
         )}
       </div>
+
+      <PricingOnboardingGate organization={organization} onDone={refetch} />
     </main>
+  )
+}
+
+/**
+ * Affiche le wizard pricing une fois pour l'owner après souscription.
+ * Conditions cumulatives :
+ *   - cabinet_onboarded_at non null (l'onboarding org est fini)
+ *   - pricing_onboarded_at null (jamais configuré le pricing)
+ *   - hasActiveAccess vrai (trial actif OU sub active OU trialing Stripe)
+ *
+ * Le wizard est dismissable ("Plus tard") sans stamper — il revient à la
+ * prochaine visite tant que pricing_onboarded_at est NULL.
+ */
+function PricingOnboardingGate({
+  organization, onDone,
+}: { organization: Organization; onDone: () => Promise<void> }) {
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (!organization.cabinet_onboarded_at) return
+    if (organization.pricing_onboarded_at) return
+    if (!hasActiveAccess(organization)) return
+    // Léger délai pour ne pas afficher la modale à la frame 0 après un
+    // signup/checkout : laisse la page s'installer + évite le clignement.
+    const t = window.setTimeout(() => setOpen(true), 700)
+    return () => window.clearTimeout(t)
+  }, [organization])
+
+  return (
+    <PricingOnboardingWizard
+      open={open}
+      initial={{
+        margeMin: organization.pricing_margin_min_pct,
+        margeTarget: organization.pricing_margin_target_pct,
+        rttDays: organization.pricing_rtt_days_per_year,
+        avantages: organization.pricing_default_avantages,
+      }}
+      onClose={() => setOpen(false)}
+      onDone={onDone}
+    />
   )
 }
 
