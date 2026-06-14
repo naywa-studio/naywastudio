@@ -105,7 +105,7 @@ export default function ContactPage() {
                     color: "#7C63C8",
                   }}
                 >
-                  cabinet
+                  structure
                 </span>
                 .
               </h1>
@@ -120,7 +120,7 @@ export default function ContactPage() {
                 }}
               >
                 Une question, un essai à organiser, un retour à nous faire ?
-                Écrivez-nous directement, on revient vers vous sous 24h
+                Écrivez-nous directement, nous revenons vers vous sous 48h
                 ouvrées.
               </p>
 
@@ -164,8 +164,10 @@ export default function ContactPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.10, ease: EASE }}
               style={{
-                background: "white",
-                border: "1px solid #F0ECF8",
+                background: "rgba(255,255,255,0.72)",
+                backdropFilter: "blur(14px)",
+                WebkitBackdropFilter: "blur(14px)",
+                border: "1px solid rgba(226,218,246,0.7)",
                 borderRadius: 20,
                 padding: 32,
                 boxShadow: "0 4px 24px rgba(124,99,200,0.06)",
@@ -235,7 +237,7 @@ export default function ContactPage() {
                     fontWeight: 500,
                   }}
                 >
-                  Message envoyé. Nous revenons vers vous sous 24h ouvrées.
+                  Message envoyé. Nous revenons vers vous sous 48h ouvrées.
                 </div>
               )}
               {status === "error" && (

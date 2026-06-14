@@ -54,9 +54,9 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
       </header>
 
       {/* Content */}
-      <main style={{ maxWidth: 720, margin: "0 auto", padding: "64px 24px 80px" }}>
-        {/* Hero */}
-        <div style={{ marginBottom: 56 }}>
+      <main style={{ maxWidth: 1120, margin: "0 auto", padding: "64px 24px 80px" }}>
+        {/* Hero — reste centré, largeur de lecture confortable. */}
+        <div style={{ maxWidth: 720, margin: "0 auto 56px" }}>
           <span style={{
             display: "inline-block",
             fontSize: 11, fontWeight: 700,
@@ -91,8 +91,18 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
           )}
         </div>
 
-        {/* Sections */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
+        {/* Sections en 2 colonnes sur desktop, 1 colonne sur mobile.
+            Le flux gauche-droite-haut-bas garde l'ordre de lecture des
+            articles. */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+            columnGap: 56,
+            rowGap: 40,
+            alignItems: "start",
+          }}
+        >
           {sections.map((section) => (
             <section key={section.title}>
               <h2 style={{
@@ -123,9 +133,10 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
           ))}
         </div>
 
-        {/* Contact */}
+        {/* Contact — recentré comme le hero pour clore la page proprement. */}
         <div style={{
-          marginTop: 56, background: "#F8F6FF",
+          maxWidth: 720, margin: "56px auto 0",
+          background: "#F8F6FF",
           borderRadius: 16, padding: "28px 24px",
           border: "1px solid #E2DAF6",
         }}>

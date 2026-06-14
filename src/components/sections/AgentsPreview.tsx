@@ -12,31 +12,14 @@ const fu = (delay: number) => ({
 })
 
 const NORA_FEATURES = [
-  "Ingestion CV automatique (PDF, DOCX, photo — OCR + IA)",
-  "Vivier centralisé, indexé et recherchable",
-  "Matching IA contre vos missions avec score justifié",
-  "Compose IA : email d'approche pré-rédigé à partir du CV + brief",
-  "Pricing Syntec automatisé : marge, charges, plafonds URSSAF, calendrier",
-  "Anonymisation 1 clic — PDF prêt à présenter au client",
-  "Pipeline candidat : Identifié → Contacté → Réponse → Entretien → Offre",
+  "Ingestion CV automatique (PDF, OCR pour CVs scannés)",
+  "Vivier vivant : Nora range vos candidats par zone métier",
+  "Matching IA contre vos missions avec score justifié et explicable",
+  "Pricing Syntec automatisé : marge, charges, plafonds URSSAF, calendrier réel",
+  "Risque rupture employeur visualisé mois par mois",
+  "Anonymisation 1 clic — PDF brandé à votre structure, prêt client",
+  "Pipeline candidat partagé entre vos collègues",
 ]
-
-const COMING_SOON = [
-  {
-    name: "Intégration boîte mail",
-    role: "Gmail / Outlook OAuth + BCC tracking",
-    desc: "Nora détecte automatiquement les réponses des candidats et les log dans le pipeline. BCC simple pour démarrer, OAuth complet pour les power users.",
-    color: "#3B82F6",
-    accent: "rgba(59,130,246,0.18)",
-  },
-  {
-    name: "Domaine d'envoi personnalisé",
-    role: "Envoi depuis @votre-cabinet.fr",
-    desc: "Connectez votre propre domaine mail pour que vos approches partent depuis l'adresse de votre cabinet, pas depuis un sous-domaine Naywa. Délivrabilité et image de marque alignées.",
-    color: "#7C3AED",
-    accent: "rgba(124,58,237,0.18)",
-  },
-] as const
 
 export function AgentsPreview() {
   return (
@@ -105,8 +88,8 @@ export function AgentsPreview() {
               maxWidth: "52ch",
             }}
           >
-            L&apos;assistante IA du Package Sourcing. Elle traite, vous décidez.
-            L&apos;intégration boîte mail arrive ensuite.
+            L&apos;assistante IA du Package Sourcing. Elle traite, vous
+            décidez.
           </p>
         </m.div>
 
@@ -154,12 +137,13 @@ export function AgentsPreview() {
               </div>
               <span style={{
                 marginLeft: "auto",
-                background: "#7C63C8", color: "white",
+                background: "rgba(34,197,94,0.10)", color: "#16A34A",
                 fontSize: 10, fontWeight: 700, padding: "4px 10px", borderRadius: 100,
                 letterSpacing: "0.04em", textTransform: "uppercase" as const,
                 fontFamily: "var(--font-inter), sans-serif",
+                border: "1px solid rgba(34,197,94,0.25)",
               }}>
-                Beta privée
+                Disponible
               </span>
             </div>
 
@@ -204,7 +188,7 @@ export function AgentsPreview() {
               boxShadow: "0 6px 20px rgba(124,99,200,0.3)",
               fontFamily: "var(--font-inter), sans-serif",
             }}>
-              Rejoindre la beta privée →
+              15 jours gratuits →
             </Link>
           </div>
 
@@ -257,62 +241,6 @@ export function AgentsPreview() {
               ))}
             </div>
           </div>
-        </m.div>
-
-        {/* Coming soon row */}
-        <m.div
-          {...fu(0.2)}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 16,
-            opacity: 0.85,
-          }}
-        >
-          {COMING_SOON.map((c) => (
-            <div key={c.name} style={{
-              background: "white", borderRadius: 16,
-              border: `1px dashed ${c.accent}`,
-              padding: "22px 24px",
-              display: "flex", flexDirection: "column", gap: 12,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  background: "rgba(0,0,0,0.04)",
-                  border: `1px solid ${c.accent}`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 13, fontWeight: 800, color: c.color,
-                  fontFamily: "var(--font-space-grotesk), sans-serif",
-                }}>
-                  {c.name.charAt(0)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontFamily: "var(--font-space-grotesk), sans-serif", fontSize: 17, fontWeight: 700, color: "#111827" }}>
-                    {c.name}
-                  </p>
-                  <p style={{ margin: 0, fontFamily: "var(--font-inter), sans-serif", fontSize: 12, color: "#9CA3AF" }}>
-                    {c.role}
-                  </p>
-                </div>
-                <span style={{
-                  fontSize: 10, fontWeight: 700,
-                  padding: "3px 9px", borderRadius: 100,
-                  background: "rgba(0,0,0,0.04)", color: "#6B7280",
-                  letterSpacing: "0.04em", textTransform: "uppercase" as const,
-                  fontFamily: "var(--font-inter), sans-serif",
-                }}>
-                  Bientôt
-                </span>
-              </div>
-              <p style={{
-                margin: 0, fontFamily: "var(--font-inter), sans-serif",
-                fontSize: 13, color: "#6B7280", lineHeight: 1.6,
-              }}>
-                {c.desc}
-              </p>
-            </div>
-          ))}
         </m.div>
 
       </div>

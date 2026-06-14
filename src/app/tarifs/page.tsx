@@ -1,43 +1,53 @@
-import type { Metadata } from "next"
+"use client"
+
+import { useState } from "react"
 import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 
-export const metadata: Metadata = {
-  title: "Tarifs",
-  description:
-    "15 jours d'essai gratuit, sans engagement. La grille tarifaire publique de Naywa Studio (Package Sourcing) sera communiquée à l'ouverture officielle de la beta.",
+type SeatCount = 1 | 2 | 3 | 4
+
+const SOURCING: Record<SeatCount, number> = {
+  1: 38.99,
+  2: 69.99,
+  3: 94.99,
+  4: 119.99,
+}
+const SOURCING_PRO: Record<SeatCount, number> = {
+  1: 46.99,
+  2: 85.99,
+  3: 118.99,
+  4: 151.99,
 }
 
-const INCLUDED = [
-  {
-    label: "Vivier illimité",
-    body: "Upload PDF, parsing IA, clustering Nora. Autant de candidats que vous voulez.",
-  },
-  {
-    label: "Missions et matching",
-    body: "Création par brief, extraction LLM, scoring justifié pour chaque candidat.",
-  },
-  {
-    label: "Anonymisation 1 clic",
-    body: "PDF anonymisé brandé au logo de votre organisation, prêt à présenter au client.",
-  },
-  {
-    label: "Pricing Syntec automatisé",
-    body: "Engine de pricing Syntec maison, export PDF pour vos offres commerciales.",
-  },
-  {
-    label: "Pipeline candidat partagé",
-    body: "Kanban avec votre équipe, vivier partagé, missions assignables.",
-  },
-  {
-    label: "Support fondateurs",
-    body: "Vous parlez directement à Elyas et Hussein. Pas de tier-1, pas de chatbot.",
-  },
-] as const
+const SOURCING_INCLUDED = [
+  "Vivier vivant illimité (Nora range vos candidats par zone métier)",
+  "Missions créées via brief LLM + matching scoré et justifié",
+  "Anonymisation 1 clic — PDF brandé à votre structure",
+  "Pricing Syntec automatisé, export PDF des chiffrages",
+  "Pipeline candidat partagé entre vos collègues",
+  "Support fondateurs (vous parlez à Elyas et Hussein)",
+]
+
+const PRO_EXTRA = [
+  "Tout Package Sourcing",
+  "Priorité support et roadmap",
+  "Onboarding personnalisé sur votre structure",
+  "Sièges réservés pendant l'essai sans surcoût",
+]
+
+function formatEur(n: number): string {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+  }).format(n)
+}
 
 export default function TarifsPage() {
+  const [seats, setSeats] = useState<SeatCount>(3)
+
   return (
     <>
       <ShaderBackground />
@@ -45,7 +55,7 @@ export default function TarifsPage() {
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>
         {/* Hero */}
-        <section style={{ padding: "0 24px 56px", textAlign: "center" }}>
+        <section style={{ padding: "0 24px 40px", textAlign: "center" }}>
           <div style={{ maxWidth: 740, margin: "0 auto" }}>
             <span
               style={{
@@ -93,238 +103,106 @@ export default function TarifsPage() {
                 maxWidth: "55ch",
               }}
             >
-              La grille tarifaire publique sera communiquée à l&apos;ouverture
-              officielle de la beta. En attendant, votre organisation a accès au
-              workspace complet pendant 15 jours, sans engagement.
+              Tarification au siège, dégressive. Aucun prélèvement pendant
+              l&apos;essai. À la fin des 15 jours, vous choisissez votre
+              formule ou vous arrêtez — l&apos;abonnement ne se déclenche
+              qu&apos;une fois validé.
             </p>
           </div>
         </section>
 
-        {/* Package card */}
-        <section style={{ padding: "0 24px 56px" }}>
-          <div style={{ maxWidth: 720, margin: "0 auto" }}>
-            <article
+        {/* Seat selector */}
+        <section style={{ padding: "0 24px 32px" }}>
+          <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", justifyContent: "center" }}>
+            <div
               style={{
-                position: "relative",
+                display: "inline-flex",
                 background: "white",
-                borderRadius: 24,
-                border: "1.5px solid rgba(124,99,200,0.30)",
-                padding: "44px 36px 36px",
-                boxShadow: "0 20px 48px -16px rgba(124,99,200,0.18)",
+                border: "1px solid #E2DAF6",
+                borderRadius: 14,
+                padding: 4,
+                boxShadow: "0 4px 16px rgba(124,99,200,0.08)",
+                fontFamily: "var(--font-inter), sans-serif",
               }}
             >
-              {/* Top ribbon */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: -14,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                  color: "white",
-                  fontFamily: "var(--font-inter), sans-serif",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: "5px 16px",
-                  borderRadius: 999,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  boxShadow: "0 8px 20px -6px rgba(124,99,200,0.55)",
-                }}
-              >
-                Essai gratuit 15 jours
-              </div>
-
-              <header style={{ marginBottom: 24 }}>
-                <p
+              {([1, 2, 3, 4] as SeatCount[]).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setSeats(n)}
                   style={{
-                    fontFamily: "var(--font-inter), sans-serif",
-                    margin: "0 0 6px",
-                    fontSize: 11.5,
+                    padding: "10px 18px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: seats === n ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)" : "transparent",
+                    color: seats === n ? "white" : "#4B5563",
+                    fontSize: 14,
                     fontWeight: 700,
-                    color: "#7C63C8",
-                    letterSpacing: "0.10em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Le package
-                </p>
-                <h2
-                  style={{
+                    cursor: "pointer",
+                    transition: "background 150ms",
                     fontFamily: "var(--font-inter), sans-serif",
-                    margin: 0,
-                    fontSize: 28,
-                    fontWeight: 800,
-                    color: "#111827",
-                    letterSpacing: "-0.02em",
-                    lineHeight: 1.15,
+                    minWidth: 84,
                   }}
                 >
-                  Package Sourcing
-                </h2>
-                <p
-                  style={{
-                    fontFamily: "var(--font-inter), sans-serif",
-                    margin: "6px 0 0",
-                    fontSize: 14,
-                    color: "#6B7280",
-                  }}
-                >
-                  Tout le workspace Nora pour votre organisation, partagé entre vos
-                  collègues.
-                </p>
-              </header>
+                  {n} {n === 1 ? "siège" : "sièges"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p
+            style={{
+              textAlign: "center",
+              fontSize: 12.5,
+              color: "#9CA3AF",
+              margin: "12px 0 0",
+              fontFamily: "var(--font-inter), sans-serif",
+            }}
+          >
+            Au-delà de 4 sièges,{" "}
+            <Link href="/contact" style={{ color: "#7C63C8", fontWeight: 600 }}>
+              contactez-nous
+            </Link>
+            .
+          </p>
+        </section>
 
-              {/* Price block */}
-              <div
-                style={{
-                  borderTop: "1px solid rgba(124,99,200,0.18)",
-                  borderBottom: "1px solid rgba(124,99,200,0.18)",
-                  padding: "22px 0",
-                  marginBottom: 24,
-                  display: "flex",
-                  alignItems: "flex-end",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-inter), sans-serif",
-                    fontSize: 42,
-                    fontWeight: 800,
-                    color: "#111827",
-                    lineHeight: 1,
-                    letterSpacing: "-0.025em",
-                  }}
-                >
-                  Gratuit
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-inter), sans-serif",
-                    fontSize: 14,
-                    color: "#9CA3AF",
-                    paddingBottom: 4,
-                  }}
-                >
-                  pendant 15 jours · puis tarification à venir
-                </span>
-              </div>
-
-              <ul
-                style={{
-                  listStyle: "none",
-                  padding: 0,
-                  margin: "0 0 28px",
-                  display: "grid",
-                  gap: 14,
-                }}
-              >
-                {INCLUDED.map((feat) => (
-                  <li
-                    key={feat.label}
-                    style={{
-                      display: "flex",
-                      gap: 14,
-                      alignItems: "flex-start",
-                      fontFamily: "var(--font-inter), sans-serif",
-                    }}
-                  >
-                    <span
-                      aria-hidden
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: 22,
-                        height: 22,
-                        borderRadius: "50%",
-                        background: "rgba(124,99,200,0.10)",
-                        color: "#7C63C8",
-                        flexShrink: 0,
-                        marginTop: 2,
-                      }}
-                    >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </span>
-                    <div>
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: "#111827",
-                        }}
-                      >
-                        {feat.label}
-                      </p>
-                      <p
-                        style={{
-                          margin: "2px 0 0",
-                          fontSize: 13,
-                          color: "#6B7280",
-                          lineHeight: 1.55,
-                        }}
-                      >
-                        {feat.body}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href="/login?mode=signup"
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  gap: 6,
-                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                  color: "white",
-                  fontFamily: "var(--font-inter), sans-serif",
-                  fontSize: 15,
-                  fontWeight: 700,
-                  padding: "14px 24px",
-                  borderRadius: 12,
-                  textDecoration: "none",
-                  boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
-                  width: "100%",
-                  boxSizing: "border-box",
-                }}
-              >
-                Démarrer mes 15 jours gratuits →
-              </Link>
-              <p
-                style={{
-                  margin: "12px 0 0",
-                  fontFamily: "var(--font-inter), sans-serif",
-                  fontSize: 12,
-                  color: "#9CA3AF",
-                  textAlign: "center",
-                  lineHeight: 1.55,
-                }}
-              >
-                Annulable à tout moment depuis votre console. Vous gardez l&apos;accès à votre organisation
-                même après l&apos;essai, sans coupure brutale.
-              </p>
-            </article>
+        {/* Two packages side by side */}
+        <section style={{ padding: "0 24px 56px" }}>
+          <div
+            style={{
+              maxWidth: 1040,
+              margin: "0 auto",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: 24,
+              alignItems: "stretch",
+            }}
+          >
+            <PriceCard
+              tag="Le package"
+              title="Package Sourcing"
+              subtitle="Tout le workspace Nora, partagé entre vos collègues."
+              priceMonthly={SOURCING[seats]}
+              perSeat={SOURCING[seats] / seats}
+              recommended={seats === 3}
+              features={SOURCING_INCLUDED}
+              cta="Démarrer mes 15 jours →"
+              accentSoft={false}
+            />
+            <PriceCard
+              tag="Premium"
+              title="Package Sourcing Pro"
+              subtitle="Pour les structures qui veulent un accompagnement renforcé."
+              priceMonthly={SOURCING_PRO[seats]}
+              perSeat={SOURCING_PRO[seats] / seats}
+              recommended={false}
+              features={PRO_EXTRA}
+              cta="Démarrer mes 15 jours →"
+              accentSoft
+            />
           </div>
         </section>
 
-        {/* FAQ mini */}
+        {/* FAQ */}
         <section style={{ padding: "0 24px 96px" }}>
           <div style={{ maxWidth: 720, margin: "0 auto" }}>
             <h3
@@ -402,21 +280,250 @@ export default function TarifsPage() {
   )
 }
 
+function PriceCard({
+  tag, title, subtitle, priceMonthly, perSeat, recommended, features, cta, accentSoft,
+}: {
+  tag: string
+  title: string
+  subtitle: string
+  priceMonthly: number
+  perSeat: number
+  recommended: boolean
+  features: readonly string[]
+  cta: string
+  accentSoft: boolean
+}) {
+  return (
+    <article
+      style={{
+        position: "relative",
+        background: "white",
+        borderRadius: 24,
+        border: recommended ? "1.5px solid rgba(124,99,200,0.40)" : "1.5px solid rgba(124,99,200,0.18)",
+        padding: "44px 32px 32px",
+        boxShadow: recommended
+          ? "0 24px 56px -18px rgba(124,99,200,0.28)"
+          : "0 12px 32px -16px rgba(124,99,200,0.14)",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {recommended && (
+        <div
+          style={{
+            position: "absolute",
+            top: -14,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            color: "white",
+            fontFamily: "var(--font-inter), sans-serif",
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "5px 16px",
+            borderRadius: 999,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            boxShadow: "0 8px 20px -6px rgba(124,99,200,0.55)",
+          }}
+        >
+          Recommandé
+        </div>
+      )}
+
+      <header style={{ marginBottom: 20 }}>
+        <p
+          style={{
+            fontFamily: "var(--font-inter), sans-serif",
+            margin: "0 0 6px",
+            fontSize: 11.5,
+            fontWeight: 700,
+            color: "#7C63C8",
+            letterSpacing: "0.10em",
+            textTransform: "uppercase",
+          }}
+        >
+          {tag}
+        </p>
+        <h2
+          style={{
+            fontFamily: "var(--font-inter), sans-serif",
+            margin: 0,
+            fontSize: 24,
+            fontWeight: 800,
+            color: "#111827",
+            letterSpacing: "-0.02em",
+            lineHeight: 1.15,
+          }}
+        >
+          {title}
+        </h2>
+        <p
+          style={{
+            fontFamily: "var(--font-inter), sans-serif",
+            margin: "6px 0 0",
+            fontSize: 13.5,
+            color: "#6B7280",
+            lineHeight: 1.5,
+          }}
+        >
+          {subtitle}
+        </p>
+      </header>
+
+      <div
+        style={{
+          borderTop: "1px solid rgba(124,99,200,0.18)",
+          borderBottom: "1px solid rgba(124,99,200,0.18)",
+          padding: "20px 0",
+          marginBottom: 20,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, flexWrap: "wrap" }}>
+          <span
+            style={{
+              fontFamily: "var(--font-inter), sans-serif",
+              fontSize: 38,
+              fontWeight: 800,
+              color: "#111827",
+              lineHeight: 1,
+              letterSpacing: "-0.025em",
+            }}
+          >
+            {formatEur(priceMonthly)}
+          </span>
+          <span
+            style={{
+              fontFamily: "var(--font-inter), sans-serif",
+              fontSize: 13.5,
+              color: "#6B7280",
+              paddingBottom: 4,
+              fontWeight: 500,
+            }}
+          >
+            /mois HT
+          </span>
+        </div>
+        <p
+          style={{
+            margin: "6px 0 0",
+            fontSize: 12.5,
+            color: "#9CA3AF",
+            fontFamily: "var(--font-inter), sans-serif",
+          }}
+        >
+          soit {formatEur(perSeat)}/siège/mois — dégressif
+        </p>
+      </div>
+
+      <ul
+        style={{
+          listStyle: "none",
+          padding: 0,
+          margin: "0 0 24px",
+          display: "grid",
+          gap: 10,
+          flex: 1,
+        }}
+      >
+        {features.map((feat) => (
+          <li
+            key={feat}
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+              fontFamily: "var(--font-inter), sans-serif",
+              fontSize: 13.5,
+              color: "#374151",
+              lineHeight: 1.55,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "rgba(124,99,200,0.10)",
+                color: "#7C63C8",
+                flexShrink: 0,
+                marginTop: 2,
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </span>
+            <span>{feat}</span>
+          </li>
+        ))}
+      </ul>
+
+      <Link
+        href="/login?mode=signup"
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 6,
+          background: accentSoft
+            ? "white"
+            : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          color: accentSoft ? "#7C63C8" : "white",
+          border: accentSoft ? "1.5px solid #7C63C8" : "none",
+          fontFamily: "var(--font-inter), sans-serif",
+          fontSize: 14.5,
+          fontWeight: 700,
+          padding: "12px 22px",
+          borderRadius: 12,
+          textDecoration: "none",
+          boxShadow: accentSoft
+            ? "none"
+            : "0 8px 24px -6px rgba(124,99,200,0.55)",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        {cta}
+      </Link>
+      <p
+        style={{
+          margin: "10px 0 0",
+          fontFamily: "var(--font-inter), sans-serif",
+          fontSize: 11.5,
+          color: "#9CA3AF",
+          textAlign: "center",
+        }}
+      >
+        15 jours offerts — aucun prélèvement, résiliable à tout moment.
+      </p>
+    </article>
+  )
+}
+
 const FAQ = [
   {
-    q: "Est-ce que je dois renseigner une carte bancaire ?",
-    a: "L'essai gratuit de 15 jours est sans engagement, annulable à tout moment depuis votre console Stripe. Vous configurez votre moyen de paiement à l'activation, mais rien n'est prélevé pendant les 15 jours. Au terme, vous choisissez votre formule (ou annulez) et le prélèvement démarre.",
+    q: "Comment se passe la période d'essai ?",
+    a: "Vous créez votre compte, votre structure dispose immédiatement de 15 jours d'accès complet au workspace. Aucune carte bancaire n'est demandée. À l'issue des 15 jours, vous choisissez votre formule pour activer l'abonnement, sinon votre accès s'arrête sans prélèvement.",
   },
   {
-    q: "Que se passe-t-il à la fin des 15 jours ?",
-    a: "Pas de coupure brutale. Vous continuez d'accéder à votre cabinet et nous prenons contact pour vous proposer un abonnement adapté à votre équipe. La facturation se mettra en place une fois que vous aurez validé.",
+    q: "Quels moyens de paiement sont acceptés ?",
+    a: "Carte bancaire et prélèvement SEPA, via Stripe. Facturation mensuelle, sans engagement de durée. La résiliation est faite depuis votre console organisation, l'abonnement s'arrête à la fin de la période en cours.",
   },
   {
-    q: "Quelle est la grille tarifaire publique ?",
-    a: "Elle sera annoncée à la sortie de beta, avec des paliers par taille d'équipe (1 siège, jusqu'à 5 sièges, illimité). Les premiers cabinets bénéficieront d'un tarif préférentiel à vie.",
+    q: "Que se passe-t-il si je dépasse mon nombre de sièges ?",
+    a: "Vous pouvez ajouter ou retirer des sièges à tout moment depuis votre console organisation. La facturation est ajustée au prorata sur votre prochaine facture. Au-delà de 4 sièges, contactez-nous pour une offre adaptée.",
   },
   {
-    q: "Combien de sièges sont inclus pendant l'essai ?",
-    a: "Tous vos membres invités occupent un siège, sans limite pendant la période d'essai. La facturation au siège commencera uniquement quand vous activerez votre abonnement.",
+    q: "Quelle différence entre Sourcing et Sourcing Pro ?",
+    a: "Le périmètre fonctionnel est identique. Sourcing Pro inclut un onboarding personnalisé sur votre structure, un accès prioritaire au support et à la roadmap, et une participation directe aux décisions produit. C'est l'offre adaptée aux structures qui veulent un accompagnement renforcé.",
+  },
+  {
+    q: "Mes données sont-elles isolées des autres structures ?",
+    a: "Oui. Chaque structure dispose de son propre périmètre, isolé via Row Level Security au niveau de la base de données. Aucun candidat, aucune mission, aucun chiffrage ne fuite entre structures, même en cas d'erreur applicative.",
   },
 ] as const

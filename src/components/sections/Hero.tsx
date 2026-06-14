@@ -47,34 +47,9 @@ export function Hero() {
         }}
         className="hero-content"
       >
-        {/* Beta pill */}
-        <m.div
-          {...fu(0.10)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            background: 'rgba(124,99,200,0.10)',
-            border: '1px solid rgba(124,99,200,0.22)',
-            borderRadius: 999,
-            padding: '5px 12px 5px 8px',
-            marginBottom: 24,
-            fontFamily: 'var(--font-inter), sans-serif',
-            fontSize: 12,
-            fontWeight: 600,
-            color: '#7C63C8',
-          }}
-        >
-          <span style={{
-            width: 8, height: 8, borderRadius: '50%',
-            background: '#7C63C8', display: 'inline-block',
-          }} />
-          Beta privée — invitations ouvertes
-        </m.div>
-
         {/* H1 */}
         <m.h1
-          {...fu(0.18)}
+          {...fu(0.10)}
           style={{
             fontFamily: 'var(--font-inter), sans-serif',
             fontWeight: 800,
@@ -86,8 +61,8 @@ export function Hero() {
             maxWidth: '14ch',
           }}
         >
-          Votre base de CV.<br />
-          Augmentée par&nbsp;
+          L&apos;IA traite,<br />
+          vous{' '}
           <span
             style={{
               fontFamily: 'var(--font-instrument-serif), ui-serif, Georgia, serif',
@@ -100,27 +75,28 @@ export function Hero() {
               backgroundClip: 'text',
             }}
           >
-            l&apos;IA
+            décidez
           </span>
           <span style={{ color: '#111827' }}>.</span>
         </m.h1>
 
         {/* Subtitle */}
         <m.p
-          {...fu(0.26)}
+          {...fu(0.18)}
           style={{
             fontFamily: 'var(--font-inter), sans-serif',
             fontSize: 'clamp(15px, 1.05vw, 18px)',
             color: '#4B5563',
             lineHeight: 1.75,
-            maxWidth: '50ch',
+            maxWidth: '54ch',
             margin: '0 0 40px',
           }}
         >
-          Nora range vos CVs, les matche avec vos missions, calcule la marge
-          selon la convention Syntec, génère des versions anonymisées et suit
-          votre pipeline candidat. Vous gardez la main, l&apos;IA gère la
-          friction.
+          Naywa Studio conçoit des packages d&apos;optimisation de process
+          métier augmentés par l&apos;intelligence artificielle. Notre premier
+          package est dédié au sourcing&nbsp;: Nora, l&apos;assistante IA qui
+          range, score, anonymise et suit votre vivier de candidats, sans
+          jamais agir à votre place.
         </m.p>
 
         {/* CTAs */}
@@ -160,7 +136,7 @@ export function Hero() {
               e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,99,200,0.28)'
             }}
           >
-            Rejoindre la beta privée →
+            Démarrer votre essai gratuit →
           </Link>
 
           <a
@@ -215,8 +191,8 @@ export function Hero() {
               width: 7,
               height: 7,
               borderRadius: '50%',
-              background: '#22C55E',
-              boxShadow: '0 0 0 4px rgba(34,197,94,0.18)',
+              background: '#7C63C8',
+              boxShadow: '0 0 0 4px rgba(124,99,200,0.18)',
               display: 'inline-block',
               flexShrink: 0,
             }}

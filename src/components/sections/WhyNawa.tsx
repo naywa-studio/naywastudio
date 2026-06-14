@@ -12,24 +12,19 @@ const fu = (delay: number) => ({
 
 const metrics = [
   {
-    value: "1 base",
-    title: "Tout votre vivier au même endroit",
-    desc: "Drop n'importe quel CV (PDF, DOCX, photo), Nora le parse et l'indexe automatiquement.",
+    value: "Vous",
+    title: "Vous gardez la décision",
+    desc: "Aucun envoi, aucun classement, aucune action automatique. Nora propose, vous tranchez. Vos process, votre style, vos clients.",
   },
   {
     value: "IA",
-    title: "Matching automatique avec vos missions",
-    desc: "Pour chaque mission ouverte, la shortlist se construit toute seule avec un score justifié.",
+    title: "L'IA absorbe la friction",
+    desc: "Parsing, indexation, scoring justifié, anonymisation, calcul de marge : tout ce qui vous prenait des heures se fait pendant que vous lisez ce paragraphe.",
   },
   {
     value: "Syntec",
-    title: "Pricing automatisé selon la convention",
-    desc: "Charges, plafonds URSSAF, calendrier fériés, indemnité CP : la marge est calculée pour vous, prête à présenter.",
-  },
-  {
-    value: "1 clic",
-    title: "CVs anonymisés à présenter",
-    desc: "Génère une version anonymisée pour préserver l'identité du candidat lors de la présentation.",
+    title: "Pricing conforme dès le premier chiffrage",
+    desc: "Charges patronales, plafonds URSSAF, calendrier fériés, indemnité CP, risque rupture : la convention Syntec est encodée. Plus de tableur à maintenir.",
   },
 ]
 
@@ -74,7 +69,7 @@ export function WhyNawa() {
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
-            Résultats mesurables
+            Notre proposition de valeur
           </span>
 
           <h2
@@ -89,8 +84,8 @@ export function WhyNawa() {
               maxWidth: "22ch",
             }}
           >
-            Ce que Naywa change<br />
-            pour votre équipe RH
+            Trois principes,<br />
+            aucune fausse promesse.
           </h2>
 
           <p
@@ -100,11 +95,12 @@ export function WhyNawa() {
               color: "#6B7280",
               lineHeight: 1.7,
               margin: 0,
-              maxWidth: "48ch",
+              maxWidth: "50ch",
             }}
           >
-            Des résultats concrets, mesurables dès les premières semaines.
-            Pas de promesses — des indicateurs.
+            Naywa n&apos;automatise pas votre métier. Nous l&apos;outillons
+            pour que vous gardiez la main là où ça compte, et que la machine
+            absorbe ce qui n&apos;aurait jamais dû être à votre charge.
           </p>
         </m.div>
 
