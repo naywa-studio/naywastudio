@@ -295,8 +295,8 @@ function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
         </p>
         <p style={{ margin: "2px 0 0", fontSize: 12, color: "#7C2D12", lineHeight: 1.5 }}>
           {isOwner
-            ? "Les chiffrages tournent avec des valeurs par défaut. Réglez les marges et avantages standards dans la console cabinet pour des chiffrages adaptés."
-            : "Les chiffrages utilisent des valeurs par défaut génériques en attendant que l'owner règle marges et avantages."}
+            ? "Réglez vos marges et avantages dans la console organisation."
+            : "L'owner n'a pas réglé les marges et avantages — valeurs par défaut en attendant."}
         </p>
       </div>
       {isOwner ? (
@@ -344,9 +344,7 @@ function EmptyState() {
         margin: "0 auto 18px", maxWidth: 540, fontSize: 14, color: "#6B7280",
         lineHeight: 1.6,
       }}>
-        Le pricing s&apos;applique aux missions que vous avez créées et qui sont
-        encore ouvertes. Créez votre première mission depuis l&apos;onglet
-        Missions.
+        Créez une mission depuis l&apos;onglet Missions.
       </p>
       <Link href="/workspace/missions" style={{
         display: "inline-block",

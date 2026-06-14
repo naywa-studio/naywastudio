@@ -564,9 +564,8 @@ function MissionConfigWizard({
         )}
       </div>
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6B7280", lineHeight: 1.5 }}>
-        Renseigne ce qui dépend de cette mission. Les avantages cabinet sont déjà appliqués
-        d&apos;office ; les deux toggles plus bas activent les tarifs conditionnels (grand
-        déplacement, expatriation).
+        Les avantages organisation s&apos;appliquent d&apos;office. Les toggles en bas activent
+        les tarifs conditionnels.
       </p>
 
       {/* Champs essentiels */}
@@ -651,13 +650,13 @@ function MissionConfigWizard({
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <WizardToggleRow
             label="Mission avec grand déplacement"
-            hint="active le tarif URSSAF grand déplacement défini en paramètres cabinet"
+            hint="active le tarif URSSAF défini en paramètres"
             enabled={grandDeplacement}
             onToggle={setGrandDeplacement}
           />
           <WizardToggleRow
             label="Mission expatriée"
-            hint="active la prime d'expatriation définie en paramètres cabinet"
+            hint="active la prime d'expatriation définie en paramètres"
             enabled={expatriated}
             onToggle={setExpatriated}
           />
@@ -680,7 +679,7 @@ function MissionConfigWizard({
             transform: advancedOpen ? "rotate(90deg)" : "none",
             transition: "transform 140ms",
           }}>›</span>
-          Overrides marges <span style={{ color: "#9CA3AF", fontWeight: 400 }}>· optionnel, défaut = cabinet</span>
+          Overrides marges <span style={{ color: "#9CA3AF", fontWeight: 400 }}>· défaut = organisation</span>
         </button>
         {advancedOpen && (
           <div style={{
@@ -690,21 +689,21 @@ function MissionConfigWizard({
           }}>
             <WizardField
               label="Marge mini override"
-              hint="vide = défaut cabinet"
+              hint="vide = défaut organisation"
               value={marginMin}
               onChange={setMarginMin}
               suffix="%"
-              placeholder="vide = cabinet"
+              placeholder="vide = organisation"
               max={50}
               step={0.5}
             />
             <WizardField
               label="Marge cible override"
-              hint="vide = défaut cabinet"
+              hint="vide = défaut organisation"
               value={marginTarget}
               onChange={setMarginTarget}
               suffix="%"
-              placeholder="vide = cabinet"
+              placeholder="vide = organisation"
               max={50}
               step={0.5}
             />
@@ -735,7 +734,7 @@ function MissionConfigWizard({
             ? "Remplis TJM, durée et date de démarrage pour valider."
             : marginsInvalid
               ? "Corrige les marges (cible ≥ mini) pour valider."
-              : "Les changements ne sont pris en compte qu'après validation."}
+              : ""}
         </p>
         <div style={{ display: "flex", gap: 8 }}>
           {onCancel && saveState !== "saving" && (

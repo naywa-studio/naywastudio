@@ -220,9 +220,7 @@ export default function ParametragePage() {
           Réglages récurrents de votre organisation
         </h1>
         <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6, maxWidth: 640 }}>
-          Tout ce qui ne change pas d&apos;une mission à l&apos;autre : vos marges et les avantages
-          standards que vous proposez à vos salariés. Les paramètres mission (TJM, durée,
-          lieu, type de contrat) se renseignent au niveau de chaque mission.
+          Marges et avantages standards de votre organisation.
         </p>
         {isOwner && <SaveBadge state={saveState} error={error} />}
       </div>
@@ -259,7 +257,7 @@ export default function ParametragePage() {
       >
         <SectionHeader title="Seuils de marge" subtitle="Plancher et objectif de rentabilité de votre organisation." />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <Field label="Marge minimum acceptable" hint="En dessous, refus du chiffrage. Moyenne ESN : 12–18 %.">
+          <Field label="Marge minimum acceptable" hint="En dessous, refus du chiffrage.">
             <NumberInput
               value={form.pricing_margin_min_pct}
               onChange={(v) => update("pricing_margin_min_pct", v)}
@@ -267,7 +265,7 @@ export default function ParametragePage() {
               suffix="%"
             />
           </Field>
-          <Field label="Marge cible" hint="Objectif visé. Moyenne marché : 18–25 %.">
+          <Field label="Marge cible" hint="Objectif visé.">
             <NumberInput
               value={form.pricing_margin_target_pct}
               onChange={(v) => update("pricing_margin_target_pct", v)}
@@ -297,22 +295,9 @@ export default function ParametragePage() {
           subtitle="Jours rémunérés sans revenu. Baissent la marge mensuelle de chaque mission."
         />
 
-        {/* Note informative CP — non modifiable, obligation légale */}
-        <div style={{
-          marginBottom: 14, padding: "11px 13px",
-          background: "rgba(124,99,200,0.06)",
-          border: "1px solid rgba(124,99,200,0.20)",
-          borderRadius: 9,
-          fontSize: 12, color: "#374151", lineHeight: 1.55,
-        }}>
-          <strong style={{ color: "#7C63C8" }}>Congés payés : 25 jours/an (obligation légale)</strong>
-          <br />
-          Tous les salariés cumulent 25 jours de CP par an (L3141-3). Ces jours sont payés par le cabinet mais non facturables. Ils sont automatiquement déduits du revenu mensuel. Non modifiable.
-        </div>
-
         <Field
           label="RTT accordés par votre organisation"
-          hint="0 si vous n'accordez pas de RTT. Forfait 218 j ≈ 10 RTT/an. Déduits du revenu facturable au même titre que les CP."
+          hint="0 si vous n'accordez pas de RTT."
         >
           <NumberInput
             value={form.pricing_rtt_days_per_year}
@@ -333,7 +318,7 @@ export default function ParametragePage() {
       >
         <SectionHeader
           title="Avantages standards"
-          subtitle="Ce que votre organisation propose à tous ses salariés, peu importe la mission."
+          subtitle="Avantages appliqués à toutes les missions."
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Obligatoires groupés en tête */}
@@ -355,7 +340,7 @@ export default function ParametragePage() {
 
           <BooleanAvantageRow
             label="13ᵉ mois"
-            hint="Non obligatoire Syntec. ~60 % des ESN le pratiquent. Équivaut à 1 mois de brut /12."
+            hint="Non obligatoire. Équivaut à 1 mois de brut /12."
             enabled={form.treiziemeMois}
             onToggle={(on) => update("treiziemeMois", on)}
           />
@@ -556,7 +541,6 @@ function BooleanAvantageRow({
         <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{label}</p>
         <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</p>
       </div>
-      <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>= 1 mois /12</span>
     </div>
   )
 }
