@@ -39,7 +39,7 @@ const FOUNDERS: Founder[] = [
       "J'ai construit Naywa parce que je voulais que l'IA travaille pour les sourceurs, pas à leur place. Nora propose, vous décidez.",
     linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
     avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
-    photoUrl: "/founders/elyas.jpg",
+    photoUrl: "/elyas.jpg",
   },
   {
     initials: "HM",
