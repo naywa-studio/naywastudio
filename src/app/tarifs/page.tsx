@@ -25,16 +25,15 @@ const SOURCING_INCLUDED = [
   "Vivier vivant illimité (Nora range vos candidats par zone métier)",
   "Missions créées via brief LLM + matching scoré et justifié",
   "Anonymisation 1 clic — PDF brandé à votre structure",
-  "Pricing Syntec automatisé, export PDF des chiffrages",
   "Pipeline candidat partagé entre vos collègues",
   "Support fondateurs (vous parlez à Elyas et Hussein)",
 ]
 
 const PRO_EXTRA = [
   "Tout Package Sourcing",
-  "Priorité support et roadmap",
-  "Onboarding personnalisé sur votre structure",
-  "Sièges réservés pendant l'essai sans surcoût",
+  "Pricing Syntec automatisé — marge, charges, calendrier réel",
+  "Chart risque rupture employeur (RC + licenciement)",
+  "Export PDF des chiffrages, nominatif ou anonymisé",
 ]
 
 function formatEur(n: number): string {
@@ -520,7 +519,7 @@ const FAQ = [
   },
   {
     q: "Quelle différence entre Sourcing et Sourcing Pro ?",
-    a: "Le périmètre fonctionnel est identique. Sourcing Pro inclut un onboarding personnalisé sur votre structure, un accès prioritaire au support et à la roadmap, et une participation directe aux décisions produit. C'est l'offre adaptée aux structures qui veulent un accompagnement renforcé.",
+    a: "Sourcing donne accès à tout le workspace candidat : vivier vivant, missions, matching scoré, anonymisation et pipeline partagé. Sourcing Pro ajoute le moteur Pricing Syntec — calcul de marge automatisé, charges et plafonds URSSAF, calendrier réel, chart de risque rupture employeur, export PDF des chiffrages. C'est l'offre adaptée aux structures qui chiffrent leurs missions au TJM.",
   },
   {
     q: "Mes données sont-elles isolées des autres structures ?",
