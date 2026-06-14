@@ -113,7 +113,10 @@ export async function POST(req: Request) {
     mode: "subscription",
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
-    payment_method_types: ["card", "sepa_debit"],
+    // SEPA Direct Debit doit être activé manuellement dans Stripe Dashboard
+    // (Settings -> Payment methods) en mode live. Tant que ce n'est pas fait,
+    // on reste sur card uniquement pour ne pas bloquer le checkout.
+    payment_method_types: ["card"],
     locale: "fr",
     allow_promotion_codes: true,
     billing_address_collection: "auto",
