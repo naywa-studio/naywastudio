@@ -71,7 +71,7 @@ const STEPS: Step[] = [
     number: "06",
     title:  "Suivez le pipeline candidat",
     short:  "Kanban partagé entre les membres",
-    body:   "Chaque candidat × mission a son étape : Identifié, Contacté, Réponse, Entretien, Offre. Vous déplacez à la main — Nora suggère mais ne décide jamais. Les emails entrants (webhook Resend) remontent les réponses pour gagner du temps de saisie.",
+    body:   "Chaque candidat × mission a son étape : Identifié, Contacté, Réponse, Entretien, Offre. Vous déplacez à la main — Nora suggère mais ne décide jamais. Le pipeline est partagé entre les membres de votre structure : tout le monde voit où en est chaque positionnement.",
     cta:    { label: "Ouvrir le pipeline", href: "/workspace/pipeline" },
   },
 ]
