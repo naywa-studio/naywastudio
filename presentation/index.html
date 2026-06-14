@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Naywa Studio — GMH Engineering Solutions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#7C63C8;
+    --primary-deep:#6B54B2;
+    --secondary:#B8AEDE;
+    --surface:#F8F6FF;
+    --ink:#111827;
+    --ink-soft:#374151;
+    --muted:#6B7280;
+    --line:#F0ECF8;
+    --line-soft:#E2DAF6;
+    --green:#16A34A;
+    --green-soft:rgba(34,197,94,0.10);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#0B0B12;color:var(--ink);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+
+  .stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .deck{position:relative;width:min(96vw,1440px);aspect-ratio:16/9;background:#FFFFFF;border-radius:18px;overflow:hidden;box-shadow:0 30px 90px -20px rgba(0,0,0,0.55)}
+
+  .slide{
+    position:absolute;inset:0;
+    padding:56px 72px 56px;
+    display:none;flex-direction:column;
+    background:#FFFFFF;
+    overflow:hidden;
+  }
+  .slide.active{display:flex}
+
+  /* Bandes décoratives statiques (esprit ShaderBackground du site). */
+  .slide::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 65% 55% at 88% 8%, rgba(124,99,200,0.10) 0%, transparent 62%),
+      radial-gradient(ellipse 55% 45% at 8% 92%, rgba(184,174,222,0.14) 0%, transparent 60%);
+  }
+  .slide::after{
+    content:"";position:absolute;left:-10%;right:-10%;bottom:-30%;height:60%;
+    background:radial-gradient(ellipse 55% 45% at 50% 0%, rgba(124,99,200,0.06) 0%, transparent 70%);
+    transform:rotate(-2deg);pointer-events:none;
+  }
+  .slide > *{position:relative;z-index:1}
+
+  /* Topbar logos + page count. */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:24px;font-size:11px;color:var(--muted);
+    letter-spacing:0.10em;text-transform:uppercase;font-weight:600;
+  }
+  .topbar .left{display:flex;align-items:center;gap:14px}
+  .topbar .right{display:flex;align-items:center;gap:18px}
+  /* Carte blanche derrière le logo GMH pour qu'il respire bien. */
+  .gmh-badge{
+    display:inline-flex;align-items:center;gap:10px;
+    background:#FFFFFF;border:1px solid var(--line);
+    border-radius:10px;padding:6px 12px 6px 6px;
+    box-shadow:0 2px 8px rgba(17,24,39,0.06);
+  }
+  .gmh-badge img{height:38px;width:38px;object-fit:contain;display:block}
+  .gmh-badge .label{
+    display:flex;flex-direction:column;line-height:1.15;
+    text-transform:none;letter-spacing:0;font-weight:600;
+  }
+  .gmh-badge .label strong{font-size:11.5px;color:var(--ink);font-weight:700}
+  .gmh-badge .label span{font-size:10px;color:var(--muted);font-weight:500}
+
+  .wordmark{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:20px;color:var(--ink);letter-spacing:-0.025em;text-transform:none}
+  .wordmark .accent{color:var(--primary)}
+
+  .page-count{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+  /* Typography helpers. */
+  .eyebrow{font-size:11px;font-weight:700;color:var(--primary);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:14px}
+  h1.hero{
+    font-family:'Inter',sans-serif;
+    font-size:clamp(56px,8.4vw,108px);
+    font-weight:800;color:var(--ink);
+    letter-spacing:-0.035em;
+    line-height:1.10;            /* relevé de 1.04 → laisse respirer les descendantes (z, p, j…) */
+    margin:0 0 28px;
+    max-width:none;              /* virait le "z" — on n'impose plus de largeur */
+    padding-bottom:0.08em;       /* marge basse pour éviter clipping italique */
+  }
+  h1.hero .italic{
+    font-family:'Instrument Serif',ui-serif,Georgia,serif;
+    font-style:italic;font-weight:400;
+    background:linear-gradient(120deg,var(--primary) 0%,var(--secondary) 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    letter-spacing:-0.01em;
+    padding-right:0.05em;        /* italique : extra padding droit pour le glyphe */
+    display:inline-block;
+  }
+  h2{font-family:'Inter',sans-serif;font-size:46px;font-weight:800;color:var(--ink);letter-spacing:-0.025em;line-height:1.10;margin:0 0 16px}
+  h2 .italic{
+    font-family:'Instrument Serif',ui-serif,Georgia,serif;
+    font-style:italic;font-weight:400;color:var(--primary);
+    letter-spacing:-0.01em;padding-right:0.05em;display:inline-block;
+  }
+  .lead{font-size:18px;color:var(--ink-soft);line-height:1.65;max-width:64ch;margin:0}
+  .muted{color:var(--muted)}
+
+  /* Slide 1 — cover. */
+  .cover{justify-content:flex-end}
+  .cover .meta{display:flex;align-items:center;gap:14px;margin-top:22px;font-size:13.5px;color:var(--muted);font-weight:500;letter-spacing:0.01em;text-transform:none}
+  .cover .meta .dot{width:7px;height:7px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 4px rgba(124,99,200,0.18)}
+  .cover .meta strong{color:var(--ink);font-weight:700}
+
+  /* Slide 2 — promise + 3 principles. */
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:28px}
+  .principle{padding:24px 22px;border-top:3px solid transparent;border-image:linear-gradient(90deg,var(--primary),var(--secondary)) 1;display:flex;flex-direction:column;gap:10px}
+  .principle .badge{font-family:'Space Grotesk',sans-serif;font-size:42px;font-weight:800;color:var(--primary);line-height:1;letter-spacing:-0.04em}
+  .principle h4{font-family:'Inter',sans-serif;font-size:17px;font-weight:700;color:var(--ink);margin:0;letter-spacing:-0.01em}
+  .principle p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.6}
+
+  /* Slide 3 — Package Sourcing steps. */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:24px}
+  .step{padding:20px 20px 22px;border-radius:14px;background:rgba(248,246,255,0.55);border:1px solid var(--line-soft);display:flex;flex-direction:column;gap:6px;min-height:152px}
+  .step .num{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:800;color:var(--primary);letter-spacing:0.08em;text-transform:uppercase}
+  .step h4{font-size:16px;font-weight:800;color:var(--ink);margin:0;letter-spacing:-0.015em;line-height:1.3}
+  .step p{margin:0;font-size:12.5px;color:var(--ink-soft);line-height:1.55}
+  .step.pro{background:linear-gradient(120deg,rgba(124,99,200,0.10) 0%,rgba(184,174,222,0.12) 100%);border:1.5px solid rgba(124,99,200,0.35)}
+
+  /* Slide 4 — grille tarifaire. */
+  .tables{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:18px}
+  .table-card{padding:22px 24px 24px;border-radius:18px;background:white;border:1.5px solid var(--line-soft);box-shadow:0 12px 32px -16px rgba(124,99,200,0.18);display:flex;flex-direction:column}
+  .table-card.featured{border-color:rgba(124,99,200,0.45);box-shadow:0 24px 56px -20px rgba(124,99,200,0.28)}
+  .table-card header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;gap:10px}
+  .table-card .tier{font-size:11px;font-weight:700;color:var(--primary);letter-spacing:0.10em;text-transform:uppercase}
+  .table-card h3{font-size:22px;margin:4px 0 0;letter-spacing:-0.02em;font-weight:800;color:var(--ink)}
+  .table-card .tag-pro{font-size:10px;font-weight:800;color:white;background:linear-gradient(120deg,var(--primary),var(--primary-deep));padding:4px 10px;border-radius:999px;letter-spacing:0.06em;text-transform:uppercase;flex-shrink:0}
+  .table-card .sub{margin:0 0 8px;font-size:13px;color:var(--muted);line-height:1.45}
+  .pricing{width:100%;border-collapse:collapse;margin-top:10px}
+  .pricing th,.pricing td{padding:9px 8px;text-align:left;font-size:13px}
+  .pricing thead th{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--line)}
+  .pricing tbody tr{border-bottom:1px solid var(--line)}
+  .pricing tbody tr:last-child{border-bottom:none}
+  .pricing td.price{font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right;font-size:14px}
+  .pricing td.per-seat{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+  .pricing tr.reco{background:rgba(124,99,200,0.05)}
+  .pricing tr.reco td:first-child::before{content:"★ ";color:var(--primary);font-weight:800}
+  .trial-banner{margin-top:18px;padding:13px 16px;border-radius:14px;background:linear-gradient(120deg,rgba(34,197,94,0.10) 0%,rgba(34,197,94,0.05) 100%);border:1px solid rgba(34,197,94,0.30);display:flex;align-items:center;gap:14px;font-size:13.5px;color:#15803D;font-weight:600}
+  .trial-banner .pill{font-size:10px;font-weight:800;background:var(--green);color:white;padding:3px 10px;border-radius:999px;letter-spacing:0.07em;text-transform:uppercase;flex-shrink:0}
+
+  /* Slide 5 — Merci + Q&A. */
+  .thanks{justify-content:center;align-items:flex-start;text-align:left}
+  .thanks h1{font-size:clamp(48px,7.5vw,92px)}
+  .thanks p.lead{margin-top:14px;max-width:60ch}
+  .thanks .qa{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px;max-width:1080px}
+  .thanks .qa-card{padding:18px 20px;border-radius:14px;background:rgba(248,246,255,0.65);border:1px solid var(--line-soft)}
+  .thanks .qa-card h5{margin:0 0 8px;font-size:12.5px;font-weight:800;color:var(--primary);letter-spacing:0.04em;text-transform:uppercase}
+  .thanks .qa-card p{margin:0;font-size:13px;color:var(--ink-soft);line-height:1.55}
+  .thanks .signature{margin-top:36px;display:flex;align-items:center;gap:18px;font-size:13.5px;color:var(--muted)}
+  .thanks .signature strong{color:var(--ink)}
+
+  /* Navigation HUD. */
+  .hud{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(11,11,18,0.75);backdrop-filter:blur(8px);padding:8px 14px;border-radius:999px;color:white;font-size:12px;font-weight:600;font-family:'Inter',sans-serif;letter-spacing:0.02em;z-index:30}
+  .hud .dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.25);transition:background 150ms;cursor:pointer}
+  .hud .dot.on{background:white}
+  .hud button{background:transparent;border:none;color:white;cursor:pointer;font:inherit;padding:4px 8px;border-radius:8px}
+  .hud button:hover{background:rgba(255,255,255,0.10)}
+
+  /* Print = PDF export (A4 paysage, 1 slide par page). */
+  @media print{
+    html,body{background:white}
+    .stage{position:static;display:block;overflow:visible}
+    .deck{width:100%;aspect-ratio:auto;border-radius:0;box-shadow:none}
+    .slide{position:relative;display:flex!important;width:100%;height:100vh;page-break-after:always;border-radius:0}
+    .hud{display:none}
+    @page{size:A4 landscape;margin:0}
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- ─────────────────────────────────────────── SLIDE 1 — COVER -->
+    <section class="slide cover active" data-slide="1">
+      <div class="topbar">
+        <div class="left">
+          <span class="gmh-badge">
+            <img src="gmh-logo.jpg" alt="GMH Engineering Solutions" />
+            <span class="label">
+              <strong>GMH Engineering</strong>
+              <span>Solutions</span>
+            </span>
+          </span>
+        </div>
+        <div class="right">
+          <span class="wordmark">Naywa <span class="accent">Studio</span></span>
+        </div>
+      </div>
+
+      <div style="flex:1"></div>
+
+      <p class="eyebrow">Présentation à GMH Engineering Solutions</p>
+      <h1 class="hero">
+        L&rsquo;IA traite,<br />
+        vous <span class="italic">décidez</span>.
+      </h1>
+      <p class="lead">
+        Naywa Studio conçoit des packages d&rsquo;optimisation de process
+        métier augmentés par l&rsquo;intelligence artificielle. Notre premier
+        package est dédié au sourcing.
+      </p>
+      <div class="meta">
+        <span class="dot"></span>
+        <span><strong>15 juin 2026</strong> &middot; Elyas Malki &amp; Hussein Malki &middot; naywastudio.com</span>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── SLIDE 2 — PROMESSE -->
+    <section class="slide" data-slide="2">
+      <div class="topbar">
+        <div class="left">
+          <span class="gmh-badge">
+            <img src="gmh-logo.jpg" alt="GMH" />
+            <span class="label">
+              <strong>GMH Engineering</strong>
+              <span>Solutions</span>
+            </span>
+          </span>
+        </div>
+        <div class="right">
+          <span class="wordmark">Naywa <span class="accent">Studio</span></span>
+          <span class="page-count">02 / 05</span>
+        </div>
+      </div>
+
+      <p class="eyebrow">Notre proposition de valeur</p>
+      <h2>Trois principes,<br />aucune fausse promesse.</h2>
+      <p class="lead">
+        Naywa n&rsquo;automatise pas votre métier. Nous l&rsquo;outillons pour
+        que vous gardiez la main là où ça compte, et que la machine absorbe
+        ce qui n&rsquo;aurait jamais dû être à votre charge.
+      </p>
+      <div class="grid3">
+        <div class="principle">
+          <span class="badge">Vous</span>
+          <h4>Vous gardez la décision</h4>
+          <p>Aucun envoi, aucun classement, aucune action automatique. Nora propose, vous tranchez. Vos process, votre style, vos clients.</p>
+        </div>
+        <div class="principle">
+          <span class="badge">IA</span>
+          <h4>L&rsquo;IA absorbe la friction</h4>
+          <p>Parsing, indexation, scoring justifié, anonymisation, calcul de marge&nbsp;: tout ce qui vous prenait des heures se fait pendant que vous lisez ce paragraphe.</p>
+        </div>
+        <div class="principle">
+          <span class="badge">Métier</span>
+          <h4>Conçu pour le métier</h4>
+          <p>Naywa ne cherche pas à tout faire. Nous bâtissons un outil par métier, en profondeur, avec les structures qui le vivent au quotidien.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── SLIDE 3 — PACKAGE SOURCING -->
+    <section class="slide" data-slide="3">
+      <div class="topbar">
+        <div class="left">
+          <span class="gmh-badge">
+            <img src="gmh-logo.jpg" alt="GMH" />
+            <span class="label">
+              <strong>GMH Engineering</strong>
+              <span>Solutions</span>
+            </span>
+          </span>
+        </div>
+        <div class="right">
+          <span class="wordmark">Naywa <span class="accent">Studio</span></span>
+          <span class="page-count">03 / 05</span>
+        </div>
+      </div>
+
+      <p class="eyebrow">Package Sourcing &middot; ce que vous obtenez</p>
+      <h2>Du CV reçu<br />à la fiche pricing client.</h2>
+      <p class="lead">
+        Tout le workflow candidat dans une seule console, partagée entre les
+        membres de votre structure. Le Pricing Syntec est inclus dans la
+        formule <strong>Sourcing Pro</strong>.
+      </p>
+      <div class="steps">
+        <div class="step">
+          <span class="num">01 &middot; Vivier vivant</span>
+          <h4>Nora range vos candidats par zone métier</h4>
+          <p>Upload PDF, parsing automatique, séniorité post-diplôme réelle, badge alternant. Le vivier s&rsquo;enrichit sans tout reclasser.</p>
+        </div>
+        <div class="step">
+          <span class="num">02 &middot; Missions par brief</span>
+          <h4>Collez un brief, le formulaire se remplit</h4>
+          <p>L&rsquo;IA extrait intitulé, séniorité, compétences, lieu, contrat, TJM et brut cible en quelques secondes.</p>
+        </div>
+        <div class="step">
+          <span class="num">03 &middot; Matching scoré</span>
+          <h4>Score multi-critères, justifié</h4>
+          <p>Pour chaque mission, Nora score chaque CV. Compétences, séniorité, secteur, localisation. Vous voyez le pourquoi du 87&nbsp;%.</p>
+        </div>
+        <div class="step pro">
+          <span class="num">04 &middot; Pricing Syntec &middot; Pro</span>
+          <h4>Marge réelle, risque rupture, export PDF</h4>
+          <p>TJM et brut cibles, le moteur calcule la marge mensuelle réelle. Chart rupture conventionnelle vs licenciement.</p>
+        </div>
+        <div class="step">
+          <span class="num">05 &middot; Anonymisation</span>
+          <h4>PDF brandé à votre structure, 1 clic</h4>
+          <p>Nom, photo, coordonnées masqués, écoles génériques, référence interne. Prêt à transmettre, sans biais.</p>
+        </div>
+        <div class="step">
+          <span class="num">06 &middot; Pipeline partagé</span>
+          <h4>Kanban entre les membres</h4>
+          <p>Identifié, Contacté, Réponse, Entretien, Offre. Déplacements manuels, Nora propose mais ne décide jamais.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── SLIDE 4 — GRILLE TARIFAIRE -->
+    <section class="slide" data-slide="4">
+      <div class="topbar">
+        <div class="left">
+          <span class="gmh-badge">
+            <img src="gmh-logo.jpg" alt="GMH" />
+            <span class="label">
+              <strong>GMH Engineering</strong>
+              <span>Solutions</span>
+            </span>
+          </span>
+        </div>
+        <div class="right">
+          <span class="wordmark">Naywa <span class="accent">Studio</span></span>
+          <span class="page-count">04 / 05</span>
+        </div>
+      </div>
+
+      <p class="eyebrow">Grille tarifaire &middot; au siège, dégressive</p>
+      <h2>Mensuel HT, sans engagement.</h2>
+      <p class="lead">
+        Facturation Stripe (CB ou SEPA). Vous ajustez le nombre de sièges
+        depuis votre console, la facture suit au prorata.
+      </p>
+
+      <div class="tables">
+        <article class="table-card">
+          <header>
+            <div>
+              <p class="tier">Package</p>
+              <h3>Sourcing</h3>
+            </div>
+          </header>
+          <p class="sub">Vivier, missions, matching, anonymisation, pipeline.</p>
+          <table class="pricing">
+            <thead>
+              <tr><th>Sièges</th><th style="text-align:right">Total / mois</th><th style="text-align:right">Par siège</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1 siège</td><td class="price">38,99 €</td><td class="per-seat">38,99 €</td></tr>
+              <tr><td>2 sièges</td><td class="price">69,99 €</td><td class="per-seat">35,00 €</td></tr>
+              <tr class="reco"><td>3 sièges</td><td class="price">94,99 €</td><td class="per-seat">31,66 €</td></tr>
+              <tr><td>4 sièges</td><td class="price">119,99 €</td><td class="per-seat">30,00 €</td></tr>
+            </tbody>
+          </table>
+        </article>
+
+        <article class="table-card featured">
+          <header>
+            <div>
+              <p class="tier">Package Premium</p>
+              <h3>Sourcing Pro</h3>
+            </div>
+            <span class="tag-pro">+ Pricing Syntec</span>
+          </header>
+          <p class="sub">Tout Sourcing + Pricing Syntec, chart rupture, export PDF.</p>
+          <table class="pricing">
+            <thead>
+              <tr><th>Sièges</th><th style="text-align:right">Total / mois</th><th style="text-align:right">Par siège</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1 siège</td><td class="price">46,99 €</td><td class="per-seat">46,99 €</td></tr>
+              <tr><td>2 sièges</td><td class="price">85,99 €</td><td class="per-seat">43,00 €</td></tr>
+              <tr class="reco"><td>3 sièges</td><td class="price">118,99 €</td><td class="per-seat">39,66 €</td></tr>
+              <tr><td>4 sièges</td><td class="price">151,99 €</td><td class="per-seat">38,00 €</td></tr>
+            </tbody>
+          </table>
+        </article>
+      </div>
+
+      <div class="trial-banner">
+        <span class="pill">Essai gratuit</span>
+        <span>15 jours offerts, jusqu&rsquo;à 2 sièges, sans carte bancaire &mdash; pour aller au-delà, vous choisissez une formule.</span>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── SLIDE 5 — MERCI + Q&A -->
+    <section class="slide thanks" data-slide="5">
+      <div class="topbar">
+        <div class="left">
+          <span class="gmh-badge">
+            <img src="gmh-logo.jpg" alt="GMH" />
+            <span class="label">
+              <strong>GMH Engineering</strong>
+              <span>Solutions</span>
+            </span>
+          </span>
+        </div>
+        <div class="right">
+          <span class="wordmark">Naywa <span class="accent">Studio</span></span>
+          <span class="page-count">05 / 05</span>
+        </div>
+      </div>
+
+      <p class="eyebrow">Merci pour votre attention</p>
+      <h1 class="hero">
+        Vos <span class="italic">questions</span>.
+      </h1>
+      <p class="lead">
+        On répond cash, sans détour. Et si on n&rsquo;a pas la réponse, on le
+        dit. Quelques sujets que vous voudrez peut-être creuser&nbsp;:
+      </p>
+
+      <div class="qa">
+        <div class="qa-card">
+          <h5>Vos CVs après l&rsquo;arrêt&nbsp;?</h5>
+          <p>Vous exportez votre vivier à tout moment. À la suppression de votre structure, toutes les données sont effacées définitivement &mdash; 30 jours de grâce si plusieurs membres pour permettre une reprise.</p>
+        </div>
+        <div class="qa-card">
+          <h5>Vos données nourrissent-elles vos modèles&nbsp;?</h5>
+          <p>Non. Les modèles utilisés sont opérés par OpenRouter, sans rétention ni apprentissage sur les contenus que vous nous confiez.</p>
+        </div>
+        <div class="qa-card">
+          <h5>Différence avec un ATS ou LinkedIn Recruiter&nbsp;?</h5>
+          <p>Un ATS gère des candidatures entrantes. Naywa gère votre vivier proactif et intègre le Pricing Syntec &mdash; ce qu&rsquo;aucun ATS ni LinkedIn ne propose.</p>
+        </div>
+      </div>
+
+      <div class="signature">
+        <span>Elyas Malki &amp; Hussein Malki &middot; <strong>contact@naywastudio.com</strong> &middot; naywastudio.com</span>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="hud" id="hud" aria-hidden="true">
+  <button id="prev" title="Précédent (←)">←</button>
+  <span class="dot on" data-i="1"></span>
+  <span class="dot" data-i="2"></span>
+  <span class="dot" data-i="3"></span>
+  <span class="dot" data-i="4"></span>
+  <span class="dot" data-i="5"></span>
+  <button id="next" title="Suivant (→)">→</button>
+  <span style="opacity:0.6;margin-left:6px">F&nbsp;:&nbsp;plein écran</span>
+</div>
+
+<script>
+  // Navigation slides. Flèches gauche/droite + cliquer sur les dots,
+  // F pour plein écran, Cmd/Ctrl+P pour imprimer en PDF.
+  const slides = Array.from(document.querySelectorAll(".slide"));
+  const dots   = Array.from(document.querySelectorAll(".hud .dot"));
+  let idx = 0;
+  function show(n){
+    idx = Math.max(0, Math.min(slides.length-1, n));
+    slides.forEach((s,i)=> s.classList.toggle("active", i===idx));
+    dots.forEach((d,i)=> d.classList.toggle("on", i===idx));
+  }
+  document.getElementById("prev").addEventListener("click", ()=> show(idx-1));
+  document.getElementById("next").addEventListener("click", ()=> show(idx+1));
+  dots.forEach((d,i)=> d.addEventListener("click", ()=> show(i)));
+  document.addEventListener("keydown", (e)=>{
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); show(idx+1); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); show(idx-1); }
+    else if (e.key === "Home") show(0);
+    else if (e.key === "End") show(slides.length-1);
+    else if (e.key.toLowerCase() === "f") {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+</script>
+</body>
+</html>
