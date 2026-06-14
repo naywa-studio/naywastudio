@@ -78,12 +78,12 @@ export function TrialBanner({ organization, isOwner = true, alwaysVisible = fals
     mode = "expired"
     message = "Échec du dernier prélèvement. "
     ctaLabel = "Mettre à jour mon moyen de paiement"
-    ctaHref = "/organisation"
+    ctaHref = "/organisation?tab=abonnement&action=subscribe"
   } else if (subStatus === "canceled" || subStatus === "incomplete_expired") {
     mode = "expired"
     message = "Abonnement annulé. "
     ctaLabel = "Souscrire à nouveau"
-    ctaHref = "/organisation"
+    ctaHref = "/organisation?tab=abonnement&action=subscribe"
   } else if (
     (subStatus === "active" || subStatus === "trialing") &&
     daysToRenewal !== null && daysToRenewal >= 0 && daysToRenewal <= 5
@@ -93,7 +93,7 @@ export function TrialBanner({ organization, isOwner = true, alwaysVisible = fals
       ? `Période d'essai Stripe terminée dans ${daysToRenewal} jour${daysToRenewal > 1 ? "s" : ""}. `
       : `Renouvellement de votre abonnement dans ${daysToRenewal} jour${daysToRenewal > 1 ? "s" : ""}. `
     ctaLabel = "Gérer mon abonnement"
-    ctaHref = "/organisation"
+    ctaHref = "/organisation?tab=abonnement&action=subscribe"
   } else if (
     subStatus === "active" || subStatus === "trialing"
   ) {
@@ -108,17 +108,17 @@ export function TrialBanner({ organization, isOwner = true, alwaysVisible = fals
       mode = "expired"
       message = "Période d'essai terminée. "
       ctaLabel = "Souscrire au Package Sourcing"
-      ctaHref = "/organisation"
+      ctaHref = "/organisation?tab=abonnement&action=subscribe"
     } else if (status.daysLeft <= 3) {
       mode = "warning"
       message = `Plus que ${status.daysLeft} jour${status.daysLeft > 1 ? "s" : ""} d'essai. `
       ctaLabel = "Souscrire maintenant"
-      ctaHref = "/organisation"
+      ctaHref = "/organisation?tab=abonnement&action=subscribe"
     } else {
       mode = "info"
       message = `Essai gratuit — il vous reste ${status.daysLeft} jours. `
       ctaLabel = "Souscrire maintenant"
-      ctaHref = "/organisation"
+      ctaHref = "/organisation?tab=abonnement&action=subscribe"
     }
   }
 
