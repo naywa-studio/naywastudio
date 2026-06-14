@@ -25,6 +25,9 @@ interface Founder {
   quote: string
   linkedinUrl?: string
   avatarGradient: string
+  /** Chemin public optionnel (ex. /founders/elyas.jpg). Si défini,
+   *  remplace l'avatar à initiales. */
+  photoUrl?: string
 }
 
 const FOUNDERS: Founder[] = [
@@ -36,6 +39,7 @@ const FOUNDERS: Founder[] = [
       "J'ai construit Naywa parce que je voulais que l'IA travaille pour les sourceurs, pas à leur place. Nora propose, vous décidez.",
     linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
     avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+    photoUrl: "/founders/elyas.jpg",
   },
   {
     initials: "HM",
@@ -157,7 +161,9 @@ export function Founders() {
                     width: 64,
                     height: 64,
                     borderRadius: "50%",
-                    background: founder.avatarGradient,
+                    background: founder.photoUrl
+                      ? `url(${founder.photoUrl}) center/cover no-repeat, ${founder.avatarGradient}`
+                      : founder.avatarGradient,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -170,7 +176,7 @@ export function Founders() {
                     flexShrink: 0,
                   }}
                 >
-                  {founder.initials}
+                  {!founder.photoUrl && founder.initials}
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <h3
