@@ -2,17 +2,19 @@
  * POST /api/stripe/checkout
  *
  * Owner-only. Crée une Stripe Checkout Session pour souscrire à un plan
- * et retourne son URL hostée.
+ * PAYANT et retourne son URL hostée.
  *
  * Body : { tier: 'sourcing' | 'sourcing_pro', seats: 1|2|3|4 }
  *
- * Si l'org a un trial app-side encore actif (trial_ends_at > now), on
- * propage les jours restants à Stripe via `trial_period_days` pour que
- * l'user ne paie pas avant l'expiry de son essai. Sinon, prélèvement
- * immédiat normal.
- *
- * L'activation du trial passe désormais par /api/cabinet/activate-trial,
- * pas par cette route — d'où la suppression du withTrial flag.
+ * Important :
+ *   - **Pas de `trial_period_days`** : on garde l'essai 15 jours côté
+ *     base (table `organizations.trial_ends_at` via
+ *     /api/cabinet/activate-trial). Stripe ne sert qu'à la souscription
+ *     payante "vraie" — Stripe Checkout affiche donc le montant dû
+ *     aujourd'hui, sans wording « essai gratuit » trompeur.
+ *   - Si l'owner souscrit AVANT la fin de son essai app-side, son trial
+ *     est "consommé" : on le passe en `paid` directement (le webhook
+ *     reset `trial_ends_at` à null après création de la sub).
  *
  * Le webhook (/api/stripe/webhook) gère la mise à jour DB après la
  * création de la subscription.
@@ -73,23 +75,11 @@ export async function POST(req: Request) {
   const admin = getAdminSupabase()
   const { data: org, error: orgErr } = await admin
     .from("organizations")
-    .select("id, name, stripe_customer_id, trial_ends_at")
+    .select("id, name, stripe_customer_id")
     .eq("id", profile.organization_id)
     .single()
   if (orgErr || !org) {
-    return NextResponse.json({ error: "Cabinet introuvable" }, { status: 404 })
-  }
-
-  // Si trial app-side encore actif, on propage les jours restants à
-  // Stripe (trial_period_days) — l'user conserve son essai même en
-  // souscrivant maintenant, et le prélèvement n'arrive qu'à expiry.
-  let trialPeriodDays: number | undefined
-  if (org.trial_ends_at) {
-    const endMs = new Date(org.trial_ends_at).getTime()
-    const remaining = Math.ceil((endMs - Date.now()) / (24 * 60 * 60 * 1000))
-    if (remaining > 0) {
-      trialPeriodDays = Math.min(remaining, 30)  // safety cap
-    }
+    return NextResponse.json({ error: "Structure introuvable" }, { status: 404 })
   }
 
   const stripe = getStripe()
@@ -128,12 +118,12 @@ export async function POST(req: Request) {
     allow_promotion_codes: true,
     billing_address_collection: "auto",
     subscription_data: {
-      ...(trialPeriodDays ? { trial_period_days: trialPeriodDays } : {}),
+      // Pas de trial_period_days : la souscription est purement payante,
+      // le trial est géré séparément côté DB (trial_ends_at).
       metadata: {
         organization_id: org.id,
         tier,
         seats: String(seats),
-        trial_period_days: trialPeriodDays ? String(trialPeriodDays) : "0",
       },
     },
     success_url: `${appUrl}/organisation?checkout=success`,

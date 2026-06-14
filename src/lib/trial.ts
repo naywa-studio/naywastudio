@@ -10,6 +10,11 @@ import type { Organization } from "./database.types"
 
 export const TRIAL_DURATION_DAYS = 15
 
+/** Nombre maximum de sièges utilisables pendant l'essai gratuit.
+ *  Au-delà, la structure doit souscrire à un abonnement payant.
+ *  Règle voulue : trial = test à 2 personnes max, pas une équipe entière. */
+export const TRIAL_SEAT_CAP = 2
+
 export type TrialState = "pending" | "active" | "expired"
 
 export interface TrialStatus {

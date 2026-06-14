@@ -102,10 +102,10 @@ export default function TarifsPage() {
                 maxWidth: "55ch",
               }}
             >
-              Tarification au siège, dégressive. Aucun prélèvement pendant
-              l&apos;essai. À la fin des 15 jours, vous choisissez votre
-              formule ou vous arrêtez — l&apos;abonnement ne se déclenche
-              qu&apos;une fois validé.
+              15 jours offerts, jusqu&apos;à 2 sièges, sans carte bancaire.
+              Pour aller au-delà ou prolonger l&apos;accès, vous choisissez
+              une formule ci-dessous — la souscription ne démarre qu&apos;une
+              fois validée.
             </p>
           </div>
         </section>
@@ -507,7 +507,7 @@ function PriceCard({
 const FAQ = [
   {
     q: "Comment se passe la période d'essai ?",
-    a: "Vous créez votre compte, votre structure dispose immédiatement de 15 jours d'accès complet au workspace. Aucune carte bancaire n'est demandée. À l'issue des 15 jours, vous choisissez votre formule pour activer l'abonnement, sinon votre accès s'arrête sans prélèvement.",
+    a: "Vous créez votre compte, votre structure dispose immédiatement de 15 jours d'accès complet au workspace, jusqu'à 2 sièges (vous + 1 collègue). Aucune carte bancaire n'est demandée. Pour ajouter plus de membres ou prolonger après les 15 jours, vous choisissez une formule et activez l'abonnement.",
   },
   {
     q: "Quels moyens de paiement sont acceptés ?",

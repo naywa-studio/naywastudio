@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { TRIAL_SEAT_CAP } from "@/lib/trial"
 
 /**
  * POST /api/cabinet/seat  { allocate: boolean, userId?: string }
@@ -61,13 +62,24 @@ export async function POST(req: Request) {
 
   // Garde "ne pas dépasser le budget" : si on alloue et que le membre
   // n'a pas déjà un siège, on vérifie qu'il reste de la place.
+  //
+  // Règle budget :
+  //   - Abonnement Stripe actif (subscription_seats renseigné) : budget = N sièges payés
+  //   - Sinon (essai app-side ou aucun statut) : budget = TRIAL_SEAT_CAP (= 2)
+  //     pour forcer la souscription au-delà du test à 2 personnes.
   if (allocate && !target.has_sourcing_seat) {
     const { data: org } = await admin
       .from("organizations")
-      .select("subscription_seats, seats_total")
+      .select("subscription_seats, subscription_status, seats_total")
       .eq("id", caller.organization_id)
       .single()
-    const budget = org?.subscription_seats ?? org?.seats_total ?? 1
+    const hasPaidSub =
+      org?.subscription_status === "active" ||
+      org?.subscription_status === "trialing" ||
+      org?.subscription_status === "past_due"
+    const budget = hasPaidSub
+      ? (org?.subscription_seats ?? 1)
+      : TRIAL_SEAT_CAP
 
     const { count: allocatedCount } = await admin
       .from("profiles")
@@ -83,8 +95,10 @@ export async function POST(req: Request) {
 
     const used = (allocatedCount ?? 0) + (pendingInvitesCount ?? 0)
     if (used >= budget) {
+      const trialMsg = `Essai limité à ${TRIAL_SEAT_CAP} sièges. Souscrivez à un abonnement pour ajouter plus de membres.`
+      const paidMsg = `Budget de sièges atteint (${budget}). Souscrivez à un plan supérieur ou libérez un siège.`
       return NextResponse.json(
-        { error: `Budget de sièges atteint (${budget}). Souscrivez à un plan supérieur ou libérez un siège.` },
+        { error: hasPaidSub ? paidMsg : trialMsg },
         { status: 409 },
       )
     }

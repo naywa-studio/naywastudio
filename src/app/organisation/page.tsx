@@ -6,7 +6,7 @@ import Link from "next/link"
 import { m } from "framer-motion"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
-import { trialStatus, TRIAL_DURATION_DAYS } from "@/lib/trial"
+import { trialStatus, TRIAL_DURATION_DAYS, TRIAL_SEAT_CAP } from "@/lib/trial"
 import { subscriptionAccess, hasActiveAccess } from "@/lib/subscription"
 import { PLAN_PRICES_EUR, type PlanTier, type PlanSeats } from "@/lib/stripe"
 import type { Organization } from "@/lib/database.types"
@@ -553,9 +553,28 @@ function SubscriptionCard({
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pickerMode, setPickerMode] = useState<"closed" | "trial" | "paid">(
+  const [pickerMode, setPickerMode] = useState<"closed" | "paid">(
     autoOpenPicker && isOwner ? "paid" : "closed",
   )
+
+  // Activation directe du trial app-side. Aucun appel Stripe — la
+  // structure reçoit 15 jours d'accès complet plafonnés à 2 sièges.
+  // Au-delà, l'owner doit cliquer "Souscrire" pour passer au paid.
+  const activateTrial = async () => {
+    setBusy(true); setError(null)
+    try {
+      const r = await fetch("/api/cabinet/activate-trial", { method: "POST" })
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({} as { error?: string }))
+        throw new Error(j.error ?? "Activation impossible")
+      }
+      await onActivated()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur")
+    } finally {
+      setBusy(false)
+    }
+  }
   const trial = trialStatus(organization)
   const access = subscriptionAccess(organization)
   const hasStripeSub =
@@ -576,11 +595,6 @@ function SubscriptionCard({
       </Card>
     )
   }
-
-  // Le trial est désormais une sub Stripe avec trial_period_days=15 :
-  // l'user passe par Checkout, dépose son moyen de paiement, et la sub
-  // démarre en `trialing`. Suppression de l'appel à /api/cabinet/activate-trial.
-  void onActivated  // gardé pour signature, plus utilisé en chemin trial.
 
   const openPortal = async () => {
     setBusy(true); setError(null)
@@ -624,37 +638,36 @@ function SubscriptionCard({
           </Panel>
         )}
 
-        {/* Pas de Stripe sub — proposer trial OU souscription directe */}
+        {/* Pas de Stripe sub — pending : pas encore d'essai activé. */}
         {!hasStripeSub && trial.state === "pending" && (
           <Panel tone="brand">
             <p style={panelTitle("#7C63C8")}>Aucun abonnement actif</p>
             <p style={panelBody("#374151")}>
               Démarrez votre essai gratuit {TRIAL_DURATION_DAYS} jours
-              (2 sièges, Pricing Pro inclus) ou souscrivez directement
-              à la formule de votre choix.
+              (jusqu&apos;à {TRIAL_SEAT_CAP} sièges, sans carte bancaire)
+              ou souscrivez directement pour aller plus loin.
             </p>
             <button
               type="button"
-              onClick={() => setPickerMode("trial")}
-              disabled={!isOwner}
-              style={ctaPrimaryBtn(false)}
+              onClick={activateTrial}
+              disabled={!isOwner || busy}
+              style={ctaPrimaryBtn(busy)}
             >
-              Démarrer l&apos;essai gratuit {TRIAL_DURATION_DAYS} j →
+              {busy ? "Activation…" : `Démarrer mes ${TRIAL_DURATION_DAYS} jours gratuits →`}
             </button>
             <button
               type="button"
               onClick={() => setPickerMode("paid")}
-              disabled={!isOwner}
+              disabled={!isOwner || busy}
               style={{ ...ctaSecondaryBtn(false), marginTop: 8 }}
             >
-              Souscrire directement
+              Souscrire à un abonnement
             </button>
           </Panel>
         )}
 
-        {/* États legacy `trial active/expired` (avant migration Stripe trial
-            natif) — l'owner doit re-souscrire via Stripe Checkout pour
-            convertir son trial app-side en sub trialing. */}
+        {/* Trial actif — l'owner peut souscrire pour passer au paid (et
+            débloquer plus de 2 sièges). */}
         {!hasStripeSub && trial.state === "active" && (
           <Panel tone="success">
             <p style={panelTitle("#15803D")}>
@@ -665,7 +678,7 @@ function SubscriptionCard({
               <strong>
                 {trial.endsAt?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
               </strong>
-              . Souscrivez pour continuer sans coupure.
+              . Plafonné à {TRIAL_SEAT_CAP} sièges — souscrivez pour ajouter plus de membres ou continuer après l&apos;essai.
             </p>
             <button
               type="button"
@@ -673,7 +686,7 @@ function SubscriptionCard({
               disabled={!isOwner}
               style={ctaPrimaryBtn(false)}
             >
-              Souscrire au Package Sourcing →
+              Souscrire à un abonnement →
             </button>
           </Panel>
         )}
@@ -708,12 +721,6 @@ function SubscriptionCard({
         </div>
       </Card>
 
-      {pickerMode === "trial" && (
-        <TrialChoiceModal
-          onActivated={async () => { await onActivated(); setPickerMode("closed") }}
-          onClose={() => setPickerMode("closed")}
-        />
-      )}
       {pickerMode === "paid" && (
         <PlanPickerModal
           initialTier={organization.subscription_has_pricing ? "sourcing_pro" : "sourcing"}
@@ -722,177 +729,6 @@ function SubscriptionCard({
         />
       )}
     </>
-  )
-}
-
-/* ────────────────────────────────────────────────────────────────── */
-/* Trial Choice Modal — étape avant Stripe Setup                       */
-/* ────────────────────────────────────────────────────────────────── */
-//
-// Quand l'owner active son essai, on ne le force PAS vers Stripe direct.
-// On lui demande d'abord s'il veut configurer son moyen de paiement
-// maintenant (Setup Intent) ou plus tard (reminder + lockdown si pas
-// configuré avant l'expiry).
-//
-// Choix "Avec moyen de paiement"  : activate-trial puis setup-intent ->
-//                                    redirect Stripe Checkout setup.
-// Choix "Plus tard"               : activate-trial uniquement, l'owner
-//                                    revient sur /organisation.
-
-function TrialChoiceModal({
-  onActivated, onClose,
-}: {
-  onActivated: () => Promise<void>
-  onClose: () => void
-}) {
-  const [busy, setBusy] = useState<"with" | "without" | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const activate = async (withPaymentMethod: boolean) => {
-    setBusy(withPaymentMethod ? "with" : "without")
-    setError(null)
-    try {
-      const a = await fetch("/api/cabinet/activate-trial", { method: "POST" })
-      if (!a.ok) {
-        const j = await a.json().catch(() => ({} as { error?: string }))
-        throw new Error(j.error ?? "Activation impossible")
-      }
-      if (withPaymentMethod) {
-        const s = await fetch("/api/stripe/setup-intent", { method: "POST" })
-        const j = await s.json().catch(() => ({} as { url?: string; error?: string }))
-        if (!s.ok || !j.url) throw new Error(j.error ?? "Configuration impossible")
-        window.location.href = j.url
-        return
-      }
-      await onActivated()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur")
-      setBusy(null)
-    }
-  }
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{
-        position: "fixed", inset: 0, zIndex: 200,
-        background: "rgba(17,24,39,0.40)",
-        backdropFilter: "blur(2px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 20,
-      }}
-    >
-      <m.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: EASE }}
-        style={{
-          background: "white",
-          borderRadius: 20,
-          padding: "28px 28px 24px",
-          maxWidth: 520,
-          width: "100%",
-          boxShadow: "0 24px 64px -24px rgba(17,24,39,0.30)",
-          fontFamily: "var(--font-inter), sans-serif",
-        }}
-      >
-        <header style={{ marginBottom: 18 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase" }}>
-            Essai gratuit 15 jours
-          </p>
-          <h2 style={{ margin: "6px 0 0", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
-            Configurer votre moyen de paiement maintenant ?
-          </h2>
-          <p style={{ margin: "10px 0 0", fontSize: 14, color: "#4B5563", lineHeight: 1.55 }}>
-            Vous pouvez fournir vos coordonnées bancaires dès maintenant pour
-            ne pas être interrompu à la fin de l&apos;essai, ou les ajouter
-            plus tard depuis votre console. Rien n&apos;est prélevé pendant
-            les 15 jours, et vous choisissez votre formule à la fin (ou en cours)
-            de votre essai.
-          </p>
-        </header>
-
-        {error && (
-          <p style={{ margin: "0 0 12px", fontSize: 12, color: "#B91C1C" }}>{error}</p>
-        )}
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <button
-            type="button"
-            onClick={() => activate(false)}
-            disabled={busy !== null}
-            style={{
-              padding: "16px 14px",
-              borderRadius: 14,
-              border: "1px solid #E2DAF6",
-              background: "white",
-              color: "#374151",
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: busy !== null ? "wait" : "pointer",
-              fontFamily: "inherit",
-              textAlign: "left",
-              lineHeight: 1.4,
-            }}
-          >
-            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: "#111827" }}>
-              {busy === "without" ? "Activation…" : "Plus tard"}
-            </p>
-            <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#6B7280" }}>
-              Démarrer maintenant et configurer le paiement avant la fin de l&apos;essai.
-            </p>
-          </button>
-          <button
-            type="button"
-            onClick={() => activate(true)}
-            disabled={busy !== null}
-            style={{
-              padding: "16px 14px",
-              borderRadius: 14,
-              border: "none",
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              color: "white",
-              fontSize: 13.5,
-              fontWeight: 800,
-              cursor: busy !== null ? "wait" : "pointer",
-              fontFamily: "inherit",
-              textAlign: "left",
-              lineHeight: 1.4,
-              boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
-            }}
-          >
-            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: "white" }}>
-              {busy === "with" ? "Redirection…" : "Configurer maintenant"}
-            </p>
-            <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "rgba(255,255,255,0.85)" }}>
-              CB ou SEPA via Stripe. Aucun prélèvement avant la fin de l&apos;essai.
-            </p>
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={busy !== null}
-          style={{
-            marginTop: 14,
-            width: "100%",
-            padding: "10px 16px",
-            border: "none",
-            background: "transparent",
-            color: "#6B7280",
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: busy !== null ? "wait" : "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          Annuler
-        </button>
-      </m.div>
-    </div>
   )
 }
 

@@ -22,9 +22,9 @@ const metrics = [
     desc: "Parsing, indexation, scoring justifié, anonymisation, calcul de marge : tout ce qui vous prenait des heures se fait pendant que vous lisez ce paragraphe.",
   },
   {
-    value: "Syntec",
-    title: "Pricing conforme dès le premier chiffrage",
-    desc: "Charges patronales, plafonds URSSAF, calendrier fériés, indemnité CP, risque rupture : la convention Syntec est encodée. Plus de tableur à maintenir.",
+    value: "Métier",
+    title: "Conçu pour le métier",
+    desc: "Naywa ne cherche pas à tout faire. Nous bâtissons un outil par métier, en profondeur, avec les structures qui le vivent au quotidien.",
   },
 ]
 

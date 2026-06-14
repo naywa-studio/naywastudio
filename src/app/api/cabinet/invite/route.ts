@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { sendEmail } from "@/lib/resend"
+import { TRIAL_SEAT_CAP } from "@/lib/trial"
 
 /**
  * POST   /api/cabinet/invite  { email }     — owner sends an invite
@@ -41,13 +42,46 @@ export async function POST(req: Request) {
 
   const admin = getAdminSupabase()
 
-  // Fetch the org name for the email body.
+  // Fetch the org name + seat budget context for the cap check.
   const { data: org } = await admin
     .from("organizations")
-    .select("name, brand_name")
+    .select("name, brand_name, subscription_seats, subscription_status")
     .eq("id", profile.organization_id)
     .single()
-  const cabinetLabel = (org?.brand_name ?? org?.name ?? "votre cabinet").trim()
+  const cabinetLabel = (org?.brand_name ?? org?.name ?? "votre structure").trim()
+
+  // Cap "essai 2 sièges" : si pas d'abonnement payant actif, on plafonne
+  // les sièges utilisés (membres alloués + invitations en attente) à
+  // TRIAL_SEAT_CAP. Au-delà, l'owner doit souscrire.
+  const hasPaidSub =
+    org?.subscription_status === "active" ||
+    org?.subscription_status === "trialing" ||
+    org?.subscription_status === "past_due"
+  const budget = hasPaidSub
+    ? (org?.subscription_seats ?? 1)
+    : TRIAL_SEAT_CAP
+
+  const { count: allocatedCount } = await admin
+    .from("profiles")
+    .select("user_id", { count: "exact", head: true })
+    .eq("organization_id", profile.organization_id)
+    .eq("has_sourcing_seat", true)
+  const { count: pendingInvitesCount } = await admin
+    .from("org_invites")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", profile.organization_id)
+    .is("accepted_at", null)
+  const used = (allocatedCount ?? 0) + (pendingInvitesCount ?? 0)
+  if (used >= budget) {
+    return NextResponse.json(
+      {
+        error: hasPaidSub
+          ? `Budget de sièges atteint (${budget}). Souscrivez à un plan supérieur pour inviter plus de membres.`
+          : `Essai limité à ${TRIAL_SEAT_CAP} sièges. Souscrivez à un abonnement pour inviter plus de membres.`,
+      },
+      { status: 409 },
+    )
+  }
 
   // Reject if that email is already a member of this org.
   const { data: existingMember } = await admin
