@@ -147,7 +147,7 @@ export default function RuptureRiskChart({
   return (
     <div style={{
       background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
-      padding: 16, marginTop: 14,
+      padding: 16, marginTop: 14, position: "relative",
     }}>
       <header style={{
         display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -352,66 +352,6 @@ export default function RuptureRiskChart({
           )
         })}
 
-        {/* Tooltip survol : décomposition complète RC + worst case. */}
-        {hoveredIdx !== null && rows[hoveredIdx] && (() => {
-          const r = rows[hoveredIdx]
-          const barTopY = r.margeCumulNominaleEur >= 0
-            ? yOf(r.margeCumulNominaleEur)
-            : zeroY
-          const tooltipW = 220
-          const tooltipH = r.coutRupture > 0 ? 152 : 78
-          let tx = xOf(hoveredIdx) - tooltipW / 2
-          tx = Math.max(PAD_L, Math.min(W - PAD_R - tooltipW, tx))
-          const aboveOk = barTopY - tooltipH - 10 > PAD_T
-          const ty = aboveOk
-            ? barTopY - tooltipH - 8
-            : Math.min(barTopY + 8, H - PAD_B - tooltipH)
-          const margeColor = r.margePct < 0 ? "#B91C1C" : "#15803D"
-          return (
-            <foreignObject
-              x={tx} y={ty}
-              width={tooltipW} height={tooltipH}
-              style={{ overflow: "visible", pointerEvents: "none" }}
-            >
-              <div
-                style={{
-                  background: "white",
-                  border: "1px solid #E2DAF6",
-                  borderRadius: 8,
-                  boxShadow: "0 6px 16px -6px rgba(17,24,39,0.22)",
-                  padding: "8px 11px",
-                  fontFamily: "var(--font-inter), sans-serif",
-                  fontVariantNumeric: "tabular-nums",
-                  display: "flex", flexDirection: "column", gap: 3,
-                }}
-              >
-                <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  {MONTH_ABBR_FR[r.calendarMonth]} {r.year} · m{r.monthIndex}
-                </div>
-                <Row label="Marge cumulée" value={formatEur(r.margeCumulNominaleEur)} color="#374151" />
-                {r.coutRupture > 0 ? (
-                  <>
-                    <div style={{ borderTop: "1px solid #F0ECF8", margin: "2px 0" }} />
-                    <Row label="Coût RC" value={`− ${formatEur(r.coutRupture)}`} color="#7C63C8" />
-                    <RowSmall label="Indemnité RC" value={formatEur(r.breakdown.indemniteRC)} swatch="rgba(184,174,222,0.85)" />
-                    <RowSmall label="CP non pris" value={formatEur(r.breakdown.indemniteCp)} swatch="rgba(124,99,200,0.85)" />
-                    <div style={{ borderTop: "1px solid #F0ECF8", margin: "2px 0" }} />
-                    <Row label="Net si RC" value={`${formatEur(r.margeNetteEur)} · ${r.margePct.toFixed(0)}%`} color={margeColor} bold />
-                    <RowSmall label="Si licenciement" value={formatEur(r.margeNetteLicenciementEur)} swatch="#9CA3AF" dashed />
-                  </>
-                ) : (
-                  <>
-                    <Row label="Coût rupture" value="—" color="#9CA3AF" />
-                    <div style={{ fontSize: 10, color: "#9CA3AF", fontStyle: "italic", marginTop: 2 }}>
-                      En période d&apos;essai — rupture sans coût
-                    </div>
-                  </>
-                )}
-              </div>
-            </foreignObject>
-          )
-        })()}
-
         {/* X labels */}
         {rows.map((r, i) => {
           const everyN = rows.length <= 12 ? 1 : rows.length <= 24 ? 2 : 3
@@ -440,6 +380,63 @@ export default function RuptureRiskChart({
           )
         })}
       </svg>
+
+      {/* Tooltip survol — overlay HTML positionné dans le coin opposé au
+          curseur pour ne JAMAIS chevaucher la colonne survolée. Comme ça
+          on voit en même temps la décomposition (halo violet dans la barre)
+          et le détail chiffré (tooltip). */}
+      {hoveredIdx !== null && rows[hoveredIdx] && (() => {
+        const r = rows[hoveredIdx]
+        const margeColor = r.margePct < 0 ? "#B91C1C" : "#15803D"
+        // Si la barre survolée est dans la moitié gauche, le tooltip va à
+        // droite (et vice-versa). Évite tout chevauchement quelle que soit
+        // la position du curseur.
+        const onLeftHalf = hoveredIdx < rows.length / 2
+        return (
+          <div style={{
+            position: "absolute",
+            top: 60,
+            ...(onLeftHalf ? { right: 24 } : { left: 80 }),
+            background: "white",
+            border: "1px solid #E2DAF6",
+            borderRadius: 10,
+            boxShadow: "0 10px 24px -8px rgba(17,24,39,0.25)",
+            padding: "10px 14px",
+            fontFamily: "var(--font-inter), sans-serif",
+            fontVariantNumeric: "tabular-nums",
+            display: "flex", flexDirection: "column", gap: 4,
+            minWidth: 230,
+            pointerEvents: "none",
+            zIndex: 5,
+          }}>
+            <div style={{
+              fontSize: 10, color: "#9CA3AF", fontWeight: 700,
+              letterSpacing: "0.05em", textTransform: "uppercase",
+            }}>
+              {MONTH_ABBR_FR[r.calendarMonth]} {r.year} · m{r.monthIndex}
+            </div>
+            <Row label="Marge cumulée" value={formatEur(r.margeCumulNominaleEur)} color="#374151" />
+            {r.coutRupture > 0 ? (
+              <>
+                <div style={{ borderTop: "1px solid #F0ECF8", margin: "3px 0" }} />
+                <Row label="Coût RC" value={`− ${formatEur(r.coutRupture)}`} color="#7C63C8" />
+                <RowSmall label="Indemnité RC" value={formatEur(r.breakdown.indemniteRC)} swatch="rgba(184,174,222,0.85)" />
+                <RowSmall label="CP non pris" value={formatEur(r.breakdown.indemniteCp)} swatch="rgba(124,99,200,0.85)" />
+                <div style={{ borderTop: "1px solid #F0ECF8", margin: "3px 0" }} />
+                <Row label="Net si RC" value={`${formatEur(r.margeNetteEur)} · ${r.margePct.toFixed(0)}%`} color={margeColor} bold />
+                <RowSmall label="Si licenciement" value={formatEur(r.margeNetteLicenciementEur)} swatch="#9CA3AF" dashed />
+              </>
+            ) : (
+              <>
+                <Row label="Coût rupture" value="—" color="#9CA3AF" />
+                <div style={{ fontSize: 10, color: "#9CA3AF", fontStyle: "italic", marginTop: 2 }}>
+                  En période d&apos;essai — rupture sans coût
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Mini-légende sous le chart pour distinguer les 2 courbes. */}
       <div style={{
