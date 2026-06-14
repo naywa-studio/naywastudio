@@ -67,7 +67,7 @@ const STEPS: Step[] = [
   {
     number: "05",
     title:  "Anonymisation",
-    short:  "PDF brandé à votre cabinet, 1 clic",
+    short:  "PDF brandé à votre organisation, 1 clic",
     body:   "Bouton « Anonymiser pour cette mission ». PDF généré sans nom, sans photo, sans coordonnées, avec votre logo en header et une référence interne C-XXXXXXXX pour suivre le candidat avec votre client sans révéler son identité. Le CV original reste intact dans votre vivier.",
     hint:   "Aperçu du PDF anonymisé téléchargeable",
     x: 810,
@@ -77,7 +77,7 @@ const STEPS: Step[] = [
     number: "06",
     title:  "Pipeline",
     short:  "Suivi candidat Identifié → Offre",
-    body:   "Kanban partagé entre les membres du cabinet. Chaque candidat × mission a son étape : Identifié, Contacté, Réponse, Entretien, Offre. Vous déplacez à la main — Nora suggère mais ne décide jamais. Les emails entrants (webhook Resend) remontent les réponses pour vous faire gagner du temps de saisie.",
+    body:   "Kanban partagé entre les membres de votre organisation. Chaque candidat × mission a son étape : Identifié, Contacté, Réponse, Entretien, Offre. Vous déplacez à la main — Nora suggère mais ne décide jamais. Les emails entrants (webhook Resend) remontent les réponses pour vous faire gagner du temps de saisie.",
     hint:   "Vue Kanban partagée avec colonnes par stage",
     x: 990,
     y: 50,

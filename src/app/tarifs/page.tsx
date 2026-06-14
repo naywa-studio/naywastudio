@@ -21,7 +21,7 @@ const INCLUDED = [
   },
   {
     label: "Anonymisation 1 clic",
-    body: "PDF anonymisé brandé au logo de votre cabinet, prêt à présenter au client.",
+    body: "PDF anonymisé brandé au logo de votre organisation, prêt à présenter au client.",
   },
   {
     label: "Pricing Syntec automatisé",
@@ -94,7 +94,7 @@ export default function TarifsPage() {
               }}
             >
               La grille tarifaire publique sera communiquée à l&apos;ouverture
-              officielle de la beta. En attendant, votre cabinet a accès au
+              officielle de la beta. En attendant, votre organisation a accès au
               workspace complet pendant 15 jours, sans engagement.
             </p>
           </div>
@@ -170,7 +170,7 @@ export default function TarifsPage() {
                     color: "#6B7280",
                   }}
                 >
-                  Tout le workspace Nora pour votre cabinet, partagé entre vos
+                  Tout le workspace Nora pour votre organisation, partagé entre vos
                   collègues.
                 </p>
               </header>

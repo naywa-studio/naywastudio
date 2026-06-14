@@ -142,7 +142,7 @@ export function FinalCTA() {
             }}
           >
             Créez votre compte et lancez votre première recherche en 2 minutes.
-            Léo trouve les profils, vous gardez la main.
+            Nora traite, vous décidez.
           </m.p>
 
           {/* CTA buttons */}
@@ -212,7 +212,7 @@ export function FinalCTA() {
                 e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"
               }}
             >
-              Voir le catalogue
+              Voir les tarifs
             </Link>
           </m.div>
 

@@ -105,8 +105,8 @@ export function AgentsPreview() {
               maxWidth: "52ch",
             }}
           >
-            Votre copilote de recrutement IA — gratuit pendant la beta privée.
-            L&apos;intégration boîte mail et la rédaction d&apos;emails d&apos;approche arrivent ensuite.
+            L&apos;assistante IA du Package Sourcing. Elle traite, vous décidez.
+            L&apos;intégration boîte mail arrive ensuite.
           </p>
         </m.div>
 
