@@ -1,29 +1,30 @@
 "use client"
 
 /**
- * RuptureRiskChart — marge moyenne cumulée si l'employeur ROMPT le contrat
- * à un mois T donné, sur toute la durée de la mission.
+ * RuptureRiskChart — analyse "et si je dois rompre à T ?"
  *
- * Pour chaque mois T :
+ * Lecture combinée :
  *
- *   margePct(T) = ( Σ revenu_1..T  −  Σ coût_1..T  −  coût_rupture(T) ) ÷ Σ revenu_1..T
+ *   - BARRES (background) = marge cumulée NOMINALE en % à T
+ *       = (Σ revenu 1..T − Σ coût 1..T) / Σ revenu 1..T
+ *     C'est la marge qu'on aurait gardée si la mission s'arrête naturellement
+ *     à T, sans rupture. Reprend visuellement les barres de Marge mensuelle
+ *     pour donner une continuité entre les deux onglets.
  *
- *   coût_rupture(T) = 0                                                  si T ≤ fin_essai
- *                   = préavis × coût_salarial_chargé
- *                     + indemnité_Art_4.5(anc)
- *                     + indemnité_compensatrice_CP(T)                    sinon
+ *   - COURBE (foreground) = marge en cas de rupture à T en %
+ *       = (cumulRevenu − cumulCost − coûtRupture(T)) / cumulRevenu
+ *     Pendant essai → confondue avec le sommet des barres (coûtRupture = 0).
+ *     Cliff à fin d'essai → préavis + indemnité licenciement (CDI) ou
+ *     salaires restants + précarité (CDD).
  *
- * Comportement :
- * - Pendant essai (T ≤ 7 mois cadre) : barres alignées sur la marge moyenne
- *   cumulée nominale (pas de coût rupture)
- * - À fin_essai + 1 : CLIFF vers le bas — coût rupture lourd amorti sur peu
- *   de mois
- * - Mois suivants : remontée progressive — même coût amorti sur de plus en
- *   plus de mois pèse moins
- * - Près de la fin de mission : se rapproche de la marge moyenne nominale
+ *   - HALO VIOLET (au survol) entre la courbe et le sommet de la barre =
+ *     coût rupture isolé du mois, exprimé en % du revenu cumulé. Visualise
+ *     ce que la rupture coûterait à ce moment précis.
  *
- * Couleurs des barres : vert >25%, orange [seuil_min, 25%], rouge < seuil_min
- * ou marge négative.
+ * Couleur des barres : statut de la marge nette EN CAS de rupture
+ *   - vert  : ≥ seuil + 10
+ *   - orange : entre seuil et seuil + 10
+ *   - rouge : sous seuil ou négatif
  */
 
 import { useMemo, useState } from "react"
@@ -46,9 +47,7 @@ interface Props {
   typeContrat?: 'cdi' | 'cdd'
 }
 
-// Dimensions alignées sur MonthlyMarginChart pour que le switch d'onglet
-// (Marge mensuelle ↔ Risque rupture) donne l'impression d'une continuité,
-// pas d'un saut de hauteur / padding.
+// Dimensions strictement alignées sur MonthlyMarginChart.
 const W = 760
 const H = 280
 const PAD_L = 56
@@ -59,13 +58,10 @@ const PAD_B = 70
 const PLOT_W = W - PAD_L - PAD_R
 const PLOT_H = H - PAD_T - PAD_B
 
-type ChartMode = "pct" | "eur"
-
 export default function RuptureRiskChart({
   inputs, startDate, durationMonths, tjm, margeMinPct, typeContrat = 'cdi',
 }: Props) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
-  const [mode, setMode] = useState<ChartMode>("pct")
   const start = useMemo(() => {
     if (!startDate) return new Date()
     if (startDate instanceof Date) return startDate
@@ -84,7 +80,18 @@ export default function RuptureRiskChart({
 
   const points = profile.points
 
-  if (points.length === 0) {
+  // Pour chaque point on dérive la marge cumulée nominale en %
+  // (la barre) et on garde margePct (la courbe = en cas de rupture).
+  // Note : margePct utilise cumulRevenu comme dénominateur, cf. fix Q3.
+  const rows = useMemo(() => points.map((p) => ({
+    ...p,
+    margeCumulNominaleEur: p.cumulRevenu - p.cumulCost,
+    margeCumulNominalePct: p.cumulRevenu > 0
+      ? ((p.cumulRevenu - p.cumulCost) / p.cumulRevenu) * 100
+      : 0,
+  })), [points])
+
+  if (rows.length === 0) {
     return (
       <div style={{
         background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
@@ -95,64 +102,51 @@ export default function RuptureRiskChart({
     )
   }
 
-  // Y range — selon le mode courant (% ou marge cumulée €).
-  // Le mode % inclut le seuil mini cabinet ; le mode € prend la ligne
-  // zéro comme seuil implicite (« ne pas perdre d'argent »).
-  const valueOf = (p: typeof points[number]): number =>
-    mode === "pct" ? p.margePct : p.margeNetteEur
-  const allVals = points.map(valueOf)
-  const seuilVal = mode === "pct" ? (margeMinPct ?? 0) : 0
-  const yMinRaw = Math.min(0, ...allVals, seuilVal)
-  const yMaxRaw = Math.max(0, ...allVals)
-  const span = Math.max(yMaxRaw - yMinRaw, mode === "pct" ? 1 : 1000)
-  const yMin = yMinRaw - span * 0.10
-  const yMax = yMaxRaw + span * 0.12
+  // Y range — axe unique en %. Inclut barres nominales + courbe rupture
+  // + seuil mini. On floor / ceil sur des dizaines pour lisibilité.
+  const allBarPcts = rows.map((r) => r.margeCumulNominalePct)
+  const allCurvePcts = rows.map((r) => r.margePct)
+  const seuilPct = margeMinPct ?? 15
+  const yMinRaw = Math.min(0, ...allCurvePcts, ...allBarPcts)
+  const yMaxRaw = Math.max(seuilPct, ...allBarPcts, ...allCurvePcts)
+  const span = Math.max(yMaxRaw - yMinRaw, 10)
+  const yMin = Math.floor((yMinRaw - span * 0.05) / 10) * 10
+  const yMax = Math.ceil((yMaxRaw + span * 0.10) / 10) * 10
   const yRange = yMax - yMin
 
   const xOf = (i: number): number => {
-    // Pour une courbe, on centre chaque point dans son "slot" pour avoir
-    // une courbe régulière qui couvre toute la largeur.
-    if (points.length === 1) return PAD_L + PLOT_W / 2
-    return PAD_L + (PLOT_W * i) / (points.length - 1)
+    const slotW = PLOT_W / rows.length
+    return PAD_L + slotW * i + slotW / 2
   }
-  const yOf = (val: number): number =>
-    PAD_T + (1 - (val - yMin) / yRange) * PLOT_H
+  const yOf = (pct: number): number =>
+    PAD_T + (1 - (pct - yMin) / yRange) * PLOT_H
   const zeroY = yOf(0)
-  const fmtY = (v: number): string =>
-    mode === "pct" ? `${v.toFixed(0)} %` : compactEur(v)
+  const slotW = PLOT_W / rows.length
+  const barW = Math.max(8, slotW * 0.7)
 
-  // Y ticks — 5 paliers en %
+  // Y ticks — multiples de 10 % entre yMin et yMax inclus.
   const yTickVals: number[] = []
-  for (let t = 0; t <= 4; t++) {
-    yTickVals.push(yMin + (yRange * t) / 4)
+  for (let v = yMin; v <= yMax; v += 10) yTickVals.push(v)
+
+  // Couleur de barre basée sur la marge nette EN CAS de rupture (margePct),
+  // pas sur la marge nominale. L'œil cherche en priorité « est-ce safe si
+  // ça casse ? ».
+  const barColor = (margePct: number): string => {
+    if (margePct < 0) return "#DC2626"
+    if (margePct < seuilPct) return "#EA580C"
+    if (margePct < seuilPct + 10) return "#F59E0B"
+    return "#16A34A"
   }
 
-  // Fin essai — milieu entre le dernier mois en essai et le premier post-essai
-  const finEssaiIdx = points.findIndex((p) => p.isPostEssai)   // 1er post-essai
+  // Fin essai — milieu entre le dernier mois en essai et le premier post-essai.
+  const finEssaiIdx = rows.findIndex((r) => r.isPostEssai)
   const finEssaiX = finEssaiIdx > 0
     ? (xOf(finEssaiIdx - 1) + xOf(finEssaiIdx)) / 2
     : null
 
-  // Path SVG de la courbe lissée via splines de Bezier cubiques
-  // (Catmull-Rom → Bezier conversion). Effet organique sans avoir à
-  // calculer chaque semaine — la formule mensuelle reste source de vérité.
-  const xys = points.map((p, i) => ({ x: xOf(i), y: yOf(valueOf(p)) }))
-  const linePath = buildSmoothPath(xys)
-
-  // Path SVG de l'aire sous la courbe (mêmes splines, refermées sur l'axe zéro)
-  const areaPath = xys.length > 0
-    ? linePath +
-      ` L ${xys[xys.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)}` +
-      ` L ${xys[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`
-    : ""
-
-  const pointColor = (margePct: number): string => {
-    if (margePct < 0) return "#DC2626"
-    const seuil = margeMinPct ?? 15
-    if (margePct < seuil) return "#EA580C"
-    if (margePct < seuil + 10) return "#F59E0B"
-    return "#16A34A"
-  }
+  // Courbe lissée (splines Bezier cubiques via Catmull-Rom).
+  const curveXys = rows.map((r, i) => ({ x: xOf(i), y: yOf(r.margePct) }))
+  const curvePath = buildSmoothPath(curveXys)
 
   return (
     <div style={{
@@ -166,46 +160,19 @@ export default function RuptureRiskChart({
         <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
           Risque rupture employeur
         </h4>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          {margeMinPct !== undefined && mode === "pct" && (
-            <ChartLegend margeMinPct={margeMinPct} />
-          )}
-          <div style={{
-            display: "inline-flex", borderRadius: 8,
-            border: "1px solid #E2DAF6", overflow: "hidden",
-            fontFamily: "var(--font-inter), sans-serif",
-          }}>
-            {(["pct", "eur"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                style={{
-                  padding: "4px 11px",
-                  background: mode === m ? "#7C63C8" : "white",
-                  color: mode === m ? "white" : "#6B7280",
-                  border: "none",
-                  fontSize: 11, fontWeight: 700,
-                  cursor: "pointer", fontFamily: "inherit",
-                  transition: "all 140ms",
-                }}
-              >
-                {m === "pct" ? "Marge %" : "Marge cumulée"}
-              </button>
-            ))}
-          </div>
-        </div>
+        {margeMinPct !== undefined && (
+          <ChartLegend margeMinPct={margeMinPct} showRuptureSwatch />
+        )}
       </header>
 
       <svg
         viewBox={`0 0 ${W} ${H}`}
         width="100%" height="auto" role="img"
-        aria-label={`Risque rupture marge sur ${points.length} mois`}
+        aria-label={`Risque rupture marge sur ${rows.length} mois`}
         style={{ display: "block", overflow: "visible" }}
+        onMouseLeave={() => setHoveredIdx(null)}
       >
-        {/* Zone essai (background rose pâle) + ligne fin d'essai.
-            Labels "Période d'essai" et "fin essai" retirés : la zone
-            rose suffit, et le sourceur connaît le terme essai. */}
+        {/* Zone essai (rose pâle) + ligne fin d'essai. */}
         {finEssaiX !== null && (
           <>
             <rect
@@ -220,133 +187,144 @@ export default function RuptureRiskChart({
           </>
         )}
 
-        {/* Y grid + ticks */}
+        {/* Y grid + ticks (% — axe unique). */}
         {yTickVals.map((v) => (
           <g key={`y-${v}`}>
             <line
               x1={PAD_L} y1={yOf(v)} x2={W - PAD_R} y2={yOf(v)}
-              stroke={Math.abs(v) < 0.5 ? "#9CA3AF" : "#F0ECF8"}
-              strokeWidth={Math.abs(v) < 0.5 ? 1.2 : 1}
-              strokeDasharray={Math.abs(v) < 0.5 ? "none" : "2 4"}
+              stroke={v === 0 ? "#9CA3AF" : "#F0ECF8"}
+              strokeWidth={v === 0 ? 1.2 : 1}
+              strokeDasharray={v === 0 ? "none" : "2 4"}
             />
             <text
               x={PAD_L - 8} y={yOf(v) + 3}
               fontSize={10} fill="#6B7280" textAnchor="end"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
-              {fmtY(v)}
+              {v} %
             </text>
           </g>
         ))}
 
-        {/* Seuil mini organisation — uniquement en mode %. Label retiré
-            (chevauchait la courbe) → repris dans la légende ChartLegend. */}
-        {mode === "pct" && margeMinPct !== undefined && (
+        {/* Seuil mini organisation — ligne pointillée ambre.
+            Label en légende au-dessus du chart, pas ici (chevauchait). */}
+        {margeMinPct !== undefined && (
           <line
             x1={PAD_L} y1={yOf(margeMinPct)} x2={W - PAD_R} y2={yOf(margeMinPct)}
             stroke="#D97706" strokeWidth={1.2} strokeDasharray="5 4" opacity={0.7}
           />
         )}
 
-        {/* Aire sous la courbe (fond violet pâle) */}
-        <path
-          d={areaPath}
-          fill="rgba(124,99,200,0.08)"
-          stroke="none"
-        />
+        {/* BARRES = marge cumulée nominale (sans coût rupture). Couleur
+            calée sur margePct (santé en cas de rupture). Au survol, on
+            ajoute un halo violet pâle entre la courbe et le sommet de la
+            barre pour matérialiser le coût rupture du mois. */}
+        {rows.map((r, i) => {
+          const barH = r.margeCumulNominalePct >= 0
+            ? zeroY - yOf(r.margeCumulNominalePct)
+            : yOf(r.margeCumulNominalePct) - zeroY
+          const barY = r.margeCumulNominalePct >= 0 ? yOf(r.margeCumulNominalePct) : zeroY
+          const isHovered = hoveredIdx === i
 
-        {/* Courbe principale */}
-        <path
-          d={linePath}
-          fill="none"
-          stroke="#7C63C8"
-          strokeWidth={2.5}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
+          // Halo violet : entre courbe (rupture) et sommet barre (nominal).
+          // En CDD post-essai, la courbe peut plonger très bas → on clip au
+          // bord visible du chart pour rester propre.
+          const curveY = yOf(r.margePct)
+          const haloTop = barY
+          const haloBottom = Math.min(PAD_T + PLOT_H, Math.max(curveY, barY))
+          const showHalo = isHovered && haloBottom > haloTop + 1
 
-        {/* Points + labels (couleur basée sur margePct, valeur Y selon le
-            mode courant). */}
-        {points.map((p, i) => {
-          const showLabel = points.length <= 18 || i % 2 === 0 || i === points.length - 1
-          const y = yOf(valueOf(p))
-          const color = pointColor(p.margePct)
           return (
-            <g key={p.monthIndex}>
-              <circle
-                className="nw-point"
-                cx={xOf(i)}
-                cy={y}
-                r={hoveredIdx === i ? 6 : 4}
-                fill={color}
-                stroke="white"
-                strokeWidth={2}
+            <g key={r.monthIndex}>
+              {showHalo && (
+                <rect
+                  x={xOf(i) - barW / 2 - 2}
+                  y={haloTop}
+                  width={barW + 4}
+                  height={haloBottom - haloTop}
+                  fill="rgba(124,99,200,0.30)"
+                  rx={3}
+                  style={{ pointerEvents: "none" }}
+                />
+              )}
+              <rect
+                className="nw-bar"
+                x={xOf(i) - barW / 2}
+                y={barY}
+                width={barW}
+                height={Math.max(1, barH)}
+                fill={barColor(r.margePct)}
+                rx={2}
                 onMouseEnter={() => setHoveredIdx(i)}
-                onMouseLeave={() => setHoveredIdx(null)}
-                style={{ cursor: "pointer", transition: "r 140ms ease" }}
+                style={{
+                  transformBox: "fill-box",
+                  transformOrigin: "center bottom",
+                  transform: isHovered ? "scaleY(1.05) scaleX(1.10)" : "scaleY(1) scaleX(1)",
+                  filter: isHovered ? "drop-shadow(0 3px 8px rgba(17,24,39,0.25))" : "none",
+                }}
               />
-              {showLabel && (
+              {barW >= 18 && (
                 <text
-                  x={xOf(i)} y={y - 9}
-                  fontSize={9.5} fill={color} textAnchor="middle" fontWeight={700}
-                  style={{ fontVariantNumeric: "tabular-nums" }}
+                  x={xOf(i)} y={barY - 4}
+                  fontSize={9.5} fill="#374151" textAnchor="middle" fontWeight={700}
+                  style={{ pointerEvents: "none" }}
                 >
-                  {mode === "pct" ? `${p.margePct.toFixed(0)}%` : compactEur(p.margeNetteEur)}
+                  {r.margeCumulNominalePct.toFixed(0)}%
                 </text>
               )}
             </g>
           )
         })}
 
-        {/* Zero line */}
-        {yMin < 0 && yMax > 0 && (
-          <line
-            x1={PAD_L} y1={zeroY} x2={W - PAD_R} y2={zeroY}
-            stroke="#9CA3AF" strokeWidth={1.5}
-          />
-        )}
+        {/* Courbe = marge en cas de rupture (margePct). Posée par-dessus
+            les barres pour visualiser l'écart cumul nominal ↔ rupture. */}
+        <path
+          d={curvePath}
+          fill="none"
+          stroke="#7C63C8"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          style={{ pointerEvents: "none" }}
+        />
 
-        {/* X labels */}
-        {points.map((p, i) => {
-          const everyN = points.length <= 12 ? 1 : points.length <= 24 ? 2 : 3
-          if (i % everyN !== 0 && i !== points.length - 1) return null
+        {/* Points sur la courbe — petits, pour ne pas voler la vedette
+            aux barres. Couleur = santé en cas de rupture. */}
+        {rows.map((r, i) => {
+          const cy = yOf(r.margePct)
+          // Clip vertical pour rester visible quand margePct est très bas
+          // (CDD post-essai par ex.).
+          if (cy < PAD_T || cy > PAD_T + PLOT_H + 1) return null
           return (
-            <g key={`x-${p.monthIndex}`}>
-              <text
-                x={xOf(i)} y={PAD_T + PLOT_H + 16}
-                fontSize={10} fill="#6B7280" textAnchor="middle" fontWeight={600}
-              >
-                {MONTH_ABBR_FR[p.calendarMonth]}
-              </text>
-              <text
-                x={xOf(i)} y={PAD_T + PLOT_H + 30}
-                fontSize={9} fill="#9CA3AF" textAnchor="middle"
-              >
-                {p.year}
-              </text>
-              <text
-                x={xOf(i)} y={PAD_T + PLOT_H + 44}
-                fontSize={9} fill="#9CA3AF" textAnchor="middle" fontStyle="italic"
-              >
-                m{p.monthIndex}
-              </text>
-            </g>
+            <circle
+              key={`pt-${r.monthIndex}`}
+              cx={xOf(i)}
+              cy={cy}
+              r={3}
+              fill={barColor(r.margePct)}
+              stroke="white"
+              strokeWidth={1.4}
+              style={{ pointerEvents: "none" }}
+            />
           )
         })}
 
-        {/* Mini-tooltip survol : montre TOUJOURS les 2 vues (marge cumulée
-            € + marge %) pour que le sourceur voie l'impact projet et le
-            seuil simultanément, quel que soit le mode du graphique. */}
-        {hoveredIdx !== null && points[hoveredIdx] && (() => {
-          const p = points[hoveredIdx]
-          const tooltipW = 130
-          const tooltipH = 44
+        {/* Tooltip survol : montre marge cumulée nominale (sommet barre),
+            coût rupture (halo violet) et marge nette résultante. */}
+        {hoveredIdx !== null && rows[hoveredIdx] && (() => {
+          const r = rows[hoveredIdx]
+          const barTopY = r.margeCumulNominalePct >= 0
+            ? yOf(r.margeCumulNominalePct)
+            : zeroY
+          const tooltipW = 180
+          const tooltipH = 80
           let tx = xOf(hoveredIdx) - tooltipW / 2
           tx = Math.max(PAD_L, Math.min(W - PAD_R - tooltipW, tx))
-          const pointY = yOf(valueOf(p))
-          const aboveOk = pointY - tooltipH - 12 > PAD_T
-          const ty = aboveOk ? pointY - tooltipH - 12 : Math.min(pointY + 14, H - PAD_B - tooltipH)
-          const color = p.margePct < 0 ? "#B91C1C" : "#15803D"
+          const aboveOk = barTopY - tooltipH - 10 > PAD_T
+          const ty = aboveOk
+            ? barTopY - tooltipH - 8
+            : Math.min(barTopY + 8, H - PAD_B - tooltipH)
+          const margeColor = r.margePct < 0 ? "#B91C1C" : "#15803D"
           return (
             <foreignObject
               x={tx} y={ty}
@@ -359,57 +337,83 @@ export default function RuptureRiskChart({
                   border: "1px solid #E2DAF6",
                   borderRadius: 8,
                   boxShadow: "0 6px 16px -6px rgba(17,24,39,0.22)",
-                  padding: "6px 10px",
+                  padding: "7px 11px",
                   fontFamily: "var(--font-inter), sans-serif",
-                  textAlign: "center",
                   fontVariantNumeric: "tabular-nums",
+                  display: "flex", flexDirection: "column", gap: 3,
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: 700, color }}>
-                  {formatEur(p.margeNetteEur)}
-                </div>
-                <div style={{ fontSize: 11, color: "#6B7280", marginTop: 1 }}>
-                  {p.margePct.toFixed(1)} %
-                </div>
+                <Row label="Marge cumulée" value={formatEur(r.margeCumulNominaleEur)} color="#374151" />
+                <Row label="Coût rupture" value={r.coutRupture > 0 ? `− ${formatEur(r.coutRupture)}` : "—"} color="#7C63C8" />
+                <div style={{ borderTop: "1px solid #F0ECF8", margin: "1px 0" }} />
+                <Row label="Net si rupture" value={`${formatEur(r.margeNetteEur)}  ·  ${r.margePct.toFixed(0)}%`} color={margeColor} bold />
               </div>
             </foreignObject>
           )
         })()}
-      </svg>
 
-      {/* La carte « Pire moment pour rompre » est rendue par le widget dans la
-          colonne gauche (sous Meilleur/Pire mois calendaire) — pas besoin de
-          dupliquer ici. */}
+        {/* X labels — mois + année + mNN */}
+        {rows.map((r, i) => {
+          const everyN = rows.length <= 12 ? 1 : rows.length <= 24 ? 2 : 3
+          if (i % everyN !== 0 && i !== rows.length - 1) return null
+          return (
+            <g key={`x-${r.monthIndex}`}>
+              <text
+                x={xOf(i)} y={PAD_T + PLOT_H + 16}
+                fontSize={10} fill="#6B7280" textAnchor="middle" fontWeight={600}
+              >
+                {MONTH_ABBR_FR[r.calendarMonth]}
+              </text>
+              <text
+                x={xOf(i)} y={PAD_T + PLOT_H + 30}
+                fontSize={9} fill="#9CA3AF" textAnchor="middle"
+              >
+                {r.year}
+              </text>
+              <text
+                x={xOf(i)} y={PAD_T + PLOT_H + 44}
+                fontSize={9} fill="#9CA3AF" textAnchor="middle" fontStyle="italic"
+              >
+                m{r.monthIndex}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
       <style jsx>{`
-        :global(.nw-point) {
-          transition: r 140ms ease, filter 140ms ease;
+        :global(.nw-bar) {
+          opacity: 0.88;
           cursor: pointer;
+          transition: transform 140ms ease, filter 140ms ease, opacity 140ms ease;
         }
-        :global(.nw-point:hover) {
-          r: 6;
-          filter: drop-shadow(0 2px 6px rgba(17, 24, 39, 0.25));
+        :global(.nw-bar:hover) {
+          opacity: 1;
         }
       `}</style>
     </div>
   )
 }
 
+/* ──────────────────────────────────────────────────────────────────────── */
+
+function Row({
+  label, value, color, bold = false,
+}: { label: string; value: string; color: string; bold?: boolean }) {
+  return (
+    <div style={{
+      display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
+    }}>
+      <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: bold ? 13 : 12, fontWeight: bold ? 800 : 600, color }}>
+        {value}
+      </span>
+    </div>
+  )
+}
 
 function formatEur(v: number): string {
   const sign = v < 0 ? "−" : ""
   return `${sign}${Math.abs(Math.round(v)).toLocaleString("fr-FR")} €`
-}
-
-/** Format compact pour les labels d'axe Y et les markers en mode €
- *  (12 k€, 1.2 k€, −3 k€). Sous 1000 €, on garde les chiffres ronds
- *  (impossible de scaler en k€ sans perdre la précision). */
-function compactEur(v: number): string {
-  const sign = v < 0 ? "−" : ""
-  const abs = Math.abs(v)
-  if (abs < 1000) return `${sign}${Math.round(abs)} €`
-  const kEur = abs / 1000
-  const digits = kEur >= 10 ? 0 : 1
-  return `${sign}${kEur.toFixed(digits)} k€`
 }
 
 /** Construit un path SVG smooth (splines Bezier cubiques) qui passe

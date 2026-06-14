@@ -740,22 +740,6 @@ export function computeRuptureRiskProfile(
   let cumulDays = 0
   const cpRttHaircutMensuel = cpRttRevenueHaircutMonthly(tjm, inputs)
 
-  // Dénominateur stable pour le % : revenu projeté total de la mission si
-  // elle va à son terme. Sans ça, le % au m2 explose (cumulRevenu minuscule
-  // face à un coût rupture CDD qui couvre 9 mois restants). Avec ce
-  // dénominateur, margePct s'interprète comme « % de marge de la mission
-  // finale en cas de rupture à T » — directement comparable au seuil mini.
-  const revenuProjeteTotal = (() => {
-    let sum = 0
-    for (const m of months) {
-      const prorata = m.fullMonthWorkingDays > 0
-        ? m.workingDays / m.fullMonthWorkingDays
-        : 1
-      sum += tjm * m.workingDays - cpRttHaircutMensuel * prorata
-    }
-    return sum
-  })()
-
   for (const m of months) {
     cumulDays += m.workingDays
     // Même règle de pro-rata mois partiel que computeMissionMargin :
@@ -806,10 +790,18 @@ export function computeRuptureRiskProfile(
     }
 
     const margeNetteEur = cumulRevenu - cumulCost - coutRupture
-    // % rapporté au revenu total projeté de la mission (dénominateur stable),
-    // pas au cumul à T — évite les % aberrants en début de mission CDD.
-    const margePct = revenuProjeteTotal > 0
-      ? (margeNetteEur / revenuProjeteTotal) * 100
+    // % rapporté au revenu CUMULÉ à T (pas au revenu total projeté).
+    // Justification : ce que le sourceur veut savoir, c'est « si je romps
+    // ce mois, sur le revenu que j'ai effectivement touché, qu'est-ce qui
+    // me reste comme marge ? ». Avec ce dénominateur, M1 pendant essai
+    // (coutRupture = 0) tombe sur la même valeur que la Marge mensuelle
+    // du même mois — cohérence visuelle entre les deux charts.
+    //
+    // Trade-off connu : en CDD post-essai M2, le coût rupture (salaires
+    // restants + précarité) dépasse largement le cumul → margePct fortement
+    // négatif. C'est mathématiquement honnête (= alerte rouge méritée).
+    const margePct = cumulRevenu > 0
+      ? (margeNetteEur / cumulRevenu) * 100
       : 0
 
     points.push({
