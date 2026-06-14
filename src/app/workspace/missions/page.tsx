@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase"
 import type { Candidate, Job } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { StyledSelect } from "@/components/ui/StyledSelect"
+import Select from "@/components/ui/Select"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
@@ -1133,7 +1134,7 @@ function FormFieldGrid(p: FormFieldGridProps) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <Field label="Type de contrat" hint="optionnel" status={ct.statusPill}>
-          <StyledSelect value={p.contractType} onChange={(v) => p.setContractType(v as ContractType | "")}
+          <Select value={p.contractType} onChange={(v) => p.setContractType(v as ContractType | "")}
             border={ct.border} placeholder="Sélectionner…"
             options={(Object.keys(CONTRACT_LABELS) as ContractType[]).map((k) => ({ value: k, label: CONTRACT_LABELS[k] }))} />
         </Field>
@@ -1168,7 +1169,7 @@ function FormFieldGrid(p: FormFieldGridProps) {
             placeholder="Paris, Lyon, remote…" style={ringStyle(loc.border)} />
         </Field>
         <Field label="Zone pricing" hint="URSSAF / transport" status={pricingState.statusPill}>
-          <StyledSelect value={p.pricingLieu} onChange={(v) => p.setPricingLieu(v as PricingLieu | "")}
+          <Select value={p.pricingLieu} onChange={(v) => p.setPricingLieu(v as PricingLieu | "")}
             border={pricingState.border} placeholder="non renseigné"
             options={(Object.keys(LIEU_LABELS) as PricingLieu[]).map((k) => ({ value: k, label: LIEU_LABELS[k] }))} />
         </Field>

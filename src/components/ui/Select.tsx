@@ -18,6 +18,16 @@ export interface SelectOption {
   hint?: string
 }
 
+/** Border-status kinds, alignés sur StyledSelect (formulaire mission). */
+export type SelectBorderKind = "default" | "ok" | "required" | "optional"
+
+const BORDER_COLORS: Record<SelectBorderKind, string> = {
+  default:  "#E5E7EB",
+  ok:       "#22C55E",
+  required: "#EF4444",
+  optional: "#F59E0B",
+}
+
 interface SelectProps {
   value: string
   onChange: (next: string) => void
@@ -30,6 +40,11 @@ interface SelectProps {
   style?: React.CSSProperties
   /** Pass to size the dropdown panel width; defaults to trigger width. */
   panelMinWidth?: number
+  /** Border-status kind ("ok" vert / "required" rouge / "optional" orange)
+   *  ou couleur hex custom. Défaut "default" gris. */
+  border?: SelectBorderKind | string
+  /** Label aria pour l'a11y quand pas de <label> autour. */
+  ariaLabel?: string
 }
 
 export default function Select({
@@ -38,7 +53,12 @@ export default function Select({
   disabled = false,
   style,
   panelMinWidth,
+  border = "default",
+  ariaLabel,
 }: SelectProps) {
+  const borderColor = border in BORDER_COLORS
+    ? BORDER_COLORS[border as SelectBorderKind]
+    : border
   const [open, setOpen] = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -124,6 +144,7 @@ export default function Select({
         onKeyDown={onKey}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label={ariaLabel}
         style={{
           width: "100%", boxSizing: "border-box",
           display: "flex", alignItems: "center", gap: 8,
@@ -131,7 +152,7 @@ export default function Select({
           padding: "8px 12px",
           paddingRight: 32,
           background: "#FAFAFA",
-          border: `1px solid ${open ? "#C4B6E0" : "#E5E7EB"}`,
+          border: `1px solid ${open ? "#C4B6E0" : borderColor}`,
           borderRadius: 9,
           outline: "none",
           fontFamily: "inherit",
