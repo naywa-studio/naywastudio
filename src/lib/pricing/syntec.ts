@@ -660,11 +660,27 @@ export interface RuptureRiskPoint {
   cumulRevenu: number
   /** Cumul coût employeur € depuis démarrage. */
   cumulCost: number
-  /** Coût rupture estimé si l'employeur rompt à ce mois T (€). 0 pendant essai. */
+  /** Coût rupture CONVENTIONNELLE estimée à T (€). 0 pendant essai.
+   *  Scénario principal : l'employeur négocie une RC plutôt qu'un licenciement.
+   *  Pas de préavis, indemnité spécifique RC (≥ indemnité légale) + CP non pris. */
   coutRupture: number
-  /** Marge nette cumulée (€) après application du coût rupture. */
+  /** Décomposition du coût rupture conventionnelle pour le tooltip. */
+  breakdown: {
+    /** Indemnité spécifique de rupture conventionnelle (chargée). */
+    indemniteRC: number
+    /** Indemnité compensatrice CP non pris (chargée). */
+    indemniteCp: number
+  }
+  /** Coût licenciement WORST CASE — préavis intégral non travaillé +
+   *  indemnité Art 4.5 + CP non pris. Affiché en courbe pointillée grise
+   *  comme borne supérieure indicative ("si l'employeur veut vraiment se
+   *  fâcher"). En pratique l'employeur préfère toujours la RC. */
+  coutRuptureLicenciement: number
+  /** Marge nette cumulée (€) après application du coût rupture RC. */
   margeNetteEur: number
-  /** Marge en % du revenu cumulé. */
+  /** Marge nette cumulée (€) en cas de licenciement worst case. */
+  margeNetteLicenciementEur: number
+  /** Marge en % du revenu cumulé (scénario RC). */
   margePct: number
   /** Vrai si t > fin_essai (sortie de la zone "rupture gratuite"). */
   isPostEssai: boolean
@@ -755,16 +771,33 @@ export function computeRuptureRiskProfile(
 
     const isPostEssai = m.monthIndex > finEssai
     let coutRupture = 0
+    let coutRuptureLicenciement = 0
+    let indemniteRC = 0
+    let indemniteCp = 0
     if (isPostEssai) {
       if (typeContrat === 'cdi') {
-        // Préavis = N mois de coût salarial chargé (le candidat est payé
-        // sans bosser pendant le préavis — pas de revenu en face).
-        const coutPreavis = preavisM * coutSalarialMensuel
-        // Indemnité Art 4.5 : 0 avant 8 mois d'ancienneté
         const ancienneteAnnees = m.monthIndex / 12
-        const indemniteMois = indemniteLicenciementMois(inputs.statut, ancienneteAnnees)
-        const indemniteEuros = indemniteMois * remTotaleMensuelle
-        coutRupture = coutPreavis + indemniteEuros + indemniteCpAt(m.monthIndex)
+        // ── Scénario principal : RUPTURE CONVENTIONNELLE
+        // Pas de préavis. Indemnité spécifique RC ≥ indemnité légale de
+        // licenciement, SANS condition d'ancienneté minimale (le plancher
+        // 8 mois ne s'applique pas à la RC, contrairement au licenciement).
+        // Formule légale au prorata des mois d'ancienneté.
+        const indemniteMoisRC = inputs.statut === 'cadre' && ancienneteAnnees >= 2
+          ? ancienneteAnnees * (1 / 3)
+          : ancienneteAnnees <= 10
+            ? ancienneteAnnees * 0.25
+            : 10 * 0.25 + (ancienneteAnnees - 10) * (1 / 3)
+        indemniteRC = indemniteMoisRC * remTotaleMensuelle
+        indemniteCp = indemniteCpAt(m.monthIndex)
+        coutRupture = indemniteRC + indemniteCp
+
+        // ── Borne haute affichée en courbe pointillée : LICENCIEMENT
+        // Préavis Syntec intégral non travaillé + indemnité Art 4.5
+        // (plancher 8 mois conservé pour la voie licenciement) + CP non pris.
+        const coutPreavis = preavisM * coutSalarialMensuel
+        const indemniteLicMois = indemniteLicenciementMois(inputs.statut, ancienneteAnnees)
+        const indemniteLicEuros = indemniteLicMois * remTotaleMensuelle
+        coutRuptureLicenciement = coutPreavis + indemniteLicEuros + indemniteCp
       } else {
         // CDD — rupture anticipée par l'employeur hors essai :
         //   Art. L1243-1/L1243-4 → dommages-intérêts = salaires restants
@@ -776,10 +809,12 @@ export function computeRuptureRiskProfile(
         const coutSalairesRestants = moisRestants * coutSalarialMensuel
         const remVerseeCumul = m.monthIndex * remTotaleMensuelle
         const precarite = 0.10 * remVerseeCumul
-        coutRupture =
-          coutSalairesRestants +
-          precarite +
-          indemniteCpAt(m.monthIndex)
+        indemniteCp = indemniteCpAt(m.monthIndex)
+        // En CDD on garde le calcul historique (pas de RC pour un CDD) ;
+        // les deux courbes affichent la même chose.
+        coutRupture = coutSalairesRestants + precarite + indemniteCp
+        coutRuptureLicenciement = coutRupture
+        indemniteRC = coutSalairesRestants + precarite
       }
     } else if (typeContrat === 'cdd' && m.monthIndex >= durationMonths) {
       // CDD arrivé à terme : pas de coût "rupture" mais l'employeur doit
@@ -787,9 +822,12 @@ export function computeRuptureRiskProfile(
       // de la rémunération totale brute versée pendant le CDD.
       const remVerseeTotale = durationMonths * remTotaleMensuelle
       coutRupture = 0.10 * remVerseeTotale
+      coutRuptureLicenciement = coutRupture
+      indemniteRC = coutRupture
     }
 
     const margeNetteEur = cumulRevenu - cumulCost - coutRupture
+    const margeNetteLicenciementEur = cumulRevenu - cumulCost - coutRuptureLicenciement
     // % rapporté au revenu CUMULÉ à T (pas au revenu total projeté).
     // Justification : ce que le sourceur veut savoir, c'est « si je romps
     // ce mois, sur le revenu que j'ai effectivement touché, qu'est-ce qui
@@ -813,7 +851,10 @@ export function computeRuptureRiskProfile(
       cumulRevenu,
       cumulCost,
       coutRupture,
+      coutRuptureLicenciement,
+      breakdown: { indemniteRC, indemniteCp },
       margeNetteEur,
+      margeNetteLicenciementEur,
       margePct,
       isPostEssai,
     })

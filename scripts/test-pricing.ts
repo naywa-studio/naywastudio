@@ -206,11 +206,25 @@ section('computeRuptureRiskProfile — cadre 7m essai puis cliff')
   // Mois 8 : post-essai, coût rupture > 0
   const post = profile.points[7]
   eq(post.isPostEssai, true, 'mois 8 = post-essai')
-  // Coût rupture ≈ préavis 3 × salaire_chargé (5454) + indemnité Art 4.5 (faible) + indemnité CP
-  // = 3 × 5454 + ~600 + ~2200 ≈ 19 162
-  if (post.coutRupture < 18000 || post.coutRupture > 22000) {
+  // Scénario principal RC = indemnité spé RC (~0.25 × 8/12 × brut) + CP non pris (~3-5k chargé)
+  // Beaucoup plus bas que le licenciement (pas de préavis intégral non travaillé).
+  if (post.coutRupture < 2000 || post.coutRupture > 8000) {
     failed++
-    failures.push(`  ❌ mois 8 coût rupture hors plage attendue [18k, 22k]\n    reçu : ${post.coutRupture}`)
+    failures.push(`  ❌ mois 8 coût RC hors plage attendue [2k, 8k]\n    reçu : ${post.coutRupture}`)
+  } else {
+    passed++
+  }
+  // Courbe pointillée licenciement worst case = préavis 3 mois + indemnité + CP ≈ 19k
+  if (post.coutRuptureLicenciement < 18000 || post.coutRuptureLicenciement > 22000) {
+    failed++
+    failures.push(`  ❌ mois 8 coût licenciement hors plage attendue [18k, 22k]\n    reçu : ${post.coutRuptureLicenciement}`)
+  } else {
+    passed++
+  }
+  // La RC doit toujours être strictement moins chère que le licenciement post-essai.
+  if (post.coutRupture >= post.coutRuptureLicenciement) {
+    failed++
+    failures.push(`  ❌ RC (${post.coutRupture}) ≥ licenciement (${post.coutRuptureLicenciement}) — inattendu`)
   } else {
     passed++
   }
