@@ -107,8 +107,10 @@ export default function RuptureRiskChart({
   //     plusieurs dizaines de k€ pour une mission longue)
   //   - margeNetteEur (la courbe, peut plonger en négatif en cas de
   //     rupture CDD post-essai)
-  // L'œil voit immédiatement les montants en jeu — plus parlant qu'un %
-  // surtout quand l'écart cumul/rupture représente plusieurs milliers d'€.
+  //
+  // On choisit un step "nice" (multiple de 1/2/5 × 10^n) calculé sur
+  // l'amplitude divisée par ~6 ticks visés, puis on snap yMin/yMax sur
+  // ce step pour des labels propres ("0 €", "10 k€", "20 k€"…).
   const allBarVals = rows.map((r) => r.margeCumulNominaleEur)
   const allCurveVals = rows.map((r) => r.margeNetteEur)
   const seuilPct = margeMinPct ?? 15
@@ -116,8 +118,9 @@ export default function RuptureRiskChart({
   const yMaxRaw = Math.max(0, ...allBarVals, ...allCurveVals)
   const span = Math.max(yMaxRaw - yMinRaw, 1000)
   const padded = span * 0.10
-  const yMin = niceFloor(yMinRaw - padded)
-  const yMax = niceCeil(yMaxRaw + padded)
+  const tickStep = niceStep((span + 2 * padded) / 6)
+  const yMin = Math.floor((yMinRaw - padded) / tickStep) * tickStep
+  const yMax = Math.ceil((yMaxRaw + padded) / tickStep) * tickStep
   const yRange = yMax - yMin
 
   const xOf = (i: number): number => {
@@ -130,9 +133,11 @@ export default function RuptureRiskChart({
   const slotW = PLOT_W / rows.length
   const barW = Math.max(8, slotW * 0.7)
 
-  // Y ticks — 5 paliers réguliers en €, snappés sur des paliers "ronds"
-  // (1k, 2k, 5k, 10k, 20k…) pour des labels lisibles.
-  const yTickVals = niceTicks(yMin, yMax, 5)
+  // Ticks réguliers tous les `tickStep` entre yMin et yMax inclus.
+  const yTickVals: number[] = []
+  for (let v = yMin; v <= yMax + tickStep * 0.001; v += tickStep) {
+    yTickVals.push(Math.round(v))
+  }
 
   // Couleur de barre basée sur la marge nette EN CAS de rupture (margePct),
   // pas sur la marge nominale. L'œil cherche en priorité « est-ce safe si
@@ -431,50 +436,22 @@ function compactEur(v: number): string {
   return `${sign}${kEur.toFixed(digits)} k€`
 }
 
-/** Snappe une valeur vers le bas sur un palier "rond" adapté à sa
- *  magnitude (100, 500, 1 000, 5 000, 10 000…). Donne des yMin lisibles
- *  pour l'axe Y au lieu de "-3 847 €". */
-function niceFloor(v: number): number {
-  if (v === 0) return 0
-  const step = niceStep(v)
-  return Math.floor(v / step) * step
-}
-
-function niceCeil(v: number): number {
-  if (v === 0) return 0
-  const step = niceStep(v)
-  return Math.ceil(v / step) * step
-}
-
-function niceStep(v: number): number {
-  const abs = Math.abs(v)
-  if (abs >= 50000) return 10000
-  if (abs >= 20000) return 5000
-  if (abs >= 10000) return 2000
-  if (abs >= 5000)  return 1000
-  if (abs >= 1000)  return 500
-  if (abs >= 500)   return 100
-  if (abs >= 100)   return 50
-  return 10
-}
-
-/** Génère ~`count` ticks réguliers entre yMin et yMax, snappés sur des
- *  paliers ronds (multiples de 500/1000/5000…). Inclut toujours 0 si
- *  yMin ≤ 0 ≤ yMax pour donner un repère stable. */
-function niceTicks(yMin: number, yMax: number, count: number): number[] {
-  const range = yMax - yMin
-  if (range === 0) return [yMin]
-  const roughStep = range / count
-  const step = niceStep(roughStep) || roughStep
-  const ticks: number[] = []
-  const start = Math.ceil(yMin / step) * step
-  for (let v = start; v <= yMax + 0.5; v += step) ticks.push(v)
-  // Insère 0 si dans le range et pas déjà présent.
-  if (yMin <= 0 && yMax >= 0 && !ticks.some((t) => Math.abs(t) < 1)) {
-    ticks.push(0)
-    ticks.sort((a, b) => a - b)
-  }
-  return ticks
+/** Algorithme "nice step" classique pour axes : prend un step
+ *  approximatif (ex. range / nbTicks visés) et le snappe sur le multiple
+ *  de 10^n le plus proche dans {1, 2, 5, 10}. Donne des labels lisibles
+ *  type "0 €", "10 k€", "20 k€" plutôt que "0 €", "14 285 €", "28 571 €". */
+function niceStep(roughStep: number): number {
+  if (roughStep <= 0) return 1
+  const mag = Math.pow(10, Math.floor(Math.log10(roughStep)))
+  const ratio = roughStep / mag
+  // Coupe les ratios à des paliers visuels : on saute du 1× au 2× au 5×
+  // au 10× pour rester sur des nombres ronds, jamais 3× ou 7×.
+  let niceRatio: number
+  if (ratio < 1.5) niceRatio = 1
+  else if (ratio < 3) niceRatio = 2
+  else if (ratio < 7) niceRatio = 5
+  else niceRatio = 10
+  return niceRatio * mag
 }
 
 /** Construit un path SVG smooth (splines Bezier cubiques) qui passe
