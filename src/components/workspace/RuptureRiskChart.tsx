@@ -102,31 +102,37 @@ export default function RuptureRiskChart({
     )
   }
 
-  // Y range — axe unique en %. Inclut barres nominales + courbe rupture
-  // + seuil mini. On floor / ceil sur des dizaines pour lisibilité.
-  const allBarPcts = rows.map((r) => r.margeCumulNominalePct)
-  const allCurvePcts = rows.map((r) => r.margePct)
+  // Y range — axe unique en €. Inclut :
+  //   - margeCumulNominaleEur (sommet de chaque barre, peut atteindre
+  //     plusieurs dizaines de k€ pour une mission longue)
+  //   - margeNetteEur (la courbe, peut plonger en négatif en cas de
+  //     rupture CDD post-essai)
+  // L'œil voit immédiatement les montants en jeu — plus parlant qu'un %
+  // surtout quand l'écart cumul/rupture représente plusieurs milliers d'€.
+  const allBarVals = rows.map((r) => r.margeCumulNominaleEur)
+  const allCurveVals = rows.map((r) => r.margeNetteEur)
   const seuilPct = margeMinPct ?? 15
-  const yMinRaw = Math.min(0, ...allCurvePcts, ...allBarPcts)
-  const yMaxRaw = Math.max(seuilPct, ...allBarPcts, ...allCurvePcts)
-  const span = Math.max(yMaxRaw - yMinRaw, 10)
-  const yMin = Math.floor((yMinRaw - span * 0.05) / 10) * 10
-  const yMax = Math.ceil((yMaxRaw + span * 0.10) / 10) * 10
+  const yMinRaw = Math.min(0, ...allCurveVals, ...allBarVals)
+  const yMaxRaw = Math.max(0, ...allBarVals, ...allCurveVals)
+  const span = Math.max(yMaxRaw - yMinRaw, 1000)
+  const padded = span * 0.10
+  const yMin = niceFloor(yMinRaw - padded)
+  const yMax = niceCeil(yMaxRaw + padded)
   const yRange = yMax - yMin
 
   const xOf = (i: number): number => {
     const slotW = PLOT_W / rows.length
     return PAD_L + slotW * i + slotW / 2
   }
-  const yOf = (pct: number): number =>
-    PAD_T + (1 - (pct - yMin) / yRange) * PLOT_H
+  const yOf = (val: number): number =>
+    PAD_T + (1 - (val - yMin) / yRange) * PLOT_H
   const zeroY = yOf(0)
   const slotW = PLOT_W / rows.length
   const barW = Math.max(8, slotW * 0.7)
 
-  // Y ticks — multiples de 10 % entre yMin et yMax inclus.
-  const yTickVals: number[] = []
-  for (let v = yMin; v <= yMax; v += 10) yTickVals.push(v)
+  // Y ticks — 5 paliers réguliers en €, snappés sur des paliers "ronds"
+  // (1k, 2k, 5k, 10k, 20k…) pour des labels lisibles.
+  const yTickVals = niceTicks(yMin, yMax, 5)
 
   // Couleur de barre basée sur la marge nette EN CAS de rupture (margePct),
   // pas sur la marge nominale. L'œil cherche en priorité « est-ce safe si
@@ -145,7 +151,8 @@ export default function RuptureRiskChart({
     : null
 
   // Courbe lissée (splines Bezier cubiques via Catmull-Rom).
-  const curveXys = rows.map((r, i) => ({ x: xOf(i), y: yOf(r.margePct) }))
+  // En € : la courbe passe par margeNetteEur (le résultat en cas de rupture).
+  const curveXys = rows.map((r, i) => ({ x: xOf(i), y: yOf(r.margeNetteEur) }))
   const curvePath = buildSmoothPath(curveXys)
 
   return (
@@ -187,7 +194,7 @@ export default function RuptureRiskChart({
           </>
         )}
 
-        {/* Y grid + ticks (% — axe unique). */}
+        {/* Y grid + ticks (€ — axe unique). */}
         {yTickVals.map((v) => (
           <g key={`y-${v}`}>
             <line
@@ -201,35 +208,32 @@ export default function RuptureRiskChart({
               fontSize={10} fill="#6B7280" textAnchor="end"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
-              {v} %
+              {compactEur(v)}
             </text>
           </g>
         ))}
 
-        {/* Seuil mini organisation — ligne pointillée ambre.
-            Label en légende au-dessus du chart, pas ici (chevauchait). */}
-        {margeMinPct !== undefined && (
-          <line
-            x1={PAD_L} y1={yOf(margeMinPct)} x2={W - PAD_R} y2={yOf(margeMinPct)}
-            stroke="#D97706" strokeWidth={1.2} strokeDasharray="5 4" opacity={0.7}
-          />
-        )}
+        {/* Note : pas de ligne "seuil mini" sur l'axe €. Le seuil reste un
+            pourcentage et se déplacerait à chaque mois (il dépend du
+            cumulRevenu). Le code couleur des barres encode déjà
+            l'information : rouge si margePct < seuil. La légende au-dessus
+            rappelle le seuil en %. */}
 
         {/* BARRES = marge cumulée nominale (sans coût rupture). Couleur
             calée sur margePct (santé en cas de rupture). Au survol, on
             ajoute un halo violet pâle entre la courbe et le sommet de la
             barre pour matérialiser le coût rupture du mois. */}
         {rows.map((r, i) => {
-          const barH = r.margeCumulNominalePct >= 0
-            ? zeroY - yOf(r.margeCumulNominalePct)
-            : yOf(r.margeCumulNominalePct) - zeroY
-          const barY = r.margeCumulNominalePct >= 0 ? yOf(r.margeCumulNominalePct) : zeroY
+          const barH = r.margeCumulNominaleEur >= 0
+            ? zeroY - yOf(r.margeCumulNominaleEur)
+            : yOf(r.margeCumulNominaleEur) - zeroY
+          const barY = r.margeCumulNominaleEur >= 0 ? yOf(r.margeCumulNominaleEur) : zeroY
           const isHovered = hoveredIdx === i
 
-          // Halo violet : entre courbe (rupture) et sommet barre (nominal).
-          // En CDD post-essai, la courbe peut plonger très bas → on clip au
-          // bord visible du chart pour rester propre.
-          const curveY = yOf(r.margePct)
+          // Halo violet : entre courbe (rupture, en €) et sommet barre
+          // (nominal, en €). Visualise le coût rupture du mois — la
+          // hauteur du halo = coutRupture exprimé en pixels.
+          const curveY = yOf(r.margeNetteEur)
           const haloTop = barY
           const haloBottom = Math.min(PAD_T + PLOT_H, Math.max(curveY, barY))
           const showHalo = isHovered && haloBottom > haloTop + 1
@@ -269,7 +273,7 @@ export default function RuptureRiskChart({
                   fontSize={9.5} fill="#374151" textAnchor="middle" fontWeight={700}
                   style={{ pointerEvents: "none" }}
                 >
-                  {r.margeCumulNominalePct.toFixed(0)}%
+                  {compactEur(r.margeCumulNominaleEur)}
                 </text>
               )}
             </g>
@@ -291,9 +295,9 @@ export default function RuptureRiskChart({
         {/* Points sur la courbe — petits, pour ne pas voler la vedette
             aux barres. Couleur = santé en cas de rupture. */}
         {rows.map((r, i) => {
-          const cy = yOf(r.margePct)
-          // Clip vertical pour rester visible quand margePct est très bas
-          // (CDD post-essai par ex.).
+          const cy = yOf(r.margeNetteEur)
+          // Clip vertical pour rester visible quand la courbe plonge
+          // sous le bas du chart (CDD post-essai par ex.).
           if (cy < PAD_T || cy > PAD_T + PLOT_H + 1) return null
           return (
             <circle
@@ -313,8 +317,8 @@ export default function RuptureRiskChart({
             coût rupture (halo violet) et marge nette résultante. */}
         {hoveredIdx !== null && rows[hoveredIdx] && (() => {
           const r = rows[hoveredIdx]
-          const barTopY = r.margeCumulNominalePct >= 0
-            ? yOf(r.margeCumulNominalePct)
+          const barTopY = r.margeCumulNominaleEur >= 0
+            ? yOf(r.margeCumulNominaleEur)
             : zeroY
           const tooltipW = 180
           const tooltipH = 80
@@ -414,6 +418,63 @@ function Row({
 function formatEur(v: number): string {
   const sign = v < 0 ? "−" : ""
   return `${sign}${Math.abs(Math.round(v)).toLocaleString("fr-FR")} €`
+}
+
+/** Format compact pour labels axe Y et markers de barres.
+ *  Sous 1 000 € on garde les unités, au-dessus on passe en k€. */
+function compactEur(v: number): string {
+  const sign = v < 0 ? "−" : ""
+  const abs = Math.abs(v)
+  if (abs < 1000) return `${sign}${Math.round(abs)} €`
+  const kEur = abs / 1000
+  const digits = kEur >= 10 ? 0 : 1
+  return `${sign}${kEur.toFixed(digits)} k€`
+}
+
+/** Snappe une valeur vers le bas sur un palier "rond" adapté à sa
+ *  magnitude (100, 500, 1 000, 5 000, 10 000…). Donne des yMin lisibles
+ *  pour l'axe Y au lieu de "-3 847 €". */
+function niceFloor(v: number): number {
+  if (v === 0) return 0
+  const step = niceStep(v)
+  return Math.floor(v / step) * step
+}
+
+function niceCeil(v: number): number {
+  if (v === 0) return 0
+  const step = niceStep(v)
+  return Math.ceil(v / step) * step
+}
+
+function niceStep(v: number): number {
+  const abs = Math.abs(v)
+  if (abs >= 50000) return 10000
+  if (abs >= 20000) return 5000
+  if (abs >= 10000) return 2000
+  if (abs >= 5000)  return 1000
+  if (abs >= 1000)  return 500
+  if (abs >= 500)   return 100
+  if (abs >= 100)   return 50
+  return 10
+}
+
+/** Génère ~`count` ticks réguliers entre yMin et yMax, snappés sur des
+ *  paliers ronds (multiples de 500/1000/5000…). Inclut toujours 0 si
+ *  yMin ≤ 0 ≤ yMax pour donner un repère stable. */
+function niceTicks(yMin: number, yMax: number, count: number): number[] {
+  const range = yMax - yMin
+  if (range === 0) return [yMin]
+  const roughStep = range / count
+  const step = niceStep(roughStep) || roughStep
+  const ticks: number[] = []
+  const start = Math.ceil(yMin / step) * step
+  for (let v = start; v <= yMax + 0.5; v += step) ticks.push(v)
+  // Insère 0 si dans le range et pas déjà présent.
+  if (yMin <= 0 && yMax >= 0 && !ticks.some((t) => Math.abs(t) < 1)) {
+    ticks.push(0)
+    ticks.sort((a, b) => a - b)
+  }
+  return ticks
 }
 
 /** Construit un path SVG smooth (splines Bezier cubiques) qui passe
