@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { withSentryConfig } from '@sentry/nextjs'
 
 const nextConfig: NextConfig = {
   compress: true,
@@ -53,4 +54,25 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+// Wrap avec Sentry. Si les env vars SENTRY_AUTH_TOKEN / SENTRY_ORG /
+// SENTRY_PROJECT sont absents, le build continue normalement, juste
+// sans upload de source maps (les erreurs en prod montreront du code
+// minifié, ce qui reste mieux que rien). Activer le source map upload
+// dès que tu auras créé ton projet Sentry et collé un auth token.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  // Tunnel route — contourne les bloqueurs de pubs qui filtrent les
+  // requêtes vers ingest.sentry.io. Pas obligatoire mais évite des
+  // trous dans les rapports d'erreurs côté client.
+  tunnelRoute: '/monitoring',
+  // Réduit la taille du bundle client en retirant les utilitaires Sentry
+  // qui ne servent qu'au tracing (qu'on n'utilise pas en V1).
+  disableLogger: true,
+  // Pas d'upload de source maps si l'auth token n'est pas configuré.
+  sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+  },
+})

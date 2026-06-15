@@ -20,6 +20,7 @@ const footerLinks: Record<string, FooterLink[]> = {
     { label: 'Mentions légales', href: '/mentions-legales' },
     { label: 'Politique de confidentialité', href: '/politique-confidentialite' },
     { label: "Conditions d'utilisation", href: '/cgu' },
+    { label: 'DPA (RGPD)', href: '/dpa-naywa-v1.pdf', external: true },
   ],
   Contact: [
     { label: 'Nous contacter', href: '/contact' },
