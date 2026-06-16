@@ -3,6 +3,7 @@ import Script from 'next/script'
 import { spaceGrotesk, inter, instrumentSerif } from '@/lib/fonts'
 import { MotionProvider } from '@/components/providers/MotionProvider'
 import { CookieBanner } from '@/components/layout/CookieBanner'
+import { PreviewBadge } from '@/components/layout/PreviewBadge'
 import './globals.css'
 
 const SITE_URL = 'https://naywastudio.com'
@@ -134,6 +135,7 @@ export default function RootLayout({
         <MotionProvider>
           <main className="flex-1">{children}</main>
         </MotionProvider>
+        <PreviewBadge />
         <CookieBanner />
 
         {/* Structured Data */}
