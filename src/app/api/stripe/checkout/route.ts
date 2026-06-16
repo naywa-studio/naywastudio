@@ -116,7 +116,18 @@ export async function POST(req: Request) {
     payment_method_types: ["card", "sepa_debit"],
     locale: "fr",
     allow_promotion_codes: true,
-    billing_address_collection: "auto",
+    // Adresse de facturation obligatoire pour qu'une facture B2B française
+    // soit valide (mention obligatoire art. 242 nonies A CGI).
+    billing_address_collection: "required",
+    // Collecte du numéro de TVA intracom / SIRET du client → imprimé
+    // automatiquement par Stripe sur toutes les factures futures.
+    tax_id_collection: { enabled: true },
+    // Mémorise nom + adresse + tax id sur le Stripe Customer pour qu'ils
+    // soient réutilisés aux prélèvements suivants sans redemander.
+    customer_update: {
+      address: "auto",
+      name: "auto",
+   },
     subscription_data: {
       // Pas de trial_period_days : la souscription est purement payante,
       // le trial est géré séparément côté DB (trial_ends_at).
