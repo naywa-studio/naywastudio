@@ -49,14 +49,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   let brandName: string | null = null
   let brandLogoPath: string | null = null
+  let brandColor: string | null = null
+  let brandSlogan: string | null = null
+  let contactEmail: string | null = null
   if (profile?.organization_id) {
     const { data: org } = await sb
       .from("organizations")
-      .select("brand_name, brand_logo_path, name")
+      .select("brand_name, brand_logo_path, brand_color, brand_slogan, contact_email, name")
       .eq("id", profile.organization_id)
       .maybeSingle()
     brandName = (org?.brand_name?.trim() || org?.name?.trim()) || null
     brandLogoPath = org?.brand_logo_path ?? null
+    brandColor = org?.brand_color ?? null
+    brandSlogan = org?.brand_slogan ?? null
+    contactEmail = org?.contact_email ?? null
   }
 
   let brandLogoUrl: string | null = null
@@ -70,6 +76,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const brand = {
     name: brandName,
     logoUrl: brandLogoUrl,
+    color: brandColor,
+    slogan: brandSlogan,
+    contactEmail,
   }
 
   // Pull the job to orient the PDF — title, must-have skills, briefing.

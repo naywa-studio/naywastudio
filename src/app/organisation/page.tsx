@@ -166,12 +166,24 @@ export default function CabinetPage() {
             gap: 18,
             alignItems: "start",
           }}>
-            <IdentitySection
-              organization={organization}
-              logoUrl={logoUrl}
-              isOwner={isOwner}
-              onUpdated={refetch}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
+              <IdentitySection
+                organization={organization}
+                isOwner={isOwner}
+                onUpdated={refetch}
+              />
+              <BrandingSection
+                organization={organization}
+                logoUrl={logoUrl}
+                isOwner={isOwner}
+                onUpdated={refetch}
+              />
+              <ContactSection
+                organization={organization}
+                isOwner={isOwner}
+                onUpdated={refetch}
+              />
+            </div>
             <MembersSection
               members={members}
               invites={invites}
@@ -1023,18 +1035,15 @@ const panelBody = (color: string): React.CSSProperties => ({
 /* ────────────────────────────────────────────────────────────────── */
 
 function IdentitySection({
-  organization, logoUrl, isOwner, onUpdated,
+  organization, isOwner, onUpdated,
 }: {
-  organization: { id: string; name: string; brand_name: string | null; brand_logo_path: string | null; mailing_domain: string | null }
-  logoUrl: string | null
+  organization: { id: string; name: string; brand_name: string | null; mailing_domain: string | null }
   isOwner: boolean
   onUpdated: () => Promise<void>
 }) {
-  const sb = useMemo(() => getSupabase(), [])
   const [name, setName] = useState(organization.brand_name ?? organization.name)
-  const [busy, setBusy] = useState<"idle" | "saving" | "uploading" | "deleting">("idle")
+  const [busy, setBusy] = useState<"idle" | "saving">("idle")
   const [error, setError] = useState<string | null>(null)
-  const fileInput = useRef<HTMLInputElement>(null)
 
   const saveName = async () => {
     if (!isOwner) return
@@ -1053,45 +1062,13 @@ function IdentitySection({
     setBusy("idle")
   }
 
-  const uploadLogo = async (file: File) => {
-    if (!isOwner) return
-    setBusy("uploading"); setError(null)
-    const ext = file.name.split(".").pop() || "png"
-    const path = `${organization.id}/${Date.now()}.${ext}`
-    const { error: upErr } = await sb.storage.from("brand-logos").upload(path, file, { upsert: true })
-    if (upErr) { setError(upErr.message); setBusy("idle"); return }
-    const res = await fetch("/api/cabinet", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ brand_logo_path: path }),
-    })
-    if (!res.ok) setError("Logo téléversé mais sauvegarde en échec.")
-    else await onUpdated()
-    setBusy("idle")
-  }
-
-  const removeLogo = async () => {
-    if (!isOwner) return
-    setBusy("deleting"); setError(null)
-    if (organization.brand_logo_path) {
-      await sb.storage.from("brand-logos").remove([organization.brand_logo_path])
-    }
-    await fetch("/api/cabinet", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ brand_logo_path: null }),
-    })
-    await onUpdated()
-    setBusy("idle")
-  }
-
   return (
-    <Card title="Identité de l'organisation" subtitle="Apparaît sur les CV anonymisés et vos emails sortants.">
+    <Card title="Identité de l'organisation" subtitle="Nom officiel utilisé partout dans Naywa.">
       <Label>Nom de l&apos;organisation</Label>
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Organisation Dupont"
+        placeholder="Cabinet Dupont"
         disabled={!isOwner || busy === "saving"}
         onBlur={saveName}
         style={inputStyle}
@@ -1100,46 +1077,263 @@ function IdentitySection({
         {busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}
       </Hint>
 
-      <div style={{ marginTop: 14 }}>
-        <Label>Logo</Label>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 64, height: 64,
-            borderRadius: 12, border: "1.5px dashed #E2DAF6",
-            background: "#FAFAFA",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            overflow: "hidden",
-            flexShrink: 0,
-          }}>
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
-            ) : (
-              <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
-            )}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <button type="button" onClick={() => fileInput.current?.click()}
-              disabled={!isOwner || busy !== "idle"}
-              style={smallBtnPrimary}>
-              {busy === "uploading" ? "…" : logoUrl ? "Remplacer" : "Téléverser"}
-            </button>
-            {logoUrl && isOwner && (
-              <button type="button" onClick={removeLogo} disabled={busy !== "idle"} style={smallBtnGhost}>
-                Retirer
-              </button>
-            )}
-          </div>
+      {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
+    </Card>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Branding cabinet — logo + couleur + slogan                          */
+/*                                                                     */
+/* Ces 3 champs nourrissent le PDF anonymisé candidat : le client      */
+/* final reçoit un document à l'identité visuelle du cabinet, pas      */
+/* Naywa. Owner-only en édition, lecture seule pour les members.       */
+/* ────────────────────────────────────────────────────────────────── */
+
+const DEFAULT_BRAND_COLOR = "#7C63C8"
+
+function BrandingSection({
+  organization, logoUrl, isOwner, onUpdated,
+}: {
+  organization: {
+    id: string
+    brand_logo_path: string | null
+    brand_color: string | null
+    brand_slogan: string | null
+  }
+  logoUrl: string | null
+  isOwner: boolean
+  onUpdated: () => Promise<void>
+}) {
+  const sb = useMemo(() => getSupabase(), [])
+  const [color, setColor] = useState(organization.brand_color ?? DEFAULT_BRAND_COLOR)
+  const [slogan, setSlogan] = useState(organization.brand_slogan ?? "")
+  const [busy, setBusy] = useState<"idle" | "saving" | "uploading" | "deleting">("idle")
+  const [error, setError] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  const patch = async (body: Record<string, unknown>, kind: "saving" | "uploading" | "deleting") => {
+    setBusy(kind); setError(null)
+    const res = await fetch("/api/cabinet", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Erreur lors de la sauvegarde.")
+    } else {
+      await onUpdated()
+    }
+    setBusy("idle")
+  }
+
+  const uploadLogo = async (file: File) => {
+    if (!isOwner) return
+    setBusy("uploading"); setError(null)
+    const ext = file.name.split(".").pop() || "png"
+    const path = `${organization.id}/${Date.now()}.${ext}`
+    const { error: upErr } = await sb.storage.from("brand-logos").upload(path, file, { upsert: true })
+    if (upErr) { setError(upErr.message); setBusy("idle"); return }
+    await patch({ brand_logo_path: path }, "uploading")
+  }
+
+  const removeLogo = async () => {
+    if (!isOwner) return
+    if (organization.brand_logo_path) {
+      await sb.storage.from("brand-logos").remove([organization.brand_logo_path])
+    }
+    await patch({ brand_logo_path: null }, "deleting")
+  }
+
+  return (
+    <Card
+      title="Branding"
+      subtitle="Apparaît sur les CV anonymisés envoyés à vos clients."
+    >
+      {/* Logo */}
+      <Label>Logo</Label>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{
+          width: 64, height: 64,
+          borderRadius: 12, border: "1.5px dashed #E2DAF6",
+          background: "#FAFAFA",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          overflow: "hidden",
+          flexShrink: 0,
+        }}>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
+          ) : (
+            <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
+          )}
         </div>
-        <input ref={fileInput} type="file"
-          accept="image/png,image/jpeg,image/webp,image/svg+xml"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) { void uploadLogo(f); e.target.value = "" }
-          }}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <button type="button" onClick={() => fileInput.current?.click()}
+            disabled={!isOwner || busy !== "idle"}
+            style={smallBtnPrimary}>
+            {busy === "uploading" ? "…" : logoUrl ? "Remplacer" : "Téléverser"}
+          </button>
+          {logoUrl && isOwner && (
+            <button type="button" onClick={removeLogo} disabled={busy !== "idle"} style={smallBtnGhost}>
+              Retirer
+            </button>
+          )}
+        </div>
       </div>
+      <input ref={fileInput} type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) { void uploadLogo(f); e.target.value = "" }
+        }}
+      />
+
+      {/* Couleur primaire */}
+      <div style={{ marginTop: 18 }}>
+        <Label>Couleur de marque</Label>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <input
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            onBlur={() => {
+              if (!isOwner) return
+              if ((organization.brand_color ?? DEFAULT_BRAND_COLOR).toLowerCase() === color.toLowerCase()) return
+              void patch({ brand_color: color }, "saving")
+            }}
+            disabled={!isOwner || busy === "saving"}
+            style={{
+              width: 48, height: 36, padding: 2,
+              border: "1px solid #E2DAF6", borderRadius: 8,
+              cursor: isOwner ? "pointer" : "not-allowed",
+              background: "#FFFFFF",
+            }}
+          />
+          <input
+            value={color.toUpperCase()}
+            onChange={(e) => setColor(e.target.value)}
+            onBlur={() => {
+              if (!isOwner) return
+              if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) {
+                setColor(organization.brand_color ?? DEFAULT_BRAND_COLOR)
+                return
+              }
+              if ((organization.brand_color ?? DEFAULT_BRAND_COLOR).toLowerCase() === color.toLowerCase()) return
+              void patch({ brand_color: color }, "saving")
+            }}
+            disabled={!isOwner || busy === "saving"}
+            placeholder="#7C63C8"
+            style={{ ...inputStyle, width: 120, fontFamily: "var(--font-space-grotesk), monospace" }}
+          />
+          {color.toLowerCase() !== DEFAULT_BRAND_COLOR.toLowerCase() && isOwner && (
+            <button
+              type="button"
+              onClick={() => {
+                setColor(DEFAULT_BRAND_COLOR)
+                void patch({ brand_color: null }, "saving")
+              }}
+              disabled={busy === "saving"}
+              style={{ ...smallBtnGhost, fontSize: 11 }}
+            >
+              Réinitialiser
+            </button>
+          )}
+        </div>
+        <Hint>Défaut Naywa : violet {DEFAULT_BRAND_COLOR}.</Hint>
+      </div>
+
+      {/* Slogan */}
+      <div style={{ marginTop: 18 }}>
+        <Label>Slogan <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span></Label>
+        <input
+          value={slogan}
+          onChange={(e) => setSlogan(e.target.value.slice(0, 120))}
+          onBlur={() => {
+            if (!isOwner) return
+            const next = slogan.trim() || null
+            if ((organization.brand_slogan ?? null) === next) return
+            void patch({ brand_slogan: next }, "saving")
+          }}
+          placeholder="Recruter, c'est notre métier"
+          disabled={!isOwner || busy === "saving"}
+          maxLength={120}
+          style={inputStyle}
+        />
+        <Hint>{slogan.length}/120 caractères</Hint>
+      </div>
+
+      {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
+    </Card>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Carte de contact cabinet                                            */
+/*                                                                     */
+/* Mail générique imprimé en pied de page du PDF anonymisé. Le client  */
+/* final écrit là pour recontacter au sujet d'un candidat présenté.    */
+/* ────────────────────────────────────────────────────────────────── */
+
+function ContactSection({
+  organization, isOwner, onUpdated,
+}: {
+  organization: { contact_email: string | null }
+  isOwner: boolean
+  onUpdated: () => Promise<void>
+}) {
+  const [email, setEmail] = useState(organization.contact_email ?? "")
+  const [busy, setBusy] = useState<"idle" | "saving">("idle")
+  const [error, setError] = useState<string | null>(null)
+  const emailValid = email.trim() === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+
+  const save = async () => {
+    if (!isOwner) return
+    const next = email.trim() || null
+    if ((organization.contact_email ?? null) === next) return
+    if (!emailValid) return
+    setBusy("saving"); setError(null)
+    const res = await fetch("/api/cabinet", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ contact_email: next }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Erreur lors de la sauvegarde.")
+    } else {
+      await onUpdated()
+    }
+    setBusy("idle")
+  }
+
+  return (
+    <Card
+      title="Carte de contact cabinet"
+      subtitle="Ce mail sera ajouté aux CV anonymisés. Il permet à vos clients de vous recontacter au sujet des candidats."
+    >
+      <Label>Email de contact</Label>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        onBlur={save}
+        placeholder="contact@votre-cabinet.com"
+        disabled={!isOwner || busy === "saving"}
+        style={{
+          ...inputStyle,
+          borderColor: email && !emailValid ? "#EF4444" : inputStyle.borderColor,
+        }}
+      />
+      <Hint>
+        {busy === "saving"
+          ? "Sauvegarde…"
+          : email && !emailValid
+            ? "Format d'email invalide"
+            : "Laissez vide pour ne rien afficher sur le CV anonymisé."}
+      </Hint>
 
       {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
     </Card>

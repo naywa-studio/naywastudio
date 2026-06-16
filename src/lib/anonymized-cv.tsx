@@ -20,50 +20,59 @@
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 import type { ParsedCv, Candidate } from "./database.types"
 
-const PURPLE = "#7C63C8"
+const DEFAULT_PURPLE = "#7C63C8"
 const INK = "#1F2937"
 const MUTED = "#6B7280"
 const LINE = "#E5E1F2"
 
 const DEFAULT_BRAND = "NAYWA STUDIO"
 
-const s = StyleSheet.create({
-  page: { paddingTop: 44, paddingBottom: 56, paddingHorizontal: 52, fontSize: 10, color: INK, fontFamily: "Helvetica" },
+/** Construit le stylesheet PDF en injectant la couleur de marque du
+ *  cabinet (par défaut violet Naywa). On ne met pas la couleur dans le
+ *  StyleSheet global pour éviter une couleur figée à l'import : chaque
+ *  rendu reprend la couleur de l'org en cours. */
+function buildStyles(accent: string) {
+  return StyleSheet.create({
+    page: { paddingTop: 44, paddingBottom: 64, paddingHorizontal: 52, fontSize: 10, color: INK, fontFamily: "Helvetica" },
 
-  brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-  brand: { fontSize: 11, fontFamily: "Helvetica-Bold", color: PURPLE, letterSpacing: 1 },
-  brandTag: { fontSize: 8, color: MUTED, letterSpacing: 0.5 },
-  rule: { borderBottomWidth: 1.4, borderBottomColor: PURPLE, marginTop: 8, marginBottom: 18 },
+    brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+    brand: { fontSize: 11, fontFamily: "Helvetica-Bold", color: accent, letterSpacing: 1 },
+    brandSlogan: { fontSize: 8.5, color: MUTED, marginTop: 2, fontStyle: "italic" },
+    brandTag: { fontSize: 8, color: MUTED, letterSpacing: 0.5 },
+    rule: { borderBottomWidth: 1.4, borderBottomColor: accent, marginTop: 8, marginBottom: 18 },
 
-  preheadline: { fontSize: 8.5, color: PURPLE, fontFamily: "Helvetica-Bold", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 },
-  headline: { fontSize: 20, fontFamily: "Helvetica-Bold", color: INK, marginBottom: 14, marginTop: 0 },
+    preheadline: { fontSize: 8.5, color: accent, fontFamily: "Helvetica-Bold", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 },
+    headline: { fontSize: 20, fontFamily: "Helvetica-Bold", color: INK, marginBottom: 14, marginTop: 0 },
 
-  /** Executive summary — phrase d'accroche mission-oriented (LLM). */
-  execSummary: { fontSize: 10.5, color: "#374151", lineHeight: 1.6, marginBottom: 18, fontStyle: "italic" },
+    /** Executive summary — phrase d'accroche mission-oriented (LLM). */
+    execSummary: { fontSize: 10.5, color: "#374151", lineHeight: 1.6, marginBottom: 18, fontStyle: "italic" },
 
-  metaRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
-  metaItem: { marginRight: 22, marginBottom: 4 },
-  metaLabel: { fontSize: 7, color: MUTED, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 2 },
-  metaValue: { fontSize: 10, color: INK, fontFamily: "Helvetica-Bold" },
+    metaRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
+    metaItem: { marginRight: 22, marginBottom: 4 },
+    metaLabel: { fontSize: 7, color: MUTED, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 2 },
+    metaValue: { fontSize: 10, color: INK, fontFamily: "Helvetica-Bold" },
 
-  sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", color: MUTED, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, marginTop: 4 },
+    sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", color: MUTED, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, marginTop: 4 },
 
-  expItem: { marginBottom: 10, paddingLeft: 12, borderLeftWidth: 1.5, borderLeftColor: LINE },
-  expTitle: { fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK },
-  expCompany: { fontSize: 9.5, color: MUTED },
-  expDate: { fontSize: 8, color: "#9CA3AF", marginTop: 1, marginBottom: 3 },
-  expDesc: { fontSize: 9, color: "#4B5563", lineHeight: 1.5 },
+    expItem: { marginBottom: 10, paddingLeft: 12, borderLeftWidth: 1.5, borderLeftColor: LINE },
+    expTitle: { fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK },
+    expCompany: { fontSize: 9.5, color: MUTED },
+    expDate: { fontSize: 8, color: "#9CA3AF", marginTop: 1, marginBottom: 3 },
+    expDesc: { fontSize: 9, color: "#4B5563", lineHeight: 1.5 },
 
-  chipRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 14 },
-  chip: { fontSize: 8.5, color: "#4B5563", backgroundColor: "#F4F1FB", borderWidth: 1, borderColor: LINE, borderRadius: 3, paddingVertical: 2, paddingHorizontal: 6, marginRight: 5, marginBottom: 5 },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 14 },
+    chip: { fontSize: 8.5, color: "#4B5563", backgroundColor: "#F4F1FB", borderWidth: 1, borderColor: LINE, borderRadius: 3, paddingVertical: 2, paddingHorizontal: 6, marginRight: 5, marginBottom: 5 },
 
-  eduItem: { marginBottom: 5 },
-  eduDegree: { fontSize: 9.5, fontFamily: "Helvetica-Bold", color: INK },
-  eduMeta: { fontSize: 8.5, color: MUTED },
+    eduItem: { marginBottom: 5 },
+    eduDegree: { fontSize: 9.5, fontFamily: "Helvetica-Bold", color: INK },
+    eduMeta: { fontSize: 8.5, color: MUTED },
 
-  footer: { position: "absolute", bottom: 28, left: 52, right: 52, flexDirection: "row", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: LINE, paddingTop: 8 },
-  footerText: { fontSize: 7.5, color: "#9CA3AF" },
-})
+    footer: { position: "absolute", bottom: 28, left: 52, right: 52, borderTopWidth: 1, borderTopColor: LINE, paddingTop: 8 },
+    footerTopRow: { flexDirection: "row", justifyContent: "space-between" },
+    footerContact: { fontSize: 7.5, color: MUTED, marginTop: 3 },
+    footerText: { fontSize: 7.5, color: "#9CA3AF" },
+  })
+}
 
 export interface AnonymizedJobContext {
   title: string
@@ -80,6 +89,14 @@ export interface AnonymizedBrand {
   name: string | null
   /** Signed URL to the brand logo PNG/JPG. Optional — text-only fallback works. */
   logoUrl: string | null
+  /** Hex color (#RRGGBB) used as accent in the PDF. Falls back to Naywa
+   *  violet when null. */
+  color?: string | null
+  /** Slogan court affiché sous le nom du cabinet (header). Optionnel. */
+  slogan?: string | null
+  /** Mail de contact générique imprimé en pied de page pour permettre
+   *  au client final de recontacter au sujet du candidat. Optionnel. */
+  contactEmail?: string | null
 }
 
 const norm = (s: string) => s.toLowerCase().trim()
@@ -113,6 +130,13 @@ export function AnonymizedCv({
 }) {
   const brandName = (brand?.name ?? "").trim() || DEFAULT_BRAND
   const brandLogo = brand?.logoUrl ?? null
+  // Sanity-check hex côté rendu : si la valeur DB est malformée, on
+  // retombe sur Naywa violet pour ne jamais casser le PDF.
+  const accentRaw = (brand?.color ?? "").trim()
+  const accent = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accentRaw) ? accentRaw : DEFAULT_PURPLE
+  const brandSlogan = (brand?.slogan ?? "").trim() || null
+  const contactEmail = (brand?.contactEmail ?? "").trim() || null
+  const s = buildStyles(accent)
   const cv: ParsedCv = candidate.parsed_cv ?? {}
   const roleFamily = candidate.taxonomy?.role_family?.[0] ?? null
   const seniority = candidate.seniority_level ?? cv.seniority_level ?? null
@@ -144,8 +168,8 @@ export function AnonymizedCv({
   return (
     <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
       <Page size="A4" style={s.page}>
-        {/* Brand header — logo (if set) + cabinet name on the left,
-            reference on the right. */}
+        {/* Brand header — logo (if set) + cabinet name + optional slogan
+            on the left, reference on the right. */}
         <View style={s.brandRow}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             {brandLogo && (
@@ -153,7 +177,10 @@ export function AnonymizedCv({
               // eslint-disable-next-line jsx-a11y/alt-text
               <Image src={brandLogo} style={{ height: 56, maxWidth: 200, marginRight: 12, objectFit: "contain" }} />
             )}
-            <Text style={s.brand}>{brandName.toUpperCase()}</Text>
+            <View>
+              <Text style={s.brand}>{brandName.toUpperCase()}</Text>
+              {brandSlogan && <Text style={s.brandSlogan}>{brandSlogan}</Text>}
+            </View>
           </View>
           <Text style={s.brandTag}>Réf. {reference}</Text>
         </View>
@@ -248,10 +275,19 @@ export function AnonymizedCv({
           </>
         )}
 
-        {/* Footer */}
+        {/* Footer — nom cabinet + ref candidat. Si un mail de contact
+            cabinet est renseigné, on l'imprime en dessous pour
+            permettre au client final de recontacter. */}
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>{brandName}</Text>
-          <Text style={s.footerText}>Réf. {reference}</Text>
+          <View style={s.footerTopRow}>
+            <Text style={s.footerText}>{brandName}</Text>
+            <Text style={s.footerText}>Réf. {reference}</Text>
+          </View>
+          {contactEmail && (
+            <Text style={s.footerContact}>
+              Pour échanger sur ce profil : {contactEmail}
+            </Text>
+          )}
         </View>
       </Page>
     </Document>

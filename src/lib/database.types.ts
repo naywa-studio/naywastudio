@@ -188,6 +188,16 @@ export type Database = {
           owner_user_id: string | null
           brand_name: string | null
           brand_logo_path: string | null
+          /** Couleur primaire hex (#RRGGBB) du cabinet pour le PDF
+           *  anonymisé. NULL = défaut applicatif violet Naywa (#7C63C8). */
+          brand_color: string | null
+          /** Slogan optionnel affiché sous le nom du cabinet sur le
+           *  PDF anonymisé. */
+          brand_slogan: string | null
+          /** Mail générique du cabinet, imprimé en pied de page du PDF
+           *  anonymisé pour permettre au client final de recontacter
+           *  au sujet du candidat présenté. */
+          contact_email: string | null
           seats_total: number
           /** Cabinet outbound mailing domain (eg "cabinet-dupont.com"). NULL =
            *  shared Naywa transactional domain. UI masks this field until the
