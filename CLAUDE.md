@@ -430,8 +430,10 @@ Bouton discret **"Sans brief — saisie manuelle"** en bas du stage 1 → saute 
 ## 16. Conventions de travail avec Elyas (owner Naywa)
 
 ### Git
-- **Push direct sur `main`** — pas de PR pour la beta. La branche de travail est `claude/peaceful-montalcini-46269b` mais on push avec `git push origin claude/...:main` après chaque chantier validé.
+- **Toujours passer par une PR** — depuis juin 2026, plus de push direct sur `main`. La branche de travail `claude/...` est poussée sur sa propre branche distante (`git push origin HEAD`), puis ouverture d'une PR via `gh pr create` à destination de `main`. Elyas review sur GitHub et merge quand c'est OK.
+- **Exception hotfix** — si la prod est cassée (build/Vercel KO, erreur Sentry critique), demander à Elyas avant de push direct sur main.
 - **Commit messages détaillés** — ils servent de mémoire après compact, écrire pour le futur soi.
+- **PR description** — résumé en 2-3 bullets + section "Test plan" cochable. Pas de blabla AI.
 - Jamais de `--no-verify`, jamais de `--force` sur main.
 
 ### Compte de test
