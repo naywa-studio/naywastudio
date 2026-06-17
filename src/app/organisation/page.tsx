@@ -198,6 +198,11 @@ export default function CabinetPage() {
                 <PricingPolicyCard />
               </div>
             )}
+            {isOwner && (
+              <div style={{ gridColumn: "1 / -1" }}>
+                <PreviewToolsCard />
+              </div>
+            )}
             <style>{`
               @media (max-width: 980px) {
                 .org-tab-grid { grid-template-columns: 1fr !important; }
@@ -1337,6 +1342,107 @@ function ContactSection({
 
       {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
     </Card>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Preview tools — visible UNIQUEMENT sur déploiements preview Vercel  */
+/*                                                                     */
+/* Permet à Elyas de re-déclencher des flows (onboarding, etc.) à      */
+/* volonté pour tester les modifs avant merge. Inactif sur la prod     */
+/* (le composant se retire tout seul si hostname != *.vercel.app).     */
+/* ────────────────────────────────────────────────────────────────── */
+
+function PreviewToolsCard() {
+  const router = useRouter()
+  const [isPreview, setIsPreview] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Détection côté client : on n'affiche le composant que sur un
+    // sous-domaine Vercel preview. Sur naywastudio.com il reste null.
+    setIsPreview(window.location.hostname.endsWith(".vercel.app"))
+  }, [])
+
+  if (!isPreview) return null
+
+  const resetOnboarding = async () => {
+    if (busy) return
+    if (!window.confirm("Recommencer l'onboarding ? Aucune donnée vivier/missions ne sera supprimée.")) return
+    setBusy(true); setError(null)
+    const res = await fetch("/api/cabinet/reset-onboarding", { method: "POST" })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Erreur lors de la réinitialisation.")
+      setBusy(false)
+      return
+    }
+    // Le proxy va re-rediriger vers /onboarding au prochain hit
+    // /organisation. router.push direct sur /onboarding pour le confort.
+    router.push("/onboarding")
+  }
+
+  return (
+    <div style={{
+      background: "linear-gradient(165deg, #FEF3C7 0%, #FDE68A 100%)",
+      border: "1px solid #F59E0B",
+      borderRadius: 14,
+      padding: "16px 18px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 16,
+      flexWrap: "wrap",
+    }}>
+      <div style={{ flex: 1, minWidth: 240 }}>
+        <p style={{
+          margin: "0 0 4px",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#92400E",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}>
+          Outils de preview
+        </p>
+        <p style={{
+          margin: 0,
+          fontSize: 13,
+          color: "#78350F",
+          lineHeight: 1.55,
+        }}>
+          Réservé aux déploiements preview Vercel. Recommencer
+          l&apos;onboarding remet <code>cabinet_onboarded_at</code> à
+          NULL — aucune donnée n&apos;est supprimée.
+        </p>
+        {error && (
+          <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C", fontWeight: 600 }}>
+            {error}
+          </p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={resetOnboarding}
+        disabled={busy}
+        style={{
+          padding: "10px 16px",
+          borderRadius: 10,
+          border: "1px solid #92400E",
+          background: "#92400E",
+          color: "#FEF3C7",
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: busy ? "wait" : "pointer",
+          fontFamily: "inherit",
+          letterSpacing: "0.01em",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {busy ? "Réinitialisation…" : "Recommencer l'onboarding"}
+      </button>
+    </div>
   )
 }
 
