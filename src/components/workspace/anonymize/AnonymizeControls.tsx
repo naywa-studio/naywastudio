@@ -4,24 +4,25 @@
  * Contrôles d'anonymisation — affichés en haut de la fiche match,
  * juste sous le bandeau d'identité candidat.
  *
- * Responsabilités V1 :
+ * Responsabilités :
  *  - description courte mission ciblée
+ *  - section dépliable "Personnaliser" : toggle résumé Nora,
+ *    textarea custom, toggle filigrane, langue FR/EN
  *  - bouton principal "Anonymiser pour cette mission"
  *  - une fois un PDF prêt : bouton "Voir le PDF ↓" qui scroll vers
- *    AnonymizePreview en bas de page
- *
- * V2 (commit suivant) : on insère ici la section dépliable
- * "Personnaliser" avec toggle résumé Nora, textarea custom, watermark,
- * langue FR/EN.
+ *    AnonymizePreview en bas de page + Télécharger
  */
 
-import type { AnonymizeStatus } from "./types"
+import { useState } from "react"
+import { CUSTOM_TEXT_MAX, type AnonymizeOptions, type AnonymizeStatus } from "./types"
 
 export function AnonymizeControls({
   jobId,
   jobTitle,
   candidateParsed,
   status,
+  options,
+  onOptionsChange,
   onGenerate,
   onScrollToPreview,
 }: {
@@ -29,10 +30,23 @@ export function AnonymizeControls({
   jobTitle: string | null
   candidateParsed: boolean
   status: AnonymizeStatus
+  options: AnonymizeOptions
+  onOptionsChange: (next: AnonymizeOptions) => void
   onGenerate: () => Promise<void> | void
   /** Scroll vers la section AnonymizePreview en bas de la fiche match. */
   onScrollToPreview: () => void
 }) {
+  const [customizeOpen, setCustomizeOpen] = useState(false)
+  const setOption = <K extends keyof AnonymizeOptions>(key: K, value: AnonymizeOptions[K]) => {
+    onOptionsChange({ ...options, [key]: value })
+  }
+  // Indicateur "Personnaliser" actif → petit point coloré sur le
+  // bouton pour rappeler au sourceur que ses overrides s'appliqueront.
+  const hasOverrides =
+    !options.keepNoraSummary ||
+    options.customText.trim().length > 0 ||
+    options.watermark ||
+    options.language !== "fr"
   const hasJob = !!jobId
   const disabled = !candidateParsed || !hasJob || status.state === "working"
 
@@ -70,6 +84,30 @@ export function AnonymizeControls({
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {/* Toggle "Personnaliser" — ouvre le panneau d'options. */}
+          <button
+            type="button"
+            onClick={() => setCustomizeOpen((v) => !v)}
+            style={{
+              fontSize: 12.5, fontWeight: 700, color: customizeOpen ? "white" : "#374151",
+              background: customizeOpen ? "#374151" : "white",
+              border: `1px solid ${customizeOpen ? "#374151" : "#E5E7EB"}`,
+              borderRadius: 10, padding: "10px 14px",
+              cursor: "pointer", fontFamily: "inherit",
+              display: "inline-flex", alignItems: "center", gap: 8,
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span>Personnaliser</span>
+            {hasOverrides && (
+              <span aria-hidden style={{
+                display: "inline-block", width: 7, height: 7, borderRadius: "50%",
+                background: customizeOpen ? "#FBBF24" : "#7C63C8",
+              }} />
+            )}
+            <span style={{ fontSize: 10, opacity: 0.6 }}>{customizeOpen ? "▴" : "▾"}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => void onGenerate()}
@@ -132,6 +170,133 @@ export function AnonymizeControls({
           )}
         </div>
       </div>
+
+      {/* Panneau Personnaliser — déplié à la demande. Sauvegarde locale
+          uniquement : les choix ne sont pas persistés en DB, ils
+          s'appliquent au prochain "Générer". */}
+      {customizeOpen && (
+        <div style={{
+          marginTop: 16,
+          padding: "16px 18px",
+          background: "#FAFAFA",
+          border: "1px solid #F0ECF8",
+          borderRadius: 12,
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+          gap: 16,
+        }}>
+          {/* Toggle résumé Nora */}
+          <label style={{
+            display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
+            padding: 10, borderRadius: 8, background: "white",
+            border: "1px solid #F0ECF8",
+          }}>
+            <input
+              type="checkbox"
+              checked={options.keepNoraSummary}
+              onChange={(e) => setOption("keepNoraSummary", e.target.checked)}
+              style={{ marginTop: 2, accentColor: "#7C63C8" }}
+            />
+            <span style={{ minWidth: 0, flex: 1 }}>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                Garder le résumé Nora
+              </span>
+              <span style={{ display: "block", fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
+                2-3 phrases factuelles orientées mission, générées automatiquement.
+              </span>
+            </span>
+          </label>
+
+          {/* Toggle filigrane */}
+          <label style={{
+            display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
+            padding: 10, borderRadius: 8, background: "white",
+            border: "1px solid #F0ECF8",
+          }}>
+            <input
+              type="checkbox"
+              checked={options.watermark}
+              onChange={(e) => setOption("watermark", e.target.checked)}
+              style={{ marginTop: 2, accentColor: "#7C63C8" }}
+            />
+            <span style={{ minWidth: 0, flex: 1 }}>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                Filigrane diagonal
+              </span>
+              <span style={{ display: "block", fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
+                « Réf · Cabinet » en filigrane sur toutes les pages.
+              </span>
+            </span>
+          </label>
+
+          {/* Langue */}
+          <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>
+              Langue des libellés
+            </span>
+            <div style={{ display: "inline-flex", border: "1px solid #E5E7EB", borderRadius: 8, overflow: "hidden" }}>
+              {(["fr", "en"] as const).map((lang) => {
+                const active = options.language === lang
+                return (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setOption("language", lang)}
+                    style={{
+                      fontSize: 12.5, fontWeight: 700,
+                      color: active ? "white" : "#374151",
+                      background: active ? "#7C63C8" : "white",
+                      border: "none",
+                      padding: "7px 14px",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {lang}
+                  </button>
+                )
+              })}
+            </div>
+            <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+              Le contenu du CV reste dans sa langue d&apos;origine.
+            </span>
+          </div>
+
+          {/* Textarea message custom */}
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+              Message personnalisé <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span>
+            </label>
+            <textarea
+              value={options.customText}
+              onChange={(e) => setOption("customText", e.target.value.slice(0, CUSTOM_TEXT_MAX))}
+              placeholder="Ajoutez un message rédigé sous votre angle (positionnement candidat, contexte mission, etc.). S'affichera sous le résumé Nora, ou seul si vous décochez « Garder le résumé Nora »."
+              rows={4}
+              maxLength={CUSTOM_TEXT_MAX}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid #E2DAF6",
+                background: "white",
+                fontSize: 13,
+                color: "#111827",
+                fontFamily: "inherit",
+                lineHeight: 1.55,
+                resize: "vertical",
+                outline: "none",
+                minHeight: 80,
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "#9CA3AF" }}>
+              <span>S&apos;intègre sous le résumé (ou le remplace si décoché).</span>
+              <span>{options.customText.length}/{CUSTOM_TEXT_MAX}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

@@ -9,7 +9,12 @@ import type { Candidate, MatchAssessment, Job, MatchTier, PipelineStage, ScoreDi
 import ComposeBox from "@/components/workspace/ComposeBox"
 import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
 import { AnonymizePreview } from "@/components/workspace/anonymize/AnonymizePreview"
-import { INITIAL_ANONYMIZE_STATUS, type AnonymizeStatus } from "@/components/workspace/anonymize/types"
+import {
+  INITIAL_ANONYMIZE_OPTIONS,
+  INITIAL_ANONYMIZE_STATUS,
+  type AnonymizeOptions,
+  type AnonymizeStatus,
+} from "@/components/workspace/anonymize/types"
 import CandidateMiniKanban from "@/components/workspace/CandidateMiniKanban"
 import Select from "@/components/ui/Select"
 import NoraLoader from "@/components/workspace/NoraLoader"
@@ -153,6 +158,7 @@ export default function MatchPage() {
   // (AnonymizePreview). Les deux composants ne se voient pas, c'est
   // MatchPage qui orchestre.
   const [anonymizeStatus, setAnonymizeStatus] = useState<AnonymizeStatus>(INITIAL_ANONYMIZE_STATUS)
+  const [anonymizeOptions, setAnonymizeOptions] = useState<AnonymizeOptions>(INITIAL_ANONYMIZE_OPTIONS)
   const previewSectionRef = useRef<HTMLElement | null>(null)
   const scrollToPreview = () => {
     previewSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -220,7 +226,15 @@ export default function MatchPage() {
       const res = await fetch(`/api/cv/${candidate.id}/anonymize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job_id: match?.job?.id ?? null }),
+        body: JSON.stringify({
+          job_id: match?.job?.id ?? null,
+          options: {
+            keep_nora_summary: anonymizeOptions.keepNoraSummary,
+            custom_text: anonymizeOptions.customText.trim() || null,
+            watermark: anonymizeOptions.watermark,
+            language: anonymizeOptions.language,
+          },
+        }),
       })
       const rawText = await res.text()
       if (!rawText) {
@@ -439,6 +453,8 @@ export default function MatchPage() {
         jobTitle={job?.title ?? null}
         candidateParsed={candidate.parse_status === "parsed"}
         status={anonymizeStatus}
+        options={anonymizeOptions}
+        onOptionsChange={setAnonymizeOptions}
         onGenerate={generateAnonymized}
         onScrollToPreview={scrollToPreview}
       />

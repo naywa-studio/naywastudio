@@ -24,3 +24,36 @@ export const INITIAL_ANONYMIZE_STATUS: AnonymizeStatus = {
   downloadUrl: null,
   error: null,
 }
+
+/**
+ * Options de personnalisation choisies par le sourceur sur la fiche
+ * match avant génération. Transmises au POST /api/cv/[id]/anonymize
+ * qui les passe à @react-pdf pour le rendu final.
+ *
+ *  - keepNoraSummary : afficher (true) ou masquer (false) le résumé
+ *    factuel généré par Nora. Toggle ON par défaut.
+ *  - customText : message libre rédigé par le sourceur. Si non vide,
+ *    il s'affiche en plus du résumé Nora (ou seul si keepNoraSummary
+ *    est false). Limité à 600 caractères côté UI.
+ *  - watermark : filigrane diagonal "Réf · NomCabinet" en fond de
+ *    toutes les pages. Anti-screenshot soft. OFF par défaut.
+ *  - language : langue des labels du PDF ("fr" | "en"). Le contenu
+ *    du CV (parcours, formation) reste dans sa langue d'origine ;
+ *    seuls les libellés section + métadonnées sont traduits. FR
+ *    par défaut.
+ */
+export interface AnonymizeOptions {
+  keepNoraSummary: boolean
+  customText: string
+  watermark: boolean
+  language: "fr" | "en"
+}
+
+export const INITIAL_ANONYMIZE_OPTIONS: AnonymizeOptions = {
+  keepNoraSummary: true,
+  customText: "",
+  watermark: false,
+  language: "fr",
+}
+
+export const CUSTOM_TEXT_MAX = 600

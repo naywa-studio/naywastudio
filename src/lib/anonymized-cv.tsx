@@ -46,6 +46,14 @@ function buildStyles(accent: string) {
 
     /** Executive summary — phrase d'accroche mission-oriented (LLM). */
     execSummary: { fontSize: 10.5, color: "#374151", lineHeight: 1.6, marginBottom: 18, fontStyle: "italic" },
+    /** Message custom du sourceur — affiché sous le résumé Nora quand
+     *  les deux coexistent, dans un encart sobre pour bien le distinguer. */
+    customNote: {
+      fontSize: 10, color: "#374151", lineHeight: 1.55,
+      marginTop: -8, marginBottom: 18,
+      paddingLeft: 10,
+      borderLeftWidth: 2, borderLeftColor: accent,
+    },
 
     metaRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
     metaItem: { marginRight: 22, marginBottom: 4 },
@@ -99,6 +107,57 @@ export interface AnonymizedBrand {
   contactEmail?: string | null
 }
 
+/**
+ * Options de rendu choisies par le sourceur dans le panneau
+ * "Personnaliser" de la fiche match. Toutes optionnelles, défauts
+ * appliqués si absentes.
+ */
+export interface AnonymizedOptions {
+  /** Afficher (true, défaut) ou masquer le résumé Nora. */
+  keepNoraSummary?: boolean
+  /** Message libre du sourceur, affiché sous le résumé Nora (ou
+   *  seul si keepNoraSummary est false). Trim + max 600 chars
+   *  recommandé côté caller. */
+  customText?: string
+  /** Filigrane diagonal "Réf · Cabinet" en fond de toutes les pages. */
+  watermark?: boolean
+  /** Langue des libellés section ("fr" défaut). Le contenu du CV
+   *  reste dans sa langue d'origine. */
+  language?: "fr" | "en"
+}
+
+/**
+ * Labels traduits par section. On évite une lib i18n complète pour
+ * éviter de payer un bundle PDF plus lourd ; le PDF n'a que 6 libellés
+ * à traduire.
+ */
+const LABELS = {
+  fr: {
+    presentedFor: "Présenté pour",
+    keySkills: "Compétences clés",
+    background: "Parcours",
+    education: "Formation",
+    contactPrefix: "Pour échanger sur ce profil :",
+    metaSeniority: "Séniorité",
+    metaExperience: "Expérience",
+    metaZone: "Zone",
+    metaLanguages: "Langues",
+    yearsSuffix: (n: number) => `${n} an${n > 1 ? "s" : ""}`,
+  },
+  en: {
+    presentedFor: "Presented for",
+    keySkills: "Key skills",
+    background: "Experience",
+    education: "Education",
+    contactPrefix: "Contact about this profile:",
+    metaSeniority: "Seniority",
+    metaExperience: "Experience",
+    metaZone: "Location",
+    metaLanguages: "Languages",
+    yearsSuffix: (n: number) => `${n} year${n > 1 ? "s" : ""}`,
+  },
+} as const
+
 const norm = (s: string) => s.toLowerCase().trim()
 
 function dedupe(arr: string[]): string[] {
@@ -119,6 +178,7 @@ export function AnonymizedCv({
   job = null,
   brand = null,
   executiveSummary = null,
+  options = null,
 }: {
   candidate: Candidate
   reference: string
@@ -127,7 +187,16 @@ export function AnonymizedCv({
   /** Executive summary mission-oriented, produit côté serveur par le LLM.
    *  Si null, on retombe sur cv.summary tel que parsé (sans orientation). */
   executiveSummary?: string | null
+  /** Choix du sourceur dans le panneau "Personnaliser" de la fiche match. */
+  options?: AnonymizedOptions | null
 }) {
+  const opts: Required<AnonymizedOptions> = {
+    keepNoraSummary: options?.keepNoraSummary ?? true,
+    customText: (options?.customText ?? "").trim(),
+    watermark: options?.watermark ?? false,
+    language: options?.language ?? "fr",
+  }
+  const t = LABELS[opts.language]
   const brandName = (brand?.name ?? "").trim() || DEFAULT_BRAND
   const brandLogo = brand?.logoUrl ?? null
   // Sanity-check hex côté rendu : si la valeur DB est malformée, on
@@ -163,7 +232,15 @@ export function AnonymizedCv({
 
   // Choix du résumé affiché : executive summary mission-oriented si dispo,
   // sinon cv.summary tel que parsé (résumé que le candidat avait écrit).
-  const summaryText = executiveSummary?.trim() || cv.summary?.trim() || null
+  // Si l'owner a décoché "Garder résumé Nora" dans la fiche match, on
+  // ne montre aucun résumé auto — seul le custom text restera.
+  const baseSummaryText = opts.keepNoraSummary
+    ? (executiveSummary?.trim() || cv.summary?.trim() || null)
+    : null
+  const customSummaryText = opts.customText.length > 0 ? opts.customText : null
+  // Le pied de page de filigrane reprend le nom du cabinet (pas
+  // "NAYWA STUDIO" qui serait paradoxal sur un PDF anonymisé externe).
+  const watermarkText = `Réf · ${brandName}`
 
   return (
     <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
@@ -188,13 +265,18 @@ export function AnonymizedCv({
 
         {/* Headline — "Présenté pour : <mission>" quand on est mission-oriented,
             sinon simple titre courant du candidat. */}
-        {hasJob && <Text style={s.preheadline}>Présenté pour</Text>}
+        {hasJob && <Text style={s.preheadline}>{t.presentedFor}</Text>}
         <Text style={s.headline}>{headline}</Text>
 
-        {/* Executive summary — LLM 2-3 phrases formelles si on a un job.
-            Fallback sur cv.summary tel que parsé sinon. */}
-        {summaryText && (
-          <Text style={s.execSummary}>{summaryText}</Text>
+        {/* Executive summary — LLM 2-3 phrases factuelles si on a un job,
+            puis (en plus ou seul) message custom du sourceur si renseigné. */}
+        {baseSummaryText && (
+          <Text style={s.execSummary}>{baseSummaryText}</Text>
+        )}
+        {customSummaryText && (
+          <Text style={baseSummaryText ? s.customNote : s.execSummary}>
+            {customSummaryText}
+          </Text>
         )}
 
         {/* Meta — séniorité / XP / zone / langues. Pas d'adresse précise,
@@ -202,25 +284,25 @@ export function AnonymizedCv({
         <View style={s.metaRow}>
           {seniority && (
             <View style={s.metaItem}>
-              <Text style={s.metaLabel}>Séniorité</Text>
+              <Text style={s.metaLabel}>{t.metaSeniority}</Text>
               <Text style={s.metaValue}>{seniority}</Text>
             </View>
           )}
           {years != null && (
             <View style={s.metaItem}>
-              <Text style={s.metaLabel}>Expérience</Text>
-              <Text style={s.metaValue}>{years} an{years > 1 ? "s" : ""}</Text>
+              <Text style={s.metaLabel}>{t.metaExperience}</Text>
+              <Text style={s.metaValue}>{t.yearsSuffix(years)}</Text>
             </View>
           )}
           {candidate.location && (
             <View style={s.metaItem}>
-              <Text style={s.metaLabel}>Zone</Text>
+              <Text style={s.metaLabel}>{t.metaZone}</Text>
               <Text style={s.metaValue}>{candidate.location}</Text>
             </View>
           )}
           {languages.length > 0 && (
             <View style={s.metaItem}>
-              <Text style={s.metaLabel}>Langues</Text>
+              <Text style={s.metaLabel}>{t.metaLanguages}</Text>
               <Text style={s.metaValue}>{languages.join(" · ")}</Text>
             </View>
           )}
@@ -229,7 +311,7 @@ export function AnonymizedCv({
         {/* Skills — telles que parsées (pas de highlight mission). */}
         {skills.length > 0 && (
           <>
-            <Text style={s.sectionTitle}>Compétences clés</Text>
+            <Text style={s.sectionTitle}>{t.keySkills}</Text>
             <View style={s.chipRow}>
               {skills.map((sk, i) => (
                 <Text key={i} style={s.chip}>{sk}</Text>
@@ -241,12 +323,12 @@ export function AnonymizedCv({
         {/* Expérience — ordre d'origine, descriptions intactes. */}
         {experience.length > 0 && (
           <>
-            <Text style={s.sectionTitle}>Parcours</Text>
+            <Text style={s.sectionTitle}>{t.background}</Text>
             {experience.map((e, i) => {
-              const dates = [e.start, e.end ?? "présent"].filter(Boolean).join(" – ")
+              const dates = [e.start, e.end ?? (opts.language === "en" ? "present" : "présent")].filter(Boolean).join(" – ")
               return (
                 <View key={i} style={s.expItem} wrap={false}>
-                  <Text style={s.expTitle}>{e.title || "Poste"}</Text>
+                  <Text style={s.expTitle}>{e.title || (opts.language === "en" ? "Role" : "Poste")}</Text>
                   {e.company ? <Text style={s.expCompany}>{e.company}</Text> : null}
                   {dates ? <Text style={s.expDate}>{dates}</Text> : null}
                   {e.description ? <Text style={s.expDesc}>{e.description}</Text> : null}
@@ -259,7 +341,7 @@ export function AnonymizedCv({
         {/* Formation — degré + filière, école retirée pour anonymat. */}
         {education.length > 0 && (
           <>
-            <Text style={s.sectionTitle}>Formation</Text>
+            <Text style={s.sectionTitle}>{t.education}</Text>
             {education.map((ed, i) => (
               <View key={i} style={s.eduItem}>
                 <Text style={s.eduDegree}>
@@ -275,6 +357,35 @@ export function AnonymizedCv({
           </>
         )}
 
+        {/* Watermark diagonal — fixed sur toutes les pages, opacity
+            très basse pour rester lisible. On le rend APRÈS le contenu
+            principal pour qu'il passe au-dessus visuellement. Toggle
+            depuis le panneau "Personnaliser" de la fiche match. */}
+        {opts.watermark && (
+          <View
+            fixed
+            style={{
+              position: "absolute",
+              top: 0, left: 0, right: 0, bottom: 0,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 60,
+                fontFamily: "Helvetica-Bold",
+                color: accent,
+                opacity: 0.08,
+                transform: "rotate(-30deg)",
+                letterSpacing: 6,
+              }}
+            >
+              {watermarkText.toUpperCase()}
+            </Text>
+          </View>
+        )}
+
         {/* Footer — nom cabinet + ref candidat. Si un mail de contact
             cabinet est renseigné, on l'imprime en dessous pour
             permettre au client final de recontacter. */}
@@ -285,7 +396,7 @@ export function AnonymizedCv({
           </View>
           {contactEmail && (
             <Text style={s.footerContact}>
-              Pour échanger sur ce profil : {contactEmail}
+              {t.contactPrefix} {contactEmail}
             </Text>
           )}
         </View>
