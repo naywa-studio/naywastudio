@@ -1362,6 +1362,7 @@ function PreviewToolsCard() {
   useEffect(() => {
     // Détection côté client : on n'affiche le composant que sur un
     // sous-domaine Vercel preview. Sur naywastudio.com il reste null.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsPreview(window.location.hostname.endsWith(".vercel.app"))
   }, [])
 

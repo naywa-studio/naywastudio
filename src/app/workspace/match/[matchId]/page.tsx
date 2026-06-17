@@ -7,7 +7,9 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Candidate, MatchAssessment, Job, MatchTier, PipelineStage, ScoreDimensions } from "@/lib/database.types"
 import ComposeBox from "@/components/workspace/ComposeBox"
-import AnonymizeForJob from "@/components/workspace/AnonymizeForJob"
+import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
+import { AnonymizePreview } from "@/components/workspace/anonymize/AnonymizePreview"
+import { INITIAL_ANONYMIZE_STATUS, type AnonymizeStatus } from "@/components/workspace/anonymize/types"
 import CandidateMiniKanban from "@/components/workspace/CandidateMiniKanban"
 import Select from "@/components/ui/Select"
 import NoraLoader from "@/components/workspace/NoraLoader"
@@ -145,27 +147,15 @@ export default function MatchPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [pipelineSaving, setPipelineSaving] = useState(false)
-  // CV anonymisé replié par défaut — c'est l'élément le plus encombrant et le
-  // moins consulté en continu ; on le déploie à la demande.
-  const [cvOpen, setCvOpen] = useState(false)
-  const cvSectionRef = useRef<HTMLElement | null>(null)
-  // Vrai juste après un clic "Ouvrir" : on veut scroller jusqu'au CV. Comme
-  // l'aperçu PDF charge en différé, on re-scrolle quand l'iframe a fini.
-  const scrollPendingRef = useRef(false)
-  const scrollToCv = () => {
-    cvSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-  }
-  const openCv = () => {
-    setCvOpen(true)
-    scrollPendingRef.current = true
-    // Premier scroll rapide (cas sans aperçu existant). Le re-scroll après
-    // chargement de l'iframe affine quand l'aperçu grandit la carte.
-    setTimeout(scrollToCv, 120)
-  }
-  const handlePreviewLoad = () => {
-    if (!scrollPendingRef.current) return
-    scrollPendingRef.current = false
-    scrollToCv()
+
+  // État anonymisation lifté ici pour piloter en même temps les
+  // contrôles haut de page (AnonymizeControls) et l'aperçu bas de page
+  // (AnonymizePreview). Les deux composants ne se voient pas, c'est
+  // MatchPage qui orchestre.
+  const [anonymizeStatus, setAnonymizeStatus] = useState<AnonymizeStatus>(INITIAL_ANONYMIZE_STATUS)
+  const previewSectionRef = useRef<HTMLElement | null>(null)
+  const scrollToPreview = () => {
+    previewSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   useEffect(() => {
@@ -199,6 +189,88 @@ export default function MatchPage() {
     })()
     return () => { mounted = false }
   }, [candidate, sb])
+
+  // Fetch existing anonymised PDF URL on mount (if there is one) so the
+  // preview shows up immediately when the sourceur opens the page.
+  useEffect(() => {
+    if (!candidate) return
+    let cancelled = false
+    ;(async () => {
+      const res = await fetch(`/api/cv/${candidate.id}/anonymize`)
+      if (cancelled || !res.ok) return
+      const j = await res.json().catch(() => ({}))
+      const preview = j?.preview_url ?? j?.url ?? null
+      const download = j?.download_url ?? j?.url ?? null
+      if (preview) {
+        setAnonymizeStatus({
+          state: "ready",
+          previewUrl: preview,
+          downloadUrl: download,
+          error: null,
+        })
+      }
+    })()
+    return () => { cancelled = true }
+  }, [candidate])
+
+  const generateAnonymized = async () => {
+    if (!candidate || anonymizeStatus.state === "working") return
+    setAnonymizeStatus((prev) => ({ ...prev, state: "working", error: null }))
+    try {
+      const res = await fetch(`/api/cv/${candidate.id}/anonymize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: match?.job?.id ?? null }),
+      })
+      const rawText = await res.text()
+      if (!rawText) {
+        setAnonymizeStatus({
+          state: "error",
+          previewUrl: null,
+          downloadUrl: null,
+          error: `Réponse vide du serveur (${res.status}).`,
+        })
+        return
+      }
+      let data: { ok?: boolean; preview_url?: string; download_url?: string; url?: string; message?: string; error?: string }
+      try {
+        data = JSON.parse(rawText)
+      } catch {
+        setAnonymizeStatus({
+          state: "error",
+          previewUrl: null,
+          downloadUrl: null,
+          error: "Réponse serveur illisible.",
+        })
+        return
+      }
+      if (!res.ok || !data.ok) {
+        setAnonymizeStatus({
+          state: "error",
+          previewUrl: null,
+          downloadUrl: null,
+          error: data.message ?? data.error ?? "Échec de l'anonymisation.",
+        })
+        return
+      }
+      setAnonymizeStatus({
+        state: "ready",
+        previewUrl: data.preview_url ?? data.url ?? null,
+        downloadUrl: data.download_url ?? data.url ?? null,
+        error: null,
+      })
+      // Scroll vers la preview dès que le serveur a renvoyé l'URL.
+      // L'iframe charge en différé mais la carte est déjà visible.
+      setTimeout(scrollToPreview, 120)
+    } catch (err) {
+      setAnonymizeStatus({
+        state: "error",
+        previewUrl: null,
+        downloadUrl: null,
+        error: (err as Error).message ?? "Erreur réseau.",
+      })
+    }
+  }
 
 
   if (loading) {
@@ -357,6 +429,19 @@ export default function MatchPage() {
           </Link>
         </div>
       </m.section>
+
+      {/* Bloc anonymisation — contrôles juste sous l'identité candidat.
+          La carte d'aperçu du PDF reste en bas pour pas pousser les
+          autres cartes ; un bouton "Voir le PDF ↓" apparaît ici une
+          fois la génération terminée. */}
+      <AnonymizeControls
+        jobId={job?.id ?? null}
+        jobTitle={job?.title ?? null}
+        candidateParsed={candidate.parse_status === "parsed"}
+        status={anonymizeStatus}
+        onGenerate={generateAnonymized}
+        onScrollToPreview={scrollToPreview}
+      />
 
       {/* Three-column layout:
          - left : résumé candidat, pourquoi ça matche, CV anonymisé
@@ -519,51 +604,17 @@ export default function MatchPage() {
           />
         </aside>
 
-        {/* RANGÉE 2 — CV anonymisé en grande carte sur toute la largeur des
-            deux premières colonnes. Replié par défaut ; l'aperçu s'affiche en
-            grand et centré une fois ouvert. */}
-        <section ref={cvSectionRef} className="match-cv" style={{
-          gridColumn: "1 / 3", gridRow: "2",
-          background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18,
-        }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ minWidth: 0 }}>
-              <span style={{
-                display: "block", fontSize: 12, fontWeight: 700, color: "#9CA3AF",
-                letterSpacing: "0.08em", textTransform: "uppercase",
-              }}>
-                🔒 CV anonymisé
-              </span>
-              {!cvOpen && (
-                <span style={{ display: "block", marginTop: 4, fontSize: 12.5, color: "#6B7280" }}>
-                  Générer un PDF présentable au client, identité retirée.
-                </span>
-              )}
-            </div>
-            <button
-              onClick={() => (cvOpen ? setCvOpen(false) : openCv())}
-              style={{
-                flexShrink: 0, fontSize: 12, fontWeight: 700, color: "#7C63C8",
-                background: "transparent", border: "none", cursor: "pointer",
-                fontFamily: "inherit", whiteSpace: "nowrap", padding: 0,
-              }}
-            >
-              {cvOpen ? "Masquer" : "Ouvrir ▾"}
-            </button>
-          </div>
-          {cvOpen && (
-            <div style={{ marginTop: 14 }}>
-              <AnonymizeForJob
-                candidateId={candidate.id}
-                jobId={job?.id ?? null}
-                jobTitle={job?.title ?? null}
-                candidateParsed={candidate.parse_status === "parsed"}
-                embedded
-                onPreviewLoad={handlePreviewLoad}
-              />
-            </div>
-          )}
-        </section>
+        {/* RANGÉE 2 — Aperçu du PDF anonymisé sur toute la largeur des
+            deux premières colonnes. Affiche un empty state si aucun PDF
+            n'a été généré, ou l'iframe sinon. L'utilisateur déclenche
+            la génération via les contrôles tout en haut (sous le
+            bandeau d'identité). */}
+        <div className="match-cv" style={{ gridColumn: "1 / 3", gridRow: "2" }}>
+          <AnonymizePreview
+            ref={previewSectionRef}
+            status={anonymizeStatus}
+          />
+        </div>
       </div>
 
       <style>{`
