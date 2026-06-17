@@ -774,7 +774,26 @@ export function JobForm({ onClose, onCreated, initialJob }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brief: brief.trim() }),
       })
-      const data = await res.json() as { ok?: boolean; extracted?: ExtractedFields; message?: string; error?: string }
+      // On lit d'abord le corps en texte : si la fonction Vercel a
+      // timeout ou crash, le corps peut être vide et `res.json()`
+      // explose avec "Unexpected end of JSON input". On gère ça
+      // explicitement pour donner un message utile au sourceur.
+      const rawText = await res.text()
+      if (!rawText) {
+        setExtractError(res.status === 504 || res.status === 502
+          ? "L'analyse a pris trop de temps. Tentez un brief plus court ou réessayez."
+          : `Réponse vide du serveur (${res.status}). Réessayez ou utilisez la saisie manuelle.`)
+        setExtracting(false)
+        return
+      }
+      let data: { ok?: boolean; extracted?: ExtractedFields; message?: string; error?: string }
+      try {
+        data = JSON.parse(rawText)
+      } catch {
+        setExtractError("Réponse serveur illisible. Réessayez ou utilisez la saisie manuelle.")
+        setExtracting(false)
+        return
+      }
       if (!res.ok || !data.ok || !data.extracted) {
         setExtractError(data.message ?? data.error ?? "Erreur d'analyse.")
         setExtracting(false)
