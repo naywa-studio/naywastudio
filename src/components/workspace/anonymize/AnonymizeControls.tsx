@@ -131,6 +131,7 @@ function TemplatePreview({ template }: { template: AnonymizeTemplate }) {
 }
 
 export function AnonymizeControls({
+  candidateId,
   jobId,
   jobTitle,
   candidateParsed,
@@ -140,6 +141,7 @@ export function AnonymizeControls({
   onGenerate,
   onScrollToPreview,
 }: {
+  candidateId: string
   jobId: string | null
   jobTitle: string | null
   candidateParsed: boolean
@@ -150,6 +152,55 @@ export function AnonymizeControls({
   /** Scroll vers la section AnonymizePreview en bas de la fiche match. */
   onScrollToPreview: () => void
 }) {
+  const [docxBusy, setDocxBusy] = useState(false)
+  const [docxError, setDocxError] = useState<string | null>(null)
+
+  /**
+   * Génère et déclenche le téléchargement du .docx (sans Storage).
+   * On POST → blob → URL.createObjectURL → click sur un <a> virtuel
+   * → revoke. C'est le pattern standard pour des fichiers à usage
+   * unique en flux serveur.
+   */
+  const downloadDocx = async () => {
+    if (docxBusy || !candidateParsed) return
+    setDocxBusy(true); setDocxError(null)
+    try {
+      const res = await fetch(`/api/cv/${candidateId}/anonymize/docx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          job_id: jobId,
+          options: {
+            keep_nora_summary: options.keepNoraSummary,
+            custom_text: options.customText.trim() || null,
+            language: options.language,
+          },
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { message?: string }))
+        setDocxError(data.message ?? `Échec génération .docx (${res.status})`)
+        setDocxBusy(false)
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const cd = res.headers.get("content-disposition") ?? ""
+      const match = cd.match(/filename="([^"]+)"/)
+      a.download = match?.[1] ?? "cv-anonymise.docx"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setDocxError((err as Error).message ?? "Erreur réseau.")
+    } finally {
+      setDocxBusy(false)
+    }
+  }
+
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const setOption = <K extends keyof AnonymizeOptions>(key: K, value: AnonymizeOptions[K]) => {
     onOptionsChange({ ...options, [key]: value })
@@ -280,11 +331,36 @@ export function AnonymizeControls({
                 whiteSpace: "nowrap",
               }}
             >
-              Télécharger
+              Télécharger PDF
             </a>
           )}
+
+          {/* Export .docx — lien discret. Disponible dès que le CV est
+              parsé (n'a pas besoin d'avoir d'abord généré le PDF). */}
+          <button
+            type="button"
+            onClick={() => void downloadDocx()}
+            disabled={!candidateParsed || docxBusy}
+            title="Version .docx éditable dans Word"
+            style={{
+              fontSize: 12, fontWeight: 600, color: "#6B7280",
+              background: "transparent", border: "none",
+              padding: "10px 4px", cursor: !candidateParsed || docxBusy ? "default" : "pointer",
+              textDecoration: "underline", textDecorationStyle: "dotted",
+              textUnderlineOffset: 3, fontFamily: "inherit",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {docxBusy ? "Génération .docx…" : "Aussi en .docx"}
+          </button>
         </div>
       </div>
+
+      {docxError && (
+        <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B91C1C" }}>
+          {docxError}
+        </p>
+      )}
 
       {/* Panneau Personnaliser — déplié à la demande. Sauvegarde locale
           uniquement : les choix ne sont pas persistés en DB, ils

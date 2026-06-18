@@ -450,6 +450,7 @@ export default function MatchPage() {
           autres cartes ; un bouton "Voir le PDF ↓" apparaît ici une
           fois la génération terminée. */}
       <AnonymizeControls
+        candidateId={candidate.id}
         jobId={job?.id ?? null}
         jobTitle={job?.title ?? null}
         candidateParsed={candidate.parse_status === "parsed"}
