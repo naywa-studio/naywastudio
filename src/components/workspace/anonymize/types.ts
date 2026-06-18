@@ -37,8 +37,11 @@ export const INITIAL_ANONYMIZE_STATUS: AnonymizeStatus = {
  *  - "executive"  : mono-colonne aérée, gros titre, peu de chips,
  *                   skills triées sur le volet. Pour profils senior /
  *                   C-level présentés à des décideurs métier.
+ *  - "bento"      : grille de cards modernes (skills + méta + parcours
+ *                   en cards distinctes). Plus design, vise un client
+ *                   sensible au visuel.
  */
-export type AnonymizeTemplate = "classic" | "two-column" | "executive"
+export type AnonymizeTemplate = "classic" | "two-column" | "executive" | "bento"
 
 /**
  * Options de personnalisation choisies par le sourceur sur la fiche
@@ -90,6 +93,10 @@ export const TEMPLATE_META: Record<AnonymizeTemplate, { label: string; hint: str
   "executive": {
     label: "Exécutif",
     hint: "Aéré, gros titre, peu de chips. Profils senior.",
+  },
+  "bento": {
+    label: "Bento",
+    hint: "Grille de cards modernes. Vise un client sensible au visuel.",
   },
 }
 

@@ -82,6 +82,34 @@ function TemplatePreview({ template }: { template: AnonymizeTemplate }) {
       </svg>
     )
   }
+  if (template === "bento") {
+    // Grille de cards : header card pleine largeur, puis 2 cards
+    // côte à côte (skills + méta), puis cards verticales pour les
+    // sections principales (parcours, formation). Chaque card a un
+    // contour arrondi pour donner le ressenti bento.
+    return (
+      <svg viewBox="0 0 100 70" width="100%" height="64" style={{ display: "block", borderRadius: 6 }} aria-hidden>
+        <rect width="100" height="70" fill={bg} />
+        {/* header card */}
+        <rect x="6" y="6" width="88" height="14" rx="2.5" fill="white" stroke={block} strokeWidth="0.5" />
+        <rect x="10" y="10" width="36" height="3" rx="1" fill={accent} />
+        <rect x="10" y="15" width="30" height="2" fill={block} />
+        {/* 2 row cards : skills + meta */}
+        <rect x="6" y="24" width="44" height="14" rx="2.5" fill="white" stroke={block} strokeWidth="0.5" />
+        <rect x="10" y="28" width="18" height="2" fill={accent} />
+        <rect x="10" y="32" width="36" height="2.5" rx="1.25" fill={block} />
+        <rect x="50" y="24" width="44" height="14" rx="2.5" fill="white" stroke={block} strokeWidth="0.5" />
+        <rect x="54" y="28" width="14" height="2" fill={accent} />
+        <rect x="54" y="32" width="36" height="2" fill={block} />
+        {/* exp stacked cards */}
+        <rect x="6" y="42" width="88" height="11" rx="2.5" fill="white" stroke={block} strokeWidth="0.5" />
+        <rect x="10" y="45" width="40" height="2" fill={accent} />
+        <rect x="10" y="49" width="60" height="1.5" fill={block} />
+        <rect x="6" y="56" width="88" height="8" rx="2.5" fill="white" stroke={block} strokeWidth="0.5" />
+        <rect x="10" y="59" width="30" height="2" fill={accent} />
+      </svg>
+    )
+  }
   // classic
   return (
     <svg viewBox="0 0 100 70" width="100%" height="64" style={{ display: "block", borderRadius: 6 }} aria-hidden>

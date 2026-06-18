@@ -118,8 +118,9 @@ export interface AnonymizedBrand {
  *  - "two-column" : sidebar (skills+méta) + main (résumé, parcours).
  *  - "executive"  : mono-colonne aérée, headline XXL, peu de chips,
  *                   skills en pills larges. Pour profils senior.
+ *  - "bento"      : grille de cards bordées arrondies. Plus design.
  */
-export type AnonymizedTemplate = "classic" | "two-column" | "executive"
+export type AnonymizedTemplate = "classic" | "two-column" | "executive" | "bento"
 
 export interface AnonymizedOptions {
   /** Template de layout. Défaut "classic". */
@@ -259,18 +260,24 @@ export function AnonymizedCv({
   // (Closures qui capturent brand/labels/opts/styles depuis le scope
   // parent — évite de polluer la signature des sous-renders.)
   const renderBrandHeader = () => (
+    // Brand row : on contraint le bloc gauche (logo+nom+slogan) à
+    // flex:1 + paddingRight pour qu'il ne déborde jamais sous la
+    // référence à droite, même avec un nom de cabinet long ou un
+    // slogan qui passe sur 2 lignes.
     <View style={s.brandRow}>
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <View style={{ flexDirection: "row", alignItems: "center", flex: 1, minWidth: 0, paddingRight: 14 }}>
         {brandLogo && (
           // eslint-disable-next-line jsx-a11y/alt-text
           <Image src={brandLogo} style={{ height: 56, maxWidth: 200, marginRight: 12, objectFit: "contain" }} />
         )}
-        <View>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.brand}>{brandName.toUpperCase()}</Text>
           {brandSlogan && <Text style={s.brandSlogan}>{brandSlogan}</Text>}
         </View>
       </View>
-      <Text style={s.brandTag}>Réf. {reference}</Text>
+      <View style={{ minWidth: 90, alignItems: "flex-end" }}>
+        <Text style={s.brandTag}>Réf. {reference}</Text>
+      </View>
     </View>
   )
 
@@ -302,9 +309,16 @@ export function AnonymizedCv({
 
   const renderFooter = () => (
     <View style={s.footer} fixed>
+      {/* Footer top row : on contraint le bloc nom cabinet à flex:1
+          pour qu'il wrap si trop long, et on alloue minWidth fixe à
+          la ref à droite pour qu'elle reste lisible. */}
       <View style={s.footerTopRow}>
-        <Text style={s.footerText}>{brandName}</Text>
-        <Text style={s.footerText}>Réf. {reference}</Text>
+        <View style={{ flex: 1, minWidth: 0, paddingRight: 14 }}>
+          <Text style={s.footerText}>{brandName}</Text>
+        </View>
+        <View style={{ minWidth: 70, alignItems: "flex-end" }}>
+          <Text style={s.footerText}>Réf. {reference}</Text>
+        </View>
       </View>
       {contactEmail && (
         <Text style={s.footerContact}>
@@ -455,17 +469,19 @@ export function AnonymizedCv({
           }}
         >
           {/* Wordmark minimal — petit, en haut. Logo si dispo + nom
-              en CAPS, et la ref alignée à droite. */}
+              en CAPS, et la ref alignée à droite. Bloc gauche
+              contraint à flex:1 + paddingRight pour ne pas chevaucher
+              la ref droite quand le nom + slogan est long. */}
           <View style={{
             flexDirection: "row", justifyContent: "space-between",
             alignItems: "center", marginBottom: 36,
           }}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", flex: 1, minWidth: 0, paddingRight: 14 }}>
               {brandLogo && (
                 // eslint-disable-next-line jsx-a11y/alt-text
                 <Image src={brandLogo} style={{ height: 32, maxWidth: 110, marginRight: 10, objectFit: "contain" }} />
               )}
-              <View>
+              <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: accent, letterSpacing: 1.4 }}>
                   {brandName.toUpperCase()}
                 </Text>
@@ -476,9 +492,11 @@ export function AnonymizedCv({
                 )}
               </View>
             </View>
-            <Text style={{ fontSize: 9, color: MUTED, letterSpacing: 0.8 }}>
-              Réf. {reference}
-            </Text>
+            <View style={{ minWidth: 80, alignItems: "flex-end" }}>
+              <Text style={{ fontSize: 9, color: MUTED, letterSpacing: 0.8 }}>
+                Réf. {reference}
+              </Text>
+            </View>
           </View>
 
           {/* Pre-headline + headline XXL */}
@@ -616,14 +634,23 @@ export function AnonymizedCv({
                 const dates = [e.start, e.end ?? (opts.language === "en" ? "present" : "présent")].filter(Boolean).join(" – ")
                 return (
                   <View key={i} style={{ marginBottom: 16 }} wrap={false}>
+                    {/* Row titre + date — on encadre les 2 Texts avec
+                        des Views contraintes : flex: 1 + paddingRight
+                        sur le titre pour qu'il wrap proprement sans
+                        chevaucher la date ; minWidth fixe sur la date
+                        pour qu'elle ne soit jamais tronquée. */}
                     <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 3 }}>
-                      <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: INK }}>
-                        {e.title || (opts.language === "en" ? "Role" : "Poste")}
-                      </Text>
-                      {dates && (
-                        <Text style={{ fontSize: 9, color: MUTED, letterSpacing: 0.4 }}>
-                          {dates}
+                      <View style={{ flex: 1, paddingRight: 14, minWidth: 0 }}>
+                        <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: INK }}>
+                          {e.title || (opts.language === "en" ? "Role" : "Poste")}
                         </Text>
+                      </View>
+                      {dates && (
+                        <View style={{ minWidth: 96, alignItems: "flex-end" }}>
+                          <Text style={{ fontSize: 9, color: MUTED, letterSpacing: 0.4 }}>
+                            {dates}
+                          </Text>
+                        </View>
                       )}
                     </View>
                     {e.company && (
@@ -659,6 +686,233 @@ export function AnonymizedCv({
                   </Text>
                   {(ed.start || ed.end) && (
                     <Text style={{ fontSize: 9, color: MUTED }}>
+                      {ed.start ?? ""}{ed.end ? `–${ed.end}` : ""}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {renderWatermark()}
+          {renderFooter()}
+        </Page>
+      </Document>
+    )
+  }
+
+  // ─── Template 4 : bento ──────────────────────────────────────────
+  // Grille de cards bordées arrondies — un client visuel apprécie la
+  // structure compartimentée. Chaque section a sa propre carte qui
+  // l'isole proprement. Plus moderne, vise un public design-friendly.
+  if (opts.template === "bento") {
+    const card = {
+      backgroundColor: "white",
+      borderWidth: 0.7,
+      borderColor: LINE,
+      borderRadius: 8,
+      padding: 14,
+    } as const
+    const cardTitle = {
+      fontSize: 8.5,
+      fontFamily: "Helvetica-Bold",
+      color: accent,
+      letterSpacing: 1.1,
+      textTransform: "uppercase",
+      marginBottom: 8,
+    } as const
+    const bentoSkills = skills.slice(0, 16)
+    const bentoExperience = experience.slice(0, 6)
+    return (
+      <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
+        <Page
+          size="A4"
+          style={{
+            paddingTop: 36,
+            paddingBottom: 60,
+            paddingHorizontal: 36,
+            fontSize: 10,
+            color: INK,
+            fontFamily: "Helvetica",
+            backgroundColor: "#FAFAFA",
+          }}
+        >
+          {/* Card 1 — Header + headline + summary, full width */}
+          <View style={{ ...card, marginBottom: 10 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", flex: 1, minWidth: 0, paddingRight: 14 }}>
+                {brandLogo && (
+                  // eslint-disable-next-line jsx-a11y/alt-text
+                  <Image src={brandLogo} style={{ height: 42, maxWidth: 150, marginRight: 10, objectFit: "contain" }} />
+                )}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: accent, letterSpacing: 1.2 }}>
+                    {brandName.toUpperCase()}
+                  </Text>
+                  {brandSlogan && (
+                    <Text style={{ fontSize: 8.5, color: MUTED, fontStyle: "italic", marginTop: 1 }}>
+                      {brandSlogan}
+                    </Text>
+                  )}
+                </View>
+              </View>
+              <View style={{ minWidth: 84, alignItems: "flex-end" }}>
+                <Text style={{
+                  fontSize: 8.5, fontFamily: "Helvetica-Bold", color: MUTED,
+                  letterSpacing: 0.8, textTransform: "uppercase",
+                }}>
+                  Réf. {reference}
+                </Text>
+              </View>
+            </View>
+            {hasJob && (
+              <Text style={{
+                fontSize: 8.5, fontFamily: "Helvetica-Bold",
+                color: accent, letterSpacing: 1.4,
+                textTransform: "uppercase", marginBottom: 5,
+              }}>
+                {t.presentedFor}
+              </Text>
+            )}
+            <Text style={{
+              fontSize: 22, fontFamily: "Helvetica-Bold", color: INK,
+              marginBottom: 10, lineHeight: 1.2,
+            }}>
+              {headline}
+            </Text>
+            {baseSummaryText && (
+              <Text style={{ fontSize: 10.5, color: "#374151", lineHeight: 1.6, fontStyle: "italic" }}>
+                {baseSummaryText}
+              </Text>
+            )}
+            {customSummaryText && (
+              <Text style={{
+                fontSize: 10, color: "#374151", lineHeight: 1.55,
+                marginTop: baseSummaryText ? 8 : 0,
+                paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: accent,
+              }}>
+                {customSummaryText}
+              </Text>
+            )}
+          </View>
+
+          {/* Row 2 — Cards Méta + Skills */}
+          <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+            {/* Card méta */}
+            <View style={{ ...card, width: 200 }}>
+              <Text style={cardTitle}>{opts.language === "en" ? "Profile" : "Profil"}</Text>
+              {seniority && (
+                <View style={{ marginBottom: 7 }}>
+                  <Text style={{ fontSize: 7, color: MUTED, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 1.5 }}>
+                    {t.metaSeniority}
+                  </Text>
+                  <Text style={{ fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK }}>{seniority}</Text>
+                </View>
+              )}
+              {years != null && (
+                <View style={{ marginBottom: 7 }}>
+                  <Text style={{ fontSize: 7, color: MUTED, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 1.5 }}>
+                    {t.metaExperience}
+                  </Text>
+                  <Text style={{ fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK }}>{t.yearsSuffix(years)}</Text>
+                </View>
+              )}
+              {candidate.location && (
+                <View style={{ marginBottom: 7 }}>
+                  <Text style={{ fontSize: 7, color: MUTED, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 1.5 }}>
+                    {t.metaZone}
+                  </Text>
+                  <Text style={{ fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK }}>{candidate.location}</Text>
+                </View>
+              )}
+              {languages.length > 0 && (
+                <View>
+                  <Text style={{ fontSize: 7, color: MUTED, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 1.5 }}>
+                    {t.metaLanguages}
+                  </Text>
+                  <Text style={{ fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK }}>{languages.join(" · ")}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Card skills */}
+            <View style={{ ...card, flex: 1, minWidth: 0 }}>
+              <Text style={cardTitle}>{t.keySkills}</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                {bentoSkills.map((sk, i) => (
+                  <Text
+                    key={i}
+                    style={{
+                      fontSize: 9, color: accent,
+                      backgroundColor: "white",
+                      borderWidth: 0.7, borderColor: accent,
+                      borderRadius: 4,
+                      paddingVertical: 2.5, paddingHorizontal: 7,
+                      marginRight: 5, marginBottom: 5,
+                    }}
+                  >
+                    {sk}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* Card 3 — Parcours full width */}
+          {bentoExperience.length > 0 && (
+            <View style={{ ...card, marginBottom: 10 }}>
+              <Text style={cardTitle}>{t.background}</Text>
+              {bentoExperience.map((e, i) => {
+                const dates = [e.start, e.end ?? (opts.language === "en" ? "present" : "présent")].filter(Boolean).join(" – ")
+                const isLast = i === bentoExperience.length - 1
+                return (
+                  <View
+                    key={i}
+                    style={{
+                      paddingBottom: isLast ? 0 : 10,
+                      marginBottom: isLast ? 0 : 10,
+                      borderBottomWidth: isLast ? 0 : 0.5,
+                      borderBottomColor: LINE,
+                    }}
+                    wrap={false}
+                  >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
+                      <View style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+                        <Text style={{ fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK }}>
+                          {e.title || (opts.language === "en" ? "Role" : "Poste")}
+                        </Text>
+                      </View>
+                      {dates && (
+                        <View style={{ minWidth: 96, alignItems: "flex-end" }}>
+                          <Text style={{ fontSize: 8.5, color: MUTED, letterSpacing: 0.3 }}>
+                            {dates}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    {e.company && (
+                      <Text style={{ fontSize: 9.5, color: MUTED, marginBottom: 3 }}>{e.company}</Text>
+                    )}
+                    {e.description && (
+                      <Text style={{ fontSize: 9.5, color: "#4B5563", lineHeight: 1.55 }}>{e.description}</Text>
+                    )}
+                  </View>
+                )
+              })}
+            </View>
+          )}
+
+          {/* Card 4 — Formation */}
+          {education.length > 0 && (
+            <View style={{ ...card }}>
+              <Text style={cardTitle}>{t.education}</Text>
+              {education.map((ed, i) => (
+                <View key={i} style={{ marginBottom: 5 }}>
+                  <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: INK }}>
+                    {ed.degree}{ed.field ? ` — ${ed.field}` : ""}
+                  </Text>
+                  {(ed.start || ed.end) && (
+                    <Text style={{ fontSize: 8.5, color: MUTED }}>
                       {ed.start ?? ""}{ed.end ? `–${ed.end}` : ""}
                     </Text>
                   )}
