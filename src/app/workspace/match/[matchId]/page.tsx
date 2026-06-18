@@ -229,6 +229,7 @@ export default function MatchPage() {
         body: JSON.stringify({
           job_id: match?.job?.id ?? null,
           options: {
+            template: anonymizeOptions.template,
             keep_nora_summary: anonymizeOptions.keepNoraSummary,
             custom_text: anonymizeOptions.customText.trim() || null,
             watermark: anonymizeOptions.watermark,

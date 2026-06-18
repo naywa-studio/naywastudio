@@ -14,7 +14,68 @@
  */
 
 import { useState } from "react"
-import { CUSTOM_TEXT_MAX, type AnonymizeOptions, type AnonymizeStatus } from "./types"
+import {
+  CUSTOM_TEXT_MAX,
+  TEMPLATE_META,
+  type AnonymizeOptions,
+  type AnonymizeStatus,
+  type AnonymizeTemplate,
+} from "./types"
+
+/**
+ * Mini-preview SVG illustrant le layout d'un template, dans le
+ * sélecteur du panneau "Personnaliser". Pas un vrai PDF — juste des
+ * rectangles arrangés pour donner le sentiment visuel.
+ */
+function TemplatePreview({ template }: { template: AnonymizeTemplate }) {
+  const bg = "#F8F6FF"
+  const block = "#C4B6E0"
+  const accent = "#7C63C8"
+  if (template === "two-column") {
+    return (
+      <svg viewBox="0 0 100 70" width="100%" height="64" style={{ display: "block", borderRadius: 6 }} aria-hidden>
+        <rect width="100" height="70" fill={bg} />
+        {/* header */}
+        <rect x="6" y="6" width="40" height="4" rx="1" fill={accent} />
+        {/* sidebar */}
+        <rect x="6" y="14" width="28" height="50" rx="2" fill="white" stroke={block} strokeWidth="0.5" />
+        <rect x="9" y="18" width="22" height="2" fill={block} />
+        <rect x="9" y="22" width="16" height="2" fill={block} />
+        <rect x="9" y="26" width="20" height="2" fill={block} />
+        <rect x="9" y="32" width="22" height="2" fill={block} />
+        <rect x="9" y="36" width="18" height="2" fill={block} />
+        {/* main */}
+        <rect x="38" y="14" width="56" height="3" rx="1" fill={accent} />
+        <rect x="38" y="20" width="56" height="2" fill={block} />
+        <rect x="38" y="24" width="48" height="2" fill={block} />
+        <rect x="38" y="32" width="56" height="2" fill={block} />
+        <rect x="38" y="36" width="50" height="2" fill={block} />
+        <rect x="38" y="40" width="56" height="2" fill={block} />
+        <rect x="38" y="44" width="44" height="2" fill={block} />
+        <rect x="38" y="52" width="56" height="2" fill={block} />
+        <rect x="38" y="56" width="40" height="2" fill={block} />
+      </svg>
+    )
+  }
+  // classic
+  return (
+    <svg viewBox="0 0 100 70" width="100%" height="64" style={{ display: "block", borderRadius: 6 }} aria-hidden>
+      <rect width="100" height="70" fill={bg} />
+      <rect x="6" y="6" width="50" height="4" rx="1" fill={accent} />
+      <rect x="6" y="14" width="88" height="3" rx="1" fill={accent} />
+      <rect x="6" y="22" width="88" height="2" fill={block} />
+      <rect x="6" y="26" width="80" height="2" fill={block} />
+      <rect x="6" y="34" width="20" height="3" rx="1" fill={accent} />
+      <rect x="6" y="40" width="14" height="3" rx="1" fill={block} />
+      <rect x="22" y="40" width="18" height="3" rx="1" fill={block} />
+      <rect x="42" y="40" width="16" height="3" rx="1" fill={block} />
+      <rect x="6" y="50" width="88" height="2" fill={block} />
+      <rect x="6" y="54" width="78" height="2" fill={block} />
+      <rect x="6" y="58" width="84" height="2" fill={block} />
+      <rect x="6" y="62" width="60" height="2" fill={block} />
+    </svg>
+  )
+}
 
 export function AnonymizeControls({
   jobId,
@@ -43,6 +104,7 @@ export function AnonymizeControls({
   // Indicateur "Personnaliser" actif → petit point coloré sur le
   // bouton pour rappeler au sourceur que ses overrides s'appliqueront.
   const hasOverrides =
+    options.template !== "classic" ||
     !options.keepNoraSummary ||
     options.customText.trim().length > 0 ||
     options.watermark ||
@@ -185,6 +247,51 @@ export function AnonymizeControls({
           gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
           gap: 16,
         }}>
+          {/* Sélecteur template — full width, en haut du panneau */}
+          <div style={{ gridColumn: "1 / -1" }}>
+            <span style={{
+              display: "block", fontSize: 12.5, fontWeight: 600,
+              color: "#374151", marginBottom: 8,
+            }}>
+              Template
+            </span>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+              {(Object.keys(TEMPLATE_META) as AnonymizeTemplate[]).map((tpl) => {
+                const meta = TEMPLATE_META[tpl]
+                const active = options.template === tpl
+                return (
+                  <button
+                    key={tpl}
+                    type="button"
+                    onClick={() => setOption("template", tpl)}
+                    style={{
+                      display: "flex", flexDirection: "column", gap: 8,
+                      padding: 10, borderRadius: 10,
+                      border: `1.5px solid ${active ? "#7C63C8" : "#E5E7EB"}`,
+                      background: active ? "white" : "white",
+                      boxShadow: active ? "0 6px 18px -10px rgba(124,99,200,0.55)" : "none",
+                      cursor: "pointer", fontFamily: "inherit",
+                      textAlign: "left",
+                    }}
+                  >
+                    <TemplatePreview template={tpl} />
+                    <div>
+                      <span style={{
+                        display: "block", fontSize: 12.5,
+                        fontWeight: 700, color: active ? "#7C63C8" : "#111827",
+                      }}>
+                        {meta.label}
+                      </span>
+                      <span style={{ display: "block", fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>
+                        {meta.hint}
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Toggle résumé Nora */}
           <label style={{
             display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",

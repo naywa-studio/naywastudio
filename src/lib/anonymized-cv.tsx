@@ -112,16 +112,25 @@ export interface AnonymizedBrand {
  * "Personnaliser" de la fiche match. Toutes optionnelles, défauts
  * appliqués si absentes.
  */
+/**
+ * Identifiants des templates de PDF disponibles. "classic" = layout
+ * mono-colonne historique (défaut). "two-column" = sidebar gauche
+ * (skills + méta) + main droite (résumé, parcours, formation).
+ */
+export type AnonymizedTemplate = "classic" | "two-column"
+
 export interface AnonymizedOptions {
+  /** Template de layout. Défaut "classic". */
+  template?: AnonymizedTemplate
   /** Afficher (true, défaut) ou masquer le résumé Nora. */
   keepNoraSummary?: boolean
   /** Message libre du sourceur, affiché sous le résumé Nora (ou
    *  seul si keepNoraSummary est false). Trim + max 600 chars
    *  recommandé côté caller. */
   customText?: string
-  /** Filigrane diagonal "Réf · Cabinet" en fond de toutes les pages. */
+  /** Filigrane diagonal "<NomCabinet>" en fond de toutes les pages. */
   watermark?: boolean
-  /** Langue des libellés section ("fr" défaut). Le contenu du CV
+  /** Langue des labels section ("fr" défaut). Le contenu du CV
    *  reste dans sa langue d'origine. */
   language?: "fr" | "en"
 }
@@ -191,6 +200,7 @@ export function AnonymizedCv({
   options?: AnonymizedOptions | null
 }) {
   const opts: Required<AnonymizedOptions> = {
+    template: options?.template ?? "classic",
     keepNoraSummary: options?.keepNoraSummary ?? true,
     customText: (options?.customText ?? "").trim(),
     watermark: options?.watermark ?? false,
@@ -238,10 +248,191 @@ export function AnonymizedCv({
     ? (executiveSummary?.trim() || cv.summary?.trim() || null)
     : null
   const customSummaryText = opts.customText.length > 0 ? opts.customText : null
-  // Le pied de page de filigrane reprend le nom du cabinet (pas
-  // "NAYWA STUDIO" qui serait paradoxal sur un PDF anonymisé externe).
-  const watermarkText = `Réf · ${brandName}`
+  // Filigrane = juste le nom du cabinet, façon "tampon" discret.
+  // Pas de "Réf" devant : la ref est déjà imprimée en clair en haut
+  // à droite et dans le footer, inutile de la redoubler en filigrane.
+  const watermarkText = brandName
 
+  // ─── Helpers partagés entre templates ────────────────────────────
+  // (Closures qui capturent brand/labels/opts/styles depuis le scope
+  // parent — évite de polluer la signature des sous-renders.)
+  const renderBrandHeader = () => (
+    <View style={s.brandRow}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        {brandLogo && (
+          // eslint-disable-next-line jsx-a11y/alt-text
+          <Image src={brandLogo} style={{ height: 56, maxWidth: 200, marginRight: 12, objectFit: "contain" }} />
+        )}
+        <View>
+          <Text style={s.brand}>{brandName.toUpperCase()}</Text>
+          {brandSlogan && <Text style={s.brandSlogan}>{brandSlogan}</Text>}
+        </View>
+      </View>
+      <Text style={s.brandTag}>Réf. {reference}</Text>
+    </View>
+  )
+
+  const renderWatermark = () =>
+    opts.watermark ? (
+      <View
+        fixed
+        style={{
+          position: "absolute",
+          top: 0, left: 0, right: 0, bottom: 0,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 60,
+            fontFamily: "Helvetica-Bold",
+            color: accent,
+            opacity: 0.08,
+            transform: "rotate(-30deg)",
+            letterSpacing: 6,
+          }}
+        >
+          {watermarkText.toUpperCase()}
+        </Text>
+      </View>
+    ) : null
+
+  const renderFooter = () => (
+    <View style={s.footer} fixed>
+      <View style={s.footerTopRow}>
+        <Text style={s.footerText}>{brandName}</Text>
+        <Text style={s.footerText}>Réf. {reference}</Text>
+      </View>
+      {contactEmail && (
+        <Text style={s.footerContact}>
+          {t.contactPrefix} {contactEmail}
+        </Text>
+      )}
+    </View>
+  )
+
+  // ─── Template 2 : two-column ─────────────────────────────────────
+  if (opts.template === "two-column") {
+    return (
+      <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
+        <Page size="A4" style={s.page}>
+          {renderBrandHeader()}
+          <View style={s.rule} />
+
+          {hasJob && <Text style={s.preheadline}>{t.presentedFor}</Text>}
+          <Text style={s.headline}>{headline}</Text>
+
+          {/* Body — flex row : sidebar + main */}
+          <View style={{ flexDirection: "row", gap: 16, marginTop: 6 }}>
+            {/* Sidebar gauche : méta + skills */}
+            <View style={{
+              width: 165, padding: 12, borderRadius: 6,
+              backgroundColor: "#F4F1FB",
+              borderWidth: 0.5, borderColor: LINE,
+            }}>
+              {/* Méta empilées */}
+              {seniority && (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={s.metaLabel}>{t.metaSeniority}</Text>
+                  <Text style={s.metaValue}>{seniority}</Text>
+                </View>
+              )}
+              {years != null && (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={s.metaLabel}>{t.metaExperience}</Text>
+                  <Text style={s.metaValue}>{t.yearsSuffix(years)}</Text>
+                </View>
+              )}
+              {candidate.location && (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={s.metaLabel}>{t.metaZone}</Text>
+                  <Text style={s.metaValue}>{candidate.location}</Text>
+                </View>
+              )}
+              {languages.length > 0 && (
+                <View style={{ marginBottom: 14 }}>
+                  <Text style={s.metaLabel}>{t.metaLanguages}</Text>
+                  <Text style={s.metaValue}>{languages.join(" · ")}</Text>
+                </View>
+              )}
+
+              {/* Skills empilées en chips compactes */}
+              {skills.length > 0 && (
+                <>
+                  <Text style={{ ...s.sectionTitle, marginBottom: 6, marginTop: 2 }}>
+                    {t.keySkills}
+                  </Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                    {skills.map((sk, i) => (
+                      <Text key={i} style={{
+                        ...s.chip,
+                        backgroundColor: "white",
+                        marginRight: 4,
+                        marginBottom: 4,
+                      }}>{sk}</Text>
+                    ))}
+                  </View>
+                </>
+              )}
+            </View>
+
+            {/* Main droite : résumé + parcours + formation */}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              {baseSummaryText && (
+                <Text style={s.execSummary}>{baseSummaryText}</Text>
+              )}
+              {customSummaryText && (
+                <Text style={baseSummaryText ? s.customNote : s.execSummary}>
+                  {customSummaryText}
+                </Text>
+              )}
+
+              {experience.length > 0 && (
+                <>
+                  <Text style={s.sectionTitle}>{t.background}</Text>
+                  {experience.map((e, i) => {
+                    const dates = [e.start, e.end ?? (opts.language === "en" ? "present" : "présent")].filter(Boolean).join(" – ")
+                    return (
+                      <View key={i} style={s.expItem} wrap={false}>
+                        <Text style={s.expTitle}>{e.title || (opts.language === "en" ? "Role" : "Poste")}</Text>
+                        {e.company ? <Text style={s.expCompany}>{e.company}</Text> : null}
+                        {dates ? <Text style={s.expDate}>{dates}</Text> : null}
+                        {e.description ? <Text style={s.expDesc}>{e.description}</Text> : null}
+                      </View>
+                    )
+                  })}
+                </>
+              )}
+
+              {education.length > 0 && (
+                <>
+                  <Text style={s.sectionTitle}>{t.education}</Text>
+                  {education.map((ed, i) => (
+                    <View key={i} style={s.eduItem}>
+                      <Text style={s.eduDegree}>
+                        {ed.degree}{ed.field ? ` — ${ed.field}` : ""}
+                      </Text>
+                      {(ed.start || ed.end) && (
+                        <Text style={s.eduMeta}>
+                          {ed.start ?? ""}{ed.end ? `–${ed.end}` : ""}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                </>
+              )}
+            </View>
+          </View>
+
+          {renderWatermark()}
+          {renderFooter()}
+        </Page>
+      </Document>
+    )
+  }
+
+  // ─── Template 1 : classic (default) ──────────────────────────────
   return (
     <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
       <Page size="A4" style={s.page}>
