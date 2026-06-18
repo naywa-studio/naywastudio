@@ -34,8 +34,11 @@ export const INITIAL_ANONYMIZE_STATUS: AnonymizeStatus = {
  *  - "classic"    : mono-colonne sobre, le défaut historique
  *  - "two-column" : sidebar gauche (skills, méta) + main droite
  *                   (résumé, parcours, formation). Idéal profils tech.
+ *  - "executive"  : mono-colonne aérée, gros titre, peu de chips,
+ *                   skills triées sur le volet. Pour profils senior /
+ *                   C-level présentés à des décideurs métier.
  */
-export type AnonymizeTemplate = "classic" | "two-column"
+export type AnonymizeTemplate = "classic" | "two-column" | "executive"
 
 /**
  * Options de personnalisation choisies par le sourceur sur la fiche
@@ -83,6 +86,10 @@ export const TEMPLATE_META: Record<AnonymizeTemplate, { label: string; hint: str
   "two-column": {
     label: "Compact 2 colonnes",
     hint: "Sidebar compétences + parcours côté main.",
+  },
+  "executive": {
+    label: "Exécutif",
+    hint: "Aéré, gros titre, peu de chips. Profils senior.",
   },
 }
 

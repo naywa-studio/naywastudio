@@ -113,11 +113,13 @@ export interface AnonymizedBrand {
  * appliqués si absentes.
  */
 /**
- * Identifiants des templates de PDF disponibles. "classic" = layout
- * mono-colonne historique (défaut). "two-column" = sidebar gauche
- * (skills + méta) + main droite (résumé, parcours, formation).
+ * Identifiants des templates de PDF disponibles.
+ *  - "classic"    : layout mono-colonne historique (défaut).
+ *  - "two-column" : sidebar (skills+méta) + main (résumé, parcours).
+ *  - "executive"  : mono-colonne aérée, headline XXL, peu de chips,
+ *                   skills en pills larges. Pour profils senior.
  */
-export type AnonymizedTemplate = "classic" | "two-column"
+export type AnonymizedTemplate = "classic" | "two-column" | "executive"
 
 export interface AnonymizedOptions {
   /** Template de layout. Défaut "classic". */
@@ -424,6 +426,246 @@ export function AnonymizedCv({
               )}
             </View>
           </View>
+
+          {renderWatermark()}
+          {renderFooter()}
+        </Page>
+      </Document>
+    )
+  }
+
+  // ─── Template 3 : executive ──────────────────────────────────────
+  // Mono-colonne aérée, headline XXL, peu de chips, skills triées
+  // sur le volet. Pour profils senior présentés à des décideurs
+  // métier qui veulent un document confortable à lire.
+  if (opts.template === "executive") {
+    const execSkills = skills.slice(0, 10)
+    const execExperience = experience.slice(0, 6)
+    return (
+      <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
+        <Page
+          size="A4"
+          style={{
+            paddingTop: 60,
+            paddingBottom: 72,
+            paddingHorizontal: 64,
+            fontSize: 10.5,
+            color: INK,
+            fontFamily: "Helvetica",
+          }}
+        >
+          {/* Wordmark minimal — petit, en haut. Logo si dispo + nom
+              en CAPS, et la ref alignée à droite. */}
+          <View style={{
+            flexDirection: "row", justifyContent: "space-between",
+            alignItems: "center", marginBottom: 36,
+          }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {brandLogo && (
+                // eslint-disable-next-line jsx-a11y/alt-text
+                <Image src={brandLogo} style={{ height: 32, maxWidth: 110, marginRight: 10, objectFit: "contain" }} />
+              )}
+              <View>
+                <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: accent, letterSpacing: 1.4 }}>
+                  {brandName.toUpperCase()}
+                </Text>
+                {brandSlogan && (
+                  <Text style={{ fontSize: 8, color: MUTED, fontStyle: "italic", marginTop: 1 }}>
+                    {brandSlogan}
+                  </Text>
+                )}
+              </View>
+            </View>
+            <Text style={{ fontSize: 9, color: MUTED, letterSpacing: 0.8 }}>
+              Réf. {reference}
+            </Text>
+          </View>
+
+          {/* Pre-headline + headline XXL */}
+          {hasJob && (
+            <Text style={{
+              fontSize: 9, fontFamily: "Helvetica-Bold",
+              color: accent, letterSpacing: 2,
+              textTransform: "uppercase", marginBottom: 8,
+            }}>
+              {t.presentedFor}
+            </Text>
+          )}
+          <Text style={{
+            fontSize: 32, fontFamily: "Helvetica-Bold",
+            color: INK, lineHeight: 1.15,
+            marginBottom: 28,
+          }}>
+            {headline}
+          </Text>
+
+          {/* Summary — Nora factuel + optional custom note */}
+          {baseSummaryText && (
+            <Text style={{
+              fontSize: 12, color: "#374151",
+              lineHeight: 1.7, fontStyle: "italic",
+              marginBottom: 16,
+              maxWidth: "92%",
+            }}>
+              {baseSummaryText}
+            </Text>
+          )}
+          {customSummaryText && (
+            <Text style={{
+              fontSize: 11, color: "#374151", lineHeight: 1.65,
+              marginBottom: 20,
+              paddingLeft: 14,
+              borderLeftWidth: 2, borderLeftColor: accent,
+              maxWidth: "92%",
+            }}>
+              {customSummaryText}
+            </Text>
+          )}
+
+          {/* Meta row plein air, max 4 items */}
+          <View style={{
+            flexDirection: "row", flexWrap: "wrap",
+            marginTop: 6, marginBottom: 28,
+            borderTopWidth: 0.5, borderBottomWidth: 0.5,
+            borderColor: LINE,
+            paddingVertical: 12,
+          }}>
+            {seniority && (
+              <View style={{ marginRight: 32, minWidth: 80 }}>
+                <Text style={{ fontSize: 7.5, color: MUTED, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 3 }}>
+                  {t.metaSeniority}
+                </Text>
+                <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", color: INK }}>
+                  {seniority}
+                </Text>
+              </View>
+            )}
+            {years != null && (
+              <View style={{ marginRight: 32, minWidth: 80 }}>
+                <Text style={{ fontSize: 7.5, color: MUTED, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 3 }}>
+                  {t.metaExperience}
+                </Text>
+                <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", color: INK }}>
+                  {t.yearsSuffix(years)}
+                </Text>
+              </View>
+            )}
+            {candidate.location && (
+              <View style={{ marginRight: 32, minWidth: 80 }}>
+                <Text style={{ fontSize: 7.5, color: MUTED, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 3 }}>
+                  {t.metaZone}
+                </Text>
+                <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", color: INK }}>
+                  {candidate.location}
+                </Text>
+              </View>
+            )}
+            {languages.length > 0 && (
+              <View>
+                <Text style={{ fontSize: 7.5, color: MUTED, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 3 }}>
+                  {t.metaLanguages}
+                </Text>
+                <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", color: INK }}>
+                  {languages.join(" · ")}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Skills — pills larges, max 10 */}
+          {execSkills.length > 0 && (
+            <View style={{ marginBottom: 28 }}>
+              <Text style={{
+                fontSize: 9, fontFamily: "Helvetica-Bold",
+                color: MUTED, letterSpacing: 1.2,
+                textTransform: "uppercase", marginBottom: 12,
+              }}>
+                {t.keySkills}
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                {execSkills.map((sk, i) => (
+                  <Text
+                    key={i}
+                    style={{
+                      fontSize: 10, color: accent,
+                      backgroundColor: "white",
+                      borderWidth: 0.8, borderColor: accent,
+                      borderRadius: 999,
+                      paddingVertical: 4, paddingHorizontal: 10,
+                      marginRight: 6, marginBottom: 6,
+                    }}
+                  >
+                    {sk}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Parcours aéré */}
+          {execExperience.length > 0 && (
+            <View style={{ marginBottom: 26 }}>
+              <Text style={{
+                fontSize: 9, fontFamily: "Helvetica-Bold",
+                color: MUTED, letterSpacing: 1.2,
+                textTransform: "uppercase", marginBottom: 14,
+              }}>
+                {t.background}
+              </Text>
+              {execExperience.map((e, i) => {
+                const dates = [e.start, e.end ?? (opts.language === "en" ? "present" : "présent")].filter(Boolean).join(" – ")
+                return (
+                  <View key={i} style={{ marginBottom: 16 }} wrap={false}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 3 }}>
+                      <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: INK }}>
+                        {e.title || (opts.language === "en" ? "Role" : "Poste")}
+                      </Text>
+                      {dates && (
+                        <Text style={{ fontSize: 9, color: MUTED, letterSpacing: 0.4 }}>
+                          {dates}
+                        </Text>
+                      )}
+                    </View>
+                    {e.company && (
+                      <Text style={{ fontSize: 10, color: MUTED, marginBottom: 4 }}>
+                        {e.company}
+                      </Text>
+                    )}
+                    {e.description && (
+                      <Text style={{ fontSize: 10, color: "#4B5563", lineHeight: 1.6 }}>
+                        {e.description}
+                      </Text>
+                    )}
+                  </View>
+                )
+              })}
+            </View>
+          )}
+
+          {/* Formation compacte */}
+          {education.length > 0 && (
+            <View>
+              <Text style={{
+                fontSize: 9, fontFamily: "Helvetica-Bold",
+                color: MUTED, letterSpacing: 1.2,
+                textTransform: "uppercase", marginBottom: 10,
+              }}>
+                {t.education}
+              </Text>
+              {education.map((ed, i) => (
+                <View key={i} style={{ marginBottom: 6 }}>
+                  <Text style={{ fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK }}>
+                    {ed.degree}{ed.field ? ` — ${ed.field}` : ""}
+                  </Text>
+                  {(ed.start || ed.end) && (
+                    <Text style={{ fontSize: 9, color: MUTED }}>
+                      {ed.start ?? ""}{ed.end ? `–${ed.end}` : ""}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
 
           {renderWatermark()}
           {renderFooter()}

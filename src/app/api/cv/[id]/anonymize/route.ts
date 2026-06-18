@@ -47,8 +47,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   // Sanitize options : on valide chaque champ, défauts si absent/invalide.
   const optRaw = body?.options ?? {}
-  const template: "classic" | "two-column" =
-    optRaw.template === "two-column" ? "two-column" : "classic"
+  const template: "classic" | "two-column" | "executive" =
+    optRaw.template === "two-column"
+      ? "two-column"
+      : optRaw.template === "executive"
+        ? "executive"
+        : "classic"
   const keepNoraSummary = typeof optRaw.keep_nora_summary === "boolean" ? optRaw.keep_nora_summary : true
   const customText =
     typeof optRaw.custom_text === "string" ? optRaw.custom_text.trim().slice(0, 600) : ""

@@ -57,6 +57,31 @@ function TemplatePreview({ template }: { template: AnonymizeTemplate }) {
       </svg>
     )
   }
+  if (template === "executive") {
+    // Aéré : gros titre, beaucoup d'air vertical, peu de chips,
+    // sections espacées avec liserés mais pas de fond coloré.
+    return (
+      <svg viewBox="0 0 100 70" width="100%" height="64" style={{ display: "block", borderRadius: 6 }} aria-hidden>
+        <rect width="100" height="70" fill={bg} />
+        {/* small wordmark + ref top */}
+        <rect x="6" y="6" width="20" height="2" rx="1" fill={accent} />
+        <rect x="84" y="6" width="10" height="2" rx="1" fill={block} />
+        {/* GIANT headline */}
+        <rect x="6" y="16" width="70" height="6" rx="1.5" fill={accent} />
+        <rect x="6" y="24" width="48" height="6" rx="1.5" fill={accent} />
+        {/* small subtitle / meta line */}
+        <rect x="6" y="34" width="60" height="2" fill={block} />
+        {/* skills as 3-4 large pills */}
+        <rect x="6" y="42" width="18" height="3.5" rx="1.5" fill={block} />
+        <rect x="26" y="42" width="22" height="3.5" rx="1.5" fill={block} />
+        <rect x="50" y="42" width="14" height="3.5" rx="1.5" fill={block} />
+        {/* exp blocks spaced */}
+        <rect x="6" y="52" width="88" height="2" fill={block} />
+        <rect x="6" y="56" width="70" height="2" fill={block} />
+        <rect x="6" y="62" width="88" height="2" fill={block} />
+      </svg>
+    )
+  }
   // classic
   return (
     <svg viewBox="0 0 100 70" width="100%" height="64" style={{ display: "block", borderRadius: 6 }} aria-hidden>
