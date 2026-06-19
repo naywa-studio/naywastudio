@@ -20,7 +20,13 @@
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 import type { ParsedCv, Candidate } from "./database.types"
 
-const DEFAULT_PURPLE = "#7C63C8"
+/**
+ * Couleur par défaut quand l'org n'a pas configuré sa brand_color.
+ * Décision produit : on rend en NOIR (off, non configuré) plutôt
+ * qu'en violet Naywa, pour forcer l'owner à choisir sa propre
+ * identité. Sinon il livre des CVs siglés Naywa par mégarde.
+ */
+const DEFAULT_OFF = "#000000"
 const INK = "#1F2937"
 const MUTED = "#6B7280"
 const LINE = "#E5E1F2"
@@ -31,7 +37,16 @@ const DEFAULT_BRAND = "NAYWA STUDIO"
  *  cabinet (par défaut violet Naywa). On ne met pas la couleur dans le
  *  StyleSheet global pour éviter une couleur figée à l'import : chaque
  *  rendu reprend la couleur de l'org en cours. */
-function buildStyles(accent: string) {
+/**
+ * Construit le stylesheet @react-pdf à partir des couleurs brand.
+ *
+ *   - accent  : couleur primaire (header, headline pré-titre, ligne
+ *               sous le brand row, bordure custom note).
+ *   - secondary : couleur des titres de section + accents. Si l'org
+ *                 n'a pas configuré de bicolore, on reçoit la même
+ *                 valeur que `accent` — comportement uniforme préservé.
+ */
+function buildStyles(accent: string, secondary: string = accent) {
   return StyleSheet.create({
     page: { paddingTop: 44, paddingBottom: 64, paddingHorizontal: 52, fontSize: 10, color: INK, fontFamily: "Helvetica" },
 
@@ -60,7 +75,10 @@ function buildStyles(accent: string) {
     metaLabel: { fontSize: 7, color: MUTED, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 2 },
     metaValue: { fontSize: 10, color: INK, fontFamily: "Helvetica-Bold" },
 
-    sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", color: MUTED, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, marginTop: 4 },
+    /** Titre de section (Compétences, Parcours, Formation) — reprend
+     *  la couleur secondaire si bicolore, sinon retombe sur l'accent
+     *  principal. Plus visible que l'ancien gris MUTED. */
+    sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", color: secondary, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, marginTop: 4 },
 
     expItem: { marginBottom: 10, paddingLeft: 12, borderLeftWidth: 1.5, borderLeftColor: LINE },
     expTitle: { fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK },
@@ -97,9 +115,14 @@ export interface AnonymizedBrand {
   name: string | null
   /** Signed URL to the brand logo PNG/JPG. Optional — text-only fallback works. */
   logoUrl: string | null
-  /** Hex color (#RRGGBB) used as accent in the PDF. Falls back to Naywa
-   *  violet when null. */
+  /** Hex color (#RRGGBB) used as primary accent in the PDF. Falls
+   *  back to NOIR (#000000, "off" non configuré) si null pour ne pas
+   *  usurper le branding Naywa par défaut. */
   color?: string | null
+  /** Hex color (#RRGGBB) secondaire, utilisée pour les titres de
+   *  section et accents (bicolore). Si null, on reste sur l'accent
+   *  principal partout. */
+  colorSecondary?: string | null
   /** Slogan court affiché sous le nom du cabinet (header). Optionnel. */
   slogan?: string | null
   /** Mail de contact générique imprimé en pied de page pour permettre
@@ -213,12 +236,19 @@ export function AnonymizedCv({
   const brandName = (brand?.name ?? "").trim() || DEFAULT_BRAND
   const brandLogo = brand?.logoUrl ?? null
   // Sanity-check hex côté rendu : si la valeur DB est malformée, on
-  // retombe sur Naywa violet pour ne jamais casser le PDF.
+  // retombe sur noir "off" pour ne jamais casser le PDF — et pour
+  // que l'absence de configuration soit visuellement claire (CV
+  // sobre noir au lieu d'usurper la marque Naywa par défaut).
   const accentRaw = (brand?.color ?? "").trim()
-  const accent = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accentRaw) ? accentRaw : DEFAULT_PURPLE
+  const accent = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accentRaw) ? accentRaw : DEFAULT_OFF
+  // Couleur secondaire bicolore (titres de section, accents). Si
+  // absente ou malformée, on retombe sur l'accent principal pour
+  // unifier le rendu.
+  const accent2Raw = (brand?.colorSecondary ?? "").trim()
+  const accentSecondary = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent2Raw) ? accent2Raw : accent
   const brandSlogan = (brand?.slogan ?? "").trim() || null
   const contactEmail = (brand?.contactEmail ?? "").trim() || null
-  const s = buildStyles(accent)
+  const s = buildStyles(accent, accentSecondary)
   const cv: ParsedCv = candidate.parsed_cv ?? {}
   const roleFamily = candidate.taxonomy?.role_family?.[0] ?? null
   const seniority = candidate.seniority_level ?? cv.seniority_level ?? null
@@ -595,7 +625,7 @@ export function AnonymizedCv({
             <View style={{ marginBottom: 28 }}>
               <Text style={{
                 fontSize: 9, fontFamily: "Helvetica-Bold",
-                color: MUTED, letterSpacing: 1.2,
+                color: accentSecondary, letterSpacing: 1.2,
                 textTransform: "uppercase", marginBottom: 12,
               }}>
                 {t.keySkills}
@@ -625,7 +655,7 @@ export function AnonymizedCv({
             <View style={{ marginBottom: 26 }}>
               <Text style={{
                 fontSize: 9, fontFamily: "Helvetica-Bold",
-                color: MUTED, letterSpacing: 1.2,
+                color: accentSecondary, letterSpacing: 1.2,
                 textTransform: "uppercase", marginBottom: 14,
               }}>
                 {t.background}
@@ -674,7 +704,7 @@ export function AnonymizedCv({
             <View>
               <Text style={{
                 fontSize: 9, fontFamily: "Helvetica-Bold",
-                color: MUTED, letterSpacing: 1.2,
+                color: accentSecondary, letterSpacing: 1.2,
                 textTransform: "uppercase", marginBottom: 10,
               }}>
                 {t.education}
@@ -713,10 +743,13 @@ export function AnonymizedCv({
       borderRadius: 8,
       padding: 14,
     } as const
+    // Titre de card = couleur secondaire si bicolore configuré, sinon
+    // on retombe sur accent principal (= comportement initial préservé
+    // pour les orgs mono-couleur).
     const cardTitle = {
       fontSize: 8.5,
       fontFamily: "Helvetica-Bold",
-      color: accent,
+      color: accentSecondary,
       letterSpacing: 1.1,
       textTransform: "uppercase",
       marginBottom: 8,

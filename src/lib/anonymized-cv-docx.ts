@@ -29,7 +29,12 @@ import {
 import type { Candidate } from "./database.types"
 import type { AnonymizedBrand, AnonymizedJobContext, AnonymizedOptions } from "./anonymized-cv"
 
-const ACCENT_DEFAULT = "7C63C8" // hex sans #
+/**
+ * Couleur par défaut (hex sans #) appliquée à la marque quand
+ * brand_color n'est pas configuré côté org. Décision produit : noir
+ * "off" plutôt que violet Naywa, pour pousser à la configuration.
+ */
+const ACCENT_DEFAULT = "000000"
 const INK = "1F2937"
 const MUTED = "6B7280"
 const SOFT = "9CA3AF"
@@ -100,6 +105,11 @@ export async function buildAnonymizedDocx({
   const customText = (options?.customText ?? "").trim()
 
   const accent = normalizeAccent(brand?.color)
+  // Couleur secondaire pour les titres de section (bicolore). Si non
+  // configurée, on retombe sur l'accent principal pour uniformité.
+  const accentSecondary = brand?.colorSecondary
+    ? normalizeAccent(brand.colorSecondary)
+    : accent
   const brandName = (brand?.name ?? "").trim() || "NAYWA STUDIO"
   const brandSlogan = (brand?.slogan ?? "").trim()
   const contactEmail = (brand?.contactEmail ?? "").trim()
@@ -268,7 +278,7 @@ export async function buildAnonymizedDocx({
 
   // Skills
   if (skills.length > 0) {
-    children.push(sectionTitle(t.keySkills, accent))
+    children.push(sectionTitle(t.keySkills, accentSecondary))
     children.push(
       new Paragraph({
         spacing: { after: 280 },
@@ -285,7 +295,7 @@ export async function buildAnonymizedDocx({
 
   // Parcours
   if (experience.length > 0) {
-    children.push(sectionTitle(t.background, accent))
+    children.push(sectionTitle(t.background, accentSecondary))
     for (const e of experience) {
       const dates = [e.start, e.end ?? t.presentSuffix].filter(Boolean).join(" – ")
       children.push(
@@ -330,7 +340,7 @@ export async function buildAnonymizedDocx({
 
   // Formation
   if (education.length > 0) {
-    children.push(sectionTitle(t.education, accent))
+    children.push(sectionTitle(t.education, accentSecondary))
     for (const ed of education) {
       children.push(
         new Paragraph({
