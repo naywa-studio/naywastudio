@@ -175,14 +175,16 @@ export default function CabinetPage() {
               isOwner={isOwner}
               onChange={() => { void loadInvites() }}
             />
-            {/* Row 2 : Branding | Politique pricing */}
-            <BrandingSection
-              organization={organization}
-              logoUrl={logoUrl}
-              isOwner={isOwner}
-              onUpdated={refetch}
-            />
-            <PricingPolicySectionCollapsible />
+            {/* Row 2 : Branding pleine largeur (la politique pricing
+                vit désormais dans l'onglet "Mes packages"). */}
+            <div style={{ gridColumn: "1 / -1" }}>
+              <BrandingSection
+                organization={organization}
+                logoUrl={logoUrl}
+                isOwner={isOwner}
+                onUpdated={refetch}
+              />
+            </div>
             {isOwner && (
               <div style={{ gridColumn: "1 / -1" }}>
                 <PreviewToolsCard />
@@ -209,6 +211,7 @@ export default function CabinetPage() {
               isOwner={isOwner}
               autoOpenPicker={action === "subscribe"}
             />
+            <PricingPolicySectionCollapsible />
           </div>
         )}
 
@@ -283,9 +286,11 @@ function OrgTabs({
   // L'onglet "org" est nommé d'après l'organisation et est le tab par
   // défaut. Politique pricing inline dans cet onglet quand Pro actif —
   // pas d'onglet séparé.
+  // L'URL param reste "abonnement" pour ne pas casser les deep-links
+  // historiques (mails Stripe, lockdown banner) — seul le label change.
   const tabs: { id: OrgTab; label: string }[] = [
     { id: "org", label: orgLabel || "Organisation" },
-    { id: "abonnement", label: "Abonnement" },
+    { id: "abonnement", label: "Mes packages" },
     { id: "securite", label: "Sécurité" },
   ]
 
