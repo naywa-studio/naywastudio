@@ -56,7 +56,7 @@ export default function CabinetPage() {
 
   const rawTab = searchParams.get("tab")
   const action = searchParams.get("action")
-  const activeTab: OrgTab = (() => {
+  const initialTab: OrgTab = (() => {
     // Si ?action=subscribe (deep-link depuis la bannière lockdown ou un
     // mail Stripe), on force l'onglet Abonnement où le SubscriptionCard
     // détectera le param et ouvrira directement le PlanPicker.
@@ -64,6 +64,20 @@ export default function CabinetPage() {
     if (rawTab === "abonnement" || rawTab === "securite") return rawTab
     return "org"
   })()
+  // L'onglet actif est piloté par un state local plutôt que dérivé live
+  // de searchParams. Raison : en Next 16, router.replace avec un
+  // pathname identique ne re-rend pas toujours les client components,
+  // ce qui figeait le tab affiché après un refresh sur ?tab=abonnement
+  // puis un clic sur le premier onglet. State local = UI réactive
+  // instantanément, l'URL est synchronisée en background pour les
+  // deep-links et le partage de lien.
+  const [activeTab, setActiveTab] = useState<OrgTab>(initialTab)
+  // Si l'URL change pour une raison externe (deep-link ?tab=…,
+  // bouton retour navigateur), on resynchronise le state.
+  useEffect(() => {
+    setActiveTab(initialTab)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawTab, action])
 
   // Dashboard reste owner-only. /cabinet/parametrage gère les members
   // séparément en read-only.
@@ -146,6 +160,7 @@ export default function CabinetPage() {
       <OrgTabs
         activeTab={activeTab}
         orgLabel={orgDisplayName}
+        onChange={setActiveTab}
       />
 
       {/* ── Tab content ───────────────────────────────────── */}
@@ -277,12 +292,15 @@ function PricingOnboardingGate({
 type OrgTab = "org" | "abonnement" | "securite"
 
 function OrgTabs({
-  activeTab, orgLabel,
+  activeTab, orgLabel, onChange,
 }: {
   activeTab: OrgTab
   orgLabel: string
+  /** Bascule le state d'activeTab dans le parent. La synchro URL se fait
+   *  en plus via history.replaceState pour ne pas casser le partage de
+   *  lien / les deep-links, mais sans dépendre du re-render Next. */
+  onChange: (next: OrgTab) => void
 }) {
-  const router = useRouter()
   // L'URL param reste "abonnement" pour ne pas casser les deep-links
   // historiques (mails Stripe, lockdown banner) — seul le label change.
   const tabs: { id: OrgTab; label: string }[] = [
@@ -291,17 +309,18 @@ function OrgTabs({
     { id: "securite", label: "Sécurité" },
   ]
 
-  // On utilise router.replace au lieu de <Link> pour deux raisons :
-  //   1. Quand l'utilisateur arrive sur /organisation?tab=abonnement et
-  //      clique sur l'onglet "org", Next 16 ne re-rend pas toujours le
-  //      client component si le pathname est identique et que seul le
-  //      query change (cache router agressif). router.replace force le
-  //      flush des searchParams.
-  //   2. replace (vs push) garde l'historique propre : naviguer entre
-  //      onglets ne bourre pas la pile back/forward.
+  // Source de vérité = state parent (réactif instantanément).
+  // On met à jour l'URL en parallèle via history.replaceState pour
+  // garder le query string en phase pour les deep-links, MAIS sans
+  // déclencher router.replace : Next 16 a un cache agressif qui peut
+  // figer le render quand le pathname est identique. history natif
+  // contourne ça sans toucher au rendu.
   const goTo = (id: OrgTab) => {
+    onChange(id)
     const href = id === "org" ? "/organisation" : `/organisation?tab=${id}`
-    router.replace(href, { scroll: false })
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", href)
+    }
   }
 
   return (
