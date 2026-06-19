@@ -11,6 +11,7 @@ import { subscriptionAccess, hasActiveAccess } from "@/lib/subscription"
 import { PLAN_PRICES_EUR, type PlanTier, type PlanSeats } from "@/lib/stripe"
 import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
+import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -124,22 +125,17 @@ export default function CabinetPage() {
     trial.state === "active" ||
     organization.subscription_status === "active" ||
     organization.subscription_status === "trialing"
-  const showPricingPolicy = hasAnyAccess
+  void hasAnyAccess // legacy : pricing policy est désormais inline dans Branding
 
   // La visite guidée 6 étapes Package Sourcing est désormais déclenchée
   // sur /workspace (premier accès après souscription), pas ici --
   // c'est dans le workspace que les CTAs des étapes ont du sens.
 
   const orgDisplayName = organization.brand_name ?? organization.name
-  // Pricing visible inline dans l'onglet org dans 2 cas :
-  //   1. Sub Stripe avec Suite Pricing (sourcing_pro_*)
-  //   2. Trial actif app-side -> le trial donne 2 sièges Pro par
-  //      construction (cf TrialChoiceModal), pricing inclus pendant
-  //      les 15 jours pour que l'owner teste.
-  const pricingInline = showPricingPolicy && (
-    organization.subscription_has_pricing ||
-    trial.state === "active"
-  )
+  // showPricingPolicy reste utilisé par d'autres cas dans la page.
+  // Le rendu inline du PricingPolicyCard a été déplacé dans
+  // BrandingSection en sous-section pliable, donc plus besoin du
+  // booléen pricingInline ici.
 
   return (
     <main style={{
@@ -169,17 +165,14 @@ export default function CabinetPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
               <IdentitySection
                 organization={organization}
+                logoUrl={logoUrl}
                 isOwner={isOwner}
                 onUpdated={refetch}
               />
               <BrandingSection
                 organization={organization}
+                organizationName={(organization.brand_name ?? organization.name).trim() || "votre organisation"}
                 logoUrl={logoUrl}
-                isOwner={isOwner}
-                onUpdated={refetch}
-              />
-              <ContactSection
-                organization={organization}
                 isOwner={isOwner}
                 onUpdated={refetch}
               />
@@ -193,11 +186,9 @@ export default function CabinetPage() {
               isOwner={isOwner}
               onChange={() => { void loadInvites() }}
             />
-            {pricingInline && (
-              <div style={{ gridColumn: "1 / -1" }}>
-                <PricingPolicyCard />
-              </div>
-            )}
+            {/* PricingPolicyCard a été déplacé en sous-section pliable
+                dans BrandingSection (PricingPolicyInline) pour compacter
+                la page. On le sort donc de la grille principale. */}
             {isOwner && (
               <div style={{ gridColumn: "1 / -1" }}>
                 <PreviewToolsCard />
@@ -1040,9 +1031,13 @@ const panelBody = (color: string): React.CSSProperties => ({
 /* ────────────────────────────────────────────────────────────────── */
 
 function IdentitySection({
-  organization, isOwner, onUpdated,
+  organization, logoUrl, isOwner, onUpdated,
 }: {
   organization: { id: string; name: string; brand_name: string | null; mailing_domain: string | null }
+  /** Affiché en thumbnail dans la carte si présent — l'upload se fait
+   *  dans BrandingSection plus bas. Ici on est en lecture seule sur
+   *  le logo. */
+  logoUrl: string | null
   isOwner: boolean
   onUpdated: () => Promise<void>
 }) {
@@ -1069,18 +1064,47 @@ function IdentitySection({
 
   return (
     <Card title="Identité de l'organisation" subtitle="Nom officiel utilisé partout dans Naywa.">
-      <Label>Nom de l&apos;organisation</Label>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Cabinet Dupont"
-        disabled={!isOwner || busy === "saving"}
-        onBlur={saveName}
-        style={inputStyle}
-      />
-      <Hint>
-        {busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}
-      </Hint>
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+        {/* Thumbnail logo (read-only) — la gestion upload est dans
+            BrandingSection plus bas, ici c'est un aperçu rapide. */}
+        <div style={{
+          flexShrink: 0,
+          width: 48, height: 48,
+          borderRadius: 10,
+          border: "1px solid #E2DAF6",
+          background: "#FAFAFA",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          overflow: "hidden",
+        }}>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
+          ) : (
+            <span style={{ fontSize: 10, color: "#C4B6E0", fontWeight: 700, letterSpacing: "0.05em" }}>
+              {(organization.brand_name ?? organization.name)
+                .split(/\s+/)
+                .map((w) => w[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Label>Nom de l&apos;organisation</Label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Cabinet Dupont"
+            disabled={!isOwner || busy === "saving"}
+            onBlur={saveName}
+            style={inputStyle}
+          />
+          <Hint>
+            {busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}
+          </Hint>
+        </div>
+      </div>
 
       {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
     </Card>
@@ -1095,29 +1119,33 @@ function IdentitySection({
 /* Naywa. Owner-only en édition, lecture seule pour les members.       */
 /* ────────────────────────────────────────────────────────────────── */
 
-const DEFAULT_BRAND_COLOR = "#7C63C8"
-
 function BrandingSection({
-  organization, logoUrl, isOwner, onUpdated,
+  organization, organizationName, logoUrl, isOwner, onUpdated,
 }: {
   organization: {
     id: string
     brand_logo_path: string | null
     brand_color: string | null
+    brand_color_secondary: string | null
     brand_slogan: string | null
+    contact_email: string | null
   }
+  /** Nom d'affichage de l'org pour le label "Contact de {nom}". */
+  organizationName: string
   logoUrl: string | null
   isOwner: boolean
   onUpdated: () => Promise<void>
 }) {
   const sb = useMemo(() => getSupabase(), [])
-  const [color, setColor] = useState(organization.brand_color ?? DEFAULT_BRAND_COLOR)
+  const [open, setOpen] = useState(true) // pliable, ouvert par défaut
   const [slogan, setSlogan] = useState(organization.brand_slogan ?? "")
+  const [email, setEmail] = useState(organization.contact_email ?? "")
   const [busy, setBusy] = useState<"idle" | "saving" | "uploading" | "deleting">("idle")
   const [error, setError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const emailValid = email.trim() === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 
-  const patch = async (body: Record<string, unknown>, kind: "saving" | "uploading" | "deleting") => {
+  const patch = async (body: Record<string, unknown>, kind: "saving" | "uploading" | "deleting" = "saving") => {
     setBusy(kind); setError(null)
     const res = await fetch("/api/cabinet", {
       method: "PATCH",
@@ -1151,197 +1179,205 @@ function BrandingSection({
     await patch({ brand_logo_path: null }, "deleting")
   }
 
-  return (
-    <Card
-      title="Branding"
-      subtitle="Apparaît sur les CV anonymisés envoyés à vos clients."
-    >
-      {/* Logo */}
-      <Label>Logo</Label>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{
-          width: 64, height: 64,
-          borderRadius: 12, border: "1.5px dashed #E2DAF6",
-          background: "#FAFAFA",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          overflow: "hidden",
-          flexShrink: 0,
-        }}>
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
-          ) : (
-            <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
-          )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-          <button type="button" onClick={() => fileInput.current?.click()}
-            disabled={!isOwner || busy !== "idle"}
-            style={smallBtnPrimary}>
-            {busy === "uploading" ? "…" : logoUrl ? "Remplacer" : "Téléverser"}
-          </button>
-          {logoUrl && isOwner && (
-            <button type="button" onClick={removeLogo} disabled={busy !== "idle"} style={smallBtnGhost}>
-              Retirer
-            </button>
-          )}
-        </div>
-      </div>
-      <input ref={fileInput} type="file"
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
-        style={{ display: "none" }}
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) { void uploadLogo(f); e.target.value = "" }
-        }}
-      />
-
-      {/* Couleur primaire */}
-      <div style={{ marginTop: 18 }}>
-        <Label>Couleur de marque</Label>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            onBlur={() => {
-              if (!isOwner) return
-              if ((organization.brand_color ?? DEFAULT_BRAND_COLOR).toLowerCase() === color.toLowerCase()) return
-              void patch({ brand_color: color }, "saving")
-            }}
-            disabled={!isOwner || busy === "saving"}
-            style={{
-              width: 48, height: 36, padding: 2,
-              border: "1px solid #E2DAF6", borderRadius: 8,
-              cursor: isOwner ? "pointer" : "not-allowed",
-              background: "#FFFFFF",
-            }}
-          />
-          <input
-            value={color.toUpperCase()}
-            onChange={(e) => setColor(e.target.value)}
-            onBlur={() => {
-              if (!isOwner) return
-              if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) {
-                setColor(organization.brand_color ?? DEFAULT_BRAND_COLOR)
-                return
-              }
-              if ((organization.brand_color ?? DEFAULT_BRAND_COLOR).toLowerCase() === color.toLowerCase()) return
-              void patch({ brand_color: color }, "saving")
-            }}
-            disabled={!isOwner || busy === "saving"}
-            placeholder="#7C63C8"
-            style={{ ...inputStyle, width: 120, fontFamily: "var(--font-space-grotesk), monospace" }}
-          />
-          {color.toLowerCase() !== DEFAULT_BRAND_COLOR.toLowerCase() && isOwner && (
-            <button
-              type="button"
-              onClick={() => {
-                setColor(DEFAULT_BRAND_COLOR)
-                void patch({ brand_color: null }, "saving")
-              }}
-              disabled={busy === "saving"}
-              style={{ ...smallBtnGhost, fontSize: 11 }}
-            >
-              Réinitialiser
-            </button>
-          )}
-        </div>
-        <Hint>Défaut Naywa : violet {DEFAULT_BRAND_COLOR}.</Hint>
-      </div>
-
-      {/* Slogan */}
-      <div style={{ marginTop: 18 }}>
-        <Label>Slogan <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span></Label>
-        <input
-          value={slogan}
-          onChange={(e) => setSlogan(e.target.value.slice(0, 120))}
-          onBlur={() => {
-            if (!isOwner) return
-            const next = slogan.trim() || null
-            if ((organization.brand_slogan ?? null) === next) return
-            void patch({ brand_slogan: next }, "saving")
-          }}
-          placeholder="Recruter, c'est notre métier"
-          disabled={!isOwner || busy === "saving"}
-          maxLength={120}
-          style={inputStyle}
-        />
-        <Hint>{slogan.length}/120 caractères</Hint>
-      </div>
-
-      {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
-    </Card>
-  )
-}
-
-/* ────────────────────────────────────────────────────────────────── */
-/* Carte de contact cabinet                                            */
-/*                                                                     */
-/* Mail générique imprimé en pied de page du PDF anonymisé. Le client  */
-/* final écrit là pour recontacter au sujet d'un candidat présenté.    */
-/* ────────────────────────────────────────────────────────────────── */
-
-function ContactSection({
-  organization, isOwner, onUpdated,
-}: {
-  organization: { contact_email: string | null }
-  isOwner: boolean
-  onUpdated: () => Promise<void>
-}) {
-  const [email, setEmail] = useState(organization.contact_email ?? "")
-  const [busy, setBusy] = useState<"idle" | "saving">("idle")
-  const [error, setError] = useState<string | null>(null)
-  const emailValid = email.trim() === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-
-  const save = async () => {
+  const saveEmail = async () => {
     if (!isOwner) return
     const next = email.trim() || null
     if ((organization.contact_email ?? null) === next) return
     if (!emailValid) return
-    setBusy("saving"); setError(null)
-    const res = await fetch("/api/cabinet", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ contact_email: next }),
-    })
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Erreur lors de la sauvegarde.")
-    } else {
-      await onUpdated()
-    }
-    setBusy("idle")
+    await patch({ contact_email: next })
   }
+
+  // Résumé visible quand la carte est repliée — pastilles + label
+  const summary = (() => {
+    const parts: string[] = []
+    if (logoUrl) parts.push("Logo")
+    if (organization.brand_color) parts.push("Couleur")
+    if (organization.brand_color_secondary) parts.push("Bicolore")
+    if (organization.brand_slogan) parts.push("Slogan")
+    if (organization.contact_email) parts.push("Contact")
+    return parts.length > 0 ? parts.join(" · ") : "À configurer"
+  })()
 
   return (
     <Card
-      title="Carte de contact cabinet"
-      subtitle="Ce mail sera ajouté aux CV anonymisés. Il permet à vos clients de vous recontacter au sujet des candidats."
+      title="Branding"
+      subtitle="Logo, couleurs, slogan et contact qui apparaissent sur les CV anonymisés."
+      // Bouton repli intégré au header de la carte
+      headerRight={
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            fontSize: 12, fontWeight: 700, color: "#7C63C8",
+            background: "transparent", border: "none",
+            padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
+            display: "inline-flex", alignItems: "center", gap: 4,
+          }}
+        >
+          {open ? "Replier ▴" : "Déplier ▾"}
+        </button>
+      }
     >
-      <Label>Email de contact</Label>
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        onBlur={save}
-        placeholder="contact@votre-cabinet.com"
-        disabled={!isOwner || busy === "saving"}
-        style={{
-          ...inputStyle,
-          borderColor: email && !emailValid ? "#EF4444" : inputStyle.borderColor,
-        }}
-      />
-      <Hint>
-        {busy === "saving"
-          ? "Sauvegarde…"
-          : email && !emailValid
-            ? "Format d'email invalide"
-            : "Laissez vide pour ne rien afficher sur le CV anonymisé."}
-      </Hint>
+      {!open && (
+        <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280" }}>
+          <span style={{ color: organization.brand_color || "#000000", marginRight: 6, fontWeight: 700 }}>●</span>
+          {summary}
+        </p>
+      )}
 
-      {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
+      {open && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+          {/* Logo */}
+          <div>
+            <Label>Logo</Label>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{
+                width: 64, height: 64,
+                borderRadius: 12, border: "1.5px dashed #E2DAF6",
+                background: "#FAFAFA",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                overflow: "hidden",
+                flexShrink: 0,
+              }}>
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
+                ) : (
+                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
+                )}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <button type="button" onClick={() => fileInput.current?.click()}
+                  disabled={!isOwner || busy !== "idle"}
+                  style={smallBtnPrimary}>
+                  {busy === "uploading" ? "…" : logoUrl ? "Remplacer" : "Téléverser"}
+                </button>
+                {logoUrl && isOwner && (
+                  <button type="button" onClick={removeLogo} disabled={busy !== "idle"} style={smallBtnGhost}>
+                    Retirer
+                  </button>
+                )}
+              </div>
+            </div>
+            <input ref={fileInput} type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) { void uploadLogo(f); e.target.value = "" }
+              }}
+            />
+          </div>
+
+          {/* Couleurs — picker complet avec palette + extraction logo + bicolore */}
+          <div>
+            <Label>Couleurs de marque</Label>
+            <Hint>
+              Non configurée = rendu en noir sur le PDF anonymisé. Choisissez
+              une couleur de votre logo ou de la palette suggérée.
+            </Hint>
+            <div style={{ marginTop: 10 }}>
+              <BrandColorPicker
+                primary={organization.brand_color}
+                secondary={organization.brand_color_secondary}
+                isOwner={isOwner}
+                logoUrl={logoUrl}
+                saving={busy === "saving"}
+                onSave={(body) => patch(body)}
+              />
+            </div>
+          </div>
+
+          {/* Slogan */}
+          <div>
+            <Label>Slogan <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span></Label>
+            <input
+              value={slogan}
+              onChange={(e) => setSlogan(e.target.value.slice(0, 120))}
+              onBlur={() => {
+                if (!isOwner) return
+                const next = slogan.trim() || null
+                if ((organization.brand_slogan ?? null) === next) return
+                void patch({ brand_slogan: next })
+              }}
+              placeholder="Recruter, c'est notre métier"
+              disabled={!isOwner || busy === "saving"}
+              maxLength={120}
+              style={inputStyle}
+            />
+            <Hint>{slogan.length}/120 caractères</Hint>
+          </div>
+
+          {/* Contact de {Org} — fusionné dans Branding */}
+          <div>
+            <Label>Contact de {organizationName}</Label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onBlur={saveEmail}
+              placeholder="contact@votre-cabinet.com"
+              disabled={!isOwner || busy === "saving"}
+              style={{
+                ...inputStyle,
+                borderColor: email && !emailValid ? "#EF4444" : inputStyle.borderColor,
+              }}
+            />
+            <Hint>
+              {email && !emailValid
+                ? "Format d'email invalide"
+                : "Ajouté en pied de page du CV anonymisé. Permet au client final de vous recontacter."}
+            </Hint>
+          </div>
+
+          {/* Politique pricing — sous-section depliable dans la même carte */}
+          <PricingPolicyInline />
+
+          {error && <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
+        </div>
+      )}
     </Card>
+  )
+}
+
+/* Pricing inline — sous-section pliable de Branding. Réutilise la
+ * politique pricing existante mais sans la sortir comme carte
+ * indépendante en bas de page (au choix d'Elyas pour compacter). */
+function PricingPolicyInline() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{
+      borderTop: "1px solid #F0ECF8",
+      paddingTop: 16,
+    }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: "transparent", border: "none", cursor: "pointer",
+          padding: 0, fontFamily: "inherit", textAlign: "left",
+        }}
+      >
+        <span>
+          <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#111827" }}>
+            Politique pricing
+          </span>
+          <span style={{ display: "block", fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
+            Marges cibles + avantages standards de l&apos;organisation
+          </span>
+        </span>
+        <span style={{ fontSize: 12, color: "#7C63C8", fontWeight: 700 }}>
+          {open ? "Replier ▴" : "Déplier ▾"}
+        </span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 14 }}>
+          <PricingPolicyCard />
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -2128,7 +2164,13 @@ function ExportDataCard() {
 /* Shared building blocks                                              */
 /* ────────────────────────────────────────────────────────────────── */
 
-function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+function Card({ title, subtitle, children, headerRight }: {
+  title: string
+  subtitle: string
+  children: React.ReactNode
+  /** Action optionnelle alignée à droite du titre (bouton Replier, etc.) */
+  headerRight?: React.ReactNode
+}) {
   return (
     <section style={{
       padding: "16px 18px",
@@ -2140,8 +2182,14 @@ function Card({ title, subtitle, children }: { title: string; subtitle: string; 
       display: "flex",
       flexDirection: "column",
     }}>
-      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>{title}</h2>
-      <p style={{ margin: "4px 0 12px", fontSize: 12, color: "#9CA3AF" }}>{subtitle}</p>
+      <div style={{
+        display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8,
+        marginBottom: 4,
+      }}>
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>{title}</h2>
+        {headerRight}
+      </div>
+      <p style={{ margin: "0 0 12px", fontSize: 12, color: "#9CA3AF" }}>{subtitle}</p>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {children}
       </div>

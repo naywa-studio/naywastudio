@@ -26,9 +26,11 @@ interface UpdateBody {
   brand_name?: string | null
   brand_logo_path?: string | null
   // Branding cabinet — pour personnaliser le PDF anonymisé candidat
-  // avec l'identité visuelle du cabinet (couleur primaire, slogan) +
-  // un mail générique de contact imprimé en pied de page.
+  // avec l'identité visuelle du cabinet (couleur primaire + secondaire
+  // optionnelle, slogan) + un mail générique de contact imprimé en
+  // pied de page.
   brand_color?: string | null
+  brand_color_secondary?: string | null
   brand_slogan?: string | null
   contact_email?: string | null
   // Cabinet-wide pricing defaults — single source of truth for the
@@ -83,6 +85,10 @@ export async function PATCH(req: Request) {
   if ("brand_color" in body) {
     const raw = typeof body.brand_color === "string" ? body.brand_color.trim() : ""
     patch.brand_color = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw) ? raw : null
+  }
+  if ("brand_color_secondary" in body) {
+    const raw = typeof body.brand_color_secondary === "string" ? body.brand_color_secondary.trim() : ""
+    patch.brand_color_secondary = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw) ? raw : null
   }
   if ("brand_slogan" in body) {
     const raw = typeof body.brand_slogan === "string" ? body.brand_slogan.trim() : ""

@@ -189,8 +189,13 @@ export type Database = {
           brand_name: string | null
           brand_logo_path: string | null
           /** Couleur primaire hex (#RRGGBB) du cabinet pour le PDF
-           *  anonymisé. NULL = défaut applicatif violet Naywa (#7C63C8). */
+           *  anonymisé. NULL = défaut applicatif noir "off" (#000000),
+           *  pour forcer l'owner à configurer sa propre couleur. */
           brand_color: string | null
+          /** Couleur secondaire hex (#RRGGBB), optionnelle. Utilisée
+           *  dans le PDF pour les titres de section et accents (bicolore).
+           *  NULL = pas de bicolore, on reste sur brand_color partout. */
+          brand_color_secondary: string | null
           /** Slogan optionnel affiché sous le nom du cabinet sur le
            *  PDF anonymisé. */
           brand_slogan: string | null
