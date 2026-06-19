@@ -132,10 +132,6 @@ export default function CabinetPage() {
   // c'est dans le workspace que les CTAs des étapes ont du sens.
 
   const orgDisplayName = organization.brand_name ?? organization.name
-  // showPricingPolicy reste utilisé par d'autres cas dans la page.
-  // Le rendu inline du PricingPolicyCard a été déplacé dans
-  // BrandingSection en sous-section pliable, donc plus besoin du
-  // booléen pricingInline ici.
 
   return (
     <main style={{
@@ -166,29 +162,26 @@ export default function CabinetPage() {
               <IdentitySection
                 organization={organization}
                 logoUrl={logoUrl}
-                isOwner={isOwner}
-                onUpdated={refetch}
               />
               <BrandingSection
                 organization={organization}
-                organizationName={(organization.brand_name ?? organization.name).trim() || "votre organisation"}
                 logoUrl={logoUrl}
                 isOwner={isOwner}
                 onUpdated={refetch}
               />
             </div>
-            <MembersSection
-              members={members}
-              invites={invites}
-              seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
-              currentUserId={profile.user_id}
-              userEmail={userEmail}
-              isOwner={isOwner}
-              onChange={() => { void loadInvites() }}
-            />
-            {/* PricingPolicyCard a été déplacé en sous-section pliable
-                dans BrandingSection (PricingPolicyInline) pour compacter
-                la page. On le sort donc de la grille principale. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
+              <MembersSection
+                members={members}
+                invites={invites}
+                seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
+                currentUserId={profile.user_id}
+                userEmail={userEmail}
+                isOwner={isOwner}
+                onChange={() => { void loadInvites() }}
+              />
+              <PricingPolicySectionCollapsible />
+            </div>
             {isOwner && (
               <div style={{ gridColumn: "1 / -1" }}>
                 <PreviewToolsCard />
@@ -1030,47 +1023,40 @@ const panelBody = (color: string): React.CSSProperties => ({
 /* Identité                                                            */
 /* ────────────────────────────────────────────────────────────────── */
 
+/**
+ * Vitrine read-only de l'identité de l'organisation : logo + nom +
+ * slogan + email de contact + pastilles couleur(s). Tout est édité
+ * depuis BrandingSection plus bas. Cette carte ne fait que présenter
+ * l'identité telle qu'elle apparaîtra sur les CV anonymisés.
+ */
 function IdentitySection({
-  organization, logoUrl, isOwner, onUpdated,
+  organization, logoUrl,
 }: {
-  organization: { id: string; name: string; brand_name: string | null; mailing_domain: string | null }
-  /** Affiché en thumbnail dans la carte si présent — l'upload se fait
-   *  dans BrandingSection plus bas. Ici on est en lecture seule sur
-   *  le logo. */
-  logoUrl: string | null
-  isOwner: boolean
-  onUpdated: () => Promise<void>
-}) {
-  const [name, setName] = useState(organization.brand_name ?? organization.name)
-  const [busy, setBusy] = useState<"idle" | "saving">("idle")
-  const [error, setError] = useState<string | null>(null)
-
-  const saveName = async () => {
-    if (!isOwner) return
-    setBusy("saving"); setError(null)
-    const res = await fetch("/api/cabinet", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name.trim() || null, brand_name: name.trim() || null }),
-    })
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Erreur lors de la sauvegarde.")
-    } else {
-      await onUpdated()
-    }
-    setBusy("idle")
+  organization: {
+    name: string
+    brand_name: string | null
+    brand_slogan: string | null
+    brand_color: string | null
+    brand_color_secondary: string | null
+    contact_email: string | null
   }
+  logoUrl: string | null
+}) {
+  const displayName = (organization.brand_name?.trim() || organization.name?.trim()) || "Organisation"
+  const initials = displayName
+    .split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+  const colors = [organization.brand_color, organization.brand_color_secondary].filter(Boolean) as string[]
 
   return (
-    <Card title="Identité de l'organisation" subtitle="Nom officiel utilisé partout dans Naywa.">
-      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-        {/* Thumbnail logo (read-only) — la gestion upload est dans
-            BrandingSection plus bas, ici c'est un aperçu rapide. */}
+    <Card
+      title="Identité de l'organisation"
+      subtitle="Vitrine telle qu'elle apparaîtra sur les CV anonymisés. Modifiable dans Branding."
+    >
+      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
         <div style={{
           flexShrink: 0,
-          width: 48, height: 48,
-          borderRadius: 10,
+          width: 72, height: 72,
+          borderRadius: 14,
           border: "1px solid #E2DAF6",
           background: "#FAFAFA",
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -1078,35 +1064,60 @@ function IdentitySection({
         }}>
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
+            <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
           ) : (
-            <span style={{ fontSize: 10, color: "#C4B6E0", fontWeight: 700, letterSpacing: "0.05em" }}>
-              {(organization.brand_name ?? organization.name)
-                .split(/\s+/)
-                .map((w) => w[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase()}
+            <span style={{ fontSize: 16, color: "#C4B6E0", fontWeight: 800, letterSpacing: "0.04em" }}>
+              {initials}
             </span>
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <Label>Nom de l&apos;organisation</Label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Cabinet Dupont"
-            disabled={!isOwner || busy === "saving"}
-            onBlur={saveName}
-            style={inputStyle}
-          />
-          <Hint>
-            {busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}
-          </Hint>
+          <p style={{
+            margin: 0, fontSize: 17, fontWeight: 800, color: "#111827",
+            letterSpacing: "-0.01em",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {displayName}
+          </p>
+          {organization.brand_slogan ? (
+            <p style={{
+              margin: "3px 0 0", fontSize: 12.5, color: "#6B7280",
+              fontStyle: "italic",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {organization.brand_slogan}
+            </p>
+          ) : (
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: "#C4B6E0" }}>
+              Pas de slogan
+            </p>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+            {/* Pastilles couleur(s) */}
+            <div style={{ display: "flex", gap: 4 }}>
+              {colors.length === 0 ? (
+                <span style={{
+                  display: "inline-block", width: 14, height: 14, borderRadius: 7,
+                  background: "#000000", border: "1px solid rgba(0,0,0,0.10)",
+                }} title="Couleur par défaut (noir)" />
+              ) : (
+                colors.map((c) => (
+                  <span key={c} style={{
+                    display: "inline-block", width: 14, height: 14, borderRadius: 7,
+                    background: c, border: "1px solid rgba(0,0,0,0.10)",
+                  }} title={c.toUpperCase()} />
+                ))
+              )}
+            </div>
+            <span style={{
+              fontSize: 11.5, color: "#6B7280",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {organization.contact_email || <span style={{ color: "#C4B6E0" }}>Aucun email de contact</span>}
+            </span>
+          </div>
         </div>
       </div>
-
-      {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
     </Card>
   )
 }
@@ -1120,24 +1131,25 @@ function IdentitySection({
 /* ────────────────────────────────────────────────────────────────── */
 
 function BrandingSection({
-  organization, organizationName, logoUrl, isOwner, onUpdated,
+  organization, logoUrl, isOwner, onUpdated,
 }: {
   organization: {
     id: string
+    name: string
+    brand_name: string | null
     brand_logo_path: string | null
     brand_color: string | null
     brand_color_secondary: string | null
     brand_slogan: string | null
     contact_email: string | null
   }
-  /** Nom d'affichage de l'org pour le label "Contact de {nom}". */
-  organizationName: string
   logoUrl: string | null
   isOwner: boolean
   onUpdated: () => Promise<void>
 }) {
   const sb = useMemo(() => getSupabase(), [])
   const [open, setOpen] = useState(true) // pliable, ouvert par défaut
+  const [orgName, setOrgName] = useState(organization.brand_name ?? organization.name ?? "")
   const [slogan, setSlogan] = useState(organization.brand_slogan ?? "")
   const [email, setEmail] = useState(organization.contact_email ?? "")
   const [busy, setBusy] = useState<"idle" | "saving" | "uploading" | "deleting">("idle")
@@ -1187,6 +1199,15 @@ function BrandingSection({
     await patch({ contact_email: next })
   }
 
+  const saveName = async () => {
+    if (!isOwner) return
+    const next = orgName.trim()
+    if (!next) return
+    const currentName = (organization.brand_name ?? organization.name ?? "").trim()
+    if (currentName === next) return
+    await patch({ name: next, brand_name: next })
+  }
+
   // Résumé visible quand la carte est repliée — pastilles + label
   const summary = (() => {
     const parts: string[] = []
@@ -1227,6 +1248,20 @@ function BrandingSection({
 
       {open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+          {/* Nom de l'organisation — éditable */}
+          <div>
+            <Label>Nom de l&apos;organisation</Label>
+            <input
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              onBlur={saveName}
+              placeholder="Cabinet Dupont"
+              disabled={!isOwner || busy === "saving"}
+              style={inputStyle}
+            />
+            <Hint>{busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}</Hint>
+          </div>
+
           {/* Logo */}
           <div>
             <Label>Logo</Label>
@@ -1308,9 +1343,9 @@ function BrandingSection({
             <Hint>{slogan.length}/120 caractères</Hint>
           </div>
 
-          {/* Contact de {Org} — fusionné dans Branding */}
+          {/* Email de contact */}
           <div>
-            <Label>Contact de {organizationName}</Label>
+            <Label>Email de contact</Label>
             <input
               type="email"
               value={email}
@@ -1330,9 +1365,6 @@ function BrandingSection({
             </Hint>
           </div>
 
-          {/* Politique pricing — sous-section depliable dans la même carte */}
-          <PricingPolicyInline />
-
           {error && <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
         </div>
       )}
@@ -1340,44 +1372,64 @@ function BrandingSection({
   )
 }
 
-/* Pricing inline — sous-section pliable de Branding. Réutilise la
- * politique pricing existante mais sans la sortir comme carte
- * indépendante en bas de page (au choix d'Elyas pour compacter). */
-function PricingPolicyInline() {
+/**
+ * Carte standalone pliable "Politique pricing" — vit dans la grille
+ * /organisation à côté de Branding/Identité. Repliée par défaut pour
+ * ne pas alourdir la page (le contenu n'est qu'un CTA "Configurer").
+ */
+function PricingPolicySectionCollapsible() {
   const [open, setOpen] = useState(false)
   return (
-    <div style={{
-      borderTop: "1px solid #F0ECF8",
-      paddingTop: 16,
-    }}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          width: "100%",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          background: "transparent", border: "none", cursor: "pointer",
-          padding: 0, fontFamily: "inherit", textAlign: "left",
-        }}
-      >
-        <span>
-          <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#111827" }}>
-            Politique pricing
-          </span>
-          <span style={{ display: "block", fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
-            Marges cibles + avantages standards de l&apos;organisation
-          </span>
-        </span>
-        <span style={{ fontSize: 12, color: "#7C63C8", fontWeight: 700 }}>
+    <Card
+      title="Politique pricing"
+      subtitle="Marges cibles + avantages standards de l'organisation."
+      headerRight={
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            fontSize: 12, fontWeight: 700, color: "#7C63C8",
+            background: "transparent", border: "none",
+            padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
           {open ? "Replier ▴" : "Déplier ▾"}
-        </span>
-      </button>
-      {open && (
-        <div style={{ marginTop: 14 }}>
-          <PricingPolicyCard />
+        </button>
+      }
+    >
+      {!open ? (
+        <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280" }}>
+          Réutilisé sur chaque chiffrage candidat × mission.
+        </p>
+      ) : (
+        <div style={{
+          padding: "12px 14px", borderRadius: 10,
+          background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.20)",
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+          flexWrap: "wrap",
+        }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+              Marges, avantages, lieux
+            </p>
+            <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6B7280" }}>
+              Configurez les paramètres détaillés.
+            </p>
+          </div>
+          <a
+            href="/organisation/parametrage"
+            style={{
+              padding: "8px 13px", borderRadius: 8,
+              background: "#7C63C8", color: "white",
+              fontSize: 12, fontWeight: 700,
+              textDecoration: "none", whiteSpace: "nowrap",
+            }}
+          >
+            Configurer →
+          </a>
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -1937,43 +1989,6 @@ function RolePill({ role }: { role: "owner" | "member" }) {
     }}>
       {role === "owner" ? "Owner" : "Member"}
     </span>
-  )
-}
-
-/* ────────────────────────────────────────────────────────────────── */
-/* Politique pricing                                                    */
-/* ────────────────────────────────────────────────────────────────── */
-
-function PricingPolicyCard() {
-  return (
-    <Card title="Politique pricing" subtitle="Marges cibles + avantages standards de l'organisation.">
-      <div style={{
-        padding: "12px 14px", borderRadius: 10,
-        background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.20)",
-        display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-        flexWrap: "wrap",
-      }}>
-        <div>
-          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
-            Marges, avantages, lieux
-          </p>
-          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6B7280" }}>
-            Réutilisé sur chaque chiffrage candidat × mission.
-          </p>
-        </div>
-        <a
-          href="/organisation/parametrage"
-          style={{
-            padding: "8px 13px", borderRadius: 8,
-            background: "#7C63C8", color: "white",
-            fontSize: 12, fontWeight: 700,
-            textDecoration: "none", whiteSpace: "nowrap",
-          }}
-        >
-          Configurer →
-        </a>
-      </div>
-    </Card>
   )
 }
 

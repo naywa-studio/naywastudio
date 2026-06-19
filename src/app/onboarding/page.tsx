@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import { getSupabase } from "@/lib/supabase"
 import { TRIAL_DURATION_DAYS } from "@/lib/trial"
+import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import type { Profile } from "@/lib/database.types"
 
 /**
@@ -43,7 +44,6 @@ interface InviteRow {
   email: string
 }
 
-const DEFAULT_BRAND_COLOR = "#7C63C8"
 const TOTAL_STEPS = 4
 
 export default function OnboardingPage() {
@@ -54,8 +54,11 @@ export default function OnboardingPage() {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [cabinetName, setCabinetName] = useState("")
-  // Step 2 branding — tous optionnels, défauts violet Naywa si vide.
-  const [brandColor, setBrandColor] = useState(DEFAULT_BRAND_COLOR)
+  // Step 2 branding — tous optionnels. Couleurs null = noir par défaut
+  // côté rendu PDF, conformément à la décision produit "défaut off".
+  const [brandColor, setBrandColor] = useState<string | null>(null)
+  const [brandColorSecondary, setBrandColorSecondary] = useState<string | null>(null)
+  const [savingBrand, setSavingBrand] = useState(false)
   const [brandSlogan, setBrandSlogan] = useState("")
   const [contactEmail, setContactEmail] = useState("")
   const [logoPath, setLogoPath] = useState<string | null>(null)
@@ -110,18 +113,16 @@ export default function OnboardingPage() {
     setStep(2)
   }
 
-  /** Étape 2 — branding. Tout est optionnel ; on persiste juste ce qui
-   *  a été touché. Le logo est déjà uploadé live au moment du choix de
-   *  fichier (cf. uploadLogo) — ici on flush juste color/slogan/contact. */
+  /** Étape 2 — branding. Tout est optionnel. Les couleurs sont déjà
+   *  persistées live par BrandColorPicker (via patchBrandColors). Ici
+   *  on flush juste slogan + contact email avant de passer à l'étape
+   *  suivante. */
   const finishStep2 = async () => {
     if (submitting) return
     setError(null)
     setSubmitting(true)
     try {
       const body: Record<string, unknown> = {}
-      if (brandColor.toLowerCase() !== DEFAULT_BRAND_COLOR.toLowerCase()) {
-        body.brand_color = brandColor
-      }
       if (brandSlogan.trim()) body.brand_slogan = brandSlogan.trim()
       if (contactEmail.trim()) body.contact_email = contactEmail.trim()
       if (Object.keys(body).length > 0) {
@@ -140,6 +141,31 @@ export default function OnboardingPage() {
       setError(err instanceof Error ? err.message : "Erreur inconnue")
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  /** Persistance live des couleurs côté DB — déclenchée par
+   *  BrandColorPicker à chaque sélection. */
+  const patchBrandColors = async (
+    patch: { brand_color?: string | null; brand_color_secondary?: string | null },
+  ) => {
+    setSavingBrand(true); setError(null)
+    try {
+      const res = await fetch("/api/cabinet", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({} as { error?: string }))
+        throw new Error(j.error ?? "Sauvegarde couleur impossible")
+      }
+      if ("brand_color" in patch) setBrandColor(patch.brand_color ?? null)
+      if ("brand_color_secondary" in patch) setBrandColorSecondary(patch.brand_color_secondary ?? null)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue")
+    } finally {
+      setSavingBrand(false)
     }
   }
 
@@ -415,34 +441,22 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              {/* Couleur */}
+              {/* Couleurs — picker complet (palette curated + extraction logo + bicolore) */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
-                <span style={fieldLabelStyle}>Couleur de marque</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <input
-                    type="color"
-                    value={brandColor}
-                    onChange={(e) => setBrandColor(e.target.value)}
-                    style={{
-                      width: 52, height: 40, padding: 3,
-                      border: "1px solid #E2DAF6", borderRadius: 10,
-                      cursor: "pointer", background: "#FFFFFF",
-                    }}
-                  />
-                  <input
-                    value={brandColor.toUpperCase()}
-                    onChange={(e) => setBrandColor(e.target.value)}
-                    onBlur={() => {
-                      if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(brandColor)) {
-                        setBrandColor(DEFAULT_BRAND_COLOR)
-                      }
-                    }}
-                    style={{ ...inputStyle, width: 140, fontFamily: "var(--font-space-grotesk), monospace" }}
-                  />
-                </div>
-                <span style={fieldHintStyle}>
-                  Défaut Naywa : violet {DEFAULT_BRAND_COLOR}.
+                <span style={fieldLabelStyle}>Couleurs de marque</span>
+                <span style={{ ...fieldHintStyle, marginBottom: 4 }}>
+                  Non configurée = rendu en noir sur le PDF anonymisé.
+                  Choisissez une couleur de votre logo ou de la palette
+                  suggérée.
                 </span>
+                <BrandColorPicker
+                  primary={brandColor}
+                  secondary={brandColorSecondary}
+                  isOwner
+                  logoUrl={logoPreviewUrl}
+                  saving={savingBrand}
+                  onSave={patchBrandColors}
+                />
               </div>
 
               {/* Slogan */}

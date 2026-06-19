@@ -233,7 +233,6 @@ export default function MatchPage() {
             keep_nora_summary: anonymizeOptions.keepNoraSummary,
             custom_text: anonymizeOptions.customText.trim() || null,
             watermark: anonymizeOptions.watermark,
-            language: anonymizeOptions.language,
           },
         }),
       })

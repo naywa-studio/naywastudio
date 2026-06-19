@@ -7,7 +7,7 @@
  * Responsabilités :
  *  - description courte mission ciblée
  *  - section dépliable "Personnaliser" : toggle résumé Nora,
- *    textarea custom, toggle filigrane, langue FR/EN
+ *    textarea custom, toggle filigrane
  *  - bouton principal "Anonymiser pour cette mission"
  *  - une fois un PDF prêt : bouton "Voir le PDF ↓" qui scroll vers
  *    AnonymizePreview en bas de page + Télécharger
@@ -173,7 +173,6 @@ export function AnonymizeControls({
           options: {
             keep_nora_summary: options.keepNoraSummary,
             custom_text: options.customText.trim() || null,
-            language: options.language,
           },
         }),
       })
@@ -211,8 +210,7 @@ export function AnonymizeControls({
     options.template !== "classic" ||
     !options.keepNoraSummary ||
     options.customText.trim().length > 0 ||
-    options.watermark ||
-    options.language !== "fr"
+    options.watermark
   const hasJob = !!jobId
   const disabled = !candidateParsed || !hasJob || status.state === "working"
 
@@ -464,41 +462,6 @@ export function AnonymizeControls({
               </span>
             </span>
           </label>
-
-          {/* Langue */}
-          <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>
-              Langue des libellés
-            </span>
-            <div style={{ display: "inline-flex", border: "1px solid #E5E7EB", borderRadius: 8, overflow: "hidden" }}>
-              {(["fr", "en"] as const).map((lang) => {
-                const active = options.language === lang
-                return (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => setOption("language", lang)}
-                    style={{
-                      fontSize: 12.5, fontWeight: 700,
-                      color: active ? "white" : "#374151",
-                      background: active ? "#7C63C8" : "white",
-                      border: "none",
-                      padding: "7px 14px",
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      letterSpacing: "0.04em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {lang}
-                  </button>
-                )
-              })}
-            </div>
-            <span style={{ fontSize: 11, color: "#9CA3AF" }}>
-              Le contenu du CV reste dans sa langue d&apos;origine.
-            </span>
-          </div>
 
           {/* Textarea message custom */}
           <div style={{ gridColumn: "1 / -1" }}>

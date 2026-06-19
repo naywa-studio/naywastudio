@@ -56,17 +56,17 @@ export type AnonymizeTemplate = "classic" | "two-column" | "executive" | "bento"
  *    est false). Limité à 600 caractères côté UI.
  *  - watermark : filigrane diagonal "<NomCabinet>" en fond de toutes
  *    les pages. Anti-screenshot soft. OFF par défaut.
- *  - language : langue des labels du PDF ("fr" | "en"). Le contenu
- *    du CV (parcours, formation) reste dans sa langue d'origine ;
- *    seuls les libellés section + métadonnées + résumé Nora sont
- *    générés/traduits dans la langue choisie. FR par défaut.
+ *
+ * La langue est figée en FR : un toggle FR/EN avait été ajouté en
+ * V2 mais s'est révélé peu pertinent pour le marché cible (clients
+ * français) et bruyant dans l'UI. Le code lib/anonymized-cv conserve
+ * la plomberie language en interne avec un défaut "fr".
  */
 export interface AnonymizeOptions {
   template: AnonymizeTemplate
   keepNoraSummary: boolean
   customText: string
   watermark: boolean
-  language: "fr" | "en"
 }
 
 export const INITIAL_ANONYMIZE_OPTIONS: AnonymizeOptions = {
@@ -74,7 +74,6 @@ export const INITIAL_ANONYMIZE_OPTIONS: AnonymizeOptions = {
   keepNoraSummary: true,
   customText: "",
   watermark: false,
-  language: "fr",
 }
 
 /**
