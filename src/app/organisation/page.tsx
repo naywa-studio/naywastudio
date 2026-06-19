@@ -156,32 +156,33 @@ export default function CabinetPage() {
             display: "grid",
             gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
             gap: 18,
-            alignItems: "start",
+            // alignItems "stretch" + Card `height: 100%` font que les
+            // deux cartes d'une même ligne s'alignent sur la plus grande.
+            // Évite les décalages quand l'une est repliée et l'autre pas.
+            alignItems: "stretch",
           }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
-              <IdentitySection
-                organization={organization}
-                logoUrl={logoUrl}
-              />
-              <BrandingSection
-                organization={organization}
-                logoUrl={logoUrl}
-                isOwner={isOwner}
-                onUpdated={refetch}
-              />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
-              <MembersSection
-                members={members}
-                invites={invites}
-                seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
-                currentUserId={profile.user_id}
-                userEmail={userEmail}
-                isOwner={isOwner}
-                onChange={() => { void loadInvites() }}
-              />
-              <PricingPolicySectionCollapsible />
-            </div>
+            {/* Row 1 : Identité (vitrine read-only) | Membres */}
+            <IdentitySection
+              organization={organization}
+              logoUrl={logoUrl}
+            />
+            <MembersSection
+              members={members}
+              invites={invites}
+              seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
+              currentUserId={profile.user_id}
+              userEmail={userEmail}
+              isOwner={isOwner}
+              onChange={() => { void loadInvites() }}
+            />
+            {/* Row 2 : Branding | Politique pricing */}
+            <BrandingSection
+              organization={organization}
+              logoUrl={logoUrl}
+              isOwner={isOwner}
+              onUpdated={refetch}
+            />
+            <PricingPolicySectionCollapsible />
             {isOwner && (
               <div style={{ gridColumn: "1 / -1" }}>
                 <PreviewToolsCard />
