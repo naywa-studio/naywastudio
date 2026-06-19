@@ -351,7 +351,7 @@ export function AnonymizeControls({
               whiteSpace: "nowrap",
             }}
           >
-            {docxBusy ? "Génération .docx…" : "Aussi en .docx"}
+            {docxBusy ? "Génération .docx…" : ".docx"}
           </button>
         </div>
       </div>
