@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
 import { m } from "framer-motion"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
@@ -283,9 +282,7 @@ function OrgTabs({
   activeTab: OrgTab
   orgLabel: string
 }) {
-  // L'onglet "org" est nommé d'après l'organisation et est le tab par
-  // défaut. Politique pricing inline dans cet onglet quand Pro actif —
-  // pas d'onglet séparé.
+  const router = useRouter()
   // L'URL param reste "abonnement" pour ne pas casser les deep-links
   // historiques (mails Stripe, lockdown banner) — seul le label change.
   const tabs: { id: OrgTab; label: string }[] = [
@@ -293,6 +290,19 @@ function OrgTabs({
     { id: "abonnement", label: "Mes packages" },
     { id: "securite", label: "Sécurité" },
   ]
+
+  // On utilise router.replace au lieu de <Link> pour deux raisons :
+  //   1. Quand l'utilisateur arrive sur /organisation?tab=abonnement et
+  //      clique sur l'onglet "org", Next 16 ne re-rend pas toujours le
+  //      client component si le pathname est identique et que seul le
+  //      query change (cache router agressif). router.replace force le
+  //      flush des searchParams.
+  //   2. replace (vs push) garde l'historique propre : naviguer entre
+  //      onglets ne bourre pas la pile back/forward.
+  const goTo = (id: OrgTab) => {
+    const href = id === "org" ? "/organisation" : `/organisation?tab=${id}`
+    router.replace(href, { scroll: false })
+  }
 
   return (
     <nav
@@ -305,20 +315,23 @@ function OrgTabs({
     >
       {tabs.map((t) => {
         const active = activeTab === t.id
-        const href = `/organisation${t.id === "org" ? "" : `?tab=${t.id}`}`
         return (
-          <Link
+          <button
             key={t.id}
-            href={href}
+            type="button"
             role="tab"
             aria-selected={active}
+            onClick={() => goTo(t.id)}
             style={{
               position: "relative",
               padding: "12px 18px",
               fontSize: 14,
               fontWeight: active ? 700 : 500,
               color: active ? "#111827" : "#6B7280",
-              textDecoration: "none",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
               whiteSpace: "nowrap",
               transition: "color 140ms",
               letterSpacing: t.id === "org" ? "-0.01em" : "0",
@@ -337,7 +350,7 @@ function OrgTabs({
                 }}
               />
             )}
-          </Link>
+          </button>
         )
       })}
     </nav>
