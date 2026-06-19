@@ -461,7 +461,12 @@ function BrandAvatar({ logoUrl, initials }: { logoUrl: string | null; initials: 
         alt=""
         style={{
           width: 56, height: 56, borderRadius: 14,
-          objectFit: "cover",
+          // contain plutôt que cover : on respecte le ratio d'aspect
+          // d'origine du logo cabinet, même si c'est un format
+          // non-carré (rectangulaire, large, etc.). Padding pour
+          // que le logo ne touche pas le bord arrondi.
+          objectFit: "contain",
+          padding: 4,
           border: "1px solid #F0ECF8",
           background: "white",
         }}

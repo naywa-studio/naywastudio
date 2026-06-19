@@ -27,10 +27,14 @@ export function CookieBanner() {
   const [visible, setVisible] = useState(false)
 
   // Lecture localStorage uniquement côté client pour éviter le flash
-  // entre SSR (hidden) et l'hydratation client.
+  // entre SSR (hidden) et l'hydratation client. On désactive la règle
+  // react-hooks/set-state-in-effect car ici on synchronise délibérément
+  // un état React avec une source externe (localStorage) au mount —
+  // c'est le cas légitime décrit dans la doc React.
   useEffect(() => {
     try {
       const acked = window.localStorage.getItem(STORAGE_KEY)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (acked !== "1") setVisible(true)
     } catch {
       // Storage bloqué (mode privé strict) → ne pas afficher pour éviter

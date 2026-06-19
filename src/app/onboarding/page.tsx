@@ -1,21 +1,24 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import { getSupabase } from "@/lib/supabase"
 import { TRIAL_DURATION_DAYS } from "@/lib/trial"
+import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import type { Profile } from "@/lib/database.types"
 
 /**
  * /onboarding
  *
- * Premier passage de l'owner. 3 étapes :
+ * Premier passage de l'owner. 4 étapes :
  *   1. Nom de l'organisation (placeholder seulement, pas de pré-remplissage)
- *   2. Invitations équipe (optionnel)
- *   3. Package Sourcing — 15 j offerts (activate ou skip)
+ *   2. Branding — logo + couleur + slogan + mail de contact (optionnel,
+ *      sert au PDF anonymisé envoyé aux clients finaux)
+ *   3. Invitations équipe (optionnel)
+ *   4. Package Sourcing — 15 j offerts (activate ou skip)
  *
  * Stripe Setup Intent SEPA viendra après l'activation du trial dans une
  * deuxième passe (sprint A4). Pour l'instant l'activation du trial stamp
@@ -41,13 +44,28 @@ interface InviteRow {
   email: string
 }
 
+const TOTAL_STEPS = 4
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [orgId, setOrgId] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [cabinetName, setCabinetName] = useState("")
+  // Step 2 branding — tous optionnels. Couleurs null = noir par défaut
+  // côté rendu PDF, conformément à la décision produit "défaut off".
+  const [brandColor, setBrandColor] = useState<string | null>(null)
+  const [brandColorSecondary, setBrandColorSecondary] = useState<string | null>(null)
+  const [savingBrand, setSavingBrand] = useState(false)
+  const [brandSlogan, setBrandSlogan] = useState("")
+  const [contactEmail, setContactEmail] = useState("")
+  const [logoPath, setLogoPath] = useState<string | null>(null)
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+
   const [invites, setInvites] = useState<InviteRow[]>([
     { id: crypto.randomUUID(), email: "" },
   ])
@@ -67,6 +85,7 @@ export default function OnboardingPage() {
       if (prof.role !== "owner") { router.replace("/workspace"); return }
       if (org?.cabinet_onboarded_at) { router.replace("/organisation"); return }
       setProfile(prof as Profile)
+      setOrgId(prof.organization_id)
       setReady(true)
     })()
     return () => { cancelled = true }
@@ -94,17 +113,122 @@ export default function OnboardingPage() {
     setStep(2)
   }
 
-  /** Étape 2 — envoie les invitations valides (silencieux sur celles qui
+  /** Étape 2 — branding. Tout est optionnel. Les couleurs sont déjà
+   *  persistées live par BrandColorPicker (via patchBrandColors). Ici
+   *  on flush juste slogan + contact email avant de passer à l'étape
+   *  suivante. */
+  const finishStep2 = async () => {
+    if (submitting) return
+    setError(null)
+    setSubmitting(true)
+    try {
+      const body: Record<string, unknown> = {}
+      if (brandSlogan.trim()) body.brand_slogan = brandSlogan.trim()
+      if (contactEmail.trim()) body.contact_email = contactEmail.trim()
+      if (Object.keys(body).length > 0) {
+        const res = await fetch("/api/cabinet", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({} as { error?: string }))
+          throw new Error(j.error ?? "Sauvegarde branding impossible")
+        }
+      }
+      setStep(3)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  /** Persistance live des couleurs côté DB — déclenchée par
+   *  BrandColorPicker à chaque sélection. */
+  const patchBrandColors = async (
+    patch: { brand_color?: string | null; brand_color_secondary?: string | null },
+  ) => {
+    setSavingBrand(true); setError(null)
+    try {
+      const res = await fetch("/api/cabinet", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({} as { error?: string }))
+        throw new Error(j.error ?? "Sauvegarde couleur impossible")
+      }
+      if ("brand_color" in patch) setBrandColor(patch.brand_color ?? null)
+      if ("brand_color_secondary" in patch) setBrandColorSecondary(patch.brand_color_secondary ?? null)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue")
+    } finally {
+      setSavingBrand(false)
+    }
+  }
+
+  const uploadLogo = async (file: File) => {
+    if (!orgId) return
+    setUploadingLogo(true); setError(null)
+    try {
+      const sb = getSupabase()
+      const ext = file.name.split(".").pop() || "png"
+      const path = `${orgId}/${Date.now()}.${ext}`
+      const { error: upErr } = await sb.storage
+        .from("brand-logos")
+        .upload(path, file, { upsert: true })
+      if (upErr) throw new Error(upErr.message)
+      const res = await fetch("/api/cabinet", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brand_logo_path: path }),
+      })
+      if (!res.ok) throw new Error("Logo téléversé mais sauvegarde en échec.")
+      setLogoPath(path)
+      const { data: signed } = await sb.storage
+        .from("brand-logos")
+        .createSignedUrl(path, 3600)
+      setLogoPreviewUrl(signed?.signedUrl ?? null)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur upload logo")
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const removeLogo = async () => {
+    if (!logoPath) return
+    setUploadingLogo(true); setError(null)
+    try {
+      const sb = getSupabase()
+      await sb.storage.from("brand-logos").remove([logoPath])
+      await fetch("/api/cabinet", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brand_logo_path: null }),
+      })
+      setLogoPath(null)
+      setLogoPreviewUrl(null)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur suppression logo")
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  /** Étape 3 — envoie les invitations valides (silencieux sur celles qui
    *  échouent : un membre peut être re-invité plus tard depuis la console).
    *  Si tous les champs sont vides, on saute. */
-  const finishStep2 = async () => {
+  const finishStep3 = async () => {
     if (submitting) return
     setError(null)
     const valid = invites
       .map((r) => r.email.trim().toLowerCase())
       .filter((e) => e.length > 0 && /.+@.+\..+/.test(e))
     if (valid.length === 0) {
-      setStep(3)
+      setStep(4)
       return
     }
     setSubmitting(true)
@@ -120,13 +244,13 @@ export default function OnboardingPage() {
           })
         )
       )
-      setStep(3)
+      setStep(4)
     } finally {
       setSubmitting(false)
     }
   }
 
-  /** Étape 3 — stamp onboarding done puis :
+  /** Étape 4 — stamp onboarding done puis :
    *    - activateTrial: POST /api/cabinet/activate-trial (stamp + consume),
    *      atterrissage /organisation où l'owner choisira d'ajouter son
    *      moyen de paiement maintenant ou plus tard (via TrialChoiceModal).
@@ -208,13 +332,23 @@ export default function OnboardingPage() {
             padding: "40px 36px 32px",
           }}
         >
-          {/* Step indicator */}
+          {/* Step indicator — 4 dots avec connecteurs */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28 }}>
-            <StepDot active={step >= 1} done={step > 1} />
-            <div style={{ flex: 1, height: 1, background: step > 1 ? "#7C63C8" : "#E2DAF6" }} />
-            <StepDot active={step >= 2} done={step > 2} />
-            <div style={{ flex: 1, height: 1, background: step > 2 ? "#7C63C8" : "#E2DAF6" }} />
-            <StepDot active={step >= 3} done={false} />
+            {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
+              const stepNumber = (i + 1) as 1 | 2 | 3 | 4
+              const isLast = stepNumber === TOTAL_STEPS
+              return (
+                <React.Fragment key={stepNumber}>
+                  <StepDot active={step >= stepNumber} done={step > stepNumber} />
+                  {!isLast && (
+                    <div style={{
+                      flex: 1, height: 1,
+                      background: step > stepNumber ? "#7C63C8" : "#E2DAF6",
+                    }} />
+                  )}
+                </React.Fragment>
+              )
+            })}
           </div>
 
           {/* STEP 1 — nom organisation */}
@@ -250,9 +384,125 @@ export default function OnboardingPage() {
             </m.div>
           )}
 
-          {/* STEP 2 — invitations */}
+          {/* STEP 2 — branding cabinet */}
           {step === 2 && (
             <m.div key="s2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
+              <h1 style={titleStyle}>
+                Votre{" "}
+                <span style={italicAccentStyle}>identité visuelle</span>
+              </h1>
+              <p style={subtitleStyle}>
+                Tout est optionnel. Ces éléments apparaîtront sur les CV
+                anonymisés que vous générerez pour vos clients, et leur
+                permettront de vous recontacter au sujet d&apos;un candidat.
+              </p>
+
+              {/* Logo */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+                <span style={fieldLabelStyle}>Logo</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{
+                    width: 72, height: 72,
+                    borderRadius: 14, border: "1.5px dashed #E2DAF6",
+                    background: "#FAFAFA",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden", flexShrink: 0,
+                  }}>
+                    {logoPreviewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logoPreviewUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8 }} />
+                    ) : (
+                      <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => fileInput.current?.click()}
+                      disabled={uploadingLogo}
+                      style={brandingSmallBtn(false)}
+                    >
+                      {uploadingLogo ? "…" : logoPath ? "Remplacer" : "Téléverser"}
+                    </button>
+                    {logoPath && (
+                      <button type="button" onClick={removeLogo} disabled={uploadingLogo} style={brandingSmallBtn(true)}>
+                        Retirer
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <input ref={fileInput} type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) { void uploadLogo(f); e.target.value = "" }
+                  }}
+                />
+              </div>
+
+              {/* Couleurs — picker complet (palette curated + extraction logo + bicolore) */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+                <span style={fieldLabelStyle}>Couleurs de marque</span>
+                <span style={{ ...fieldHintStyle, marginBottom: 4 }}>
+                  Non configurée = rendu en noir sur le PDF anonymisé.
+                  Choisissez une couleur de votre logo ou de la palette
+                  suggérée.
+                </span>
+                <BrandColorPicker
+                  primary={brandColor}
+                  secondary={brandColorSecondary}
+                  isOwner
+                  logoUrl={logoPreviewUrl}
+                  saving={savingBrand}
+                  onSave={patchBrandColors}
+                />
+              </div>
+
+              {/* Slogan */}
+              <label style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+                <span style={fieldLabelStyle}>Slogan (optionnel)</span>
+                <input
+                  type="text"
+                  value={brandSlogan}
+                  onChange={(e) => setBrandSlogan(e.target.value.slice(0, 120))}
+                  placeholder="Recruter, c'est notre métier"
+                  maxLength={120}
+                  style={inputStyle}
+                />
+                <span style={fieldHintStyle}>{brandSlogan.length}/120 caractères</span>
+              </label>
+
+              {/* Contact email */}
+              <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <span style={fieldLabelStyle}>Email de contact</span>
+                <input
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  placeholder="contact@votre-cabinet.com"
+                  style={inputStyle}
+                />
+                <span style={fieldHintStyle}>
+                  Ce mail sera ajouté aux CV anonymisés et permettra à vos
+                  clients de vous recontacter au sujet des candidats.
+                </span>
+              </label>
+
+              {error && <ErrorBox text={error} />}
+
+              <button onClick={finishStep2} disabled={submitting || uploadingLogo} style={primaryBtn(submitting || uploadingLogo)}>
+                {submitting ? "Sauvegarde…" : "Continuer"}
+              </button>
+              <button onClick={() => setStep(3)} disabled={submitting || uploadingLogo} style={skipBtnStyle(submitting || uploadingLogo)}>
+                Passer cette étape
+              </button>
+            </m.div>
+          )}
+
+          {/* STEP 3 — invitations */}
+          {step === 3 && (
+            <m.div key="s3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
               <h1 style={titleStyle}>
                 Invitez votre{" "}
                 <span style={italicAccentStyle}>équipe</span>
@@ -299,7 +549,7 @@ export default function OnboardingPage() {
               {error && <ErrorBox text={error} />}
 
               <button
-                onClick={finishStep2}
+                onClick={finishStep3}
                 disabled={submitting}
                 style={primaryBtn(submitting)}
               >
@@ -307,7 +557,7 @@ export default function OnboardingPage() {
               </button>
 
               <button
-                onClick={() => setStep(3)}
+                onClick={() => setStep(4)}
                 disabled={submitting}
                 style={skipBtnStyle(submitting)}
               >
@@ -316,9 +566,9 @@ export default function OnboardingPage() {
             </m.div>
           )}
 
-          {/* STEP 3 — package */}
-          {step === 3 && (
-            <m.div key="s3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
+          {/* STEP 4 — package */}
+          {step === 4 && (
+            <m.div key="s4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
               <span style={kickerStyle}>Dernière étape</span>
               <h1 style={titleStyle}>
                 Package Sourcing,{" "}
@@ -510,6 +760,21 @@ function ErrorBox({ text }: { text: string }) {
       {text}
     </div>
   )
+}
+
+function brandingSmallBtn(ghost: boolean): React.CSSProperties {
+  return {
+    padding: "8px 14px",
+    borderRadius: 8,
+    border: ghost ? "1px solid #E2DAF6" : "1px solid transparent",
+    background: ghost ? "white" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+    color: ghost ? "#6B7280" : "white",
+    fontSize: 12.5,
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    boxShadow: ghost ? "none" : "0 4px 12px -4px rgba(124,99,200,0.45)",
+  }
 }
 
 function primaryBtn(disabled: boolean): React.CSSProperties {

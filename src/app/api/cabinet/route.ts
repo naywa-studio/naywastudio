@@ -6,7 +6,8 @@ import type { PricingDefaultAvantages } from "@/lib/database.types"
 /**
  * PATCH /api/cabinet
  *   Owner-only. Updates editable fields on the caller's organization.
- *   Body: { name?, brand_name?, brand_logo_path? }
+ *   Body: { name?, brand_name?, brand_logo_path?, brand_color?,
+ *           brand_slogan?, contact_email?, pricing_* }
  *
  * DELETE /api/cabinet
  *   Owner-only. Triggers cabinet deletion.
@@ -24,6 +25,14 @@ interface UpdateBody {
   name?: string
   brand_name?: string | null
   brand_logo_path?: string | null
+  // Branding cabinet — pour personnaliser le PDF anonymisé candidat
+  // avec l'identité visuelle du cabinet (couleur primaire + secondaire
+  // optionnelle, slogan) + un mail générique de contact imprimé en
+  // pied de page.
+  brand_color?: string | null
+  brand_color_secondary?: string | null
+  brand_slogan?: string | null
+  contact_email?: string | null
   // Cabinet-wide pricing defaults — single source of truth for the
   // pricing engine. Owner-only writes; UI in /workspace/parametrage
   // and the first-time wizard call this route.
@@ -68,6 +77,31 @@ export async function PATCH(req: Request) {
   }
   if ("brand_logo_path" in body) {
     patch.brand_logo_path = body.brand_logo_path && body.brand_logo_path.trim() ? body.brand_logo_path : null
+  }
+  // Couleur de marque : on valide juste qu'elle a un format hex
+  // raisonnable (#RGB ou #RRGGBB) pour éviter d'injecter n'importe
+  // quoi dans le rendu PDF côté serveur. Si invalide on stocke null
+  // (= défaut applicatif).
+  if ("brand_color" in body) {
+    const raw = typeof body.brand_color === "string" ? body.brand_color.trim() : ""
+    patch.brand_color = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw) ? raw : null
+  }
+  if ("brand_color_secondary" in body) {
+    const raw = typeof body.brand_color_secondary === "string" ? body.brand_color_secondary.trim() : ""
+    patch.brand_color_secondary = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw) ? raw : null
+  }
+  if ("brand_slogan" in body) {
+    const raw = typeof body.brand_slogan === "string" ? body.brand_slogan.trim() : ""
+    // Slogan court : on cappe à 120 caractères côté serveur pour pas
+    // exploser la mise en page du PDF si quelqu'un colle un paragraphe.
+    patch.brand_slogan = raw ? raw.slice(0, 120) : null
+  }
+  if ("contact_email" in body) {
+    const raw = typeof body.contact_email === "string" ? body.contact_email.trim() : ""
+    // Validation minimale : juste s'assurer qu'il y a un @ avec un point
+    // derrière. Le but n'est pas d'être parfaitement strict (RFC 5322 est
+    // un cauchemar), juste d'éviter du texte libre arrivant sur le PDF.
+    patch.contact_email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw) ? raw : null
   }
 
   // Pricing defaults — accepted but not strictly validated here; the UI

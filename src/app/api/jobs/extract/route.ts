@@ -16,7 +16,11 @@ import { consumeQuota } from "@/lib/quota"
 import { openrouterChat } from "@/lib/openrouter"
 
 export const runtime = "nodejs"
-export const maxDuration = 30
+// Vercel Hobby plan capère à 10s en pratique : on cap maxDuration à 9s
+// pour être sûr de répondre avec un JSON propre (502) plutôt qu'une
+// réponse vide qui ferait crash le client avec "Unexpected end of JSON".
+// Si on migre Pro un jour, on peut remonter à 30s.
+export const maxDuration = 9
 
 const MAX_BRIEF_CHARS = 12_000
 

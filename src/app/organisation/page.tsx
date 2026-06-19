@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
 import { m } from "framer-motion"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
@@ -11,6 +10,7 @@ import { subscriptionAccess, hasActiveAccess } from "@/lib/subscription"
 import { PLAN_PRICES_EUR, type PlanTier, type PlanSeats } from "@/lib/stripe"
 import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
+import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -56,7 +56,7 @@ export default function CabinetPage() {
 
   const rawTab = searchParams.get("tab")
   const action = searchParams.get("action")
-  const activeTab: OrgTab = (() => {
+  const initialTab: OrgTab = (() => {
     // Si ?action=subscribe (deep-link depuis la bannière lockdown ou un
     // mail Stripe), on force l'onglet Abonnement où le SubscriptionCard
     // détectera le param et ouvrira directement le PlanPicker.
@@ -64,6 +64,20 @@ export default function CabinetPage() {
     if (rawTab === "abonnement" || rawTab === "securite") return rawTab
     return "org"
   })()
+  // L'onglet actif est piloté par un state local plutôt que dérivé live
+  // de searchParams. Raison : en Next 16, router.replace avec un
+  // pathname identique ne re-rend pas toujours les client components,
+  // ce qui figeait le tab affiché après un refresh sur ?tab=abonnement
+  // puis un clic sur le premier onglet. State local = UI réactive
+  // instantanément, l'URL est synchronisée en background pour les
+  // deep-links et le partage de lien.
+  const [activeTab, setActiveTab] = useState<OrgTab>(initialTab)
+  // Si l'URL change pour une raison externe (deep-link ?tab=…,
+  // bouton retour navigateur), on resynchronise le state.
+  useEffect(() => {
+    setActiveTab(initialTab)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawTab, action])
 
   // Dashboard reste owner-only. /cabinet/parametrage gère les members
   // séparément en read-only.
@@ -124,22 +138,13 @@ export default function CabinetPage() {
     trial.state === "active" ||
     organization.subscription_status === "active" ||
     organization.subscription_status === "trialing"
-  const showPricingPolicy = hasAnyAccess
+  void hasAnyAccess // legacy : pricing policy est désormais inline dans Branding
 
   // La visite guidée 6 étapes Package Sourcing est désormais déclenchée
   // sur /workspace (premier accès après souscription), pas ici --
   // c'est dans le workspace que les CTAs des étapes ont du sens.
 
   const orgDisplayName = organization.brand_name ?? organization.name
-  // Pricing visible inline dans l'onglet org dans 2 cas :
-  //   1. Sub Stripe avec Suite Pricing (sourcing_pro_*)
-  //   2. Trial actif app-side -> le trial donne 2 sièges Pro par
-  //      construction (cf TrialChoiceModal), pricing inclus pendant
-  //      les 15 jours pour que l'owner teste.
-  const pricingInline = showPricingPolicy && (
-    organization.subscription_has_pricing ||
-    trial.state === "active"
-  )
 
   return (
     <main style={{
@@ -155,6 +160,7 @@ export default function CabinetPage() {
       <OrgTabs
         activeTab={activeTab}
         orgLabel={orgDisplayName}
+        onChange={setActiveTab}
       />
 
       {/* ── Tab content ───────────────────────────────────── */}
@@ -164,13 +170,15 @@ export default function CabinetPage() {
             display: "grid",
             gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
             gap: 18,
-            alignItems: "start",
+            // alignItems "stretch" + Card `height: 100%` font que les
+            // deux cartes d'une même ligne s'alignent sur la plus grande.
+            // Évite les décalages quand l'une est repliée et l'autre pas.
+            alignItems: "stretch",
           }}>
+            {/* Row 1 : Identité (vitrine read-only) | Membres */}
             <IdentitySection
               organization={organization}
               logoUrl={logoUrl}
-              isOwner={isOwner}
-              onUpdated={refetch}
             />
             <MembersSection
               members={members}
@@ -181,9 +189,19 @@ export default function CabinetPage() {
               isOwner={isOwner}
               onChange={() => { void loadInvites() }}
             />
-            {pricingInline && (
+            {/* Row 2 : Branding pleine largeur (la politique pricing
+                vit désormais dans l'onglet "Mes packages"). */}
+            <div style={{ gridColumn: "1 / -1" }}>
+              <BrandingSection
+                organization={organization}
+                logoUrl={logoUrl}
+                isOwner={isOwner}
+                onUpdated={refetch}
+              />
+            </div>
+            {isOwner && (
               <div style={{ gridColumn: "1 / -1" }}>
-                <PricingPolicyCard />
+                <PreviewToolsCard />
               </div>
             )}
             <style>{`
@@ -207,6 +225,7 @@ export default function CabinetPage() {
               isOwner={isOwner}
               autoOpenPicker={action === "subscribe"}
             />
+            <PricingPolicySectionCollapsible />
           </div>
         )}
 
@@ -273,19 +292,36 @@ function PricingOnboardingGate({
 type OrgTab = "org" | "abonnement" | "securite"
 
 function OrgTabs({
-  activeTab, orgLabel,
+  activeTab, orgLabel, onChange,
 }: {
   activeTab: OrgTab
   orgLabel: string
+  /** Bascule le state d'activeTab dans le parent. La synchro URL se fait
+   *  en plus via history.replaceState pour ne pas casser le partage de
+   *  lien / les deep-links, mais sans dépendre du re-render Next. */
+  onChange: (next: OrgTab) => void
 }) {
-  // L'onglet "org" est nommé d'après l'organisation et est le tab par
-  // défaut. Politique pricing inline dans cet onglet quand Pro actif —
-  // pas d'onglet séparé.
+  // L'URL param reste "abonnement" pour ne pas casser les deep-links
+  // historiques (mails Stripe, lockdown banner) — seul le label change.
   const tabs: { id: OrgTab; label: string }[] = [
     { id: "org", label: orgLabel || "Organisation" },
-    { id: "abonnement", label: "Abonnement" },
+    { id: "abonnement", label: "Mes packages" },
     { id: "securite", label: "Sécurité" },
   ]
+
+  // Source de vérité = state parent (réactif instantanément).
+  // On met à jour l'URL en parallèle via history.replaceState pour
+  // garder le query string en phase pour les deep-links, MAIS sans
+  // déclencher router.replace : Next 16 a un cache agressif qui peut
+  // figer le render quand le pathname est identique. history natif
+  // contourne ça sans toucher au rendu.
+  const goTo = (id: OrgTab) => {
+    onChange(id)
+    const href = id === "org" ? "/organisation" : `/organisation?tab=${id}`
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", href)
+    }
+  }
 
   return (
     <nav
@@ -298,20 +334,23 @@ function OrgTabs({
     >
       {tabs.map((t) => {
         const active = activeTab === t.id
-        const href = `/organisation${t.id === "org" ? "" : `?tab=${t.id}`}`
         return (
-          <Link
+          <button
             key={t.id}
-            href={href}
+            type="button"
             role="tab"
             aria-selected={active}
+            onClick={() => goTo(t.id)}
             style={{
               position: "relative",
               padding: "12px 18px",
               fontSize: 14,
               fontWeight: active ? 700 : 500,
               color: active ? "#111827" : "#6B7280",
-              textDecoration: "none",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
               whiteSpace: "nowrap",
               transition: "color 140ms",
               letterSpacing: t.id === "org" ? "-0.01em" : "0",
@@ -330,7 +369,7 @@ function OrgTabs({
                 }}
               />
             )}
-          </Link>
+          </button>
         )
       })}
     </nav>
@@ -1022,27 +1061,146 @@ const panelBody = (color: string): React.CSSProperties => ({
 /* Identité                                                            */
 /* ────────────────────────────────────────────────────────────────── */
 
+/**
+ * Vitrine read-only de l'identité de l'organisation : logo + nom +
+ * slogan + email de contact + pastilles couleur(s). Tout est édité
+ * depuis BrandingSection plus bas. Cette carte ne fait que présenter
+ * l'identité telle qu'elle apparaîtra sur les CV anonymisés.
+ */
 function IdentitySection({
+  organization, logoUrl,
+}: {
+  organization: {
+    name: string
+    brand_name: string | null
+    brand_slogan: string | null
+    brand_color: string | null
+    brand_color_secondary: string | null
+    contact_email: string | null
+  }
+  logoUrl: string | null
+}) {
+  const displayName = (organization.brand_name?.trim() || organization.name?.trim()) || "Organisation"
+  const initials = displayName
+    .split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+  const colors = [organization.brand_color, organization.brand_color_secondary].filter(Boolean) as string[]
+
+  return (
+    <Card
+      title="Identité de l'organisation"
+      subtitle="Vitrine telle qu'elle apparaîtra sur les CV anonymisés. Modifiable dans Branding."
+    >
+      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+        <div style={{
+          flexShrink: 0,
+          width: 72, height: 72,
+          borderRadius: 14,
+          border: "1px solid #E2DAF6",
+          background: "#FAFAFA",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          overflow: "hidden",
+        }}>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
+          ) : (
+            <span style={{ fontSize: 16, color: "#C4B6E0", fontWeight: 800, letterSpacing: "0.04em" }}>
+              {initials}
+            </span>
+          )}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{
+            margin: 0, fontSize: 17, fontWeight: 800, color: "#111827",
+            letterSpacing: "-0.01em",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {displayName}
+          </p>
+          {organization.brand_slogan ? (
+            <p style={{
+              margin: "3px 0 0", fontSize: 12.5, color: "#6B7280",
+              fontStyle: "italic",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {organization.brand_slogan}
+            </p>
+          ) : (
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: "#C4B6E0" }}>
+              Pas de slogan
+            </p>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+            {/* Pastilles couleur(s) */}
+            <div style={{ display: "flex", gap: 4 }}>
+              {colors.length === 0 ? (
+                <span style={{
+                  display: "inline-block", width: 14, height: 14, borderRadius: 7,
+                  background: "#000000", border: "1px solid rgba(0,0,0,0.10)",
+                }} title="Couleur par défaut (noir)" />
+              ) : (
+                colors.map((c) => (
+                  <span key={c} style={{
+                    display: "inline-block", width: 14, height: 14, borderRadius: 7,
+                    background: c, border: "1px solid rgba(0,0,0,0.10)",
+                  }} title={c.toUpperCase()} />
+                ))
+              )}
+            </div>
+            <span style={{
+              fontSize: 11.5, color: "#6B7280",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {organization.contact_email || <span style={{ color: "#C4B6E0" }}>Aucun email de contact</span>}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Branding cabinet — logo + couleur + slogan                          */
+/*                                                                     */
+/* Ces 3 champs nourrissent le PDF anonymisé candidat : le client      */
+/* final reçoit un document à l'identité visuelle du cabinet, pas      */
+/* Naywa. Owner-only en édition, lecture seule pour les members.       */
+/* ────────────────────────────────────────────────────────────────── */
+
+function BrandingSection({
   organization, logoUrl, isOwner, onUpdated,
 }: {
-  organization: { id: string; name: string; brand_name: string | null; brand_logo_path: string | null; mailing_domain: string | null }
+  organization: {
+    id: string
+    name: string
+    brand_name: string | null
+    brand_logo_path: string | null
+    brand_color: string | null
+    brand_color_secondary: string | null
+    brand_slogan: string | null
+    contact_email: string | null
+  }
   logoUrl: string | null
   isOwner: boolean
   onUpdated: () => Promise<void>
 }) {
   const sb = useMemo(() => getSupabase(), [])
-  const [name, setName] = useState(organization.brand_name ?? organization.name)
+  const [open, setOpen] = useState(true) // pliable, ouvert par défaut
+  const [orgName, setOrgName] = useState(organization.brand_name ?? organization.name ?? "")
+  const [slogan, setSlogan] = useState(organization.brand_slogan ?? "")
+  const [email, setEmail] = useState(organization.contact_email ?? "")
   const [busy, setBusy] = useState<"idle" | "saving" | "uploading" | "deleting">("idle")
   const [error, setError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const emailValid = email.trim() === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 
-  const saveName = async () => {
-    if (!isOwner) return
-    setBusy("saving"); setError(null)
+  const patch = async (body: Record<string, unknown>, kind: "saving" | "uploading" | "deleting" = "saving") => {
+    setBusy(kind); setError(null)
     const res = await fetch("/api/cabinet", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name.trim() || null, brand_name: name.trim() || null }),
+      body: JSON.stringify(body),
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
@@ -1060,89 +1218,358 @@ function IdentitySection({
     const path = `${organization.id}/${Date.now()}.${ext}`
     const { error: upErr } = await sb.storage.from("brand-logos").upload(path, file, { upsert: true })
     if (upErr) { setError(upErr.message); setBusy("idle"); return }
-    const res = await fetch("/api/cabinet", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ brand_logo_path: path }),
-    })
-    if (!res.ok) setError("Logo téléversé mais sauvegarde en échec.")
-    else await onUpdated()
-    setBusy("idle")
+    await patch({ brand_logo_path: path }, "uploading")
   }
 
   const removeLogo = async () => {
     if (!isOwner) return
-    setBusy("deleting"); setError(null)
     if (organization.brand_logo_path) {
       await sb.storage.from("brand-logos").remove([organization.brand_logo_path])
     }
-    await fetch("/api/cabinet", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ brand_logo_path: null }),
-    })
-    await onUpdated()
-    setBusy("idle")
+    await patch({ brand_logo_path: null }, "deleting")
+  }
+
+  const saveEmail = async () => {
+    if (!isOwner) return
+    const next = email.trim() || null
+    if ((organization.contact_email ?? null) === next) return
+    if (!emailValid) return
+    await patch({ contact_email: next })
+  }
+
+  const saveName = async () => {
+    if (!isOwner) return
+    const next = orgName.trim()
+    if (!next) return
+    const currentName = (organization.brand_name ?? organization.name ?? "").trim()
+    if (currentName === next) return
+    await patch({ name: next, brand_name: next })
+  }
+
+  // Résumé visible quand la carte est repliée — pastilles + label
+  const summary = (() => {
+    const parts: string[] = []
+    if (logoUrl) parts.push("Logo")
+    if (organization.brand_color) parts.push("Couleur")
+    if (organization.brand_color_secondary) parts.push("Bicolore")
+    if (organization.brand_slogan) parts.push("Slogan")
+    if (organization.contact_email) parts.push("Contact")
+    return parts.length > 0 ? parts.join(" · ") : "À configurer"
+  })()
+
+  return (
+    <Card
+      title="Branding"
+      subtitle="Logo, couleurs, slogan et contact qui apparaissent sur les CV anonymisés."
+      // Bouton repli intégré au header de la carte
+      headerRight={
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            fontSize: 12, fontWeight: 700, color: "#7C63C8",
+            background: "transparent", border: "none",
+            padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
+            display: "inline-flex", alignItems: "center", gap: 4,
+          }}
+        >
+          {open ? "Replier ▴" : "Déplier ▾"}
+        </button>
+      }
+    >
+      {!open && (
+        <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280" }}>
+          <span style={{ color: organization.brand_color || "#000000", marginRight: 6, fontWeight: 700 }}>●</span>
+          {summary}
+        </p>
+      )}
+
+      {open && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+          {/* Nom de l'organisation — éditable */}
+          <div>
+            <Label>Nom de l&apos;organisation</Label>
+            <input
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              onBlur={saveName}
+              placeholder="Cabinet Dupont"
+              disabled={!isOwner || busy === "saving"}
+              style={inputStyle}
+            />
+            <Hint>{busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}</Hint>
+          </div>
+
+          {/* Logo */}
+          <div>
+            <Label>Logo</Label>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{
+                width: 64, height: 64,
+                borderRadius: 12, border: "1.5px dashed #E2DAF6",
+                background: "#FAFAFA",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                overflow: "hidden",
+                flexShrink: 0,
+              }}>
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
+                ) : (
+                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
+                )}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <button type="button" onClick={() => fileInput.current?.click()}
+                  disabled={!isOwner || busy !== "idle"}
+                  style={smallBtnPrimary}>
+                  {busy === "uploading" ? "…" : logoUrl ? "Remplacer" : "Téléverser"}
+                </button>
+                {logoUrl && isOwner && (
+                  <button type="button" onClick={removeLogo} disabled={busy !== "idle"} style={smallBtnGhost}>
+                    Retirer
+                  </button>
+                )}
+              </div>
+            </div>
+            <input ref={fileInput} type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) { void uploadLogo(f); e.target.value = "" }
+              }}
+            />
+          </div>
+
+          {/* Couleurs — picker complet avec palette + extraction logo + bicolore */}
+          <div>
+            <Label>Couleurs de marque</Label>
+            <Hint>
+              Non configurée = rendu en noir sur le PDF anonymisé. Choisissez
+              une couleur de votre logo ou de la palette suggérée.
+            </Hint>
+            <div style={{ marginTop: 10 }}>
+              <BrandColorPicker
+                primary={organization.brand_color}
+                secondary={organization.brand_color_secondary}
+                isOwner={isOwner}
+                logoUrl={logoUrl}
+                saving={busy === "saving"}
+                onSave={(body) => patch(body)}
+              />
+            </div>
+          </div>
+
+          {/* Slogan */}
+          <div>
+            <Label>Slogan <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span></Label>
+            <input
+              value={slogan}
+              onChange={(e) => setSlogan(e.target.value.slice(0, 120))}
+              onBlur={() => {
+                if (!isOwner) return
+                const next = slogan.trim() || null
+                if ((organization.brand_slogan ?? null) === next) return
+                void patch({ brand_slogan: next })
+              }}
+              placeholder="Recruter, c'est notre métier"
+              disabled={!isOwner || busy === "saving"}
+              maxLength={120}
+              style={inputStyle}
+            />
+            <Hint>{slogan.length}/120 caractères</Hint>
+          </div>
+
+          {/* Email de contact */}
+          <div>
+            <Label>Email de contact</Label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onBlur={saveEmail}
+              placeholder="contact@votre-cabinet.com"
+              disabled={!isOwner || busy === "saving"}
+              style={{
+                ...inputStyle,
+                borderColor: email && !emailValid ? "#EF4444" : inputStyle.borderColor,
+              }}
+            />
+            <Hint>
+              {email && !emailValid
+                ? "Format d'email invalide"
+                : "Ajouté en pied de page du CV anonymisé. Permet au client final de vous recontacter."}
+            </Hint>
+          </div>
+
+          {error && <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * Carte standalone pliable "Politique pricing" — vit dans la grille
+ * /organisation à côté de Branding/Identité. Repliée par défaut pour
+ * ne pas alourdir la page (le contenu n'est qu'un CTA "Configurer").
+ */
+function PricingPolicySectionCollapsible() {
+  const [open, setOpen] = useState(false)
+  return (
+    <Card
+      title="Politique pricing"
+      subtitle="Marges cibles + avantages standards de l'organisation."
+      headerRight={
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            fontSize: 12, fontWeight: 700, color: "#7C63C8",
+            background: "transparent", border: "none",
+            padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          {open ? "Replier ▴" : "Déplier ▾"}
+        </button>
+      }
+    >
+      {!open ? (
+        <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280" }}>
+          Réutilisé sur chaque chiffrage candidat × mission.
+        </p>
+      ) : (
+        <div style={{
+          padding: "12px 14px", borderRadius: 10,
+          background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.20)",
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+          flexWrap: "wrap",
+        }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+              Marges, avantages, lieux
+            </p>
+            <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6B7280" }}>
+              Configurez les paramètres détaillés.
+            </p>
+          </div>
+          <a
+            href="/organisation/parametrage"
+            style={{
+              padding: "8px 13px", borderRadius: 8,
+              background: "#7C63C8", color: "white",
+              fontSize: 12, fontWeight: 700,
+              textDecoration: "none", whiteSpace: "nowrap",
+            }}
+          >
+            Configurer →
+          </a>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Preview tools — visible UNIQUEMENT sur déploiements preview Vercel  */
+/*                                                                     */
+/* Permet à Elyas de re-déclencher des flows (onboarding, etc.) à      */
+/* volonté pour tester les modifs avant merge. Inactif sur la prod     */
+/* (le composant se retire tout seul si hostname != *.vercel.app).     */
+/* ────────────────────────────────────────────────────────────────── */
+
+function PreviewToolsCard() {
+  const router = useRouter()
+  const [isPreview, setIsPreview] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Détection côté client : on n'affiche le composant que sur un
+    // sous-domaine Vercel preview. Sur naywastudio.com il reste null.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsPreview(window.location.hostname.endsWith(".vercel.app"))
+  }, [])
+
+  if (!isPreview) return null
+
+  const resetOnboarding = async () => {
+    if (busy) return
+    if (!window.confirm("Recommencer l'onboarding ? Aucune donnée vivier/missions ne sera supprimée.")) return
+    setBusy(true); setError(null)
+    const res = await fetch("/api/cabinet/reset-onboarding", { method: "POST" })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Erreur lors de la réinitialisation.")
+      setBusy(false)
+      return
+    }
+    // Le proxy va re-rediriger vers /onboarding au prochain hit
+    // /organisation. router.push direct sur /onboarding pour le confort.
+    router.push("/onboarding")
   }
 
   return (
-    <Card title="Identité de l'organisation" subtitle="Apparaît sur les CV anonymisés et vos emails sortants.">
-      <Label>Nom de l&apos;organisation</Label>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Organisation Dupont"
-        disabled={!isOwner || busy === "saving"}
-        onBlur={saveName}
-        style={inputStyle}
-      />
-      <Hint>
-        {busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}
-      </Hint>
-
-      <div style={{ marginTop: 14 }}>
-        <Label>Logo</Label>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 64, height: 64,
-            borderRadius: 12, border: "1.5px dashed #E2DAF6",
-            background: "#FAFAFA",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            overflow: "hidden",
-            flexShrink: 0,
-          }}>
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
-            ) : (
-              <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
-            )}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <button type="button" onClick={() => fileInput.current?.click()}
-              disabled={!isOwner || busy !== "idle"}
-              style={smallBtnPrimary}>
-              {busy === "uploading" ? "…" : logoUrl ? "Remplacer" : "Téléverser"}
-            </button>
-            {logoUrl && isOwner && (
-              <button type="button" onClick={removeLogo} disabled={busy !== "idle"} style={smallBtnGhost}>
-                Retirer
-              </button>
-            )}
-          </div>
-        </div>
-        <input ref={fileInput} type="file"
-          accept="image/png,image/jpeg,image/webp,image/svg+xml"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) { void uploadLogo(f); e.target.value = "" }
-          }}
-        />
+    <div style={{
+      background: "linear-gradient(165deg, #FEF3C7 0%, #FDE68A 100%)",
+      border: "1px solid #F59E0B",
+      borderRadius: 14,
+      padding: "16px 18px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 16,
+      flexWrap: "wrap",
+    }}>
+      <div style={{ flex: 1, minWidth: 240 }}>
+        <p style={{
+          margin: "0 0 4px",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#92400E",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}>
+          Outils de preview
+        </p>
+        <p style={{
+          margin: 0,
+          fontSize: 13,
+          color: "#78350F",
+          lineHeight: 1.55,
+        }}>
+          Réservé aux déploiements preview Vercel. Recommencer
+          l&apos;onboarding remet <code>cabinet_onboarded_at</code> à
+          NULL — aucune donnée n&apos;est supprimée.
+        </p>
+        {error && (
+          <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C", fontWeight: 600 }}>
+            {error}
+          </p>
+        )}
       </div>
-
-      {error && <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
-    </Card>
+      <button
+        type="button"
+        onClick={resetOnboarding}
+        disabled={busy}
+        style={{
+          padding: "10px 16px",
+          borderRadius: 10,
+          border: "1px solid #92400E",
+          background: "#92400E",
+          color: "#FEF3C7",
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: busy ? "wait" : "pointer",
+          fontFamily: "inherit",
+          letterSpacing: "0.01em",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {busy ? "Réinitialisation…" : "Recommencer l'onboarding"}
+      </button>
+    </div>
   )
 }
 
@@ -1604,43 +2031,6 @@ function RolePill({ role }: { role: "owner" | "member" }) {
 }
 
 /* ────────────────────────────────────────────────────────────────── */
-/* Politique pricing                                                    */
-/* ────────────────────────────────────────────────────────────────── */
-
-function PricingPolicyCard() {
-  return (
-    <Card title="Politique pricing" subtitle="Marges cibles + avantages standards de l'organisation.">
-      <div style={{
-        padding: "12px 14px", borderRadius: 10,
-        background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.20)",
-        display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-        flexWrap: "wrap",
-      }}>
-        <div>
-          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
-            Marges, avantages, lieux
-          </p>
-          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6B7280" }}>
-            Réutilisé sur chaque chiffrage candidat × mission.
-          </p>
-        </div>
-        <a
-          href="/organisation/parametrage"
-          style={{
-            padding: "8px 13px", borderRadius: 8,
-            background: "#7C63C8", color: "white",
-            fontSize: 12, fontWeight: 700,
-            textDecoration: "none", whiteSpace: "nowrap",
-          }}
-        >
-          Configurer →
-        </a>
-      </div>
-    </Card>
-  )
-}
-
-/* ────────────────────────────────────────────────────────────────── */
 /* Zone de danger                                                      */
 /* ────────────────────────────────────────────────────────────────── */
 
@@ -1827,7 +2217,13 @@ function ExportDataCard() {
 /* Shared building blocks                                              */
 /* ────────────────────────────────────────────────────────────────── */
 
-function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+function Card({ title, subtitle, children, headerRight }: {
+  title: string
+  subtitle: string
+  children: React.ReactNode
+  /** Action optionnelle alignée à droite du titre (bouton Replier, etc.) */
+  headerRight?: React.ReactNode
+}) {
   return (
     <section style={{
       padding: "16px 18px",
@@ -1839,8 +2235,14 @@ function Card({ title, subtitle, children }: { title: string; subtitle: string; 
       display: "flex",
       flexDirection: "column",
     }}>
-      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>{title}</h2>
-      <p style={{ margin: "4px 0 12px", fontSize: 12, color: "#9CA3AF" }}>{subtitle}</p>
+      <div style={{
+        display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8,
+        marginBottom: 4,
+      }}>
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>{title}</h2>
+        {headerRight}
+      </div>
+      <p style={{ margin: "0 0 12px", fontSize: 12, color: "#9CA3AF" }}>{subtitle}</p>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {children}
       </div>

@@ -29,8 +29,37 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
-  const body = await req.json().catch(() => null) as { job_id?: unknown } | null
+  // Body schema :
+  //   job_id  : mission ciblée (oriente le résumé Nora)
+  //   options : choix du sourceur dans le panneau "Personnaliser"
+  //             (cf. AnonymizeOptions côté client)
+  const body = await req.json().catch(() => null) as {
+    job_id?: unknown
+    options?: {
+      template?: unknown
+      keep_nora_summary?: unknown
+      custom_text?: unknown
+      watermark?: unknown
+      language?: unknown
+    }
+  } | null
   const jobId = typeof body?.job_id === "string" ? body.job_id : null
+
+  // Sanitize options : on valide chaque champ, défauts si absent/invalide.
+  const optRaw = body?.options ?? {}
+  const template: "classic" | "two-column" | "executive" | "bento" =
+    optRaw.template === "two-column"
+      ? "two-column"
+      : optRaw.template === "executive"
+        ? "executive"
+        : optRaw.template === "bento"
+          ? "bento"
+          : "classic"
+  const keepNoraSummary = typeof optRaw.keep_nora_summary === "boolean" ? optRaw.keep_nora_summary : true
+  const customText =
+    typeof optRaw.custom_text === "string" ? optRaw.custom_text.trim().slice(0, 600) : ""
+  const watermark = typeof optRaw.watermark === "boolean" ? optRaw.watermark : false
+  const language: "fr" | "en" = optRaw.language === "en" ? "en" : "fr"
 
   const { data: candidate, error } = await sb.from("candidates").select("*").eq("id", id).single()
   if (error || !candidate) return NextResponse.json({ error: "not_found" }, { status: 404 })
@@ -49,14 +78,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   let brandName: string | null = null
   let brandLogoPath: string | null = null
+  let brandColor: string | null = null
+  let brandColorSecondary: string | null = null
+  let brandSlogan: string | null = null
+  let contactEmail: string | null = null
   if (profile?.organization_id) {
     const { data: org } = await sb
       .from("organizations")
-      .select("brand_name, brand_logo_path, name")
+      .select("brand_name, brand_logo_path, brand_color, brand_color_secondary, brand_slogan, contact_email, name")
       .eq("id", profile.organization_id)
       .maybeSingle()
     brandName = (org?.brand_name?.trim() || org?.name?.trim()) || null
     brandLogoPath = org?.brand_logo_path ?? null
+    brandColor = org?.brand_color ?? null
+    brandColorSecondary = org?.brand_color_secondary ?? null
+    brandSlogan = org?.brand_slogan ?? null
+    contactEmail = org?.contact_email ?? null
   }
 
   let brandLogoUrl: string | null = null
@@ -70,6 +107,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const brand = {
     name: brandName,
     logoUrl: brandLogoUrl,
+    color: brandColor,
+    colorSecondary: brandColorSecondary,
+    slogan: brandSlogan,
+    contactEmail,
   }
 
   // Pull the job to orient the PDF — title, must-have skills, briefing.
@@ -107,9 +148,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // Executive summary mission-oriented — 2-3 phrases formelles qui expliquent
   // pourquoi ce profil correspond à la mission. Best-effort : si le LLM rate
   // ou prend trop de temps, on tombe sur cv.summary tel que parsé côté PDF.
+  // On évite l'appel LLM si l'owner a désactivé le résumé Nora dans son
+  // panneau "Personnaliser" — économise quota + latence.
   let executiveSummary: string | null = null
-  if (jobContext) {
-    executiveSummary = await buildExecutiveSummary(candidate as Candidate, jobContext)
+  if (jobContext && keepNoraSummary) {
+    executiveSummary = await buildExecutiveSummary(candidate as Candidate, jobContext, language)
   }
 
   let buffer: Buffer
@@ -122,6 +165,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           job: jobContext,
           brand,
           executiveSummary,
+          options: {
+            template,
+            keepNoraSummary,
+            customText,
+            watermark,
+            language,
+          },
         }),
       ),
     )
@@ -207,22 +257,54 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
  * place et le sourceur pourra ré-anonymiser plus tard.
  * ────────────────────────────────────────────────────────────────────────── */
 
-const EXEC_SUMMARY_PROMPT = `Tu es Nora, assistante recrutement Naywa. On te donne un candidat et une mission. Produis un résumé exécutif de 2 à 3 phrases (60 à 90 mots) qui explique pourquoi ce profil est pertinent pour la mission.
+const EXEC_SUMMARY_PROMPT_FR = `Tu es Nora, assistante recrutement Naywa. On te donne un candidat et une mission. Tu produis un résumé exécutif FACTUEL de 2 à 3 phrases (50 à 80 mots) qui synthétise objectivement le profil dans le sens de la mission.
 
-Règles :
+Règles strictes :
 - Réponds en JSON strict : { "summary": string }.
-- Ton formel, professionnel, vouvoiement (jamais de tutoiement). Le texte est destiné au client final du cabinet.
-- Ne JAMAIS citer le nom du candidat, ni d'école, ni de coordonnées (on est dans un document anonymisé).
-- N'invente AUCUNE information qui n'est pas dans le snapshot. Si l'info manque, n'en parle pas.
-- Mentionne 2-3 points concrets de pertinence (compétences alignées, séniorité adaptée, type de contexte déjà rencontré).
-- Pas d'envolée lyrique, pas de "candidat idéal", reste factuel et confiant.`
+- LANGUE DE SORTIE : FRANÇAIS uniquement.
+- Ton formel, vouvoiement. Destiné au client final du cabinet de recrutement.
+- Anonymisation : JAMAIS de nom, école, coordonnées.
+- ZÉRO INFÉRENCE sur ce qui n'est pas écrit : pas de "motivé", "passionné", "très impliqué", "candidat idéal", "fort potentiel", "excellent communicant". Tu n'as pas eu d'entretien, tu n'as PAS accès à ces dimensions.
+- Tu te limites à ce que le CV permet de dire FACTUELLEMENT :
+  années d'expérience, séniorité, compétences techniques alignées
+  avec les exigences mission, types de contextes/secteurs déjà
+  rencontrés. Pas plus.
+- Si tu manques d'information sur un axe, tu n'en parles pas.
+- Connecte 2-3 éléments du CV aux exigences mission ("X ans en Y,
+  expérience sur Z et W mentionnés comme requis").
+- Pas d'envolée, pas de vocabulaire commercial. Sec, précis, sourcé.
+- Évite les superlatifs ("expert", "maîtrise parfaite") sauf si le
+  CV les mentionne textuellement.`
+
+const EXEC_SUMMARY_PROMPT_EN = `You are Nora, Naywa's recruitment assistant. You are given a candidate and a job. Produce a FACTUAL executive summary of 2 to 3 sentences (50 to 80 words) that objectively summarises the profile against the mission requirements.
+
+Strict rules:
+- Reply in strict JSON: { "summary": string }.
+- OUTPUT LANGUAGE: ENGLISH only.
+- Formal tone. The text is for the recruitment firm's end client.
+- Anonymisation: NEVER mention name, school, or contact details.
+- ZERO INFERENCE on what is not written: no "motivated", "passionate", "highly engaged", "perfect candidate", "high potential", "excellent communicator". You have not interviewed the candidate, you have NO access to those dimensions.
+- Stay strictly within what the CV factually supports:
+  years of experience, seniority, technical skills aligned with the
+  job's requirements, types of contexts/industries already worked in.
+  Nothing more.
+- If a dimension lacks information, don't mention it.
+- Connect 2-3 concrete CV facts to the job's requirements ("X years
+  in Y, experience with Z and W which are listed as required").
+- No flourish, no sales wording. Dry, precise, sourced.
+- Avoid superlatives ("expert", "perfect mastery") unless the CV
+  literally uses them.`
 
 async function buildExecutiveSummary(
   candidate: Candidate,
   job: AnonymizedJobContext,
+  language: "fr" | "en" = "fr",
 ): Promise<string | null> {
   try {
     const cv = candidate.parsed_cv ?? {}
+    // Le snapshot reste en français côté clés (titre, ans_xp, etc.) —
+    // c'est de la data structurée que le LLM lit aussi bien dans une
+    // langue ou l'autre. Le PROMPT lui dicte la langue de sortie.
     const snapshot = {
       mission: {
         titre: job.title,
@@ -238,10 +320,12 @@ async function buildExecutiveSummary(
         experience_recap: (cv.experience ?? []).slice(0, 4).map((e) => ({
           titre: e.title,
           societe: e.company,
-          duree: [e.start, e.end ?? "présent"].filter(Boolean).join(" – "),
+          duree: [e.start, e.end ?? (language === "en" ? "present" : "présent")].filter(Boolean).join(" – "),
         })),
       },
     }
+
+    const systemPrompt = language === "en" ? EXEC_SUMMARY_PROMPT_EN : EXEC_SUMMARY_PROMPT_FR
 
     const result = await openrouterChat({
       model: "openai/gpt-4o-mini",
@@ -250,7 +334,7 @@ async function buildExecutiveSummary(
       timeoutMs: 20_000,
       responseFormat: "json_object",
       messages: [
-        { role: "system", content: EXEC_SUMMARY_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user", content: JSON.stringify(snapshot) },
       ],
     })
