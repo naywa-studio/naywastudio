@@ -1,8 +1,12 @@
 /**
- * Badge "PREVIEW" affiché en haut à droite de toutes les pages quand
+ * Badge "PREVIEW" affiché en bas à gauche de toutes les pages quand
  * l'app tourne sur un déploiement preview Vercel (= branche autre que
  * main). Sert à Elyas pour distinguer d'un coup d'œil le déploiement
  * de validation de la prod naywastudio.com.
+ *
+ * Position bas-gauche : ne masque ni le dropdown profil (haut-droit),
+ * ni le bouton support (haut-droit), ni les actions principales en bas
+ * d'une modale (centre-bas).
  *
  * Détection : `process.env.VERCEL_ENV === "preview"`. En prod ce
  * composant retourne `null` et n'émet aucun markup.
@@ -21,8 +25,8 @@ export function PreviewBadge() {
     <div
       style={{
         position: "fixed",
-        top: 12,
-        right: 12,
+        bottom: 12,
+        left: 12,
         zIndex: 9999,
         display: "inline-flex",
         alignItems: "center",

@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 
@@ -66,6 +67,10 @@ function SupportModal({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
+  // Vrai après le 1er render — autorise createPortal qui n'existe que
+  // côté client. Évite les warnings SSR.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   // Pré-affiche l'email connecté. Lecture seule — c'est juste de
   // l'info pour rassurer l'user que ses coordonnées sont transmises.
@@ -122,13 +127,22 @@ function SupportModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
+  // Le bouton support vit dans un <header position:sticky> qui crée son
+  // propre contexte d'empilement → un position:fixed à l'intérieur
+  // serait contraint par cet ancêtre. createPortal rend la modale
+  // directement dans <body>, ce qui la sort de tout stacking context
+  // parent et garantit qu'elle couvre bien tout le viewport.
+  if (!mounted) return null
+  const portalTarget = typeof document !== "undefined" ? document.body : null
+  if (!portalTarget) return null
+
+  return createPortal(
     <LazyMotion features={domAnimation}>
       <div
         role="dialog" aria-modal="true"
         onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
         style={{
-          position: "fixed", inset: 0, zIndex: 1000,
+          position: "fixed", inset: 0, zIndex: 9000,
           background: "rgba(17,24,39,0.45)", backdropFilter: "blur(2px)",
           display: "flex", alignItems: "center", justifyContent: "center",
           padding: 24, overflowY: "auto",
@@ -290,7 +304,8 @@ function SupportModal({ onClose }: { onClose: () => void }) {
           )}
         </m.div>
       </div>
-    </LazyMotion>
+    </LazyMotion>,
+    portalTarget,
   )
 }
 
