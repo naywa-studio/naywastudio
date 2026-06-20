@@ -1459,6 +1459,7 @@ function BrandingSection({
           {requestModal && (
             <BrandingChangeRequestModal
               field={requestModal}
+              organizationId={organization.id}
               currentValue={
                 requestModal === "name" ? orgName :
                 requestModal === "contact_email" ? email :
@@ -1544,9 +1545,12 @@ const requestBtnStyle: React.CSSProperties = {
 }
 
 function BrandingChangeRequestModal({
-  field, currentValue, onClose, onSubmitted,
+  field, organizationId, currentValue, onClose, onSubmitted,
 }: {
   field: "name" | "brand_logo_path" | "contact_email"
+  /** Org du caller — sert à respecter la RLS Storage brand-logos qui
+   *  exige `{org_id}/...` comme premier segment du path. */
+  organizationId: string
   currentValue: string | null
   onClose: () => void
   onSubmitted: () => void
@@ -1568,11 +1572,15 @@ function BrandingChangeRequestModal({
   const handleLogoPick = async (file: File) => {
     setUploading(true); setError(null)
     try {
-      // On upload dans un sous-path "pending/" pour distinguer des logos
-      // approuvés. À l'approbation côté admin, le fichier est promu en
-      // tant que brand_logo_path effectif ; au refus, il est supprimé.
+      // Path = `{org_id}/pending/{ts}.ext`. La RLS Storage du bucket
+      // brand-logos (migration 025) exige `{current_org_id()}` comme
+      // 1er segment — un path racine "pending/..." est refusé. Le
+      // sous-folder "pending" distingue ces fichiers en cours de
+      // validation des logos déjà approuvés (`{org_id}/{ts}.ext`).
+      // À l'approbation côté admin, le fichier reste tel quel et son
+      // path est promu en brand_logo_path. Au refus, il est supprimé.
       const ext = file.name.split(".").pop() || "png"
-      const path = `pending/${Date.now()}.${ext}`
+      const path = `${organizationId}/pending/${Date.now()}.${ext}`
       const { error: upErr } = await sb.storage.from("brand-logos").upload(path, file, { upsert: true })
       if (upErr) throw new Error(upErr.message)
       setUploadedPath(path)
