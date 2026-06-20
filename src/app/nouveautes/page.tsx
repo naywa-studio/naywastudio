@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { renderMarkdown } from "@/lib/markdown"
+import { getSupabase } from "@/lib/supabase"
 import type { AppUpdateCategory } from "@/lib/database.types"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -39,6 +40,28 @@ export default function NouveautesPage() {
   const [items, setItems] = useState<UpdateRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Le retour pointe sur /workspace par défaut (la majorité des users),
+  // sauf pour un owner sans siège alloué — il n'a pas accès au workspace
+  // et doit revenir sur /organisation pour ne pas tomber sur une boucle
+  // de redirection. On résout le bon href au mount.
+  const [backHref, setBackHref] = useState<string>("/workspace")
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const sb = getSupabase()
+      const { data: { user } } = await sb.auth.getUser()
+      if (!user || cancelled) return
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("role, has_sourcing_seat")
+        .eq("user_id", user.id)
+        .maybeSingle()
+      if (cancelled) return
+      const ownerNoSeat = profile?.role === "owner" && !profile?.has_sourcing_seat
+      setBackHref(ownerNoSeat ? "/organisation" : "/workspace")
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -84,7 +107,7 @@ export default function NouveautesPage() {
         fontFamily: "var(--font-inter), sans-serif",
       }}>
         <Link
-          href="/workspace"
+          href={backHref}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             fontSize: 13, fontWeight: 600, color: "#6B7280",
@@ -99,7 +122,7 @@ export default function NouveautesPage() {
             <path d="M19 12H5" />
             <path d="m12 19-7-7 7-7" />
           </svg>
-          Retour au workspace
+          {backHref === "/organisation" ? "Retour à mon organisation" : "Retour au workspace"}
         </Link>
 
         <header style={{ marginBottom: 28 }}>
