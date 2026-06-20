@@ -25,11 +25,21 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { sendEmail, MAIL_DOMAIN } from "@/lib/resend"
 import type { BrandingChangeField } from "@/lib/database.types"
 
 export const runtime = "nodejs"
 
 const VALID_FIELDS: BrandingChangeField[] = ["name", "brand_logo_path", "contact_email"]
+
+const FIELD_LABEL: Record<BrandingChangeField, string> = {
+  name: "Nom de l'organisation",
+  brand_logo_path: "Logo",
+  contact_email: "Email de contact",
+}
+
+const SUPPORT_INBOX = "support.it@naywastudio.com"
+const SENDER_HEADER = `Naywa Studio <support@${MAIL_DOMAIN}>`
 
 export async function POST(req: NextRequest) {
   const sb = await createSupabaseServerClient()
@@ -105,5 +115,37 @@ export async function POST(req: NextRequest) {
   if (error || !inserted) {
     return NextResponse.json({ error: error?.message ?? "insert_failed" }, { status: 500 })
   }
+
+  // Mail à l'équipe admin pour qu'elle traite la demande sans devoir
+  // refresh /admin/demandes en permanence. Best-effort : si Resend
+  // échoue on log et on renvoie quand même 200 (la demande est créée).
+  try {
+    const { data: orgRow } = await admin
+      .from("organizations").select("name, brand_name").eq("id", profile.organization_id).maybeSingle()
+    const orgName = orgRow?.brand_name ?? orgRow?.name ?? "(sans nom)"
+    const requesterEmail = user.email ?? "(email inconnu)"
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://naywastudio.com"
+    await sendEmail({
+      from: SENDER_HEADER,
+      to: SUPPORT_INBOX,
+      replyTo: requesterEmail,
+      subject: `[Branding] Nouvelle demande — ${orgName} (${FIELD_LABEL[field]})`,
+      text: [
+        `Nouvelle demande de modification branding`,
+        ``,
+        `Organisation : ${orgName}`,
+        `Demandeur : ${requesterEmail}`,
+        `Champ : ${FIELD_LABEL[field]}`,
+        `Valeur actuelle : ${currentValue ?? "(vide)"}`,
+        `Valeur demandée : ${requestedValue}`,
+        reason ? `\nRaison : ${reason}` : "",
+        ``,
+        `Traiter la demande : ${baseUrl}/admin/demandes`,
+      ].filter(Boolean).join("\n"),
+    })
+  } catch (mailErr) {
+    console.error("[branding/request] mail send failed", mailErr)
+  }
+
   return NextResponse.json({ id: inserted.id, ok: true })
 }

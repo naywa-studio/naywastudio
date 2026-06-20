@@ -27,6 +27,7 @@ const SENDER_HEADER = `Naywa Studio <support@${MAIL_DOMAIN}>`
 
 interface SupportPayload {
   message?: string
+  topic?: string
   url?: string
   userAgent?: string
 }
@@ -57,6 +58,7 @@ export async function POST(req: Request) {
 
   const url = typeof body.url === "string" ? body.url.slice(0, 500) : ""
   const userAgent = typeof body.userAgent === "string" ? body.userAgent.slice(0, 500) : ""
+  const topic = typeof body.topic === "string" ? body.topic.trim().slice(0, 200) : ""
 
   // Contexte org : on récupère le nom + le first_name côté admin
   // (évite les jointures avec RLS).
@@ -85,6 +87,7 @@ export async function POST(req: Request) {
     ``,
     `De : ${firstName} <${userEmail}>`,
     `Organisation : ${orgName}`,
+    `Sujet : ${topic || "(non précisé)"}`,
     `URL : ${url || "(non renseignée)"}`,
     `User-agent : ${userAgent || "(non renseigné)"}`,
     ``,
@@ -101,6 +104,7 @@ export async function POST(req: Request) {
       <table style="border-collapse: collapse; margin: 0 0 18px; font-size:13px; color:#374151;">
         <tr><td style="padding:2px 12px 2px 0; font-weight:600;">De</td><td>${escapeHtml(firstName)} &lt;${escapeHtml(userEmail)}&gt;</td></tr>
         <tr><td style="padding:2px 12px 2px 0; font-weight:600;">Organisation</td><td>${escapeHtml(orgName)}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0; font-weight:600;">Sujet</td><td>${escapeHtml(topic || "(non précisé)")}</td></tr>
         <tr><td style="padding:2px 12px 2px 0; font-weight:600;">URL</td><td>${escapeHtml(url || "(non renseignée)")}</td></tr>
         <tr><td style="padding:2px 12px 2px 0; font-weight:600;">User-agent</td><td style="font-family:ui-monospace,monospace; font-size:11.5px; color:#6B7280;">${escapeHtml(userAgent || "(non renseigné)")}</td></tr>
       </table>
@@ -118,7 +122,9 @@ export async function POST(req: Request) {
       from:    SENDER_HEADER,
       to:      SUPPORT_INBOX,
       replyTo: userEmail,
-      subject: `[Support] ${firstName} — ${orgName}`,
+      subject: topic
+        ? `[Support · ${topic}] ${firstName} — ${orgName}`
+        : `[Support] ${firstName} — ${orgName}`,
       text,
       html,
     })

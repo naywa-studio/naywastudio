@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { renderMarkdown } from "@/lib/markdown"
 import type { AppUpdateCategory } from "@/lib/database.types"
@@ -82,6 +83,25 @@ export default function NouveautesPage() {
         padding: "32px 24px 80px",
         fontFamily: "var(--font-inter), sans-serif",
       }}>
+        <Link
+          href="/workspace"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 13, fontWeight: 600, color: "#6B7280",
+            textDecoration: "none", marginBottom: 18,
+            padding: "6px 10px", borderRadius: 8,
+            border: "1px solid #E5E7EB", background: "white",
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M19 12H5" />
+            <path d="m12 19-7-7 7-7" />
+          </svg>
+          Retour au workspace
+        </Link>
+
         <header style={{ marginBottom: 28 }}>
           <p style={{
             margin: "0 0 6px", fontSize: 11, fontWeight: 700,

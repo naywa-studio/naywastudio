@@ -27,6 +27,9 @@ interface Props {
   isOwner?: boolean
   /** Hide the dismiss button. Default false. */
   alwaysVisible?: boolean
+  /** True si le caller est un admin Naywa : aucune bannière n'est
+   *  affichée (bypass paywall complet). */
+  isAdmin?: boolean
 }
 
 const STORAGE_KEY = "naywa.trialBanner.dismissed.session"
@@ -43,7 +46,7 @@ function readDismissed(): boolean {
   }
 }
 
-export function TrialBanner({ organization, isOwner = true, alwaysVisible = false }: Props) {
+export function TrialBanner({ organization, isOwner = true, alwaysVisible = false, isAdmin = false }: Props) {
   // État local pour pouvoir re-render quand l'utilisateur clique sur la
   // croix. La valeur initiale lit sessionStorage côté client uniquement
   // (en SSR on retourne false ; il y aura un éventuel flash 1 frame puis
@@ -53,6 +56,11 @@ export function TrialBanner({ organization, isOwner = true, alwaysVisible = fals
   // `dismissed` au-dessus). Hooks toujours appelés en premier — pas
   // de return conditionnel entre eux.
   const [nowMs] = useState(() => Date.now())
+
+  // Admin Naywa : aucun gate paywall, aucune bannière. On bypass avant
+  // toute autre vérif pour éviter qu'un admin connecté sur un compte
+  // "trial pending" voie la bannière violette.
+  if (isAdmin) return null
 
   if (!organization) return null
 

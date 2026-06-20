@@ -367,17 +367,22 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         `}</style>
 
         <PendingDeletionBanner />
-        <LockdownBanner
-          organization={organization}
-          isOwner={profile?.role === "owner"}
-        />
-        <MemberWaitingBanner
-          organization={organization}
-          role={profile?.role}
-        />
+        {!profile?.is_admin && (
+          <>
+            <LockdownBanner
+              organization={organization}
+              isOwner={profile?.role === "owner"}
+            />
+            <MemberWaitingBanner
+              organization={organization}
+              role={profile?.role}
+            />
+          </>
+        )}
         <TrialBanner
           organization={organization}
           isOwner={profile?.role === "owner"}
+          isAdmin={!!profile?.is_admin}
         />
         {children}
 

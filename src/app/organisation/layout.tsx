@@ -233,7 +233,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           </div>
         </header>
 
-        <TrialBanner organization={ctx.organization} isOwner={ctx.isOwner} />
+        <TrialBanner organization={ctx.organization} isOwner={ctx.isOwner} isAdmin={!!ctx.profile.is_admin} />
         {children}
         <UndoToastHost />
       </div>
