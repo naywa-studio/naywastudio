@@ -4,6 +4,12 @@ Génère public/dpa-naywa-v1.pdf à partir de legal/dpa-content.md.
 Le PDF final est servi par Next.js depuis /dpa-naywa-v1.pdf et linké
 depuis le footer + la page tarifs.
 
+Note : on garde le nom de fichier `dpa-naywa-v1.pdf` même quand le
+contenu passe à v1.1+ pour ne pas casser l'URL du footer. La version
+réelle apparaît dans l'en-tête du PDF ("Version 1.1 — applicable au …").
+À chaque modification de legal/dpa-content.md, ré-exécuter ce script
+pour régénérer le PDF.
+
 Format A4 portrait, typographie Helvetica (built-in ReportLab pour ne
 pas avoir à embarquer Inter/Space Grotesk côté serveur de build).
 """
@@ -173,7 +179,7 @@ def build():
         canvas.saveState()
         canvas.setFillColor(MUTED)
         canvas.setFont("Helvetica", 8)
-        canvas.drawString(20*mm, 12*mm, "Naywa Studio — DPA v1.0 — contact@naywastudio.com")
+        canvas.drawString(20*mm, 12*mm, "Naywa Studio — DPA v1.1 — contact@naywastudio.com")
         canvas.drawRightString(A4[0] - 20*mm, 12*mm, f"Page {_doc.page}")
         canvas.restoreState()
 

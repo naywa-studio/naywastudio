@@ -11,6 +11,7 @@ import { PLAN_PRICES_EUR, type PlanTier, type PlanSeats } from "@/lib/stripe"
 import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
+import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -165,6 +166,7 @@ export default function CabinetPage() {
 
       {/* ── Tab content ───────────────────────────────────── */}
       <div style={{ marginTop: 24 }}>
+        <UpdatesHeroCard />
         {activeTab === "org" && (
           <div className="org-tab-grid" style={{
             display: "grid",
@@ -1180,6 +1182,7 @@ function BrandingSection({
     brand_color_secondary: string | null
     brand_slogan: string | null
     contact_email: string | null
+    branding_locked_at: string | null
   }
   logoUrl: string | null
   isOwner: boolean
@@ -1192,8 +1195,27 @@ function BrandingSection({
   const [email, setEmail] = useState(organization.contact_email ?? "")
   const [busy, setBusy] = useState<"idle" | "saving" | "uploading" | "deleting">("idle")
   const [error, setError] = useState<string | null>(null)
+  const [requestModal, setRequestModal] = useState<"name" | "brand_logo_path" | "contact_email" | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const emailValid = email.trim() === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  // Identité forte verrouillée si la grâce est passée. Couleurs + slogan
+  // restent libres en permanence (faible enjeu de fraude).
+  // useState + useEffect pour ne pas violer la règle de pureté du render
+  // (Date.now() est non-déterministe et interdit pendant le render React 19).
+  // L'horloge est essentiellement une "subscription à un système externe"
+  // — on accepte le set-state-in-effect ici, c'est le pattern correct
+  // pour exposer un timestamp dépendant de Date.now().
+  const [brandingLocked, setBrandingLocked] = useState(false)
+  useEffect(() => {
+    // L'horloge (Date.now) est une "subscription à un système externe"
+    // — on accepte le set-state-in-effect ici, c'est le pattern correct
+    // pour exposer un timestamp dépendant de Date.now().
+    const locked =
+      !!organization.branding_locked_at &&
+      new Date(organization.branding_locked_at).getTime() <= Date.now()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBrandingLocked(locked)
+  }, [organization.branding_locked_at])
 
   const patch = async (body: Record<string, unknown>, kind: "saving" | "uploading" | "deleting" = "saving") => {
     setBusy(kind); setError(null)
@@ -1286,18 +1308,28 @@ function BrandingSection({
 
       {open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-          {/* Nom de l'organisation — éditable */}
+          {/* Nom de l'organisation */}
           <div>
             <Label>Nom de l&apos;organisation</Label>
-            <input
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
-              onBlur={saveName}
-              placeholder="Cabinet Dupont"
-              disabled={!isOwner || busy === "saving"}
-              style={inputStyle}
-            />
-            <Hint>{busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}</Hint>
+            {brandingLocked ? (
+              <LockedField
+                value={orgName || "(non défini)"}
+                isOwner={isOwner}
+                onRequestChange={() => setRequestModal("name")}
+              />
+            ) : (
+              <>
+                <input
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  onBlur={saveName}
+                  placeholder="Cabinet Dupont"
+                  disabled={!isOwner || busy === "saving"}
+                  style={inputStyle}
+                />
+                <Hint>{busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}</Hint>
+              </>
+            )}
           </div>
 
           {/* Logo */}
@@ -1319,18 +1351,29 @@ function BrandingSection({
                   <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
                 )}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                <button type="button" onClick={() => fileInput.current?.click()}
-                  disabled={!isOwner || busy !== "idle"}
-                  style={smallBtnPrimary}>
-                  {busy === "uploading" ? "…" : logoUrl ? "Remplacer" : "Téléverser"}
-                </button>
-                {logoUrl && isOwner && (
-                  <button type="button" onClick={removeLogo} disabled={busy !== "idle"} style={smallBtnGhost}>
-                    Retirer
+              {brandingLocked ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <LockedBadge />
+                  {isOwner && (
+                    <button type="button" onClick={() => setRequestModal("brand_logo_path")} style={requestBtnStyle}>
+                      Demander une modification
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <button type="button" onClick={() => fileInput.current?.click()}
+                    disabled={!isOwner || busy !== "idle"}
+                    style={smallBtnPrimary}>
+                    {busy === "uploading" ? "…" : logoUrl ? "Remplacer" : "Téléverser"}
                   </button>
-                )}
-              </div>
+                  {logoUrl && isOwner && (
+                    <button type="button" onClick={removeLogo} disabled={busy !== "idle"} style={smallBtnGhost}>
+                      Retirer
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             <input ref={fileInput} type="file"
               accept="image/png,image/jpeg,image/webp,image/svg+xml"
@@ -1384,29 +1427,326 @@ function BrandingSection({
           {/* Email de contact */}
           <div>
             <Label>Email de contact</Label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={saveEmail}
-              placeholder="contact@votre-cabinet.com"
-              disabled={!isOwner || busy === "saving"}
-              style={{
-                ...inputStyle,
-                borderColor: email && !emailValid ? "#EF4444" : inputStyle.borderColor,
-              }}
-            />
-            <Hint>
-              {email && !emailValid
-                ? "Format d'email invalide"
-                : "Ajouté en pied de page du CV anonymisé. Permet au client final de vous recontacter."}
-            </Hint>
+            {brandingLocked ? (
+              <LockedField
+                value={email || "(non défini)"}
+                isOwner={isOwner}
+                onRequestChange={() => setRequestModal("contact_email")}
+              />
+            ) : (
+              <>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={saveEmail}
+                  placeholder="contact@votre-cabinet.com"
+                  disabled={!isOwner || busy === "saving"}
+                  style={{
+                    ...inputStyle,
+                    borderColor: email && !emailValid ? "#EF4444" : inputStyle.borderColor,
+                  }}
+                />
+                <Hint>
+                  {email && !emailValid
+                    ? "Format d'email invalide"
+                    : "Ajouté en pied de page du CV anonymisé. Permet au client final de vous recontacter."}
+                </Hint>
+              </>
+            )}
           </div>
+
+          {requestModal && (
+            <BrandingChangeRequestModal
+              field={requestModal}
+              currentValue={
+                requestModal === "name" ? orgName :
+                requestModal === "contact_email" ? email :
+                organization.brand_logo_path
+              }
+              onClose={() => setRequestModal(null)}
+              onSubmitted={() => { setRequestModal(null); void onUpdated() }}
+            />
+          )}
 
           {error && <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#EF4444" }}>{error}</p>}
         </div>
       )}
     </Card>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Champs branding verrouillés post-onboarding                         */
+/* ────────────────────────────────────────────────────────────────── */
+
+function LockedField({
+  value, isOwner, onRequestChange,
+}: { value: string; isOwner: boolean; onRequestChange: () => void }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10,
+      padding: "9px 11px",
+      borderRadius: 8,
+      background: "#FAFAFA",
+      border: "1.5px solid #E5E7EB",
+    }}>
+      <LockIcon />
+      <span style={{
+        flex: 1, minWidth: 0,
+        fontSize: 13.5, color: "#374151", fontWeight: 500,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      }}>
+        {value}
+      </span>
+      {isOwner && (
+        <button type="button" onClick={onRequestChange} style={requestBtnStyle}>
+          Demander une modification
+        </button>
+      )}
+    </div>
+  )
+}
+
+function LockedBadge() {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      fontSize: 10.5, fontWeight: 700, color: "#6B7280",
+      background: "#F3F4F6", border: "1px solid #E5E7EB",
+      padding: "3px 7px", borderRadius: 100,
+      letterSpacing: "0.05em", textTransform: "uppercase",
+    }}>
+      <LockIcon size={10} />
+      Verrouillé
+    </span>
+  )
+}
+
+function LockIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 018 0v3" />
+    </svg>
+  )
+}
+
+const requestBtnStyle: React.CSSProperties = {
+  padding: "6px 11px", borderRadius: 8,
+  border: "1px solid rgba(124,99,200,0.30)",
+  background: "white", color: "#7C63C8",
+  fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+  fontFamily: "var(--font-inter), sans-serif",
+  whiteSpace: "nowrap",
+}
+
+function BrandingChangeRequestModal({
+  field, currentValue, onClose, onSubmitted,
+}: {
+  field: "name" | "brand_logo_path" | "contact_email"
+  currentValue: string | null
+  onClose: () => void
+  onSubmitted: () => void
+}) {
+  const sb = useMemo(() => getSupabase(), [])
+  const [textValue, setTextValue] = useState("")
+  const [uploadedPath, setUploadedPath] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [reason, setReason] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  const fieldLabel =
+    field === "name" ? "Nom de l'organisation" :
+    field === "brand_logo_path" ? "Logo" :
+    "Email de contact"
+
+  const handleLogoPick = async (file: File) => {
+    setUploading(true); setError(null)
+    try {
+      // On upload dans un sous-path "pending/" pour distinguer des logos
+      // approuvés. À l'approbation côté admin, le fichier est promu en
+      // tant que brand_logo_path effectif ; au refus, il est supprimé.
+      const ext = file.name.split(".").pop() || "png"
+      const path = `pending/${Date.now()}.${ext}`
+      const { error: upErr } = await sb.storage.from("brand-logos").upload(path, file, { upsert: true })
+      if (upErr) throw new Error(upErr.message)
+      setUploadedPath(path)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const submit = async () => {
+    const requestedValue = field === "brand_logo_path" ? (uploadedPath ?? "") : textValue.trim()
+    if (!requestedValue) {
+      setError("Champ obligatoire.")
+      return
+    }
+    setBusy(true); setError(null)
+    try {
+      const r = await fetch("/api/cabinet/branding/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          field,
+          requested_value: requestedValue,
+          reason: reason.trim() || null,
+        }),
+      })
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({} as { error?: string }))
+        throw new Error(j.error ?? `Erreur ${r.status}`)
+      }
+      onSubmitted()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(17,24,39,0.40)", backdropFilter: "blur(2px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+      }}
+    >
+      <m.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: EASE }}
+        style={{
+          width: "100%", maxWidth: 520,
+          background: "white", borderRadius: 16, padding: 24,
+          fontFamily: "var(--font-inter), sans-serif",
+          boxShadow: "0 24px 64px -24px rgba(17,24,39,0.30)",
+        }}
+      >
+        <header style={{ marginBottom: 16 }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase" }}>
+            Demande de modification
+          </p>
+          <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+            {fieldLabel}
+          </h2>
+          <p style={{ margin: "10px 0 0", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
+            Cette demande sera examinée par notre équipe sous 24 à 48 heures
+            ouvrées. Vous recevrez un email à la décision.
+          </p>
+        </header>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <Label>Valeur actuelle</Label>
+            <p style={{
+              margin: 0, padding: "8px 11px",
+              background: "#FAFAFA", borderRadius: 8,
+              fontSize: 13, color: "#6B7280", fontStyle: "italic",
+              wordBreak: "break-all",
+            }}>
+              {currentValue || "(non défini)"}
+            </p>
+          </div>
+
+          {field === "brand_logo_path" ? (
+            <div>
+              <Label>Nouveau logo</Label>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => fileInput.current?.click()}
+                  disabled={uploading}
+                  style={smallBtnPrimary}
+                >
+                  {uploading ? "Upload…" : uploadedPath ? "Remplacer le fichier" : "Choisir un fichier"}
+                </button>
+                {uploadedPath && (
+                  <span style={{ fontSize: 12, color: "#15803D", fontWeight: 600 }}>
+                    Fichier prêt à être soumis
+                  </span>
+                )}
+              </div>
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) { void handleLogoPick(f); e.target.value = "" }
+                }}
+              />
+            </div>
+          ) : (
+            <div>
+              <Label>Nouvelle valeur</Label>
+              <input
+                value={textValue}
+                onChange={(e) => setTextValue(e.target.value)}
+                placeholder={field === "name" ? "Cabinet Dupont" : "contact@votre-cabinet.com"}
+                type={field === "contact_email" ? "email" : "text"}
+                maxLength={200}
+                autoFocus
+                style={inputStyle}
+              />
+            </div>
+          )}
+
+          <div>
+            <Label>Raison de la demande <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span></Label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Ex : nouveau positionnement de la marque, fusion, faute de frappe lors de l'inscription…"
+              maxLength={500}
+              rows={3}
+              style={{
+                ...inputStyle, resize: "vertical", minHeight: 70,
+                fontFamily: "var(--font-inter), sans-serif",
+              }}
+            />
+          </div>
+
+          {error && (
+            <p style={{ margin: 0, fontSize: 12.5, color: "#B91C1C" }}>{error}</p>
+          )}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+          <button type="button" onClick={onClose} disabled={busy} style={smallBtnGhost}>
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={busy || uploading}
+            style={{
+              padding: "10px 16px", borderRadius: 10,
+              border: "none", color: "white",
+              background: busy
+                ? "#C4B6E0"
+                : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              fontSize: 13, fontWeight: 700, cursor: busy ? "wait" : "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {busy ? "Envoi…" : "Envoyer la demande"}
+          </button>
+        </div>
+      </m.div>
+    </div>
   )
 }
 

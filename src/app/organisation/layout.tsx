@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { TrialBanner } from "@/components/trial/TrialBanner"
+import { SupportButton } from "@/components/support/SupportButton"
 import { getSupabase } from "@/lib/supabase"
 import type { Organization, Profile } from "@/lib/database.types"
 
@@ -163,6 +164,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <SupportButton variant="compact" />
             <div ref={menuRef} style={{ position: "relative" }}>
               <button
                 type="button"
@@ -211,6 +213,14 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
                       Mon workspace
                     </Link>
                   )}
+                  <Link href="/nouveautes" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
+                    Nouveautés
+                  </Link>
+                  {ctx.profile.is_admin && (
+                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
+                      Console admin
+                    </Link>
+                  )}
                   <button
                     onClick={() => { setMenuOpen(false); handleLogout() }}
                     style={MENU_ITEM_DANGER}
@@ -223,7 +233,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           </div>
         </header>
 
-        <TrialBanner organization={ctx.organization} isOwner={ctx.isOwner} />
+        <TrialBanner organization={ctx.organization} isOwner={ctx.isOwner} isAdmin={!!ctx.profile.is_admin} />
         {children}
         <UndoToastHost />
       </div>

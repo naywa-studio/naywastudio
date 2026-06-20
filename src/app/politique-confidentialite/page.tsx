@@ -84,7 +84,17 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
-    title: "8. Sécurité",
+    title: "8. Rôle administrateur Naywa",
+    content: [
+      "Pour assurer le support technique du service, certains comptes nominatifs de l'équipe Naywa Studio disposent d'un rôle administrateur transverse aux cabinets.",
+      "**Ce que l'équipe Naywa peut faire** : consulter des statistiques agrégées du service (nombre de cabinets, d'utilisateurs, de candidats parsés, revenu mensuel estimé) ; rechercher un utilisateur par e-mail ou prénom pour identifier son cabinet et son statut d'abonnement dans le cadre d'une demande de support ; publier des nouveautés produit ; valider ou refuser les demandes de modification d'identité forte (logo, raison sociale, e-mail de contact).",
+      "**Ce que l'équipe Naywa ne peut pas faire** : consulter votre vivier, vos missions, vos chiffrages, votre pipeline, vos e-mails ; se connecter à votre place ; modifier vos données en dehors du processus de validation décrit ci-dessus ; supprimer votre cabinet.",
+      "**Journal d'audit** : toute consultation effectuée par un administrateur Naywa est tracée dans un registre interne (qui, quand, quel type d'action). Ce registre est tenu à votre disposition sur demande motivée.",
+      "Cette section est reprise de manière plus formelle dans le DPA disponible sur demande.",
+    ],
+  },
+  {
+    title: "9. Sécurité",
     content: [
       "**Chiffrement en transit** :toutes les connexions au service utilisent HTTPS/TLS.",
       "**Chiffrement au repos** :Supabase chiffre les données stockées dans la base et dans les buckets de fichiers.",
@@ -95,7 +105,7 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
-    title: "9. Cookies",
+    title: "10. Cookies",
     content: [
       "Naywa Studio n'utilise **que des cookies strictement nécessaires** au fonctionnement du service : cookies d'authentification (Supabase), cookies de session.",
       "**Aucun cookie de tracking publicitaire ni d'analyse comportementale n'est utilisé.**",
@@ -103,7 +113,7 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
-    title: "10. L'IA et la prise de décision",
+    title: "11. L'IA et la prise de décision",
     content: [
       "Naywa Studio utilise un LLM (gpt-4o-mini via OpenRouter) pour : extraire les informations d'un CV, produire un score de matching candidat × mission, et suggérer un message d'approche.",
       "**Toutes les sorties de l'IA sont des suggestions**. Aucune action ne déclenche d'effet sur un candidat sans validation explicite du sourceur (envoi d'email, déplacement dans le pipeline, etc.).",
@@ -112,7 +122,7 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
-    title: "11. Modifications de cette politique",
+    title: "12. Modifications de cette politique",
     content: [
       "Cette politique évolue avec le produit. Toute modification substantielle vous sera notifiée par email et un nouveau consentement sera demandé si la base juridique le requiert.",
       "Pour toute question : contact@naywastudio.com.",
@@ -125,7 +135,7 @@ export default function PolitiqueConfidentialitePage() {
     <LegalPageShell
       badge="Confidentialité"
       title="Politique de confidentialité"
-      lastUpdated="juin 2026"
+      lastUpdated="20 juin 2026"
       intro="Naywa Studio respecte la vie privée des utilisateurs et des candidats dont les données transitent par notre service. Cette politique explique en clair ce qui est collecté, pourquoi, avec qui, et comment exercer vos droits."
       sections={SECTIONS}
     />

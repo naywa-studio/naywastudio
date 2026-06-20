@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase"
+import { resolvePostLoginDestination } from "@/lib/post-login-destination"
 
 type Status = "loading" | "done" | "error"
 
@@ -41,8 +42,10 @@ export default function AuthCallbackPage() {
       }
 
       setStatus("done")
-      // Redirect to home with a flag so the page can show the "done" state
-      setTimeout(() => router.push("/workspace"), 1200)
+      // Choisit la destination en fonction du profil (évite la bounce
+      // /workspace → /organisation pour un owner sans siège).
+      const dest = await resolvePostLoginDestination(getSupabase(), session.user.id, null)
+      setTimeout(() => router.push(dest), 1200)
     }
 
     handleCallback()

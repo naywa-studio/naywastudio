@@ -8,6 +8,7 @@ import NoraLoader from "@/components/workspace/NoraLoader"
 import { PackageOnboardingModal } from "@/components/organisation/PackageOnboardingModal"
 import { getSupabase } from "@/lib/supabase"
 import { trialStatus } from "@/lib/trial"
+import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
 import type { MatchTier, Organization } from "@/lib/database.types"
 
 /** Helper local : trial app-side actif. Évite de réimporter le helper
@@ -303,6 +304,9 @@ export default function WorkspaceHome() {
           )}
         </div>
       </m.section>
+
+      {/* ── Card Nouveautés (uniquement si non-lues) ─────────── */}
+      <UpdatesHeroCard />
 
       {/* ── Raccourcis d'action ───────────────────────────────── */}
       <m.div

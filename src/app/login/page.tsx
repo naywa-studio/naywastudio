@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import { getSupabase } from "@/lib/supabase"
+import { resolvePostLoginDestination } from "@/lib/post-login-destination"
 
 type Mode = "login" | "signup"
 
@@ -19,10 +20,11 @@ export default function LoginPage() {
 function LoginInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  // Only allow internal redirects — block protocol-relative URLs (//evil.com)
-  // and absolute URLs to prevent open-redirect abuse.
-  const rawNext = searchParams.get("next") ?? "/workspace"
-  const nextPath = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/workspace"
+  // ?next= éventuel, brut. La sanitization + le choix final entre
+  // /workspace, /organisation et /onboarding sont délégués à
+  // resolvePostLoginDestination() qui lit le profil pour éviter la
+  // bounce visuelle "workspace → organisation" pour un owner sans siège.
+  const requestedNext = searchParams.get("next")
 
   const expired = searchParams.get("expired") === "1"
   const initialMode = (searchParams.get("mode") === "signup" || expired ? "signup" : "login") as Mode
@@ -38,12 +40,17 @@ function LoginInner() {
   )
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Redirect if already logged in
+  // Redirect if already logged in : on résout la destination via le
+  // helper pour ne pas envoyer un owner sans siège vers /workspace
+  // (qui le rebounce immédiatement vers /organisation).
   useEffect(() => {
-    getSupabase().auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace(nextPath)
+    const sb = getSupabase()
+    sb.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.user) return
+      const dest = await resolvePostLoginDestination(sb, session.user.id, requestedNext)
+      router.replace(dest)
     })
-  }, [router, nextPath])
+  }, [router, requestedNext])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,13 +60,16 @@ function LoginInner() {
     const sb = getSupabase()
 
     if (mode === "login") {
-      const { error: err } = await sb.auth.signInWithPassword({ email, password })
+      const { data: signInData, error: err } = await sb.auth.signInWithPassword({ email, password })
       if (err) {
         setError("Email ou mot de passe incorrect.")
         setLoading(false)
         return
       }
-      router.replace(nextPath)
+      const dest = signInData.user
+        ? await resolvePostLoginDestination(sb, signInData.user.id, requestedNext)
+        : "/workspace"
+      router.replace(dest)
     } else {
       const trimmedFirstName = firstName.trim()
       const { data, error: err } = await sb.auth.signUp({
@@ -84,8 +94,9 @@ function LoginInner() {
       if (data.user && trimmedFirstName) {
         await sb.from("profiles").update({ first_name: trimmedFirstName }).eq("user_id", data.user.id)
       }
-      if (data.session) {
-        router.replace(nextPath)
+      if (data.session && data.user) {
+        const dest = await resolvePostLoginDestination(sb, data.user.id, requestedNext)
+        router.replace(dest)
       } else {
         setSuccess("Vérifiez votre email pour confirmer votre compte.")
         setLoading(false)

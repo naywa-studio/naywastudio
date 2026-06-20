@@ -9,6 +9,8 @@ import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
 import { LockdownBanner } from "@/components/workspace/LockdownBanner"
 import { MemberWaitingBanner } from "@/components/workspace/MemberWaitingBanner"
 import { TrialBanner } from "@/components/trial/TrialBanner"
+import { UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
+import { SupportButton } from "@/components/support/SupportButton"
 import { hasActiveAccess, isInLockdown } from "@/lib/subscription"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
@@ -37,12 +39,13 @@ export function useWorkspace() {
   return ctx
 }
 
-const TABS: { href: string; label: string; live: boolean }[] = [
+const TABS: { href: string; label: string; live: boolean; showUnreadBadge?: boolean }[] = [
   { href: "/workspace",          label: "Accueil",  live: true },
   { href: "/workspace/vivier",   label: "Vivier",   live: true },
   { href: "/workspace/missions", label: "Missions", live: true },
   { href: "/workspace/pricing",  label: "Pricing",  live: true },
   { href: "/workspace/pipeline", label: "Pipeline", live: true },
+  { href: "/nouveautes",         label: "Nouveautés", live: true, showUnreadBadge: true },
 ]
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
@@ -105,6 +108,15 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     // Sans cette différenciation, owner sans sub + member redirigé
     // /organisation -> /workspace -> /organisation -> ... boucle infinie.
     const isOwner = prof?.role === "owner"
+
+    // Bypass admin Naywa : pas de gate de siège ni de paywall.
+    if (prof?.is_admin) {
+      setProfile(prof)
+      setOrganization(org)
+      setUserEmail(user.email ?? "")
+      setReady(true)
+      return
+    }
 
     if (isOwner && prof && !prof.has_sourcing_seat) {
       router.replace("/organisation")
@@ -187,6 +199,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         }}
       >
         {t.label}
+        {t.showUnreadBadge && <UpdatesNavBadge />}
         {disabled && (
           <span style={{
             fontSize: 9, fontWeight: 700, color: "#9CA3AF",
@@ -209,8 +222,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       //   - OU member dont l'org n'a pas d'accès actif (l'owner n'a pas
       //     encore souscrit) -> le member peut explorer mais rien créer.
       isReadOnly:
-        isInLockdown(organization) ||
-        (profile?.role === "member" && !!organization && !hasActiveAccess(organization)),
+        // Les admins n'ont jamais de mode lecture seule (bypass paywall).
+        !profile?.is_admin && (
+          isInLockdown(organization) ||
+          (profile?.role === "member" && !!organization && !hasActiveAccess(organization))
+        ),
       refetchProfile: fetchProfile,
     }}>
       <ShaderBackground />
@@ -251,6 +267,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <SupportButton variant="compact" />
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               fontSize: 11, fontWeight: 700, color: "#7C63C8",
@@ -311,6 +328,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                       Mon organisation
                     </Link>
                   )}
+                  {profile?.is_admin && (
+                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
+                      Console admin
+                    </Link>
+                  )}
                   <button
                     onClick={() => { setMenuOpen(false); handleLogout() }}
                     style={MENU_ITEM_DANGER}
@@ -345,17 +367,22 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         `}</style>
 
         <PendingDeletionBanner />
-        <LockdownBanner
-          organization={organization}
-          isOwner={profile?.role === "owner"}
-        />
-        <MemberWaitingBanner
-          organization={organization}
-          role={profile?.role}
-        />
+        {!profile?.is_admin && (
+          <>
+            <LockdownBanner
+              organization={organization}
+              isOwner={profile?.role === "owner"}
+            />
+            <MemberWaitingBanner
+              organization={organization}
+              role={profile?.role}
+            />
+          </>
+        )}
         <TrialBanner
           organization={organization}
           isOwner={profile?.role === "owner"}
+          isAdmin={!!profile?.is_admin}
         />
         {children}
 
