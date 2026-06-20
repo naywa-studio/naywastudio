@@ -1,6 +1,11 @@
 # Accord de traitement de données (DPA)
 
-**Version 1.0 — applicable au 15 juin 2026**
+**Version 1.1 — applicable au 20 juin 2026**
+
+*Cette version 1.1 ajoute la section 9 « Rôle administrateur Naywa »
+qui décrit explicitement les accès dont dispose l'équipe Naywa Studio
+pour assurer le support technique du service. Elle ne modifie aucune
+des garanties précédentes.*
 
 Ce document constitue l'accord de traitement de données (Data Processing
 Agreement, ci-après « DPA ») prévu à l'article 28 du Règlement (UE)
@@ -119,7 +124,52 @@ suivantes :
   côté Naywa (fondateurs) peuvent accéder aux données via des comptes
   administratifs nominatifs
 
-## 9. Droits des personnes concernées
+## 9. Rôle administrateur Naywa
+
+Pour assurer le support technique du service, certains comptes
+nominatifs de l'équipe Naywa Studio disposent d'un rôle
+**administrateur** transverse aux organisations clientes.
+
+**Ce qu'un administrateur Naywa peut faire :**
+
+- Consulter les statistiques agrégées du service (nombre total
+  d'organisations, d'utilisateurs, de candidats, revenu mensuel
+  estimé), sans accès au contenu des données
+- Rechercher un utilisateur par adresse e-mail ou prénom afin
+  d'identifier son organisation, son rôle, son statut d'abonnement
+  et sa dernière date de connexion, dans le cadre exclusif d'une
+  demande de support du Client
+- Publier des nouveautés produit (changelogs) lisibles par tous
+  les utilisateurs authentifiés
+- Valider ou refuser les demandes de modification d'identité forte
+  des organisations (logo, raison sociale, e-mail de contact) après
+  la période de configuration initiale
+
+**Ce qu'un administrateur Naywa ne peut pas faire :**
+
+- Consulter le vivier de candidats d'une organisation cliente
+- Consulter les missions, les chiffrages, le pipeline ou les
+  e-mails échangés par une organisation cliente
+- Se connecter à la place d'un utilisateur (impersonation)
+- Modifier les données d'une organisation cliente ou d'un de ses
+  utilisateurs en dehors du processus de validation des demandes
+  de modification d'identité forte
+- Supprimer une organisation cliente
+
+**Journal d'audit.** Toute consultation effectuée par un
+administrateur Naywa (recherche, ouverture d'une fiche, validation
+ou refus d'une demande) est journalisée de manière inaltérable dans
+un registre interne (qui, quand, quel type d'action, quelle cible).
+Ce registre est conservé pendant la durée du contrat et tenu à
+disposition du Client sur demande motivée.
+
+**Limitation contractuelle.** L'équipe Naywa n'utilise ces accès que
+dans le cadre du support technique du service. Toute autre
+utilisation engagerait la responsabilité contractuelle de Naywa au
+titre des obligations de confidentialité et de finalité figurant
+au présent DPA.
+
+## 10. Droits des personnes concernées
 
 Naywa assiste le Client, dans la mesure du raisonnable, pour répondre
 aux demandes d'exercice des droits prévus aux articles 15 à 22 RGPD
@@ -134,7 +184,7 @@ aux demandes d'exercice des droits prévus aux articles 15 à 22 RGPD
 - **Délai de réponse** : Naywa s'engage à répondre aux demandes
   d'assistance du Client dans un délai maximum de 7 jours ouvrés
 
-## 10. Notification de violation (article 33 RGPD)
+## 11. Notification de violation (article 33 RGPD)
 
 En cas de violation de données personnelles affectant les traitements
 réalisés pour le Client, Naywa s'engage à :
@@ -146,7 +196,7 @@ réalisés pour le Client, Naywa s'engage à :
 - **assister le Client** dans ses propres obligations de notification
   auprès de la CNIL et, le cas échéant, des personnes concernées
 
-## 11. Auditabilité
+## 12. Auditabilité
 
 Le Client dispose d'un droit d'audit dans les limites suivantes :
 
@@ -156,7 +206,7 @@ Le Client dispose d'un droit d'audit dans les limites suivantes :
 - audit sur site soumis à préavis raisonnable (30 jours), à fréquence
   maximale annuelle sauf incident, et aux frais du Client
 
-## 12. Suppression et restitution
+## 13. Suppression et restitution
 
 À la fin du contrat, le Client peut demander :
 
@@ -170,18 +220,18 @@ Le Client dispose d'un droit d'audit dans les limites suivantes :
 ni par ses sous-traitants ultérieurs, à l'exception des données dont la
 conservation est requise par la loi (factures Stripe pendant 10 ans).
 
-## 13. Confidentialité
+## 14. Confidentialité
 
 Naywa s'engage à ce que toute personne ayant accès aux données
 personnelles soit soumise à une obligation de confidentialité.
 
-## 14. Modification du DPA
+## 15. Modification du DPA
 
 Toute modification substantielle du présent DPA est notifiée au Client
 avec un préavis de 30 jours. Si la modification dégrade le niveau de
 protection, le Client peut résilier sans préavis ni indemnité.
 
-## 15. Contact
+## 16. Contact
 
 Pour toute question relative au traitement des données ou pour exercer
 les droits prévus au présent DPA :
