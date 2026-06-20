@@ -17,6 +17,8 @@ export type SubscriptionAccess =
   | { state: "trial";   reason: "trial_active";       daysLeft: number }
   | { state: "paid";    reason: "stripe_active";      until: Date | null }
   | { state: "trialing"; reason: "stripe_trialing";   until: Date | null }
+  /** L'utilisateur est un admin Naywa. Aucune gate ne s'applique. */
+  | { state: "admin";   reason: "admin_bypass" }
   | { state: "blocked"; reason: "trial_pending" | "trial_expired" | "subscription_expired" | "subscription_canceled" | "no_subscription" }
 
 export function subscriptionAccess(
@@ -24,7 +26,12 @@ export function subscriptionAccess(
     Organization,
     "trial_ends_at" | "subscription_status" | "current_period_end"
   > | null | undefined,
+  /** Option : si le caller est un admin Naywa, on bypass tous les gates
+   *  (essai, paiement, lockdown). Le flag doit être lu côté server à
+   *  partir de profiles.is_admin — jamais depuis le body du client. */
+  opts?: { isAdmin?: boolean },
 ): SubscriptionAccess {
+  if (opts?.isAdmin) return { state: "admin", reason: "admin_bypass" }
   if (!org) return { state: "blocked", reason: "no_subscription" }
 
   // Stripe subscription wins if it's active. Trial only matters before
@@ -69,9 +76,15 @@ export function hasActiveAccess(
     Organization,
     "trial_ends_at" | "subscription_status" | "current_period_end"
   > | null | undefined,
+  opts?: { isAdmin?: boolean },
 ): boolean {
-  const acc = subscriptionAccess(org)
-  return acc.state === "trial" || acc.state === "paid" || acc.state === "trialing"
+  const acc = subscriptionAccess(org, opts)
+  return (
+    acc.state === "trial" ||
+    acc.state === "paid" ||
+    acc.state === "trialing" ||
+    acc.state === "admin"
+  )
 }
 
 /** Lockdown actif = sub past_due/unpaid/canceled mais avant le wipe à
@@ -90,7 +103,9 @@ export function isInLockdown(
   > | null | undefined,
   /** Optionnel — passé en paramètre pour tester (Date.now() en prod). */
   nowMs: number = Date.now(),
+  opts?: { isAdmin?: boolean },
 ): boolean {
+  if (opts?.isAdmin) return false
   if (!org?.lockdown_started_at) return false
   if (hasActiveAccess(org)) return false
   const startMs = new Date(org.lockdown_started_at).getTime()

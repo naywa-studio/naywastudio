@@ -34,7 +34,9 @@ export default async function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/workspace") ||
     request.nextUrl.pathname.startsWith("/organisation") ||
     request.nextUrl.pathname.startsWith("/onboarding") ||
-    request.nextUrl.pathname.startsWith("/profil")
+    request.nextUrl.pathname.startsWith("/profil") ||
+    request.nextUrl.pathname.startsWith("/admin") ||
+    request.nextUrl.pathname.startsWith("/nouveautes")
 
   if (!user && protectedPath) {
     const url = request.nextUrl.clone()
@@ -50,5 +52,16 @@ export const config = {
   // /api/calendly/oauth/start needs the proxy too: it ensures Supabase auth
   // cookies are refreshed and propagated to the response, so the session
   // survives the cross-site round-trip through Calendly.
-  matcher: ["/workspace/:path*", "/organisation/:path*", "/onboarding/:path*", "/onboarding", "/profil/:path*", "/api/calendly/oauth/start"],
+  matcher: [
+    "/workspace/:path*",
+    "/organisation/:path*",
+    "/onboarding/:path*",
+    "/onboarding",
+    "/profil/:path*",
+    "/admin/:path*",
+    "/admin",
+    "/nouveautes/:path*",
+    "/nouveautes",
+    "/api/calendly/oauth/start",
+  ],
 }

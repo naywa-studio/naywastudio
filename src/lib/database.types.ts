@@ -174,6 +174,10 @@ export type Database = {
            *  guidée Package Sourcing sur /workspace (per-user, indépendant
            *  du flag org). NULL = la modale s'ouvre au prochain accès. */
           package_sourcing_onboarded_at: string | null
+          /** True iff ce compte est un admin Naywa (transverse aux
+           *  organisations). Donne accès à /admin et bypasse les
+           *  gates de paiement / siège. Élevé manuellement en SQL. */
+          is_admin: boolean
           created_at: string
           updated_at: string
         }
@@ -255,6 +259,12 @@ export type Database = {
            *  Package Sourcing post-souscription. NULL = la bannière
            *  reminder s'affiche sur /organisation. */
           package_sourcing_onboarded_at: string | null
+          /** Verrouillage anti-fraude des champs "identité forte"
+           *  (logo, nom, contact_email). Stamp à cabinet_onboarded_at
+           *  + 24h. Après cette date, la modification passe par une
+           *  demande validée par un admin Naywa (cf. table
+           *  branding_change_requests). NULL = pas encore verrouillé. */
+          branding_locked_at: string | null
           created_at: string
           updated_at: string
         }
@@ -715,6 +725,80 @@ export type Database = {
           },
         ]
       }
+      app_updates: {
+        Row: {
+          id: string
+          title: string
+          body: string
+          /** Catégorie pastillée dans l'UI :
+           *  - 'feature'   : nouvelle fonctionnalité
+           *  - 'fix'       : correctif
+           *  - 'important' : info importante / breaking
+           *  - 'announce'  : annonce générale */
+          category: 'feature' | 'fix' | 'important' | 'announce'
+          /** NULL = brouillon. <= now() = visible. > now() = planifié. */
+          published_at: string | null
+          author_user_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['app_updates']['Row']> & {
+          title: string; body: string
+        }
+        Update: Partial<Database['public']['Tables']['app_updates']['Row']>
+        Relationships: []
+      }
+      app_updates_reads: {
+        Row: {
+          user_id: string
+          update_id: string
+          read_at: string
+        }
+        Insert: { user_id: string; update_id: string; read_at?: string }
+        Update: Partial<Database['public']['Tables']['app_updates_reads']['Row']>
+        Relationships: []
+      }
+      admin_audit_log: {
+        Row: {
+          id: string
+          admin_user_id: string | null
+          /** Action métier snake_case : search_users, view_user,
+           *  view_organization, list_branding_requests, approve_branding_request,
+           *  reject_branding_request, publish_update, delete_update, ... */
+          action: string
+          target_type: string | null
+          target_id: string | null
+          metadata: Record<string, unknown>
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['admin_audit_log']['Row']> & {
+          admin_user_id: string; action: string
+        }
+        Update: Partial<Database['public']['Tables']['admin_audit_log']['Row']>
+        Relationships: []
+      }
+      branding_change_requests: {
+        Row: {
+          id: string
+          organization_id: string
+          requested_by: string | null
+          /** Champ ciblé par la demande. */
+          field: 'name' | 'brand_logo_path' | 'contact_email'
+          current_value: string | null
+          requested_value: string
+          reason: string | null
+          status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          decided_by: string | null
+          decided_at: string | null
+          decision_note: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['branding_change_requests']['Row']> & {
+          organization_id: string; field: 'name' | 'brand_logo_path' | 'contact_email'; requested_value: string
+        }
+        Update: Partial<Database['public']['Tables']['branding_change_requests']['Row']>
+        Relationships: []
+      }
     }
     Views: { [_ in never]: never }
     Functions: {
@@ -753,6 +837,13 @@ export type Candidate = Database['public']['Tables']['candidates']['Row']
 export type MatchAssessment = Database['public']['Tables']['match_assessments']['Row']
 export type EmailMessage = Database['public']['Tables']['email_messages']['Row']
 export type Interview = Database['public']['Tables']['interviews']['Row']
+export type AppUpdate = Database['public']['Tables']['app_updates']['Row']
+export type AppUpdateRead = Database['public']['Tables']['app_updates_reads']['Row']
+export type AdminAuditLog = Database['public']['Tables']['admin_audit_log']['Row']
+export type BrandingChangeRequest = Database['public']['Tables']['branding_change_requests']['Row']
+export type AppUpdateCategory = AppUpdate['category']
+export type BrandingChangeField = BrandingChangeRequest['field']
+export type BrandingChangeStatus = BrandingChangeRequest['status']
 
 export type JobStatus = Job['status']
 export type ParseStatus = Candidate['parse_status']
