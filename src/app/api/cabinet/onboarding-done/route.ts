@@ -61,9 +61,18 @@ export async function POST(req: Request) {
     .eq("id", profile.organization_id)
     .single()
 
-  const updatePayload: { cabinet_onboarded_at?: string; name?: string } = {}
+  const updatePayload: {
+    cabinet_onboarded_at?: string
+    branding_locked_at?: string
+    name?: string
+  } = {}
   if (!org?.cabinet_onboarded_at) {
-    updatePayload.cabinet_onboarded_at = new Date().toISOString()
+    const nowIso = new Date().toISOString()
+    updatePayload.cabinet_onboarded_at = nowIso
+    // Fenêtre de grâce 24h : après ce délai, logo + nom + email-contact
+    // basculent en read-only. La modification passe par une demande
+    // validée par un admin Naywa (cf. /admin/demandes).
+    updatePayload.branding_locked_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
   }
   if (cabinetName) {
     updatePayload.name = cabinetName

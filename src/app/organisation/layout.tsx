@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { TrialBanner } from "@/components/trial/TrialBanner"
+import { SupportButton } from "@/components/support/SupportButton"
 import { getSupabase } from "@/lib/supabase"
 import type { Organization, Profile } from "@/lib/database.types"
 
@@ -163,6 +164,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <SupportButton variant="compact" />
             <div ref={menuRef} style={{ position: "relative" }}>
               <button
                 type="button"
@@ -209,6 +211,14 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
                   {ctx.profile.has_sourcing_seat && (
                     <Link href="/workspace" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
                       Mon workspace
+                    </Link>
+                  )}
+                  <Link href="/nouveautes" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
+                    Nouveautés
+                  </Link>
+                  {ctx.profile.is_admin && (
+                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
+                      Console admin
                     </Link>
                   )}
                   <button

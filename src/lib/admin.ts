@@ -125,7 +125,6 @@ export async function logAdminAction(params: {
     metadata: params.metadata ?? {},
   })
   if (error) {
-    // eslint-disable-next-line no-console
     console.error("[admin/audit] insert failed", error)
   }
 }
