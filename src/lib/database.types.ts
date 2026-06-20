@@ -791,6 +791,11 @@ export type Database = {
           decided_by: string | null
           decided_at: string | null
           decision_note: string | null
+          /** Regroupement des rows d'une même soumission (l'owner a
+           *  coché plusieurs champs dans un seul formulaire). Chaque
+           *  row reste décidable indépendamment. Defaulte à
+           *  gen_random_uuid() côté DB pour les demandes mono-champ. */
+          request_batch_id: string
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['branding_change_requests']['Row']> & {

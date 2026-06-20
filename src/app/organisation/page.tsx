@@ -1195,7 +1195,9 @@ function BrandingSection({
   const [email, setEmail] = useState(organization.contact_email ?? "")
   const [busy, setBusy] = useState<"idle" | "saving" | "uploading" | "deleting">("idle")
   const [error, setError] = useState<string | null>(null)
-  const [requestModal, setRequestModal] = useState<"name" | "brand_logo_path" | "contact_email" | null>(null)
+  // Boolean : la modale globale (multi-champs) est ouverte ou non.
+  // L'owner coche dans la modale les champs qu'il veut modifier.
+  const [requestModalOpen, setRequestModalOpen] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const emailValid = email.trim() === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   // Identité forte verrouillée si la grâce est passée. Couleurs + slogan
@@ -1283,20 +1285,42 @@ function BrandingSection({
     <Card
       title="Branding"
       subtitle="Logo, couleurs, slogan et contact qui apparaissent sur les CV anonymisés."
-      // Bouton repli intégré au header de la carte
+      // Header : bouton 'Modifier vos informations verrouillées' visible
+      // uniquement quand l'identité forte est verrouillée + bouton repli.
       headerRight={
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          style={{
-            fontSize: 12, fontWeight: 700, color: "#7C63C8",
-            background: "transparent", border: "none",
-            padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
-            display: "inline-flex", alignItems: "center", gap: 4,
-          }}
-        >
-          {open ? "Replier ▴" : "Déplier ▾"}
-        </button>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {brandingLocked && isOwner && (
+            <button
+              type="button"
+              onClick={() => setRequestModalOpen(true)}
+              style={{
+                fontSize: 11.5, fontWeight: 700, color: "#7C63C8",
+                background: "white",
+                border: "1px solid rgba(124,99,200,0.30)",
+                padding: "6px 11px", borderRadius: 8,
+                cursor: "pointer", fontFamily: "inherit",
+                display: "inline-flex", alignItems: "center", gap: 6,
+                whiteSpace: "nowrap",
+              }}
+              title="Demander une modification du nom, du logo ou de l'email de contact"
+            >
+              <LockIcon size={11} />
+              Modifier vos informations verrouillées
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            style={{
+              fontSize: 12, fontWeight: 700, color: "#7C63C8",
+              background: "transparent", border: "none",
+              padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
+              display: "inline-flex", alignItems: "center", gap: 4,
+            }}
+          >
+            {open ? "Replier ▴" : "Déplier ▾"}
+          </button>
+        </div>
       }
     >
       {!open && (
@@ -1312,11 +1336,7 @@ function BrandingSection({
           <div>
             <Label>Nom de l&apos;organisation</Label>
             {brandingLocked ? (
-              <LockedField
-                value={orgName || "(non défini)"}
-                isOwner={isOwner}
-                onRequestChange={() => setRequestModal("name")}
-              />
+              <LockedField value={orgName || "(non défini)"} />
             ) : (
               <>
                 <input
@@ -1352,14 +1372,7 @@ function BrandingSection({
                 )}
               </div>
               {brandingLocked ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <LockedBadge />
-                  {isOwner && (
-                    <button type="button" onClick={() => setRequestModal("brand_logo_path")} style={requestBtnStyle}>
-                      Demander une modification
-                    </button>
-                  )}
-                </div>
+                <LockedBadge />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   <button type="button" onClick={() => fileInput.current?.click()}
@@ -1428,11 +1441,7 @@ function BrandingSection({
           <div>
             <Label>Email de contact</Label>
             {brandingLocked ? (
-              <LockedField
-                value={email || "(non défini)"}
-                isOwner={isOwner}
-                onRequestChange={() => setRequestModal("contact_email")}
-              />
+              <LockedField value={email || "(non défini)"} />
             ) : (
               <>
                 <input
@@ -1456,17 +1465,15 @@ function BrandingSection({
             )}
           </div>
 
-          {requestModal && (
+          {requestModalOpen && (
             <BrandingChangeRequestModal
-              field={requestModal}
               organizationId={organization.id}
-              currentValue={
-                requestModal === "name" ? orgName :
-                requestModal === "contact_email" ? email :
-                organization.brand_logo_path
-              }
-              onClose={() => setRequestModal(null)}
-              onSubmitted={() => { setRequestModal(null); void onUpdated() }}
+              currentName={orgName}
+              currentLogoPath={organization.brand_logo_path}
+              currentLogoUrl={logoUrl}
+              currentEmail={email}
+              onClose={() => setRequestModalOpen(false)}
+              onSubmitted={() => { setRequestModalOpen(false); void onUpdated() }}
             />
           )}
 
@@ -1481,9 +1488,7 @@ function BrandingSection({
 /* Champs branding verrouillés post-onboarding                         */
 /* ────────────────────────────────────────────────────────────────── */
 
-function LockedField({
-  value, isOwner, onRequestChange,
-}: { value: string; isOwner: boolean; onRequestChange: () => void }) {
+function LockedField({ value }: { value: string }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
@@ -1500,11 +1505,6 @@ function LockedField({
       }}>
         {value}
       </span>
-      {isOwner && (
-        <button type="button" onClick={onRequestChange} style={requestBtnStyle}>
-          Demander une modification
-        </button>
-      )}
     </div>
   )
 }
@@ -1535,39 +1535,49 @@ function LockIcon({ size = 13 }: { size?: number }) {
   )
 }
 
-const requestBtnStyle: React.CSSProperties = {
-  padding: "6px 11px", borderRadius: 8,
-  border: "1px solid rgba(124,99,200,0.30)",
-  background: "white", color: "#7C63C8",
-  fontSize: 11.5, fontWeight: 700, cursor: "pointer",
-  fontFamily: "var(--font-inter), sans-serif",
-  whiteSpace: "nowrap",
-}
-
+/**
+ * Modale globale "Demande de modification" — multi-champs.
+ *
+ * L'owner coche les champs qu'il veut modifier (nom, logo, email
+ * contact) parmi les 3 verrouillés. Pour chaque coché, un sous-form
+ * apparaît pour saisir la nouvelle valeur. Une seule `reason` couvre
+ * toute la demande.
+ *
+ * Tout est soumis en une fois → 1 batch côté DB (1 row par champ).
+ * Côté /admin/demandes, le batch s'affiche groupé mais chaque champ
+ * reste décidable indépendamment (j'accepte le nom, je refuse le
+ * logo).
+ */
 function BrandingChangeRequestModal({
-  field, organizationId, currentValue, onClose, onSubmitted,
+  organizationId, currentName, currentLogoPath, currentLogoUrl, currentEmail, onClose, onSubmitted,
 }: {
-  field: "name" | "brand_logo_path" | "contact_email"
   /** Org du caller — sert à respecter la RLS Storage brand-logos qui
    *  exige `{org_id}/...` comme premier segment du path. */
   organizationId: string
-  currentValue: string | null
+  currentName: string
+  currentLogoPath: string | null
+  currentLogoUrl: string | null
+  currentEmail: string
   onClose: () => void
   onSubmitted: () => void
 }) {
   const sb = useMemo(() => getSupabase(), [])
-  const [textValue, setTextValue] = useState("")
-  const [uploadedPath, setUploadedPath] = useState<string | null>(null)
+  // Cases cochées par l'owner.
+  const [editName, setEditName] = useState(false)
+  const [editLogo, setEditLogo] = useState(false)
+  const [editEmail, setEditEmail] = useState(false)
+  // Valeurs saisies.
+  const [newName, setNewName] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [uploadedLogoPath, setUploadedLogoPath] = useState<string | null>(null)
+  const [uploadedLogoLocalUrl, setUploadedLogoLocalUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [reason, setReason] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
-  const fieldLabel =
-    field === "name" ? "Nom de l'organisation" :
-    field === "brand_logo_path" ? "Logo" :
-    "Email de contact"
+  const emailValid = newEmail === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())
 
   const handleLogoPick = async (file: File) => {
     setUploading(true); setError(null)
@@ -1577,13 +1587,13 @@ function BrandingChangeRequestModal({
       // 1er segment — un path racine "pending/..." est refusé. Le
       // sous-folder "pending" distingue ces fichiers en cours de
       // validation des logos déjà approuvés (`{org_id}/{ts}.ext`).
-      // À l'approbation côté admin, le fichier reste tel quel et son
-      // path est promu en brand_logo_path. Au refus, il est supprimé.
       const ext = file.name.split(".").pop() || "png"
       const path = `${organizationId}/pending/${Date.now()}.${ext}`
       const { error: upErr } = await sb.storage.from("brand-logos").upload(path, file, { upsert: true })
       if (upErr) throw new Error(upErr.message)
-      setUploadedPath(path)
+      setUploadedLogoPath(path)
+      // Aperçu local instantané (avant que la signed URL existe).
+      setUploadedLogoLocalUrl(URL.createObjectURL(file))
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -1591,22 +1601,26 @@ function BrandingChangeRequestModal({
     }
   }
 
+  const canSubmit = (() => {
+    if (uploading) return false
+    if (editName && !newName.trim()) return false
+    if (editLogo && !uploadedLogoPath) return false
+    if (editEmail && (!newEmail.trim() || !emailValid)) return false
+    return editName || editLogo || editEmail
+  })()
+
   const submit = async () => {
-    const requestedValue = field === "brand_logo_path" ? (uploadedPath ?? "") : textValue.trim()
-    if (!requestedValue) {
-      setError("Champ obligatoire.")
-      return
-    }
+    if (!canSubmit) return
     setBusy(true); setError(null)
     try {
+      const changes: Array<{ field: string; requested_value: string }> = []
+      if (editName) changes.push({ field: "name", requested_value: newName.trim() })
+      if (editLogo && uploadedLogoPath) changes.push({ field: "brand_logo_path", requested_value: uploadedLogoPath })
+      if (editEmail) changes.push({ field: "contact_email", requested_value: newEmail.trim() })
       const r = await fetch("/api/cabinet/branding/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          field,
-          requested_value: requestedValue,
-          reason: reason.trim() || null,
-        }),
+        body: JSON.stringify({ changes, reason: reason.trim() || null }),
       })
       if (!r.ok) {
         const j = await r.json().catch(() => ({} as { error?: string }))
@@ -1629,6 +1643,7 @@ function BrandingChangeRequestModal({
         position: "fixed", inset: 0, zIndex: 200,
         background: "rgba(17,24,39,0.40)", backdropFilter: "blur(2px)",
         display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+        overflowY: "auto",
       }}
     >
       <m.div
@@ -1636,10 +1651,13 @@ function BrandingChangeRequestModal({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: EASE }}
         style={{
-          width: "100%", maxWidth: 520,
+          width: "100%", maxWidth: 560,
+          maxHeight: "calc(100vh - 48px)",
+          overflowY: "auto",
           background: "white", borderRadius: 16, padding: 24,
           fontFamily: "var(--font-inter), sans-serif",
           boxShadow: "0 24px 64px -24px rgba(17,24,39,0.30)",
+          margin: "auto",
         }}
       >
         <header style={{ marginBottom: 16 }}>
@@ -1647,45 +1665,61 @@ function BrandingChangeRequestModal({
             Demande de modification
           </p>
           <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-            {fieldLabel}
+            Modifier vos informations verrouillées
           </h2>
           <p style={{ margin: "10px 0 0", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
-            Cette demande sera examinée par notre équipe sous 24 à 48 heures
-            ouvrées. Vous recevrez un email à la décision.
+            Cochez les informations que vous souhaitez modifier, puis indiquez
+            la nouvelle valeur pour chacune. Notre équipe examinera votre
+            demande sous 24 à 48 heures ouvrées et vous répondra par email.
           </p>
         </header>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <Label>Valeur actuelle</Label>
-            <p style={{
-              margin: 0, padding: "8px 11px",
-              background: "#FAFAFA", borderRadius: 8,
-              fontSize: 13, color: "#6B7280", fontStyle: "italic",
-              wordBreak: "break-all",
-            }}>
-              {currentValue || "(non défini)"}
-            </p>
-          </div>
+          {/* Nom */}
+          <ChangeBlock
+            checked={editName}
+            onToggle={() => setEditName((v) => !v)}
+            title="Nom de l'organisation"
+            currentSummary={currentName || "(non défini)"}
+          >
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Cabinet Dupont"
+              maxLength={200}
+              autoFocus
+              style={inputStyle}
+            />
+          </ChangeBlock>
 
-          {field === "brand_logo_path" ? (
-            <div>
-              <Label>Nouveau logo</Label>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <button
-                  type="button"
-                  onClick={() => fileInput.current?.click()}
-                  disabled={uploading}
-                  style={smallBtnPrimary}
-                >
-                  {uploading ? "Upload…" : uploadedPath ? "Remplacer le fichier" : "Choisir un fichier"}
-                </button>
-                {uploadedPath && (
-                  <span style={{ fontSize: 12, color: "#15803D", fontWeight: 600 }}>
-                    Fichier prêt à être soumis
-                  </span>
-                )}
+          {/* Logo */}
+          <ChangeBlock
+            checked={editLogo}
+            onToggle={() => setEditLogo((v) => !v)}
+            title="Logo"
+            currentSummary={currentLogoPath ? "Logo actuel" : "Aucun logo"}
+          >
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+              {/* Logo actuel */}
+              <div style={{ flex: 1 }}>
+                <p style={miniLabel}>Actuel</p>
+                <LogoFrame src={currentLogoUrl} placeholder="Aucun" />
               </div>
+              {/* Logo demandé */}
+              <div style={{ flex: 1 }}>
+                <p style={miniLabel}>Nouveau</p>
+                <LogoFrame src={uploadedLogoLocalUrl} placeholder="À choisir" highlight />
+              </div>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => fileInput.current?.click()}
+                disabled={uploading}
+                style={smallBtnPrimary}
+              >
+                {uploading ? "Upload…" : uploadedLogoPath ? "Remplacer le fichier" : "Choisir un fichier"}
+              </button>
               <input
                 ref={fileInput}
                 type="file"
@@ -1697,23 +1731,38 @@ function BrandingChangeRequestModal({
                 }}
               />
             </div>
-          ) : (
-            <div>
-              <Label>Nouvelle valeur</Label>
-              <input
-                value={textValue}
-                onChange={(e) => setTextValue(e.target.value)}
-                placeholder={field === "name" ? "Cabinet Dupont" : "contact@votre-cabinet.com"}
-                type={field === "contact_email" ? "email" : "text"}
-                maxLength={200}
-                autoFocus
-                style={inputStyle}
-              />
-            </div>
-          )}
+          </ChangeBlock>
+
+          {/* Email */}
+          <ChangeBlock
+            checked={editEmail}
+            onToggle={() => setEditEmail((v) => !v)}
+            title="Email de contact"
+            currentSummary={currentEmail || "(non défini)"}
+          >
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="contact@votre-cabinet.com"
+              maxLength={200}
+              style={{
+                ...inputStyle,
+                borderColor: newEmail && !emailValid ? "#EF4444" : inputStyle.borderColor,
+              }}
+            />
+            {newEmail && !emailValid && (
+              <p style={{ margin: "5px 0 0", fontSize: 11.5, color: "#EF4444" }}>
+                Format d&apos;email invalide
+              </p>
+            )}
+          </ChangeBlock>
 
           <div>
-            <Label>Raison de la demande <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span></Label>
+            <Label>
+              Raison de la demande{" "}
+              <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span>
+            </Label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -1730,6 +1779,12 @@ function BrandingChangeRequestModal({
           {error && (
             <p style={{ margin: 0, fontSize: 12.5, color: "#B91C1C" }}>{error}</p>
           )}
+
+          {!editName && !editLogo && !editEmail && (
+            <p style={{ margin: 0, fontSize: 12.5, color: "#9CA3AF", fontStyle: "italic" }}>
+              Cochez au moins une information à modifier.
+            </p>
+          )}
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
@@ -1739,14 +1794,15 @@ function BrandingChangeRequestModal({
           <button
             type="button"
             onClick={submit}
-            disabled={busy || uploading}
+            disabled={busy || !canSubmit}
             style={{
               padding: "10px 16px", borderRadius: 10,
               border: "none", color: "white",
-              background: busy
+              background: busy || !canSubmit
                 ? "#C4B6E0"
                 : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              fontSize: 13, fontWeight: 700, cursor: busy ? "wait" : "pointer",
+              fontSize: 13, fontWeight: 700,
+              cursor: busy || !canSubmit ? "not-allowed" : "pointer",
               fontFamily: "inherit",
             }}
           >
@@ -1756,6 +1812,90 @@ function BrandingChangeRequestModal({
       </m.div>
     </div>
   )
+}
+
+/**
+ * Bloc accordeon dans la modale : checkbox + titre + résumé valeur
+ * actuelle. Une fois coché, on déplie le sous-formulaire (children).
+ */
+function ChangeBlock({
+  checked, onToggle, title, currentSummary, children,
+}: {
+  checked: boolean
+  onToggle: () => void
+  title: string
+  currentSummary: string
+  children: React.ReactNode
+}) {
+  return (
+    <div style={{
+      borderRadius: 12,
+      border: checked ? "1.5px solid rgba(124,99,200,0.30)" : "1px solid #F0ECF8",
+      background: checked ? "rgba(124,99,200,0.03)" : "white",
+      padding: 12,
+    }}>
+      <label style={{
+        display: "flex", alignItems: "flex-start", gap: 10,
+        cursor: "pointer",
+      }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          style={{
+            marginTop: 3, accentColor: "#7C63C8",
+            width: 16, height: 16, cursor: "pointer",
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{
+            margin: 0, fontSize: 13.5, fontWeight: 700,
+            color: "#111827", letterSpacing: "-0.005em",
+          }}>
+            {title}
+          </p>
+          <p style={{
+            margin: "2px 0 0", fontSize: 12, color: "#6B7280",
+            fontStyle: "italic",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            Actuel : {currentSummary}
+          </p>
+        </div>
+      </label>
+      {checked && (
+        <div style={{ marginTop: 12, paddingLeft: 26 }}>
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LogoFrame({ src, placeholder, highlight }: { src: string | null | undefined; placeholder: string; highlight?: boolean }) {
+  return (
+    <div style={{
+      width: "100%", aspectRatio: "2 / 1",
+      borderRadius: 8,
+      border: highlight ? "1px solid rgba(124,99,200,0.30)" : "1px solid #F0ECF8",
+      background: "#FAFAFA",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      overflow: "hidden",
+    }}>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", padding: 6 }} />
+      ) : (
+        <span style={{ fontSize: 11.5, color: "#9CA3AF", fontStyle: "italic" }}>{placeholder}</span>
+      )}
+    </div>
+  )
+}
+
+const miniLabel: React.CSSProperties = {
+  margin: "0 0 4px",
+  fontSize: 10.5, fontWeight: 700,
+  color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase",
 }
 
 /**
