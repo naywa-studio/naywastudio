@@ -1,10 +1,9 @@
 # Naywa Studio — Contexte projet
 
-> **Statut** : Beta privée. Premier produit = **Nora**, l'assistante IA du
-> workspace. Plus de Léo / Alex — un seul package commercial : **Package
-> Sourcing**. Stripe pas encore branché ; toute la mécanique d'abonnement
-> est en place côté code (sièges, grace period, cron de wipe) et ne demande
-> qu'à être câblée à Stripe quand on y sera.
+> **Statut** (juin 2026) : Premier client en période d'essai (GMH Engineering
+> Solutions). Plus en beta privée. Stripe **branché en LIVE**. Produit phare =
+> **Nora**, l'assistante IA du workspace. Un seul package commercial : **Package
+> Sourcing** (+ variante **Sourcing Pro** qui ajoute la Suite Pricing Syntec).
 
 ---
 
@@ -13,40 +12,42 @@
 ### Acteurs
 | Rôle | Accès |
 |---|---|
-| **Owner** (créateur du compte) | `/cabinet` (console admin) + `/workspace` si un siège lui est alloué |
-| **Member** (invité par l'owner) | `/workspace` uniquement (lecture seule sur `/cabinet/parametrage`) |
+| **Owner** (créateur du compte) | `/organisation` (console cabinet) + `/workspace` si un siège lui est alloué |
+| **Member** (invité par l'owner) | `/workspace` uniquement (lecture seule sur `/organisation/parametrage`) |
+| **Admin Naywa** (`profiles.is_admin = true`) | Tout + `/admin` (KPIs, recherche support, CRUD nouveautés, demandes branding). Bypass total trial/seat/paywall. |
 
 ### Sièges (Package Sourcing)
-- Un compte gratuit crée une **organisation** (cabinet) avec son créateur en **owner**.
-- L'owner décide d'**allouer un siège** à lui-même (s'il veut utiliser le sourcing) et/ou d'**inviter des collègues** qui occuperont chacun un siège.
-- Tous les members d'une org **partagent le vivier**, les missions et le pipeline (vivier vivant : Nora se souvient des zones déjà créées entre uploads).
-- **Suppression de cabinet** : si l'owner est seul, wipe immédiat. Si membres restants → `pending_deletion_at = now() + 30 j` (grace period) ; le cron quotidien `/api/cron/wipe-expired-orgs` finalise.
+- Un compte gratuit crée une **organisation** avec son créateur en **owner**.
+- L'owner **alloue un siège** à lui-même et/ou invite des collègues. Owner sans siège = admin pur du cabinet (pas d'accès workspace).
+- Tous les members d'une org **partagent le vivier**, les missions et le pipeline (vivier vivant : Nora se souvient des zones entre uploads).
+- **Suppression de cabinet** : si owner seul, wipe immédiat. Sinon `pending_deletion_at = now() + 30 j` ; cron quotidien `/api/cron/wipe-expired-orgs` finalise.
 
-### Garde-fou produit
-> **Le LLM ne décide jamais à la place du sourceur.**
-> Pas d'envoi automatique de mail, pas de déplacement auto dans le pipeline,
-> pas de classement IA appliqué sans validation. Toutes les sorties IA sont
-> des **suggestions** modifiables.
+### Garde-fous produit (verrouillage anti-fraude)
+- **Le LLM ne décide jamais à la place du sourceur.** Pas d'envoi de mail auto, pas de mouvement pipeline auto, pas de classement appliqué sans validation. Toutes les sorties IA = suggestions.
+- **Branding fort verrouillé** : 24h après onboarding terminé, le nom + logo + email contact deviennent read-only (apparaissent sur les CV anonymisés → vecteur d'usurpation). Modification = demande validée par admin Naywa via `/admin/demandes`.
+- Couleurs + slogan restent libres à tout moment.
 
 ---
 
 ## 2. Stack
 
 - **Next.js 16** App Router + TypeScript strict — Vercel (région `cdg1`)
-- **Supabase** — Auth (email/mdp + Google OAuth), Postgres + RLS, Storage
-- **Resend** — SMTP pour les auth emails (via Supabase) + envoi/réception applicatifs sur `mail.naywastudio.com`
+- **Supabase** — Auth (email/mdp + Google OAuth), Postgres + RLS org-scopée, Storage
+- **Stripe** — Checkout + Customer Portal + webhooks (LIVE mode)
+- **Resend** — SMTP auth (via Supabase) + envois applicatifs sur `mail.naywastudio.com`
 - **OpenRouter** — LLM (`gpt-4o-mini`) + OCR plugin `mistral-ocr`
 - **unpdf** — extraction texte PDF serverless
 - **@react-pdf/renderer** — PDF anonymisé candidat + fiche pricing
+- **docx** — export Word du CV anonymisé
+- **Sentry** — error tracking (server + client + edge)
 - **svix** — vérification signature webhooks Resend
 - **framer-motion** — animations (`LazyMotion` + `domAnimation`, import via `m`)
 
-### Commandes
 ```bash
-npm run dev       # serveur local
-npm run build     # build production (doit passer sans erreur)
-npm run lint      # ESLint --max-warnings=0
-npx tsc --noEmit  # type-check strict
+npm run dev       # serveur local (Elyas ne l'utilise pas, tests sur Vercel)
+npm run build     # build production
+npm run lint -- --max-warnings=0
+npx tsc --noEmit
 ```
 
 ---
@@ -54,441 +55,495 @@ npx tsc --noEmit  # type-check strict
 ## 3. Architecture pages
 
 ### Marketing (public)
-- `/` — homepage
-- `/comment-ca-marche`, `/tarifs`, `/faq`, `/catalogue`
-- `/mentions-legales`, `/politique-confidentialite`, `/cgu` — pages légales via `<LegalPageShell />` partagé
+- `/`, `/a-propos`, `/solutions`, `/tarifs`, `/faq`, `/contact`
+- `/mentions-legales`, `/politique-confidentialite`, `/cgu` via `<LegalPageShell />`
+- `/dpa-naywa-v1.pdf` (PDF servi statique, contenu v1.1, section rôle admin)
 
 ### Auth (public)
 - `/login` — connexion + signup (toggle `?mode=signup`, message `?expired=1`)
-- `/signup` — redirige côté serveur
-- `/auth/callback` — callback Supabase OAuth
-- `/accept-invite?token=…` — flow autonome pour rejoindre un cabinet sur invitation. 4 états : choix (accepter / refuser), formulaire signup (prénom + mdp), confirm (utilisateur déjà connecté avec le bon email), mauvais email.
+- `/auth/callback` — callback OAuth Google
+- `/accept-invite?token=…` — flow d'invitation autonome (4 états)
 
-### Marketing extra
-- `/a-propos` — page À propos *(L'IA traite vous décidez + 3 piliers + Founders réutilisée + CTA contact)*
-- `/contact` — formulaire qui POST `/api/contact` *(Resend → contact@naywastudio.com)*
+### Onboarding (`/onboarding`, owner uniquement)
+4 étapes : **Nom cabinet → Branding (logo + couleurs + slogan + contact) → Invitations → Trial 15 j**. Redirige depuis `/organisation/*` tant que `cabinet_onboarded_at` est NULL.
 
-### Console cabinet `/cabinet` (protégée par `proxy.ts`)
-- `/cabinet` — dashboard owner (identité, sièges, membres, abonnement, zone danger). **Owner-only** (members → `/workspace`). Layout grid 3 colonnes.
-- `/cabinet/onboarding` — flow 3 étapes à la 1ère visite owner : nom cabinet → package sourcing → politique pricing. Redirige auto depuis `/cabinet/*` tant que `cabinet_onboarded_at` est NULL.
-- `/cabinet/parametrage` — politique pricing du cabinet (marges, RTT, avantages standards). **Édition owner**, **lecture seule member**. Layout grid 2 colonnes.
+### Console organisation `/organisation` (protégée par `proxy.ts`)
+3 onglets dans une page unique :
+- **Onglet org** (par défaut, libellé = nom de l'org) : Identité (read-only) | Membres | Branding pleine largeur
+- **Onglet "Mes packages"** : siège owner + abonnement Stripe + Politique pricing pliable
+- **Onglet Sécurité** : zone de danger (suppression cabinet) + export RGPD
 
-### Workspace sourcing `/workspace/*` (protégée par `proxy.ts`)
-- `/workspace` — accueil (4 piliers : vivier, missions, matches, pricing)
-- `/workspace/vivier` — vue carte (zones Nora) + vue plate
-- `/workspace/vivier/[candidateId]` — fiche candidat
-- `/workspace/missions` — liste missions + bouton "Créer une mission"
-- `/workspace/missions/[jobId]` — fiche mission + bouton "Modifier" + relance matching
-- `/workspace/pricing` — liste missions à chiffrer
-- `/workspace/pricing/[jobId]` — chiffrage mission × candidat (widget complet)
-- `/workspace/pricing/reference` — doc Syntec (accessible à tous, owner + member)
-- `/workspace/pipeline` — Kanban candidats
+Sous-pages : `/organisation/parametrage` (politique pricing détaillée, lecture member).
 
-Le gate `/workspace` exige un **siège** (`profiles.has_sourcing_seat`) ; sans siège → bounce sur `/cabinet`.
+### Workspace `/workspace/*` (protégée par `proxy.ts`)
+- `/workspace` — accueil 4 piliers + raccourcis + KPI + activité récente
+- `/workspace/vivier` (carte zones Nora + vue plate) | `/workspace/vivier/[id]`
+- `/workspace/missions` | `/workspace/missions/[jobId]`
+- `/workspace/pricing` | `/workspace/pricing/[jobId]` | `/workspace/pricing/reference` (doc Syntec)
+- `/workspace/pipeline` (Kanban)
+- `/workspace/match/[matchId]` (fiche match + anonymisation)
+
+Gate : exige `has_sourcing_seat` (sauf admins). Owner sans siège → bounce `/organisation` (cf. `lib/post-login-destination.ts`).
+
+### Console admin `/admin/*` (protégée par `proxy.ts` + `requireAdmin()`)
+- `/admin` — dashboard 6 KPIs (cabinets, users, sièges, candidats parsés, trials, MRR)
+- `/admin/maj` — CRUD nouveautés (modale title + body markdown + catégorie, preview live)
+- `/admin/recherche` — recherche email/prénom, table résultats + audit log auto
+- `/admin/demandes` — file des demandes de modification branding, regroupées par batch
+
+### Nouveautés `/nouveautes` (auth)
+Page changelog produit accessible depuis sidebar workspace + menu profil organisation. Pastille violette sidebar quand non-lues. Card sobre sous le hero workspace + sous les tabs organisation. Mark-read auto à l'ouverture.
 
 ---
 
 ## 4. Architecture API
 
-### Auth + cabinet
+### Auth + organisation
 | Route | Rôle |
 |---|---|
-| `POST /api/subscribe` | No-op legacy — confirme juste que l'utilisateur a une org |
-| `PATCH /api/cabinet` | Owner-only — met à jour nom, brand, logo, pricing defaults |
-| `DELETE /api/cabinet` | Owner-only — suppression cabinet (immédiate si solo, grace 30 j sinon) |
-| `POST /api/cabinet/seat` | Owner toggle son propre siège |
-| `POST /api/cabinet/invite` | Owner invite un membre par email |
-| `DELETE /api/cabinet/invite?id=…` | Owner révoque une invitation |
-| `GET /api/cabinet/accept-invite?token=…` | Public — preview invitation (org name + email invité) |
-| `POST /api/cabinet/accept-invite` | Utilisateur connecté accepte une invitation |
-| `POST /api/cabinet/accept-invite-signup` | Public — crée auth user + accepte invitation en un coup |
-| `POST /api/cabinet/decline-invite` | Public — supprime l'invitation |
-| `DELETE /api/cabinet/members/[userId]` | Owner retire un member |
-| `POST /api/cabinet/activate-trial` | Owner-only — stamp `trial_ends_at = now() + 15 j`, idempotent |
-| `POST /api/cabinet/onboarding-done` | Owner-only — stamp `cabinet_onboarded_at` + maj nom cabinet |
-| `POST /api/contact` | Public — formulaire contact, envoie via Resend vers `contact@naywastudio.com` |
-| `GET  /api/cron/wipe-expired-orgs` | Cron quotidien (3h00 UTC) — wipe orgs `pending_deletion_at <= now()` |
+| `PATCH /api/cabinet` | Owner-only — allowlist nom, brand_name, brand_logo_path, brand_color, brand_color_secondary, brand_slogan, contact_email, pricing defaults |
+| `DELETE /api/cabinet` | Owner-only — suppression (immédiate si solo, grace 30 j sinon) |
+| `POST /api/cabinet/seat` | Toggle siège (owner pour soi-même ou autre member) |
+| `POST /api/cabinet/invite` + `DELETE ?id=` | Invitation par email + révocation |
+| `POST /api/cabinet/accept-invite[-signup]` + `/decline-invite` | Flows token-based |
+| `DELETE /api/cabinet/members/[userId]` | Owner retire member |
+| `POST /api/cabinet/activate-trial` | Idempotent — stamp `trial_ends_at = now() + 15 j` |
+| `POST /api/cabinet/onboarding-done` | Stamp `cabinet_onboarded_at` + `branding_locked_at = +24h` |
+| `POST /api/cabinet/branding/request` | Owner soumet `{ changes: [{ field, requested_value }], reason }`. N rows, 1 batch_id |
+| `GET /api/cabinet/branding/requests` | Owner — liste ses demandes pending + decided des 30 derniers jours |
+| `POST /api/cabinet/reset-onboarding` | Preview-only (`VERCEL_ENV === "preview"`) — nullifie `cabinet_onboarded_at` |
+| `POST /api/contact` | Public — formulaire contact → `contact@naywastudio.com` |
+| `POST /api/support` | Auth — bouton support workspace/organisation. Email/org/URL/UA auto-attachés. Subject `[Support · {topic}] {prénom} — {org}` |
+| `GET /api/cron/wipe-expired-orgs` | Cron 3h UTC — wipe orgs `pending_deletion_at <= now()` |
+| `GET /api/cron/wipe-lockdown-data` | Cron 3h UTC — wipe orgs en lockdown depuis > 15 j (sub canceled) |
 
 ### Vivier + parsing
 | Route | Rôle |
 |---|---|
 | `POST /api/cv/upload` | Upload PDF + insert candidate |
 | `POST /api/cv/[id]/parse` | unpdf → OpenRouter → `parsed_cv` + `taxonomy` |
-| `POST /api/cv/[id]/anonymize` | Génère PDF anonymisé (brand cabinet inliné) |
-| `POST /api/cv/[id]/compose` | Brouillon message d'approche |
-| `POST /api/cv/[id]/send` | Envoie via Resend (`fromHeader` cabinet) |
-| `GET  /api/cv/[id]/signed-url` | URL temporaire 5 min |
-| `DELETE /api/cv/[id]` | Suppression candidate (Storage + cascade) |
-| `POST /api/vivier/cluster` | Clustering LLM org-scoped avec **manifestes** (vivier vivant) |
-| `POST /api/candidates/dedup` | Détection doublons |
-| `POST /api/candidates/[id]/match-all` | Lance matching contre toutes missions ouvertes |
-| `POST /api/assistant` | Chat Nora (contexte vivier) |
+| `POST /api/cv/[id]/anonymize` | PDF anonymisé (brand cabinet, 4 templates : classic/two-column/executive/bento, watermark optionnel) |
+| `POST /api/cv/[id]/anonymize/docx` | Word éditable (format linéaire indépendant des templates) |
+| `POST /api/cv/[id]/compose` + `/send` | Brouillon outreach + envoi Resend |
+| `GET /api/cv/[id]/signed-url` + `DELETE` | URL temporaire + suppression cascade |
+| `POST /api/vivier/cluster` | Clustering org-scoped avec **manifestes** (vivier vivant) |
+| `POST /api/candidates/dedup` + `[id]/match-all` | Doublons + matching toutes missions |
+| `POST /api/assistant` | Chat Nora |
 
 ### Missions + matching + pricing
 | Route | Rôle |
 |---|---|
-| `GET/POST /api/jobs` | Liste / crée une mission |
-| `GET/PATCH/DELETE /api/jobs/[id]` | CRUD mission |
-| `POST /api/jobs/extract` | LLM extrait les champs structurés depuis un brief texte |
-| `POST /api/jobs/[id]/match` | Lance matching |
-| `POST /api/jobs/[id]/assign` | Assigne manuellement un candidat |
-| `POST /api/jobs/chat` | Chat IA création mission (legacy, peu utilisé) |
-| `PATCH /api/match/[id]/stage` | Met à jour le pipeline_stage |
-| `PATCH /api/match/[id]/pipeline` | Ajoute / retire du pipeline |
-| `PATCH /api/match/[id]/pricing-params` | Persist TJM / Brut / avantages override par match |
-| `GET  /api/match/[id]/pricing-pdf?anonymize={0,1}` | Export PDF fiche pricing |
+| `GET/POST /api/jobs` + `[id]` (GET/PATCH/DELETE) | CRUD missions |
+| `POST /api/jobs/extract` | LLM extrait 14 champs depuis brief texte |
+| `POST /api/jobs/[id]/match` + `/assign` | Lance matching + assignment manuel |
+| `PATCH /api/match/[id]/stage` + `/pipeline` + `/pricing-params` | Pipeline + pricing override par match |
+| `GET /api/match/[id]/pricing-pdf?anonymize={0,1}` | PDF fiche pricing |
 | `POST /api/pricing/compare` | Compare 2 scénarios candidats |
 
-### Emails + Calendly
+### Stripe + emails + Calendly
 | Route | Rôle |
 |---|---|
-| `POST /api/inbound-email` | Webhook Resend — vérification signature svix |
-| `GET /api/calendly/oauth/start` | Démarre OAuth Calendly |
-| `GET /api/calendly/oauth/callback` | Callback Calendly (HMAC state) |
-| `POST /api/calendly/webhook` | Webhook Calendly (signature vérifiée) |
-| `GET /api/calendly/event-types` | Liste les event types du compte |
-| `DELETE /api/calendly/disconnect` | Déconnecte Calendly |
+| `POST /api/stripe/checkout` + `/portal` + `/setup-intent` | Checkout, portail, Setup Intent SEPA |
+| `POST /api/stripe/webhook` | Webhook signé (sync `subscription_status`, `subscription_seats`, etc.) |
+| `POST /api/inbound-email` | Webhook Resend (svix) |
+| `GET /api/calendly/oauth/start` + `/callback` + `POST /webhook` + autres | Connexion + RDV |
 | `GET /api/dashboard/today` | Agrégats interviews / réponses / relances |
+
+### Admin (admin-only via `requireAdmin()`)
+| Route | Rôle |
+|---|---|
+| `GET /api/admin/kpis` | 6 KPIs sourcés (1 requête / KPI, pas de ratio composé) |
+| `GET /api/admin/search?q=` | Recherche email/prénom — pull tous les `auth.users` (perPage:1000) + filter code. Audit log auto |
+| `GET/POST /api/admin/maj` + `PATCH/DELETE [id]` | CRUD app_updates |
+| `GET /api/admin/branding-requests` | Liste demandes regroupées par batch. **Pas de join Supabase sur requested_by** (FK → auth.users, l'auto-discovery plante). Hydratation manuelle profiles + emails en parallèle |
+| `POST /api/admin/branding-requests/[id]` | Approve/Reject (par change row, pas par batch). Mail Resend au requester. Si reject + field=logo : supprime fichier pending du Storage |
+| `GET /api/admin/branding-logo-url?path=` | Signed URL 1h pour previews dans `/admin/demandes` |
+
+### Nouveautés (auth)
+| Route | Rôle |
+|---|---|
+| `GET /api/updates` | Liste publiée + `is_read` par user |
+| `POST /api/updates/[id]/mark-read` | Idempotent (PK composite) |
+
+### Account
+| Route | Rôle |
+|---|---|
+| `GET /api/account/me` + `/profile` | Lecture profil / patch first_name |
+| `GET /api/export/me` | Export RGPD JSON |
 
 ---
 
-## 5. Bibliothèques lib/
+## 5. Bibliothèques lib/ (clés)
 
 | Fichier | Rôle |
 |---|---|
-| `supabase.ts` | Client browser (`createBrowserClient`) |
-| `supabase-server.ts` | Client server RSC + Route Handlers |
-| `admin-supabase.ts` | Service-role client (server-only, bypass RLS) |
-| `database.types.ts` | Types DB + alias métier (`Profile`, `Organization`, `Job`, `Candidate`, `MatchAssessment`, `OrgInvite`, `OrgRole`, …) + `CANDIDATE_COLUMNS` |
-| `cabinet-config.ts` | `getCabinetPricingConfig()` / `getCabinetBrand()` / `getCabinetOrgId()` — résolution org-scoped des configs cabinet |
-| `cv-parser.ts` | Parser CV : unpdf → LLM → `ParsedCv`. Calcule `is_apprentice` et `years_experience` post-diplôme (exclut stages + alternance en cours). |
-| `candidate-ref.ts` | `candidateRefLabel(id)` → `C-XXXXXXXX` (8 premiers chars UUID en majuscule) |
-| `vivier-clusters.ts` | Helpers carte vivier : `candidateClusters()`, `clusterHue()`, `hsl()`, `buildClusters()`, layouts par cluster count |
-| `matching.ts` | `normalizeJob()` + score LLM candidat × poste |
-| `openrouter.ts` | Wrapper LLM (chat + responseFormat json_object + plugins) |
-| `quota.ts` | `consumeQuota(admin, userId, action)` — obligatoire avant tout appel LLM |
-| `resend.ts` | `sendEmail()`, `ensureInboxAddress()`, `fromHeader()` |
-| `anonymized-cv.tsx` | PDF anonymisé candidat |
-| `pricing-pdf.tsx` | PDF fiche pricing (header brand + 3 KPI + détail Syntec + avantages) |
-| `trial.ts` | `trialStatus()` + `computeTrialEndsAt()` — calcul état essai (pending/active/expired + daysLeft cappé à `TRIAL_DURATION_DAYS`) |
-| `components/ui/StyledSelect.tsx` | Composant `<select>` partagé (look design-system) avec 4 variantes de bordure : default / ok / required / optional |
-| `components/trial/TrialBanner.tsx` | Bannière sticky dans `/cabinet` + `/workspace` (3 modes : violet / ambre / rouge). Dismiss avec useState local. |
-| `pricing/syntec.ts` | `computeMissionMargin()`, `computeEmployerCost()`, charges par statut, plafonds URSSAF |
-| `pricing/calendar.ts` | Calendrier français avec fériés (working days réels) |
-| `pricing/preset.ts` | `detectSeniority()` + presets statut/position/coefficient |
-| `pricing/avantages-meta.ts` | `AVANTAGES_CONFIG[]` + `avantagesMonthlyTotal()` |
-| `pricing/quick-margin.ts` | `computeQuickMargin()` pour la liste candidats (snapshot léger) |
+| `supabase.ts` / `supabase-server.ts` / `admin-supabase.ts` | Browser / server RSC / service-role (server-only, bypass RLS) |
+| `database.types.ts` | Types DB + alias métier (`Profile`, `Organization`, `Job`, `Candidate`, `MatchAssessment`, `AppUpdate`, `BrandingChangeRequest`, `AdminAuditLog`, ...) + `CANDIDATE_COLUMNS` |
+| `admin.ts` | `isAdmin()`, `requireAdmin()` (renvoie 401/403), `logAdminAction()` (best-effort) |
+| `subscription.ts` | `subscriptionAccess(org, { isAdmin })` → states `trial`/`paid`/`trialing`/`admin`/`blocked`. `hasActiveAccess` + `isInLockdown` acceptent tous les deux `isAdmin` pour bypass |
+| `trial.ts` | `trialStatus()` + `TRIAL_DURATION_DAYS=15` + `TRIAL_SEAT_CAP=2` |
+| `stripe.ts` / `stripe-emails.ts` | `getStripe()`, `PLAN_PRICES_EUR`, `lookupKey()`, mails Resend post-checkout |
+| `post-login-destination.ts` | `resolvePostLoginDestination()` — owner sans onboarding → `/onboarding`, owner sans siège → `/organisation`, sinon `/workspace`. Whitelist `?next=` |
+| `markdown.ts` | Parser markdown maison (gras, italique, listes, liens https/mailto, code inline). Anti-XSS : escape HTML d'abord |
+| `cv-parser.ts` | unpdf → LLM → `ParsedCv`. `is_apprentice` + `years_experience` post-diplôme |
+| `candidate-ref.ts` | `candidateRefLabel(id)` → `C-XXXXXXXX` |
+| `vivier-clusters.ts` | Helpers carte vivier |
+| `matching.ts` | `normalizeJob()` + score LLM |
+| `openrouter.ts` | Wrapper LLM (chat + json_object + plugins) |
+| `quota.ts` | `consumeQuota()` — obligatoire sur chaque route LLM |
+| `resend.ts` | `sendEmail()`, `MAIL_DOMAIN`, `getInboundEmail()` |
+| `anonymized-cv.tsx` + `anonymized-cv-docx.ts` | PDF (4 templates) + DOCX |
+| `pricing-pdf.tsx` | PDF fiche pricing |
+| `pricing/syntec.ts` (testé) + `calendar.ts` + `preset.ts` + `avantages-meta.ts` + `quick-margin.ts` | Engine Syntec maison |
+| `cabinet-config.ts` | Résolution org-scoped des configs cabinet |
+
+### Composants partagés
+- `components/ui/Select.tsx` (4 variantes : default / ok / required / optional)
+- `components/trial/TrialBanner.tsx` (prop `isAdmin` pour bypass)
+- `components/workspace/LockdownBanner.tsx`, `MemberWaitingBanner.tsx`
+- `components/organisation/BrandColorPicker.tsx` (palette curated + extraction logo + bicolore)
+- `components/updates/UpdatesHeroCard.tsx` + `UpdatesNavItem.tsx` + `useUnreadUpdates.ts`
+- `components/support/SupportButton.tsx` (modale via `createPortal` — sort du stacking context sticky header)
+- `components/layout/PreviewBadge.tsx` (bottom-left, `VERCEL_ENV === "preview"`)
 
 ---
 
-## 6. Schéma Supabase — vue d'ensemble
+## 6. Schéma Supabase
 
 ### Tables principales
-- **`organizations`** *(source de vérité cabinet)*
-  - `id`, `name`, `owner_user_id`, `brand_name`, `brand_logo_path`, `mailing_domain` *(masqué UI)*
-  - `package_sourcing_active`, `seats_total`, `pending_deletion_at`
-  - `pricing_billable_days_per_month`, `pricing_margin_min_pct`, `pricing_margin_target_pct`, `pricing_default_lieu`, `pricing_default_modalite`, `pricing_default_avantages`, `pricing_onboarded_at`, `pricing_rtt_days_per_year`
-
-- **`profiles`** — `user_id` ←→ `auth.users` (cascade), `organization_id`, `role: 'owner'|'member'`, `has_sourcing_seat`, `first_name`, `inbox_address`, `inbox_cc_self`, `calendly_*`
-
-- **`org_invites`** — invitations en attente (token uuid, expires 7 j, UNIQUE (org_id, email))
-
-- **`cluster_manifests`** — résumé "qui ressemble à ça" par zone (vivier vivant) ; UNIQUE (organization_id, label)
-
-- **`candidates`** — vivier (`parsed_cv: ParsedCv`, `taxonomy`, `parse_status`, `cluster_assignments`, `is_apprentice`, `anonymized_pdf_path`, `outreach_draft`, `outreach_meta`)
-
-- **`jobs`** — missions (`role_name`, `title`, `briefing`, `client_tjm_min/max`, `margin_min_pct/target_pct`, `duration_months`, `target_gross_salary`, `start_date`, `pricing_lieu`, `has_grand_deplacement`, `is_expatriated`, `normalized`, `match_status`)
-
-- **`match_assessments`** — candidat × poste (`score`, `score_dimensions`, `match_tier`, `pipeline_stage`, `pricing_tjm`, `pricing_brut`, `pricing_avantages_override`, `reject_reason`)
-
-- **`email_messages`** — outbound + inbound (`ai_sentiment`, `ai_summary`, `ai_suggested_stage`)
-
-- **`daily_usage`** — quota LLM par user/jour/action
-
-- **`interviews`** — rendez-vous Calendly
+- **`organizations`** — `name`, `owner_user_id`, `brand_name`, `brand_logo_path`, `brand_color`, `brand_color_secondary`, `brand_slogan`, `contact_email`, `branding_locked_at`, `seats_total`, `pending_deletion_at`, `trial_ends_at`, `cabinet_onboarded_at`, `pricing_*`, `stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `subscription_price_lookup`, `subscription_seats`, `subscription_has_pricing`, `current_period_end`, `lockdown_started_at`, `package_sourcing_onboarded_at`, `pricing_onboarded_at`
+- **`profiles`** — `user_id` (FK auth.users CASCADE), `organization_id`, `role: 'owner'|'member'`, `has_sourcing_seat`, `is_admin`, `first_name`, `inbox_address`, `calendly_*`, `package_sourcing_onboarded_at`
+- **`org_invites`** — UUID token, expires 7 j, UNIQUE (org_id, email)
+- **`cluster_manifests`** — résumé "qui ressemble à ça" par zone ; UNIQUE (org_id, label)
+- **`candidates`**, **`jobs`**, **`match_assessments`**, **`email_messages`**, **`daily_usage`**, **`interviews`** — métier
+- **`trial_consumed_emails`** — anti double-trial sur signup
+- **`app_updates`** (changelog produit) + **`app_updates_reads`** (PK composite user_id + update_id)
+- **`admin_audit_log`** (journal RGPD des actions admin : `search_users`, `view_user`, `list_branding_requests`, `approve/reject_branding_request`, `publish_update`, …)
+- **`branding_change_requests`** — `{field, current_value, requested_value, status, decided_*, decision_note, request_batch_id}` — pending/approved/rejected/cancelled
 
 ### RLS
-**Toutes les tables sont org-scopées** depuis migration 019. Helper SECURITY DEFINER `current_org_id()` est utilisé dans toutes les policies — évite la récursion infinie sur `profiles`.
+**Toutes les tables sont org-scopées** via helper SECURITY DEFINER `current_org_id()` (évite la récursion sur profiles). `admin_audit_log` n'a pas de policy user-facing (lu uniquement via getAdminSupabase). `app_updates_reads` = user-scopé via `auth.uid()`.
 
 ### Triggers + fonctions
-- `handle_new_auth_user()` (migration 020/022) — sur `auth.users INSERT` → crée org "Cabinet de {prénom}" + profile owner. Lit `first_name` depuis `raw_user_meta_data` en priorité.
-- `set_organization_id_from_user()` (migration 024) — BEFORE INSERT sur les tables business → auto-remplit `organization_id` depuis `profiles` si absent. Filet de sécurité pour le code legacy qui n'écrit que `user_id`.
-- `current_org_id()` SECURITY DEFINER — résout l'org du caller depuis profiles
-- Cron Vercel quotidien (3h00 UTC) → `/api/cron/wipe-expired-orgs` (auth `Authorization: Bearer ${CRON_SECRET}`)
+- `handle_new_auth_user()` — INSERT auth.users → org "Organisation de {prénom}" + profile owner
+- `set_organization_id_from_user()` — BEFORE INSERT auto-fill `organization_id` (filet routes legacy)
+- `current_org_id()` SECURITY DEFINER
+- `touch_app_updates_updated_at()` BEFORE UPDATE
 
 ### Storage
-- Bucket `brand-logos` — privé, RLS org-scopée (path = `{org_id}/{ts}.ext`)
-- Bucket `cv-uploads` — privé, RLS user-scopée (path = `{user_id}/{candidate_id}/...`) — accédé uniquement via signed URLs depuis admin-client
+- **`brand-logos`** — privé. RLS exige `{org_id}` comme 1er segment du path. Logos approuvés : `{org_id}/{ts}.ext`. Logos en cours de demande : `{org_id}/pending/{ts}.ext`
+- **`cv-uploads`** — privé, user-scopé `{user_id}/{candidate_id}/...`, accès via signed URLs admin-client
 
-### Migrations clés *(répertoire `supabase/migrations/`)*
+### Migrations clés
 | # | Apport |
 |---|---|
-| 019 | `organizations` + `org_invites` + `current_org_id()` + RLS swap user → org |
-| 020 | Trigger auto-create org au signup |
-| 021 | Cleanup colonnes legacy (`sector`, `vps_*`, `workspace_*`, `apify_*`, `subscription_level`, etc.) + `mailing_domain` |
-| 022 | Trigger lit `raw_user_meta_data.first_name` en priorité |
-| 023 | `profiles.has_sourcing_seat` (découple admin du siège sourcing) |
-| 024 | Trigger `BEFORE INSERT` auto-fill `organization_id` (filet pour routes legacy) |
+| 019-024 | Multi-tenant : orgs, RLS swap user → org, triggers signup + filet |
 | 025 | Storage RLS `brand-logos` org-scopée |
-| 026 | Drop des colonnes legacy `brand_*` + `pricing_*` sur `profiles` (source unique = `organizations`) |
-| 027 | `match_assessments.pricing_avantages_override` |
-| 028 | `cluster_manifests` (vivier vivant) + `candidates.is_apprentice` |
-| 029 | Security hardening — `search_path` pinned + `REVOKE EXECUTE` sur SECURITY DEFINER triggers |
-| 030 | `organizations.trial_ends_at` (essai 15 j owner-activated) |
-| 031 | `organizations.cabinet_onboarded_at` (flag onboarding terminé) |
-| 032 | `jobs.essai_renouvele` (variable mission, défaut `false`) |
+| 026 | Drop colonnes legacy `brand_*` / `pricing_*` sur profiles |
+| 028 | `cluster_manifests` + `candidates.is_apprentice` |
+| 029 | Security hardening (search_path, REVOKE EXECUTE) |
+| 030 | `organizations.trial_ends_at` |
+| 031 | `organizations.cabinet_onboarded_at` |
+| 032 | `jobs.essai_renouvele` |
+| 033 | Stripe subscription fields (`stripe_customer_id`, `subscription_status`, ...) |
+| 034 | Drop `organizations.package_sourcing_active` |
+| 035 | `organizations.lockdown_started_at` |
+| 036 | `trial_consumed_emails` |
+| 037-038 | Package Sourcing onboarded flags (org + profile, per-user visite guidée) |
+| 039 | `organizations.brand_color` + `brand_slogan` + `contact_email` |
+| 040 | `organizations.brand_color_secondary` |
+| 041 | `profiles.is_admin` + élévation initiale 2 comptes Naywa |
+| 042 | `app_updates` |
+| 043 | `app_updates_reads` (PK composite) |
+| 044 | `admin_audit_log` |
+| 045 | `organizations.branding_locked_at` + backfill `cabinet_onboarded_at + 24h` |
+| 046 | `branding_change_requests` |
+| 047 | `branding_change_requests.request_batch_id` (regroupement multi-champs) |
 
 ---
 
-## 7. Contextes React partagés
+## 7. Contextes React
 
 ```ts
-// src/app/workspace/layout.tsx
+// /workspace/layout.tsx → useWorkspace()
 interface WorkspaceCtx {
-  profile: Profile | null
+  profile: Profile | null   // contient is_admin
   organization: Organization | null
   userEmail: string
-  hasSubscription: boolean      // always true V1 (= has org)
+  hasSubscription: boolean
+  isReadOnly: boolean       // lockdown OU member sans accès actif. False si is_admin.
   refetchProfile: () => Promise<void>
 }
-// Hook : useWorkspace()
 
-// src/app/cabinet/layout.tsx
+// /organisation/layout.tsx → useCabinet()
 interface CabinetCtx {
   profile: Profile
   organization: Organization
   userEmail: string
+  emailConfirmed: boolean
   isOwner: boolean
   refetch: () => Promise<void>
 }
-// Hook : useCabinet()
+
+// /admin/layout.tsx → useAdmin()
+interface AdminCtx { profile: Profile; userEmail: string }
 ```
 
-### Protection routes
-- `src/proxy.ts` (Next.js 16, **pas** `middleware.ts`) — protège `/workspace/*` et `/cabinet/*`
-- `/cabinet` layout : permet member d'accéder à `/cabinet/parametrage` en lecture seule
-- `/cabinet` dashboard : owner-only (redirect via useEffect)
-- `/workspace` layout : gate sur `has_sourcing_seat` → bounce `/cabinet` si pas de siège
+### Protection
+- `src/proxy.ts` (Next 16 — **pas** `middleware.ts`) — auth gate `/workspace`, `/organisation`, `/onboarding`, `/profil`, `/admin`, `/nouveautes`
+- `/workspace` layout : bypass complet si `profile.is_admin`. Sinon owner sans siège → `/organisation`, owner sans access actif → `/organisation`
+- `/admin` layout : `requireAdmin()` côté server + redirect `/workspace` si pas admin
 
 ---
 
-## 8. Règles de développement
+## 8. Rôle administrateur Naywa
 
-### Code
-- **Langue code** : anglais (variables, fonctions, commentaires courts)
-- **Langue commentaires longs + UI** : français
-- **Zéro `any`** TypeScript ; `tsc --noEmit` + `eslint --max-warnings=0` doivent passer
-- **Pas d'emoji** dans l'UI sauf si demandé explicitement
-- **Tailwind seul** pour le CSS — pas de styled-components / Emotion ailleurs
-- **framer-motion** : utiliser `m` (pas `motion`) + `LazyMotion`
+### Élévation
+- `profiles.is_admin BOOLEAN DEFAULT false`
+- Élevé manuellement via SQL Editor Supabase ou par la migration 041 (les 2 comptes `elyas.malki@naywastudio.com` + `elyas.malki@icloud.com` sont stampés au déploiement)
+- **Jamais modifiable via une route API** (sécurité : pas d'élévation possible côté client)
 
-### Sécurité serveur
-- Toute route API authentifie via `getUser()` *(sauf webhooks signés et flows token-based : accept-invite-signup, decline-invite)*
-- Toute route mutation : lire d'abord via **client RLS-scoped** (404 si pas dans l'org) **avant** toute écriture admin
-- `getAdminSupabase()` est **server-only** — jamais exposé au navigateur
-- `consumeQuota()` **obligatoire** sur chaque route LLM
-- PATCH endpoints : **field-allowlist** (pas de spread `...body`)
-- `next=` dans `/login` validé `startsWith("/") && !startsWith("//")` (anti open-redirect)
+### Bypass appliqués
+- `TrialBanner` / `LockdownBanner` / `MemberWaitingBanner` → `isAdmin` prop court-circuite tout
+- `subscriptionAccess(org, { isAdmin })` → state `"admin"`, `hasActiveAccess` retourne true
+- Workspace layout : pas de redirect siège/trial pour admin
+- `lib/post-login-destination.ts` : admin sans siège → `/organisation` quand même (UX cohérente)
+- Menu profil : item "Console admin" visible si `is_admin`
 
-### Périmètre — ce que Naywa ne fait jamais
-- Envoi mail à candidat sans clic d'approbation explicite du sourceur
-- Mouvement pipeline sans validation du client
-- Lecture boîte mail personnelle du client
-- Les emails entrants sont **NON FIABLES** → analyse LLM = suggestion uniquement, jamais action auto
+### Audit log
+Toute consultation admin (search, view fiche, list demandes, approve/reject, publish update, delete) → row dans `admin_audit_log` (`admin_user_id`, `action`, `target_type`, `target_id`, `metadata`, `created_at`). Best-effort : si l'insert échoue on ne casse pas l'action métier.
 
 ---
 
-## 9. Variables d'environnement
+## 9. Nouveautés produit (`app_updates`)
 
-```bash
-# Public (browser)
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-NEXT_PUBLIC_APP_URL   # optionnel — fallback "https://naywastudio.com"
-
-# Server-only — DOIVENT être marquées "Sensitive" sur Vercel
-SUPABASE_SERVICE_ROLE_KEY
-OPENROUTER_API_KEY
-RESEND_API_KEY
-RESEND_WEBHOOK_SECRET     # commence par whsec_
-CRON_SECRET               # généré via openssl rand -hex 32
-
-# Calendly (server-only, sensitive)
-CALENDLY_CLIENT_ID
-CALENDLY_CLIENT_SECRET
-CALENDLY_WEBHOOK_SIGNING_KEY
-```
-
-### Configuration Supabase
-- **Auth → Emails → SMTP** : Resend (host `smtp.resend.com`, port 465, user `resend`, password = `RESEND_API_KEY`, sender `contact@mail.naywastudio.com`)
-- **Auth → URL Configuration** : Site URL = `https://naywastudio.com` ; Redirect URLs allowlist = `/workspace`, `/cabinet`, `/auth/callback`
-- **Auth → Emails → Templates** : 4 templates HTML brandés Naywa (Confirm signup, Invite user, Reset password, Magic Link)
-
-### Vercel
-- **Crons** dans `vercel.json` : `/api/cron/wipe-expired-orgs` à `0 3 * * *` (3h00 UTC)
-- **Region** : `cdg1` (Paris)
-- **Headers sécurité** : X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy minimale
+- **Catégories** : `feature` (vert), `fix` (bleu), `important` (orange), `announce` (violet)
+- **Brouillon vs publié** : `published_at` NULL = brouillon. `<= now()` = visible. `> now()` = planifié auto-publish.
+- **Rendu** : `lib/markdown.ts` (parser maison anti-XSS). Pas d'images V1.
+- **Hook `useUnreadUpdates`** : poll 60s, retourne `{ unreadCount, latestTitle, loading }`
+- **Pastille violette** (`UpdatesNavBadge`) : sidebar workspace + menu profil organisation
+- **Card hero** (`UpdatesHeroCard`) : sous le hero `/workspace` + sous tabs `/organisation`, disparaît si tout est lu
+- **Mark-read auto** au mount de `/nouveautes`
 
 ---
 
-## 10. Pricing — engine maison
+## 10. Verrouillage anti-fraude branding
+
+### Champs concernés
+- `name` / `brand_name`, `brand_logo_path`, `contact_email` (apparaissent sur le PDF anonymisé)
+- Couleurs + slogan **restent libres** (faible enjeu)
+
+### Cycle
+1. **24h post-onboarding** = grâce libre (`branding_locked_at = cabinet_onboarded_at + 24h`)
+2. **Après** : champs read-only en UI. Bouton "Modifier vos informations verrouillées" en haut de la carte Branding ouvre la modale globale
+3. Modale = 3 checkboxes (Nom / Logo / Email). Owner coche ce qu'il veut changer, indique nouvelle valeur. Pour logo : aperçu Actuel vs Nouveau dans la modale. 1 raison globale (optionnelle).
+4. POST `/api/cabinet/branding/request { changes: [...], reason }` → N rows partageant 1 `request_batch_id`, status `pending`. Mail Resend à `support.it@naywastudio.com` avec lien vers `/admin/demandes`.
+5. Admin via `/admin/demandes` : **chaque change est décidé indépendamment** (peut approuver le nom et refuser le logo dans le même batch). Si refus + note → mail Resend au client avec la raison. Si refus + field logo → fichier pending supprimé du Storage.
+6. **Statut visible côté owner** sous chaque champ verrouillé (`RequestStatusInline`) : pending ambré / approved vert / rejected rouge avec raison admin en italique.
+
+### Backfill
+Migration 045 a stampé `branding_locked_at = cabinet_onboarded_at + 24h` pour toutes les orgs existantes. Les comptes onboardés > 24h sont immédiatement verrouillés.
+
+---
+
+## 11. Pricing — engine maison Syntec
 
 ### Cadre
-- **Convention Syntec** appliquée par défaut (charges par statut + plafonds URSSAF + grille positions/coefficients)
-- Source unique du code : `lib/pricing/syntec.ts` (testé via `__tests__/syntec.test.ts`)
-- Calendrier fériés FR via `lib/pricing/calendar.ts`
+- Convention Syntec par défaut + plafonds URSSAF + grille positions/coefficients
+- Source unique : `lib/pricing/syntec.ts` (testé `__tests__/syntec.test.ts`)
+- Calendrier fériés FR via `lib/pricing/calendar.ts` (working days réels)
 
-### Flow utilisateur
-1. **Cabinet config** *(owner-only via `/cabinet/parametrage`)* : marges min/cible, RTT/an, avantages standards. Persistés sur `organizations.pricing_*`.
-2. **Mission config** *(éditable dans `/workspace/missions/[jobId]` "Modifier")* : TJM range, brut cible, durée, date début, lieu typé, type contrat.
-3. **Per-match** *(persistés sur `match_assessments`)* : `pricing_tjm`, `pricing_brut`, `pricing_avantages_override`. Live save + bouton "Réinitialiser" qui remet sur les valeurs mission.
-4. **Export PDF** : `/api/match/[id]/pricing-pdf?anonymize={0,1}` — header logo + KPI verdict + détail Syntec + avantages. Anonymisé = label `Réf C-XXXXXXXX`.
+### Flow
+1. **Org config** owner-only (`/organisation/parametrage`) → marges, RTT, avantages standards
+2. **Mission config** dans `/workspace/missions/[id]` "Modifier" → TJM range, brut cible, durée, date début, lieu typé, contrat
+3. **Per-match** persisté sur `match_assessments` → `pricing_tjm`, `pricing_brut`, `pricing_avantages_override`. Live save + bouton "Réinitialiser"
+4. **Export PDF** `/api/match/[id]/pricing-pdf?anonymize={0,1}`
 
-### Doc Syntec consultable
-`/workspace/pricing/reference` — toutes les valeurs (charges, plafonds, formules) avec leur source. Accessible owner + member.
-
----
-
-## 11. Vivier vivant — clustering Nora
-
-### Principe
-Nora ne re-scanne pas tout le vivier à chaque upload. À chaque zone créée, elle écrit un **manifeste** ("qui ressemble à ça") dans `cluster_manifests`. Au prochain passage, elle relit les manifestes et range les nouveaux candidats dans les zones existantes au max. Nouvelle zone créée **uniquement si ≥ 3 orphelins** forment un domaine cohérent absent.
-
-### Règles dures
-- **Interdit** : cluster "Étudiants", "Stagiaires", "Alternance", "Juniors" ou tout cluster basé sur statut/séniorité. Un débutant va dans son cluster **métier** ; `is_apprentice` est un **badge sur la fiche**, pas une zone.
-- Nora regarde la **trajectoire** (3-4 dernières XP + formation), pas juste le `current_title`.
-
-### Séniorité
-- `years_experience` ne compte que le **travail post-diplôme** : stages avant diplôme et alternance en cours sont **exclus**.
-- Quelqu'un avec un diplôme depuis 10 ans mais 2 ans de CDI réel = **2 ans**, pas 10.
+Doc Syntec consultable `/workspace/pricing/reference` (owner + member).
 
 ---
 
-## 12. Mission — flow "brief → form"
+## 12. Vivier vivant + Mission brief flow
 
-L'ancien formulaire à blanc est remplacé par un flow LLM-driven :
+### Clustering Nora (vivier vivant)
+À chaque zone créée, Nora écrit un **manifeste** ("qui ressemble à ça") dans `cluster_manifests`. Au prochain passage, relit les manifestes et range les nouveaux dans les zones existantes. Nouvelle zone créée **uniquement si ≥ 3 orphelins** forment un domaine cohérent absent.
 
-1. **Stage 1** : grande textarea, le sourceur colle son brief / fiche de poste / RFP client. Élargissement disponible si long.
-2. **Bouton "Analyser avec Nora"** → `POST /api/jobs/extract` (LLM extrait 14 champs structurés).
-3. **Stage 2** : formulaire pré-rempli avec **bordures couleur** :
-   - Vert : rempli (manuel ou LLM) — pastille verte "Détecté" si extrait par LLM
-   - Rouge : obligatoire manquant — pastille rouge "À compléter"
-   - Orange : optionnel manquant
-4. Le sourceur peut **rouvrir le brief + Re-analyser** pour itérer.
-5. Bouton **"Valider et lancer le matching"** → POST `/api/jobs` → matching auto.
+**Interdit** : cluster basé sur statut/séniorité ("Stagiaires", "Juniors"…). Un débutant va dans son cluster métier. `is_apprentice` = badge fiche.
 
-### Obligatoires *(V1)*
-**Nom du poste**, **Lieu**, **≥ 1 compétence requise**. Tout le reste est optionnel.
+**Séniorité** : `years_experience` = travail post-diplôme seulement (stages + alternance en cours exclus).
 
-### Édition mission
-Bouton **"Modifier"** sur `/workspace/missions/[jobId]` ouvre le même modal en mode edit (skip stage brief, PATCH `/api/jobs/:id`). Save → **re-matching auto** (force=1) pour propager les nouveaux critères.
-
-### Fallback manuel
-Bouton discret **"Sans brief — saisie manuelle"** en bas du stage 1 → saute directement au form vide.
+### Mission "brief → form"
+1. Stage 1 : textarea brief. Bouton "Analyser avec Nora" → `POST /api/jobs/extract` (LLM extrait 14 champs)
+2. Stage 2 : form pré-rempli avec **bordures couleur** : vert (rempli/détecté) / rouge (requis manquant) / orange (optionnel manquant). Pastille "Détecté" si LLM
+3. **Obligatoires V1** : nom poste, lieu, ≥ 1 compétence requise
+4. Édition mission → même modal en mode edit (skip brief, PATCH /api/jobs/:id). Save → re-matching auto
+5. Fallback "Sans brief — saisie manuelle"
 
 ---
 
-## 13. Design system
+## 13. Support produit (V1)
+
+- Bouton "Un bug, une question ?" dans header workspace + organisation (via `createPortal` pour échapper au stacking context sticky)
+- Modale : email connecté pré-affiché (read-only), dropdown "Où est le problème ?" (11 options : Vivier / Missions / Pricing / Pipeline / Workspace / Organisation / Onboarding / Nouveautés / Compte / Facturation / Autre), textarea message
+- POST `/api/support` → mail vers `support.it@naywastudio.com` avec email + org + URL + UA auto-attachés
+- Subject : `[Support · {topic}] {prénom} — {orgName}` pour tri facile
+
+**Pas de stockage DB en V1** — Elyas traite depuis sa boîte mail. Inbox / IA d'analyse reportée à un futur sprint si volume grimpe.
+
+---
+
+## 14. Design system
 
 - **Thème clair** : fond `#FFFFFF`, surface `#F8F6FF`
 - **Primary** : `#7C63C8` (violet-indigo) — **Secondary** : `#B8AEDE`
-- **Fonts** : `Space Grotesk` (titres) + `Inter` (corps) via CSS vars `--font-space-grotesk` / `--font-inter`
-- **Animations** : `viewport={{ once: true }}`, easing `[0.22, 1, 0.36, 1]`. **Jamais bounce/elastic.**
-- **Borders d'état** *(formulaire mission)* :
-  - OK = `#22C55E` (vert)
-  - Required manquant = `#EF4444` (rouge)
-  - Optional manquant = `#F59E0B` (orange)
-- **Modaux** : `framer-motion` + `m.div`, backdrop `rgba(17,24,39,0.40)` + `blur(2px)`
+- **Fonts** : `Space Grotesk` (titres) + `Inter` (corps) via CSS vars
+- **Animations** : `viewport={{ once: true }}`, easing `[0.22, 1, 0.36, 1]`. Jamais bounce/elastic.
+- **Borders d'état** (forms) : OK vert `#22C55E`, requis rouge `#EF4444`, optionnel orange `#F59E0B`
+- **Modaux** : `framer-motion` + `m.div`, backdrop `rgba(17,24,39,0.40)` + `blur(2px)`. Pour les modaux ouverts depuis un header sticky → **`createPortal` vers `document.body`** obligatoire.
 - **Pastilles statut** : padding `2px 7px`, font-size 10-11, letter-spacing `0.05em`, uppercase
+- **Pas d'emoji UI** sauf demande explicite. Icônes SVG style fins géométriques.
 
 ---
 
-## 14. Skills design disponibles
+## 15. Variables d'environnement
 
-| Skill | Quand l'utiliser |
+```bash
+# Public
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_APP_URL   # fallback "https://naywastudio.com"
+NEXT_PUBLIC_SENTRY_DSN
+
+# Server-only (Sensitive sur Vercel)
+SUPABASE_SERVICE_ROLE_KEY
+OPENROUTER_API_KEY
+RESEND_API_KEY
+RESEND_WEBHOOK_SECRET     # whsec_…
+CRON_SECRET               # openssl rand -hex 32
+STRIPE_SECRET_KEY         # LIVE
+STRIPE_WEBHOOK_SECRET     # whsec_…
+SENTRY_AUTH_TOKEN
+CALENDLY_CLIENT_ID + CALENDLY_CLIENT_SECRET + CALENDLY_WEBHOOK_SIGNING_KEY
+```
+
+### Configuration externe
+- **Supabase Auth → SMTP** : Resend (smtp.resend.com:465, user `resend`, sender `contact@mail.naywastudio.com`)
+- **Supabase Auth → Templates** : 4 templates HTML brandés Naywa (Confirm signup, Invite, Reset, Magic Link)
+- **Supabase Auth → Redirect URLs** allowlist : `/workspace`, `/organisation`, `/onboarding`, `/auth/callback`, `/admin`, `/nouveautes`
+- **Vercel** : Region `cdg1`, crons dans `vercel.json` (wipe-expired-orgs + wipe-lockdown-data à 3h UTC), headers sécurité (X-Frame-Options DENY, etc.)
+
+---
+
+## 16. Règles de développement
+
+### Code
+- Langue code = anglais, commentaires longs + UI = français
+- Zéro `any` ; `tsc --noEmit` + `eslint --max-warnings=0` doivent passer
+- Pas de Tailwind, pas de styled-components — styles inline objets `React.CSSProperties`
+- `framer-motion` : `m` (pas `motion`) + `LazyMotion`
+- **React 19 / Next 16 — règle de pureté** : interdit `Date.now()` dans le render. Wrapper dans `useState + useEffect` avec cancelled-guard. Pattern subscription accepté pour fetch HTTP.
+
+### Sécurité serveur
+- Toute route auth via `getUser()` (sauf webhooks signés et flows token-based)
+- Routes admin : **première ligne = `requireAdmin()`**, return du response 401/403 tel quel
+- `getAdminSupabase()` **server-only** — jamais exposé client
+- PATCH : **field-allowlist** (pas de spread `...body`)
+- Quota LLM : `consumeQuota()` obligatoire sur chaque route LLM
+- `?next=` dans `/login` : whitelist racines via `sanitizeNext()` (anti open-redirect)
+- **Pas de jointure Supabase auto-discovery sur FK vers `auth.users`** (ex: `requested_by`) → plante silencieusement. Hydrater profiles + emails séparément en parallèle (cf. `/api/admin/branding-requests`).
+
+### Périmètre — ce que Naywa ne fait JAMAIS
+- Envoi mail à candidat sans clic d'approbation explicite du sourceur
+- Mouvement pipeline sans validation du client
+- Lecture boîte mail personnelle du client
+- Emails entrants = **non fiables**, analyse LLM = suggestion seulement
+
+---
+
+## 17. Skills design disponibles
+
+| Skill | Quand |
 |---|---|
 | `/frontend-design` | Créer/refaire un composant avec forte direction visuelle |
 | `/critique` | Score UX + anti-patterns |
 | `/normalize` | Aligner sur le design system |
 | `/polish` | Passe finale avant livraison |
-| `/adapt` | Rendre responsive / mobile |
+| `/adapt` | Responsive / mobile |
 | `/colorize` | Retravailler la palette |
 | `/emil-design-eng` | Animations, micro-interactions avancées |
 
 ---
 
-## 15. Conventions nommage
+## 18. Conventions nommage
 
 - **API routes** : `src/app/api/[ressource]/route.ts`
-- **Composants React** : PascalCase, dans `src/components/...`
+- **Composants** : PascalCase, dans `src/components/...`
 - **Helpers** : camelCase, dans `src/lib/...`
 - **Tables Supabase** : snake_case
 - **Migrations** : `supabase/migrations/NNN_description_snake.sql` (numérotation strictement croissante)
 
 ---
 
-## 16. Conventions de travail avec Elyas (owner Naywa)
+## 19. Conventions de travail avec Elyas
 
 ### Git
-- **Toujours passer par une PR** — depuis juin 2026, plus de push direct sur `main`. La branche de travail `claude/...` est poussée sur sa propre branche distante (`git push origin HEAD`), puis ouverture d'une PR via `gh pr create` à destination de `main`. Elyas review sur GitHub et merge quand c'est OK.
-- **Exception hotfix** — si la prod est cassée (build/Vercel KO, erreur Sentry critique), demander à Elyas avant de push direct sur main.
-- **Commit messages détaillés** — ils servent de mémoire après compact, écrire pour le futur soi.
-- **PR description** — résumé en 2-3 bullets + section "Test plan" cochable. Pas de blabla AI.
-- Jamais de `--no-verify`, jamais de `--force` sur main.
+- **Branche `claude/<nom>` + PR via `gh pr create`** depuis juin 2026. **Hotfix prod = push direct sur main** (Elyas le demande explicitement quand c'est urgent).
+- Commit messages détaillés (mémoire post-compact). PR description : 2-3 bullets + section "Test plan" cochable. Pas de blabla AI.
+- Jamais `--no-verify`, jamais `--force` sur main.
+- Si MCP Supabase / Vercel dispo : `apply_migration` + lire deployments directement (pas de demande à Elyas si on peut le faire).
 
-### Compte de test
-- **Owner test** : `elyas.malki1003@gmail.com` (créé son compte sur naywastudio.com en prod). Pas de compte dev séparé.
-- Pour tester multi-user → invitations envoyées vers ses alias `elyas.malki1003+testX@gmail.com`.
-- En cas de wipe DB tu lui dis "recrée ton compte" — il n'a pas de migration vers la version anonyme.
+### Comptes
+- **Comptes admin Naywa** : `elyas.malki@naywastudio.com` (principal) + `elyas.malki@icloud.com` (tests preview)
+- **Compte legacy test** : `elyas.malki1003@gmail.com` (pas admin)
+- Pour tester multi-user → invitations vers ses alias `+testX@gmail.com`
 
-### Flow de travail
-- **Tests en parallèle côté Vercel** — il code pas, il teste en hard refresh dès que je push. Les retours arrivent vite et sont concrets ("le bouton fait rien", "la zone est cassée").
-- **Pas de preview locale** : ne pas suggérer `npm run dev` pour vérifier (cf. memory `feedback_no_local_preview.md`). Tout passe par Vercel.
-- Il fournit souvent des **screenshots** — lire visuellement avant de répondre.
+### Flow
+- Tests via Vercel uniquement (cf. memory `feedback_no_local_preview`) — jamais suggérer `npm run dev`
+- Validation par screenshots Elyas → lire visuellement avant de répondre
 
 ### Communication
-- **Style direct, concis**. Il critique quand c'est pas clair ou pas livré — ne pas s'en formaliser, ça fait avancer.
-- **Tutoiement systématique**.
-- Quand il pose une question architecturale → répondre avec **un avis tranché + alternatives + reco**, pas juste lister les options.
-- Quand il dit "tu peux y aller" / "OK je valide" → ne pas re-demander, attaquer.
+- Style direct, concis. Tutoiement systématique
+- Avis tranché + alternatives + reco quand question architecturale. Jamais juste lister
+- "tu peux y aller" / "OK je valide" → ne pas re-demander, attaquer
 
 ### Limites volontaires
-- **Pas de Stripe maintenant** — toute la mécanique est prête, on attendra qu'il dise "on branche Stripe".
-- **Pas d'emoji UI** sauf si demandé. Les commit messages peuvent en avoir, l'UI non.
-- Quand on a un doute sur une décision produit, **toujours demander**. Il préfère 30s de question à 1h de code à jeter.
+- **Stripe** : LIVE branché. Mécanique trial 15j reste app-side (n'utilise pas Stripe trial natif). Webhook sync subscription_*.
+- **Pas d'emoji UI** sauf demande explicite. Commit messages OK.
+- **DPA PDF** : contenu .md à jour en v1.1, PDF servi reste v1.0 graphiquement. Régénérer via `python legal/build_dpa_pdf.py` quand un client demande à signer.
 
-### "Vérités" établies qu'il faut ne pas remettre en cause
-- 1 user = 1 org max *(multi-org déféré)*
+### Vérités établies (ne pas remettre en cause)
+- 1 user = 1 org max (multi-org déféré)
 - Owner sans siège ≠ member ; juste admin pur du cabinet
-- Vivier toujours partagé entre members
-- Missions / pricing affichés groupés par créateur (Mes missions / Missions de X) — vivier reste 100 % partagé, pipeline reste vue unifiée. Pas d'isolation stricte : tout le monde voit tout, c'est juste visuellement organisé.
-- Email entrant = jamais déclencheur d'action auto (analyse LLM = suggestion seulement)
+- Vivier 100 % partagé entre members
+- Missions / pricing visuellement groupés par créateur ("Mes missions" / "Missions de X"). Vivier + pipeline = vue unifiée.
+- Email entrant = jamais déclencheur d'action auto
+- Branding fort = verrouillé 24h post-onboarding, modification = demande validée
+- Couleurs + slogan = libres à tout moment
+- Demandes de modification : 1 batch = N rows décidables indépendamment
 
 ---
 
-## 17. État des chantiers (juin 2026)
+## 20. État des chantiers (juin 2026)
 
-### ✅ Livré
-- Multi-user complet (orgs, invites, sièges, suppression cabinet avec grace, cron wipe)
-- Sécurité multi-tenant auditée (RLS org-scopée partout, pas de secret exposé client, buckets privés, migration 029 security hardening)
-- Pages légales complètes (Mentions / Politique de confidentialité / CGU via `<LegalPageShell />`)
-- Pricing : engine Syntec testé, widget en place, export PDF (anonymisé ou nominatif), pro-rata mois partiels, CDD vs CDI dans le chart Risque rupture, toggle « renouvellement essai » par mission, tooltip mini € sur les charts
-- Vivier vivant (clustering avec manifestes, séniorité post-diplôme correcte, badge alternant)
-- Mission brief → LLM → formulaire pré-rempli + édition + re-matching auto
-- Suppression de colonnes legacy `profiles.brand_*` / `profiles.pricing_*`
-- **Trial 15 jours owner-activated** : migration 030 `trial_ends_at`, API `/api/cabinet/activate-trial` idempotente, bannière contextuelle 3 modes, dismiss qui marche
-- **Onboarding cabinet 3 étapes** : `/cabinet/onboarding` (nom cabinet → package sourcing → politique pricing), migration 031 `cabinet_onboarded_at`, redirect auto depuis `/cabinet/*` tant que NULL
-- **Refonte `/cabinet`** dashboard 3 colonnes (Subscription | Members | Identity) + bannière email à confirmer + Subscription Card trial-aware (pending/active/expired) + Politique pricing conditionnelle
-- **Refonte `/cabinet/parametrage`** layout 2 colonnes
-- **Refonte doc Syntec `/workspace/pricing/reference`** : 13 articles utilisés, 3 catégories (Convention Syntec / Barèmes 2026 / Code du travail), pas de formules
-- **Marketing public** : section Founders (homepage + /a-propos), page Contact avec formulaire POST `/api/contact` → Resend, mention « 15 jours offerts » Hero/Tarifs/Comment ça marche, Navbar reshuffled (À propos remplace FAQ), refonte `/tarifs` avec carte Package Sourcing
-- **Isolation missions/pricing** : groupement « Mes missions » / « Missions de X » par créateur dans `/workspace/missions` et `/workspace/pricing` (vivier reste 100 % partagé). Pipeline volontairement laissé en vue unifiée.
-- **StyledSelect partagé** dans `components/ui/StyledSelect.tsx` (4 bordures default / ok / required / optional) utilisé dans missions + pricing wizard
+### ✅ Livré (récent)
+- **Rôle admin Naywa** : migration 041, `requireAdmin()`, bypass paywall partout, console `/admin` (KPIs + recherche + audit + CRUD nouveautés + demandes)
+- **Système Nouveautés** : tables `app_updates` + `app_updates_reads`, pastille violette sidebar, card sous hero, page `/nouveautes`, mark-read auto
+- **Verrouillage anti-fraude branding** : migration 045 + 046 + 047, modale globale multi-champs, workflow demande/admin, mail Resend, statut visible côté owner sous chaque champ verrouillé
+- **Bouton support** : modale (createPortal) avec topic dropdown, mail enrichi `[Support · Vivier] Elyas — Org`
+- **DPA v1.1** : section "Rôle administrateur Naywa" dans `legal/dpa-content.md` + Politique de confidentialité. PDF non régénéré (Python local manquant)
+- **Stripe LIVE** : checkout + portal + setup intent + webhook, lockdown 15j si past_due/canceled puis wipe cron, mails post-actions
+- **Branding cabinet** : `brand_color` + `brand_color_secondary` + `brand_slogan` + `contact_email`. `BrandColorPicker` (palette curated + extraction logo). 4 templates PDF anonymisé. Export `.docx`. Watermark optionnel
+- **post-login-destination** : routing intelligent owner sans siège → /organisation
+- **PreviewBadge** bottom-left + bouton "Recommencer l'onboarding" preview-only
+- **Renommage `/cabinet` → `/organisation`** complet (URL + UI + textes)
+- **Onboarding 4 étapes** : Nom → Branding (BrandColorPicker) → Invites → Trial
+- **3 onglets `/organisation`** : Org (Identité+Branding+Membres) / Mes packages / Sécurité
 
-### 🔜 À venir
-- **Stripe** — Package Sourcing payant, sièges dégressifs, facturation (bloqué tant que SIRET pas arrivé)
-- **DPA** PDF téléchargeable (B2B audit)
-- **Email tracking V1** — webhook Resend `email.received/delivered/bounced` à activer côté Resend
-- **Email V2** — Gmail OAuth (CASA déféré)
-- **Mailing domain perso** — champ déjà dans `organizations.mailing_domain`, UI masquée jusqu'à câblage Resend per-cabinet
-- Tâche #15 originale (scénarios pricing nommés) **abandonnée** au profit du flow live-save + export PDF (plus pragmatique)
+### 🔜 À venir / déféré
+- **Compte sandbox preview isolé** (Stripe TEST + Resend log-only + wipe complet) → branche `claude/preview-sandbox`. Elyas a dit pas besoin pour l'instant (il utilise l'iCloud admin)
+- **Inbox support `/admin/support`** : ingestion Resend Inbound + analyse IA + bouton "Répondre" → branche `claude/support-inbox`. Reporté V2
+- **Anonymisation EN du contenu CV** (cache `parsed_cv_translations`) → branche `claude/anonymize-translate-cv`. Bloqué par le besoin d'i18n du site d'abord
+- **i18n FR/EN** (proposé en option A site marketing seulement, B full produit, C report). Décision en attente
+- **DPA PDF v1.1** à régénérer via Python le jour où un client signe
+- **Régénération PDF DPA** : `python legal/build_dpa_pdf.py` (lit `legal/dpa-content.md`)
+- **Mailing domain perso** par cabinet : champ `mailing_domain` déjà en DB, UI masquée jusqu'à câblage Resend per-cabinet
