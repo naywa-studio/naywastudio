@@ -1170,6 +1170,18 @@ function IdentitySection({
 /* Naywa. Owner-only en édition, lecture seule pour les members.       */
 /* ────────────────────────────────────────────────────────────────── */
 
+interface BrandingRequestRow {
+  id: string
+  field: "name" | "brand_logo_path" | "contact_email"
+  current_value: string | null
+  requested_value: string
+  status: "pending" | "approved" | "rejected" | "cancelled"
+  decision_note: string | null
+  decided_at: string | null
+  created_at: string
+  request_batch_id: string
+}
+
 function BrandingSection({
   organization, logoUrl, isOwner, onUpdated,
 }: {
@@ -1218,6 +1230,43 @@ function BrandingSection({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBrandingLocked(locked)
   }, [organization.branding_locked_at])
+
+  // Statut des demandes en cours / récemment décidées. Affiché sous
+  // chaque champ verrouillé pour que l'owner suive l'état de ses
+  // soumissions sans aller chercher dans ses mails.
+  const [requestsByField, setRequestsByField] =
+    useState<Record<"name" | "brand_logo_path" | "contact_email", BrandingRequestRow | null>>({
+      name: null, brand_logo_path: null, contact_email: null,
+    })
+  // refreshTick : utilisé par les flows post-soumission pour redéclencher
+  // l'effet de fetch sans définir un useCallback (qui plante la règle
+  // react-hooks/set-state-in-effect).
+  const [requestsRefreshTick, setRequestsRefreshTick] = useState(0)
+  useEffect(() => {
+    if (!isOwner) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const r = await fetch("/api/cabinet/branding/requests", { cache: "no-store" })
+        if (!r.ok || cancelled) return
+        const j = await r.json() as { requests: BrandingRequestRow[] }
+        // On garde la plus récente par champ — c'est celle qui reflète
+        // le statut courant aux yeux de l'owner (les anciennes sont des
+        // demandes annulées/refusées déjà notifiées par mail).
+        const latest: Record<"name" | "brand_logo_path" | "contact_email", BrandingRequestRow | null> = {
+          name: null, brand_logo_path: null, contact_email: null,
+        }
+        for (const req of j.requests ?? []) {
+          if (!latest[req.field]) latest[req.field] = req
+        }
+        if (cancelled) return
+        setRequestsByField(latest)
+      } catch {
+        /* silencieux : pas de statut si l'API tombe, l'UI reste utilisable */
+      }
+    })()
+    return () => { cancelled = true }
+  }, [isOwner, requestsRefreshTick])
 
   const patch = async (body: Record<string, unknown>, kind: "saving" | "uploading" | "deleting" = "saving") => {
     setBusy(kind); setError(null)
@@ -1336,7 +1385,10 @@ function BrandingSection({
           <div>
             <Label>Nom de l&apos;organisation</Label>
             {brandingLocked ? (
-              <LockedField value={orgName || "(non défini)"} />
+              <>
+                <LockedField value={orgName || "(non défini)"} />
+                <RequestStatusInline request={requestsByField.name} />
+              </>
             ) : (
               <>
                 <input
@@ -1372,7 +1424,9 @@ function BrandingSection({
                 )}
               </div>
               {brandingLocked ? (
-                <LockedBadge />
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+                  <LockedBadge />
+                </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   <button type="button" onClick={() => fileInput.current?.click()}
@@ -1396,6 +1450,7 @@ function BrandingSection({
                 if (f) { void uploadLogo(f); e.target.value = "" }
               }}
             />
+            {brandingLocked && <RequestStatusInline request={requestsByField.brand_logo_path} />}
           </div>
 
           {/* Couleurs — picker complet avec palette + extraction logo + bicolore */}
@@ -1441,7 +1496,10 @@ function BrandingSection({
           <div>
             <Label>Email de contact</Label>
             {brandingLocked ? (
-              <LockedField value={email || "(non défini)"} />
+              <>
+                <LockedField value={email || "(non défini)"} />
+                <RequestStatusInline request={requestsByField.contact_email} />
+              </>
             ) : (
               <>
                 <input
@@ -1473,7 +1531,11 @@ function BrandingSection({
               currentLogoUrl={logoUrl}
               currentEmail={email}
               onClose={() => setRequestModalOpen(false)}
-              onSubmitted={() => { setRequestModalOpen(false); void onUpdated() }}
+              onSubmitted={() => {
+                setRequestModalOpen(false)
+                void onUpdated()
+                setRequestsRefreshTick((t) => t + 1)
+              }}
             />
           )}
 
@@ -1509,6 +1571,98 @@ function LockedField({ value }: { value: string }) {
   )
 }
 
+/**
+ * Statut d'une demande affiché sous un champ verrouillé pour que
+ * l'owner suive l'état de sa soumission sans aller chercher dans
+ * ses mails (pending / approved récent / rejected avec raison).
+ *
+ * Les demandes "cancelled" (annulées par l'owner lui-même en re-
+ * soumettant une nouvelle demande sur le même champ) ne sont pas
+ * affichées : silence utile.
+ */
+function RequestStatusInline({ request }: { request: BrandingRequestRow | null }) {
+  if (!request) return null
+  if (request.status === "cancelled") return null
+
+  const dateLabel = (iso: string | null) => iso
+    ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+    : ""
+
+  if (request.status === "pending") {
+    return (
+      <div style={{
+        marginTop: 8, padding: "8px 11px",
+        background: "rgba(245,158,11,0.06)",
+        border: "1px solid rgba(245,158,11,0.25)",
+        borderRadius: 8,
+        display: "flex", alignItems: "center", gap: 9,
+      }}>
+        <DotIndicator color="#B45309" />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
+          <strong>Demande en cours de traitement.</strong>{" "}
+          Soumise le {dateLabel(request.created_at)}. Vous recevrez un email
+          dès qu&apos;elle est validée ou refusée.
+        </span>
+      </div>
+    )
+  }
+
+  if (request.status === "approved") {
+    return (
+      <div style={{
+        marginTop: 8, padding: "8px 11px",
+        background: "rgba(34,197,94,0.06)",
+        border: "1px solid rgba(34,197,94,0.25)",
+        borderRadius: 8,
+        display: "flex", alignItems: "center", gap: 9,
+      }}>
+        <DotIndicator color="#15803D" />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#166534", lineHeight: 1.5 }}>
+          <strong>Modification validée</strong>
+          {request.decided_at ? ` le ${dateLabel(request.decided_at)}` : ""}.
+        </span>
+      </div>
+    )
+  }
+
+  // rejected
+  return (
+    <div style={{
+      marginTop: 8, padding: "9px 12px",
+      background: "rgba(220,38,38,0.05)",
+      border: "1px solid rgba(220,38,38,0.25)",
+      borderRadius: 8,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: request.decision_note ? 4 : 0 }}>
+        <DotIndicator color="#B91C1C" />
+        <span style={{ flex: 1, fontSize: 12, color: "#991B1B", lineHeight: 1.5 }}>
+          <strong>Demande refusée</strong>
+          {request.decided_at ? ` le ${dateLabel(request.decided_at)}` : ""}.
+        </span>
+      </div>
+      {request.decision_note && (
+        <p style={{
+          margin: "0 0 0 18px",
+          fontSize: 12, color: "#991B1B",
+          lineHeight: 1.55, fontStyle: "italic",
+        }}>
+          « {request.decision_note} »
+        </p>
+      )}
+    </div>
+  )
+}
+
+function DotIndicator({ color }: { color: string }) {
+  return (
+    <span aria-hidden style={{
+      width: 9, height: 9, borderRadius: "50%",
+      background: color, flexShrink: 0,
+      boxShadow: `0 0 0 3px ${color}1A`,
+    }} />
+  )
+}
+
 function LockedBadge() {
   return (
     <span style={{
@@ -1531,6 +1685,18 @@ function LockIcon({ size = 13 }: { size?: number }) {
       strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <rect x="5" y="11" width="14" height="10" rx="2" />
       <path d="M8 11V8a4 4 0 018 0v3" />
+    </svg>
+  )
+}
+
+function ShieldIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="#7C63C8" strokeWidth="1.7"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden
+      style={{ flexShrink: 0, marginTop: 1 }}>
+      <path d="M12 3l8 3v6c0 4.5-3.4 8.5-8 9-4.6-.5-8-4.5-8-9V6l8-3z" />
+      <path d="M9 12l2 2 4-4" />
     </svg>
   )
 }
@@ -1672,6 +1838,24 @@ function BrandingChangeRequestModal({
             la nouvelle valeur pour chacune. Notre équipe examinera votre
             demande sous 24 à 48 heures ouvrées et vous répondra par email.
           </p>
+          <div style={{
+            margin: "12px 0 0",
+            padding: "10px 12px",
+            background: "rgba(124,99,200,0.05)",
+            border: "1px solid rgba(124,99,200,0.18)",
+            borderRadius: 8,
+            display: "flex", gap: 9, alignItems: "flex-start",
+          }}>
+            <ShieldIcon />
+            <p style={{ margin: 0, fontSize: 11.5, color: "#4B5563", lineHeight: 1.5 }}>
+              <strong style={{ color: "#374151" }}>Pourquoi cette étape ?</strong>{" "}
+              Le nom, le logo et l&apos;email de contact apparaissent sur les
+              CV anonymisés que vous présentez à vos clients. Pour éviter
+              l&apos;usurpation d&apos;identité d&apos;un cabinet, ces
+              informations sont verrouillées 24 heures après la fin de votre
+              onboarding et leur modification passe par une validation manuelle.
+            </p>
+          </div>
         </header>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
