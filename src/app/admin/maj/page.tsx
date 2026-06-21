@@ -7,9 +7,10 @@
  * pour créer/éditer, preview live du markdown via renderMarkdown.
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { renderMarkdown } from "@/lib/markdown"
+import { AFFECTED_PATH_OPTIONS } from "@/lib/affected-paths"
 import type { AppUpdateCategory } from "@/lib/database.types"
 
 interface Row {
@@ -18,6 +19,7 @@ interface Row {
   body: string
   category: AppUpdateCategory
   published_at: string | null
+  affected_paths: string[] | null
   created_at: string
   updated_at: string
 }
@@ -204,15 +206,32 @@ function EditModal({
   const [body, setBody] = useState(initial?.body ?? "")
   const [category, setCategory] = useState<AppUpdateCategory>(initial?.category ?? "feature")
   const [publishNow, setPublishNow] = useState(!!initial?.published_at)
+  const [affectedPaths, setAffectedPaths] = useState<string[]>(initial?.affected_paths ?? [])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const pathsByGroup = useMemo(() => {
+    const groups = new Map<string, typeof AFFECTED_PATH_OPTIONS>()
+    for (const opt of AFFECTED_PATH_OPTIONS) {
+      const list = groups.get(opt.group) ?? []
+      list.push(opt)
+      groups.set(opt.group, list)
+    }
+    return Array.from(groups.entries())
+  }, [])
+
+  const togglePath = (path: string) => {
+    setAffectedPaths((curr) =>
+      curr.includes(path) ? curr.filter((p) => p !== path) : [...curr, path],
+    )
+  }
 
   const save = async () => {
     setBusy(true); setError(null)
     try {
       if (initial) {
         // PATCH
-        const patch: Record<string, unknown> = { title, body, category }
+        const patch: Record<string, unknown> = { title, body, category, affected_paths: affectedPaths }
         if (publishNow && !initial.published_at) patch.publish = true
         if (!publishNow && initial.published_at) patch.unpublish = true
         const r = await fetch(`/api/admin/maj/${initial.id}`, {
@@ -228,7 +247,7 @@ function EditModal({
         const r = await fetch("/api/admin/maj", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, body, category, publish_now: publishNow }),
+          body: JSON.stringify({ title, body, category, publish_now: publishNow, affected_paths: affectedPaths }),
         })
         if (!r.ok) {
           const j = await r.json().catch(() => ({} as { error?: string }))
@@ -348,6 +367,54 @@ Confirmation positive.
 :::`}</pre>
                 </div>
               </details>
+            </div>
+            <div>
+              <Label>Zones impactées (optionnel)</Label>
+              <p style={{ margin: "0 0 8px", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>
+                Une pastille violette apparaîtra sur chaque item de menu coché jusqu&apos;à
+                ce que l&apos;utilisateur ouvre &laquo;&nbsp;Nouveautés&nbsp;&raquo;. Laisser vide = pastille
+                globale uniquement.
+              </p>
+              <div style={{
+                display: "flex", flexDirection: "column", gap: 8,
+                padding: "10px 12px", borderRadius: 10,
+                background: "#FAFAFA", border: "1px solid #F0ECF8",
+              }}>
+                {pathsByGroup.map(([group, opts]) => (
+                  <div key={group}>
+                    <div style={{
+                      fontSize: 10, fontWeight: 700, color: "#7C63C8",
+                      letterSpacing: "0.07em", textTransform: "uppercase",
+                      marginBottom: 4,
+                    }}>
+                      {group}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {opts.map((opt) => {
+                        const active = affectedPaths.includes(opt.value)
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => togglePath(opt.value)}
+                            style={{
+                              padding: "5px 10px", borderRadius: 999,
+                              border: `1px solid ${active ? "#7C63C8" : "#E5E7EB"}`,
+                              background: active ? "rgba(124,99,200,0.10)" : "white",
+                              color: active ? "#5C46A0" : "#4B5563",
+                              fontSize: 12, fontWeight: active ? 700 : 500,
+                              cursor: "pointer", fontFamily: "inherit",
+                              transition: "all 120ms",
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input

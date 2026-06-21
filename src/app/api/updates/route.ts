@@ -11,9 +11,12 @@
  *
  * Réponse :
  *   { updates: Array<{
- *       id, title, body, category, published_at, is_read
+ *       id, title, body, category, published_at, affected_paths, is_read
  *     }>,
- *     unread_count
+ *     unread_count,
+ *     unread_paths: string[]   // union des affected_paths des updates non-lues,
+ *                              // utilisé pour afficher une pastille par item
+ *                              // de menu sidebar concerné.
  *   }
  */
 
@@ -31,7 +34,7 @@ export async function GET() {
   // On lit les updates via le client RLS (filtre auto les non-publiées).
   const { data: updates, error } = await sb
     .from("app_updates")
-    .select("id, title, body, category, published_at")
+    .select("id, title, body, category, published_at, affected_paths")
     .order("published_at", { ascending: false })
 
   if (error) {
@@ -39,7 +42,7 @@ export async function GET() {
   }
 
   if (!updates || updates.length === 0) {
-    return NextResponse.json({ updates: [], unread_count: 0 })
+    return NextResponse.json({ updates: [], unread_count: 0, unread_paths: [] })
   }
 
   // On récupère les reads du user courant pour calculer is_read.
@@ -61,9 +64,18 @@ export async function GET() {
     body: u.body,
     category: u.category,
     published_at: u.published_at,
+    affected_paths: (u.affected_paths as string[] | null) ?? [],
     is_read: readIds.has(u.id),
   }))
   const unreadCount = payload.filter((u) => !u.is_read).length
+  // Union des affected_paths des updates non-lues — dédupliqué.
+  const unreadPaths = Array.from(new Set(
+    payload.flatMap((u) => (u.is_read ? [] : u.affected_paths)),
+  ))
 
-  return NextResponse.json({ updates: payload, unread_count: unreadCount })
+  return NextResponse.json({
+    updates: payload,
+    unread_count: unreadCount,
+    unread_paths: unreadPaths,
+  })
 }

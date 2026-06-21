@@ -30,6 +30,34 @@ export function UpdatesNavBadge({ size = 7 }: { size?: number }) {
 }
 
 /**
+ * Pastille violette affichée sur un item de menu donné quand au moins
+ * une nouveauté non-lue a tagué ce path dans son affected_paths. Plus
+ * fin que UpdatesNavBadge (global) : permet de pointer l'utilisateur
+ * vers la zone concernée.
+ *
+ * Pas de styling parent : on dépend de l'environnement (gap, flex)
+ * du Link englobant. Le composant ne rend rien si pas concerné.
+ */
+export function NavUnreadDot({ href, size = 6 }: { href: string; size?: number }) {
+  const { unreadPaths } = useUnreadUpdates()
+  if (!unreadPaths.has(href)) return null
+  return (
+    <span
+      aria-label="Nouveauté pour cette section"
+      title="Nouveauté pour cette section"
+      style={{
+        display: "inline-block",
+        width: size, height: size,
+        borderRadius: "50%",
+        background: "#7C63C8",
+        boxShadow: "0 0 0 2px white",
+        flexShrink: 0,
+      }}
+    />
+  )
+}
+
+/**
  * Icône SVG "sparkle" pour l'item Nouveautés. Style trait fin
  * géométrique, conforme au design system Naywa (pas d'emoji).
  */

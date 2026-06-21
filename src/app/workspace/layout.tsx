@@ -9,7 +9,7 @@ import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
 import { LockdownBanner } from "@/components/workspace/LockdownBanner"
 import { MemberWaitingBanner } from "@/components/workspace/MemberWaitingBanner"
 import { TrialBanner } from "@/components/trial/TrialBanner"
-import { UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
+import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
 import { SupportButton } from "@/components/support/SupportButton"
 import { hasActiveAccess, isInLockdown } from "@/lib/subscription"
 import UndoToastHost from "@/components/ui/UndoToast"
@@ -200,6 +200,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       >
         {t.label}
         {t.showUnreadBadge && <UpdatesNavBadge />}
+        {!t.showUnreadBadge && <NavUnreadDot href={t.href} />}
         {disabled && (
           <span style={{
             fontSize: 9, fontWeight: 700, color: "#9CA3AF",

@@ -13,13 +13,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { logAdminAction, requireAdmin } from "@/lib/admin"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { sanitizeAffectedPaths } from "@/lib/affected-paths"
 import type { AppUpdate, AppUpdateCategory } from "@/lib/database.types"
 
 export const runtime = "nodejs"
 
 const VALID_CATEGORIES: AppUpdateCategory[] = ["feature", "fix", "important", "announce"]
 
-type AppUpdatePatch = Partial<Pick<AppUpdate, "title" | "body" | "category" | "published_at">>
+type AppUpdatePatch = Partial<Pick<AppUpdate, "title" | "body" | "category" | "published_at" | "affected_paths">>
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const gate = await requireAdmin()
@@ -32,6 +33,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     category?: unknown
     publish?: unknown
     unpublish?: unknown
+    affected_paths?: unknown
   } | null
   if (!body) return NextResponse.json({ error: "invalid_body" }, { status: 400 })
 
@@ -44,6 +46,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
   if (body.publish === true) patch.published_at = new Date().toISOString()
   if (body.unpublish === true) patch.published_at = null
+  // affected_paths : on accepte un array même vide (= reset à tous).
+  if (Array.isArray(body.affected_paths)) {
+    patch.affected_paths = sanitizeAffectedPaths(body.affected_paths)
+  }
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "nothing_to_update" }, { status: 400 })
