@@ -35,6 +35,9 @@ export async function GET(req: NextRequest) {
     .from("brand-logos")
     .createSignedUrl(path, 60 * 60)
 
-  if (error) return NextResponse.json({ url: null, error: error.message }, { status: 200 })
+  if (error) {
+    console.error("[admin/branding-logo-url] storage error:", error.message)
+    return NextResponse.json({ url: null, error: "signed_url_failed" }, { status: 502 })
+  }
   return NextResponse.json({ url: data?.signedUrl ?? null })
 }

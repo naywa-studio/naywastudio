@@ -22,6 +22,7 @@
 import { useState } from "react"
 import { m, AnimatePresence } from "framer-motion"
 import type { PricingDefaultAvantages } from "@/lib/database.types"
+import { useEscapeKey } from "@/components/ui/useEscapeKey"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -51,6 +52,7 @@ const DEFAULTS = {
 }
 
 export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Props) {
+  useEscapeKey(onClose, open)
   const [step, setStep] = useState(1)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)

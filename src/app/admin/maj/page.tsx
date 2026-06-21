@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react"
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { renderMarkdown } from "@/lib/markdown"
 import { AFFECTED_PATH_OPTIONS } from "@/lib/affected-paths"
+import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import type { AppUpdateCategory } from "@/lib/database.types"
 
 interface Row {
@@ -202,6 +203,7 @@ function EditModal({
   onClose: () => void
   onSaved: () => void
 }) {
+  useEscapeKey(onClose)
   const [title, setTitle] = useState(initial?.title ?? "")
   const [body, setBody] = useState(initial?.body ?? "")
   const [category, setCategory] = useState<AppUpdateCategory>(initial?.category ?? "feature")

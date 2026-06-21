@@ -38,7 +38,8 @@ export async function GET() {
     .order("published_at", { ascending: false })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error("[updates] list error:", error.message)
+    return NextResponse.json({ error: "db_error" }, { status: 500 })
   }
 
   if (!updates || updates.length === 0) {

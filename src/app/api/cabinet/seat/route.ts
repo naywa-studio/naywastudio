@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { TRIAL_SEAT_CAP } from "@/lib/trial"
 
+export const runtime = "nodejs"
+
 /**
  * POST /api/cabinet/seat  { allocate: boolean, userId?: string }
  *

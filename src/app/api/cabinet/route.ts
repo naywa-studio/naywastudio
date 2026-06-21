@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import type { PricingDefaultAvantages } from "@/lib/database.types"
 
+export const runtime = "nodejs"
+
 /**
  * PATCH /api/cabinet
  *   Owner-only. Updates editable fields on the caller's organization.
