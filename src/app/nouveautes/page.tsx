@@ -82,11 +82,8 @@ export default function NouveautesPage() {
         const j = await res.json() as { updates: UpdateRow[] }
         if (cancelled) return
         setItems(j.updates)
-        // 1ʳᵉ card auto-dépliée : on ne tombe pas sur un mur de titres
-        // fermés à l'arrivée. Les suivantes restent à plier pour scanner.
-        if (j.updates.length > 0) {
-          setExpandedIds(new Set([j.updates[0].id]))
-        }
+        // Toutes les cards fermées par défaut — l'utilisateur scanne
+        // les titres d'abord, ouvre ce qui l'intéresse.
         // Mark-read auto pour chaque update non-lue.
         for (const u of j.updates) {
           if (!u.is_read) {
