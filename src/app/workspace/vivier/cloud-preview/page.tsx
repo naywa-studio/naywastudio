@@ -21,6 +21,7 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { m, AnimatePresence, LayoutGroup } from "framer-motion"
+import { useEscapeKey } from "@/components/ui/useEscapeKey"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const SPRING = { type: "spring" as const, stiffness: 220, damping: 28, mass: 0.9 }
@@ -683,6 +684,7 @@ function FlatList({ candidates }: { candidates: CvCand[]; onOpenCand?: (c: CvCan
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () => void }) {
+  useEscapeKey(onClose, cand !== null)
   return (
     <AnimatePresence>
       {cand && (

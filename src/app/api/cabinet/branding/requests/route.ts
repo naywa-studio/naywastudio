@@ -64,7 +64,10 @@ export async function GET() {
     .or(`status.eq.pending,created_at.gte.${sinceIso}`)
     .order("created_at", { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error("[cabinet/branding/requests] db error:", error.message)
+    return NextResponse.json({ error: "db_error" }, { status: 500 })
+  }
 
   return NextResponse.json({ requests: (data ?? []) as RequestRow[] })
 }

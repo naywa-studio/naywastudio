@@ -7,6 +7,7 @@ import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Job, Candidate, MatchAssessment, MatchTier } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
 import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
@@ -607,6 +608,7 @@ function AssignModal({
   onClose: () => void
   onAssigned: () => void
 }) {
+  useEscapeKey(onClose)
   const sb = useMemo(() => getSupabase(), [])
   const [query, setQuery] = useState("")
   const [candidates, setCandidates] = useState<Candidate[]>([])

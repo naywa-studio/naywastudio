@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 
+export const runtime = "nodejs"
+
 /**
  * GET /api/cron/wipe-expired-orgs
  *

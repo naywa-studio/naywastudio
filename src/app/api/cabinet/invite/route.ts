@@ -4,6 +4,8 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import { sendEmail } from "@/lib/resend"
 import { TRIAL_SEAT_CAP } from "@/lib/trial"
 
+export const runtime = "nodejs"
+
 /**
  * POST   /api/cabinet/invite  { email }     — owner sends an invite
  * DELETE /api/cabinet/invite?id={id}        — owner revokes a pending invite

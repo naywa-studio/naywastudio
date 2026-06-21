@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase"
 import type { Candidate, Job } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import Select from "@/components/ui/Select"
+import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
@@ -282,8 +283,34 @@ export default function MissionsPage() {
                 padding: "40px 24px", textAlign: "center",
                 background: "white", border: "1px dashed #E5E7EB", borderRadius: 14,
                 color: "#6B7280", fontSize: 14,
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
               }}>
-                Aucune mission ne correspond.
+                <div>Aucune mission ne correspond à &laquo;&nbsp;{query}&nbsp;&raquo;.</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    style={{
+                      padding: "9px 16px", borderRadius: 9,
+                      border: "1px solid #E5E7EB", background: "white", color: "#374151",
+                      fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    Effacer le filtre
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormOpen(true)}
+                    style={{
+                      padding: "9px 16px", borderRadius: 9,
+                      border: "none", color: "white",
+                      background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                      fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    + Créer une mission
+                  </button>
+                </div>
               </div>
             ) : groupedJobs && groupedJobs.hasOthers ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
@@ -710,6 +737,7 @@ export function JobForm({ onClose, onCreated, initialJob }: {
   /** Si fourni, le modal s'ouvre en mode "edit" (skip brief stage, PATCH au lieu de POST). */
   initialJob?: Job | null
 }) {
+  useEscapeKey(onClose)
   // Stage 1 : brief texte. Stage 2 : form pré-rempli.
   const editMode = !!initialJob
   const [stage, setStage] = useState<"brief" | "form" | "manual">(editMode ? "form" : "brief")

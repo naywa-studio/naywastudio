@@ -57,7 +57,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   const admin = getAdminSupabase()
   const { error } = await admin.from("app_updates").update(patch).eq("id", id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error("[admin/maj] update error:", error.message)
+    return NextResponse.json({ error: "db_error" }, { status: 500 })
+  }
 
   await logAdminAction({
     adminUserId: gate.userId,
@@ -77,7 +80,10 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
 
   const admin = getAdminSupabase()
   const { error } = await admin.from("app_updates").delete().eq("id", id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error("[admin/maj] delete error:", error.message)
+    return NextResponse.json({ error: "db_error" }, { status: 500 })
+  }
 
   await logAdminAction({
     adminUserId: gate.userId,

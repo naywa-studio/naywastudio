@@ -29,7 +29,10 @@ export async function GET() {
     .from("app_updates")
     .select("id, title, body, category, published_at, author_user_id, affected_paths, created_at, updated_at")
     .order("created_at", { ascending: false })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error("[admin/maj] list error:", error.message)
+    return NextResponse.json({ error: "db_error" }, { status: 500 })
+  }
   return NextResponse.json({ updates: data ?? [] })
 }
 

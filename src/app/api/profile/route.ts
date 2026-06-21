@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 
+export const runtime = "nodejs"
+
 /**
  * PATCH /api/profile
  *

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 
+export const runtime = "nodejs"
+
 /**
  * POST /api/cabinet/decline-invite  { token }
  *

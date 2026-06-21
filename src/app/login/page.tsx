@@ -250,7 +250,21 @@ function LoginInner() {
           </div>
 
           <div>
-            <label style={labelStyle}>Mot de passe</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <label style={labelStyle}>Mot de passe</label>
+              {mode === "login" && (
+                <Link
+                  href="/forgot-password"
+                  style={{
+                    fontSize: 11.5, fontWeight: 600,
+                    color: "#7C63C8", textDecoration: "none",
+                    fontFamily: "var(--font-inter), sans-serif",
+                  }}
+                >
+                  Mot de passe oublié ?
+                </Link>
+              )}
+            </div>
             <input
               type="password"
               value={password}

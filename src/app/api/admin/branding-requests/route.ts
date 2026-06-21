@@ -69,7 +69,10 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(300)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error("[admin/branding-requests] db error:", error.message)
+    return NextResponse.json({ error: "db_error" }, { status: 500 })
+  }
   const allRows = rows ?? []
 
   // Regroupement par request_batch_id.

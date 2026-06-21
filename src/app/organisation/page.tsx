@@ -12,6 +12,7 @@ import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
+import { useEscapeKey } from "@/components/ui/useEscapeKey"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -386,8 +387,18 @@ function EmailConfirmationBanner({ email }: { email: string }) {
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Cooldown : empêche un user de spammer le bouton "Renvoyer". Sinon
+  // 50 clics = 50 emails Resend = risque blacklist du domaine d'envoi.
+  const [cooldown, setCooldown] = useState(0)
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = window.setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => window.clearTimeout(t)
+  }, [cooldown])
 
   const resend = async () => {
+    if (cooldown > 0 || busy) return
     setBusy(true); setError(null)
     try {
       const { error: err } = await getSupabase().auth.resend({
@@ -396,6 +407,7 @@ function EmailConfirmationBanner({ email }: { email: string }) {
       })
       if (err) throw err
       setSent(true)
+      setCooldown(30)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Impossible de renvoyer")
     } finally {
@@ -425,22 +437,24 @@ function EmailConfirmationBanner({ email }: { email: string }) {
         un email a été envoyé à <strong>{email}</strong>. Vérifiez votre boîte
         de réception (et le dossier spam) pour valider votre compte.
       </span>
-      {sent ? (
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#15803D" }}>
-          Email renvoyé.
+      {sent && cooldown > 0 ? (
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#15803D", whiteSpace: "nowrap" }}>
+          Email renvoyé. Réessayez dans {cooldown}s.
         </span>
       ) : (
         <button
           type="button"
           onClick={resend}
-          disabled={busy}
+          disabled={busy || cooldown > 0}
           style={{
             padding: "6px 12px", borderRadius: 8,
             border: "1px solid rgba(217,119,6,0.40)",
             background: "white", color: "#92400E",
-            fontSize: 12, fontWeight: 700, cursor: busy ? "wait" : "pointer",
+            fontSize: 12, fontWeight: 700,
+            cursor: busy ? "wait" : cooldown > 0 ? "not-allowed" : "pointer",
             fontFamily: "inherit",
             whiteSpace: "nowrap",
+            opacity: cooldown > 0 ? 0.6 : 1,
           }}
         >
           {busy ? "Envoi…" : "Renvoyer le lien"}
@@ -820,6 +834,7 @@ function PlanPickerModal({
   initialSeats: PlanSeats
   onClose: () => void
 }) {
+  useEscapeKey(onClose)
   const [tier, setTier] = useState<PlanTier>(initialTier)
   const [seats, setSeats] = useState<PlanSeats>(initialSeats)
   const [busy, setBusy] = useState(false)
@@ -1727,6 +1742,7 @@ function BrandingChangeRequestModal({
   onClose: () => void
   onSubmitted: () => void
 }) {
+  useEscapeKey(onClose)
   const sb = useMemo(() => getSupabase(), [])
   // Cases cochées par l'owner.
   const [editName, setEditName] = useState(false)

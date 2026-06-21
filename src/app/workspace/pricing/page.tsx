@@ -51,8 +51,10 @@ export default function PricingPage() {
   const [profile, setProfile] = useState<ProfilePricing | undefined>(undefined)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [members, setMembers] = useState<Map<string, string>>(new Map())
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const loadAll = useCallback(async () => {
+    setLoadError(null)
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return
     setCurrentUserId(user.id)
@@ -98,9 +100,58 @@ export default function PricingPage() {
 
   useEffect(() => {
     let mounted = true
-    ;(async () => { if (mounted) await loadAll() })()
+    ;(async () => {
+      try {
+        if (mounted) await loadAll()
+      } catch (err) {
+        if (!mounted) return
+        // Filet de sécurité : si Supabase timeout (cold start, panne, réseau client),
+        // on affiche une carte d'erreur avec retry plutôt qu'une page blanche.
+        setLoadError(err instanceof Error ? err.message : "Erreur de chargement")
+        setMissions([])     // sort du loading state
+        setProfile(null)
+      }
+    })()
     return () => { mounted = false }
   }, [loadAll])
+
+  // Error state — fetch a échoué.
+  if (loadError) {
+    return (
+      <main style={mainStyle}>
+        <Header missionCount={0} />
+        <div style={{
+          margin: "24px 0", padding: "20px 22px", borderRadius: 14,
+          background: "rgba(220,38,38,0.05)",
+          border: "1px solid rgba(220,38,38,0.25)",
+          textAlign: "center",
+          fontFamily: "var(--font-inter), sans-serif",
+        }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
+            Impossible de charger les missions.
+          </p>
+          <p style={{ margin: "6px 0 14px", fontSize: 12.5, color: "#7F1D1D" }}>
+            {loadError}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setLoadError(null); setMissions(null); setProfile(undefined)
+              void loadAll()
+            }}
+            style={{
+              padding: "8px 16px", borderRadius: 10,
+              border: "none", background: "#7C63C8", color: "white",
+              fontSize: 13, fontWeight: 700, cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Réessayer
+          </button>
+        </div>
+      </main>
+    )
+  }
 
   // Loading state — profile or missions not yet fetched.
   if (missions === null || profile === undefined) return <NoraLoader />

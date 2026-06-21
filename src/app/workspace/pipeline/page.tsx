@@ -693,7 +693,13 @@ function EmptyState() {
         textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 56, marginBottom: 16 }}>📊</div>
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none"
+        stroke="#7C63C8" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"
+        style={{ marginBottom: 16, opacity: 0.7 }} aria-hidden>
+        <rect x="3" y="3" width="6" height="18" rx="1.5" />
+        <rect x="10" y="9" width="6" height="12" rx="1.5" />
+        <rect x="17" y="6" width="4" height="15" rx="1.5" />
+      </svg>
       <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.015em" }}>
         Votre pipeline est vide
       </h2>

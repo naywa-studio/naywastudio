@@ -20,6 +20,7 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
+import { useEscapeKey } from "@/components/ui/useEscapeKey"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -60,6 +61,7 @@ export function SupportButton({ variant = "compact" }: { variant?: "compact" | "
 }
 
 function SupportModal({ onClose }: { onClose: () => void }) {
+  useEscapeKey(onClose)
   const [topic, setTopic] = useState<string>("workspace")
   const [topicOther, setTopicOther] = useState("")
   const [message, setMessage] = useState("")

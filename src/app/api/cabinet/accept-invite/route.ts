@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 
+export const runtime = "nodejs"
+
 /**
  * POST /api/cabinet/accept-invite  { token }
  *

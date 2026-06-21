@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 
+export const runtime = "nodejs"
+
 /**
  * DELETE /api/cabinet/members/:userId
  *
