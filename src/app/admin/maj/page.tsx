@@ -312,10 +312,42 @@ function EditModal({
                   minHeight: 220,
                 }}
               />
-              <p style={{ margin: "6px 0 0", fontSize: 11, color: "#9CA3AF" }}>
-                Gras avec **xxx**, italique avec *xxx*, listes avec &ldquo;- &rdquo;,
-                liens avec [label](https://...). Code inline avec `xxx`.
-              </p>
+              <details style={{ marginTop: 8 }}>
+                <summary style={{
+                  cursor: "pointer", fontSize: 11.5, fontWeight: 600,
+                  color: "#7C63C8", userSelect: "none",
+                }}>
+                  Syntaxe disponible (cliquez pour déplier)
+                </summary>
+                <div style={{
+                  marginTop: 8, padding: "10px 12px", borderRadius: 8,
+                  background: "#F8F6FF", border: "1px solid #EDE7F8",
+                  fontSize: 11.5, color: "#4B5563", lineHeight: 1.7,
+                  fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
+                }}>
+                  <div><b>Texte</b> : <code>**gras**</code>, <code>*italique*</code>, <code>`code`</code>, <code>[texte](https://…)</code></div>
+                  <div><b>Liste</b> : ligne commençant par <code>- </code></div>
+                  <div><b>Titre</b> : <code>## Mon titre</code> (barre violette + sparkle)</div>
+                  <div style={{ marginTop: 6 }}><b>Pastilles inline</b> : <code>[NOUVEAU]</code>, <code>[FIX]</code>, <code>[AMÉLIORATION]</code>, <code>[ATTENTION]</code>, <code>[BETA]</code></div>
+                  <div style={{ marginTop: 6 }}><b>CTA bouton</b> : <code>:::cta /workspace/vivier|Ouvrir le vivier:::</code></div>
+                  <div style={{ marginTop: 6 }}><b>Callouts</b> (boîtes colorées, sur plusieurs lignes) :</div>
+                  <pre style={{ margin: "4px 0 0", fontSize: 11, whiteSpace: "pre-wrap" }}>{`:::tip
+Astuce pour mieux utiliser cette feature.
+:::
+
+:::info
+Information neutre, contexte.
+:::
+
+:::warning
+Attention, action requise.
+:::
+
+:::success
+Confirmation positive.
+:::`}</pre>
+                </div>
+              </details>
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input
