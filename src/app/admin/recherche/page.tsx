@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useState } from "react"
+import { useEscapeKey } from "@/components/ui/useEscapeKey"
 
 interface Result {
   user_id: string
@@ -152,6 +153,7 @@ export default function AdminRecherchePage() {
                 <Th>Siège</Th>
                 <Th>Statut abo</Th>
                 <Th>Dernière connexion</Th>
+                <Th>Quota</Th>
               </tr>
             </thead>
             <tbody>
@@ -187,6 +189,11 @@ export default function AdminRecherchePage() {
                     <SubStatusPill status={r.organization?.subscription_status ?? null} trialEndsAt={r.organization?.trial_ends_at ?? null} />
                   </Td>
                   <Td style={{ color: "#6B7280" }}>{formatDate(r.last_sign_in_at)}</Td>
+                  <Td>
+                    {r.organization ? (
+                      <QuotaOverrideButton orgId={r.organization.id} orgName={r.organization.name} />
+                    ) : "—"}
+                  </Td>
                 </tr>
               ))}
             </tbody>
@@ -243,6 +250,220 @@ const pill = (color: string, bg: string, border: string): React.CSSProperties =>
   letterSpacing: "0.05em", textTransform: "uppercase",
   marginLeft: 4,
 })
+// ─── Quota override (admin) ────────────────────────────────────────────
+
+function QuotaOverrideButton({ orgId, orgName }: { orgId: string; orgName: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{
+          padding: "5px 9px", borderRadius: 7,
+          border: "1px solid #E5E7EB", background: "white",
+          color: "#7C63C8", fontSize: 11.5, fontWeight: 700,
+          cursor: "pointer", fontFamily: "inherit",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Custom
+      </button>
+      {open && <QuotaOverrideModal orgId={orgId} orgName={orgName} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+function QuotaOverrideModal({
+  orgId, orgName, onClose,
+}: { orgId: string; orgName: string; onClose: () => void }) {
+  useEscapeKey(onClose)
+  const [storageGb, setStorageGb] = useState("")
+  const [llmMonthly, setLlmMonthly] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  const save = async () => {
+    setBusy(true); setError(null)
+    try {
+      const body: Record<string, unknown> = { organization_id: orgId }
+      const s = Number(storageGb)
+      const l = Number(llmMonthly)
+      if (Number.isFinite(s) && s > 0) body.storage_gb = s
+      if (Number.isFinite(l) && l > 0) body.llm_monthly = l
+      const r = await fetch("/api/admin/quota-override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error ?? `Erreur ${r.status}`)
+      setDone(true)
+      setTimeout(onClose, 1200)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const clear = async () => {
+    if (!confirm(`Supprimer le quota custom de ${orgName} ? L'org revient aux quotas du plan.`)) return
+    setBusy(true); setError(null)
+    try {
+      const r = await fetch("/api/admin/quota-override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ organization_id: orgId, clear: true }),
+      })
+      if (!r.ok) {
+        const j = await r.json()
+        throw new Error(j.error ?? `Erreur ${r.status}`)
+      }
+      setDone(true)
+      setTimeout(onClose, 1200)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        background: "rgba(17,24,39,0.40)", backdropFilter: "blur(2px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20, fontFamily: "var(--font-inter), sans-serif",
+      }}
+    >
+      <div style={{
+        width: "100%", maxWidth: 460,
+        background: "white", borderRadius: 16, padding: 24,
+        boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)",
+      }}>
+        <h2 style={{
+          margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#111827",
+          letterSpacing: "-0.01em",
+        }}>
+          Quota custom
+        </h2>
+        <p style={{ margin: "0 0 18px", fontSize: 13, color: "#6B7280" }}>
+          Organisation : <strong>{orgName}</strong>
+        </p>
+
+        {done ? (
+          <div style={{
+            padding: "14px 16px", borderRadius: 12,
+            background: "rgba(34,197,94,0.08)",
+            border: "1px solid rgba(34,197,94,0.25)",
+            color: "#166534", fontSize: 13, textAlign: "center",
+          }}>
+            <strong>Override mis à jour.</strong>
+          </div>
+        ) : (
+          <>
+            <div style={{
+              padding: "12px 14px", borderRadius: 10, background: "#F8F6FF",
+              marginBottom: 16, fontSize: 12, color: "#5C46A0", lineHeight: 1.55,
+            }}>
+              Laissez un champ vide pour ne pas le surcharger. Toute valeur saisie
+              remplace le quota du plan pour ce client (extras facturés
+              manuellement hors-Stripe).
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
+              <div>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#374151" }}>
+                  Stockage (GB)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={10000}
+                  value={storageGb}
+                  onChange={(e) => setStorageGb(e.target.value)}
+                  placeholder="ex: 20"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#374151" }}>
+                  Crédits IA / mois
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={10_000_000}
+                  value={llmMonthly}
+                  onChange={(e) => setLlmMonthly(e.target.value)}
+                  placeholder="ex: 30000"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#B91C1C" }}>
+                {error}
+              </p>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <button type="button" onClick={clear} disabled={busy}
+                style={{
+                  padding: "9px 14px", borderRadius: 9,
+                  border: "1px solid rgba(220,38,38,0.30)", background: "white",
+                  color: "#B91C1C", fontSize: 12.5, fontWeight: 600,
+                  cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
+                }}>
+                Supprimer override
+              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" onClick={onClose} disabled={busy}
+                  style={{
+                    padding: "9px 14px", borderRadius: 9,
+                    border: "1px solid #E5E7EB", background: "white",
+                    color: "#374151", fontSize: 13, fontWeight: 600,
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                  Annuler
+                </button>
+                <button type="button" onClick={save}
+                  disabled={busy || (!storageGb && !llmMonthly)}
+                  style={{
+                    padding: "9px 16px", borderRadius: 9,
+                    border: "none", color: "white",
+                    background: busy ? "#C4B6E0"
+                      : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    fontSize: 13, fontWeight: 700, cursor: busy ? "wait" : "pointer",
+                    fontFamily: "inherit",
+                    opacity: (!storageGb && !llmMonthly) ? 0.5 : 1,
+                  }}>
+                  {busy ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const inputStyle: React.CSSProperties = {
+  width: "100%", padding: "9px 12px",
+  borderRadius: 8, border: "1.5px solid #E5E7EB",
+  fontSize: 13.5, color: "#111827",
+  outline: "none", fontFamily: "inherit",
+  boxSizing: "border-box",
+}
+
 const pillOwner = pill("#7C63C8", "rgba(124,99,200,0.08)", "rgba(124,99,200,0.22)")
 const pillMember = pill("#6B7280", "#F3F4F6", "#E5E7EB")
 const pillSeatOn = pill("#15803D", "rgba(34,197,94,0.08)", "rgba(34,197,94,0.22)")

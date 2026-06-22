@@ -93,6 +93,9 @@ export type AdminAuditAction =
   | "publish_update"
   | "update_app_update"
   | "delete_update"
+  | "set_quota_override"
+  | "clear_quota_override"
+  | "migrate_cv_to_r2"
 
 /**
  * Type de la cible auditée. NULL pour les actions globales (search).

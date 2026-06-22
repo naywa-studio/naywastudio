@@ -7,12 +7,14 @@ import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
 import { trialStatus, TRIAL_DURATION_DAYS, TRIAL_SEAT_CAP } from "@/lib/trial"
 import { subscriptionAccess, hasActiveAccess } from "@/lib/subscription"
-import { PLAN_PRICES_EUR, type PlanTier, type PlanSeats } from "@/lib/stripe"
+import { PLAN_PRICES_EUR, lookupKey, type PlanTier, type PlanSeats } from "@/lib/stripe"
+import { QUOTAS_BY_PLAN, formatBytes } from "@/lib/quota-tiers"
 import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
+import { QuotaGauges } from "@/components/quota/QuotaGauges"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -216,19 +218,32 @@ export default function CabinetPage() {
         )}
 
         {activeTab === "abonnement" && (
-          <div style={{ display: "grid", gap: 16, maxWidth: 720 }}>
-            <MySeatBanner
-              hasSeat={profile.has_sourcing_seat}
-              onToggle={refetch}
-              isOwner={isOwner}
-            />
-            <SubscriptionCard
-              organization={organization}
-              onActivated={refetch}
-              isOwner={isOwner}
-              autoOpenPicker={action === "subscribe"}
-            />
-            <PricingPolicySectionCollapsible />
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(260px, 340px)",
+            gap: 20,
+            alignItems: "start",
+          }}>
+            {/* Colonne gauche : siège + abonnement + politique pricing */}
+            <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
+              <MySeatBanner
+                hasSeat={profile.has_sourcing_seat}
+                onToggle={refetch}
+                isOwner={isOwner}
+              />
+              <SubscriptionCard
+                organization={organization}
+                onActivated={refetch}
+                isOwner={isOwner}
+                autoOpenPicker={action === "subscribe"}
+              />
+              <PricingPolicySectionCollapsible />
+            </div>
+            {/* Colonne droite : utilisation (sticky pour rester visible
+                pendant le scroll des cartes de gauche) */}
+            <div style={{ position: "sticky", top: 16 }}>
+              <QuotaGauges />
+            </div>
           </div>
         )}
 
@@ -977,22 +992,59 @@ function PlanPickerModal({
           })}
         </div>
 
-        {/* Price summary */}
-        <div style={{
-          background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
-          border: "1px solid #E2DAF6",
-          borderRadius: 14,
-          padding: "14px 16px",
-          marginBottom: 16,
-          display: "flex", justifyContent: "space-between", alignItems: "baseline",
-        }}>
-          <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
-            Total mensuel HT
-          </span>
-          <span style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-            {price.toFixed(2)} €
-          </span>
-        </div>
+        {/* Price + quotas inclus summary */}
+        {(() => {
+          const q = QUOTAS_BY_PLAN[lookupKey(tier, seats)]
+          return (
+            <div style={{
+              background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
+              border: "1px solid #E2DAF6",
+              borderRadius: 14,
+              padding: "14px 16px",
+              marginBottom: 16,
+            }}>
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "baseline",
+              }}>
+                <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+                  Total mensuel HT
+                </span>
+                <span style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+                  {price.toFixed(2)} €
+                </span>
+              </div>
+              {q && (
+                <div style={{
+                  marginTop: 10, paddingTop: 10,
+                  borderTop: "1px solid rgba(124,99,200,0.18)",
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  fontSize: 11.5, color: "#5C46A0", fontWeight: 600,
+                  flexWrap: "wrap", gap: 6,
+                }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7"/>
+                      <path d="M3 7l9 6 9-6"/>
+                      <rect x="3" y="5" width="18" height="2"/>
+                    </svg>
+                    {formatBytes(q.storageBytes)} stockage
+                  </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M12 2v4"/><path d="M12 18v4"/>
+                      <path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/>
+                      <path d="M2 12h4"/><path d="M18 12h4"/>
+                      <path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 7.76 2.83-2.83"/>
+                    </svg>
+                    {q.llmMonthly.toLocaleString("fr-FR")} crédits IA / mois
+                  </span>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         <p style={{ margin: "0 0 16px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
           Pas de TVA appliquée (micro-entreprise). Annulation à tout moment depuis votre portail Stripe.

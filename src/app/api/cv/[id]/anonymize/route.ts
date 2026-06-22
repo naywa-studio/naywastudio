@@ -183,35 +183,49 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   const admin = getAdminSupabase()
-  const path = `${user.id}/${candidate.id}/anonymized.pdf`
-  const { error: upErr } = await admin.storage
-    .from("cv-uploads")
-    .upload(path, buffer, { contentType: "application/pdf", upsert: true })
-  if (upErr) {
-    return NextResponse.json({ error: "storage_failed", detail: upErr.message }, { status: 500 })
+  const orgId = profile?.organization_id
+  if (!orgId) {
+    return NextResponse.json({ error: "no_organization" }, { status: 400 })
   }
+  const { r2Upload, r2SignedUrl } = await import("@/lib/r2-storage")
+  const { incrementStorageUsed } = await import("@/lib/quota")
+
+  const path = `${orgId}/${candidate.id}/anonymized.pdf`
+  try {
+    await r2Upload({
+      bucket: "cv",
+      path,
+      body: buffer,
+      contentType: "application/pdf",
+      callerOrgId: orgId,
+    })
+  } catch (err) {
+    console.error("[cv/anonymize] R2 upload error:", err instanceof Error ? err.message : "unknown")
+    return NextResponse.json({ error: "storage_failed" }, { status: 500 })
+  }
+
+  // Bump storage_used_bytes par la taille du PDF généré.
+  await incrementStorageUsed(admin, orgId, buffer.byteLength)
 
   await admin.from("candidates").update({
     anonymized_pdf_path: path,
     anonymized_at: new Date().toISOString(),
   }).eq("id", candidate.id)
 
-  // Two signed URLs so the UI can both PREVIEW the PDF (inline iframe,
-  // no Content-Disposition: attachment) AND offer a one-click download.
-  // The download URL forces the browser to save instead of preview by
-  // setting the attachment header.
-  const [{ data: previewSigned }, { data: downloadSigned }] = await Promise.all([
-    admin.storage.from("cv-uploads").createSignedUrl(path, TTL_SECONDS),
-    admin.storage.from("cv-uploads").createSignedUrl(path, TTL_SECONDS, {
-      download: `profil-anonymise-${reference}.pdf`,
+  // Two signed URLs : preview inline + download forcé.
+  const [previewUrl, downloadUrl] = await Promise.all([
+    r2SignedUrl({ bucket: "cv", path, callerOrgId: orgId, ttlSeconds: TTL_SECONDS }),
+    r2SignedUrl({
+      bucket: "cv", path, callerOrgId: orgId, ttlSeconds: TTL_SECONDS,
+      filename: `profil-anonymise-${reference}.pdf`,
     }),
   ])
 
   return NextResponse.json({
     ok: true,
-    url: previewSigned?.signedUrl ?? null,            // backward compat: still the preview URL
-    preview_url: previewSigned?.signedUrl ?? null,
-    download_url: downloadSigned?.signedUrl ?? null,
+    url: previewUrl,                                  // backward compat
+    preview_url: previewUrl,
+    download_url: downloadUrl,
     reference,
   })
 }
@@ -224,19 +238,47 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 
   const { data: candidate, error } = await sb
     .from("candidates")
-    .select("user_id, anonymized_pdf_path, id")
+    .select("user_id, organization_id, anonymized_pdf_path, id")
     .eq("id", id)
     .single()
   if (error || !candidate) return NextResponse.json({ error: "not_found" }, { status: 404 })
   if (!candidate.anonymized_pdf_path) return NextResponse.json({ error: "no_file" }, { status: 404 })
 
-  const admin = getAdminSupabase()
-  const [{ data: previewSigned, error: pErr }, { data: downloadSigned }] = await Promise.all([
-    admin.storage.from("cv-uploads").createSignedUrl(candidate.anonymized_pdf_path, TTL_SECONDS),
-    admin.storage.from("cv-uploads").createSignedUrl(candidate.anonymized_pdf_path, TTL_SECONDS, {
-      download: `profil-anonymise-${refFor(candidate.id)}.pdf`,
-    }),
-  ])
+  const orgId = candidate.organization_id
+  const looksR2Scoped = !!orgId && candidate.anonymized_pdf_path.startsWith(orgId + "/")
+
+  let previewSigned: { signedUrl: string } | null = null
+  let downloadSigned: { signedUrl: string } | null = null
+  let pErr: { message: string } | null = null
+
+  if (looksR2Scoped) {
+    const { r2SignedUrl } = await import("@/lib/r2-storage")
+    try {
+      const [p, d] = await Promise.all([
+        r2SignedUrl({ bucket: "cv", path: candidate.anonymized_pdf_path, callerOrgId: orgId, ttlSeconds: TTL_SECONDS }),
+        r2SignedUrl({
+          bucket: "cv", path: candidate.anonymized_pdf_path, callerOrgId: orgId, ttlSeconds: TTL_SECONDS,
+          filename: `profil-anonymise-${refFor(candidate.id)}.pdf`,
+        }),
+      ])
+      previewSigned = { signedUrl: p }
+      downloadSigned = { signedUrl: d }
+    } catch (err) {
+      pErr = { message: err instanceof Error ? err.message : "r2_sign_failed" }
+    }
+  } else {
+    // Fallback Supabase Storage pour les anciens fichiers.
+    const admin = getAdminSupabase()
+    const [pRes, dRes] = await Promise.all([
+      admin.storage.from("cv-uploads").createSignedUrl(candidate.anonymized_pdf_path, TTL_SECONDS),
+      admin.storage.from("cv-uploads").createSignedUrl(candidate.anonymized_pdf_path, TTL_SECONDS, {
+        download: `profil-anonymise-${refFor(candidate.id)}.pdf`,
+      }),
+    ])
+    previewSigned = pRes.data
+    downloadSigned = dRes.data
+    pErr = pRes.error
+  }
   if (pErr || !previewSigned) {
     return NextResponse.json({ error: "sign_failed", detail: pErr?.message }, { status: 500 })
   }

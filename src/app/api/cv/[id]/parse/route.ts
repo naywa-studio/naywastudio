@@ -45,9 +45,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // final update can MERGE the doublon flag instead of overwriting custom
   // tags + "ancien" — that overwrite was the root cause of the doublon
   // detection failing on re-parses of an archived candidate.
+  // organization_id pour le scoping R2 (assertOrgScopedPath).
   const { data: candidate, error: fetchErr } = await sb
     .from("candidates")
-    .select("id, user_id, cv_file_path, parse_status, tags")
+    .select("id, user_id, organization_id, cv_file_path, parse_status, tags")
     .eq("id", id)
     .single()
   if (fetchErr || !candidate) {
@@ -65,18 +66,54 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     parse_error: null,
   }).eq("id", candidate.id)
 
-  // Download the PDF
-  const { data: blob, error: dlErr } = await admin.storage
-    .from("cv-uploads")
-    .download(candidate.cv_file_path)
-  if (dlErr || !blob) {
-    await admin.from("candidates").update({
-      parse_status: "error",
-      parse_error: `Storage download: ${dlErr?.message ?? "fichier introuvable"}`,
-    }).eq("id", candidate.id)
-    return NextResponse.json({ error: "download_failed" }, { status: 500 })
+  // Lazy migration si le fichier est encore sur Supabase Storage.
+  // Avant d'attaquer le download, on essaie de migrer pour que les
+  // appels suivants soient déjà sur R2.
+  if (candidate.organization_id && !candidate.cv_file_path.startsWith(candidate.organization_id + "/")) {
+    const { lazyMigrateCvFile } = await import("@/lib/lazy-migrate-cv")
+    const newPath = await lazyMigrateCvFile(
+      admin, candidate.id, candidate.organization_id, candidate.cv_file_path,
+    )
+    candidate.cv_file_path = newPath
   }
-  const buf = Buffer.from(await blob.arrayBuffer())
+
+  // Download the PDF — R2 si le path est org-scopé ({org_id}/...),
+  // fallback Supabase Storage pour les anciens fichiers pré-migration.
+  let buf: Buffer
+  const looksR2Scoped = !!candidate.organization_id
+    && candidate.cv_file_path.startsWith(candidate.organization_id + "/")
+  if (looksR2Scoped) {
+    try {
+      const { r2Download } = await import("@/lib/r2-storage")
+      const dl = await r2Download({
+        bucket: "cv",
+        path: candidate.cv_file_path,
+        callerOrgId: candidate.organization_id,
+      })
+      buf = dl.body
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "unknown"
+      console.error("[cv/parse] R2 download error:", msg)
+      await admin.from("candidates").update({
+        parse_status: "error",
+        parse_error: "R2 download failed",
+      }).eq("id", candidate.id)
+      return NextResponse.json({ error: "download_failed" }, { status: 500 })
+    }
+  } else {
+    // Fallback Supabase Storage (CV uploadés avant migration R2).
+    const { data: blob, error: dlErr } = await admin.storage
+      .from("cv-uploads")
+      .download(candidate.cv_file_path)
+    if (dlErr || !blob) {
+      await admin.from("candidates").update({
+        parse_status: "error",
+        parse_error: `Storage download: ${dlErr?.message ?? "fichier introuvable"}`,
+      }).eq("id", candidate.id)
+      return NextResponse.json({ error: "download_failed" }, { status: 500 })
+    }
+    buf = Buffer.from(await blob.arrayBuffer())
+  }
 
   // Parse — text path first; fall back to OCR for scanned / empty-text PDFs.
   // Wrapped in a watchdog race so we can flip parse_status="error"

@@ -160,8 +160,10 @@ export default function AdminDashboardPage() {
       </main>
     </LazyMotion>
   )
+}
 
-  function KpiCard({
+
+function KpiCard({
     label, value, icon, hint, delay = 0, wide = false,
   }: {
     label: string
@@ -172,7 +174,7 @@ export default function AdminDashboardPage() {
     wide?: boolean
   }) {
     const display = value === undefined
-      ? loading ? "—" : "—"
+      ? "—"
       : typeof value === "number" ? value.toLocaleString("fr-FR") : value
     return (
       <m.div
@@ -211,7 +213,6 @@ export default function AdminDashboardPage() {
         </p>
       </m.div>
     )
-  }
 }
 
 function formatEuros(n: number): string {

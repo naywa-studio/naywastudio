@@ -9,6 +9,7 @@ import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
 import { LockdownBanner } from "@/components/workspace/LockdownBanner"
 import { MemberWaitingBanner } from "@/components/workspace/MemberWaitingBanner"
 import { TrialBanner } from "@/components/trial/TrialBanner"
+import { QuotaWarningBanner } from "@/components/quota/QuotaWarningBanner"
 import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
 import { SupportButton } from "@/components/support/SupportButton"
 import { hasActiveAccess, isInLockdown } from "@/lib/subscription"
@@ -385,6 +386,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           isOwner={profile?.role === "owner"}
           isAdmin={!!profile?.is_admin}
         />
+        <QuotaWarningBanner />
         {children}
 
         <UndoToastHost />

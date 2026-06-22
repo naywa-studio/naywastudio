@@ -3,20 +3,28 @@
  *
  *   1. Auth check
  *   2. Validate (PDF, ≤10 MB)
- *   3. Enforce daily quota (consumeQuota — daily_usage)
- *   4. Insert candidate row (parse_status = "parsing")
- *   5. Upload PDF to Storage at {user_id}/{candidate_id}/{filename}
- *   6. Return the candidate row immediately.
+ *   3. Enforce daily quota (consumeQuota — daily_usage, per-user/day)
+ *   4. Enforce org storage quota (refus si dépasse)
+ *   5. Enforce org LLM quota (refus si dépasse — parsing = action LLM)
+ *   6. Insert candidate row (parse_status = "parsing")
+ *   7. Upload PDF to R2 bucket naywa-cv : {org_id}/{candidate_id}/{filename}
+ *   8. Bump storage_used_bytes par la vraie taille
+ *   9. Return the candidate row immediately.
  *
  * The actual PDF→text→LLM parsing happens in /api/cv/parse, which the
  * client fires fire-and-forget right after this returns. The realtime
  * channel on `candidates` then pushes the parsed row to the UI.
+ *
+ * Naming: cv_file_path reste un path "logique" ({org_id}/{cand}/{file})
+ * — c'est désormais un path R2, plus un path Supabase Storage.
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { consumeQuota } from "@/lib/quota"
+import { isAdmin } from "@/lib/admin"
+import { consumeQuota, consumeOrgLlmAction, checkStorageQuota, incrementStorageUsed } from "@/lib/quota"
+import { r2Upload } from "@/lib/r2-storage"
 
 export const runtime = "nodejs"
 export const maxDuration = 30 // upload + storage write — plenty even on Hobby
@@ -44,9 +52,42 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = getAdminSupabase()
+
+  // Récupère le profile pour avoir l'org_id (paths R2 + quotas org).
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (!profile?.organization_id) {
+    return NextResponse.json({ error: "no_organization" }, { status: 400 })
+  }
+  const orgId = profile.organization_id
+
+  const isAdminUser = await isAdmin(user.id)
+
+  // Niveau 1 : daily per-user (filet anti-script).
   const quota = await consumeQuota(admin, user.id, "upload")
   if (!quota.ok) {
     return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
+  }
+
+  // Niveau 2 : storage org (refus dur si plein).
+  const storageCheck = await checkStorageQuota(admin, orgId, file.size, { isAdmin: isAdminUser })
+  if (!storageCheck.ok) {
+    return NextResponse.json({
+      error: storageCheck.code ?? "storage_quota_exceeded",
+      message: storageCheck.message,
+    }, { status: 413 })
+  }
+
+  // Niveau 3 : LLM org (le parsing CV est une action LLM).
+  const llmCheck = await consumeOrgLlmAction(admin, orgId, { isAdmin: isAdminUser })
+  if (!llmCheck.ok) {
+    return NextResponse.json({
+      error: llmCheck.code ?? "llm_quota_exceeded",
+      message: llmCheck.message,
+    }, { status: 429 })
   }
 
   const { data: created, error: insertErr } = await admin
@@ -62,25 +103,36 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (insertErr || !created) {
-    return NextResponse.json({ error: "db_insert_failed", detail: insertErr?.message }, { status: 500 })
+    console.error("[cv/upload] insert error:", insertErr?.message)
+    return NextResponse.json({ error: "db_insert_failed" }, { status: 500 })
   }
 
   const arrayBuf = await file.arrayBuffer()
   const buf = Buffer.from(arrayBuf)
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120) || "cv.pdf"
-  const storagePath = `${user.id}/${created.id}/${safeName}`
-  const { error: uploadErr } = await admin.storage
-    .from("cv-uploads")
-    .upload(storagePath, buf, { contentType: "application/pdf", upsert: false })
-
-  if (uploadErr) {
+  const storagePath = `${orgId}/${created.id}/${safeName}`
+  try {
+    await r2Upload({
+      bucket: "cv",
+      path: storagePath,
+      body: buf,
+      contentType: "application/pdf",
+      callerOrgId: orgId,
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "upload_failed"
+    console.error("[cv/upload] R2 error:", msg)
     await admin.from("candidates").update({
       parse_status: "error",
-      parse_error: `Upload Storage: ${uploadErr.message}`,
+      parse_error: "Upload R2 failed",
     }).eq("id", created.id)
-    return NextResponse.json({ error: "storage_upload_failed", detail: uploadErr.message }, { status: 500 })
+    return NextResponse.json({ error: "storage_upload_failed" }, { status: 500 })
   }
+
+  // Bump le compteur stockage (cron nightly recalculera la vraie valeur
+  // — c'est une estimation entre 2 passes du cron).
+  await incrementStorageUsed(admin, orgId, file.size)
 
   const { data: withPath } = await admin
     .from("candidates")
