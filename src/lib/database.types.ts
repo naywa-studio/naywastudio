@@ -265,6 +265,17 @@ export type Database = {
            *  demande validée par un admin Naywa (cf. table
            *  branding_change_requests). NULL = pas encore verrouillé. */
           branding_locked_at: string | null
+          /** Stockage R2 utilisé (recalc nightly via cron). */
+          storage_used_bytes: number
+          /** Actions LLM consommées sur le mois en cours.
+           *  Reset le 1er via /api/cron/reset-llm-quota. */
+          llm_actions_this_month: number
+          /** Début du mois en cours (filet si le cron de reset rate
+           *  un mois — check quota le reset à la volée). */
+          llm_period_start: string
+          /** Override custom des quotas — { storage_gb, llm_monthly }.
+           *  NULL = quotas dérivés du plan. Set par admin Naywa. */
+          quota_override_json: { storage_gb?: number; llm_monthly?: number } | null
           created_at: string
           updated_at: string
         }

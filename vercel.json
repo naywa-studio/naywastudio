@@ -10,6 +10,14 @@
     {
       "path": "/api/cron/wipe-lockdown-data",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/recompute-storage",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/reset-llm-quota",
+      "schedule": "5 0 1 * *"
     }
   ],
   "headers": [

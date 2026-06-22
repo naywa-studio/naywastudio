@@ -13,6 +13,7 @@ import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboar
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
+import { QuotaGauges } from "@/components/quota/QuotaGauges"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -217,6 +218,7 @@ export default function CabinetPage() {
 
         {activeTab === "abonnement" && (
           <div style={{ display: "grid", gap: 16, maxWidth: 720 }}>
+            <QuotaGauges />
             <MySeatBanner
               hasSeat={profile.has_sourcing_seat}
               onToggle={refetch}
