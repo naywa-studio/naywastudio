@@ -32,23 +32,25 @@ export interface Quotas {
  * sourcing_1..4 et sourcing_pro_1..4 (cf. lib/stripe.ts).
  *
  * Logique :
- *   - 1 GB de stockage par siège (Std) ou 2 GB (Pro)
- *   - +2 300 actions LLM par siège supplémentaire (Std) ou +3 000 (Pro)
- *   - 1er siège plus généreux : 1 700 (Std) / 2 200 (Pro)
+ *   - 1 GB de stockage par siège (Std) — couvre ~2 000 CVs/siège,
+ *     soit environ 2 ans d'historique pour un sourceur actif
+ *   - 1.5 GB / siège pour la variante Pro (vivier souvent plus riche)
+ *   - +2 300 crédits LLM par siège supplémentaire (Std) ou +3 000 (Pro)
+ *   - 1er siège plus généreux côté crédits : 1 700 (Std) / 2 200 (Pro)
  */
 export const QUOTAS_BY_PLAN: Record<string, { storageBytes: number; llmMonthly: number }> = {
-  sourcing_1:     { storageBytes:  2 * GB, llmMonthly:  1_700 },
-  sourcing_2:     { storageBytes:  4 * GB, llmMonthly:  4_000 },
-  sourcing_3:     { storageBytes:  6 * GB, llmMonthly:  6_300 },
-  sourcing_4:     { storageBytes:  8 * GB, llmMonthly:  8_600 },
-  sourcing_pro_1: { storageBytes:  3 * GB, llmMonthly:  2_200 },
-  sourcing_pro_2: { storageBytes:  6 * GB, llmMonthly:  5_200 },
-  sourcing_pro_3: { storageBytes:  9 * GB, llmMonthly:  8_200 },
-  sourcing_pro_4: { storageBytes: 12 * GB, llmMonthly: 11_200 },
+  sourcing_1:     { storageBytes: 1   * GB, llmMonthly:  1_700 },
+  sourcing_2:     { storageBytes: 2   * GB, llmMonthly:  4_000 },
+  sourcing_3:     { storageBytes: 3   * GB, llmMonthly:  6_300 },
+  sourcing_4:     { storageBytes: 4   * GB, llmMonthly:  8_600 },
+  sourcing_pro_1: { storageBytes: 1.5 * GB, llmMonthly:  2_200 },
+  sourcing_pro_2: { storageBytes: 3   * GB, llmMonthly:  5_200 },
+  sourcing_pro_3: { storageBytes: 4.5 * GB, llmMonthly:  8_200 },
+  sourcing_pro_4: { storageBytes: 6   * GB, llmMonthly: 11_200 },
 }
 
 /** Quota appliqué pendant l'essai 15j (équivalent Sourcing 1 siège). */
-const TRIAL_QUOTAS = { storageBytes: 2 * GB, llmMonthly: 1_700 }
+const TRIAL_QUOTAS = { storageBytes: 1 * GB, llmMonthly: 1_700 }
 
 /**
  * Quotas "infinis" pour les comptes admin Naywa. On retourne une valeur
