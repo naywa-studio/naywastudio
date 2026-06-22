@@ -49,8 +49,13 @@ export const QUOTAS_BY_PLAN: Record<string, { storageBytes: number; llmMonthly: 
   sourcing_pro_4: { storageBytes: 6   * GB, llmMonthly: 11_200 },
 }
 
-/** Quota appliqué pendant l'essai 15j (équivalent Sourcing 1 siège). */
-const TRIAL_QUOTAS = { storageBytes: 1 * GB, llmMonthly: 1_700 }
+/**
+ * Quota appliqué pendant l'essai 15j. Volontairement serré côté
+ * stockage (500 MB ~ 1000 CVs ≈ assez pour tester sérieusement) mais
+ * généreux côté crédits IA — les prospects doivent pouvoir essayer
+ * tout l'éventail de fonctionnalités IA pour évaluer la valeur.
+ */
+const TRIAL_QUOTAS = { storageBytes: 500 * 1024 * 1024, llmMonthly: 1_700 }
 
 /**
  * Quotas "infinis" pour les comptes admin Naywa. On retourne une valeur
