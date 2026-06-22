@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { QUOTAS_BY_PLAN, formatBytes } from "@/lib/quota-tiers"
 
 type SeatCount = 1 | 2 | 3 | 4
 
@@ -184,6 +185,7 @@ export default function TarifsPage() {
               perSeat={SOURCING[seats] / seats}
               recommended={seats === 3}
               features={SOURCING_INCLUDED}
+              quota={QUOTAS_BY_PLAN[`sourcing_${seats}`]}
               cta="Démarrer mes 15 jours →"
               accentSoft={false}
             />
@@ -195,6 +197,7 @@ export default function TarifsPage() {
               perSeat={SOURCING_PRO[seats] / seats}
               recommended={false}
               features={PRO_EXTRA}
+              quota={QUOTAS_BY_PLAN[`sourcing_pro_${seats}`]}
               cta="Démarrer mes 15 jours →"
               accentSoft
             />
@@ -280,7 +283,7 @@ export default function TarifsPage() {
 }
 
 function PriceCard({
-  tag, title, subtitle, priceMonthly, perSeat, recommended, features, cta, accentSoft,
+  tag, title, subtitle, priceMonthly, perSeat, recommended, features, quota, cta, accentSoft,
 }: {
   tag: string
   title: string
@@ -289,6 +292,7 @@ function PriceCard({
   perSeat: number
   recommended: boolean
   features: readonly string[]
+  quota?: { storageBytes: number; llmMonthly: number }
   cta: string
   accentSoft: boolean
 }) {
@@ -413,6 +417,35 @@ function PriceCard({
         >
           soit {formatEur(perSeat)}/siège/mois — dégressif
         </p>
+        {quota && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "10px 12px",
+              borderRadius: 10,
+              background: "rgba(124,99,200,0.06)",
+              border: "1px solid rgba(124,99,200,0.18)",
+              fontFamily: "var(--font-inter), sans-serif",
+              fontSize: 12.5,
+              color: "#5C46A0",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7C63C8" }}>
+              Inclus chaque mois
+            </span>
+            <span style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <span>Stockage CVs</span>
+              <strong>{formatBytes(quota.storageBytes)}</strong>
+            </span>
+            <span style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <span>Crédits IA</span>
+              <strong>{quota.llmMonthly.toLocaleString("fr-FR")}</strong>
+            </span>
+          </div>
+        )}
       </div>
 
       <ul
