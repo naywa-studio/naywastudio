@@ -66,6 +66,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     parse_error: null,
   }).eq("id", candidate.id)
 
+  // Lazy migration si le fichier est encore sur Supabase Storage.
+  // Avant d'attaquer le download, on essaie de migrer pour que les
+  // appels suivants soient déjà sur R2.
+  if (candidate.organization_id && !candidate.cv_file_path.startsWith(candidate.organization_id + "/")) {
+    const { lazyMigrateCvFile } = await import("@/lib/lazy-migrate-cv")
+    const newPath = await lazyMigrateCvFile(
+      admin, candidate.id, candidate.organization_id, candidate.cv_file_path,
+    )
+    candidate.cv_file_path = newPath
+  }
+
   // Download the PDF — R2 si le path est org-scopé ({org_id}/...),
   // fallback Supabase Storage pour les anciens fichiers pré-migration.
   let buf: Buffer

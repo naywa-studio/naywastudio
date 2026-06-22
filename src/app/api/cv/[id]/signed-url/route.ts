@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { r2SignedUrl } from "@/lib/r2-storage"
+import { lazyMigrateCvFile } from "@/lib/lazy-migrate-cv"
 
 export const runtime = "nodejs"
 
@@ -36,17 +37,47 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   // le caller a accès (org-scoped).
   const { data: candidate, error } = await sb
     .from("candidates")
-    .select("cv_file_path, cv_file_name")
+    .select("cv_file_path, cv_file_name, cv_mime_type")
     .eq("id", id)
     .maybeSingle()
 
   if (error || !candidate) return NextResponse.json({ error: "not_found" }, { status: 404 })
   if (!candidate.cv_file_path) return NextResponse.json({ error: "no_file" }, { status: 404 })
 
+  // Lazy migration : si le path n'est pas R2-scoped (ancien fichier
+  // Supabase Storage), on le migre à la volée avant de signer. Au pire
+  // si la migration échoue, on retombe sur le path d'origine + fallback
+  // Supabase Storage en bas de cette route.
+  const effectivePath = await lazyMigrateCvFile(
+    admin,
+    id,
+    profile.organization_id,
+    candidate.cv_file_path,
+    candidate.cv_mime_type ?? "application/pdf",
+  )
+
+  // Si la migration a réussi : path R2 → on signe R2.
+  // Sinon (migration échouée) : path d'origine sur Supabase Storage → fallback.
+  const isR2Now = effectivePath.startsWith(profile.organization_id + "/")
+  if (!isR2Now) {
+    const { data: signed, error: signErr } = await admin.storage
+      .from("cv-uploads")
+      .createSignedUrl(effectivePath, TTL_SECONDS)
+    if (signErr || !signed) {
+      console.error("[cv/signed-url] supabase fallback error:", signErr?.message)
+      return NextResponse.json({ error: "sign_failed" }, { status: 500 })
+    }
+    return NextResponse.json({
+      url: signed.signedUrl,
+      expires_in: TTL_SECONDS,
+      file_name: candidate.cv_file_name,
+    })
+  }
+
   try {
     const url = await r2SignedUrl({
       bucket: "cv",
-      path: candidate.cv_file_path,
+      path: effectivePath,
       callerOrgId: profile.organization_id,
       ttlSeconds: TTL_SECONDS,
     })
