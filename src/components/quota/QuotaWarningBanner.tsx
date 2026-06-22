@@ -49,7 +49,7 @@ export function QuotaWarningBanner() {
   const critical = max >= CRIT_PCT
   const kinds: string[] = []
   if (sPct >= WARN_PCT) kinds.push("stockage")
-  if (lPct >= WARN_PCT) kinds.push("actions IA")
+  if (lPct >= WARN_PCT) kinds.push("crédits IA")
   const kindLabel = kinds.join(" et ")
 
   return (

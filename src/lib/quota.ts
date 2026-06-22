@@ -147,7 +147,7 @@ export async function consumeOrgLlmAction(
       used: currentUsed,
       limit: quota.llmMonthly,
       code: "quota_exceeded",
-      message: `Quota d'actions IA atteint pour ce mois (${quota.llmMonthly} actions / ${quota.label}). Repart au 1er du mois ou contactez-nous pour une extension.`,
+      message: `Quota de crédits IA atteint pour ce mois (${quota.llmMonthly} crédits / ${quota.label}). Repart au 1er du mois ou contactez-nous pour une extension.`,
     }
   }
 

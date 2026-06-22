@@ -217,20 +217,32 @@ export default function CabinetPage() {
         )}
 
         {activeTab === "abonnement" && (
-          <div style={{ display: "grid", gap: 16, maxWidth: 720 }}>
-            <QuotaGauges />
-            <MySeatBanner
-              hasSeat={profile.has_sourcing_seat}
-              onToggle={refetch}
-              isOwner={isOwner}
-            />
-            <SubscriptionCard
-              organization={organization}
-              onActivated={refetch}
-              isOwner={isOwner}
-              autoOpenPicker={action === "subscribe"}
-            />
-            <PricingPolicySectionCollapsible />
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(260px, 340px)",
+            gap: 20,
+            alignItems: "start",
+          }}>
+            {/* Colonne gauche : siège + abonnement + politique pricing */}
+            <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
+              <MySeatBanner
+                hasSeat={profile.has_sourcing_seat}
+                onToggle={refetch}
+                isOwner={isOwner}
+              />
+              <SubscriptionCard
+                organization={organization}
+                onActivated={refetch}
+                isOwner={isOwner}
+                autoOpenPicker={action === "subscribe"}
+              />
+              <PricingPolicySectionCollapsible />
+            </div>
+            {/* Colonne droite : utilisation (sticky pour rester visible
+                pendant le scroll des cartes de gauche) */}
+            <div style={{ position: "sticky", top: 16 }}>
+              <QuotaGauges />
+            </div>
           </div>
         )}
 

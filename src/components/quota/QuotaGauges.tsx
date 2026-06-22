@@ -85,9 +85,9 @@ export function QuotaGauges({ compact = false }: { compact?: boolean }) {
       />
 
       <Gauge
-        label="Actions IA"
+        label="Crédits IA"
         percent={llmPct}
-        usedLabel={`${data.llm.used.toLocaleString("fr-FR")} actions`}
+        usedLabel={`${data.llm.used.toLocaleString("fr-FR")} crédits`}
         limitLabel={`${data.llm.limit.toLocaleString("fr-FR")} max`}
         showLimit={llmPct >= 70}
         onDetail={() => setDetailOpen("llm")}
@@ -178,7 +178,7 @@ function DetailModal({
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])
 
-  const title = kind === "storage" ? "Stockage" : "Actions IA"
+  const title = kind === "storage" ? "Stockage" : "Crédits IA"
   const used = kind === "storage" ? formatBytes(storage.used_bytes) : llm.used.toLocaleString("fr-FR")
   const limit = kind === "storage" ? formatBytes(storage.limit_bytes) : llm.limit.toLocaleString("fr-FR")
 
@@ -222,7 +222,7 @@ function DetailModal({
           <div style={{ marginTop: 6, fontSize: 12.5, color: "#6B7280" }}>
             {kind === "storage"
               ? "Espace total occupé par vos CV. Le nettoyage des CV anciens libère du quota."
-              : `Actions réinitialisées le 1er de chaque mois. Période en cours depuis le ${formatDateFr(llm.period_start)}.`}
+              : `Crédits réinitialisés le 1er de chaque mois. Période en cours depuis le ${formatDateFr(llm.period_start)}.`}
           </div>
         </div>
 
@@ -233,7 +233,7 @@ function DetailModal({
         }}>
           <strong>Besoin de plus ?</strong> Contactez-nous via le bouton support
           dans le header — nous proposons des extensions sur mesure
-          (+5 GB, +2 000 actions, etc.).
+          (+5 GB, +2 000 crédits IA, etc.).
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
