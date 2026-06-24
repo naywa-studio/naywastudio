@@ -63,15 +63,17 @@ export async function GET(req: NextRequest) {
 
     // Tables à wiper par ordre — on n'inclut PAS profiles, auth.users
     // ni org_invites, gardés pour permettre le retour.
-    const tablesToWipe = [
+    const tablesToWipe: ReadonlyArray<
+      "candidates" | "jobs" | "match_assessments" | "email_messages"
+      | "cluster_manifests" | "daily_usage"
+    > = [
       "candidates",
       "jobs",
       "match_assessments",
       "email_messages",
       "cluster_manifests",
       "daily_usage",
-      "interviews",
-    ] as const
+    ]
 
     for (const table of tablesToWipe) {
       const { error: delErr, count } = await admin

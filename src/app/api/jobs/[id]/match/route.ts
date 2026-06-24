@@ -92,7 +92,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   await admin.from("jobs")
-    .update({ match_status: "matching", updated_at: new Date().toISOString() })
+    .update({
+      match_status: "matching",
+      updated_at: new Date().toISOString(),
+      // Clear progression d'un éventuel run précédent — sera resettée
+      // une fois le pool calculé ci-dessous.
+      match_progress_total: null,
+      match_progress_scored: null,
+    })
     .eq("id", job.id)
 
   try {
@@ -107,7 +114,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     if (candidates.length === 0) {
       await admin.from("jobs").update({
-        match_status: "done", matched_at: new Date().toISOString(),
+        match_status: "done",
+        matched_at: new Date().toISOString(),
+        match_progress_total: null,
+        match_progress_scored: null,
       }).eq("id", job.id)
       return NextResponse.json({ ok: true, scored: 0, prefiltered_out: 0, total: 0 })
     }
@@ -117,6 +127,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const hits = prefilterCandidates(normalized, candidates)
     const pool = hits.slice(0, MAX_SCORED_PER_RUN).map((h) => h.candidate)
     const prefilteredOut = candidates.length - hits.length
+
+    // Stamp la taille du pool : la barre UI calcule pct = scored/total.
+    await admin.from("jobs").update({
+      match_progress_total: pool.length,
+      match_progress_scored: 0,
+    }).eq("id", job.id)
 
     // 3. Score in batches AND persist progressively. If the Vercel runtime
     //    is killed mid-flight (timeout, OOM, deploy), every batch that has
@@ -183,15 +199,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         console.error("[match] batch persist failed:", (err as Error).message)
       }
 
-      // Mark the job as "done" after every persisted batch instead of only
-      // at the end. If the runtime is killed mid-flight by a Vercel timeout,
-      // the UI still sees a coherent "done" status with the partial results
-      // already in DB. The user can re-launch to score the remaining pool.
-      // (Without this, match_status stays at "matching" forever even though
-      // results are visible — exactly what bit us on Consultant Devops.)
+      // Avance le compteur de progression — sert à animer la barre UI.
+      // On garde match_status = "matching" tant que la boucle tourne ; le
+      // filet anti-timeout c'est le STALE_MATCHING_AFTER_MS (75 s) côté
+      // route + le bouton "Forcer la relance" côté UI.
       await admin.from("jobs").update({
-        match_status: "done",
-        matched_at: new Date().toISOString(),
+        match_progress_scored: Math.min(i + batch.length, pool.length),
+        updated_at: new Date().toISOString(),
       }).eq("id", job.id)
     }
 
@@ -215,6 +229,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     await admin.from("jobs").update({
       match_status: "done",
       matched_at: new Date().toISOString(),
+      match_progress_total: null,
+      match_progress_scored: null,
     }).eq("id", job.id)
 
     return NextResponse.json({
@@ -225,7 +241,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       capped: hits.length > MAX_SCORED_PER_RUN,
     })
   } catch (err) {
-    await admin.from("jobs").update({ match_status: "error" }).eq("id", job.id)
+    await admin.from("jobs").update({
+      match_status: "error",
+      match_progress_total: null,
+      match_progress_scored: null,
+    }).eq("id", job.id)
     return NextResponse.json(
       { error: "match_failed", detail: (err as Error).message },
       { status: 500 },

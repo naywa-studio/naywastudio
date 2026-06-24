@@ -6,8 +6,7 @@
  * Accessible à tout user connecté (owner ou member). Permet :
  *   - modifier son prénom,
  *   - voir son email (lecture seule, dérivé de l'auth),
- *   - voir son cabinet (nom + rôle),
- *   - gérer sa connexion Calendly (connecter / déconnecter),
+ *   - voir son organisation (nom + rôle),
  *   - se déconnecter.
  *
  * Auth gate : src/proxy.ts redirige les non-connectés vers /login.

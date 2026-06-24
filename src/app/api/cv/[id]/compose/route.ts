@@ -88,9 +88,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
   }
 
-  // Recruiter first name for the sign-off. Calendly booking link is
-  // intentionally NOT pulled here — the calendar / visio feature is parked
-  // and we don't want the LLM to surface a booking CTA in the outreach.
+  // Recruiter first name for the sign-off.
   const { data: profile } = await sb
     .from("profiles")
     .select("first_name")

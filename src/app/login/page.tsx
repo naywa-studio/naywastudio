@@ -76,11 +76,11 @@ function LoginInner() {
         email,
         password,
         options: {
-          // New signups land on /cabinet — no sourcing seat yet, the owner
+          // New signups land on /organisation — no sourcing seat yet, the owner
           // must choose to allocate one (or invite a colleague to use it).
-          emailRedirectTo: `${window.location.origin}/cabinet`,
+          emailRedirectTo: `${window.location.origin}/organisation`,
           // Picked up by handle_new_auth_user() and used to seed the
-          // profile's first_name + the "Cabinet de {prénom}" org name.
+          // profile's first_name + the "Organisation de {prénom}" org name.
           data: trimmedFirstName ? { first_name: trimmedFirstName } : undefined,
         },
       })
