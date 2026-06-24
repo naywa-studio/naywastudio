@@ -21,6 +21,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "./database.types"
 import { getQuotas } from "./quota-tiers"
+import { isAdmin } from "./admin"
 
 // ─── Niveau 1 : Per-user per-day ──────────────────────────────────────
 
@@ -158,6 +159,33 @@ export async function consumeOrgLlmAction(
     .eq("id", orgId)
 
   return { ok: true, used: currentUsed + 1, limit: quota.llmMonthly }
+}
+
+/**
+ * Wrapper "user-friendly" autour de consumeOrgLlmAction : résout
+ * l'org_id depuis le user_id + détecte l'admin, en 1 appel.
+ *
+ * À utiliser dans les routes API LLM, juste après le check getUser()
+ * et le consumeQuota daily, pour ne pas dupliquer 3 lookups par route.
+ *
+ * Si l'user n'a pas d'organization_id, on laisse passer (ok:true) —
+ * c'est un cas dégénéré qui ne devrait pas arriver en prod, on fail
+ * ouvert plutôt que de bloquer.
+ */
+export async function consumeOrgLlmActionForUser(
+  admin: SupabaseClient<Database>,
+  userId: string,
+): Promise<OrgLlmQuotaResult> {
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("organization_id")
+    .eq("user_id", userId)
+    .maybeSingle()
+  if (!profile?.organization_id) {
+    return { ok: true, used: 0, limit: 0, code: "no_org" }
+  }
+  const adminFlag = await isAdmin(userId)
+  return consumeOrgLlmAction(admin, profile.organization_id, { isAdmin: adminFlag })
 }
 
 // ─── Niveau 3 : Per-org storage ───────────────────────────────────────

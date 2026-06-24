@@ -25,7 +25,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { consumeQuota } from "@/lib/quota"
+import { consumeQuota, consumeOrgLlmActionForUser } from "@/lib/quota"
 import { openrouterChat } from "@/lib/openrouter"
 import { getCabinetOrgId } from "@/lib/cabinet-config"
 import type { Candidate, ClusterAssignment } from "@/lib/database.types"
@@ -158,6 +158,10 @@ export async function POST(req: NextRequest) {
   const quota = await consumeQuota(getAdminSupabase(), user.id, "assistant")
   if (!quota.ok) {
     return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
+  }
+  const orgLlm = await consumeOrgLlmActionForUser(getAdminSupabase(), user.id)
+  if (!orgLlm.ok) {
+    return NextResponse.json({ error: orgLlm.code ?? "llm_quota_exceeded", message: orgLlm.message }, { status: 429 })
   }
 
   // 2) Charger les candidats de l'org (RLS org-scoped).

@@ -31,31 +31,34 @@ export interface Quotas {
  * Grille par lookup_key Stripe. Les clés correspondent à
  * sourcing_1..4 et sourcing_pro_1..4 (cf. lib/stripe.ts).
  *
- * Logique :
- *   - 1 GB de stockage par siège (Std) — couvre ~2 000 CVs/siège,
- *     soit environ 2 ans d'historique pour un sourceur actif
- *   - 1.5 GB / siège pour la variante Pro (vivier souvent plus riche)
- *   - +2 300 crédits LLM par siège supplémentaire (Std) ou +3 000 (Pro)
- *   - 1er siège plus généreux côté crédits : 1 700 (Std) / 2 200 (Pro)
+ * Stockage :
+ *   - 1 GB / siège (Std) — couvre ~2 000 CVs/siège, soit environ 2 ans
+ *     d'historique pour un sourceur actif
+ *   - 1.5 GB / siège (Pro) — viviers souvent plus riches
+ *
+ * Crédits IA : généreux car le coût OpenRouter (gpt-4o-mini) est
+ * dérisoire à notre échelle (~$0.001 par action). Marge largement
+ * préservée même au plein usage. Les valeurs sont rondes (pas dérivées
+ * par seat) pour être lisibles côté marketing/contrat.
  */
 export const QUOTAS_BY_PLAN: Record<string, { storageBytes: number; llmMonthly: number }> = {
-  sourcing_1:     { storageBytes: 1   * GB, llmMonthly:  1_700 },
-  sourcing_2:     { storageBytes: 2   * GB, llmMonthly:  4_000 },
-  sourcing_3:     { storageBytes: 3   * GB, llmMonthly:  6_300 },
-  sourcing_4:     { storageBytes: 4   * GB, llmMonthly:  8_600 },
-  sourcing_pro_1: { storageBytes: 1.5 * GB, llmMonthly:  2_200 },
-  sourcing_pro_2: { storageBytes: 3   * GB, llmMonthly:  5_200 },
-  sourcing_pro_3: { storageBytes: 4.5 * GB, llmMonthly:  8_200 },
-  sourcing_pro_4: { storageBytes: 6   * GB, llmMonthly: 11_200 },
+  sourcing_1:     { storageBytes: 1   * GB, llmMonthly:  3_500 },
+  sourcing_2:     { storageBytes: 2   * GB, llmMonthly:  8_000 },
+  sourcing_3:     { storageBytes: 3   * GB, llmMonthly: 12_500 },
+  sourcing_4:     { storageBytes: 4   * GB, llmMonthly: 17_000 },
+  sourcing_pro_1: { storageBytes: 1.5 * GB, llmMonthly:  4_500 },
+  sourcing_pro_2: { storageBytes: 3   * GB, llmMonthly: 10_500 },
+  sourcing_pro_3: { storageBytes: 4.5 * GB, llmMonthly: 16_500 },
+  sourcing_pro_4: { storageBytes: 6   * GB, llmMonthly: 22_500 },
 }
 
 /**
- * Quota appliqué pendant l'essai 15j. Volontairement serré côté
- * stockage (500 MB ~ 1000 CVs ≈ assez pour tester sérieusement) mais
- * généreux côté crédits IA — les prospects doivent pouvoir essayer
- * tout l'éventail de fonctionnalités IA pour évaluer la valeur.
+ * Quota appliqué pendant l'essai 15j. Stockage serré (500 MB suffit
+ * pour tester sérieusement) mais crédits IA très généreux — les
+ * prospects doivent pouvoir essayer tout l'éventail des fonctionnalités
+ * IA sans frustration pour évaluer la valeur.
  */
-const TRIAL_QUOTAS = { storageBytes: 500 * 1024 * 1024, llmMonthly: 1_700 }
+const TRIAL_QUOTAS = { storageBytes: 500 * 1024 * 1024, llmMonthly: 3_500 }
 
 /**
  * Quotas "infinis" pour les comptes admin Naywa. On retourne une valeur

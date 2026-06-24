@@ -20,7 +20,7 @@ import {
   missionTagFor,
   withMissionTag,
 } from "@/lib/matching"
-import { consumeQuota } from "@/lib/quota"
+import { consumeQuota, consumeOrgLlmActionForUser } from "@/lib/quota"
 import { CANDIDATE_COLUMNS, type Candidate, type Job, type Database } from "@/lib/database.types"
 
 type MatchInsert = Database["public"]["Tables"]["match_assessments"]["Insert"]
@@ -54,6 +54,10 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   const quota = await consumeQuota(admin, user.id, "match")
   if (!quota.ok) {
     return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
+  }
+  const orgLlm = await consumeOrgLlmActionForUser(admin, user.id)
+  if (!orgLlm.ok) {
+    return NextResponse.json({ error: orgLlm.code ?? "llm_quota_exceeded", message: orgLlm.message }, { status: 429 })
   }
 
   let scored = 0
