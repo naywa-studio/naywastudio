@@ -4,6 +4,8 @@
 > Solutions). Plus en beta privée. Stripe **branché en LIVE**. Produit phare =
 > **Nora**, l'assistante IA du workspace. Un seul package commercial : **Package
 > Sourcing** (+ variante **Sourcing Pro** qui ajoute la Suite Pricing Syntec).
+> Stockage CV sur **Cloudflare R2** (depuis PR3). Système de **quotas mensuels
+> dérivés du plan** (stockage + crédits IA) avec **override admin custom**.
 
 ---
 
@@ -32,14 +34,16 @@
 ## 2. Stack
 
 - **Next.js 16** App Router + TypeScript strict — Vercel (région `cdg1`)
-- **Supabase** — Auth (email/mdp + Google OAuth), Postgres + RLS org-scopée, Storage
+- **Supabase** — Auth (email/mdp + Google OAuth), Postgres + RLS org-scopée, Storage **(logos uniquement post-PR3)**
+- **Cloudflare R2** — Stockage CV + PDF anonymisés via S3-compatible API (10 GB gratuits, $0.015/GB ensuite, **egress gratuit**). 2 buckets : `naywa-cv`, `naywa-logos` (créé mais inutilisé V1).
+- **@aws-sdk/client-s3** + **@aws-sdk/s3-request-presigner** — client R2
 - **Stripe** — Checkout + Customer Portal + webhooks (LIVE mode)
 - **Resend** — SMTP auth (via Supabase) + envois applicatifs sur `mail.naywastudio.com`
 - **OpenRouter** — LLM (`gpt-4o-mini`) + OCR plugin `mistral-ocr`
 - **unpdf** — extraction texte PDF serverless
 - **@react-pdf/renderer** — PDF anonymisé candidat + fiche pricing
 - **docx** — export Word du CV anonymisé
-- **Sentry** — error tracking (server + client + edge)
+- **Sentry** — error tracking (server + client + edge). Tag `SENTRY_ENVIRONMENT=production` en prod.
 - **svix** — vérification signature webhooks Resend
 - **framer-motion** — animations (`LazyMotion` + `domAnimation`, import via `m`)
 
@@ -60,9 +64,11 @@ npx tsc --noEmit
 - `/dpa-naywa-v1.pdf` (PDF servi statique, contenu v1.1, section rôle admin)
 
 ### Auth (public)
-- `/login` — connexion + signup (toggle `?mode=signup`, message `?expired=1`)
+- `/login` — connexion + signup (toggle `?mode=signup`, message `?expired=1`). Lien "Mot de passe oublié ?" en mode login.
 - `/auth/callback` — callback OAuth Google
 - `/accept-invite?token=…` — flow d'invitation autonome (4 états)
+- `/forgot-password` — saisie email + `supabase.auth.resetPasswordForEmail()` → Resend
+- `/reset-password` — atterrissage du lien magique, saisie nouveau MDP via `updateUser()`
 
 ### Onboarding (`/onboarding`, owner uniquement)
 4 étapes : **Nom cabinet → Branding (logo + couleurs + slogan + contact) → Invitations → Trial 15 j**. Redirige depuis `/organisation/*` tant que `cabinet_onboarded_at` est NULL.
@@ -70,7 +76,7 @@ npx tsc --noEmit
 ### Console organisation `/organisation` (protégée par `proxy.ts`)
 3 onglets dans une page unique :
 - **Onglet org** (par défaut, libellé = nom de l'org) : Identité (read-only) | Membres | Branding pleine largeur
-- **Onglet "Mes packages"** : siège owner + abonnement Stripe + Politique pricing pliable
+- **Onglet "Mes packages"** : layout 2 colonnes — gauche (siège + abonnement + politique pricing pliable), droite sticky (`<QuotaGauges />` : barres stockage + crédits IA avec %)
 - **Onglet Sécurité** : zone de danger (suppression cabinet) + export RGPD
 
 Sous-pages : `/organisation/parametrage` (politique pricing détaillée, lecture member).
@@ -87,12 +93,12 @@ Gate : exige `has_sourcing_seat` (sauf admins). Owner sans siège → bounce `/o
 
 ### Console admin `/admin/*` (protégée par `proxy.ts` + `requireAdmin()`)
 - `/admin` — dashboard 6 KPIs (cabinets, users, sièges, candidats parsés, trials, MRR)
-- `/admin/maj` — CRUD nouveautés (modale title + body markdown + catégorie, preview live)
-- `/admin/recherche` — recherche email/prénom, table résultats + audit log auto
+- `/admin/maj` — CRUD nouveautés (modale title + body markdown enrichi + catégorie + multi-select `affected_paths` + preview live)
+- `/admin/recherche` — recherche email/prénom, table résultats + **colonne "Quota" avec bouton "Custom"** pour set/clear `quota_override_json` (audit log auto)
 - `/admin/demandes` — file des demandes de modification branding, regroupées par batch
 
 ### Nouveautés `/nouveautes` (auth)
-Page changelog produit accessible depuis sidebar workspace + menu profil organisation. Pastille violette sidebar quand non-lues. Card sobre sous le hero workspace + sous les tabs organisation. Mark-read auto à l'ouverture.
+Page changelog produit accessible depuis sidebar workspace + menu profil organisation. **Onglets par zone impactée** (Tout / Général / Vivier / Pricing / etc.) + **cards repliables** (toutes fermées par défaut, click pour expand). Pastille violette sidebar workspace via `<NavUnreadDot href={...}/>` quand non-lue concerne la zone. Card sobre sous le hero workspace + sous les tabs organisation. Mark-read auto à l'ouverture.
 
 ---
 
@@ -116,16 +122,19 @@ Page changelog produit accessible depuis sidebar workspace + menu profil organis
 | `POST /api/support` | Auth — bouton support workspace/organisation. Email/org/URL/UA auto-attachés. Subject `[Support · {topic}] {prénom} — {org}` |
 | `GET /api/cron/wipe-expired-orgs` | Cron 3h UTC — wipe orgs `pending_deletion_at <= now()` |
 | `GET /api/cron/wipe-lockdown-data` | Cron 3h UTC — wipe orgs en lockdown depuis > 15 j (sub canceled) |
+| `GET /api/cron/recompute-storage` | Cron 2h UTC — recalcule `storage_used_bytes` par org en listant R2 |
+| `GET /api/cron/reset-llm-quota` | Cron mensuel le 1er 00:05 UTC — reset `llm_actions_this_month` à 0 |
+| `GET /api/cron/migrate-cv-to-r2` | Cron 4h UTC — migre les CV résiduels Supabase Storage → R2 par batch de 200, idempotent |
 
 ### Vivier + parsing
 | Route | Rôle |
 |---|---|
-| `POST /api/cv/upload` | Upload PDF + insert candidate |
-| `POST /api/cv/[id]/parse` | unpdf → OpenRouter → `parsed_cv` + `taxonomy` |
-| `POST /api/cv/[id]/anonymize` | PDF anonymisé (brand cabinet, 4 templates : classic/two-column/executive/bento, watermark optionnel) |
+| `POST /api/cv/upload` | Upload PDF (R2 `{org_id}/{cand_id}/...`) + check 3 quotas (daily, storage org, LLM org) + insert candidate |
+| `POST /api/cv/[id]/parse` | R2 download (avec lazy migration si fichier encore sur Supabase) → unpdf → OpenRouter → `parsed_cv` + `taxonomy` |
+| `POST /api/cv/[id]/anonymize` | PDF anonymisé (R2, 4 templates : classic/two-column/executive/bento, watermark optionnel) + consomme crédit LLM org |
 | `POST /api/cv/[id]/anonymize/docx` | Word éditable (format linéaire indépendant des templates) |
 | `POST /api/cv/[id]/compose` + `/send` | Brouillon outreach + envoi Resend |
-| `GET /api/cv/[id]/signed-url` + `DELETE` | URL temporaire + suppression cascade |
+| `GET /api/cv/[id]/signed-url` + `DELETE` | URL temporaire R2 (avec lazy migration fallback) + suppression cascade R2 + décrément `storage_used_bytes` |
 | `POST /api/vivier/cluster` | Clustering org-scoped avec **manifestes** (vivier vivant) |
 | `POST /api/candidates/dedup` + `[id]/match-all` | Doublons + matching toutes missions |
 | `POST /api/assistant` | Chat Nora |
@@ -158,6 +167,9 @@ Page changelog produit accessible depuis sidebar workspace + menu profil organis
 | `GET /api/admin/branding-requests` | Liste demandes regroupées par batch. **Pas de join Supabase sur requested_by** (FK → auth.users, l'auto-discovery plante). Hydratation manuelle profiles + emails en parallèle |
 | `POST /api/admin/branding-requests/[id]` | Approve/Reject (par change row, pas par batch). Mail Resend au requester. Si reject + field=logo : supprime fichier pending du Storage |
 | `GET /api/admin/branding-logo-url?path=` | Signed URL 1h pour previews dans `/admin/demandes` |
+| `POST /api/admin/quota-override` | Set/clear `quota_override_json` d'une org. Audit log auto. |
+| `POST /api/admin/migrate-cv-to-r2` | Migration batch manuelle (dry_run + limit). Inutile en pratique : cron + lazy migration s'en chargent. |
+| `GET /api/quota` | Auth — retourne stockage + crédits IA used/limit + plan label. Source des jauges UI. |
 
 ### Nouveautés (auth)
 | Route | Rôle |
@@ -184,13 +196,17 @@ Page changelog produit accessible depuis sidebar workspace + menu profil organis
 | `trial.ts` | `trialStatus()` + `TRIAL_DURATION_DAYS=15` + `TRIAL_SEAT_CAP=2` |
 | `stripe.ts` / `stripe-emails.ts` | `getStripe()`, `PLAN_PRICES_EUR`, `lookupKey()`, mails Resend post-checkout |
 | `post-login-destination.ts` | `resolvePostLoginDestination()` — owner sans onboarding → `/onboarding`, owner sans siège → `/organisation`, sinon `/workspace`. Whitelist `?next=` |
-| `markdown.ts` | Parser markdown maison (gras, italique, listes, liens https/mailto, code inline). Anti-XSS : escape HTML d'abord |
+| `markdown.ts` | Parser markdown maison **enrichi** (PR2) : gras, italique, listes, liens, code, **callouts `:::tip/info/warning/success`**, **CTA `:::cta /path\|Label:::`**, **titres `##` stylisés**, **pastilles inline `[NOUVEAU]/[FIX]/...`**. Anti-XSS : escape HTML d'abord. |
+| `r2-storage.ts` | Wrapper Cloudflare R2 (S3-compatible) : `r2Upload`, `r2SignedUrl`, `r2Download`, `r2Delete`, `r2GetSize`, `r2SumSizeByPrefix`. `assertOrgScopedPath()` filet sécu (path doit commencer par `{org_id}/`). |
+| `lazy-migrate-cv.ts` | Helper qui migre un fichier Supabase Storage → R2 au moment d'un read (signed-url, parse). Idempotent + best-effort (fallback Supabase si échec). |
+| `quota-tiers.ts` | `QUOTAS_BY_PLAN` (sourcing_1..4 + sourcing_pro_1..4) + `getQuotas(org, {isAdmin})` → résolution `admin > override > lockdown > plan > trial`. `formatBytes()`, `quotaPercent()`. |
+| `affected-paths.ts` | `AFFECTED_PATH_OPTIONS` (zones de l'app pour `app_updates.affected_paths`) + `sanitizeAffectedPaths()` (allowlist). |
 | `cv-parser.ts` | unpdf → LLM → `ParsedCv`. `is_apprentice` + `years_experience` post-diplôme |
 | `candidate-ref.ts` | `candidateRefLabel(id)` → `C-XXXXXXXX` |
 | `vivier-clusters.ts` | Helpers carte vivier |
 | `matching.ts` | `normalizeJob()` + score LLM |
 | `openrouter.ts` | Wrapper LLM (chat + json_object + plugins) |
-| `quota.ts` | `consumeQuota()` — obligatoire sur chaque route LLM |
+| `quota.ts` | **3 niveaux** (PR3+PR4) : `consumeQuota()` (daily user) + `consumeOrgLlmAction()` / `consumeOrgLlmActionForUser()` (mensuel org, sur les 10 routes LLM) + `checkStorageQuota()`/`incrementStorageUsed()`/`decrementStorageUsed()` (stockage R2). |
 | `resend.ts` | `sendEmail()`, `MAIL_DOMAIN`, `getInboundEmail()` |
 | `anonymized-cv.tsx` + `anonymized-cv-docx.ts` | PDF (4 templates) + DOCX |
 | `pricing-pdf.tsx` | PDF fiche pricing |
@@ -202,7 +218,9 @@ Page changelog produit accessible depuis sidebar workspace + menu profil organis
 - `components/trial/TrialBanner.tsx` (prop `isAdmin` pour bypass)
 - `components/workspace/LockdownBanner.tsx`, `MemberWaitingBanner.tsx`
 - `components/organisation/BrandColorPicker.tsx` (palette curated + extraction logo + bicolore)
-- `components/updates/UpdatesHeroCard.tsx` + `UpdatesNavItem.tsx` + `useUnreadUpdates.ts`
+- `components/updates/UpdatesHeroCard.tsx` + `UpdatesNavItem.tsx` (`UpdatesNavBadge` global + `NavUnreadDot href=...` par zone) + `useUnreadUpdates.ts` (retourne `{ unreadCount, latestTitle, unreadPaths: Set<string> }`)
+- `components/quota/QuotaGauges.tsx` (jauges stockage + crédits IA avec modale détail) + `QuotaWarningBanner.tsx` (banner workspace à 80%, rouge à 100%)
+- `components/ui/useEscapeKey.ts` (hook Échap → onClose, monté dans 7 modales du produit)
 - `components/support/SupportButton.tsx` (modale via `createPortal` — sort du stacking context sticky header)
 - `components/layout/PreviewBadge.tsx` (bottom-left, `VERCEL_ENV === "preview"`)
 
@@ -211,7 +229,7 @@ Page changelog produit accessible depuis sidebar workspace + menu profil organis
 ## 6. Schéma Supabase
 
 ### Tables principales
-- **`organizations`** — `name`, `owner_user_id`, `brand_name`, `brand_logo_path`, `brand_color`, `brand_color_secondary`, `brand_slogan`, `contact_email`, `branding_locked_at`, `seats_total`, `pending_deletion_at`, `trial_ends_at`, `cabinet_onboarded_at`, `pricing_*`, `stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `subscription_price_lookup`, `subscription_seats`, `subscription_has_pricing`, `current_period_end`, `lockdown_started_at`, `package_sourcing_onboarded_at`, `pricing_onboarded_at`
+- **`organizations`** — `name`, `owner_user_id`, `brand_name`, `brand_logo_path`, `brand_color`, `brand_color_secondary`, `brand_slogan`, `contact_email`, `branding_locked_at`, `seats_total`, `pending_deletion_at`, `trial_ends_at`, `cabinet_onboarded_at`, `pricing_*`, `stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `subscription_price_lookup`, `subscription_seats`, `subscription_has_pricing`, `current_period_end`, `lockdown_started_at`, `package_sourcing_onboarded_at`, `pricing_onboarded_at`, **`storage_used_bytes`** (recalc cron), **`llm_actions_this_month`** + **`llm_period_start`** (reset cron mensuel + filet runtime), **`quota_override_json`** (`{storage_gb, llm_monthly}` ou NULL = quotas du plan)
 - **`profiles`** — `user_id` (FK auth.users CASCADE), `organization_id`, `role: 'owner'|'member'`, `has_sourcing_seat`, `is_admin`, `first_name`, `inbox_address`, `calendly_*`, `package_sourcing_onboarded_at`
 - **`org_invites`** — UUID token, expires 7 j, UNIQUE (org_id, email)
 - **`cluster_manifests`** — résumé "qui ressemble à ça" par zone ; UNIQUE (org_id, label)
@@ -231,8 +249,10 @@ Page changelog produit accessible depuis sidebar workspace + menu profil organis
 - `touch_app_updates_updated_at()` BEFORE UPDATE
 
 ### Storage
-- **`brand-logos`** — privé. RLS exige `{org_id}` comme 1er segment du path. Logos approuvés : `{org_id}/{ts}.ext`. Logos en cours de demande : `{org_id}/pending/{ts}.ext`
-- **`cv-uploads`** — privé, user-scopé `{user_id}/{candidate_id}/...`, accès via signed URLs admin-client
+- **Supabase `brand-logos`** — privé. RLS exige `{org_id}` comme 1er segment du path. Logos approuvés : `{org_id}/{ts}.ext`. Logos en cours de demande : `{org_id}/pending/{ts}.ext`
+- **Supabase `cv-uploads`** — **deprecated**, vidé progressivement par `cron/migrate-cv-to-r2` + lazy migration. Path legacy `{user_id}/{candidate_id}/...`. Routes ont un fallback automatique pour les fichiers restants.
+- **Cloudflare R2 `naywa-cv`** — actif. Path R2 = `{org_id}/{candidate_id}/{filename}`. PDFs candidats + anonymisés. Sécurité : pas de RLS, `assertOrgScopedPath()` vérifie le path en code avant chaque op.
+- **Cloudflare R2 `naywa-logos`** — créé mais inutilisé V1 (logos restent sur Supabase, taille négligeable).
 
 ### Migrations clés
 | # | Apport |
@@ -259,6 +279,8 @@ Page changelog produit accessible depuis sidebar workspace + menu profil organis
 | 045 | `organizations.branding_locked_at` + backfill `cabinet_onboarded_at + 24h` |
 | 046 | `branding_change_requests` |
 | 047 | `branding_change_requests.request_batch_id` (regroupement multi-champs) |
+| 048 | `app_updates.affected_paths text[]` (zones impactées par une nouveauté) |
+| 049 | `organizations.storage_used_bytes`, `llm_actions_this_month`, `llm_period_start`, `quota_override_json` |
 
 ---
 
@@ -319,9 +341,11 @@ Toute consultation admin (search, view fiche, list demandes, approve/reject, pub
 
 - **Catégories** : `feature` (vert), `fix` (bleu), `important` (orange), `announce` (violet)
 - **Brouillon vs publié** : `published_at` NULL = brouillon. `<= now()` = visible. `> now()` = planifié auto-publish.
-- **Rendu** : `lib/markdown.ts` (parser maison anti-XSS). Pas d'images V1.
-- **Hook `useUnreadUpdates`** : poll 60s, retourne `{ unreadCount, latestTitle, loading }`
-- **Pastille violette** (`UpdatesNavBadge`) : sidebar workspace + menu profil organisation
+- **Markdown enrichi** (PR2) : callouts `:::tip/info/warning/success`, CTA `:::cta /path|Label:::`, titres `##` stylisés (barre violette + sparkle), pastilles `[NOUVEAU]/[FIX]/[AMÉLIORATION]/[ATTENTION]/[BETA]`.
+- **Affected paths** (PR2) : colonne `app_updates.affected_paths text[]`. L'admin coche les zones impactées dans `/admin/maj`. Le hook `useUnreadUpdates` retourne `unreadPaths: Set<string>` agrégé pour afficher des pastilles ciblées via `<NavUnreadDot href={t.href}/>` sur la sidebar workspace.
+- **Layout `/nouveautes`** : onglets par zone (Tout + Général + une tab par zone présente dans la liste) + cards repliables (toutes fermées par défaut, click pour expand).
+- **Hook `useUnreadUpdates`** : poll 60s → `{ unreadCount, latestTitle, unreadPaths, loading }`
+- **Pastille violette globale** (`UpdatesNavBadge`) : sidebar workspace + menu profil organisation
 - **Card hero** (`UpdatesHeroCard`) : sous le hero `/workspace` + sous tabs `/organisation`, disparaît si tout est lu
 - **Mark-read auto** au mount de `/nouveautes`
 
@@ -343,6 +367,61 @@ Toute consultation admin (search, view fiche, list demandes, approve/reject, pub
 
 ### Backfill
 Migration 045 a stampé `branding_locked_at = cabinet_onboarded_at + 24h` pour toutes les orgs existantes. Les comptes onboardés > 24h sont immédiatement verrouillés.
+
+---
+
+## 10bis. Stockage R2 + Système de quotas
+
+### Buckets R2
+- `naywa-cv` (actif) — PDFs candidats + anonymisés. Path = `{org_id}/{candidate_id}/{filename}`
+- `naywa-logos` (créé inutilisé V1) — logos restent sur Supabase Storage par souci de scope
+
+### Sécurité R2
+- **Pas de RLS** sur R2 → `assertOrgScopedPath(path, callerOrgId)` dans `lib/r2-storage.ts` vérifie que le premier segment du path est bien l'org du caller.
+- Tous les paths construits **server-side** avec `profile.organization_id`, jamais depuis le client.
+- Credentials env vars Vercel `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`.
+- TTL signed URL 1h max.
+
+### Migration Supabase Storage → R2 (transparente)
+- **Cron quotidien** `/api/cron/migrate-cv-to-r2` (04:00 UTC) : batch 200/jour, idempotent
+- **Lazy migration** dans `signed-url` + `parse` via `lib/lazy-migrate-cv.ts` : si le fichier est encore sur Supabase, on le migre à la volée AVANT de servir, fallback Supabase si échec
+- Le client ne fait rien, ne voit rien
+
+### Quotas — 3 niveaux (lib/quota.ts)
+1. **Daily par-user** (`consumeQuota` / `daily_usage` / RPC `bump_usage`) — filet anti-script
+2. **Mensuel par-org LLM** (`consumeOrgLlmActionForUser` / `organizations.llm_actions_this_month`) — appelé sur les **10 routes LLM** (PR4) : upload, anonymize, critique, compose, jobs/extract, jobs/match, jobs/chat, candidates/match-all, vivier/cluster, assistant, pricing/compare
+3. **Stockage R2 par-org** (`checkStorageQuota` + `incrementStorageUsed` + `decrementStorageUsed`) — hard cap à l'upload, recalcul nightly
+
+### Grille (lib/quota-tiers.ts — source unique)
+| Plan | Stockage | Crédits IA / mois |
+|---|---|---|
+| **Trial 15j** | 500 MB | 3 500 |
+| Sourcing 1 siège | 1 GB | 3 500 |
+| Sourcing 2 sièges | 2 GB | 8 000 |
+| Sourcing 3 sièges | 3 GB | 12 500 |
+| Sourcing 4 sièges | 4 GB | 17 000 |
+| Pro 1 siège | 1.5 GB | 4 500 |
+| Pro 2 sièges | 3 GB | 10 500 |
+| Pro 3 sièges | 4.5 GB | 16 500 |
+| Pro 4 sièges | 6 GB | 22 500 |
+
+Coût Naywa worst case (Std 4 sièges plein) ≈ 17 €/mois sur 119 € CA. Marge ~100 €.
+
+### Résolution quota — `getQuotas(org, {isAdmin})`
+Ordre de priorité : **admin Naywa (infini)** > **override custom (`quota_override_json`)** > **lockdown (0)** > **plan actif Stripe** > **trial 15j** > **aucun accès (0)**.
+
+### Affichage utilisateur
+- **`/organisation` onglet "Mes packages"** : `<QuotaGauges />` en colonne droite sticky. Barres vertes 0-70 %, ambrées 70-90 %, rouges 90-100 %. Format compact (% en gros, valeur absolue toujours, "/limit" seulement >70%). Modale "Voir détail" avec CTA "contactez-nous" pour extensions.
+- **Workspace layout** : `<QuotaWarningBanner />` discret apparaît à 80 %, vire rouge à 100 %.
+- **`/tarifs`** + **modale `PlanPickerModal`** dans `/organisation` : affichent quotas inclus dynamiquement par sièges (source `QUOTAS_BY_PLAN`).
+
+### Override admin custom
+Bouton "Custom" dans `/admin/recherche` → modale → set/clear `organizations.quota_override_json = {storage_gb, llm_monthly}`. Audit log auto. V1 facturation manuelle hors-Stripe (Stripe metered billing reporté V2).
+
+### Crons
+- `recompute-storage` (02:00 UTC) — somme R2 ListObjects par org → update `storage_used_bytes`
+- `reset-llm-quota` (1er du mois 00:05 UTC) — reset `llm_actions_this_month` à 0. Filet runtime : `consumeOrgLlmAction` reset à la volée si décalage `llm_period_start`.
+- `migrate-cv-to-r2` (04:00 UTC) — batch 200, idempotent
 
 ---
 
@@ -423,14 +502,26 @@ CRON_SECRET               # openssl rand -hex 32
 STRIPE_SECRET_KEY         # LIVE
 STRIPE_WEBHOOK_SECRET     # whsec_…
 SENTRY_AUTH_TOKEN
+SENTRY_ENVIRONMENT        # "production" en prod (à set Production scope uniquement)
 CALENDLY_CLIENT_ID + CALENDLY_CLIENT_SECRET + CALENDLY_WEBHOOK_SIGNING_KEY
+R2_ACCESS_KEY_ID          # Cloudflare R2 API token
+R2_SECRET_ACCESS_KEY
+R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 ```
 
 ### Configuration externe
 - **Supabase Auth → SMTP** : Resend (smtp.resend.com:465, user `resend`, sender `contact@mail.naywastudio.com`)
 - **Supabase Auth → Templates** : 4 templates HTML brandés Naywa (Confirm signup, Invite, Reset, Magic Link)
-- **Supabase Auth → Redirect URLs** allowlist : `/workspace`, `/organisation`, `/onboarding`, `/auth/callback`, `/admin`, `/nouveautes`
-- **Vercel** : Region `cdg1`, crons dans `vercel.json` (wipe-expired-orgs + wipe-lockdown-data à 3h UTC), headers sécurité (X-Frame-Options DENY, etc.)
+- **Supabase Auth → Redirect URLs** allowlist : `/workspace`, `/organisation`, `/onboarding`, `/auth/callback`, `/admin`, `/nouveautes`, **`/reset-password`** (pour le flow MDP oublié)
+- **Cloudflare R2** : compte activé, buckets `naywa-cv` + `naywa-logos`. API token avec Object Read & Write sur les 2 buckets.
+- **Vercel** : Region `cdg1`. 5 crons dans `vercel.json` :
+  - `wipe-expired-orgs` 3h UTC
+  - `wipe-lockdown-data` 3h30 UTC
+  - `recompute-storage` 2h UTC
+  - `reset-llm-quota` 1er du mois 00:05 UTC
+  - `migrate-cv-to-r2` 4h UTC
+  Headers sécurité (X-Frame-Options DENY, etc.).
+- **Sentry** : 3 alert rules actives (Nouvelle erreur, Erreur récurrente 10+ events 60min throttle, Taux d'erreur élevé 20/10min). Destinataire = `elyas.malki@naywastudio.com`. **À faire un jour** : restreindre les rules à env `production` une fois ce dernier visible dans Sentry après premier deploy avec `SENTRY_ENVIRONMENT` set.
 
 ---
 
@@ -448,9 +539,13 @@ CALENDLY_CLIENT_ID + CALENDLY_CLIENT_SECRET + CALENDLY_WEBHOOK_SIGNING_KEY
 - Routes admin : **première ligne = `requireAdmin()`**, return du response 401/403 tel quel
 - `getAdminSupabase()` **server-only** — jamais exposé client
 - PATCH : **field-allowlist** (pas de spread `...body`)
-- Quota LLM : `consumeQuota()` obligatoire sur chaque route LLM
+- Quotas LLM : `consumeQuota()` daily + **`consumeOrgLlmActionForUser()` mensuel org** obligatoires sur chaque route LLM (PR4)
+- Quota storage : `checkStorageQuota()` + `incrementStorageUsed()` sur chaque route qui écrit dans R2
 - `?next=` dans `/login` : whitelist racines via `sanitizeNext()` (anti open-redirect)
 - **Pas de jointure Supabase auto-discovery sur FK vers `auth.users`** (ex: `requested_by`) → plante silencieusement. Hydrater profiles + emails séparément en parallèle (cf. `/api/admin/branding-requests`).
+- **Paths R2 forgés server-side** avec `profile.organization_id`, jamais depuis le client. `assertOrgScopedPath()` en filet.
+- **`runtime = "nodejs"`** déclaré sur toutes les routes qui dépendent de Node (Stripe SDK, Resend, admin-supabase, pdf-renderer, docx, openrouter, R2 SDK)
+- **Modales** : `useEscapeKey(onClose)` monté dans chaque modale (raccourci clavier).
 
 ### Périmètre — ce que Naywa ne fait JAMAIS
 - Envoi mail à candidat sans clic d'approbation explicite du sourceur
@@ -526,6 +621,10 @@ CALENDLY_CLIENT_ID + CALENDLY_CLIENT_SECRET + CALENDLY_WEBHOOK_SIGNING_KEY
 ## 20. État des chantiers (juin 2026)
 
 ### ✅ Livré (récent)
+- **PR4 — Quota LLM mensuel sur toutes les routes** (pushé claude/llm-quota-all-routes, en attente merge) : `consumeOrgLlmActionForUser()` ajouté aux 10 routes LLM (upload, anonymize, critique, compose, match, match-all, extract, cluster, assistant, jobs/chat, pricing/compare). Grille crédits 2× plus généreuse : Sourcing 3500-17000 / Pro 4500-22500 / Trial 3500.
+- **PR3 — Stockage R2 + quotas** (mergé) : migration cv-uploads Supabase → Cloudflare R2 transparente (cron + lazy). Migration 049. 3 niveaux de quotas (daily user / mensuel org LLM / storage org). Override custom admin via `/admin/recherche`. Jauges `/organisation` + warning banner workspace. `/tarifs` et modale Stripe affichent quotas inclus dynamiquement.
+- **PR2 — Nouveautés stylisées** (mergé) : markdown enrichi (callouts, CTA, pastilles, titres). Migration 048 affected_paths. Pastilles violettes ciblées par item sidebar. Page `/nouveautes` avec onglets par zone + cards repliables.
+- **PR1 — Stabilité prod** (mergé) : 7 fixes (modale Échap, retry pricing, cooldown email, mot de passe oublié sur /login + /forgot-password + /reset-password, empty states CTA, runtime nodejs sur routes lourdes, standardisation erreurs API).
 - **Rôle admin Naywa** : migration 041, `requireAdmin()`, bypass paywall partout, console `/admin` (KPIs + recherche + audit + CRUD nouveautés + demandes)
 - **Système Nouveautés** : tables `app_updates` + `app_updates_reads`, pastille violette sidebar, card sous hero, page `/nouveautes`, mark-read auto
 - **Verrouillage anti-fraude branding** : migration 045 + 046 + 047, modale globale multi-champs, workflow demande/admin, mail Resend, statut visible côté owner sous chaque champ verrouillé
@@ -540,6 +639,11 @@ CALENDLY_CLIENT_ID + CALENDLY_CLIENT_SECRET + CALENDLY_WEBHOOK_SIGNING_KEY
 - **3 onglets `/organisation`** : Org (Identité+Branding+Membres) / Mes packages / Sécurité
 
 ### 🔜 À venir / déféré
+- **PR4 à merger** : `claude/llm-quota-all-routes` en attente validation Elyas + merge
+- **Self-service extras quotas (V2)** : aujourd'hui Elyas set manuellement `quota_override_json` via `/admin/recherche` quand un client demande plus. V2 = page `/organisation` "Augmenter mon quota" + Stripe metered billing (catalogue Produits "Extra Stockage 5 GB / 3 €", "Extra 2k crédits IA / 10 €"). À faire quand on a 2-3 demandes effectives.
+- **Email auto à 90 % quota** : le cron `recompute-storage` détecte les orgs en zone rouge et envoie un mail proactif. ~30 min.
+- **Tests unitaires** sur `getQuotas()` : admin / trial / lockdown / override / plan. ~1h.
+- **Sentry — restreindre alertes à env `production`** : après premier deploy avec `SENTRY_ENVIRONMENT=production`, éditer les 3 alert rules pour Environment = production seulement (évite bruit previews). Voir aussi : débloquer support.it limbo + ajouter comme 2ᵉ destinataire.
 - **Compte sandbox preview isolé** (Stripe TEST + Resend log-only + wipe complet) → branche `claude/preview-sandbox`. Elyas a dit pas besoin pour l'instant (il utilise l'iCloud admin)
 - **Inbox support `/admin/support`** : ingestion Resend Inbound + analyse IA + bouton "Répondre" → branche `claude/support-inbox`. Reporté V2
 - **Anonymisation EN du contenu CV** (cache `parsed_cv_translations`) → branche `claude/anonymize-translate-cv`. Bloqué par le besoin d'i18n du site d'abord
