@@ -15,6 +15,7 @@ import { renderToBuffer } from "@react-pdf/renderer"
 import { AnonymizedCv, type AnonymizedJobContext } from "@/lib/anonymized-cv"
 import type { Candidate } from "@/lib/database.types"
 import { openrouterChat } from "@/lib/openrouter"
+import { consumeOrgLlmActionForUser } from "@/lib/quota"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -28,6 +29,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+
+  // Anonymisation déclenche un appel LLM (résumé exécutif) — quota org mensuel.
+  const orgLlm = await consumeOrgLlmActionForUser(getAdminSupabase(), user.id)
+  if (!orgLlm.ok) {
+    return NextResponse.json({ error: orgLlm.code ?? "llm_quota_exceeded", message: orgLlm.message }, { status: 429 })
+  }
 
   // Body schema :
   //   job_id  : mission ciblée (oriente le résumé Nora)

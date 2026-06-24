@@ -13,6 +13,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { openrouterChat, safeJsonParse, type ORMessage } from "@/lib/openrouter"
+import { consumeOrgLlmActionForUser } from "@/lib/quota"
+import { getAdminSupabase } from "@/lib/admin-supabase"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -61,6 +63,11 @@ export async function POST(req: NextRequest) {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+
+  const orgLlm = await consumeOrgLlmActionForUser(getAdminSupabase(), user.id)
+  if (!orgLlm.ok) {
+    return NextResponse.json({ error: orgLlm.code ?? "llm_quota_exceeded", message: orgLlm.message }, { status: 429 })
+  }
 
   const body = await req.json().catch(() => null) as { messages?: unknown } | null
   const raw = Array.isArray(body?.messages) ? body!.messages : []
