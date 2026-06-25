@@ -1,14 +1,21 @@
 /**
  * GET /api/cron/reset-llm-quota
  *
- * Cron mensuel (Vercel, le 1er à 00:05 UTC). Reset les compteurs
- * `llm_actions_this_month` à 0 et bump `llm_period_start` au 1er
- * du mois courant pour toutes les orgs.
+ * Cron QUOTIDIEN (Vercel, 00:05 UTC). Pour chaque org abonnée dont le
+ * `llm_period_start` date d'il y a >= 30 jours, reset le compteur et
+ * avance la fenêtre par bonds de 30 j (au cas où le cron aurait raté
+ * plusieurs passages).
  *
- * Filet de sécurité : si ce cron rate un mois (downtime Vercel, etc.),
- * la fonction consumeOrgLlmAction() détecte le décalage llm_period_start
- * et reset à la volée. Ce cron sert juste à harmoniser tous les comptes
- * en début de mois pour les stats / dashboards.
+ * Modèle "anniversaire d'abonnement" : la période de renouvellement
+ * démarre au jour d'activation de l'abonnement (stamp posé par le
+ * webhook Stripe). Plus simple à expliquer au client que "le 1er du
+ * mois" — et conforme à la facturation Stripe qui suit le même cycle.
+ *
+ * Les essais gratuits ne sont JAMAIS resetés : ils ont un pot fixe de
+ * 1 700 crédits à consommer sur les 15 j (cf. lib/quota-tiers.ts).
+ *
+ * Filet runtime : si ce cron rate, lib/quota.ts détecte aussi le
+ * décalage et reset à la volée au prochain appel LLM.
  *
  * Auth : Bearer CRON_SECRET.
  */
@@ -19,6 +26,8 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+const RESET_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000
+
 export async function GET(req: NextRequest) {
   const secret = (process.env.CRON_SECRET ?? "").trim()
   const provided = req.headers.get("authorization") ?? ""
@@ -27,23 +36,48 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = getAdminSupabase()
+  const cutoff = new Date(Date.now() - RESET_INTERVAL_MS).toISOString()
 
-  const now = new Date()
-  const periodStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`
-
-  const { error, count } = await admin
+  // Cible les orgs abonnées (pas les essais — pot unique) dont la
+  // fenêtre courante est plus vieille que 30 j.
+  const { data: orgs, error: listErr } = await admin
     .from("organizations")
-    .update({
-      llm_actions_this_month: 0,
-      llm_period_start: periodStart,
-    }, { count: "exact" })
-    .lt("llm_period_start", periodStart)
+    .select("id, llm_period_start, subscription_status")
+    .in("subscription_status", ["active", "trialing"])
+    .lt("llm_period_start", cutoff)
     .is("pending_deletion_at", null)
 
-  if (error) {
-    console.error("[cron/reset-llm-quota] update error:", error.message)
+  if (listErr) {
+    console.error("[cron/reset-llm-quota] list error:", listErr.message)
     return NextResponse.json({ error: "db_error" }, { status: 500 })
   }
 
-  return NextResponse.json({ reset_count: count ?? 0, period_start: periodStart })
+  let resetCount = 0
+  for (const org of orgs ?? []) {
+    if (!org.llm_period_start) continue
+    const startMs = new Date(org.llm_period_start).getTime()
+    if (!Number.isFinite(startMs)) continue
+    // Avance par bonds de 30 j jusqu'à tomber sur une fenêtre couvrant
+    // maintenant (gère le cas où plusieurs passages ont sauté).
+    let next = startMs
+    while (Date.now() - next >= RESET_INTERVAL_MS) next += RESET_INTERVAL_MS
+    const { error: updErr } = await admin
+      .from("organizations")
+      .update({
+        llm_actions_this_month: 0,
+        llm_period_start: new Date(next).toISOString(),
+      })
+      .eq("id", org.id)
+    if (updErr) {
+      console.error("[cron/reset-llm-quota] update error:", org.id, updErr.message)
+      continue
+    }
+    resetCount += 1
+  }
+
+  return NextResponse.json({
+    ran_at: new Date().toISOString(),
+    candidates: orgs?.length ?? 0,
+    reset_count: resetCount,
+  })
 }

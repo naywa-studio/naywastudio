@@ -187,6 +187,17 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
     prev?.subscription_status === "active" ||
     prev?.subscription_status === "trialing"
   if (!wasActive && isActiveStatus) {
+    // Ancre le début de la 1ère période mensuelle de crédits IA à
+    // l'activation. Les renouvellements suivants se font tous les 30 j
+    // (cf. lib/quota.ts + cron reset-llm-quota). Reset aussi le compteur
+    // pour repartir propre depuis le trial (où il aurait pu accumuler).
+    await admin
+      .from("organizations")
+      .update({
+        llm_period_start: new Date().toISOString(),
+        llm_actions_this_month: 0,
+      })
+      .eq("id", orgId)
     await notifyOwnerWelcome(orgId, lookup, seats, hasPricing)
   }
   // Lockdown : mail aux membres (owner + invités) à la 1ère bascule.

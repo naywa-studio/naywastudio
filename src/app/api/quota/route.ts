@@ -53,6 +53,9 @@ export async function GET() {
       used: org.llm_actions_this_month ?? 0,
       limit: quotas.llmMonthly,
       period_start: org.llm_period_start,
+      // "month" = renouvellement tous les 30 j à l'anniversaire de l'abo
+      // "fixed" = pot unique sur la période d'essai (pas de reset)
+      period: quotas.period,
     },
     plan: {
       source: quotas.source,

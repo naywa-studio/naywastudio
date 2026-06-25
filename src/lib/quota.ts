@@ -1,15 +1,19 @@
 /**
- * Quotas — 2 niveaux complémentaires :
+ * Quotas — 3 niveaux complémentaires :
  *
  *   1. Per-user per-day (DAILY_LIMITS / consumeQuota) — filet anti-abus
- *      contre un script ou un user trop gourmand. Tabe daily_usage,
+ *      contre un script ou un user trop gourmand. Table daily_usage,
  *      atomique via RPC bump_usage.
  *
- *   2. Per-org per-month (consumeOrgLlmAction) — quota mensuel dérivé
- *      du plan (cf. quota-tiers.ts) + override custom. Compteur sur
- *      organizations.llm_actions_this_month, reset le 1er via cron.
- *      Filet de sécurité : si llm_period_start < mois courant on
- *      reset à la volée (au cas où le cron rate un mois).
+ *   2. Per-org per-period (consumeOrgLlmAction) — cap de crédits IA
+ *      dérivé du plan (cf. quota-tiers.ts) + override custom.
+ *      - Plans payants : reset tous les 30 j à l'anniversaire de
+ *        l'abonnement (`llm_period_start` stampé par le webhook Stripe
+ *        à l'activation, puis avancé par bonds de 30 j).
+ *      - Essai gratuit : POT UNIQUE de 1 700 crédits sur les 15 j,
+ *        pas de reset.
+ *      Filet de sécurité : si le cron quotidien rate un passage, le
+ *      reset se fait à la volée dans consumeOrgLlmAction.
  *
  *   3. Per-org storage (checkStorageQuota / incrementStorageUsed) —
  *      taille R2 utilisée, hard cap à l'upload. Recalcul nightly.
@@ -122,19 +126,7 @@ export async function consumeOrgLlmAction(
     return { ok: true, used: 0, limit: 0, code: "no_org" }
   }
 
-  // Reset à la volée si on est passés sur un nouveau mois et que le
-  // cron n'a pas encore tourné. On compare l'année-mois.
-  const now = new Date()
-  const currentMonthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`
-  let currentUsed = org.llm_actions_this_month ?? 0
-  if (org.llm_period_start && org.llm_period_start < currentMonthStart) {
-    currentUsed = 0
-    await admin.from("organizations")
-      .update({ llm_actions_this_month: 0, llm_period_start: currentMonthStart })
-      .eq("id", orgId)
-  }
-
-  // Récupère le quota dérivé du plan + override.
+  // Récupère le quota dérivé du plan + override + period.
   const quota = getQuotas(org as Parameters<typeof getQuotas>[0], { isAdmin: opts?.isAdmin })
 
   // Admin Naywa = pas de check (quota effectivement infini).
@@ -142,13 +134,42 @@ export async function consumeOrgLlmAction(
     return { ok: true, used: 0, limit: quota.llmMonthly }
   }
 
+  // ─── Reset à la volée pour les plans MENSUELS (anniversaire abo) ───
+  // Pour les plans payants, le quota se renouvelle tous les 30 j à partir
+  // de llm_period_start (stampé à l'activation de l'abonnement par le
+  // webhook Stripe). Si le cron quotidien rate son passage on rattrape ici.
+  //
+  // Pendant l'essai gratuit (period="fixed") on NE reset PAS : c'est un
+  // pot unique de N crédits à consommer sur les 15 j.
+  let currentUsed = org.llm_actions_this_month ?? 0
+  const RESET_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000
+  if (quota.period === "month" && org.llm_period_start) {
+    const periodStart = new Date(org.llm_period_start).getTime()
+    if (Number.isFinite(periodStart) && Date.now() - periodStart >= RESET_INTERVAL_MS) {
+      // Avance la fenêtre par bonds de 30 j jusqu'à ce qu'on tombe sur
+      // une période qui couvre maintenant (si plusieurs mois ont sauté).
+      let next = periodStart
+      while (Date.now() - next >= RESET_INTERVAL_MS) next += RESET_INTERVAL_MS
+      currentUsed = 0
+      await admin.from("organizations")
+        .update({
+          llm_actions_this_month: 0,
+          llm_period_start: new Date(next).toISOString(),
+        })
+        .eq("id", orgId)
+    }
+  }
+
   if (currentUsed >= quota.llmMonthly) {
+    const resetMsg = quota.period === "fixed"
+      ? "Crédits IA épuisés pour votre période d'essai. Souscrivez pour continuer."
+      : "Quota de crédits IA atteint pour la période courante. Repart au prochain renouvellement de votre abonnement ou contactez-nous pour une extension."
     return {
       ok: false,
       used: currentUsed,
       limit: quota.llmMonthly,
       code: "quota_exceeded",
-      message: `Quota de crédits IA atteint pour ce mois (${quota.llmMonthly} crédits / ${quota.label}). Repart au 1er du mois ou contactez-nous pour une extension.`,
+      message: `${resetMsg} (${quota.llmMonthly} crédits — ${quota.label}).`,
     }
   }
 
