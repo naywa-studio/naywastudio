@@ -33,12 +33,17 @@ type MatchInsert = Database["public"]["Tables"]["match_assessments"]["Insert"]
 export const runtime = "nodejs"
 export const maxDuration = 60
 
-// Hard ceiling per run so a huge vivier can't blow the 60s function budget
-// (≈ batches * 5-8s LLM call + DB writes). The pre-filter sorts by relevance
-// signal, so the best candidates are always covered first; the user can re-run.
-// 40 / MATCH_BATCH_SIZE(8) = 5 LLM round-trips, which leaves margin even when
-// OpenRouter is slow.
-const MAX_SCORED_PER_RUN = 40
+// Plafond très haut depuis PR 10 — les batches sont maintenant exécutés
+// en parallèle (cf. Promise.allSettled plus bas) avec un sémaphore qui
+// limite la concurrence à CONCURRENT_BATCHES. Pour un vivier de 250 CVs :
+// pré-filtre garde par ex. 80 candidats plausibles → 20 batches × 5 s
+// (avec concurrence 10) ≈ 10-15 s. Reste très en dessous des 60 s Vercel.
+//
+// Si le pré-filtre laisse passer un nombre énorme (vivier ouvert sans
+// must-have skills), on cap à 500 pour ne pas griller le budget LLM
+// d'un coup — l'user peut re-run pour les restants.
+const MAX_SCORED_PER_RUN = 500
+const CONCURRENT_BATCHES = 10
 
 /**
  * If a previous run was killed mid-flight by Vercel (timeout, OOM, deploy),
@@ -158,7 +163,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     let completedSoFar = 0
     const results: MatchResult[] = []
 
-    await Promise.allSettled(batches.map(async (batch) => {
+    // Pool de workers — chaque worker pioche dans la queue jusqu'à
+    // épuisement. CONCURRENT_BATCHES limite la pression simultanée sur
+    // OpenRouter (rate-limit-friendly) tout en gardant la latence basse.
+    const queue = [...batches]
+    const processOne = async (batch: Candidate[]) => {
       let scored: MatchResult[]
       try {
         scored = await scoreBatch(job as Job, batch)
@@ -218,7 +227,18 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         match_progress_scored: Math.min(completedSoFar, pool.length),
         updated_at: new Date().toISOString(),
       }).eq("id", job.id)
-    }))
+    }
+    const workers = Array.from(
+      { length: Math.min(CONCURRENT_BATCHES, queue.length) },
+      async () => {
+        while (queue.length > 0) {
+          const next = queue.shift()
+          if (!next) return
+          await processOne(next)
+        }
+      },
+    )
+    await Promise.all(workers)
 
     // 5. Mission-tag write-back onto well-matched candidates' taxonomy.
     const tag = missionTagFor(job as Job)
