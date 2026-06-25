@@ -37,13 +37,10 @@ export function trialStatus(
     return { state: "expired", daysLeft: 0, endsAt }
   }
   // Round UP so "11h left" still reads as "1 jour restant" — feels less
-  // brutal mid-day. Cap at TRIAL_DURATION_DAYS so a few milliseconds of
-  // clock skew between the user's browser and the server right after
-  // activation don't make us announce 16 days for a 15-day trial.
-  const daysLeft = Math.min(
-    TRIAL_DURATION_DAYS,
-    Math.max(1, Math.ceil(diffMs / MS_PER_DAY)),
-  )
+  // brutal mid-day. Pas de cap : l'admin peut prolonger l'essai bien
+  // au-delà de TRIAL_DURATION_DAYS (cf. /api/admin/trial), donc capper
+  // au défaut afficherait une valeur fausse.
+  const daysLeft = Math.max(1, Math.ceil(diffMs / MS_PER_DAY))
   return { state: "active", daysLeft, endsAt }
 }
 
