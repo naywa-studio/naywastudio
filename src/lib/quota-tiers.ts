@@ -19,7 +19,19 @@ const GB = 1024 * 1024 * 1024
 
 export interface Quotas {
   storageBytes: number
+  /** Cap de crédits IA pour la période courante.
+   *  - Sur un plan payant : cap mensuel renouvelé tous les 30 j à
+   *    l'anniversaire de l'abonnement (cf. lib/quota.ts).
+   *  - Pendant l'essai gratuit : pot UNIQUE consommé sur les 15 j,
+   *    pas de reset. La valeur stockée est donc le pot total, pas
+   *    une cadence mensuelle malgré le nom.
+   */
   llmMonthly: number
+  /** Cadence de renouvellement du quota crédits IA :
+   *  - "month" → reset tous les 30 j (anniversaire abo)
+   *  - "fixed" → pas de reset (essai gratuit : pot unique)
+   *  L'UI s'en sert pour adapter le wording ("X / mois" vs "X au total"). */
+  period: "month" | "fixed"
   /** Origine du quota — utile pour l'UI ("Plan Sourcing 2 sièges",
    *  "Override custom", "Essai gratuit", "Suspension"...). */
   source: "plan" | "override" | "trial" | "lockdown" | "admin"
@@ -53,12 +65,12 @@ export const QUOTAS_BY_PLAN: Record<string, { storageBytes: number; llmMonthly: 
 }
 
 /**
- * Quota appliqué pendant l'essai 15j. Stockage serré (500 MB suffit
- * pour tester sérieusement) mais crédits IA très généreux — les
- * prospects doivent pouvoir essayer tout l'éventail des fonctionnalités
- * IA sans frustration pour évaluer la valeur.
+ * Quota appliqué pendant l'essai 15j. POT UNIQUE — pas de reset
+ * mensuel pendant l'essai. Stockage serré (500 MB suffit pour tester
+ * sérieusement), crédits IA pensés pour 15 j d'usage normal :
+ * 1 700 crédits ≈ ~110 actions LLM/jour pendant tout l'essai.
  */
-const TRIAL_QUOTAS = { storageBytes: 500 * 1024 * 1024, llmMonthly: 3_500 }
+const TRIAL_QUOTAS = { storageBytes: 500 * 1024 * 1024, llmMonthly: 1_700 }
 
 /**
  * Quotas "infinis" pour les comptes admin Naywa. On retourne une valeur
@@ -90,11 +102,17 @@ export function getQuotas(
   opts?: { isAdmin?: boolean },
 ): Quotas {
   if (opts?.isAdmin) {
-    return { ...ADMIN_QUOTAS, source: "admin", label: "Admin Naywa — quotas illimités" }
+    return {
+      ...ADMIN_QUOTAS, period: "month",
+      source: "admin", label: "Admin Naywa — quotas illimités",
+    }
   }
 
   if (!org) {
-    return { storageBytes: 0, llmMonthly: 0, source: "lockdown", label: "Aucune organisation" }
+    return {
+      storageBytes: 0, llmMonthly: 0, period: "month",
+      source: "lockdown", label: "Aucune organisation",
+    }
   }
 
   // 1. Override custom prioritaire — admin Naywa a accordé un quota
@@ -104,6 +122,7 @@ export function getQuotas(
     return {
       storageBytes: (override.storage_gb ?? 2) * GB,
       llmMonthly: override.llm_monthly ?? 1_700,
+      period: "month",
       source: "override",
       label: "Quota personnalisé",
     }
@@ -112,7 +131,7 @@ export function getQuotas(
   // 2. Lockdown → stockage figé (lecture seule), aucune action LLM.
   if (isInLockdown(org)) {
     return {
-      storageBytes: 0, llmMonthly: 0,
+      storageBytes: 0, llmMonthly: 0, period: "month",
       source: "lockdown",
       label: "Abonnement suspendu",
     }
@@ -123,20 +142,27 @@ export function getQuotas(
   if (lookup && QUOTAS_BY_PLAN[lookup]) {
     const q = QUOTAS_BY_PLAN[lookup]
     return {
-      ...q,
+      ...q, period: "month",
       source: "plan",
       label: planLabel(lookup),
     }
   }
 
   // 4. Trial Naywa (15j). hasActiveAccess couvre ce cas avec
-  //    trialEnds > now (sans subscription_status).
+  //    trialEnds > now (sans subscription_status). Pot fixe : pas
+  //    de renouvellement pendant les 15 j.
   if (hasActiveAccess(org)) {
-    return { ...TRIAL_QUOTAS, source: "trial", label: "Essai gratuit (15 jours)" }
+    return {
+      ...TRIAL_QUOTAS, period: "fixed",
+      source: "trial", label: "Essai gratuit (15 jours)",
+    }
   }
 
   // 5. Aucun accès — l'org n'a ni trial actif ni abonnement.
-  return { storageBytes: 0, llmMonthly: 0, source: "lockdown", label: "Aucun accès actif" }
+  return {
+    storageBytes: 0, llmMonthly: 0, period: "month",
+    source: "lockdown", label: "Aucun accès actif",
+  }
 }
 
 function planLabel(lookup: string): string {

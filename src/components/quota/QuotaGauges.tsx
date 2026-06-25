@@ -19,8 +19,29 @@ import { formatBytes, quotaPercent } from "@/lib/quota-tiers"
 
 interface QuotaResponse {
   storage: { used_bytes: number; limit_bytes: number }
-  llm: { used: number; limit: number; period_start: string }
+  llm: {
+    used: number
+    limit: number
+    period_start: string
+    period: "month" | "fixed"
+  }
   plan: { source: string; label: string }
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const RENEW_INTERVAL_MS = 30 * MS_PER_DAY
+
+/** Calcule la date de prochain renouvellement (period_start + 30 j) et
+ *  le nombre de jours restants jusque-là. Renvoie null si pas applicable. */
+function nextRenewal(periodStart: string | null, now: number): {
+  date: Date; daysLeft: number
+} | null {
+  if (!periodStart) return null
+  const start = new Date(periodStart).getTime()
+  if (!Number.isFinite(start)) return null
+  const nextMs = start + RENEW_INTERVAL_MS
+  const daysLeft = Math.max(0, Math.ceil((nextMs - now) / MS_PER_DAY))
+  return { date: new Date(nextMs), daysLeft }
 }
 
 const REFRESH_MS = 60_000
@@ -65,7 +86,7 @@ export function QuotaGauges({ compact = false }: { compact?: boolean }) {
           margin: 0, fontSize: 13, fontWeight: 700, color: "#111827",
           letterSpacing: "-0.005em",
         }}>
-          Utilisation ce mois
+          {data.llm.period === "fixed" ? "Utilisation période d'essai" : "Utilisation"}
         </h3>
         <span style={{
           fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
@@ -169,7 +190,7 @@ function DetailModal({
   kind: "storage" | "llm"
   plan: { source: string; label: string }
   storage: { used_bytes: number; limit_bytes: number }
-  llm: { used: number; limit: number; period_start: string }
+  llm: { used: number; limit: number; period_start: string; period: "month" | "fixed" }
   onClose: () => void
 }) {
   useEffect(() => {
@@ -178,9 +199,16 @@ function DetailModal({
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])
 
+  const [nowMs, setNowMs] = useState<number | null>(null)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNowMs(Date.now())
+  }, [])
+
   const title = kind === "storage" ? "Stockage" : "Crédits IA"
   const used = kind === "storage" ? formatBytes(storage.used_bytes) : llm.used.toLocaleString("fr-FR")
   const limit = kind === "storage" ? formatBytes(storage.limit_bytes) : llm.limit.toLocaleString("fr-FR")
+  const renew = nowMs && llm.period === "month" ? nextRenewal(llm.period_start, nowMs) : null
 
   return (
     <div
@@ -220,9 +248,22 @@ function DetailModal({
             {used}<span style={{ fontSize: 14, fontWeight: 500, color: "#9CA3AF" }}> / {limit}</span>
           </div>
           <div style={{ marginTop: 6, fontSize: 12.5, color: "#6B7280" }}>
-            {kind === "storage"
-              ? "Espace total occupé par vos CV. Le nettoyage des CV anciens libère du quota."
-              : `Crédits réinitialisés le 1er de chaque mois. Période en cours depuis le ${formatDateFr(llm.period_start)}.`}
+            {kind === "storage" ? (
+              "Espace total occupé par vos CV. Le nettoyage des CV anciens libère du quota."
+            ) : llm.period === "fixed" ? (
+              <>
+                Pot fixe de crédits pour votre période d&apos;essai (15 jours).
+                Souscrivez à un plan payant pour basculer sur un cycle mensuel renouvelé.
+              </>
+            ) : renew ? (
+              <>
+                Crédits renouvelés à l&apos;anniversaire de votre abonnement.
+                Prochain reset le <strong>{formatDateFr(renew.date.toISOString())}</strong>
+                {` (dans ${renew.daysLeft} jour${renew.daysLeft > 1 ? "s" : ""})`}.
+              </>
+            ) : (
+              <>Crédits renouvelés tous les 30 jours à l&apos;anniversaire de votre abonnement.</>
+            )}
           </div>
         </div>
 
