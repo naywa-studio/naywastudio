@@ -92,7 +92,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   await admin.from("jobs")
-    .update({ match_status: "matching", updated_at: new Date().toISOString() })
+    .update({
+      match_status: "matching",
+      updated_at: new Date().toISOString(),
+      // Clear progression d'un éventuel run précédent — sera resettée
+      // une fois le pool calculé ci-dessous.
+      match_progress_total: null,
+      match_progress_scored: null,
+    })
     .eq("id", job.id)
 
   try {
@@ -107,7 +114,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     if (candidates.length === 0) {
       await admin.from("jobs").update({
-        match_status: "done", matched_at: new Date().toISOString(),
+        match_status: "done",
+        matched_at: new Date().toISOString(),
+        match_progress_total: null,
+        match_progress_scored: null,
       }).eq("id", job.id)
       return NextResponse.json({ ok: true, scored: 0, prefiltered_out: 0, total: 0 })
     }
@@ -118,28 +128,48 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const pool = hits.slice(0, MAX_SCORED_PER_RUN).map((h) => h.candidate)
     const prefilteredOut = candidates.length - hits.length
 
-    // 3. Score in batches AND persist progressively. If the Vercel runtime
-    //    is killed mid-flight (timeout, OOM, deploy), every batch that has
-    //    already been written stays committed — the next retry skips them.
+    // Stamp la taille du pool : la barre UI calcule pct = scored/total.
+    await admin.from("jobs").update({
+      match_progress_total: pool.length,
+      match_progress_scored: 0,
+    }).eq("id", job.id)
+
+    // 3. Score in batches AND persist progressively. Batches are run **in
+    //    parallel** : chaque scoreBatch est indépendant (le LLM ne voit
+    //    qu'un sous-pool à la fois), donc lancer 5-10 appels concurrents
+    //    divise le temps total par ~N au lieu de payer N × latence.
+    //    Si le runtime est killé mid-flight (timeout, OOM, deploy), chaque
+    //    batch déjà settlé a déjà persisté ses résultats — le retry skip
+    //    les candidats existants via existingByCand.
     const { data: existingRows } = await admin
       .from("match_assessments")
       .select("id, candidate_id")
       .eq("job_id", job.id)
     const existingByCand = new Map((existingRows ?? []).map((r) => [r.candidate_id, r.id]))
 
-    const results: MatchResult[] = []
+    const batches: Candidate[][] = []
     for (let i = 0; i < pool.length; i += MATCH_BATCH_SIZE) {
-      const batch = pool.slice(i, i + MATCH_BATCH_SIZE)
-      let scored: MatchResult[] = []
+      batches.push(pool.slice(i, i + MATCH_BATCH_SIZE))
+    }
+
+    // Compteur partagé : chaque batch qui finit l'incrémente et flush.
+    // Pas de race vraie car JS est mono-thread sur les microtasks ; chaque
+    // settle handler s'exécute atomiquement.
+    let completedSoFar = 0
+    const results: MatchResult[] = []
+
+    await Promise.allSettled(batches.map(async (batch) => {
+      let scored: MatchResult[]
       try {
         scored = await scoreBatch(job as Job, batch)
       } catch (err) {
         console.error("[match] batch failed:", (err as Error).message)
-        continue  // Skip this batch but keep going.
+        return
       }
       results.push(...scored)
 
-      // Persist this batch immediately so a later timeout doesn't lose it.
+      // Persiste les résultats du batch dès qu'ils sont prêts (pas attendre
+      // les autres batches en cours).
       const batchInserts: MatchInsert[] = []
       const batchUpdates: PromiseLike<unknown>[] = []
       for (const r of scored) {
@@ -173,8 +203,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
             .from("match_assessments")
             .insert(batchInserts)
             .select("id, candidate_id")
-          // Remember newly-inserted rows so a future re-score of the same
-          // run (shouldn't happen, but defensive) hits the update branch.
           for (const row of inserted ?? []) {
             existingByCand.set(row.candidate_id, row.id)
           }
@@ -183,17 +211,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         console.error("[match] batch persist failed:", (err as Error).message)
       }
 
-      // Mark the job as "done" after every persisted batch instead of only
-      // at the end. If the runtime is killed mid-flight by a Vercel timeout,
-      // the UI still sees a coherent "done" status with the partial results
-      // already in DB. The user can re-launch to score the remaining pool.
-      // (Without this, match_status stays at "matching" forever even though
-      // results are visible — exactly what bit us on Consultant Devops.)
+      // Avance le compteur après que le batch est persisté. Permet à l'UI
+      // de voir "scored/total" évoluer même quand tout tourne en parallèle.
+      completedSoFar += batch.length
       await admin.from("jobs").update({
-        match_status: "done",
-        matched_at: new Date().toISOString(),
+        match_progress_scored: Math.min(completedSoFar, pool.length),
+        updated_at: new Date().toISOString(),
       }).eq("id", job.id)
-    }
+    }))
 
     // 5. Mission-tag write-back onto well-matched candidates' taxonomy.
     const tag = missionTagFor(job as Job)
@@ -215,6 +240,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     await admin.from("jobs").update({
       match_status: "done",
       matched_at: new Date().toISOString(),
+      match_progress_total: null,
+      match_progress_scored: null,
     }).eq("id", job.id)
 
     return NextResponse.json({
@@ -225,7 +252,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       capped: hits.length > MAX_SCORED_PER_RUN,
     })
   } catch (err) {
-    await admin.from("jobs").update({ match_status: "error" }).eq("id", job.id)
+    await admin.from("jobs").update({
+      match_status: "error",
+      match_progress_total: null,
+      match_progress_scored: null,
+    }).eq("id", job.id)
     return NextResponse.json(
       { error: "match_failed", detail: (err as Error).message },
       { status: 500 },

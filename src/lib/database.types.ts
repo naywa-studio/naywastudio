@@ -161,15 +161,6 @@ export type Database = {
           has_sourcing_seat: boolean
           inbox_address: string | null
           inbox_cc_self: boolean
-          calendly_access_token: string | null
-          calendly_refresh_token: string | null
-          calendly_token_expires_at: string | null
-          calendly_user_uri: string | null
-          calendly_org_uri: string | null
-          calendly_event_type_uri: string | null
-          calendly_scheduling_url: string | null
-          calendly_webhook_uri: string | null
-          calendly_connected_at: string | null
           /** Set quand cet utilisateur a complété/skippé la visite
            *  guidée Package Sourcing sur /workspace (per-user, indépendant
            *  du flag org). NULL = la modale s'ouvre au prochain accès. */
@@ -369,6 +360,12 @@ export type Database = {
           status: 'draft' | 'open' | 'filled' | 'archived'
           match_status: 'idle' | 'matching' | 'done' | 'error'
           matched_at: string | null
+          /** Taille du pool après pré-filtre, set au début d'un run.
+           *  Permet à l'UI de calculer une vraie barre de progression
+           *  (`scored / total` au lieu du temps écoulé). NULL hors d'un run actif. */
+          match_progress_total: number | null
+          /** Compteur incrémenté après chaque batch persisté. NULL hors d'un run actif. */
+          match_progress_scored: number | null
           // Mission pricing — client-side commercial inputs (sprint Pricing).
           // `location` and `contract_type` above already carry the "lieu de
           // mission" and "type de contrat" so we don't duplicate them here.
@@ -413,6 +410,8 @@ export type Database = {
           status?: 'draft' | 'open' | 'filled' | 'archived'
           match_status?: 'idle' | 'matching' | 'done' | 'error'
           matched_at?: string | null
+          match_progress_total?: number | null
+          match_progress_scored?: number | null
           client_tjm_min?: number | null
           client_tjm_max?: number | null
           margin_min_pct?: number | null
@@ -666,76 +665,6 @@ export type Database = {
           },
         ]
       }
-      interviews: {
-        Row: {
-          id: string
-          user_id: string
-          organization_id: string | null
-          candidate_id: string | null
-          job_id: string | null
-          match_id: string | null
-          calendly_event_uri: string
-          calendly_invitee_uri: string | null
-          status: 'scheduled' | 'canceled'
-          start_time: string
-          end_time: string
-          location_type: string | null
-          join_url: string | null
-          location_text: string | null
-          invitee_name: string | null
-          invitee_email: string | null
-          canceled_at: string | null
-          cancel_reason: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          organization_id?: string | null
-          candidate_id?: string | null
-          job_id?: string | null
-          match_id?: string | null
-          calendly_event_uri: string
-          calendly_invitee_uri?: string | null
-          status?: 'scheduled' | 'canceled'
-          start_time: string
-          end_time: string
-          location_type?: string | null
-          join_url?: string | null
-          location_text?: string | null
-          invitee_name?: string | null
-          invitee_email?: string | null
-          canceled_at?: string | null
-          cancel_reason?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: Partial<Database['public']['Tables']['interviews']['Insert']>
-        Relationships: [
-          {
-            foreignKeyName: 'interviews_candidate_id_fkey'
-            columns: ['candidate_id']
-            isOneToOne: false
-            referencedRelation: 'candidates'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'interviews_job_id_fkey'
-            columns: ['job_id']
-            isOneToOne: false
-            referencedRelation: 'jobs'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'interviews_match_id_fkey'
-            columns: ['match_id']
-            isOneToOne: false
-            referencedRelation: 'match_assessments'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       app_updates: {
         Row: {
           id: string
@@ -857,7 +786,6 @@ export type Job = Database['public']['Tables']['jobs']['Row']
 export type Candidate = Database['public']['Tables']['candidates']['Row']
 export type MatchAssessment = Database['public']['Tables']['match_assessments']['Row']
 export type EmailMessage = Database['public']['Tables']['email_messages']['Row']
-export type Interview = Database['public']['Tables']['interviews']['Row']
 export type AppUpdate = Database['public']['Tables']['app_updates']['Row']
 export type AppUpdateRead = Database['public']['Tables']['app_updates_reads']['Row']
 export type AdminAuditLog = Database['public']['Tables']['admin_audit_log']['Row']
@@ -872,4 +800,3 @@ export type PipelineStage = MatchAssessment['pipeline_stage']
 export type MatchTier = NonNullable<MatchAssessment['match_tier']>
 export type EmailDirection = EmailMessage['direction']
 export type EmailSentiment = NonNullable<EmailMessage['ai_sentiment']>
-export type InterviewStatus = Interview['status']

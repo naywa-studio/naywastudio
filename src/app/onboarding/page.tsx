@@ -35,7 +35,7 @@ const PACKAGE_FEATURES = [
   "Clustering Nora, vos candidats rangés en zones métier",
   "Matching IA contre vos missions avec score justifié",
   "Anonymisation PDF en 1 clic",
-  "Pipeline candidat + suivi des interviews Calendly",
+  "Pipeline candidat avec suivi des relances et entretiens",
   "Pricing Syntec automatisé + export PDF",
 ]
 

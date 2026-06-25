@@ -75,7 +75,8 @@ export async function GET(req: NextRequest) {
     .select(`
       user_id, first_name, role, has_sourcing_seat, organization_id,
       organizations:organization_id (
-        id, name, brand_name, subscription_status, trial_ends_at,
+        id, name, brand_name, subscription_status, subscription_price_lookup,
+        subscription_seats, current_period_end, trial_ends_at,
         pending_deletion_at
       )
     `)
@@ -107,6 +108,12 @@ export async function GET(req: NextRequest) {
               ?? (org as { name: string }).name,
             subscription_status:
               (org as { subscription_status: string | null }).subscription_status,
+            subscription_price_lookup:
+              (org as { subscription_price_lookup: string | null }).subscription_price_lookup,
+            subscription_seats:
+              (org as { subscription_seats: number | null }).subscription_seats,
+            current_period_end:
+              (org as { current_period_end: string | null }).current_period_end,
             trial_ends_at:
               (org as { trial_ends_at: string | null }).trial_ends_at,
             pending_deletion_at:

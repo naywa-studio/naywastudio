@@ -256,10 +256,62 @@ export default function JobDetailPage() {
       padding: "32px 24px 80px", maxWidth: 1320, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
-      <Link href="/workspace/missions" style={{
-        display: "inline-flex", alignItems: "center", gap: 6,
-        fontSize: 13, color: "#7C63C8", textDecoration: "none", marginBottom: 22,
-      }}>← Retour aux missions</Link>
+      {/* Header — retour à gauche, actions de matching à droite. Quand
+          un run est en cours on remplace les boutons par une barre de
+          progression compacte, toujours visible en haut de page. */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 16, marginBottom: 22, flexWrap: "wrap",
+      }}>
+        <Link href="/workspace/missions" style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          fontSize: 13, color: "#7C63C8", textDecoration: "none",
+        }}>← Retour aux missions</Link>
+        {!matching && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: "#9CA3AF" }}>
+              {job.matched_at
+                ? `Dernier matching : ${new Date(job.matched_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`
+                : "Aucun matching lancé"}
+            </span>
+            <button onClick={() => setAssignOpen(true)} style={{
+              padding: "9px 14px", borderRadius: 10,
+              background: "white", border: "1px solid rgba(124,99,200,0.3)",
+              color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+              cursor: "pointer", fontFamily: "inherit",
+            }}>
+              + Assigner un candidat
+            </button>
+            <button onClick={() => runMatch()} style={{
+              padding: "10px 18px", borderRadius: 10, border: "none",
+              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              color: "white", fontSize: 13, fontWeight: 700,
+              cursor: "pointer", fontFamily: "inherit",
+              boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
+            }}>
+              {rows.length > 0 ? "Relancer le matching" : "Matcher le vivier"}
+            </button>
+          </div>
+        )}
+      </div>
+      {matching && (
+        <div style={{ marginBottom: 16 }}>
+          <MatchingProgress
+            total={job.match_progress_total}
+            scored={job.match_progress_scored}
+            partialCount={rows.length}
+            startedAt={job.updated_at}
+            onForceRetry={() => runMatch({ force: true })}
+          />
+        </div>
+      )}
+      {matchError && (
+        <div style={{
+          marginBottom: 16, padding: "10px 14px",
+          background: "#FEF2F2", border: "1px solid #FECACA",
+          borderRadius: 10, fontSize: 13, color: "#B91C1C",
+        }}>{matchError}</div>
+      )}
 
       <div className="mission-grid" style={{
         display: "grid",
@@ -404,50 +456,6 @@ export default function JobDetailPage() {
           Chiffrer dans le pricing →
         </Link>
 
-        {/* Match action */}
-        <div style={{
-          marginTop: 20, paddingTop: 18, borderTop: "1px solid #F0ECF8",
-        }}>
-          {matching ? (
-            <MatchingProgress
-              startedAt={job.updated_at}
-              partialCount={rows.length}
-              onForceRetry={() => runMatch({ force: true })}
-            />
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-              <button onClick={() => runMatch()} style={{
-                padding: "11px 20px", borderRadius: 11, border: "none",
-                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                color: "white", fontSize: 13.5, fontWeight: 700,
-                cursor: "pointer", fontFamily: "inherit",
-                boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
-              }}>
-                {rows.length > 0 ? "Relancer le matching" : "Matcher le vivier"}
-              </button>
-              <button onClick={() => setAssignOpen(true)} style={{
-                padding: "10px 16px", borderRadius: 11,
-                background: "white", border: "1px solid rgba(124,99,200,0.3)",
-                color: "#7C63C8", fontSize: 13, fontWeight: 700,
-                cursor: "pointer", fontFamily: "inherit",
-              }}>
-                + Assigner un candidat
-              </button>
-              <span style={{ fontSize: 12.5, color: "#9CA3AF" }}>
-                {job.matched_at
-                  ? `Dernier matching : ${new Date(job.matched_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`
-                  : "Lancez le matching pour voir les candidats pertinents."}
-              </span>
-            </div>
-          )}
-        </div>
-        {matchError && (
-          <div style={{
-            marginTop: 12, padding: "10px 14px",
-            background: "#FEF2F2", border: "1px solid #FECACA",
-            borderRadius: 10, fontSize: 13, color: "#B91C1C",
-          }}>{matchError}</div>
-        )}
       </m.section>
 
       {/* ── Colonne droite : résultats du matching ── */}
@@ -774,42 +782,58 @@ function AssignModal({
 }
 
 /* ─── Matching progress ──────────────────────────────────────────
- * Realistic progress bar driven by elapsed time since the run started.
- * Curve `1 - exp(-t/22000)` rises fast then asymptotes near 96 % — the
- * average run takes 20-40 s, so 22 s as the time constant matches reality.
- * Partial results arrive in batches, so we also show "X profils déjà
- * remontés" when applicable.
- * Past 90 s without completion we surface a "Relancer" escape hatch —
- * the server-side stale check (>2 min) will accept the new run.
+ * Progress driven by REAL server-side counters (job.match_progress_*).
+ * The route stamps `match_progress_total = pool size` at start and
+ * increments `match_progress_scored` after each batch persisted, so
+ * the bar reflects what's actually scored — not elapsed time.
+ *
+ * Fallbacks while waiting for the first server tick :
+ *   - Until total is set, we display a soft indeterminate "Préparation…".
+ *   - The elapsed timer is kept only as a stalling-detector for the
+ *     "Forcer la relance" escape hatch (75 s beyond which the server-
+ *     side stale check accepts a new run anyway).
  */
 function MatchingProgress({
-  startedAt, partialCount, onForceRetry,
-}: { startedAt: string; partialCount: number; onForceRetry: () => void }) {
+  total, scored, partialCount, startedAt, onForceRetry,
+}: {
+  total: number | null
+  scored: number | null
+  partialCount: number
+  startedAt: string
+  onForceRetry: () => void
+}) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 600)
+    const t = setInterval(() => setNow(Date.now()), 800)
     return () => clearInterval(t)
   }, [])
-  const startMs = new Date(startedAt).getTime()
-  const elapsedMs = Math.max(0, now - startMs)
+  const elapsedMs = Math.max(0, now - new Date(startedAt).getTime())
   const elapsedSec = Math.round(elapsedMs / 1000)
-  const pct = Math.min(96, 100 * (1 - Math.exp(-elapsedMs / 22000)))
-  // Beyond Vercel's 60 s budget the server has very likely been killed.
-  // We show "Forcer la relance" the moment we cross the server's stale
-  // window (75 s) so the user can unblock immediately.
+
+  // Affichage défensif : on cap les compteurs et on convertit en %.
+  const safeTotal = total && total > 0 ? total : null
+  const safeScored = Math.max(0, Math.min(scored ?? 0, safeTotal ?? Number.MAX_SAFE_INTEGER))
+  const hasReal = safeTotal != null && safeScored >= 0
+  // Pourcentage réel quand on a un total ; sinon indéterminé.
+  const pct = hasReal && safeTotal ? Math.round((safeScored / safeTotal) * 100) : 0
+
+  // Stalling / force-retry : Vercel Hobby = 60 s max, le serveur accepte
+  // un retry après 75 s. On surface le bouton dès qu'on dépasse ce seuil.
   const stalling = elapsedMs > 60_000
   const canForceRetry = elapsedMs > 75_000
-  // Subtle pulse on the bar past 80 % so the user feels things are alive
-  // even though the asymptote makes the width crawl.
-  const nearAsymptote = pct > 80
 
   const label =
-    elapsedSec < 4 ? "Préfiltrage du vivier…"
-    : elapsedSec < 14 ? "Nora score les profils pertinents…"
-    : elapsedSec < 28 ? "Comparaison taxonomies et expérience…"
-    : !stalling ? "Finalisation du classement…"
-    : canForceRetry ? "Le matching a probablement été interrompu. Relancez."
-    : "Plus long que d'habitude, encore quelques secondes."
+    !hasReal
+      ? "Préfiltrage du vivier…"
+      : safeScored === 0
+        ? "Nora va scorer le pool…"
+        : safeScored >= safeTotal!
+          ? "Finalisation du classement…"
+          : canForceRetry
+            ? "Le matching a probablement été interrompu. Relancez."
+            : stalling
+              ? "Plus long que d'habitude, encore quelques secondes."
+              : `Nora score ${safeScored}/${safeTotal} profils…`
 
   return (
     <div style={{
@@ -848,21 +872,21 @@ function MatchingProgress({
         background: "rgba(124,99,200,0.12)",
         borderRadius: 100, overflow: "hidden",
       }}>
-        {nearAsymptote ? (
+        {!hasReal ? (
           <div style={{
             position: "absolute", top: 0, bottom: 0,
             width: "40%",
             borderRadius: 100,
-            background: stalling
-              ? "linear-gradient(90deg, rgba(124,99,200,0) 0%, #C4B6E0 50%, rgba(124,99,200,0) 100%)"
-              : "linear-gradient(90deg, rgba(124,99,200,0) 0%, #7C63C8 50%, rgba(124,99,200,0) 100%)",
+            background: "linear-gradient(90deg, rgba(124,99,200,0) 0%, #7C63C8 50%, rgba(124,99,200,0) 100%)",
             animation: "matching-indeterminate 1.6s ease-in-out infinite",
           }} />
         ) : (
           <div style={{
             position: "absolute", left: 0, top: 0, bottom: 0,
             width: `${pct}%`,
-            background: "linear-gradient(90deg, #7C63C8 0%, #B8AEDE 100%)",
+            background: stalling
+              ? "linear-gradient(90deg, #C4B6E0 0%, #B8AEDE 100%)"
+              : "linear-gradient(90deg, #7C63C8 0%, #B8AEDE 100%)",
             borderRadius: 100,
             transition: "width 600ms cubic-bezier(0.22, 1, 0.36, 1)",
           }}>

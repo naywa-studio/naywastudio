@@ -41,7 +41,7 @@ const CATEGORIES = [
       },
       {
         q: "Combien de CVs peut-on uploader ?",
-        a: "L'usage est dimensionné pour absorber des journées complètes de sourcing intensif, sans plafond mensuel. Si votre structure a des volumes très élevés, contactez-nous : nous adaptons.",
+        a: "Chaque plan inclut un volume mensuel de crédits IA dimensionné pour absorber des journées complètes de sourcing intensif (3 500 à 22 500 crédits selon le nombre de sièges et la formule). Si vos volumes dépassent cette enveloppe, contactez-nous : nous augmentons votre quota au cas par cas.",
       },
       {
         q: "Quelles informations Nora extrait-elle ?",

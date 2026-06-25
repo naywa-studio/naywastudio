@@ -9,7 +9,7 @@ export const runtime = "nodejs"
  * Cron quotidien (séparé du wipe full-org). Cible les orgs entrées en
  * lockdown il y a 15 jours ou plus sans avoir régularisé. Wipe les
  * données business — candidats, missions, matches, mails, clusters,
- * usage, interviews — mais GARDE l'org, les profiles, auth.users, et
+ * usage — mais GARDE l'org, les profiles, auth.users, et
  * les invitations.
  *
  * Pourquoi pas un wipe full ? L'user a payé un jour, peut payer demain.
@@ -63,15 +63,17 @@ export async function GET(req: NextRequest) {
 
     // Tables à wiper par ordre — on n'inclut PAS profiles, auth.users
     // ni org_invites, gardés pour permettre le retour.
-    const tablesToWipe = [
+    const tablesToWipe: ReadonlyArray<
+      "candidates" | "jobs" | "match_assessments" | "email_messages"
+      | "cluster_manifests" | "daily_usage"
+    > = [
       "candidates",
       "jobs",
       "match_assessments",
       "email_messages",
       "cluster_manifests",
       "daily_usage",
-      "interviews",
-    ] as const
+    ]
 
     for (const table of tablesToWipe) {
       const { error: delErr, count } = await admin

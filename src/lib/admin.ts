@@ -96,6 +96,8 @@ export type AdminAuditAction =
   | "set_quota_override"
   | "clear_quota_override"
   | "migrate_cv_to_r2"
+  | "extend_trial"
+  | "reset_trial"
 
 /**
  * Type de la cible auditée. NULL pour les actions globales (search).
