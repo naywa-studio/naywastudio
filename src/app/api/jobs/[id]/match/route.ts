@@ -134,28 +134,42 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       match_progress_scored: 0,
     }).eq("id", job.id)
 
-    // 3. Score in batches AND persist progressively. If the Vercel runtime
-    //    is killed mid-flight (timeout, OOM, deploy), every batch that has
-    //    already been written stays committed — the next retry skips them.
+    // 3. Score in batches AND persist progressively. Batches are run **in
+    //    parallel** : chaque scoreBatch est indépendant (le LLM ne voit
+    //    qu'un sous-pool à la fois), donc lancer 5-10 appels concurrents
+    //    divise le temps total par ~N au lieu de payer N × latence.
+    //    Si le runtime est killé mid-flight (timeout, OOM, deploy), chaque
+    //    batch déjà settlé a déjà persisté ses résultats — le retry skip
+    //    les candidats existants via existingByCand.
     const { data: existingRows } = await admin
       .from("match_assessments")
       .select("id, candidate_id")
       .eq("job_id", job.id)
     const existingByCand = new Map((existingRows ?? []).map((r) => [r.candidate_id, r.id]))
 
-    const results: MatchResult[] = []
+    const batches: Candidate[][] = []
     for (let i = 0; i < pool.length; i += MATCH_BATCH_SIZE) {
-      const batch = pool.slice(i, i + MATCH_BATCH_SIZE)
-      let scored: MatchResult[] = []
+      batches.push(pool.slice(i, i + MATCH_BATCH_SIZE))
+    }
+
+    // Compteur partagé : chaque batch qui finit l'incrémente et flush.
+    // Pas de race vraie car JS est mono-thread sur les microtasks ; chaque
+    // settle handler s'exécute atomiquement.
+    let completedSoFar = 0
+    const results: MatchResult[] = []
+
+    await Promise.allSettled(batches.map(async (batch) => {
+      let scored: MatchResult[]
       try {
         scored = await scoreBatch(job as Job, batch)
       } catch (err) {
         console.error("[match] batch failed:", (err as Error).message)
-        continue  // Skip this batch but keep going.
+        return
       }
       results.push(...scored)
 
-      // Persist this batch immediately so a later timeout doesn't lose it.
+      // Persiste les résultats du batch dès qu'ils sont prêts (pas attendre
+      // les autres batches en cours).
       const batchInserts: MatchInsert[] = []
       const batchUpdates: PromiseLike<unknown>[] = []
       for (const r of scored) {
@@ -189,8 +203,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
             .from("match_assessments")
             .insert(batchInserts)
             .select("id, candidate_id")
-          // Remember newly-inserted rows so a future re-score of the same
-          // run (shouldn't happen, but defensive) hits the update branch.
           for (const row of inserted ?? []) {
             existingByCand.set(row.candidate_id, row.id)
           }
@@ -199,15 +211,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         console.error("[match] batch persist failed:", (err as Error).message)
       }
 
-      // Avance le compteur de progression — sert à animer la barre UI.
-      // On garde match_status = "matching" tant que la boucle tourne ; le
-      // filet anti-timeout c'est le STALE_MATCHING_AFTER_MS (75 s) côté
-      // route + le bouton "Forcer la relance" côté UI.
+      // Avance le compteur après que le batch est persisté. Permet à l'UI
+      // de voir "scored/total" évoluer même quand tout tourne en parallèle.
+      completedSoFar += batch.length
       await admin.from("jobs").update({
-        match_progress_scored: Math.min(i + batch.length, pool.length),
+        match_progress_scored: Math.min(completedSoFar, pool.length),
         updated_at: new Date().toISOString(),
       }).eq("id", job.id)
-    }
+    }))
 
     // 5. Mission-tag write-back onto well-matched candidates' taxonomy.
     const tag = missionTagFor(job as Job)
