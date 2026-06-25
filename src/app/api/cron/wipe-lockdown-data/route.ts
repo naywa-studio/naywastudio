@@ -9,7 +9,7 @@ export const runtime = "nodejs"
  * Cron quotidien (séparé du wipe full-org). Cible les orgs entrées en
  * lockdown il y a 15 jours ou plus sans avoir régularisé. Wipe les
  * données business — candidats, missions, matches, mails, clusters,
- * usage, interviews — mais GARDE l'org, les profiles, auth.users, et
+ * usage — mais GARDE l'org, les profiles, auth.users, et
  * les invitations.
  *
  * Pourquoi pas un wipe full ? L'user a payé un jour, peut payer demain.
