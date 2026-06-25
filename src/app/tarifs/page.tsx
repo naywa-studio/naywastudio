@@ -441,7 +441,7 @@ function PriceCard({
               <strong>{formatBytes(quota.storageBytes)}</strong>
             </span>
             <span style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <span>Crédits IA</span>
+              <span>Actions IA / mois</span>
               <strong>{quota.llmMonthly.toLocaleString("fr-FR")}</strong>
             </span>
           </div>
