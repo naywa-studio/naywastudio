@@ -33,7 +33,16 @@ import type { Candidate, ClusterAssignment } from "@/lib/database.types"
 export const runtime = "nodejs"
 export const maxDuration = 60
 
-const MAX_CANDIDATES_PER_RUN = 180
+// Taille de batch côté LLM. Au-delà la latence explose et le JSON de
+// réponse risque la troncature. Batching séquentiel : chaque batch voit
+// les zones existantes + celles créées par les batches précédents du
+// même run, pour qu'un candidat du batch 2 puisse être rangé dans une
+// zone créée pour des candidats du batch 1.
+const CLUSTER_BATCH_SIZE = 150
+// Plafond très haut pour ne pas griller le budget Vercel d'un coup
+// (vivier énorme). À ~5-10 s par batch × concurrence 1 séquentielle,
+// 6 batches = ~45 s, dans le budget 60 s.
+const MAX_CANDIDATES_PER_RUN = 900
 
 const SYSTEM_PROMPT = `Tu es Nora, l'assistante d'un cabinet de recrutement. On te confie le vivier de candidats du cabinet et tu dois le structurer en secteurs métier intuitifs pour le sourceur.
 
@@ -181,7 +190,7 @@ export async function POST(req: NextRequest) {
   if (candidates.length > MAX_CANDIDATES_PER_RUN) {
     return NextResponse.json({
       error: "vivier_too_large",
-      message: `Le vivier dépasse ${MAX_CANDIDATES_PER_RUN} candidats. Le batching n'est pas encore en place, contactez le support.`,
+      message: `Le vivier dépasse ${MAX_CANDIDATES_PER_RUN} candidats. Contactez le support pour un traitement asynchrone.`,
     }, { status: 400 })
   }
 
@@ -190,60 +199,84 @@ export async function POST(req: NextRequest) {
     .from("cluster_manifests")
     .select("label, description, candidate_count")
     .eq("organization_id", orgId)
-  const existingManifests: ExistingManifest[] = (manifestRows ?? []) as ExistingManifest[]
+  const seedManifests: ExistingManifest[] = (manifestRows ?? []) as ExistingManifest[]
 
-  // 4) Snapshot des candidats.
-  const snapshots = candidates.map(buildSnapshot)
-
-  // 5) Appel LLM — JSON strict, manifestes en contexte.
-  let parsed: {
-    new_clusters?: Array<{ label?: unknown; description?: unknown }>
-    assignments?: Record<string, Array<{ label?: unknown; weight?: unknown }>>
-  }
-  try {
-    const userContent = [
-      `ZONES EXISTANTES (créées lors des passages précédents, à réutiliser au maximum) :`,
-      existingManifests.length > 0
-        ? JSON.stringify(existingManifests, null, 2)
-        : "(aucune, c'est le premier passage de clustering)",
-      "",
-      `CANDIDATS À RANGER (n=${snapshots.length}) :`,
-      JSON.stringify(snapshots, null, 2),
-    ].join("\n")
-    const result = await openrouterChat({
-      model: "openai/gpt-4o-mini",
-      temperature: 0.2,
-      maxTokens: 6000,
-      timeoutMs: 55_000,
-      responseFormat: "json_object",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userContent },
-      ],
-    })
-    parsed = JSON.parse(result.content) as typeof parsed
-  } catch (err) {
-    return NextResponse.json(
-      { error: "llm_failed", detail: (err as Error).message },
-      { status: 502 },
-    )
+  // 4) Snapshot des candidats + découpage en batches.
+  const allSnapshots = candidates.map(buildSnapshot)
+  const batches: CandidateSnapshot[][] = []
+  for (let i = 0; i < allSnapshots.length; i += CLUSTER_BATCH_SIZE) {
+    batches.push(allSnapshots.slice(i, i + CLUSTER_BATCH_SIZE))
   }
 
-  // 6) Validation : ensemble des labels disponibles = existants ∪ nouveaux.
+  // 5) Appels LLM séquentiels — chaque batch voit les zones (initiales +
+  //    celles créées par les batches précédents du même run). Permet à
+  //    un candidat du batch 2 d'atterrir dans une zone fraîchement créée
+  //    pour des candidats du batch 1.
   const allowedLabels = new Map<string, { description: string; isNew: boolean }>()
-  for (const m of existingManifests) {
+  for (const m of seedManifests) {
     allowedLabels.set(m.label, { description: m.description, isNew: false })
   }
   const newManifests: Array<{ label: string; description: string }> = []
-  for (const c of parsed.new_clusters ?? []) {
-    const label = typeof c?.label === "string" ? c.label.trim() : ""
-    const description = typeof c?.description === "string" ? c.description.trim() : ""
-    if (!label || !description) continue
-    // Refuse un label qui re-déclare une zone existante.
-    if (allowedLabels.has(label)) continue
-    allowedLabels.set(label, { description, isNew: true })
-    newManifests.push({ label, description })
+  // Assignations brutes par candidate_id, accumulées sur tous les batches.
+  const rawAssignments = new Map<string, Array<{ label?: unknown; weight?: unknown }>>()
+
+  for (const batch of batches) {
+    // Contexte zones = état courant (seed + nouvellement créées dans les
+    // batches précédents).
+    const currentManifestsForLlm = Array.from(allowedLabels.entries()).map(([label, info]) => ({
+      label,
+      description: info.description,
+      candidate_count: 0, // sans incidence sur la décision LLM
+    }))
+    const userContent = [
+      `ZONES EXISTANTES (créées lors des passages précédents OU dans le batch précédent de ce run, à réutiliser au maximum) :`,
+      currentManifestsForLlm.length > 0
+        ? JSON.stringify(currentManifestsForLlm, null, 2)
+        : "(aucune, c'est le premier batch du premier passage)",
+      "",
+      `CANDIDATS À RANGER (n=${batch.length}) :`,
+      JSON.stringify(batch, null, 2),
+    ].join("\n")
+
+    let parsed: {
+      new_clusters?: Array<{ label?: unknown; description?: unknown }>
+      assignments?: Record<string, Array<{ label?: unknown; weight?: unknown }>>
+    }
+    try {
+      const result = await openrouterChat({
+        model: "openai/gpt-4o-mini",
+        temperature: 0.2,
+        maxTokens: 6000,
+        timeoutMs: 55_000,
+        responseFormat: "json_object",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userContent },
+        ],
+      })
+      parsed = JSON.parse(result.content) as typeof parsed
+    } catch (err) {
+      // Best-effort : si un batch plante on continue (les candidats du
+      // batch resteront sans assignation, l'user pourra relancer).
+      console.error("[cluster] batch failed:", (err as Error).message)
+      continue
+    }
+
+    // Merge new clusters
+    for (const c of parsed.new_clusters ?? []) {
+      const label = typeof c?.label === "string" ? c.label.trim() : ""
+      const description = typeof c?.description === "string" ? c.description.trim() : ""
+      if (!label || !description) continue
+      if (allowedLabels.has(label)) continue
+      allowedLabels.set(label, { description, isNew: true })
+      newManifests.push({ label, description })
+    }
+    // Accumule les assignations
+    for (const [candId, items] of Object.entries(parsed.assignments ?? {})) {
+      rawAssignments.set(candId, items)
+    }
   }
+
   if (allowedLabels.size === 0) {
     return NextResponse.json({ error: "no_clusters", detail: "Nora n'a déclaré aucune zone." }, { status: 502 })
   }
@@ -253,7 +286,7 @@ export async function POST(req: NextRequest) {
   const updates: Array<{ id: string; assignments: ClusterAssignment[] }> = []
   const labelCounts = new Map<string, number>()
   for (const cand of candidates) {
-    const raw = parsed.assignments?.[cand.id] ?? []
+    const raw = rawAssignments.get(cand.id) ?? []
     const clean: ClusterAssignment[] = []
     for (const item of raw) {
       const label = typeof item?.label === "string" ? item.label.trim() : ""
