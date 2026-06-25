@@ -175,21 +175,25 @@ export default function VivierPage() {
       pending.push({ id, file: f })
     }
 
+    // Cap large pour les uploads de masse (200+ CVs d'un coup). Conserve
+    // la sécu DOM contre un dump pathologique de 5000 fichiers.
     setJobs((prev) => [
       ...invalid,
       ...pending.map<UploadJob>(({ id, file }) => ({
         id, fileName: file.name, size: file.size, status: "uploading",
       })),
       ...prev,
-    ].slice(0, 30))
+    ].slice(0, 500))
 
     const patch = (id: string, p: Partial<UploadJob>) =>
       setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...p } : j)))
 
-    // Upload in series. The actual LLM parse runs in a separate, fire-and-
-    // forget call so the UI is never blocked on the LLM round-trip; the
-    // grid card updates via Realtime when parse_status flips.
-    for (const { id, file } of pending) {
+    // Upload en parallèle avec concurrence limitée. À 222 fichiers en
+    // série on prend ~7 min ; à 5 en parallèle on tombe à ~90 s. Limite
+    // à 5 pour ne pas saturer R2 ni faire griller le pool de connexions
+    // du navigateur.
+    const CONCURRENCY = 5
+    const uploadOne = async ({ id, file }: { id: string; file: File }) => {
       try {
         const fd = new FormData()
         fd.append("file", file, file.name)
@@ -197,7 +201,7 @@ export default function VivierPage() {
         const data = await res.json().catch(() => ({} as Record<string, unknown>))
         if (!res.ok || data?.error) {
           patch(id, { status: "error", error: String(data?.message ?? data?.error ?? `HTTP ${res.status}`) })
-          continue
+          return
         }
         const cand = (data as { candidate?: Candidate }).candidate
         // Optimistic insert — don't wait for Realtime, which may be slow
@@ -219,6 +223,19 @@ export default function VivierPage() {
         patch(id, { status: "error", error: (err as Error).message ?? "Erreur réseau." })
       }
     }
+
+    // Pool de workers — chaque worker pioche dans la queue jusqu'à
+    // épuisement. Tolère les fichiers qui plantent (uploadOne avale
+    // ses propres erreurs et patch le job en "error").
+    const queue = [...pending]
+    const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+      while (queue.length > 0) {
+        const next = queue.shift()
+        if (!next) return
+        await uploadOne(next)
+      }
+    })
+    await Promise.all(workers)
   }, [])
 
   const onFilesPicked = (files: FileList | null) => {
