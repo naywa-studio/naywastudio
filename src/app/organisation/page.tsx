@@ -1038,7 +1038,7 @@ function PlanPickerModal({
                       <path d="M2 12h4"/><path d="M18 12h4"/>
                       <path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 7.76 2.83-2.83"/>
                     </svg>
-                    {q.llmMonthly.toLocaleString("fr-FR")} crédits IA / mois
+                    {q.llmMonthly.toLocaleString("fr-FR")} actions IA / mois
                   </span>
                 </div>
               )}

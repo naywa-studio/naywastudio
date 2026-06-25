@@ -730,7 +730,7 @@ function QuotaOverrideModal({
               </div>
               <div>
                 <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#374151" }}>
-                  Crédits IA / mois
+                  Actions IA / mois
                 </label>
                 <input
                   type="number"

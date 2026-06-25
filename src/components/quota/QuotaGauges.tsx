@@ -106,9 +106,9 @@ export function QuotaGauges({ compact = false }: { compact?: boolean }) {
       />
 
       <Gauge
-        label="Crédits IA"
+        label="Actions IA"
         percent={llmPct}
-        usedLabel={`${data.llm.used.toLocaleString("fr-FR")} crédits`}
+        usedLabel={`${data.llm.used.toLocaleString("fr-FR")} actions`}
         limitLabel={`${data.llm.limit.toLocaleString("fr-FR")} max`}
         showLimit={llmPct >= 70}
         onDetail={() => setDetailOpen("llm")}
@@ -205,7 +205,7 @@ function DetailModal({
     setNowMs(Date.now())
   }, [])
 
-  const title = kind === "storage" ? "Stockage" : "Crédits IA"
+  const title = kind === "storage" ? "Stockage" : "Actions IA"
   const used = kind === "storage" ? formatBytes(storage.used_bytes) : llm.used.toLocaleString("fr-FR")
   const limit = kind === "storage" ? formatBytes(storage.limit_bytes) : llm.limit.toLocaleString("fr-FR")
   const renew = nowMs && llm.period === "month" ? nextRenewal(llm.period_start, nowMs) : null
@@ -274,7 +274,7 @@ function DetailModal({
         }}>
           <strong>Besoin de plus ?</strong> Contactez-nous via le bouton support
           dans le header — nous proposons des extensions sur mesure
-          (+5 GB, +2 000 crédits IA, etc.).
+          (+5 GB, palier d&apos;actions IA supérieur, etc.).
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>

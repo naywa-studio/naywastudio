@@ -31,15 +31,30 @@ import { isAdmin } from "./admin"
 
 export type QuotaAction = "upload" | "match" | "compose" | "assistant" | "send" | "critique"
 
+/**
+ * Daily per-user caps. Volontairement très hauts (10 000) — l'utilisateur
+ * normal ne les atteint jamais. Ils ne servent QUE de filet de sécurité
+ * extrême contre un script qui boucle, en complément du cap mensuel org
+ * (qui est la vraie limite anti-abus).
+ *
+ * On ne montre PAS ces caps à l'utilisateur (pas de "crédits" / "actions
+ * restantes" côté UI). La logique reste pour le compteur daily_usage qui
+ * sert au monitoring interne.
+ */
 export const DAILY_LIMITS: Record<QuotaAction, number> = {
-  upload: 50,
-  match: 40,
-  compose: 80,
-  assistant: 120,
-  send: 60,
-  critique: 80,
+  upload: 10_000,
+  match: 10_000,
+  compose: 10_000,
+  assistant: 10_000,
+  send: 10_000,
+  critique: 10_000,
 }
 
+/**
+ * Libellés humains pour les éventuels messages d'erreur daily. En usage
+ * normal ces messages ne sortent jamais (les caps sont à 10k/jour), ils
+ * ne servent que pour les rares logs internes.
+ */
 const LABELS: Record<QuotaAction, string> = {
   upload: "imports de CV",
   match: "lancements de matching",
@@ -161,15 +176,18 @@ export async function consumeOrgLlmAction(
   }
 
   if (currentUsed >= quota.llmMonthly) {
+    // Wording côté utilisateur : on ne parle pas de "crédits" — la
+    // limite est purement un anti-abus, le client n'est pas censé la
+    // voir en usage normal.
     const resetMsg = quota.period === "fixed"
-      ? "Crédits IA épuisés pour votre période d'essai. Souscrivez pour continuer."
-      : "Quota de crédits IA atteint pour la période courante. Repart au prochain renouvellement de votre abonnement ou contactez-nous pour une extension."
+      ? "Limite d'usage IA atteinte pour votre période d'essai. Souscrivez pour continuer."
+      : "Limite d'usage IA atteinte pour cette période. Contactez-nous si vous avez besoin d'un palier supérieur."
     return {
       ok: false,
       used: currentUsed,
       limit: quota.llmMonthly,
       code: "quota_exceeded",
-      message: `${resetMsg} (${quota.llmMonthly} crédits — ${quota.label}).`,
+      message: resetMsg,
     }
   }
 
