@@ -479,9 +479,9 @@ export function withMissionTag(tax: CandidateTaxonomy | null, tag: string): Cand
   return { ...base, mission_tags: [...existing, tag].slice(-20) }
 }
 
-// Smaller batch = first persist hits the DB faster, which matters because
-// Vercel Hobby kills the function at 60 s. With 4 candidates per LLM call
-// the first batch typically completes in 5-8 s, so even if the route is
-// killed mid-second-batch the user has at least 4 scored results AND a
-// "done" status (the route flips status after each batch).
-export const MATCH_BATCH_SIZE = 4
+// Batch size 8 (PR 11) : sur un vivier de 200+ candidats, 4/batch
+// donnait 50 appels LLM. Avec 8/batch on tombe à 25 appels, divisant
+// par 2 la latence totale sans dégrader la qualité — le prompt v2
+// demande un reasoning explicite par candidat, ce qui force le LLM
+// à les traiter individuellement même dans un batch plus large.
+export const MATCH_BATCH_SIZE = 8

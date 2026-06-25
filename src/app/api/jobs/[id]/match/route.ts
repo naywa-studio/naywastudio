@@ -31,7 +31,10 @@ import { CANDIDATE_COLUMNS, type Candidate, type Job, type Database } from "@/li
 type MatchInsert = Database["public"]["Tables"]["match_assessments"]["Insert"]
 
 export const runtime = "nodejs"
-export const maxDuration = 60
+// 300 s = max Vercel Pro. Sur Hobby ça retombe silencieusement à 60 s,
+// mais avec batch_size 8 + concurrence 20 (cf. plus bas) 200 candidats
+// passent en ~15-20 s, donc Hobby reste viable pour un vivier normal.
+export const maxDuration = 300
 
 // Plafond très haut depuis PR 10 — les batches sont maintenant exécutés
 // en parallèle (cf. Promise.allSettled plus bas) avec un sémaphore qui
@@ -43,7 +46,10 @@ export const maxDuration = 60
 // must-have skills), on cap à 500 pour ne pas griller le budget LLM
 // d'un coup — l'user peut re-run pour les restants.
 const MAX_SCORED_PER_RUN = 500
-const CONCURRENT_BATCHES = 10
+// 20 batches simultanés : 200 candidats / 8 = 25 batches → 2 vagues
+// concurrentes de ~6-8 s = 15-20 s total. OpenRouter accepte
+// largement 20 req simultanées sur gpt-4o-mini.
+const CONCURRENT_BATCHES = 20
 
 /**
  * If a previous run was killed mid-flight by Vercel (timeout, OOM, deploy),
