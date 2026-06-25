@@ -47,6 +47,10 @@ export interface ORChatOptions {
   tools?: ORTool[]
   /** "auto" lets the LLM choose; "none" disables tools; or a specific tool name. */
   toolChoice?: "auto" | "none" | { type: "function"; function: { name: string } }
+  /** OpenAI-compatible seed. Combined with temperature: 0, makes outputs
+   *  reproducible run-to-run (best-effort — the model can still vary on
+   *  rare occasions, but variance shrinks dramatically). */
+  seed?: number
 }
 
 export interface ORChatResult {
@@ -85,6 +89,7 @@ export async function openrouterChat(opts: ORChatOptions): Promise<ORChatResult>
         ...(opts.plugins ? { plugins: opts.plugins } : {}),
         ...(opts.tools && opts.tools.length > 0 ? { tools: opts.tools } : {}),
         ...(opts.toolChoice ? { tool_choice: opts.toolChoice } : {}),
+        ...(opts.seed !== undefined ? { seed: opts.seed } : {}),
       }),
     })
   } finally {
