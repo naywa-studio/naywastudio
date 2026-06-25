@@ -19,13 +19,13 @@ BEGIN;
 
 -- Orgs abonnées : ancre = current_period_end - 30 j
 UPDATE public.organizations
-SET llm_period_start = (current_period_end - interval '30 days')::date::text
+SET llm_period_start = (current_period_end - interval '30 days')::date
 WHERE subscription_status IN ('active', 'trialing')
   AND current_period_end IS NOT NULL;
 
 -- Orgs en essai uniquement : ancre = trial_ends_at - 15 j (= activation)
 UPDATE public.organizations
-SET llm_period_start = (trial_ends_at - interval '15 days')::date::text
+SET llm_period_start = (trial_ends_at - interval '15 days')::date
 WHERE subscription_status IS NULL
   AND trial_ends_at IS NOT NULL
   AND lockdown_started_at IS NULL;
