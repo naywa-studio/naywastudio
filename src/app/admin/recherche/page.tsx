@@ -24,6 +24,9 @@ interface Result {
     id: string
     name: string
     subscription_status: string | null
+    subscription_price_lookup: string | null
+    subscription_seats: number | null
+    current_period_end: string | null
     trial_ends_at: string | null
     pending_deletion_at: string | null
   } | null
@@ -35,6 +38,22 @@ export default function AdminRecherchePage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [searched, setSearched] = useState(false)
+
+  // Permet à un sous-composant (modale Essai) de rafraîchir la ligne de
+  // son org sans avoir à relancer la recherche complète.
+  const refreshOrg = async (orgId: string) => {
+    try {
+      const res = await fetch(`/api/admin/search?q=${encodeURIComponent(q.trim())}`, { cache: "no-store" })
+      const j = await res.json() as { results: Result[] }
+      const fresh = (j.results ?? []).find((r) => r.organization?.id === orgId)
+      if (!fresh) return
+      setResults((prev) => prev.map((r) =>
+        r.organization?.id === orgId && r.user_id === fresh.user_id ? fresh : r,
+      ))
+    } catch {
+      // best-effort, l'admin peut relancer la recherche manuellement
+    }
+  }
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -147,24 +166,26 @@ export default function AdminRecherchePage() {
             <thead>
               <tr style={{ background: "#FAFAFA", textAlign: "left" }}>
                 <Th>Utilisateur</Th>
-                <Th>Email</Th>
                 <Th>Organisation</Th>
                 <Th>Rôle</Th>
                 <Th>Siège</Th>
                 <Th>Statut abo</Th>
+                <Th>Échéance</Th>
                 <Th>Dernière connexion</Th>
-                <Th>Quota</Th>
+                <Th>Actions</Th>
               </tr>
             </thead>
             <tbody>
               {results.map((r) => (
                 <tr key={r.user_id} style={{ borderTop: "1px solid #F0ECF8" }}>
                   <Td>
-                    <span style={{ fontWeight: 600, color: "#111827" }}>
+                    <div style={{ fontWeight: 600, color: "#111827" }}>
                       {r.first_name ?? <em style={{ color: "#9CA3AF" }}>Sans prénom</em>}
-                    </span>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "#9CA3AF", marginTop: 2 }}>
+                      {r.email ?? "—"}
+                    </div>
                   </Td>
-                  <Td>{r.email ?? "—"}</Td>
                   <Td>
                     {r.organization ? (
                       <>
@@ -186,12 +207,36 @@ export default function AdminRecherchePage() {
                     </span>
                   </Td>
                   <Td>
-                    <SubStatusPill status={r.organization?.subscription_status ?? null} trialEndsAt={r.organization?.trial_ends_at ?? null} />
+                    <SubStatusPill
+                      status={r.organization?.subscription_status ?? null}
+                      trialEndsAt={r.organization?.trial_ends_at ?? null}
+                    />
+                    {r.organization?.subscription_price_lookup && (
+                      <div style={{ fontSize: 10.5, color: "#9CA3AF", marginTop: 3 }}>
+                        {r.organization.subscription_price_lookup}
+                        {r.organization.subscription_seats != null && ` · ${r.organization.subscription_seats} siège${(r.organization.subscription_seats ?? 0) > 1 ? "s" : ""}`}
+                      </div>
+                    )}
+                  </Td>
+                  <Td>
+                    <DueDateCell
+                      status={r.organization?.subscription_status ?? null}
+                      currentPeriodEnd={r.organization?.current_period_end ?? null}
+                      trialEndsAt={r.organization?.trial_ends_at ?? null}
+                    />
                   </Td>
                   <Td style={{ color: "#6B7280" }}>{formatDate(r.last_sign_in_at)}</Td>
                   <Td>
                     {r.organization ? (
-                      <QuotaOverrideButton orgId={r.organization.id} orgName={r.organization.name} />
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <TrialButton
+                          orgId={r.organization.id}
+                          orgName={r.organization.name}
+                          trialEndsAt={r.organization.trial_ends_at}
+                          onUpdated={() => void refreshOrg(r.organization!.id)}
+                        />
+                        <QuotaOverrideButton orgId={r.organization.id} orgName={r.organization.name} />
+                      </div>
                     ) : "—"}
                   </Td>
                 </tr>
@@ -223,6 +268,77 @@ function Td({ children, style }: { children: React.ReactNode; style?: React.CSSP
   )
 }
 
+/**
+ * Échéance compacte : date de prochain renouvellement Stripe si abonné
+ * actif, sinon nb de jours restants sur l'essai gratuit app-side.
+ * Affichage rouge si <= 3 jours.
+ */
+function DueDateCell({
+  status, currentPeriodEnd, trialEndsAt,
+}: {
+  status: string | null
+  currentPeriodEnd: string | null
+  trialEndsAt: string | null
+}) {
+  // Date.now() = source impure : on capte côté effect, jamais dans le render.
+  const [now, setNow] = useState<number | null>(null)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNow(Date.now())
+  }, [currentPeriodEnd, trialEndsAt])
+  if (now == null) return <span style={{ color: "#9CA3AF" }}>—</span>
+
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+
+  if (status === "active" || status === "trialing" || status === "past_due") {
+    if (currentPeriodEnd) {
+      const ms = new Date(currentPeriodEnd).getTime() - now
+      const days = Math.ceil(ms / (24 * 60 * 60 * 1000))
+      const isSoon = days <= 7 && days >= 0
+      return (
+        <div>
+          <div style={{ color: "#374151", fontVariantNumeric: "tabular-nums" }}>
+            {fmt(currentPeriodEnd)}
+          </div>
+          <div style={{
+            fontSize: 11, marginTop: 2,
+            color: days < 0 ? "#B91C1C" : isSoon ? "#B45309" : "#9CA3AF",
+          }}>
+            {days < 0
+              ? `Échue depuis ${Math.abs(days)} j`
+              : days === 0 ? "Aujourd'hui"
+              : `Dans ${days} j`}
+          </div>
+        </div>
+      )
+    }
+    return <span style={{ color: "#9CA3AF" }}>—</span>
+  }
+
+  if (trialEndsAt) {
+    const ms = new Date(trialEndsAt).getTime() - now
+    const days = Math.ceil(ms / (24 * 60 * 60 * 1000))
+    if (days <= 0) {
+      return (
+        <div>
+          <div style={{ color: "#B91C1C", fontWeight: 600 }}>Essai expiré</div>
+          <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
+        </div>
+      )
+    }
+    return (
+      <div>
+        <div style={{ color: days <= 3 ? "#B91C1C" : "#374151", fontWeight: 600 }}>
+          Essai · {days} j restant{days > 1 ? "s" : ""}
+        </div>
+        <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
+      </div>
+    )
+  }
+  return <span style={{ color: "#9CA3AF" }}>—</span>
+}
+
 function SubStatusPill({ status, trialEndsAt }: { status: string | null; trialEndsAt: string | null }) {
   // useState + useEffect pour la comparaison à Date.now() (impure et
   // interdite pendant le render en React 19 / Next 16).
@@ -250,6 +366,226 @@ const pill = (color: string, bg: string, border: string): React.CSSProperties =>
   letterSpacing: "0.05em", textTransform: "uppercase",
   marginLeft: 4,
 })
+// ─── Période d'essai (admin) ────────────────────────────────────────────
+
+function TrialButton({
+  orgId, orgName, trialEndsAt, onUpdated,
+}: {
+  orgId: string
+  orgName: string
+  trialEndsAt: string | null
+  onUpdated: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{
+          padding: "5px 9px", borderRadius: 7,
+          border: "1px solid #E5E7EB", background: "white",
+          color: "#7C63C8", fontSize: 11.5, fontWeight: 700,
+          cursor: "pointer", fontFamily: "inherit",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Essai
+      </button>
+      {open && (
+        <TrialModal
+          orgId={orgId}
+          orgName={orgName}
+          trialEndsAt={trialEndsAt}
+          onClose={() => setOpen(false)}
+          onUpdated={onUpdated}
+        />
+      )}
+    </>
+  )
+}
+
+function TrialModal({
+  orgId, orgName, trialEndsAt, onClose, onUpdated,
+}: {
+  orgId: string
+  orgName: string
+  trialEndsAt: string | null
+  onClose: () => void
+  onUpdated: () => void
+}) {
+  useEscapeKey(onClose)
+  const [days, setDays] = useState("7")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<{ next: string } | null>(null)
+
+  const submit = async (action: "extend" | "reset") => {
+    setBusy(true); setError(null)
+    try {
+      const body: Record<string, unknown> = { organization_id: orgId, action }
+      if (action === "extend") {
+        const n = Number(days)
+        if (!Number.isFinite(n) || n <= 0) throw new Error("Nombre de jours invalide.")
+        body.days = n
+      }
+      const r = await fetch("/api/admin/trial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      const j = await r.json() as { trial_ends_at?: string; error?: string; message?: string }
+      if (!r.ok) throw new Error(j.message ?? j.error ?? `Erreur ${r.status}`)
+      setDone({ next: j.trial_ends_at ?? "" })
+      onUpdated()
+      setTimeout(onClose, 1400)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const fmt = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "—"
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        background: "rgba(17,24,39,0.40)", backdropFilter: "blur(2px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20, fontFamily: "var(--font-inter), sans-serif",
+      }}
+    >
+      <div style={{
+        width: "100%", maxWidth: 480,
+        background: "white", borderRadius: 16, padding: 24,
+        boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)",
+      }}>
+        <h2 style={{
+          margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#111827",
+          letterSpacing: "-0.01em",
+        }}>
+          Période d&apos;essai gratuite
+        </h2>
+        <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6B7280" }}>
+          Organisation : <strong>{orgName}</strong>
+        </p>
+
+        {done ? (
+          <div style={{
+            padding: "14px 16px", borderRadius: 12,
+            background: "rgba(34,197,94,0.08)",
+            border: "1px solid rgba(34,197,94,0.25)",
+            color: "#166534", fontSize: 13, textAlign: "center",
+          }}>
+            <strong>Essai mis à jour.</strong>
+            <div style={{ marginTop: 4, fontSize: 12 }}>Nouvelle fin : {fmt(done.next)}</div>
+          </div>
+        ) : (
+          <>
+            <div style={{
+              padding: "12px 14px", borderRadius: 10, background: "#F8F6FF",
+              marginBottom: 14, fontSize: 12.5, color: "#5C46A0", lineHeight: 1.55,
+            }}>
+              <div>Fin actuelle : <strong>{fmt(trialEndsAt)}</strong></div>
+            </div>
+
+            <div style={{
+              padding: "14px 14px", borderRadius: 10,
+              border: "1px solid #F0ECF8", marginBottom: 12,
+            }}>
+              <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "#111827" }}>
+                Prolonger la période d&apos;essai
+              </p>
+              <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={days}
+                  onChange={(e) => setDays(e.target.value)}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => submit("extend")}
+                  disabled={busy}
+                  style={{
+                    padding: "9px 16px", borderRadius: 9,
+                    border: "none", color: "white",
+                    background: busy ? "#C4B6E0"
+                      : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    fontSize: 13, fontWeight: 700, cursor: busy ? "wait" : "pointer",
+                    fontFamily: "inherit", whiteSpace: "nowrap",
+                  }}
+                >
+                  Ajouter {days} j
+                </button>
+              </div>
+              <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "#9CA3AF" }}>
+                Maximum 90 jours par opération. Si l&apos;essai est déjà expiré,
+                on prolonge à partir d&apos;aujourd&apos;hui.
+              </p>
+            </div>
+
+            <div style={{
+              padding: "14px 14px", borderRadius: 10,
+              border: "1px solid #F0ECF8", marginBottom: 14,
+            }}>
+              <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "#111827" }}>
+                Réinitialiser la période d&apos;essai
+              </p>
+              <p style={{ margin: "0 0 10px", fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+                Remet la fin à J+15 (essai gratuit standard) à partir d&apos;aujourd&apos;hui.
+              </p>
+              <button
+                type="button"
+                onClick={() => submit("reset")}
+                disabled={busy}
+                style={{
+                  padding: "9px 14px", borderRadius: 9,
+                  border: "1px solid #E2DAF6", background: "white",
+                  color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+                  cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
+                }}
+              >
+                Réinitialiser à J+15
+              </button>
+            </div>
+
+            {error && (
+              <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#B91C1C" }}>
+                {error}
+              </p>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={busy}
+                style={{
+                  padding: "9px 14px", borderRadius: 9,
+                  border: "1px solid #E5E7EB", background: "white",
+                  color: "#374151", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Fermer
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Quota override (admin) ────────────────────────────────────────────
 
 function QuotaOverrideButton({ orgId, orgName }: { orgId: string; orgName: string }) {
