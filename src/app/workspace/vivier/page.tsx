@@ -9,8 +9,11 @@ import { customTagsOf } from "@/lib/tags"
 import { matchesCandidateRef, candidateRefLabel } from "@/lib/candidate-ref"
 import { candidateClusters, clusterHue } from "@/lib/vivier-clusters"
 import NoraLoader from "@/components/workspace/NoraLoader"
-import VivierMapView from "@/components/workspace/VivierMapView"
-import { ZonesManager } from "@/components/workspace/ZonesManager"
+// VivierMapView et ZonesManager retirés temporairement de l'UI.
+// Le code reste dispo (components/workspace/VivierMapView.tsx +
+// ZonesManager.tsx + API /api/vivier/cluster, /api/vivier/zones) pour
+// quand on retravaillera la taxonomie. Pour l'instant : vue Liste pure,
+// pas de clustering automatique, pas de zones, juste les CVs uploadés.
 import { showUndoToast } from "@/components/ui/UndoToast"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -25,7 +28,7 @@ interface UploadJob {
   candidateId?: string
 }
 
-type ViewMode = "flat" | "map"
+// ViewMode retiré : vue Liste uniquement (cf. import note ci-dessus).
 
 // SECTOR_META / SECTOR_ORDER / SENIORITY_OPTIONS retirés : la classification
 // est désormais 100 % faite par Nora (cluster_assignments). Plus de liste
@@ -41,9 +44,8 @@ export default function VivierPage() {
   const [isDragging, setIsDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Filters & view — default to sector grouping with everything collapsed
-  // so the page lands as a tidy overview, not a wall of cards.
-  const [viewMode, setViewMode] = useState<ViewMode>("map")
+  // Vue Liste uniquement — toggle Carte/Liste retiré le temps de
+  // retravailler la taxonomie (Sprint B' juin 2026).
   // Les filtres avancés (séniorité, lieu, skill, complétude, secteur,
   // tag) ont été retirés au profit d'une seule barre de recherche large
   // — la recherche libre fait déjà le job sur ces 6 axes.
@@ -493,25 +495,6 @@ export default function VivierPage() {
               onFocus={(e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,99,200,0.10)" }}
               onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none" }}
             />
-            <div style={{ display: "flex", border: "1px solid #E5E7EB", borderRadius: 9, overflow: "hidden" }}>
-              {([
-                { key: "map" as ViewMode,  label: "◍ Carte" },
-                { key: "flat" as ViewMode, label: "≡ Liste" },
-              ]).map((m) => (
-                <button
-                  key={m.key}
-                  onClick={() => setViewMode(m.key)}
-                  style={{
-                    fontSize: 12, fontWeight: 600, padding: "9px 14px",
-                    border: "none", cursor: "pointer", fontFamily: "inherit",
-                    background: viewMode === m.key ? "#7C63C8" : "white",
-                    color: viewMode === m.key ? "white" : "#6B7280",
-                  }}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
             <span style={{ fontSize: 12, color: "#9CA3AF" }}>
               {filtered.length}{filtered.length !== candidates.length ? ` / ${candidates.length}` : ""} candidat{filtered.length > 1 ? "s" : ""}
             </span>
@@ -599,27 +582,6 @@ export default function VivierPage() {
       {/* Grid / empty state */}
       {empty ? (
         <EmptyDropZone onPick={() => inputRef.current?.click()} />
-      ) : viewMode === "map" ? (
-        <>
-          <ZonesManager />
-          <div style={{ marginTop: 18 }}>
-            <VivierMapView
-              candidates={parsedOrErrored.filter((c) => c.parse_status === "parsed")}
-              onClusteringDone={async () => {
-                // Recharge le vivier ENTIER de l'org (RLS scope l'org) — pas
-                // seulement les uploads de l'utilisateur courant, sinon les
-                // CVs des autres members manquent après re-clustering.
-                const { data } = await sb
-                  .from("candidates")
-                  .select(CANDIDATE_COLUMNS)
-                  .not("tags", "cs", "{ancien}")
-                  .order("created_at", { ascending: false })
-                  .limit(200)
-                setCandidates((data ?? []) as unknown as Candidate[])
-              }}
-            />
-          </div>
-        </>
       ) : (
         <div style={{
           display: "grid",
