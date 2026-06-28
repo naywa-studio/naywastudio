@@ -17,7 +17,7 @@
  * `candidates` filtrée par la page parente (qui gère search + filtres).
  */
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { m, AnimatePresence, LayoutGroup } from "framer-motion"
 import type { Candidate } from "@/lib/database.types"
@@ -45,7 +45,6 @@ export default function VivierMapView({
   // afficher si rate. Pas de cache — le parent rafraîchit après ok.
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const triggerRunRef = useRef(false)
   const everClassified = candidates.some((c) => (c.cluster_assignments ?? []).length > 0)
 
   const runClustering = async () => {
@@ -75,17 +74,11 @@ export default function VivierMapView({
     }
   }, [clusters, zoomedId])
 
-  // Auto-déclenche au premier passage si aucun candidat n'a jamais été
-  // classé. Évite un état vide intimidant au premier arrivée sur la Carte.
-  useEffect(() => {
-    if (triggerRunRef.current) return
-    if (busy) return
-    if (candidates.length === 0) return
-    if (everClassified) return
-    triggerRunRef.current = true
-    void runClustering()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidates.length, everClassified])
+  // Sprint A : auto-trigger retiré. Cause d'une boucle infinie quand le
+  // 1er run rate (HTTP 504 ou autre) : `everClassified` restait false →
+  // re-trigger à chaque load. Le clustering est désormais déclenché
+  // uniquement par le bouton "Analyser le vivier" / "Réorganiser avec Nora".
+  // triggerRunRef retiré aussi (était utilisé seulement par l'auto-trigger).
 
   const zoomed = zoomedId ? clusters.find((c) => c.id === zoomedId) ?? null : null
 

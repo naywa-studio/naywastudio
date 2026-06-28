@@ -131,6 +131,21 @@ export default function JobDetailPage() {
     return () => clearInterval(interval)
   }, [isMatching, loadAll])
 
+  // Sprint A : auto-récupération d'un job "matching" stale (>90 s sans
+  // bouger). Cas typique : la fonction Vercel a été tuée mid-flight, le
+  // status n'a pas pu flipper, et le user débarque sur la page des heures
+  // plus tard et voit "65s 256000s elapsed". On flippe localement en
+  // "error" — un clic sur "Relancer le matching" relancera proprement.
+  // Côté serveur le STALE check (75 s) accepte un nouveau run sans force.
+  useEffect(() => {
+    if (!isMatching || !job?.updated_at) return
+    const ageMs = Date.now() - new Date(job.updated_at).getTime()
+    if (ageMs > 90_000) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setJob((prev) => prev ? { ...prev, match_status: "error" } : prev)
+    }
+  }, [isMatching, job?.updated_at])
+
   const runMatch = async (opts?: { force?: boolean }) => {
     if (!job) return
     setMatchError(null)
