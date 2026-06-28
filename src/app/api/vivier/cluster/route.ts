@@ -31,17 +31,19 @@ import { getCabinetOrgId } from "@/lib/cabinet-config"
 import type { Candidate, ClusterAssignment } from "@/lib/database.types"
 
 export const runtime = "nodejs"
-export const maxDuration = 60
+// 300 s = max Vercel Pro. Sur Hobby retombe à 60 s mais avec batch 50
+// + maxTokens réduit on tient 4 batches × ~12 s = ~50 s pour 200 CVs.
+export const maxDuration = 300
 
-// Taille de batch côté LLM. Au-delà la latence explose et le JSON de
-// réponse risque la troncature. Batching séquentiel : chaque batch voit
-// les zones existantes + celles créées par les batches précédents du
-// même run, pour qu'un candidat du batch 2 puisse être rangé dans une
-// zone créée pour des candidats du batch 1.
-const CLUSTER_BATCH_SIZE = 150
-// Plafond très haut pour ne pas griller le budget Vercel d'un coup
-// (vivier énorme). À ~5-10 s par batch × concurrence 1 séquentielle,
-// 6 batches = ~45 s, dans le budget 60 s.
+// Batch 50 (Sprint A) : 150 produisait des HTTP 504 — le LLM mettait
+// 30-60 s par appel à digérer 150 snapshots et à émettre un JSON
+// d'assignations massif (truncation fréquente). À 50 candidats par
+// batch, chaque appel descend à ~10-15 s avec un JSON 3× plus court.
+// Toujours séquentiel pour que chaque batch voit les zones créées par
+// les batches précédents du même run (cohérence du vivier vivant).
+const CLUSTER_BATCH_SIZE = 50
+// Sprint B retravaillera la taxonomie côté serveur (zones fixes +
+// custom user). En attendant on garde la limite haute.
 const MAX_CANDIDATES_PER_RUN = 900
 
 const SYSTEM_PROMPT = `Tu es Nora, l'assistante d'un cabinet de recrutement. On te confie le vivier de candidats du cabinet et tu dois le structurer en secteurs métier intuitifs pour le sourceur.
