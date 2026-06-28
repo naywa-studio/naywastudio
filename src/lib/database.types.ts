@@ -321,10 +321,19 @@ export type Database = {
           id: string
           organization_id: string
           label: string
-          /** Short LLM-written "qui ressemble à ça". Re-read on every
-           *  subsequent clustering pass so Nora knows what fits each zone. */
+          /** Short "qui ressemble à ça" — proposée par Nora au 1er run
+           *  ou rédigée par le sourceur. Re-lue à chaque clustering pour
+           *  guider l'assignment. */
           description: string
           candidate_count: number
+          /** True si la zone a été proposée par Nora au 1er run (ou la
+           *  zone système "Autre"). False si créée manuellement par le
+           *  sourceur via POST /api/vivier/zones. */
+          is_seed: boolean
+          /** Trace qui a créé la zone manuellement. NULL pour seed/system. */
+          created_by_user_id: string | null
+          /** Ordre d'affichage UI (modifiable par le sourceur). */
+          display_order: number
           created_at: string
           updated_at: string
         }
@@ -334,6 +343,9 @@ export type Database = {
           label: string
           description: string
           candidate_count?: number
+          is_seed?: boolean
+          created_by_user_id?: string | null
+          display_order?: number
           created_at?: string
           updated_at?: string
         }
