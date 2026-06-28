@@ -1,23 +1,23 @@
 /**
- * POST /api/vivier/cluster
+ * POST /api/vivier/cluster — clustering du vivier (Sprint B).
  *
- * Vivier clustering avec mémoire. Nora :
- *   1. Lit le manifeste des zones déjà créées pour cette org — une courte
- *      description "qui ressemble à ça". Elle évite ainsi de re-scanner
- *      tous les CVs pour décider où ranger un nouveau profil.
- *   2. Pour chaque candidat (existant ou nouvellement arrivé), elle décide :
- *      soit l'assigne à une zone existante (case standard, peu coûteux),
- *      soit le marque "orphelin" si vraiment rien ne correspond.
- *   3. Si ≥ 3 orphelins forment un domaine cohérent absent du manifeste,
- *      elle crée UNE nouvelle zone (avec sa description) et y range les
- *      orphelins concernés. Pas d'orphelins esseulés inventés.
+ * 2 modes :
  *
- * Règles dures :
- *   - Pas de cluster "Étudiants" / "Stagiaires" / "Alternants" — un débutant
- *     va dans son cluster métier. is_apprentice est un BADGE sur la fiche,
- *     pas une zone.
- *   - Regarde la TRAJECTOIRE (3-4 dernières XP + formation), pas seulement
- *     le current_title.
+ *  1) PREMIER RUN (taxonomie vide ou réduite à "Autre")
+ *     - Le 1er batch laisse Nora PROPOSER des zones, avec un cap dynamique
+ *       (cf. lib/cluster-taxonomy.ts maxZonesForVivierSize). Pour 10 CVs
+ *       elle propose 1 zone (= Autre), pour 200 CVs jusqu'à 15.
+ *     - Les batches suivants du même run sont en mode CLOSED : ils ne
+ *       peuvent qu'assigner aux zones proposées au 1er batch (cohérence).
+ *
+ *  2) RUNS SUIVANTS (taxonomie déjà établie)
+ *     - Mode CLOSED uniquement : Nora choisit dans la liste des zones de
+ *       l'org. Si rien ne colle vraiment pour un candidat → "Autre".
+ *     - Les zones ne sont JAMAIS créées par le LLM dans ce mode. Le
+ *       sourceur les crée/édite/supprime via /api/vivier/zones.
+ *
+ * La zone système "Autre" est toujours présente (créée à la volée si
+ * manquante). Non supprimable côté CRUD.
  *
  * GET /api/vivier/cluster → état (dernière exécution, classés, total).
  */
@@ -28,45 +28,43 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeQuota, consumeOrgLlmActionForUser } from "@/lib/quota"
 import { openrouterChat } from "@/lib/openrouter"
 import { getCabinetOrgId } from "@/lib/cabinet-config"
+import {
+  FALLBACK_ZONE_LABEL,
+  MAX_ZONES_PER_ORG,
+  maxZonesForVivierSize,
+} from "@/lib/cluster-taxonomy"
 import type { Candidate, ClusterAssignment } from "@/lib/database.types"
 
 export const runtime = "nodejs"
-// 300 s = max Vercel Pro. Sur Hobby retombe à 60 s mais avec batch 50
-// + maxTokens réduit on tient 4 batches × ~12 s = ~50 s pour 200 CVs.
 export const maxDuration = 300
 
-// Batch 50 (Sprint A) : 150 produisait des HTTP 504 — le LLM mettait
-// 30-60 s par appel à digérer 150 snapshots et à émettre un JSON
-// d'assignations massif (truncation fréquente). À 50 candidats par
-// batch, chaque appel descend à ~10-15 s avec un JSON 3× plus court.
-// Toujours séquentiel pour que chaque batch voit les zones créées par
-// les batches précédents du même run (cohérence du vivier vivant).
 const CLUSTER_BATCH_SIZE = 50
-// Sprint B retravaillera la taxonomie côté serveur (zones fixes +
-// custom user). En attendant on garde la limite haute.
 const MAX_CANDIDATES_PER_RUN = 900
 
-const SYSTEM_PROMPT = `Tu es Nora, l'assistante d'un cabinet de recrutement. On te confie le vivier de candidats du cabinet et tu dois le structurer en secteurs métier intuitifs pour le sourceur.
+const FALLBACK_DESCRIPTION =
+  "Zone système. Reçoit les candidats qui ne correspondent à aucune des zones définies de votre organisation. Toujours présente, non supprimable. Réorganisez vos zones ou créez-en de nouvelles pour la vider."
 
-CONTEXTE : ton interlocuteur travaille avec un vivier "vivant". À chaque passage, on te donne :
-- les ZONES déjà créées par les passages précédents (avec leur description : "qui ressemble à ça")
-- la liste actuelle des candidats parsés
+const COMMON_RULES = `RÈGLES DURES :
+- INTERDIT de créer un cluster basé sur statut/séniorité ("Étudiants & Stagiaires", "Alternance", "Juniors"). Les débutants vont dans leur cluster MÉTIER (un Junior Data Engineer va dans "Data Engineering"). is_apprentice est un BADGE, pas une zone.
+- INTERDIT de changer le label d'une zone existante. Tu peux UTILISER son label, pas le réécrire.
+- assignments DOIT couvrir TOUS les candidats fournis. Si vraiment rien ne colle pour un candidat, mets-le dans "${FALLBACK_ZONE_LABEL}" avec un poids 0.5.`
+
+function firstRunSystemPrompt(maxZones: number): string {
+  return `Tu es Nora, l'assistante d'un cabinet de recrutement. C'est le PREMIER passage de clustering : tu vas définir les zones métier de ce vivier (taxonomie de base) ET y ranger les candidats.
+
+CAP STRICT : maximum ${maxZones} zones AU TOTAL (incluant la zone "${FALLBACK_ZONE_LABEL}" qui existe par défaut). Le sourceur pourra créer d'autres zones manuellement plus tard si besoin.
 
 Ta mission :
-1. Pour CHAQUE candidat, regarde son ensemble (titre actuel + 3-4 dernières expériences + compétences + formation), PAS juste son titre.
-2. Si le candidat colle à une zone existante, assigne-le à cette zone. C'est le cas normal — réutilise au maximum les zones existantes.
-3. Si un profil hybride hésite vraiment entre 2 zones existantes, assigne-le aux 2 (poids dominant ≥ 0.7, secondaire 0.5-0.69). Max 3 zones par candidat — 4 absolument exceptionnel.
-4. Si AUCUNE zone existante ne convient ET qu'il existe ≥ 3 candidats qui forment un domaine cohérent absent, crée UNE nouvelle zone avec sa description. Ne crée jamais de zone pour 1 ou 2 candidats isolés (mets-les dans la zone la plus proche, même si imparfaite, en réduisant le poids à 0.5-0.6).
+1. Pour CHAQUE candidat, analyse l'ensemble (titre + 3-4 dernières XP + compétences + formation), PAS juste le titre.
+2. Identifie 1 à ${maxZones - 1} grandes familles métier cohérentes dans ce vivier. Chaque famille doit regrouper au moins 3 candidats. Si tu ne vois pas ${maxZones - 1} familles cohérentes, propose-en moins — la qualité prime sur la quantité.
+3. Assigne chaque candidat à sa famille. Un profil hybride peut être assigné à 2 zones (poids dominant ≥ 0.7, secondaire 0.5-0.69). Max 3 zones par candidat.
+4. Les candidats isolés (sans famille de ≥3) vont dans "${FALLBACK_ZONE_LABEL}".
 
-RÈGLES DURES — INTERDICTIONS :
-- INTERDIT : créer un cluster "Étudiants & Stagiaires", "Alternance", "Apprentissage", "Juniors" ou tout cluster qui dépend d'un STATUT ou d'une SÉNIORITÉ. Les débutants vont dans leur cluster MÉTIER (un Junior Data Engineer = "Data Engineering", un Apprenti Dev Backend = "Backend Software"). is_apprentice est un badge sur la fiche, pas une zone.
-- INTERDIT : créer une zone pour 1 ou 2 candidats isolés. Mets-les dans la zone la plus proche existante.
-- INTERDIT : assigner un candidat à une zone dont le label n'est pas dans la liste {existantes ∪ nouvellement créées dans CE passage}.
-- INTERDIT : changer le label d'une zone existante ; tu peux UTILISER son label, pas le réécrire.
+Quand tu CRÉES une zone, fournis :
+- label : court, français, professionnel (ex. "Data Engineering", "Sales B2B", "Gestion de patrimoine")
+- description : 2-3 phrases "qui ressemble à ça" — métier + 2-3 outils/techno + signaux clés. Sera relue par les passages futurs pour décider du rangement.
 
-Quand tu CRÉES une nouvelle zone, fournis :
-- label : court, français, professionnel (ex. "Cybersécurité", "Backend Software", "Data Engineering")
-- description : 2-3 phrases "qui ressemble à ça" — ce qui caractérise les profils de cette zone (métier + 2-3 outils/techno + signaux clés). Cette description sera relue par tes futurs passages pour décider du rangement, soigne-la.
+${COMMON_RULES}
 
 Réponds en JSON strict :
 {
@@ -75,12 +73,35 @@ Réponds en JSON strict :
   ],
   "assignments": {
     "<candidate_id>": [
-      { "label": "doit correspondre à une zone existante OU créée dans ce passage", "weight": 0.5-1.0 }
+      { "label": "doit être dans {nouvelles zones ∪ '${FALLBACK_ZONE_LABEL}'}", "weight": 0.5-1.0 }
     ]
   }
+}`
 }
 
-assignments DOIT couvrir TOUS les candidats fournis. Si tu n'es vraiment pas sûr pour un candidat, force-toi à choisir la zone la plus proche avec un poids 0.5.`
+const CLOSED_SYSTEM_PROMPT = `Tu es Nora, l'assistante d'un cabinet de recrutement. La taxonomie de zones de ce cabinet est DÉJÀ ÉTABLIE et FERMÉE — tu ne peux PAS créer de nouvelle zone, tu dois assigner chaque candidat à une zone existante OU à "${FALLBACK_ZONE_LABEL}".
+
+Tu reçois :
+- la liste des ZONES DISPONIBLES (avec leur description "qui ressemble à ça")
+- la liste des candidats à ranger
+
+Ta mission :
+1. Pour CHAQUE candidat, analyse l'ensemble (titre + XP + compétences + formation).
+2. Choisis la zone qui colle le mieux PARMI LES ZONES DISPONIBLES. Si vraiment rien ne colle, mets-le dans "${FALLBACK_ZONE_LABEL}".
+3. Un profil hybride peut être assigné à 2 zones existantes (dominant ≥ 0.7, secondaire 0.5-0.69). Max 3 zones par candidat.
+4. Tu ne PEUX PAS proposer de nouvelle zone. new_clusters DOIT être un tableau vide.
+
+${COMMON_RULES}
+
+Réponds en JSON strict :
+{
+  "new_clusters": [],
+  "assignments": {
+    "<candidate_id>": [
+      { "label": "doit être dans la liste fournie", "weight": 0.5-1.0 }
+    ]
+  }
+}`
 
 interface CandidateSnapshot {
   id: string
@@ -95,7 +116,7 @@ interface CandidateSnapshot {
   summary: string | null
 }
 
-interface ExistingManifest {
+interface ZoneRow {
   label: string
   description: string
   candidate_count: number
@@ -136,7 +157,6 @@ export async function GET() {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
-  // RLS-scoped — returns rows of the caller's org.
   const { data: rows } = await sb
     .from("candidates")
     .select("cluster_assigned_at, cluster_assignments")
@@ -165,7 +185,6 @@ export async function POST(req: NextRequest) {
   const orgId = await getCabinetOrgId(sb, user.id)
   if (!orgId) return NextResponse.json({ error: "no_org" }, { status: 404 })
 
-  // 1) Quota — clustering = appel LLM lourd, on l'absorbe dans le bucket assistant.
   const quota = await consumeQuota(getAdminSupabase(), user.id, "assistant")
   if (!quota.ok) {
     return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
@@ -175,8 +194,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: orgLlm.code ?? "llm_quota_exceeded", message: orgLlm.message }, { status: 429 })
   }
 
-  // 2) Charger les candidats de l'org (RLS org-scoped).
-  const { data: rows, error: fetchErr } = await sb
+  // 1) Candidats à clusteriser.
+  const { data: candRows, error: fetchErr } = await sb
     .from("candidates")
     .select("*")
     .eq("parse_status", "parsed")
@@ -185,7 +204,7 @@ export async function POST(req: NextRequest) {
   if (fetchErr) {
     return NextResponse.json({ error: "fetch_failed", detail: fetchErr.message }, { status: 500 })
   }
-  const candidates = (rows ?? []) as Candidate[]
+  const candidates = (candRows ?? []) as Candidate[]
   if (candidates.length === 0) {
     return NextResponse.json({ error: "empty_vivier", message: "Aucun candidat parsé dans le vivier." }, { status: 400 })
   }
@@ -196,49 +215,81 @@ export async function POST(req: NextRequest) {
     }, { status: 400 })
   }
 
-  // 3) Charger les manifestes existants (vivier vivant).
-  const { data: manifestRows } = await sb
+  const admin = getAdminSupabase()
+
+  // 2) Lit la taxonomie existante.
+  const { data: existingZones } = await admin
     .from("cluster_manifests")
     .select("label, description, candidate_count")
     .eq("organization_id", orgId)
-  const seedManifests: ExistingManifest[] = (manifestRows ?? []) as ExistingManifest[]
+  const existing: ZoneRow[] = (existingZones ?? []) as ZoneRow[]
 
-  // 4) Snapshot des candidats + découpage en batches.
+  // 3) S'assure que la zone "Autre" existe toujours.
+  if (!existing.some((z) => z.label === FALLBACK_ZONE_LABEL)) {
+    await admin.from("cluster_manifests").upsert({
+      organization_id: orgId,
+      label: FALLBACK_ZONE_LABEL,
+      description: FALLBACK_DESCRIPTION,
+      candidate_count: 0,
+      is_seed: true,
+      display_order: 999,
+    }, { onConflict: "organization_id,label" })
+    existing.push({ label: FALLBACK_ZONE_LABEL, description: FALLBACK_DESCRIPTION, candidate_count: 0 })
+  }
+
+  // 4) Détermine le mode : si la taxonomie ne contient QUE "Autre", on est
+  //    au premier run (Nora propose). Sinon mode fermé (Nora assigne).
+  const realZones = existing.filter((z) => z.label !== FALLBACK_ZONE_LABEL)
+  const isFirstRun = realZones.length === 0
+  const maxZonesAllowed = isFirstRun
+    ? maxZonesForVivierSize(candidates.length)
+    : MAX_ZONES_PER_ORG
+
+  // 5) Découpe en batches.
   const allSnapshots = candidates.map(buildSnapshot)
   const batches: CandidateSnapshot[][] = []
   for (let i = 0; i < allSnapshots.length; i += CLUSTER_BATCH_SIZE) {
     batches.push(allSnapshots.slice(i, i + CLUSTER_BATCH_SIZE))
   }
 
-  // 5) Appels LLM séquentiels — chaque batch voit les zones (initiales +
-  //    celles créées par les batches précédents du même run). Permet à
-  //    un candidat du batch 2 d'atterrir dans une zone fraîchement créée
-  //    pour des candidats du batch 1.
+  // 6) État partagé entre batches.
   const allowedLabels = new Map<string, { description: string; isNew: boolean }>()
-  for (const m of seedManifests) {
-    allowedLabels.set(m.label, { description: m.description, isNew: false })
+  for (const z of existing) {
+    allowedLabels.set(z.label, { description: z.description, isNew: false })
   }
   const newManifests: Array<{ label: string; description: string }> = []
-  // Assignations brutes par candidate_id, accumulées sur tous les batches.
   const rawAssignments = new Map<string, Array<{ label?: unknown; weight?: unknown }>>()
 
-  for (const batch of batches) {
-    // Contexte zones = état courant (seed + nouvellement créées dans les
-    // batches précédents).
-    const currentManifestsForLlm = Array.from(allowedLabels.entries()).map(([label, info]) => ({
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i]
+    const isFirstBatchOfFirstRun = i === 0 && isFirstRun
+
+    // Le 1er batch d'un 1er run laisse Nora proposer (cap maxZonesAllowed).
+    // Tous les autres batches sont en CLOSED — la taxonomie est figée.
+    const systemPrompt = isFirstBatchOfFirstRun
+      ? firstRunSystemPrompt(maxZonesAllowed)
+      : CLOSED_SYSTEM_PROMPT
+
+    const zonesForLlm = Array.from(allowedLabels.entries()).map(([label, info]) => ({
       label,
       description: info.description,
-      candidate_count: 0, // sans incidence sur la décision LLM
     }))
-    const userContent = [
-      `ZONES EXISTANTES (créées lors des passages précédents OU dans le batch précédent de ce run, à réutiliser au maximum) :`,
-      currentManifestsForLlm.length > 0
-        ? JSON.stringify(currentManifestsForLlm, null, 2)
-        : "(aucune, c'est le premier batch du premier passage)",
-      "",
-      `CANDIDATS À RANGER (n=${batch.length}) :`,
-      JSON.stringify(batch, null, 2),
-    ].join("\n")
+
+    const userContent = isFirstBatchOfFirstRun
+      ? [
+          `Premier passage de clustering. Tu peux proposer jusqu'à ${maxZonesAllowed} zones AU TOTAL.`,
+          `Zone système toujours présente : "${FALLBACK_ZONE_LABEL}" — utilise-la pour les candidats sans famille cohérente.`,
+          "",
+          `CANDIDATS À RANGER (n=${batch.length}) :`,
+          JSON.stringify(batch, null, 2),
+        ].join("\n")
+      : [
+          `ZONES DISPONIBLES (taxonomie fermée — tu n'as PAS le droit d'en créer d'autres) :`,
+          JSON.stringify(zonesForLlm, null, 2),
+          "",
+          `CANDIDATS À RANGER (n=${batch.length}) :`,
+          JSON.stringify(batch, null, 2),
+        ].join("\n")
 
     let parsed: {
       new_clusters?: Array<{ label?: unknown; description?: unknown }>
@@ -248,42 +299,43 @@ export async function POST(req: NextRequest) {
       const result = await openrouterChat({
         model: "openai/gpt-4o-mini",
         temperature: 0.2,
-        maxTokens: 6000,
+        maxTokens: 5000,
         timeoutMs: 55_000,
         responseFormat: "json_object",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
         ],
       })
       parsed = JSON.parse(result.content) as typeof parsed
     } catch (err) {
-      // Best-effort : si un batch plante on continue (les candidats du
-      // batch resteront sans assignation, l'user pourra relancer).
       console.error("[cluster] batch failed:", (err as Error).message)
       continue
     }
 
-    // Merge new clusters
-    for (const c of parsed.new_clusters ?? []) {
-      const label = typeof c?.label === "string" ? c.label.trim() : ""
-      const description = typeof c?.description === "string" ? c.description.trim() : ""
-      if (!label || !description) continue
-      if (allowedLabels.has(label)) continue
-      allowedLabels.set(label, { description, isNew: true })
-      newManifests.push({ label, description })
+    // En PREMIER RUN seulement : merge des nouvelles zones, sous cap.
+    if (isFirstBatchOfFirstRun) {
+      for (const c of parsed.new_clusters ?? []) {
+        if (allowedLabels.size >= maxZonesAllowed) break
+        const label = typeof c?.label === "string" ? c.label.trim() : ""
+        const description = typeof c?.description === "string" ? c.description.trim() : ""
+        if (!label || !description) continue
+        if (allowedLabels.has(label)) continue
+        if (label.toLowerCase() === FALLBACK_ZONE_LABEL.toLowerCase()) continue
+        allowedLabels.set(label, { description, isNew: true })
+        newManifests.push({ label, description })
+      }
     }
-    // Accumule les assignations
+    // En CLOSED : on ignore tout new_cluster que le LLM aurait quand même
+    // émis (défense en profondeur — le prompt l'interdit déjà).
+
+    // Accumule les assignations.
     for (const [candId, items] of Object.entries(parsed.assignments ?? {})) {
       rawAssignments.set(candId, items)
     }
   }
 
-  if (allowedLabels.size === 0) {
-    return NextResponse.json({ error: "no_clusters", detail: "Nora n'a déclaré aucune zone." }, { status: 502 })
-  }
-
-  // 7) Nettoyage des assignations.
+  // 7) Nettoyage + fallback systématique sur "Autre" si rien de valide.
   const now = new Date().toISOString()
   const updates: Array<{ id: string; assignments: ClusterAssignment[] }> = []
   const labelCounts = new Map<string, number>()
@@ -299,19 +351,15 @@ export async function POST(req: NextRequest) {
       if (clean.some((c) => c.label === label)) continue
       clean.push({ label, weight: w })
     }
-    if (clean.length === 0) continue
+    // Si le LLM n'a rien donné de valide pour ce candidat → "Autre".
+    if (clean.length === 0) clean.push({ label: FALLBACK_ZONE_LABEL, weight: 0.5 })
     if (clean.length > 4) clean.length = 4
     clean.sort((a, b) => b.weight - a.weight)
     updates.push({ id: cand.id, assignments: clean })
     for (const a of clean) labelCounts.set(a.label, (labelCounts.get(a.label) ?? 0) + 1)
   }
 
-  if (updates.length === 0) {
-    return NextResponse.json({ error: "no_assignments", detail: "Aucune assignation valide." }, { status: 502 })
-  }
-
-  // 8) Persiste les assignations (admin pour bypass RLS sur écriture en masse).
-  const admin = getAdminSupabase()
+  // 8) Persiste les assignations.
   const updateResults = await Promise.all(updates.map((u) =>
     admin
       .from("candidates")
@@ -321,13 +369,16 @@ export async function POST(req: NextRequest) {
   ))
   const failed = updateResults.filter((r) => r.error).length
 
-  // 9) Persiste / met à jour les manifestes pour la prochaine passe.
-  //    Upsert avec UNIQUE (organization_id, label).
+  // 9) Upsert les manifestes pour la prochaine passe (Autre incluse).
   const manifestRowsToUpsert = Array.from(allowedLabels.entries()).map(([label, info]) => ({
     organization_id: orgId,
     label,
     description: info.description,
     candidate_count: labelCounts.get(label) ?? 0,
+    // is_seed=true pour les zones créées par le LLM au 1er run + pour Autre.
+    // Les zones créées manuellement par le sourceur (POST /api/vivier/zones)
+    // sont stampées is_seed=false ; on ne les touche pas ici.
+    ...(info.isNew ? { is_seed: true } : {}),
   }))
   if (manifestRowsToUpsert.length > 0) {
     await admin
@@ -337,6 +388,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
+    mode: isFirstRun ? "first_run" : "closed",
     clusters: Array.from(allowedLabels.keys()),
     new_clusters: newManifests.map((m) => m.label),
     classified: updates.length,

@@ -10,6 +10,7 @@ import { matchesCandidateRef, candidateRefLabel } from "@/lib/candidate-ref"
 import { candidateClusters, clusterHue } from "@/lib/vivier-clusters"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import VivierMapView from "@/components/workspace/VivierMapView"
+import { ZonesManager } from "@/components/workspace/ZonesManager"
 import { showUndoToast } from "@/components/ui/UndoToast"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -599,21 +600,26 @@ export default function VivierPage() {
       {empty ? (
         <EmptyDropZone onPick={() => inputRef.current?.click()} />
       ) : viewMode === "map" ? (
-        <VivierMapView
-          candidates={parsedOrErrored.filter((c) => c.parse_status === "parsed")}
-          onClusteringDone={async () => {
-            // Recharge le vivier ENTIER de l'org (RLS scope l'org) — pas
-            // seulement les uploads de l'utilisateur courant, sinon les
-            // CVs des autres members manquent après re-clustering.
-            const { data } = await sb
-              .from("candidates")
-              .select(CANDIDATE_COLUMNS)
-              .not("tags", "cs", "{ancien}")
-              .order("created_at", { ascending: false })
-              .limit(200)
-            setCandidates((data ?? []) as unknown as Candidate[])
-          }}
-        />
+        <>
+          <ZonesManager />
+          <div style={{ marginTop: 18 }}>
+            <VivierMapView
+              candidates={parsedOrErrored.filter((c) => c.parse_status === "parsed")}
+              onClusteringDone={async () => {
+                // Recharge le vivier ENTIER de l'org (RLS scope l'org) — pas
+                // seulement les uploads de l'utilisateur courant, sinon les
+                // CVs des autres members manquent après re-clustering.
+                const { data } = await sb
+                  .from("candidates")
+                  .select(CANDIDATE_COLUMNS)
+                  .not("tags", "cs", "{ancien}")
+                  .order("created_at", { ascending: false })
+                  .limit(200)
+                setCandidates((data ?? []) as unknown as Candidate[])
+              }}
+            />
+          </div>
+        </>
       ) : (
         <div style={{
           display: "grid",
