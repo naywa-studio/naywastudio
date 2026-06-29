@@ -620,8 +620,85 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
-### ✅ Livré (récent)
-- **PR4 — Quota LLM mensuel sur toutes les routes** (pushé claude/llm-quota-all-routes, en attente merge) : `consumeOrgLlmActionForUser()` ajouté aux 10 routes LLM (upload, anonymize, critique, compose, match, match-all, extract, cluster, assistant, jobs/chat, pricing/compare). Grille crédits 2× plus généreuse : Sourcing 3500-17000 / Pro 4500-22500 / Trial 3500.
+### ✅ Livré récent (cette session, juin 26 2026)
+
+Tout mergé sur main, par ordre chronologique :
+
+- **PR4** `5cffe0f` LLM quota org sur les 10 routes LLM + grille crédits 2× plus généreuse (3500-22500 selon plan, trial 1700)
+- **PR5** `7a2e074` UX matching (vraie barre progress scored/total, bouton haut-droite) + **suppression complète Calendly** (5 routes API, 3 composants, table interviews, colonnes calendly_* sur profiles) + sweep cohérence (signup emailRedirectTo /cabinet → /organisation, FAQ "sans plafond mensuel", onboarding feature list)
+- **PR5b** `949a815` Matching batches LLM en parallèle (Promise.allSettled, ~5× plus rapide)
+- **PR5c** `e0558b6` Admin trial : `/admin/recherche` montre échéance Stripe ou jours d'essai restants + bouton "Essai" (modale prolonger N j / réinitialiser J+15) → route `POST /api/admin/trial`
+- **PR6** `f81bc36` Quota reset à l'**anniversaire d'abonnement** (J+30 du `llm_period_start` stampé par webhook Stripe à l'activation) + **trial = pot fixe 1700 crédits** sur 15 j (pas mensuel). Migration 051 backfill. Cron daily au lieu de monthly. `Quotas.period: "month" | "fixed"`. `/api/quota` expose `period`. UI QuotaGauges adapte le wording.
+- **Hotfix trial cap** `0cceb65` Retire le cap `daysLeft ≤ TRIAL_DURATION_DAYS` dans `lib/trial.ts` qui plafonnait l'affichage à 15 j même après prolongation admin.
+- **PR7** `504b6f2` Refonte fiabilité matching : `temperature: 0` + `seed` déterministe (jobId+candidateIds) + prompt v2 avec chain-of-thought `reasoning` + règle juniors/alternants/concessions sourceur + retry au lieu de fallback "fair 45" + `is_apprentice` + `current_company` ajoutés au payload candidat. Param `seed?: number` ajouté à `openrouter.ts`.
+- **PR8** `ef6beb4` Retire daily cap user (`DAILY_LIMITS` bumpé à 10 000 = no-op) + rename "Crédits IA" → "Actions IA" UI partout (QuotaGauges, tarifs, organisation, admin recherche, FAQ) + messages erreur neutralisés ("Limite d'usage IA atteinte" au lieu de "Quota crédits…").
+- **PR9** `d546137` Upload massif vivier : cap UI 30 → 500 + pool 5 workers concurrent (222 fichiers passent de ~7 min à ~90 s).
+- **PR10** `238f8d9` Batching cluster (séquentiel 150/batch, cap 900) + batching matching (parallèle 10 concurrents, MAX_SCORED_PER_RUN 40 → 500).
+- **PR11** `3656c3b` Speedup matching 200 CVs : `MATCH_BATCH_SIZE` 4 → 8, `CONCURRENT_BATCHES` 10 → 20, `maxDuration` 60 → 300.
+- **Sprint A** `cfcb22c` 3 fixes blocants : `CLUSTER_BATCH_SIZE` 150 → 50 (anti-504), désactivation auto-cluster au mount (boucle infinie), auto-flip matching stale → "error" si updated_at > 90s.
+- **Sprint B (taxonomie zones)** `011fe26` Migration 052 : `cluster_manifests.is_seed/created_by_user_id/display_order`. Route cluster en 2 modes : 1er run = Nora propose ≤ `maxZonesForVivierSize(n)` zones, runs suivants = mode CLOSED (Nora choisit dans la liste). Zone "Autre" toujours présente. CRUD `/api/vivier/zones` (POST/PATCH/DELETE). Composant `ZonesManager` panneau "Mes zones".
+- **Sprint B'** `ac25b16` Pivot : retire vue Carte + panneau Zones de l'UI (code conservé en backend). Vue Liste uniquement pour `/workspace/vivier`. À retravailler plus tard pour la taxonomie.
+- **E1 + PR-X** `3e57aff` :
+  - E1 : onglet **Missions en 2e** (avant Vivier) + bouton **"+ Importer des CVs"** sur fiche mission + modale `MissionCvUploadModal` (upload → parse → score-one en parallèle 5) + route `POST /api/match/score-one` (réutilisable E2)
+  - PR-X fixes : R2 `storage_upload_failed` sur `..` dans filename (collapse + strip), doublon detection à l'upload (renvoie existant + skip parse + badge "Doublon"), prompt v3 SANS justification ni reasoning (gain ~1-2s/batch, maxTokens 3200→1200), tier seuils adoucis (excellent 75 / good 55 / fair 35), espace vide retiré dans card "Pourquoi ça matche" quand justif vide
+
+### Pivot taxonomie vivier (Sprint B' juin 2026)
+**Code conservé mais désactivé côté UI** :
+- Composant `src/components/workspace/VivierMapView.tsx` (vue Carte) — pas importé dans `/workspace/vivier`
+- Composant `src/components/workspace/ZonesManager.tsx` (CRUD zones) — pas importé
+- Routes API `/api/vivier/cluster` (POST + GET) + `/api/vivier/zones` (GET/POST/PATCH/DELETE) — fonctionnelles
+- Table `cluster_manifests` + migration 052 — intacte
+- Pas de viewMode toggle, juste vue Liste plate sur `/workspace/vivier`
+
+**Pour réintégrer plus tard** : réimporter `VivierMapView` + `ZonesManager` dans `vivier/page.tsx` + remettre le toggle Carte/Liste.
+
+### Architecture E1 (uploads par mission, juin 2026)
+**Route `POST /api/match/score-one`** body `{ candidate_id, job_id }` :
+- Vérifie ownership via RLS (sb.from(...).maybeSingle())
+- Consomme un crédit LLM org
+- Appelle `scoreBatch(job, [candidate])` (lib/matching.ts)
+- Upsert match_assessments (update si déjà existante, sinon insert avec pipeline_stage="identified")
+- Mission tag write-back si tier excellent/good
+- Réutilisable par E2 (formulaire candidature publique)
+
+**Composant `MissionCvUploadModal`** sur fiche mission :
+- Drag-drop PDF, cap 500 fichiers
+- Pool 5 workers concurrents
+- Pipeline par CV : `upload → parse → score-one` (skip parse si doublon déjà parsé)
+- Affichage live des stages : `Upload… → Lecture du CV… → Scoring…` puis badge final score + tier (+ badge orange "Doublon" si appliqué)
+
+### Doublon detection à l'upload
+`POST /api/cv/upload` check `{org_id + cv_file_name + cv_file_size}` AVANT de créer une nouvelle row. Si existant → renvoie `{ok: true, duplicate: true, candidate: existing}`. Le client skip le parse (déjà fait) et passe direct au scoring. Gain ~5-10 s par doublon + pas de pollution vivier.
+
+### Matching scoring (prompt v3, juin 2026)
+- Modèle : `gpt-4o-mini`, `temperature: 0`, `seed` déterministe (jobId + candidateIds.sort().join), `maxTokens: 1200`
+- Prompt court : 4 dimensions + score + tier UNIQUEMENT (plus de reasoning ni justification — gain latence)
+- Seuils tier : **excellent ≥ 75, good ≥ 55, fair ≥ 35, poor < 35** (adoucis)
+- Concessions sourceur : briefing mission lu en priorité, le LLM applique sans pénaliser
+- Juniors/stagiaires/alternants : légitimes sur postes ouverts au niveau, `is_apprentice` exposé explicitement au LLM
+- Retry une fois sur candidats skippés (pas de fallback "fair 45" qui pollue)
+
+### Roadmap immédiate (à attaquer après compact)
+- **PR-Y** : refonte UI mission page en **3 colonnes** par source de provenance :
+  - "Ont postulé" (vide pour l'instant, attend E2)
+  - "Vos importations" (CVs uploadés via E1)
+  - "Depuis le vivier" (matching vivier + assignés)
+  - Chaque colonne a son propre bouton d'action en haut
+  - Nécessite migration 053 : ajouter `source` enum sur `match_assessments`
+- **E2** : formulaire candidature publique par mission (URL `/apply/[token]`, formulaire customisable : champs requis cochables + questions custom, CAPTCHA Turnstile, rate limit, validation PDF, branding cabinet) — réutilise `POST /api/match/score-one` après le parse
+- **Refonte tarifs/plans** : à discuter, source unique est `lib/quota-tiers.ts`
+- **Avatars** au lieu d'extraction photo CV (déjà la conclusion : feature flag, pas prioritaire)
+
+### Update CLAUDE.md
+Cette section est à jour au 2026-06-26 (post-merge `3e57aff`). Sections 1-19 à relire après les multiples PRs : routes `/api/vivier/zones`, `/api/match/score-one`, `/api/admin/trial`, modèle de quotas anniversaire, suppression Calendly complète, prompt v3 matching, taxonomie zones fermée (code dispo, UI off).
+
+### Compact-safety
+Si compactage en cours : **toutes les PRs ci-dessus sont mergées sur main**. La règle utilisateur stricte est désormais **push branche → attendre validation preview → puis merger** ([[feedback_preview_before_merge]]). Wipe org `elyas.malki@naywastudio.com` fait via MCP (4e39ce0f-879c-477d-96b7-d75bf81f3b04).
+
+---
+
+### ✅ Sessions antérieures (déjà documentées)
+- **PR4 — Quota LLM mensuel sur toutes les routes** : `consumeOrgLlmActionForUser()` ajouté aux 10 routes LLM. Grille crédits 2× plus généreuse.
 - **PR3 — Stockage R2 + quotas** (mergé) : migration cv-uploads Supabase → Cloudflare R2 transparente (cron + lazy). Migration 049. 3 niveaux de quotas (daily user / mensuel org LLM / storage org). Override custom admin via `/admin/recherche`. Jauges `/organisation` + warning banner workspace. `/tarifs` et modale Stripe affichent quotas inclus dynamiquement.
 - **PR2 — Nouveautés stylisées** (mergé) : markdown enrichi (callouts, CTA, pastilles, titres). Migration 048 affected_paths. Pastilles violettes ciblées par item sidebar. Page `/nouveautes` avec onglets par zone + cards repliables.
 - **PR1 — Stabilité prod** (mergé) : 7 fixes (modale Échap, retry pricing, cooldown email, mot de passe oublié sur /login + /forgot-password + /reset-password, empty states CTA, runtime nodejs sur routes lourdes, standardisation erreurs API).
