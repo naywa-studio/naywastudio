@@ -19,7 +19,7 @@ import { useEscapeKey } from "@/components/ui/useEscapeKey"
 const MAX_BYTES = 10 * 1024 * 1024
 const CONCURRENCY = 5
 
-type Stage = "uploading" | "parsing" | "scoring" | "done" | "error"
+type Stage = "uploading" | "parsing" | "scoring" | "done" | "duplicate" | "error"
 interface FileJob {
   id: string
   fileName: string
@@ -62,16 +62,20 @@ export function MissionCvUploadModal({
       if (!uploadRes.ok || uploadData?.error) {
         throw new Error(String(uploadData?.message ?? uploadData?.error ?? `Upload échoué (${uploadRes.status})`))
       }
-      const cand = (uploadData as { candidate?: { id?: string } }).candidate
+      const cand = (uploadData as { candidate?: { id?: string; parse_status?: string } }).candidate
       const candId = cand?.id
+      const isDuplicate = (uploadData as { duplicate?: boolean }).duplicate === true
       if (!candId) throw new Error("candidate_id manquant")
 
-      // 2) Parse — bloquant côté serveur (~5-10 s).
-      patch(id, { stage: "parsing" })
-      const parseRes = await fetch(`/api/cv/${candId}/parse`, { method: "POST" })
-      const parseData = await parseRes.json().catch(() => ({} as Record<string, unknown>))
-      if (!parseRes.ok || parseData?.error) {
-        throw new Error(String(parseData?.message ?? parseData?.error ?? "Parse échoué"))
+      // 2) Parse — uniquement si nouveau candidat ET pas déjà parsé.
+      //    Un doublon parsé saute direct au scoring (gain ~5-10 s).
+      if (!isDuplicate && cand?.parse_status !== "parsed") {
+        patch(id, { stage: "parsing" })
+        const parseRes = await fetch(`/api/cv/${candId}/parse`, { method: "POST" })
+        const parseData = await parseRes.json().catch(() => ({} as Record<string, unknown>))
+        if (!parseRes.ok || parseData?.error) {
+          throw new Error(String(parseData?.message ?? parseData?.error ?? "Parse échoué"))
+        }
       }
 
       // 3) Score contre cette mission spécifiquement.
@@ -87,7 +91,7 @@ export function MissionCvUploadModal({
       }
       const result = (scoreData as { result?: { score?: number; tier?: FileJob["tier"] } }).result
       patch(id, {
-        stage: "done",
+        stage: isDuplicate ? "duplicate" : "done",
         score: result?.score,
         tier: result?.tier,
       })
@@ -270,16 +274,28 @@ export function MissionCvUploadModal({
 function StageBadge({
   stage, score, tier, error,
 }: { stage: Stage; score?: number; tier?: FileJob["tier"]; error?: string }) {
-  if (stage === "done" && score !== undefined && tier) {
+  if ((stage === "done" || stage === "duplicate") && score !== undefined && tier) {
     const palette = TIER_COLORS[tier]
     return (
-      <span style={{
-        fontSize: 11, fontWeight: 700, color: palette.color,
-        background: palette.bg, border: `1px solid ${palette.border}`,
-        borderRadius: 999, padding: "2px 9px",
-        whiteSpace: "nowrap",
-      }}>
-        {score}/100 · {TIER_LABELS[tier]}
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+        {stage === "duplicate" && (
+          <span title="Ce CV était déjà dans votre vivier. Il a juste été scoré contre cette mission." style={{
+            fontSize: 9.5, fontWeight: 700, color: "#B45309",
+            background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.28)",
+            borderRadius: 999, padding: "1px 6px",
+            letterSpacing: "0.04em", textTransform: "uppercase",
+          }}>
+            Doublon
+          </span>
+        )}
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: palette.color,
+          background: palette.bg, border: `1px solid ${palette.border}`,
+          borderRadius: 999, padding: "2px 9px",
+          whiteSpace: "nowrap",
+        }}>
+          {score}/100 · {TIER_LABELS[tier]}
+        </span>
       </span>
     )
   }
@@ -318,6 +334,7 @@ const STAGE_LABELS: Record<Stage, string> = {
   parsing: "Lecture du CV…",
   scoring: "Scoring…",
   done: "Fait",
+  duplicate: "Doublon",
   error: "Erreur",
 }
 const TIER_LABELS: Record<NonNullable<FileJob["tier"]>, string> = {

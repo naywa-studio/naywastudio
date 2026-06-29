@@ -90,6 +90,26 @@ export async function POST(req: NextRequest) {
     }, { status: 429 })
   }
 
+  // Doublon detection : même filename + même taille dans l'org = même
+  // CV déjà uploadé. On évite de re-créer une candidate row + re-payer
+  // le parsing LLM. Retourne le candidat existant avec duplicate=true
+  // pour que l'UI puisse l'afficher comme "déjà dans le vivier".
+  const { data: existingDupe } = await admin
+    .from("candidates")
+    .select("*")
+    .eq("organization_id", orgId)
+    .eq("cv_file_name", file.name)
+    .eq("cv_file_size", file.size)
+    .not("tags", "cs", "{ancien}")
+    .maybeSingle()
+  if (existingDupe) {
+    return NextResponse.json({
+      ok: true,
+      duplicate: true,
+      candidate: existingDupe,
+    })
+  }
+
   const { data: created, error: insertErr } = await admin
     .from("candidates")
     .insert({
@@ -110,7 +130,17 @@ export async function POST(req: NextRequest) {
   const arrayBuf = await file.arrayBuffer()
   const buf = Buffer.from(arrayBuf)
 
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120) || "cv.pdf"
+  // Sanitize filename pour R2 :
+  //   1. Whitelist [a-zA-Z0-9._-], le reste devient "_"
+  //   2. Collapse les "." consécutifs ("RANIA MASBAH CV..pdf" → "RANIA_MASBAH_CV.pdf")
+  //      sinon assertOrgScopedPath rejette le path (".." = path traversal)
+  //   3. Strip les "." en début ("hidden.pdf" cas pathologique)
+  //   4. Cap 120 chars + fallback "cv.pdf" si vide
+  const safeName = (() => {
+    let n = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/\.{2,}/g, ".")
+    n = n.replace(/^\.+/, "")
+    return n.slice(0, 120) || "cv.pdf"
+  })()
   const storagePath = `${orgId}/${created.id}/${safeName}`
   try {
     await r2Upload({
