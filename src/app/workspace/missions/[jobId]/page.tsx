@@ -8,6 +8,7 @@ import { getSupabase } from "@/lib/supabase"
 import type { Job, Candidate, MatchAssessment, MatchTier } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
+import { MissionCvUploadModal } from "@/components/workspace/MissionCvUploadModal"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
 import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
@@ -55,6 +56,7 @@ export default function JobDetailPage() {
   // vaut montrer ce qu'on a et l'assumer qu'afficher une page vide.
   const SCARCE_THRESHOLD = 3
   const [assignOpen, setAssignOpen] = useState(false)
+  const [uploadOpen, setUploadOpen] = useState(false)
   const [briefing, setBriefing] = useState("")
   const [briefingSaving, setBriefingSaving] = useState<"idle" | "saving" | "saved">("idle")
   const [showEdit, setShowEdit] = useState(false)
@@ -297,6 +299,14 @@ export default function JobDetailPage() {
             }}>
               + Assigner un candidat
             </button>
+            <button onClick={() => setUploadOpen(true)} style={{
+              padding: "9px 14px", borderRadius: 10,
+              background: "white", border: "1px solid rgba(124,99,200,0.3)",
+              color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+              cursor: "pointer", fontFamily: "inherit",
+            }}>
+              + Importer des CVs
+            </button>
             <button onClick={() => runMatch()} style={{
               padding: "10px 18px", borderRadius: 10, border: "none",
               background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
@@ -304,7 +314,7 @@ export default function JobDetailPage() {
               cursor: "pointer", fontFamily: "inherit",
               boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
             }}>
-              {rows.length > 0 ? "Relancer le matching" : "Matcher le vivier"}
+              Matcher le vivier
             </button>
           </div>
         )}
@@ -590,6 +600,15 @@ export default function JobDetailPage() {
           existingCandidateIds={new Set(rows.map((r) => r.candidate?.id).filter((x): x is string => !!x))}
           onClose={() => setAssignOpen(false)}
           onAssigned={() => { setAssignOpen(false); loadAll() }}
+        />
+      )}
+
+      {uploadOpen && (
+        <MissionCvUploadModal
+          jobId={job.id}
+          jobLabel={job.role_name?.trim() || job.title}
+          onClose={() => setUploadOpen(false)}
+          onAnyScored={() => { loadAll() }}
         />
       )}
 

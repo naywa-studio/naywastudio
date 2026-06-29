@@ -480,13 +480,24 @@ export default function MatchPage() {
             <section style={{
               background: "rgba(34,197,94,0.06)",
               border: "1px solid rgba(34,197,94,0.25)",
-              borderRadius: 16, padding: 16,
+              borderRadius: 16,
+              // Padding réduit en bas + marges des enfants à 0 pour
+              // éviter l'espace vide quand la justification (texte LLM)
+              // a été retirée — il ne reste que le titre + les dimensions.
+              padding: match.justification ? 16 : "14px 16px",
             }}>
-              <h3 style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 800, color: "#15803d", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              <h3 style={{
+                margin: 0, fontSize: 11, fontWeight: 800, color: "#15803d",
+                letterSpacing: "0.06em", textTransform: "uppercase",
+              }}>
                 ✦ Pourquoi ça matche
               </h3>
               {dimEntries.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 8 }}>
+                <div style={{
+                  display: "flex", flexWrap: "wrap", gap: 14,
+                  marginTop: 8,
+                  marginBottom: match.justification ? 8 : 0,
+                }}>
                   {dimEntries.map(([k, v]) => (
                     <span key={k} style={{ fontSize: 11, color: "#15803d", fontWeight: 700 }}>
                       {SCORE_DIM_LABELS[k] ?? k} <strong style={{ fontSize: 14 }}>{v}</strong>

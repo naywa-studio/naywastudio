@@ -235,60 +235,45 @@ export function prefilterCandidates(job: JobNormalized, candidates: Candidate[])
  *    pénaliser
  *  - justifications utiles : ce qui colle ET ce qui manque
  */
-const SCORE_PROMPT = `Tu es l'expert de matching recrutement de Naywa Studio. Ton rôle : déterminer pour chaque candidat de la liste s'il colle au besoin EXPRIMÉ par le client (et son sourceur).
+const SCORE_PROMPT = `Tu es l'expert de matching recrutement de Naywa Studio. Pour chaque candidat fourni, détermine s'il colle au besoin du client.
 
-Tu raisonnes comme un sourceur senior, pas comme un moteur de mots-clés.
+CONTEXTE
+- POSTE : intitulé, séniorité visée, contrat, compétences, description.
+- BRIEFING : contraintes client (budget, démarrage, deal-breakers, concessions acceptables). Prime sur tes intuitions.
+- CANDIDAT : poste, séniorité, compétences, domaines, années XP post-diplôme, résumé court. Pas le CV brut.
 
-CONTEXTE FOURNI
-- Le POSTE : intitulé, séniorité visée, contrat, compétences requises/souhaitées, description complète.
-- Le BRIEFING : contraintes additionnelles du client (budget, démarrage, deal-breakers, concessions acceptables, etc.). Quand il est présent, il PRIME sur tes intuitions.
-- Pour chaque CANDIDAT : poste actuel, séniorité, compétences (tags + tools), domaines, années d'XP post-diplôme, résumé court.
-- Tu n'as PAS le CV brut, tu travailles uniquement sur ces structures.
-
-RÈGLES DE JUGEMENT
-1. Lis d'abord la description + briefing AVANT de regarder les candidats. Reconstruis "ce que veut vraiment le client" : profil idéal, niveau attendu, irritants, concessions tolérées.
-2. Pour chaque candidat, raisonne dans le champ "reasoning" AVANT de scorer : ce qui colle, ce qui manque, ce qui interroge. 2-4 phrases factuelles.
-3. PUIS attribue les 4 dimensions (0-100) :
-   - skills_match : recouvrement avec les compétences attendues (en tenant compte des synonymes / variantes)
-   - seniority_fit : adéquation séniorité demandée vs réelle (post-diplôme)
-   - domain_fit : alignement secteur / industrie / type de mission
-   - experience_fit : nb d'années + nature des expériences précédentes
-4. PUIS le score global (0-100) = ta synthèse pondérée selon ce qui compte pour CE poste précis. Pas une moyenne mécanique. Mais le score doit rester COHÉRENT avec les dimensions : pas de score 85 si toutes les dimensions sont à 50.
-5. Tier strict : excellent ≥ 80, good 60-79, fair 40-59, poor < 40.
+RÈGLES
+1. Lis la description + briefing AVANT les candidats. Reconstruis le profil idéal et les concessions tolérées.
+2. Pour chaque candidat, attribue 4 dimensions 0-100 :
+   - skills_match : recouvrement compétences (avec synonymes/variantes)
+   - seniority_fit : adéquation séniorité demandée vs réelle
+   - domain_fit : alignement secteur/industrie
+   - experience_fit : années + nature des expériences
+3. Score global 0-100 = synthèse pondérée selon ce qui compte pour CE poste. Doit rester cohérent avec les dimensions.
+4. Tiers : excellent ≥ 75, good ≥ 55, fair ≥ 35, poor < 35.
 
 NIVEAU JUNIOR / STAGIAIRE / ALTERNANT
-- Quand le poste est ouvert aux étudiants, stagiaires ou alternants (séniorité "etudiant"/"stagiaire"/"junior" OU mention dans description), ces profils sont des CANDIDATS LÉGITIMES. Ne les pénalise pas pour manquer d'expérience : c'est inhérent au niveau.
-- Tu peux les noter "excellent" ou "good" s'ils cochent les compétences attendues à ce niveau (technologies vues en formation, projets école, premier stage pertinent).
-- À l'inverse, sur un poste senior, un profil clairement junior doit être noté "poor" ou "fair" — pas brutal mais honnête.
+Sur un poste ouvert à ce niveau (séniorité "etudiant"/"stagiaire"/"junior" OU mention dans la description), ces profils sont LÉGITIMES. Ne les pénalise pas pour manque d'expérience — c'est inhérent au niveau. Ils peuvent être "excellent" ou "good" si les compétences à ce niveau collent. Sur un poste senior, un profil clairement junior est "poor" ou "fair".
 
 CONCESSIONS DU SOURCEUR
-Le briefing peut explicitement autoriser des compromis : "séniorité flexible si très technique", "ok mid si solide sur Spark", "domaine secondaire si XP transverse". Quand c'est le cas : applique la concession SANS pénaliser. Si un candidat coche le critère relâché, son score reflète son adéquation au reste.
+Si le briefing autorise un compromis ("séniorité flexible si très technique", "ok mid si solide sur Spark") : applique-le SANS pénaliser.
 
 DEAL-BREAKERS
-Le briefing peut aussi contenir des deal-breakers : "pas de profils < 3 ans XP", "pas d'ESN", "doit être sur Paris". Un candidat qui viole un deal-breaker explicite perd au moins 30 points et la justification DOIT le mentionner.
+Si le briefing liste un deal-breaker explicite ("pas < 3 ans XP", "doit être sur Paris") et que le candidat le viole : perd au moins 30 points.
 
-JUSTIFICATION
-- 1-2 phrases factuelles, prêtes à montrer au client.
-- Cite ce qui MATCHE et ce qui MANQUE clairement (pas "candidat bien adapté").
-- Si tier = poor : explique la raison principale (séniorité, domaine, compétences clés absentes…).
-
-RÉPONDS UNIQUEMENT EN JSON VALIDE — pas de markdown, pas de texte autour.
-
-Schéma :
+RÉPONDS UNIQUEMENT EN JSON, pas de markdown :
 {
   "results": [
     {
       "candidate_id": string,
-      "reasoning": string,            // 2-4 phrases AVANT le score
       "dimensions": {
-        "skills_match":   number,     // 0-100
-        "seniority_fit":  number,     // 0-100
-        "domain_fit":     number,     // 0-100
-        "experience_fit": number      // 0-100
+        "skills_match":   number,
+        "seniority_fit":  number,
+        "domain_fit":     number,
+        "experience_fit": number
       },
-      "score": number,                // 0-100 — cohérent avec les dimensions
-      "tier": "excellent" | "good" | "fair" | "poor",
-      "justification": string         // 1-2 phrases, points forts ET faibles
+      "score": number,
+      "tier": "excellent" | "good" | "fair" | "poor"
     }
   ]
 }`
@@ -327,11 +312,14 @@ const clamp = (n: unknown, lo: number, hi: number): number => {
   return Math.max(lo, Math.min(hi, Math.round(x)))
 }
 const TIERS: MatchTier[] = ["excellent", "good", "fair", "poor"]
+// Seuils tier — adoucis (juin 2026) après retour sourceur "le score
+// baisse vite". Un 58 avec dimensions 60/100/50/40 passe maintenant de
+// "fair" à "good" — plus en phase avec la pondération.
 function tierFor(score: number, raw: unknown): MatchTier {
   if (typeof raw === "string" && (TIERS as string[]).includes(raw)) return raw as MatchTier
-  if (score >= 80) return "excellent"
-  if (score >= 60) return "good"
-  if (score >= 40) return "fair"
+  if (score >= 75) return "excellent"
+  if (score >= 55) return "good"
+  if (score >= 35) return "fair"
   return "poor"
 }
 
@@ -379,12 +367,13 @@ async function scoreBatchOnce(job: Job, candidates: Candidate[]): Promise<MatchR
   const result = await openrouterChat({
     model: "openai/gpt-4o-mini",
     // Stabilité maximum : temperature 0 + seed déterministe + JSON mode.
-    // Le prompt v2 demande un raisonnement explicite via `reasoning` qui
-    // monte le rappel des dimensions sans coût significatif.
+    // maxTokens 1200 suffit après retrait du reasoning + justification
+    // (prompt v3, juin 2026) — chaque candidat = ~60 tokens output max,
+    // donc 8 candidats = ~500 tokens, marge x2.
     temperature: 0,
     seed,
     responseFormat: "json_object",
-    maxTokens: 3200,
+    maxTokens: 1200,
     messages: [
       { role: "system", content: SCORE_PROMPT },
       { role: "user", content: `POSTE :\n${JSON.stringify(jobPayload)}\n\nCANDIDATS :\n${JSON.stringify(candPayload)}` },
@@ -413,9 +402,7 @@ async function scoreBatchOnce(job: Job, candidates: Candidate[]): Promise<MatchR
         domain_fit: clamp(dims.domain_fit, 0, 100),
         experience_fit: clamp(dims.experience_fit, 0, 100),
       },
-      justification: typeof o.justification === "string"
-        ? o.justification.trim().slice(0, 600)
-        : "",
+      justification: "",
     })
   }
   return out

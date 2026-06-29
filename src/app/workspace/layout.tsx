@@ -42,8 +42,11 @@ export function useWorkspace() {
 
 const TABS: { href: string; label: string; live: boolean; showUnreadBadge?: boolean }[] = [
   { href: "/workspace",          label: "Accueil",  live: true },
-  { href: "/workspace/vivier",   label: "Vivier",   live: true },
+  // Missions en 2e (E1, juin 2026) : c'est l'entrée principale du
+  // sourceur — d'abord ouvrir une mission, puis y rattacher des CVs
+  // (upload direct ou matcher le vivier).
   { href: "/workspace/missions", label: "Missions", live: true },
+  { href: "/workspace/vivier",   label: "Vivier",   live: true },
   { href: "/workspace/pricing",  label: "Pricing",  live: true },
   { href: "/workspace/pipeline", label: "Pipeline", live: true },
   { href: "/nouveautes",         label: "Nouveautés", live: true, showUnreadBadge: true },
