@@ -1,0 +1,193 @@
+"use client"
+
+/**
+ * Carte d'un match (PR-Z) — remplace l'ancienne MatchRow tableau.
+ *
+ * Affiche pour CHAQUE critère main de la mission la valeur évaluée :
+ *   - quantitatif → barre pondération 0-100 colorée
+ *   - qualitatif  → badge ✓ / ✗ / ? avec evidence en tooltip
+ *
+ * Bouton Pipeline + Ouvrir + Fiche à droite, badge source + avis Nora
+ * (tier) en haut.
+ */
+
+import Link from "next/link"
+import type { Candidate, MatchAssessment } from "@/lib/database.types"
+import type { Criterion, CriterionEval } from "@/lib/job-criteria-catalog"
+import { kindOf } from "@/lib/job-criteria-catalog"
+import {
+  shortCriterionLabel, dimColor, statusColor, tierMeta,
+} from "@/lib/criterion-display"
+
+type MatchSource = "applied" | "uploaded" | "vivier_matched" | "vivier_assigned"
+type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
+
+const SOURCE_META: Record<MatchSource, { label: string; color: string; bg: string; bd: string }> = {
+  applied:         { label: "Postulé",  color: "#15803d", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)" },
+  uploaded:        { label: "Importé",  color: "#1D4ED8", bg: "rgba(59,130,246,0.08)", bd: "rgba(59,130,246,0.25)" },
+  vivier_matched:  { label: "Vivier",   color: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" },
+  vivier_assigned: { label: "Assigné",  color: "#6B7280", bg: "#F3F4F6",                bd: "#E5E7EB" },
+}
+
+interface Props {
+  row: AssessmentRow
+  /** Critères main de la mission, dans l'ordre choisi par le sourceur. */
+  mainCriteria: Criterion[]
+  onTogglePipeline: (id: string, next: boolean) => void
+}
+
+export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
+  const c = row.candidate
+  const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
+  const initials = name.split(/\s+/).slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase() || "?"
+  const source = (row.source as MatchSource) ?? "vivier_matched"
+  const srcMeta = SOURCE_META[source]
+  const tier = tierMeta(row.match_tier)
+  const evalById = new Map((row.criteria_eval ?? []).map((e) => [e.id, e as CriterionEval]))
+
+  return (
+    <article style={{
+      background: "white", border: "1px solid #F0ECF8", borderRadius: 13,
+      padding: "14px 16px",
+      display: "flex", flexDirection: "column", gap: 10,
+    }}>
+      {/* Header — identité + provenance + avis + actions */}
+      <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+          background: "rgba(124,99,200,0.08)",
+          border: "1px solid rgba(124,99,200,0.18)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#7C63C8", fontWeight: 800, fontSize: 13,
+        }}>{initials}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {name}
+            </p>
+            <span style={{
+              fontSize: 10.5, fontWeight: 700,
+              color: srcMeta.color, background: srcMeta.bg,
+              border: `1px solid ${srcMeta.bd}`,
+              borderRadius: 99, padding: "2px 8px",
+              letterSpacing: "0.03em", whiteSpace: "nowrap",
+            }}>{srcMeta.label}</span>
+          </div>
+          {c?.current_title && (
+            <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {c.current_title}{c.current_company ? ` · ${c.current_company}` : ""}
+            </p>
+          )}
+        </div>
+        {row.score != null ? (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            fontSize: 12.5, fontWeight: 800,
+            color: tier.color, background: tier.bg,
+            border: `1px solid ${tier.bd}`,
+            padding: "4px 10px", borderRadius: 99,
+            fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap",
+          }}>
+            {row.score}<span style={{ fontSize: 10, opacity: 0.7, fontWeight: 600 }}>· {tier.label}</span>
+          </span>
+        ) : (
+          <span style={{ fontSize: 11, color: "#9CA3AF", fontStyle: "italic" }}>Non scoré</span>
+        )}
+      </header>
+
+      {/* Critères main — rendu compact, chaque critère = jauge ou badge Y/N/? */}
+      {mainCriteria.length > 0 && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 8,
+        }}>
+          {mainCriteria.map((crit) => (
+            <CriterionEvalRow key={crit.id} criterion={crit} ev={evalById.get(crit.id)} />
+          ))}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+        <button
+          onClick={() => onTogglePipeline(row.id, !row.in_pipeline)}
+          title={row.in_pipeline ? "Retirer de la pipeline" : "Suivre dans la pipeline"}
+          style={{
+            fontSize: 11.5, fontWeight: 700, fontFamily: "inherit", cursor: "pointer",
+            padding: "6px 11px", borderRadius: 8,
+            color: row.in_pipeline ? "#15803d" : "#7C63C8",
+            background: row.in_pipeline ? "rgba(34,197,94,0.08)" : "white",
+            border: `1px solid ${row.in_pipeline ? "rgba(34,197,94,0.3)" : "rgba(124,99,200,0.3)"}`,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {row.in_pipeline ? "✓ Dans le pipeline" : "+ Ajouter à la pipeline"}
+        </button>
+        <div style={{ flex: 1 }} />
+        {c && (
+          <Link href={`/workspace/vivier/${c.id}`} style={{
+            fontSize: 11.5, color: "#9CA3AF", textDecoration: "none",
+          }}>
+            👤 Fiche
+          </Link>
+        )}
+        <Link href={`/workspace/match/${row.id}`} style={{
+          fontSize: 12, fontWeight: 700, color: "white",
+          padding: "6px 14px", borderRadius: 8,
+          background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          textDecoration: "none",
+        }}>
+          Ouvrir ▶
+        </Link>
+      </div>
+    </article>
+  )
+}
+
+/** Une ligne critère = label compact + valeur (jauge ou icône) + evidence tooltip. */
+function CriterionEvalRow({ criterion, ev }: { criterion: Criterion; ev: CriterionEval | undefined }) {
+  const isQuant = kindOf(criterion.type) === "quantitative"
+  const score = isQuant ? (ev?.score ?? null) : null
+  const status = isQuant ? undefined : ev?.status
+  const palette = isQuant ? dimColor(score) : statusColor(status)
+  const label = shortCriterionLabel(criterion)
+
+  return (
+    <div
+      title={ev?.evidence ? `${label} — ${ev.evidence}` : label}
+      style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "6px 10px",
+        background: palette.bg, border: `1px solid ${palette.bd}`,
+        borderRadius: 8,
+        minWidth: 0,
+      }}
+    >
+      <span style={{
+        fontSize: 11.5, color: "#4B5563", fontWeight: 600,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        flex: 1, minWidth: 0,
+      }}>
+        {label}
+      </span>
+      {isQuant ? (
+        <span style={{
+          fontSize: 12.5, fontWeight: 800, color: palette.color,
+          fontVariantNumeric: "tabular-nums",
+        }}>
+          {score != null ? score : "—"}
+        </span>
+      ) : (
+        <span style={{
+          fontSize: 13, fontWeight: 800, color: palette.color,
+          width: 18, height: 18, borderRadius: "50%",
+          background: "white", border: `1px solid ${palette.bd}`,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+        }}>
+          {(palette as unknown as { icon: string }).icon}
+        </span>
+      )}
+    </div>
+  )
+}

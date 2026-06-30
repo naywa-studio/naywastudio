@@ -6,6 +6,8 @@ import Link from "next/link"
 import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Candidate, MatchAssessment, Job, MatchTier, PipelineStage, ScoreDimensions } from "@/lib/database.types"
+import { kindOf, type Criterion, type CriterionEval } from "@/lib/job-criteria-catalog"
+import { shortCriterionLabel, dimColor, statusColor } from "@/lib/criterion-display"
 import ComposeBox from "@/components/workspace/ComposeBox"
 import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
 import { AnonymizePreview } from "@/components/workspace/anonymize/AnonymizePreview"
@@ -318,6 +320,13 @@ export default function MatchPage() {
     setPipelineSaving(false)
   }
   const tier = match.match_tier ? TIER_META[match.match_tier] : null
+  // PR-Z : critères flexibles. Pour les anciens matchs (avant PR-Z), on
+  // retombe sur score_dimensions pour ne pas perdre l'info.
+  const jobCriteria = ((job?.criteria ?? []) as Criterion[])
+  const mainCriteria = jobCriteria.filter((c) => c.weight === "main")
+  const bonusCriteria = jobCriteria.filter((c) => c.weight === "bonus")
+  const evalById = new Map((match.criteria_eval ?? []).map((e) => [e.id, e as CriterionEval]))
+  const hasCriteriaEval = mainCriteria.length > 0 && (match.criteria_eval ?? []).length > 0
   const dims = match.score_dimensions ?? {}
   const dimEntries = Object.entries(dims).filter(([, v]) => typeof v === "number") as [keyof ScoreDimensions, number][]
   const isManual = match.score == null
@@ -476,37 +485,61 @@ export default function MatchPage() {
         {/* COL 1 (rangée 1) — pourquoi ça matche + résumé candidat */}
         <div style={{ gridColumn: "1", gridRow: "1", display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Match reason — featured, en premier : info de décision n°1 */}
-          {!isManual && (match.justification || dimEntries.length > 0) && (
+          {!isManual && (hasCriteriaEval || dimEntries.length > 0) && (
             <section style={{
-              background: "rgba(34,197,94,0.06)",
-              border: "1px solid rgba(34,197,94,0.25)",
+              background: "white",
+              border: "1px solid #F0ECF8",
               borderRadius: 16,
-              // Padding réduit en bas + marges des enfants à 0 pour
-              // éviter l'espace vide quand la justification (texte LLM)
-              // a été retirée — il ne reste que le titre + les dimensions.
-              padding: match.justification ? 16 : "14px 16px",
+              padding: 16,
             }}>
               <h3 style={{
                 margin: 0, fontSize: 11, fontWeight: 800, color: "#15803d",
                 letterSpacing: "0.06em", textTransform: "uppercase",
               }}>
-                ✦ Pourquoi ça matche
+                ✦ Critères de cette mission
               </h3>
-              {dimEntries.length > 0 && (
-                <div style={{
-                  display: "flex", flexWrap: "wrap", gap: 14,
-                  marginTop: 8,
-                  marginBottom: match.justification ? 8 : 0,
-                }}>
-                  {dimEntries.map(([k, v]) => (
-                    <span key={k} style={{ fontSize: 11, color: "#15803d", fontWeight: 700 }}>
-                      {SCORE_DIM_LABELS[k] ?? k} <strong style={{ fontSize: 14 }}>{v}</strong>
-                    </span>
-                  ))}
-                </div>
+
+              {/* PR-Z : critères flexibles. Affiche main + bonus séparément. */}
+              {hasCriteriaEval ? (
+                <>
+                  <div style={{ marginTop: 10 }}>
+                    <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      Principaux
+                    </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
+                      {mainCriteria.map((crit) => (
+                        <CriteriaEvalLine key={crit.id} criterion={crit} ev={evalById.get(crit.id)} />
+                      ))}
+                    </div>
+                  </div>
+                  {bonusCriteria.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        Bonus
+                      </p>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
+                        {bonusCriteria.map((crit) => (
+                          <CriteriaEvalLine key={crit.id} criterion={crit} ev={evalById.get(crit.id)} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Fallback legacy — matchs scorés avant PR-Z. */
+                dimEntries.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 10 }}>
+                    {dimEntries.map(([k, v]) => (
+                      <span key={k} style={{ fontSize: 11, color: "#15803d", fontWeight: 700 }}>
+                        {SCORE_DIM_LABELS[k] ?? k} <strong style={{ fontSize: 14 }}>{v}</strong>
+                      </span>
+                    ))}
+                  </div>
+                )
               )}
+
               {match.justification && (
-                <p style={{ margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55, fontStyle: "italic" }}>
+                <p style={{ margin: "12px 0 0", fontSize: 12.5, color: "#374151", lineHeight: 1.55, fontStyle: "italic" }}>
                   &ldquo;{match.justification}&rdquo;
                 </p>
               )}
@@ -656,5 +689,55 @@ export default function MatchPage() {
         }
       `}</style>
     </main>
+  )
+}
+
+/* ─── Critère évalué (PR-Z) ────────────────────────────────────────
+ * Affiche un critère avec sa valeur évaluée :
+ *  - quantitatif → score 0-100 avec couleur tier
+ *  - qualitatif  → badge ✓ / ✗ / ? avec evidence en tooltip
+ * Conçu pour s'aligner verticalement dans une grid auto-fit responsive.
+ */
+function CriteriaEvalLine({ criterion, ev }: { criterion: Criterion; ev: CriterionEval | undefined }) {
+  const isQuant = kindOf(criterion.type) === "quantitative"
+  const score = isQuant ? (ev?.score ?? null) : null
+  const status = isQuant ? undefined : ev?.status
+  const palette = isQuant ? dimColor(score) : statusColor(status)
+  const label = shortCriterionLabel(criterion)
+  return (
+    <div
+      title={ev?.evidence ? `${label} — ${ev.evidence}` : label}
+      style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "6px 10px",
+        background: palette.bg, border: `1px solid ${palette.bd}`,
+        borderRadius: 8, minWidth: 0,
+      }}
+    >
+      <span style={{
+        fontSize: 11.5, color: "#4B5563", fontWeight: 600,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        flex: 1, minWidth: 0,
+      }}>
+        {label}
+      </span>
+      {isQuant ? (
+        <span style={{
+          fontSize: 12.5, fontWeight: 800, color: palette.color,
+          fontVariantNumeric: "tabular-nums",
+        }}>
+          {score != null ? score : "—"}
+        </span>
+      ) : (
+        <span style={{
+          fontSize: 13, fontWeight: 800, color: palette.color,
+          width: 18, height: 18, borderRadius: "50%",
+          background: "white", border: `1px solid ${palette.bd}`,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+        }}>
+          {(palette as unknown as { icon: string }).icon}
+        </span>
+      )}
+    </div>
   )
 }

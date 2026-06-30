@@ -3,84 +3,33 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { m, AnimatePresence } from "framer-motion"
+import { AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
-import type { Job, Candidate, MatchAssessment, MatchTier, ScoreDimensions } from "@/lib/database.types"
+import type { Job, Candidate, MatchAssessment } from "@/lib/database.types"
+import type { Criterion, CriterionEval } from "@/lib/job-criteria-catalog"
+import { kindOf } from "@/lib/job-criteria-catalog"
+import { shortCriterionLabel } from "@/lib/criterion-display"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { MissionCvUploadModal } from "@/components/workspace/MissionCvUploadModal"
-import { seniorityIntervalLabel } from "@/lib/seniority"
+import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
+import { MissionSummaryBar } from "@/components/workspace/MissionSummaryBar"
+import { MatchCard } from "@/components/workspace/MatchCard"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
-import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
 import { JobForm } from "../page"
-
-const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
-
-/** Human seniority label — interval ("Mid → Senior · 5–10 ans") if present
- *  in normalized, else the legacy free string. */
-function jobSeniorityLabel(job: Job): string | null {
-  const n = job.normalized
-  const iv = seniorityIntervalLabel(n?.seniority_min_years, n?.seniority_max_years)
-  if (iv) {
-    const lo = n?.seniority_min_years, hi = n?.seniority_max_years
-    if (lo != null && hi != null) return `${iv} · ${lo}–${hi} ans`
-    return iv
-  }
-  return job.seniority?.trim() || null
-}
 
 type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
 
-const TIER_META: Record<MatchTier, { label: string; color: string; bg: string; bd: string }> = {
-  excellent: { label: "Excellent",   color: "#15803d", bg: "rgba(34,197,94,0.10)",  bd: "rgba(34,197,94,0.30)" },
-  good:      { label: "Bon",         color: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.20)" },
-  fair:      { label: "Moyen",       color: "#B45309", bg: "rgba(245,158,11,0.08)", bd: "rgba(245,158,11,0.25)" },
-  poor:      { label: "Faible",      color: "#6B7280", bg: "#F3F4F6",                bd: "#E5E7EB" },
-}
-
-/* ── Sources (PR-Y) ────────────────────────────────────────────────
- * Provenance d'un (candidat × mission). 4 valeurs en DB, mais 3 tabs
- * côté UI : "vivier_matched" et "vivier_assigned" sont fusionnés dans
- * l'onglet Vivier (l'utilisateur a confirmé : assignés = "aussi du
- * vivier"). Le badge dans la ligne différencie les deux. */
+/** Provenance d'un match — 3 onglets côté UI (vivier fusionne matched + assigned). */
 type MatchSource = "applied" | "uploaded" | "vivier_matched" | "vivier_assigned"
 type SourceTab = "all" | "applied" | "uploaded" | "vivier"
 
-const SOURCE_META: Record<MatchSource, { label: string; short: string; color: string; bg: string; bd: string }> = {
-  applied:         { label: "Postulé",  short: "Postulé",  color: "#15803d", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)" },
-  uploaded:        { label: "Importé",  short: "Importé",  color: "#1D4ED8", bg: "rgba(59,130,246,0.08)", bd: "rgba(59,130,246,0.25)" },
-  vivier_matched:  { label: "Vivier",   short: "Vivier",   color: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" },
-  vivier_assigned: { label: "Assigné",  short: "Assigné",  color: "#6B7280", bg: "#F3F4F6",                bd: "#E5E7EB" },
-}
-
-/* ── Dimensions LLM (prompt v3) ─────────────────────────────────────
- * 4 critères 0-100 affichés en colonnes dans le tableau, avec fond
- * pastel selon palier. L'utilisateur peut filtrer "≥ 70" sur chaque. */
-type DimKey = keyof ScoreDimensions
-const DIM_COLS: Array<{ key: DimKey; label: string; full: string }> = [
-  { key: "skills_match",   label: "Comp.",  full: "Compétences"  },
-  { key: "seniority_fit",  label: "Sén.",   full: "Séniorité"    },
-  { key: "experience_fit", label: "Exp.",   full: "Expérience"   },
-  { key: "domain_fit",     label: "Sect.",  full: "Secteur"      },
-]
-function dimPalette(v: number | null | undefined): { color: string; bg: string } {
-  if (v == null) return { color: "#9CA3AF", bg: "transparent" }
-  if (v >= 75)   return { color: "#15803d", bg: "rgba(34,197,94,0.12)" }
-  if (v >= 55)   return { color: "#15803d", bg: "rgba(34,197,94,0.06)" }
-  if (v >= 35)   return { color: "#B45309", bg: "rgba(245,158,11,0.10)" }
-  return            { color: "#B91C1C", bg: "rgba(239,68,68,0.08)" }
-}
-
-/** Onglet courant → set des sources DB acceptées. */
 function sourcesForTab(tab: SourceTab): Set<MatchSource> {
   if (tab === "all")      return new Set(["applied", "uploaded", "vivier_matched", "vivier_assigned"])
   if (tab === "applied")  return new Set(["applied"])
   if (tab === "uploaded") return new Set(["uploaded"])
   return new Set(["vivier_matched", "vivier_assigned"])
 }
-
-type SortCol = "score" | "name" | DimKey
-type SortDir = "desc" | "asc"
 
 export default function JobDetailPage() {
   const router = useRouter()
@@ -94,14 +43,12 @@ export default function JobDetailPage() {
   const [matchError, setMatchError] = useState<string | null>(null)
   const [assignOpen, setAssignOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
-  const [briefing, setBriefing] = useState("")
-  const [briefingSaving, setBriefingSaving] = useState<"idle" | "saving" | "saved">("idle")
   const [showEdit, setShowEdit] = useState(false)
-  // Onglets par source + filtres "≥ 70" par critère + tri.
+  /** Force le wizard à s'afficher (édition manuelle des critères). */
+  const [editCriteriaMode, setEditCriteriaMode] = useState(false)
   const [activeTab, setActiveTab] = useState<SourceTab>("all")
-  const [dimFilters, setDimFilters] = useState<Partial<Record<DimKey, boolean>>>({})
-  const [sortCol, setSortCol] = useState<SortCol>("score")
-  const [sortDir, setSortDir] = useState<SortDir>("desc")
+  /** Filtres actifs : Set des critère IDs sur lesquels exiger un "fort match". */
+  const [activeCritFilters, setActiveCritFilters] = useState<Set<string>>(new Set())
 
   const loadAll = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`)
@@ -110,28 +57,9 @@ export default function JobDetailPage() {
     const data = await res.json()
     const j = data.job as Job
     setJob(j)
-    setBriefing(j.briefing ?? "")
     setRows((data.assessments ?? []) as AssessmentRow[])
     setLoading(false)
   }, [jobId])
-
-  const saveBriefing = async () => {
-    if (!job) return
-    if ((briefing ?? "") === (job.briefing ?? "")) return
-    setBriefingSaving("saving")
-    const res = await fetch(`/api/jobs/${job.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ briefing }),
-    })
-    if (res.ok) {
-      setJob((prev) => prev ? { ...prev, briefing } : prev)
-      setBriefingSaving("saved")
-      setTimeout(() => setBriefingSaving("idle"), 1600)
-    } else {
-      setBriefingSaving("idle")
-    }
-  }
 
   useEffect(() => {
     let mounted = true
@@ -140,20 +68,16 @@ export default function JobDetailPage() {
     ;(async () => {
       await loadAll()
       if (!mounted) return
-      jobCh = sb
-        .channel(`job:${jobId}`)
+      jobCh = sb.channel(`job:${jobId}`)
         .on("postgres_changes",
           { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${jobId}` },
           (payload) => setJob(payload.new as Job),
-        )
-        .subscribe()
-      maCh = sb
-        .channel(`ma:${jobId}`)
+        ).subscribe()
+      maCh = sb.channel(`ma:${jobId}`)
         .on("postgres_changes",
           { event: "*", schema: "public", table: "match_assessments", filter: `job_id=eq.${jobId}` },
           () => { loadAll() },
-        )
-        .subscribe()
+        ).subscribe()
     })()
     return () => {
       mounted = false
@@ -162,12 +86,7 @@ export default function JobDetailPage() {
     }
   }, [jobId, sb, loadAll])
 
-  // Polling safety net — Realtime is the primary mechanism but when the
-  // server creates many match_assessments in one batch the websocket can
-  // occasionally lag or skip events, and the UI stays on "matching…" with
-  // an empty list until a manual refresh. While the job is in "matching"
-  // status we refetch every 3 s; as soon as it flips to "done" or "error"
-  // we stop. Cheap, idempotent.
+  // Polling safety net while matching is in flight.
   const isMatching = job?.match_status === "matching"
   useEffect(() => {
     if (!isMatching) return
@@ -175,12 +94,7 @@ export default function JobDetailPage() {
     return () => clearInterval(interval)
   }, [isMatching, loadAll])
 
-  // Sprint A : auto-récupération d'un job "matching" stale (>90 s sans
-  // bouger). Cas typique : la fonction Vercel a été tuée mid-flight, le
-  // status n'a pas pu flipper, et le user débarque sur la page des heures
-  // plus tard et voit "65s 256000s elapsed". On flippe localement en
-  // "error" — un clic sur "Relancer le matching" relancera proprement.
-  // Côté serveur le STALE check (75 s) accepte un nouveau run sans force.
+  // Auto-récupération d'un job "matching" stale (>90 s sans bouger).
   useEffect(() => {
     if (!isMatching || !job?.updated_at) return
     const ageMs = Date.now() - new Date(job.updated_at).getTime()
@@ -190,30 +104,21 @@ export default function JobDetailPage() {
     }
   }, [isMatching, job?.updated_at])
 
-  const runMatch = async (opts?: { force?: boolean }) => {
+  const runMatch = useCallback(async (opts?: { force?: boolean }) => {
     if (!job) return
     setMatchError(null)
-    // Stamp updated_at locally so the progress bar starts from now even
-    // if the server hasn't bounced its own updated_at yet.
     setJob({ ...job, match_status: "matching", updated_at: new Date().toISOString() })
     const qs = opts?.force ? "?force=1" : ""
     const res = await fetch(`/api/jobs/${job.id}/match${qs}`, { method: "POST" })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      // 409 "already_matching" isn't really an error — it just means the
-      // previous run is still in flight. We keep the progress bar going
-      // and let the polling effect detect completion. Anything else is
-      // a real failure.
-      if (res.status === 409) {
-        setMatchError(null)
-        return
-      }
+      if (res.status === 409) { setMatchError(null); return }
       setMatchError(data?.message ?? data?.detail ?? data?.error ?? "Le matching a échoué.")
       setJob((prev) => prev ? { ...prev, match_status: "error" } : prev)
       return
     }
     await loadAll()
-  }
+  }, [job, loadAll])
 
   const handleDelete = async () => {
     if (!job) return
@@ -222,7 +127,6 @@ export default function JobDetailPage() {
     if (res.ok) router.push("/workspace/missions")
   }
 
-  // Ajoute / retire un candidat de la pipeline (liste curatée). Optimiste.
   const togglePipeline = async (rowId: string, next: boolean) => {
     setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, in_pipeline: next } : r))
     const res = await fetch(`/api/match/${rowId}/pipeline`, {
@@ -248,63 +152,54 @@ export default function JobDetailPage() {
   }
 
   const matching = job.match_status === "matching"
+  const criteria = (job.criteria ?? []) as Criterion[]
+  const mainCriteria = criteria.filter((c) => c.weight === "main")
+  const needsOnboarding = !job.criteria_locked_at || criteria.length === 0
+  const showWizard = needsOnboarding || editCriteriaMode
 
-  // Compteurs par source (badges des onglets). Inclut tout, peu importe les
-  // filtres dimensions actifs — on veut savoir combien existent par source.
-  const sourceCounts = (() => {
-    const c: Record<MatchSource, number> = {
-      applied: 0, uploaded: 0, vivier_matched: 0, vivier_assigned: 0,
+  // Compteurs par source pour les onglets.
+  const tabCounts: Record<SourceTab, number> = (() => {
+    const sc: Record<MatchSource, number> = { applied: 0, uploaded: 0, vivier_matched: 0, vivier_assigned: 0 }
+    for (const r of rows) sc[(r.source as MatchSource) ?? "vivier_matched"]++
+    return {
+      all: rows.length,
+      applied: sc.applied,
+      uploaded: sc.uploaded,
+      vivier: sc.vivier_matched + sc.vivier_assigned,
     }
-    for (const r of rows) c[(r.source as MatchSource) ?? "vivier_matched"]++
-    return c
   })()
-  const tabCounts: Record<SourceTab, number> = {
-    all: rows.length,
-    applied: sourceCounts.applied,
-    uploaded: sourceCounts.uploaded,
-    vivier: sourceCounts.vivier_matched + sourceCounts.vivier_assigned,
-  }
 
-  // Filtrage onglet + critères ≥ 70 + tri.
+  // Filtrage : onglet + critères actifs (≥ 70 si quant, "yes" si qual).
   const allowedSources = sourcesForTab(activeTab)
-  const activeDimFilters = (Object.keys(dimFilters) as DimKey[]).filter((k) => dimFilters[k])
   const filteredRows = rows
     .filter((r) => allowedSources.has((r.source as MatchSource) ?? "vivier_matched"))
     .filter((r) => {
-      if (activeDimFilters.length === 0) return true
-      const d = r.score_dimensions
-      if (!d) return false // pas de filtre possible sans dimensions
-      return activeDimFilters.every((k) => (d[k] ?? 0) >= 70)
+      if (activeCritFilters.size === 0) return true
+      const evals = new Map((r.criteria_eval ?? []).map((e) => [e.id, e as CriterionEval]))
+      for (const critId of activeCritFilters) {
+        const crit = mainCriteria.find((c) => c.id === critId)
+        if (!crit) continue
+        const ev = evals.get(critId)
+        if (!ev) return false
+        if (kindOf(crit.type) === "quantitative") {
+          if ((ev.score ?? 0) < 70) return false
+        } else {
+          if (ev.status !== "yes") return false
+        }
+      }
+      return true
     })
     .sort((a, b) => {
-      const mul = sortDir === "desc" ? -1 : 1
-      if (sortCol === "name") {
-        const an = a.candidate?.full_name ?? a.candidate?.cv_file_name ?? ""
-        const bn = b.candidate?.full_name ?? b.candidate?.cv_file_name ?? ""
-        return an.localeCompare(bn) * mul
-      }
-      if (sortCol === "score") {
-        // Les rows sans score (assignés manuellement) finissent toujours en bas.
-        const av = a.score, bv = b.score
-        if (av == null && bv == null) return 0
-        if (av == null) return 1
-        if (bv == null) return -1
-        return (av - bv) * mul
-      }
-      // Dimension column
-      const av = a.score_dimensions?.[sortCol] ?? null
-      const bv = b.score_dimensions?.[sortCol] ?? null
+      const av = a.score, bv = b.score
       if (av == null && bv == null) return 0
       if (av == null) return 1
       if (bv == null) return -1
-      return (av - bv) * mul
+      return bv - av
     })
 
   const strongCount = rows.filter((r) => (r.score ?? 0) >= 55).length
 
-  // Stats sourcing — vu / retenu / écarté + raison dominante des rejets.
-  // "Vu" = tous les matchs scorés (le sourceur a parcouru les profils que
-  // Nora a remontés). "Retenu" = ceux en pipeline. "Écarté" = stage rejected.
+  // Stats sourcing.
   const sourcingStats = (() => {
     const seen = rows.filter((r) => r.score != null).length
     const retained = rows.filter((r) => r.in_pipeline && r.pipeline_stage !== "rejected").length
@@ -321,83 +216,48 @@ export default function JobDetailPage() {
     return { seen, retained, rejected: rejected.length, topReason }
   })()
 
-  // Visuel cluster mission — couleurs des secteurs des candidats matchés
-  // (score ≥ 50). Mêmes règles que la liste des missions : 1 hue dominante
-  // ou 2 si la 2ᵉ représente ≥ 30 % du matching.
-  const clusterVisual = (() => {
-    const counts = new Map<string, number>()
-    let total = 0
-    for (const r of rows) {
-      if ((r.score ?? 0) < 50) continue
-      if (!r.candidate || r.candidate.parse_status !== "parsed") continue
-      const { primary } = candidateClusters(r.candidate)
-      counts.set(primary, (counts.get(primary) ?? 0) + 1)
-      total++
-    }
-    const sorted = Array.from(counts, ([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count)
-    if (sorted.length === 0) return null
-    const hues = [clusterHue(sorted[0].label)]
-    if (sorted.length > 1 && sorted[1].count / total >= 0.3) {
-      hues.push(clusterHue(sorted[1].label))
-    }
-    return {
-      hues,
-      top: sorted.slice(0, 2),
-      total,
-    }
-  })()
-
   return (
     <main style={{
-      padding: "32px 24px 80px", maxWidth: 1320, margin: "0 auto",
+      padding: "32px 24px 80px", maxWidth: 1100, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
-      {/* Header — retour à gauche, actions de matching à droite. Quand
-          un run est en cours on remplace les boutons par une barre de
-          progression compacte, toujours visible en haut de page. */}
+      {/* Lien retour + bouton supprimer */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        gap: 16, marginBottom: 22, flexWrap: "wrap",
+        gap: 16, marginBottom: 18, flexWrap: "wrap",
       }}>
         <Link href="/workspace/missions" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           fontSize: 13, color: "#7C63C8", textDecoration: "none",
         }}>← Retour aux missions</Link>
-        {!matching && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: "#9CA3AF" }}>
-              {job.matched_at
-                ? `Dernier matching : ${new Date(job.matched_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`
-                : "Aucun matching lancé"}
-            </span>
-            <button onClick={() => setAssignOpen(true)} style={{
-              padding: "9px 14px", borderRadius: 10,
-              background: "white", border: "1px solid rgba(124,99,200,0.3)",
-              color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit",
-            }}>
-              + Assigner un candidat
-            </button>
-            <button onClick={() => setUploadOpen(true)} style={{
-              padding: "9px 14px", borderRadius: 10,
-              background: "white", border: "1px solid rgba(124,99,200,0.3)",
-              color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit",
-            }}>
-              + Importer des CVs
-            </button>
-            <button onClick={() => runMatch()} style={{
-              padding: "10px 18px", borderRadius: 10, border: "none",
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              color: "white", fontSize: 13, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit",
-              boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
-            }}>
-              Matcher le vivier
-            </button>
-          </div>
-        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setShowEdit(true)} title="Modifier la mission" style={{
+            fontSize: 12, fontWeight: 600, color: "#7C63C8",
+            background: "white", border: "1px solid rgba(124,99,200,0.30)",
+            borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
+          }}>Modifier la mission</button>
+          <button onClick={handleDelete} title="Supprimer la mission" style={{
+            fontSize: 12, fontWeight: 600, color: "#DC2626",
+            background: "transparent", border: "1px solid #FCA5A5",
+            borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
+          }}>Supprimer</button>
+        </div>
       </div>
+
+      {/* Bandeau résumé (visible une fois critères configurés). */}
+      {!showWizard && (
+        <MissionSummaryBar
+          job={job}
+          criteria={criteria}
+          onEditCriteria={() => setEditCriteriaMode(true)}
+          onImportCvs={() => setUploadOpen(true)}
+          onMatchVivier={() => void runMatch()}
+          onCreateForm={undefined}
+          matching={matching}
+        />
+      )}
+
+      {/* Progress + erreurs */}
       {matching && (
         <div style={{ marginBottom: 16 }}>
           <MatchingProgress
@@ -417,176 +277,32 @@ export default function JobDetailPage() {
         }}>{matchError}</div>
       )}
 
-      <div className="mission-grid" style={{
-        display: "grid",
-        gridTemplateColumns: "minmax(320px, 380px) minmax(0, 1fr)",
-        gap: 22, alignItems: "start",
-      }}>
-      {/* ── Colonne gauche : définition mission + actions (sticky) ── */}
-      <m.section
-        className="mission-left"
-        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: EASE }}
-        style={{
-          background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
-          padding: "24px 24px 24px 28px",
-          position: "sticky", top: 24, overflow: "hidden",
-        }}
-      >
-        {/* Bande couleur secteur — dérivée des candidats matchés ; bicolore
-            si 2 secteurs dominent. Grise si pas encore de matching. */}
-        <span style={{
-          position: "absolute", top: 0, bottom: 0, left: 0, width: 5,
-          background:
-            !clusterVisual                ? "#E5E7EB" :
-            clusterVisual.hues.length === 1 ? hsl(clusterVisual.hues[0], 60, 55) :
-            `linear-gradient(180deg, ${hsl(clusterVisual.hues[0], 60, 55)} 0%, ${hsl(clusterVisual.hues[1], 60, 55)} 100%)`,
-        }} />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-              {job.role_name?.trim() || job.title}
-            </h1>
-            {job.role_name?.trim() && job.title && job.title !== job.role_name && (
-              <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#9CA3AF" }}>{job.title}</p>
-            )}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10, fontSize: 12, color: "#6B7280" }}>
-              {job.location && <Meta>{job.location}</Meta>}
-              {jobSeniorityLabel(job) && <Meta>{jobSeniorityLabel(job)}</Meta>}
-              {job.contract_type && <Meta>{job.contract_type}</Meta>}
-            </div>
-            {/* Secteurs Nora — top 1 ou 2 issus du vivier. Pastille bicolore
-                identique à la liste des missions pour cohérence visuelle. */}
-            {clusterVisual && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10, alignItems: "center" }}>
-                {clusterVisual.top.map((c, i) => (
-                  <span key={c.label} style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    fontSize: 10.5, fontWeight: 700,
-                    color: hsl(clusterVisual.hues[i] ?? clusterVisual.hues[0], 55, 35),
-                    background: hsl(clusterVisual.hues[i] ?? clusterVisual.hues[0], 70, 95),
-                    border: `1px solid ${hsl(clusterVisual.hues[i] ?? clusterVisual.hues[0], 50, 80)}`,
-                    borderRadius: 100, padding: "2px 9px",
-                  }}>
-                    <span style={{
-                      width: 5.5, height: 5.5, borderRadius: "50%",
-                      background: i === 0 && clusterVisual.hues.length > 1
-                        ? `linear-gradient(180deg, ${hsl(clusterVisual.hues[0], 65, 55)} 0%, ${hsl(clusterVisual.hues[1], 65, 55)} 100%)`
-                        : hsl(clusterVisual.hues[i] ?? clusterVisual.hues[0], 65, 55),
-                    }} />
-                    {c.label}
-                    <span style={{ color: "#9CA3AF", fontWeight: 600 }}>· {c.count}</span>
-                  </span>
-                ))}
-                <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>
-                  / {clusterVisual.total} match{clusterVisual.total > 1 ? "s" : ""}
-                </span>
-              </div>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-            <button onClick={() => setShowEdit(true)} title="Modifier la mission" style={{
-              fontSize: 12, fontWeight: 600, color: "#7C63C8",
-              background: "white", border: "1px solid rgba(124,99,200,0.30)",
-              borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
-            }}>Modifier</button>
-            <button onClick={handleDelete} title="Supprimer la mission" style={{
-              fontSize: 12, fontWeight: 600, color: "#DC2626",
-              background: "transparent", border: "1px solid #FCA5A5",
-              borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
-            }}>Supprimer</button>
-          </div>
-        </div>
-
-        {job.required_skills && job.required_skills.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.07em", textTransform: "uppercase" }}>
-              Compétences requises
-            </p>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {job.required_skills.map((s) => (
-                <span key={s} style={{ fontSize: 12, color: "#4B5563", background: "#F8F6FF", border: "1px solid #F0ECF8", padding: "4px 9px", borderRadius: 7 }}>{s}</span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {job.description && (
-          <p style={{ margin: "16px 0 0", fontSize: 13.5, color: "#4B5563", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-            {job.description}
-          </p>
-        )}
-
-        {/* Briefing / contraintes — injected into matching + compose */}
-        <div style={{ marginTop: 18 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.07em", textTransform: "uppercase" }}>
-              Briefing / contraintes
-            </p>
-            <span style={{ fontSize: 11, color: "#9CA3AF" }}>
-              — pris en compte par Nora pour le matching et les messages
-            </span>
-            {briefingSaving === "saving" && <span style={{ fontSize: 11, color: "#7C63C8", marginLeft: "auto" }}>Enregistrement…</span>}
-            {briefingSaving === "saved"   && <span style={{ fontSize: 11, color: "#16a34a", marginLeft: "auto" }}>✓ Sauvegardé</span>}
-          </div>
-          <textarea
-            value={briefing}
-            onChange={(e) => setBriefing(e.target.value)}
-            onBlur={saveBriefing}
-            placeholder="Ex : pas de profils <3 ans XP, démarrage septembre, budget max 55k, pas d'ESN, client préfère un profil hybride Paris…"
-            rows={3}
-            style={{
-              width: "100%", boxSizing: "border-box",
-              fontSize: 13, color: "#111827",
-              padding: 11,
-              background: "#FAFAFA",
-              border: "1px solid #F0ECF8", borderRadius: 10,
-              outline: "none", resize: "vertical",
-              fontFamily: "inherit", lineHeight: 1.6,
-            }}
-          />
-        </div>
-
-        {/* Pricing géré dans l'onglet Pricing dédié — pas affiché ici pour
-            ne pas dupliquer. Lien rapide ci-dessous si besoin. */}
-        <Link href={`/workspace/pricing/${job.id}`} style={{
-          marginTop: 14, display: "inline-flex", alignItems: "center", gap: 6,
-          fontSize: 12.5, fontWeight: 700, color: "#7C63C8",
-          background: "white",
-          border: "1px solid rgba(124,99,200,0.25)",
-          borderRadius: 9, padding: "8px 14px",
-          textDecoration: "none", alignSelf: "flex-start",
-        }}>
-          Chiffrer dans le pricing →
-        </Link>
-
-      </m.section>
-
-      {/* ── Colonne droite : tableau de matching + onglets sources ── */}
-      <div className="mission-right">
-      {rows.length === 0 ? (
+      {/* Wizard onboarding OU contenu principal */}
+      {showWizard ? (
+        <CriteriaOnboarding
+          jobId={job.id}
+          initialCriteria={editCriteriaMode ? criteria : null}
+          onDone={async (updated) => {
+            setJob((prev) => prev ? { ...prev, criteria: updated, criteria_locked_at: new Date().toISOString() } : prev)
+            setEditCriteriaMode(false)
+            // Si c'était le 1er onboarding, lance direct le matching.
+            if (needsOnboarding) await runMatch()
+          }}
+        />
+      ) : rows.length === 0 ? (
         <div style={{
           padding: "56px 24px", textAlign: "center",
           background: "white", border: "1px dashed #E2DAF6", borderRadius: 16,
           color: "#6B7280",
         }}>
-          {matching ? (
-            <>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>✦</div>
-              <p style={{ margin: 0, fontSize: 14 }}>Nora analyse votre vivier…</p>
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>🎯</div>
-              <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>Aucun candidat sur cette mission pour l&apos;instant</p>
-              <p style={{ margin: 0, fontSize: 13 }}>Importez des CVs, assignez depuis le vivier, ou lancez le matching auto.</p>
-            </>
-          )}
+          <div style={{ fontSize: 40, marginBottom: 10 }}>🎯</div>
+          <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>Aucun candidat sur cette mission</p>
+          <p style={{ margin: 0, fontSize: 13 }}>Importez des CVs ou lancez le matching auto depuis le bandeau ci-dessus.</p>
         </div>
       ) : (
         <>
-          {/* Récap rapide — chiffres haut-niveau, jamais cachés par les filtres. */}
-          <div style={{ marginBottom: 14, fontSize: 13, color: "#6B7280" }}>
+          {/* Récap rapide */}
+          <div style={{ marginBottom: 12, fontSize: 13, color: "#6B7280" }}>
             <strong style={{ color: "#111827" }}>{strongCount}</strong> candidat{strongCount > 1 ? "s" : ""} pertinent{strongCount > 1 ? "s" : ""}
             <span style={{ color: "#9CA3AF" }}> · {rows.length} au total</span>
           </div>
@@ -598,16 +314,10 @@ export default function JobDetailPage() {
               gap: 8,
             }}>
               <SourcingStatTile label="Vus" value={String(sourcingStats.seen)} />
-              <SourcingStatTile
-                label="Retenus"
-                value={String(sourcingStats.retained)}
-                tone={sourcingStats.retained > 0 ? "good" : undefined}
-              />
-              <SourcingStatTile
-                label="Écartés"
-                value={String(sourcingStats.rejected)}
-                tone={sourcingStats.rejected > 0 ? "warn" : undefined}
-              />
+              <SourcingStatTile label="Retenus" value={String(sourcingStats.retained)}
+                tone={sourcingStats.retained > 0 ? "good" : undefined} />
+              <SourcingStatTile label="Écartés" value={String(sourcingStats.rejected)}
+                tone={sourcingStats.rejected > 0 ? "warn" : undefined} />
               {sourcingStats.topReason && sourcingStats.topReason.key !== "null" && (
                 <SourcingStatTile
                   label="Top motif d'écart"
@@ -618,46 +328,49 @@ export default function JobDetailPage() {
             </div>
           )}
 
-          {/* Onglets par source de provenance. "Postulé" reste affiché même
-              à 0 — c'est un teaser pour le formulaire public (E2) à venir. */}
-          <SourceTabs
-            active={activeTab}
-            counts={tabCounts}
-            onChange={setActiveTab}
-          />
+          <SourceTabs active={activeTab} counts={tabCounts} onChange={setActiveTab} />
 
-          {/* Filtres par critère — chips cumulables "≥ 70 sur cette dimension". */}
-          <DimensionFilters
-            active={dimFilters}
-            onToggle={(k) => setDimFilters((prev) => ({ ...prev, [k]: !prev[k] }))}
-            onClear={() => setDimFilters({})}
-          />
+          {mainCriteria.length > 0 && (
+            <DynamicCriteriaFilters
+              criteria={mainCriteria}
+              active={activeCritFilters}
+              onToggle={(id) => setActiveCritFilters((prev) => {
+                const next = new Set(prev)
+                if (next.has(id)) next.delete(id); else next.add(id)
+                return next
+              })}
+              onClear={() => setActiveCritFilters(new Set())}
+            />
+          )}
 
-          <MatchTable
-            rows={filteredRows}
-            sortCol={sortCol}
-            sortDir={sortDir}
-            onSort={(col) => {
-              if (col === sortCol) setSortDir((d) => (d === "desc" ? "asc" : "desc"))
-              else { setSortCol(col); setSortDir(col === "name" ? "asc" : "desc") }
-            }}
-            onTogglePipeline={togglePipeline}
-            emptyHint={
-              rows.length > 0 && filteredRows.length === 0
-                ? activeDimFilters.length > 0
-                  ? "Aucun candidat ne passe tous les filtres actifs."
-                  : tabCounts[activeTab] === 0
-                    ? activeTab === "applied"
-                      ? "Le formulaire de candidature public n'est pas encore activé."
-                      : "Aucun candidat dans cette catégorie pour l'instant."
-                    : "Aucun candidat à afficher."
-                : null
-            }
-          />
+          {filteredRows.length === 0 ? (
+            <div style={{
+              padding: "32px 20px", textAlign: "center",
+              background: "white", border: "1px dashed #E2DAF6", borderRadius: 14,
+              color: "#6B7280", fontSize: 13,
+            }}>
+              {activeCritFilters.size > 0
+                ? "Aucun candidat ne passe les filtres actifs."
+                : tabCounts[activeTab] === 0
+                  ? activeTab === "applied"
+                    ? "Le formulaire de candidature public n'est pas encore activé."
+                    : "Aucun candidat dans cette catégorie."
+                  : "Aucun candidat à afficher."}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {filteredRows.map((r) => (
+                <MatchCard
+                  key={r.id}
+                  row={r}
+                  mainCriteria={mainCriteria}
+                  onTogglePipeline={togglePipeline}
+                />
+              ))}
+            </div>
+          )}
         </>
       )}
-      </div>{/* /mission-right */}
-      </div>{/* /mission-grid */}
 
       {assignOpen && (
         <AssignModal
@@ -677,31 +390,139 @@ export default function JobDetailPage() {
         />
       )}
 
-      {/* Sur écran étroit, on repasse en une colonne et la définition n'est
-          plus sticky (sinon elle masquerait les résultats au scroll). */}
-      <style>{`
-        @media (max-width: 1023px) {
-          .mission-grid { grid-template-columns: 1fr !important; }
-          .mission-left { position: static !important; }
-        }
-      `}</style>
-
       <AnimatePresence>
         {showEdit && (
           <JobForm
             initialJob={job}
             onClose={() => setShowEdit(false)}
             onCreated={async (updated) => {
-              // Mise à jour optimiste + relance du matching auto (config
-              // pricing ou compétences peuvent avoir bougé).
               setJob(updated)
               setShowEdit(false)
-              await runMatch({ force: true })
+              // Re-onboarding critères pertinent si description / skills ont changé.
+              setEditCriteriaMode(true)
             }}
           />
         )}
       </AnimatePresence>
     </main>
+  )
+}
+
+/* ─── Onglets par source ─────────────────────────────────────────── */
+
+function SourceTabs({
+  active, counts, onChange,
+}: {
+  active: SourceTab
+  counts: Record<SourceTab, number>
+  onChange: (t: SourceTab) => void
+}) {
+  const tabs: Array<{ key: SourceTab; label: string; hint?: string }> = [
+    { key: "all",      label: "Tous" },
+    { key: "applied",  label: "Ont postulé", hint: "Via le formulaire public (bientôt)" },
+    { key: "uploaded", label: "Vos importations" },
+    { key: "vivier",   label: "Depuis le vivier" },
+  ]
+  return (
+    <div style={{
+      display: "flex", gap: 4, flexWrap: "wrap",
+      marginBottom: 10, padding: 4,
+      background: "#F8F6FF", border: "1px solid #F0ECF8",
+      borderRadius: 12,
+    }}>
+      {tabs.map((t) => {
+        const isActive = active === t.key
+        const n = counts[t.key]
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            title={t.hint}
+            style={{
+              flex: "1 1 auto", minWidth: 120,
+              padding: "8px 12px", borderRadius: 9,
+              fontSize: 12.5, fontWeight: 700,
+              fontFamily: "inherit", cursor: "pointer", border: "none",
+              background: isActive ? "white" : "transparent",
+              color: isActive ? "#111827" : "#6B7280",
+              boxShadow: isActive ? "0 1px 4px rgba(17,24,39,0.06)" : "none",
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+              transition: "all 120ms",
+            }}
+          >
+            {t.label}
+            <span style={{
+              fontSize: 10.5, fontWeight: 800,
+              color: isActive ? "#7C63C8" : "#9CA3AF",
+              background: isActive ? "rgba(124,99,200,0.08)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(124,99,200,0.18)" : "transparent"}`,
+              padding: "1px 7px", borderRadius: 99,
+              fontVariantNumeric: "tabular-nums",
+            }}>{n}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ─── Filtres dynamiques par critère main ────────────────────────── */
+
+function DynamicCriteriaFilters({
+  criteria, active, onToggle, onClear,
+}: {
+  criteria: Criterion[]
+  active: Set<string>
+  onToggle: (id: string) => void
+  onClear: () => void
+}) {
+  return (
+    <div style={{
+      display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6,
+      marginBottom: 12,
+    }}>
+      <span style={{ fontSize: 11, color: "#9CA3AF", marginRight: 4 }}>
+        Filtrer sur :
+      </span>
+      {criteria.map((c) => {
+        const on = active.has(c.id)
+        const isQuant = kindOf(c.type) === "quantitative"
+        const hint = isQuant ? "(≥ 70)" : "(oui)"
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onToggle(c.id)}
+            style={{
+              fontSize: 11.5, fontWeight: 700,
+              padding: "5px 11px", borderRadius: 99,
+              border: on ? "1px solid rgba(34,197,94,0.35)" : "1px solid #E5E7EB",
+              background: on ? "rgba(34,197,94,0.10)" : "white",
+              color: on ? "#15803D" : "#374151",
+              cursor: "pointer", fontFamily: "inherit",
+              transition: "all 120ms",
+            }}
+          >
+            {on ? "✓ " : ""}{shortCriterionLabel(c)}
+            <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 4 }}>{hint}</span>
+          </button>
+        )
+      })}
+      {active.size > 0 && (
+        <button
+          type="button"
+          onClick={onClear}
+          style={{
+            fontSize: 11.5, fontWeight: 600,
+            color: "#7C63C8", background: "transparent", border: "none",
+            cursor: "pointer", fontFamily: "inherit", padding: "5px 8px",
+          }}
+        >
+          Réinitialiser
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -800,8 +621,7 @@ function AssignModal({
             Choisir un candidat
           </h3>
           <input
-            autoFocus
-            type="search"
+            autoFocus type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Chercher par nom, poste, entreprise…"
@@ -852,8 +672,7 @@ function AssignModal({
                   fontSize: 11, fontWeight: 700, color: "#7C63C8",
                   background: "rgba(124,99,200,0.08)",
                   border: "1px solid rgba(124,99,200,0.18)",
-                  borderRadius: 8, padding: "4px 10px",
-                  flexShrink: 0,
+                  borderRadius: 8, padding: "4px 10px", flexShrink: 0,
                 }}>
                   {assigning === c.id ? "…" : "Assigner"}
                 </span>
@@ -880,18 +699,8 @@ function AssignModal({
   )
 }
 
-/* ─── Matching progress ──────────────────────────────────────────
- * Progress driven by REAL server-side counters (job.match_progress_*).
- * The route stamps `match_progress_total = pool size` at start and
- * increments `match_progress_scored` after each batch persisted, so
- * the bar reflects what's actually scored — not elapsed time.
- *
- * Fallbacks while waiting for the first server tick :
- *   - Until total is set, we display a soft indeterminate "Préparation…".
- *   - The elapsed timer is kept only as a stalling-detector for the
- *     "Forcer la relance" escape hatch (75 s beyond which the server-
- *     side stale check accepts a new run anyway).
- */
+/* ─── Matching progress ──────────────────────────────────────────── */
+
 function MatchingProgress({
   total, scored, partialCount, startedAt, onForceRetry,
 }: {
@@ -908,49 +717,34 @@ function MatchingProgress({
   }, [])
   const elapsedMs = Math.max(0, now - new Date(startedAt).getTime())
   const elapsedSec = Math.round(elapsedMs / 1000)
-
-  // Affichage défensif : on cap les compteurs et on convertit en %.
   const safeTotal = total && total > 0 ? total : null
   const safeScored = Math.max(0, Math.min(scored ?? 0, safeTotal ?? Number.MAX_SAFE_INTEGER))
   const hasReal = safeTotal != null && safeScored >= 0
-  // Pourcentage réel quand on a un total ; sinon indéterminé.
   const pct = hasReal && safeTotal ? Math.round((safeScored / safeTotal) * 100) : 0
-
-  // Stalling / force-retry : Vercel Hobby = 60 s max, le serveur accepte
-  // un retry après 75 s. On surface le bouton dès qu'on dépasse ce seuil.
   const stalling = elapsedMs > 60_000
   const canForceRetry = elapsedMs > 75_000
 
   const label =
-    !hasReal
-      ? "Préfiltrage du vivier…"
-      : safeScored === 0
-        ? "Nora va scorer le pool…"
-        : safeScored >= safeTotal!
-          ? "Finalisation du classement…"
-          : canForceRetry
-            ? "Le matching a probablement été interrompu. Relancez."
-            : stalling
-              ? "Plus long que d'habitude, encore quelques secondes."
-              : `Nora score ${safeScored}/${safeTotal} profils…`
+    !hasReal ? "Préfiltrage du vivier…"
+    : safeScored === 0 ? "Nora va scorer le pool…"
+    : safeScored >= safeTotal! ? "Finalisation du classement…"
+    : canForceRetry ? "Le matching a probablement été interrompu. Relancez."
+    : stalling ? "Plus long que d'habitude, encore quelques secondes."
+    : `Nora score ${safeScored}/${safeTotal} profils…`
 
   return (
     <div style={{
       background: "linear-gradient(120deg, rgba(124,99,200,0.06) 0%, rgba(124,99,200,0.02) 100%)",
       border: "1px solid rgba(124,99,200,0.22)",
-      borderRadius: 12,
-      padding: "14px 16px",
+      borderRadius: 12, padding: "14px 16px",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
         <span style={{
           display: "inline-block", width: 16, height: 16, borderRadius: "50%",
-          border: "2px solid rgba(124,99,200,0.25)",
-          borderTopColor: "#7C63C8",
+          border: "2px solid rgba(124,99,200,0.25)", borderTopColor: "#7C63C8",
           animation: "matching-spin 0.9s linear infinite",
         }} />
-        <span style={{ fontSize: 13.5, fontWeight: 800, color: "#7C63C8" }}>
-          Matching en cours
-        </span>
+        <span style={{ fontSize: 13.5, fontWeight: 800, color: "#7C63C8" }}>Matching en cours</span>
         {partialCount > 0 && (
           <span style={{
             fontSize: 11, fontWeight: 700, color: "#7C63C8",
@@ -958,31 +752,24 @@ function MatchingProgress({
             borderRadius: 100, padding: "1px 8px",
           }}>{partialCount} déjà remonté{partialCount > 1 ? "s" : ""}</span>
         )}
-        <span style={{
-          marginLeft: "auto", fontSize: 11.5, color: "#9CA3AF",
-          fontVariantNumeric: "tabular-nums",
-        }}>
+        <span style={{ marginLeft: "auto", fontSize: 11.5, color: "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
           {Math.round(pct)}% · {elapsedSec}s
         </span>
       </div>
       <div style={{
-        position: "relative",
-        height: 6, width: "100%",
-        background: "rgba(124,99,200,0.12)",
-        borderRadius: 100, overflow: "hidden",
+        position: "relative", height: 6, width: "100%",
+        background: "rgba(124,99,200,0.12)", borderRadius: 100, overflow: "hidden",
       }}>
         {!hasReal ? (
           <div style={{
-            position: "absolute", top: 0, bottom: 0,
-            width: "40%",
+            position: "absolute", top: 0, bottom: 0, width: "40%",
             borderRadius: 100,
             background: "linear-gradient(90deg, rgba(124,99,200,0) 0%, #7C63C8 50%, rgba(124,99,200,0) 100%)",
             animation: "matching-indeterminate 1.6s ease-in-out infinite",
           }} />
         ) : (
           <div style={{
-            position: "absolute", left: 0, top: 0, bottom: 0,
-            width: `${pct}%`,
+            position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct}%`,
             background: stalling
               ? "linear-gradient(90deg, #C4B6E0 0%, #B8AEDE 100%)"
               : "linear-gradient(90deg, #7C63C8 0%, #B8AEDE 100%)",
@@ -997,20 +784,13 @@ function MatchingProgress({
           </div>
         )}
       </div>
-      <div style={{
-        marginTop: 10, display: "flex", alignItems: "center",
-        gap: 12, flexWrap: "wrap",
-      }}>
-        <span style={{ fontSize: 12.5, color: "#6B7280", flex: 1, minWidth: 200 }}>
-          {label}
-        </span>
+      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12.5, color: "#6B7280", flex: 1, minWidth: 200 }}>{label}</span>
         {canForceRetry && (
           <button onClick={onForceRetry} style={{
             fontSize: 11.5, fontWeight: 700, color: "#7C63C8",
-            background: "white",
-            border: "1px solid rgba(124,99,200,0.3)",
-            borderRadius: 8, padding: "6px 11px",
-            cursor: "pointer", fontFamily: "inherit",
+            background: "white", border: "1px solid rgba(124,99,200,0.3)",
+            borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit",
           }}>
             Forcer la relance
           </button>
@@ -1018,371 +798,15 @@ function MatchingProgress({
       </div>
       <style>{`
         @keyframes matching-spin { to { transform: rotate(360deg); } }
-        @keyframes matching-shimmer {
-          0%   { transform: translateX(-100%); }
-          100% { transform: translateX(100%);  }
-        }
-        @keyframes matching-indeterminate {
-          0%   { left: -40%; }
-          100% { left: 100%; }
-        }
+        @keyframes matching-shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        @keyframes matching-indeterminate { 0% { left: -40%; } 100% { left: 100%; } }
       `}</style>
     </div>
   )
 }
 
-/* ─── Onglets par source (PR-Y) ──────────────────────────────────── */
+/* ─── Sourcing stats tile ───────────────────────────────────────── */
 
-function SourceTabs({
-  active, counts, onChange,
-}: {
-  active: SourceTab
-  counts: Record<SourceTab, number>
-  onChange: (t: SourceTab) => void
-}) {
-  const tabs: Array<{ key: SourceTab; label: string; hint?: string }> = [
-    { key: "all",      label: "Tous" },
-    { key: "applied",  label: "Ont postulé", hint: "Via le formulaire public (bientôt)" },
-    { key: "uploaded", label: "Vos importations", hint: "CVs déposés sur cette mission" },
-    { key: "vivier",   label: "Depuis le vivier", hint: "Matching auto + assignations" },
-  ]
-  return (
-    <div style={{
-      display: "flex", gap: 4, flexWrap: "wrap",
-      marginBottom: 12, padding: 4,
-      background: "#F8F6FF", border: "1px solid #F0ECF8",
-      borderRadius: 12,
-    }}>
-      {tabs.map((t) => {
-        const isActive = active === t.key
-        const n = counts[t.key]
-        return (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => onChange(t.key)}
-            title={t.hint}
-            style={{
-              flex: "1 1 auto", minWidth: 120,
-              padding: "8px 12px", borderRadius: 9,
-              fontSize: 12.5, fontWeight: 700,
-              fontFamily: "inherit", cursor: "pointer",
-              border: "none",
-              background: isActive ? "white" : "transparent",
-              color: isActive ? "#111827" : "#6B7280",
-              boxShadow: isActive ? "0 1px 4px rgba(17,24,39,0.06)" : "none",
-              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-              transition: "all 120ms",
-            }}
-          >
-            {t.label}
-            <span style={{
-              fontSize: 10.5, fontWeight: 800,
-              color: isActive ? "#7C63C8" : "#9CA3AF",
-              background: isActive ? "rgba(124,99,200,0.08)" : "transparent",
-              border: `1px solid ${isActive ? "rgba(124,99,200,0.18)" : "transparent"}`,
-              padding: "1px 7px", borderRadius: 99,
-              fontVariantNumeric: "tabular-nums",
-            }}>{n}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-/* ─── Chips filtres dimensions ───────────────────────────────────── */
-
-function DimensionFilters({
-  active, onToggle, onClear,
-}: {
-  active: Partial<Record<DimKey, boolean>>
-  onToggle: (k: DimKey) => void
-  onClear: () => void
-}) {
-  const anyActive = Object.values(active).some(Boolean)
-  return (
-    <div style={{
-      display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6,
-      marginBottom: 12,
-    }}>
-      <span style={{ fontSize: 11, color: "#9CA3AF", marginRight: 4 }}>
-        Filtrer ≥ 70 sur :
-      </span>
-      {DIM_COLS.map((d) => {
-        const on = !!active[d.key]
-        return (
-          <button
-            key={d.key}
-            type="button"
-            onClick={() => onToggle(d.key)}
-            style={{
-              fontSize: 11.5, fontWeight: 700,
-              padding: "5px 11px", borderRadius: 99,
-              border: on
-                ? "1px solid rgba(34,197,94,0.35)"
-                : "1px solid #E5E7EB",
-              background: on
-                ? "rgba(34,197,94,0.10)"
-                : "white",
-              color: on ? "#15803D" : "#374151",
-              cursor: "pointer", fontFamily: "inherit",
-              transition: "all 120ms",
-            }}
-          >
-            {on ? "✓ " : ""}{d.full}
-          </button>
-        )
-      })}
-      {anyActive && (
-        <button
-          type="button"
-          onClick={onClear}
-          style={{
-            fontSize: 11.5, fontWeight: 600,
-            color: "#7C63C8", background: "transparent", border: "none",
-            cursor: "pointer", fontFamily: "inherit",
-            padding: "5px 8px",
-          }}
-        >
-          Réinitialiser
-        </button>
-      )}
-    </div>
-  )
-}
-
-/* ─── Tableau de matching ────────────────────────────────────────── */
-
-function MatchTable({
-  rows, sortCol, sortDir, onSort, onTogglePipeline, emptyHint,
-}: {
-  rows: AssessmentRow[]
-  sortCol: SortCol
-  sortDir: SortDir
-  onSort: (col: SortCol) => void
-  onTogglePipeline: (id: string, next: boolean) => void
-  emptyHint: string | null
-}) {
-  if (rows.length === 0) {
-    return (
-      <div style={{
-        padding: "40px 20px", textAlign: "center",
-        background: "white", border: "1px dashed #E2DAF6", borderRadius: 14,
-        color: "#6B7280", fontSize: 13.5,
-      }}>
-        {emptyHint ?? "Aucun candidat à afficher."}
-      </div>
-    )
-  }
-  return (
-    <div style={{
-      background: "white", border: "1px solid #F0ECF8", borderRadius: 14,
-      overflow: "hidden",
-    }}>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{
-          width: "100%", borderCollapse: "collapse",
-          fontSize: 13, color: "#111827",
-        }}>
-          <thead>
-            <tr style={{ background: "#FAF9FE" }}>
-              <Th width="30%" onClick={() => onSort("name")} active={sortCol === "name"} dir={sortDir} align="left">
-                Candidat
-              </Th>
-              <Th width="auto" align="center">Source</Th>
-              {DIM_COLS.map((d) => (
-                <Th
-                  key={d.key}
-                  width="9%"
-                  onClick={() => onSort(d.key)}
-                  active={sortCol === d.key}
-                  dir={sortDir}
-                  align="center"
-                  title={d.full}
-                >
-                  {d.label}
-                </Th>
-              ))}
-              <Th width="9%" onClick={() => onSort("score")} active={sortCol === "score"} dir={sortDir} align="center">
-                Score
-              </Th>
-              <Th width="auto" align="right">Actions</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <MatchRow key={r.id} row={r} onTogglePipeline={onTogglePipeline} />
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-function Th({
-  children, onClick, active, dir, align = "left", width, title,
-}: {
-  children: React.ReactNode
-  onClick?: () => void
-  active?: boolean
-  dir?: SortDir
-  align?: "left" | "center" | "right"
-  width?: string
-  title?: string
-}) {
-  return (
-    <th
-      title={title}
-      onClick={onClick}
-      style={{
-        textAlign: align, width,
-        padding: "10px 10px",
-        fontSize: 10.5, fontWeight: 800,
-        letterSpacing: "0.05em", textTransform: "uppercase",
-        color: active ? "#7C63C8" : "#9CA3AF",
-        borderBottom: "1px solid #F0ECF8",
-        cursor: onClick ? "pointer" : "default",
-        userSelect: "none", whiteSpace: "nowrap",
-      }}
-    >
-      {children}
-      {active && onClick && (
-        <span style={{ marginLeft: 4, fontSize: 9 }}>
-          {dir === "desc" ? "▼" : "▲"}
-        </span>
-      )}
-    </th>
-  )
-}
-
-function MatchRow({
-  row, onTogglePipeline,
-}: {
-  row: AssessmentRow
-  onTogglePipeline: (id: string, next: boolean) => void
-}) {
-  const c = row.candidate
-  const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
-  const dims = row.score_dimensions
-  const tier = (row.match_tier ?? "poor") as MatchTier
-  const tierMeta = TIER_META[tier]
-  const source = (row.source as MatchSource) ?? "vivier_matched"
-  const srcMeta = SOURCE_META[source]
-  const isAssigned = source === "vivier_assigned"
-
-  return (
-    <tr style={{ borderBottom: "1px solid #F4F1FA" }}>
-      <td style={{ padding: "10px 10px", verticalAlign: "middle" }}>
-        <Link
-          href={`/workspace/match/${row.id}`}
-          style={{
-            display: "block",
-            color: "#111827", textDecoration: "none",
-            fontWeight: 600, fontSize: 13.5,
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}
-        >
-          {name}
-        </Link>
-        {c?.current_title && (
-          <span style={{
-            display: "block",
-            fontSize: 11.5, color: "#9CA3AF",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}>
-            {c.current_title}{c.current_company ? ` · ${c.current_company}` : ""}
-          </span>
-        )}
-      </td>
-      <td style={{ padding: "10px 10px", textAlign: "center", verticalAlign: "middle" }}>
-        <span title={isAssigned ? "Assignation manuelle depuis le vivier" : srcMeta.label} style={{
-          fontSize: 10.5, fontWeight: 700,
-          color: srcMeta.color, background: srcMeta.bg,
-          border: `1px solid ${srcMeta.bd}`,
-          padding: "2px 8px", borderRadius: 99,
-          letterSpacing: "0.03em", whiteSpace: "nowrap",
-        }}>
-          {srcMeta.short}
-        </span>
-      </td>
-      {DIM_COLS.map((d) => {
-        const v = dims?.[d.key] ?? null
-        const p = dimPalette(v)
-        return (
-          <td key={d.key} style={{ padding: "10px 6px", textAlign: "center", verticalAlign: "middle" }}>
-            <span style={{
-              display: "inline-block", minWidth: 34,
-              padding: "3px 6px", borderRadius: 7,
-              background: p.bg, color: p.color,
-              fontSize: 12.5, fontWeight: 700,
-              fontVariantNumeric: "tabular-nums",
-            }}>
-              {v != null ? v : "—"}
-            </span>
-          </td>
-        )
-      })}
-      <td style={{ padding: "10px 10px", textAlign: "center", verticalAlign: "middle" }}>
-        {row.score != null ? (
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 5,
-            fontSize: 12.5, fontWeight: 800,
-            color: tierMeta.color, background: tierMeta.bg,
-            border: `1px solid ${tierMeta.bd}`,
-            padding: "3px 9px", borderRadius: 99,
-            fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap",
-          }}>
-            {row.score}<span style={{ fontSize: 10, opacity: 0.7, fontWeight: 600 }}>· {tierMeta.label}</span>
-          </span>
-        ) : (
-          <span style={{ fontSize: 12, color: "#9CA3AF" }}>—</span>
-        )}
-      </td>
-      <td style={{ padding: "10px 10px", textAlign: "right", verticalAlign: "middle" }}>
-        <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-          <button
-            onClick={() => onTogglePipeline(row.id, !row.in_pipeline)}
-            title={row.in_pipeline ? "Retirer de la pipeline" : "Suivre dans la pipeline"}
-            style={{
-              fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer",
-              padding: "5px 9px", borderRadius: 7,
-              color: row.in_pipeline ? "#15803d" : "#7C63C8",
-              background: row.in_pipeline ? "rgba(34,197,94,0.08)" : "white",
-              border: `1px solid ${row.in_pipeline ? "rgba(34,197,94,0.3)" : "rgba(124,99,200,0.3)"}`,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {row.in_pipeline ? "✓ Pipeline" : "+ Pipeline"}
-          </button>
-          <Link href={`/workspace/match/${row.id}`} style={{
-            fontSize: 11.5, fontWeight: 700, color: "white",
-            padding: "5px 11px", borderRadius: 7,
-            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            textDecoration: "none", whiteSpace: "nowrap",
-          }}>
-            Ouvrir ▶
-          </Link>
-        </div>
-      </td>
-    </tr>
-  )
-}
-
-function Meta({ children }: { children: React.ReactNode }) {
-  return (
-    <span style={{ background: "#F9FAFB", border: "1px solid #F0ECF8", padding: "3px 8px", borderRadius: 6 }}>
-      {children}
-    </span>
-  )
-}
-
-/* ───────────────────────── Sourcing stats ─────────────────────────────────
- * Tuile récap sourcing (vus / retenus / écartés + top motif d'écart).
- * Ton neutre par défaut, "good" si les retenus existent, "warn" si on rejette
- * beaucoup. Volontairement minimaliste — la valeur est dans le chiffre.
- */
 function SourcingStatTile({
   label, value, hint, tone,
 }: {
@@ -1402,30 +826,13 @@ function SourcingStatTile({
       borderRadius: 10, padding: "10px 12px",
       display: "flex", flexDirection: "column", gap: 2,
     }}>
-      <div style={{
-        fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
-        letterSpacing: "0.05em", textTransform: "uppercase",
-      }}>
+      <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase" }}>
         {label}
       </div>
-      <div style={{
-        fontSize: 17, fontWeight: 800, color: palette.fg,
-        fontVariantNumeric: "tabular-nums", lineHeight: 1.2,
-      }}>
+      <div style={{ fontSize: 17, fontWeight: 800, color: palette.fg, fontVariantNumeric: "tabular-nums", lineHeight: 1.2 }}>
         {value}
       </div>
-      {hint && (
-        <div style={{ fontSize: 10.5, color: "#9CA3AF" }}>
-          {hint}
-        </div>
-      )}
+      {hint && <div style={{ fontSize: 10.5, color: "#9CA3AF" }}>{hint}</div>}
     </div>
   )
 }
-
-/* ───────────────────────── Pricing inline editor ─────────────────────────
- * Inline-editable pricing inputs directly on the mission detail page.
- * Auto-save debounced (800 ms) so the sourceur doesn't have to click
- * any save button — the badge confirms persistence. Calls back to the
- * parent so the cached `job` state stays in sync after each save.
- */
