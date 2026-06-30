@@ -22,6 +22,12 @@ import type {
   ScoreDimensions,
   MatchTier,
 } from "./database.types"
+import {
+  CRITERION_CATALOG,
+  kindOf,
+  type Criterion,
+  type CriterionEval,
+} from "./job-criteria-catalog"
 
 /* ─────────────────────────── Job normalization ─────────────────────────── */
 
@@ -472,3 +478,212 @@ export function withMissionTag(tax: CandidateTaxonomy | null, tag: string): Cand
 // demande un reasoning explicite par candidat, ce qui force le LLM
 // à les traiter individuellement même dans un batch plus large.
 export const MATCH_BATCH_SIZE = 8
+
+/* ─────────────────────── Scoring v3 — critères flexibles (PR-Z) ─────────
+ *
+ * Au lieu des 4 dimensions hardcodées, on évalue chaque critère défini
+ * sur la mission (jobs.criteria). Score global = moyenne pondérée des
+ * critères "main" (les "bonus" sont informatifs, n'entrent pas dans le
+ * score). Le LLM ne calcule PAS le score global : il évalue critère par
+ * critère et le serveur agrège — résultat plus prévisible.
+ */
+
+export interface CriteriaMatchResult {
+  candidate_id: string
+  /** Score global 0-100 calculé déterministiquement depuis criteria_eval. */
+  score: number
+  tier: MatchTier
+  criteria_eval: CriterionEval[]
+}
+
+const CRITERIA_SCORE_SYSTEM_PROMPT = `Tu es l'expert de matching recrutement Naywa. Pour chaque candidat fourni, tu évalues UNIQUEMENT les critères de la mission.
+
+CONTEXTE
+- POSTE : titre, séniorité, contrat, description, briefing.
+- CRITÈRES : liste avec { id, type, label, weight, params }. weight="main" compte dans le score global, "bonus" est informatif. Évalue les DEUX.
+- CANDIDATS : poste actuel, séniorité, années XP, skills, domaines, summary, langues si visibles. Pas le CV brut.
+
+RÈGLES PAR TYPE
+- Critères QUANTITATIFS (skills, seniority_fit, experience_years, role_fit, domain_fit, etc.) → renvoie un \`score\` 0-100.
+- Critères QUALITATIFS (language, license, certification, etc.) → renvoie un \`status\` "yes" | "no" | "unknown" + une \`evidence\` courte citant le CV ("Allemand vu dans 'Langues : Allemand B2'") ou expliquant l'inférence.
+
+PRINCIPE D'OR
+- \`unknown\` = pas d'info dans le profil pour trancher. N'invente PAS : si le CV ne mentionne pas le permis, le statut est "unknown", PAS "no".
+- Evidence COURTE : 1 phrase max, citation directe quand possible.
+
+CONCESSIONS DU SOURCEUR
+Si le briefing autorise un compromis ("séniorité flexible si très technique"), applique-le sans pénaliser.
+
+DEAL-BREAKERS
+Si un critère main est clairement "no" ou un score quantitatif main < 30, le candidat sera automatiquement classé "poor" côté serveur — sois rigoureux.
+
+RÉPONDS UNIQUEMENT EN JSON, pas de markdown :
+{
+  "results": [
+    {
+      "candidate_id": "uuid",
+      "criteria_eval": [
+        { "id": "criterion_id", "score": 0-100 }              // pour QUANTITATIFS
+        // OU
+        { "id": "criterion_id", "status": "yes"|"no"|"unknown", "evidence": "..." }  // pour QUALITATIFS
+      ]
+    }
+  ]
+}`
+
+/** Mappe un statut qualitatif vers un score numérique pour l'agrégation.
+ *  Choix : "unknown" = 50 (neutre, pas pénalisant ni avantageux). */
+function statusToScore(status: "yes" | "no" | "unknown" | undefined): number {
+  if (status === "yes") return 100
+  if (status === "no") return 0
+  return 50
+}
+
+/** Calcule le score global d'un candidat depuis criteria_eval.
+ *  Moyenne pondérée des critères "main" uniquement. Si aucun main
+ *  évalué, retourne 0 (le caller décidera). */
+function computeGlobalScore(criteria: Criterion[], evals: CriterionEval[]): number {
+  const evalById = new Map(evals.map((e) => [e.id, e]))
+  let total = 0
+  let weights = 0
+  for (const c of criteria) {
+    if (c.weight !== "main") continue
+    const e = evalById.get(c.id)
+    if (!e) continue
+    const kind = kindOf(c.type)
+    const score = kind === "quantitative"
+      ? Math.max(0, Math.min(100, Math.round(e.score ?? 0)))
+      : statusToScore(e.status)
+    total += score
+    weights += 1
+  }
+  return weights > 0 ? Math.round(total / weights) : 0
+}
+
+function tierFromScore(score: number): MatchTier {
+  if (score >= 75) return "excellent"
+  if (score >= 55) return "good"
+  if (score >= 35) return "fair"
+  return "poor"
+}
+
+function compactCandidateForCriteria(c: Candidate): Record<string, unknown> {
+  const tax = c.taxonomy
+  return {
+    candidate_id: c.id,
+    title: c.current_title ?? null,
+    current_company: c.current_company ?? null,
+    years_experience: c.years_experience ?? null,
+    seniority: c.seniority_level ?? tax?.seniority ?? null,
+    is_apprentice: c.is_apprentice ?? false,
+    role_family: tax?.role_family ?? [],
+    core_skills: tax?.core_skills ?? (c.skills ?? []).slice(0, 12),
+    tools: tax?.tools ?? [],
+    domains: tax?.domains ?? [],
+    industries: tax?.industries ?? [],
+    languages: c.parsed_cv?.languages ?? [],
+    certifications: c.parsed_cv?.certifications ?? [],
+    location: c.location ?? null,
+    summary: c.parsed_cv?.summary ?? null,
+  }
+}
+
+async function scoreBatchCriteriaOnce(
+  job: Job,
+  criteria: Criterion[],
+  candidates: Candidate[],
+): Promise<CriteriaMatchResult[]> {
+  const jobPayload = {
+    role: job.role_name?.trim() || job.title,
+    location: job.location,
+    seniority: job.seniority ?? job.normalized?.seniority ?? null,
+    contract_type: job.contract_type,
+    description: job.description ?? null,
+    briefing: job.briefing ?? null,
+    criteria: criteria.map((c) => ({
+      id: c.id, type: c.type, label: c.label, weight: c.weight,
+      params: c.params,
+      // Aide LLM : précise le kind attendu en sortie.
+      expected_output: kindOf(c.type) === "quantitative" ? "score 0-100" : "status yes/no/unknown + evidence",
+    })),
+  }
+  const candPayload = candidates.map(compactCandidateForCriteria)
+  const seed = deterministicSeed(job.id, candidates.map((c) => c.id))
+
+  const result = await openrouterChat({
+    model: "openai/gpt-4o-mini",
+    temperature: 0,
+    seed,
+    responseFormat: "json_object",
+    maxTokens: Math.min(4000, 250 + candidates.length * criteria.length * 30),
+    messages: [
+      { role: "system", content: CRITERIA_SCORE_SYSTEM_PROMPT },
+      { role: "user", content: `POSTE :\n${JSON.stringify(jobPayload)}\n\nCANDIDATS :\n${JSON.stringify(candPayload)}` },
+    ],
+  })
+
+  const parsed = safeJsonParse<{ results?: unknown[] }>(result.content)
+  const rows = Array.isArray(parsed?.results) ? parsed!.results : []
+  const knownCandIds = new Set(candidates.map((c) => c.id))
+  const knownCritIds = new Set(criteria.map((c) => c.id))
+
+  const out: CriteriaMatchResult[] = []
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue
+    const o = r as Record<string, unknown>
+    const candidateId = typeof o.candidate_id === "string" ? o.candidate_id : null
+    if (!candidateId || !knownCandIds.has(candidateId)) continue
+    const evalsRaw = Array.isArray(o.criteria_eval) ? o.criteria_eval : []
+    const evals: CriterionEval[] = []
+    for (const e of evalsRaw) {
+      if (!e || typeof e !== "object") continue
+      const ev = e as Record<string, unknown>
+      const id = typeof ev.id === "string" ? ev.id : null
+      if (!id || !knownCritIds.has(id)) continue
+      const item: CriterionEval = { id }
+      if (typeof ev.score === "number" && isFinite(ev.score)) {
+        item.score = Math.max(0, Math.min(100, Math.round(ev.score)))
+      }
+      if (ev.status === "yes" || ev.status === "no" || ev.status === "unknown") {
+        item.status = ev.status
+      }
+      if (typeof ev.evidence === "string" && ev.evidence.trim()) {
+        item.evidence = ev.evidence.trim().slice(0, 240)
+      }
+      evals.push(item)
+    }
+    const score = computeGlobalScore(criteria, evals)
+    out.push({
+      candidate_id: candidateId,
+      score,
+      tier: tierFromScore(score),
+      criteria_eval: evals,
+    })
+  }
+  return out
+}
+
+/**
+ * Score un batch de candidats sur les critères de la mission.
+ * Retry une fois sur les candidats que le LLM a oublié.
+ */
+export async function scoreBatchCriteria(
+  job: Job,
+  criteria: Criterion[],
+  candidates: Candidate[],
+): Promise<CriteriaMatchResult[]> {
+  if (candidates.length === 0 || criteria.length === 0) return []
+
+  const first = await scoreBatchCriteriaOnce(job, criteria, candidates)
+  const scoredIds = new Set(first.map((r) => r.candidate_id))
+  const missing = candidates.filter((c) => !scoredIds.has(c.id))
+  if (missing.length === 0) return first
+
+  let second: CriteriaMatchResult[] = []
+  try {
+    second = await scoreBatchCriteriaOnce(job, criteria, missing)
+  } catch (err) {
+    console.error("[match v3] retry failed:", (err as Error).message)
+  }
+  return [...first, ...second]
+}

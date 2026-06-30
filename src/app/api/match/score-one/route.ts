@@ -19,7 +19,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeOrgLlmActionForUser } from "@/lib/quota"
-import { scoreBatch, withMissionTag, missionTagFor } from "@/lib/matching"
+import { scoreBatchCriteria, withMissionTag, missionTagFor } from "@/lib/matching"
+import type { Criterion } from "@/lib/job-criteria-catalog"
 import { CANDIDATE_COLUMNS, type Candidate, type Job, type Database } from "@/lib/database.types"
 
 type MatchInsert = Database["public"]["Tables"]["match_assessments"]["Insert"]
@@ -63,6 +64,15 @@ export async function POST(req: NextRequest) {
     }, { status: 400 })
   }
 
+  // PR-Z : on a besoin de critères configurés pour scorer.
+  const criteria = (job.criteria ?? []) as Criterion[]
+  if (!job.criteria_locked_at || criteria.length === 0) {
+    return NextResponse.json({
+      error: "criteria_not_configured",
+      message: "Configure les critères de la mission avant d'importer des candidats.",
+    }, { status: 400 })
+  }
+
   const orgLlm = await consumeOrgLlmActionForUser(getAdminSupabase(), user.id)
   if (!orgLlm.ok) {
     return NextResponse.json(
@@ -73,7 +83,7 @@ export async function POST(req: NextRequest) {
 
   let results
   try {
-    results = await scoreBatch(job, [candidate])
+    results = await scoreBatchCriteria(job, criteria, [candidate])
   } catch (err) {
     return NextResponse.json(
       { error: "scoring_failed", detail: (err as Error).message },
@@ -98,13 +108,15 @@ export async function POST(req: NextRequest) {
 
   let matchRow
   if (existing) {
+    // L'action explicite du sourceur (upload / candidature) prime sur la
+    // source historique : on écrase la source même en UPDATE.
     const { data } = await admin
       .from("match_assessments")
       .update({
         score: r.score,
-        score_dimensions: r.dimensions,
-        justification: r.justification,
+        criteria_eval: r.criteria_eval,
         match_tier: r.tier,
+        source,
       })
       .eq("id", existing.id)
       .select("*")
@@ -116,8 +128,7 @@ export async function POST(req: NextRequest) {
       job_id: jobId,
       candidate_id: candidateId,
       score: r.score,
-      score_dimensions: r.dimensions,
-      justification: r.justification,
+      criteria_eval: r.criteria_eval,
       match_tier: r.tier,
       pipeline_stage: "identified",
       source,

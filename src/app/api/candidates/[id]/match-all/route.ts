@@ -16,11 +16,12 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
   prefilterCandidates,
-  scoreBatch,
+  scoreBatchCriteria,
   missionTagFor,
   withMissionTag,
 } from "@/lib/matching"
 import { consumeQuota, consumeOrgLlmActionForUser } from "@/lib/quota"
+import type { Criterion } from "@/lib/job-criteria-catalog"
 import { CANDIDATE_COLUMNS, type Candidate, type Job, type Database } from "@/lib/database.types"
 
 type MatchInsert = Database["public"]["Tables"]["match_assessments"]["Insert"]
@@ -64,13 +65,19 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   let inserted = 0
 
   for (const job of jobs) {
+    // PR-Z : on saute les missions qui n'ont pas encore leurs critères
+    // configurés. Le scoring auto-discovery ne doit pas créer de matchs
+    // muets — on attend que le sourceur ait fait l'onboarding critères.
+    const criteria = (job.criteria ?? []) as Criterion[]
+    if (!job.criteria_locked_at || criteria.length === 0) continue
+
     // Per-job deterministic pre-filter on this single candidate.
     const hits = prefilterCandidates(job.normalized ?? {}, [candidate])
     if (hits.length === 0) continue
 
     let results
     try {
-      results = await scoreBatch(job, [candidate])
+      results = await scoreBatchCriteria(job, criteria, [candidate])
     } catch (err) {
       console.error("[match-all] batch failed for job", job.id, (err as Error).message)
       continue
@@ -87,8 +94,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     if (existing) {
       await admin.from("match_assessments").update({
         score: r.score,
-        score_dimensions: r.dimensions,
-        justification: r.justification,
+        criteria_eval: r.criteria_eval,
         match_tier: r.tier,
       }).eq("id", existing.id)
     } else {
@@ -97,10 +103,10 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
         job_id: job.id,
         candidate_id: candidate.id,
         score: r.score,
-        score_dimensions: r.dimensions,
-        justification: r.justification,
+        criteria_eval: r.criteria_eval,
         match_tier: r.tier,
         pipeline_stage: "identified",
+        source: "vivier_matched",
       }
       await admin.from("match_assessments").insert(insert)
       inserted += 1

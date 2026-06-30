@@ -19,12 +19,13 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
   prefilterCandidates,
-  scoreBatch,
+  scoreBatchCriteria,
   missionTagFor,
   withMissionTag,
   MATCH_BATCH_SIZE,
-  type MatchResult,
+  type CriteriaMatchResult,
 } from "@/lib/matching"
+import type { Criterion } from "@/lib/job-criteria-catalog"
 import { consumeQuota, consumeOrgLlmActionForUser } from "@/lib/quota"
 import { CANDIDATE_COLUMNS, type Candidate, type Job, type Database } from "@/lib/database.types"
 
@@ -69,6 +70,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const { data: job, error: jobErr } = await sb.from("jobs").select("*").eq("id", id).single()
   if (jobErr || !job) return NextResponse.json({ error: "not_found" }, { status: 404 })
+
+  // PR-Z : il faut que les critères soient configurés avant de matcher.
+  const criteria = (job.criteria ?? []) as Criterion[]
+  if (!job.criteria_locked_at || criteria.length === 0) {
+    return NextResponse.json({
+      error: "criteria_not_configured",
+      message: "Configure les critères de la mission avant de lancer le matching.",
+    }, { status: 400 })
+  }
 
   const admin = getAdminSupabase()
 
@@ -167,16 +177,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     // Pas de race vraie car JS est mono-thread sur les microtasks ; chaque
     // settle handler s'exécute atomiquement.
     let completedSoFar = 0
-    const results: MatchResult[] = []
+    const results: CriteriaMatchResult[] = []
 
     // Pool de workers — chaque worker pioche dans la queue jusqu'à
     // épuisement. CONCURRENT_BATCHES limite la pression simultanée sur
     // OpenRouter (rate-limit-friendly) tout en gardant la latence basse.
     const queue = [...batches]
     const processOne = async (batch: Candidate[]) => {
-      let scored: MatchResult[]
+      let scored: CriteriaMatchResult[]
       try {
-        scored = await scoreBatch(job as Job, batch)
+        scored = await scoreBatchCriteria(job as Job, criteria, batch)
       } catch (err) {
         console.error("[match] batch failed:", (err as Error).message)
         return
@@ -193,8 +203,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           batchUpdates.push(
             admin.from("match_assessments").update({
               score: r.score,
-              score_dimensions: r.dimensions,
-              justification: r.justification,
+              criteria_eval: r.criteria_eval,
               match_tier: r.tier,
             }).eq("id", existingId),
           )
@@ -204,8 +213,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
             job_id: job.id,
             candidate_id: r.candidate_id,
             score: r.score,
-            score_dimensions: r.dimensions,
-            justification: r.justification,
+            criteria_eval: r.criteria_eval,
             match_tier: r.tier,
             pipeline_stage: "identified",
             source: "vivier_matched",

@@ -1,6 +1,8 @@
 // Generated-style type definition compatible with @supabase/supabase-js v2
 // Sprint 1 — CV CRM (Naywa Studio / Nora)
 
+import type { Criterion, CriterionEval } from "./job-criteria-catalog"
+
 // ── Parsed CV structure (LLM output) ──────────────────────────────────────────
 export type ExperienceSeniority = 'stage' | 'junior' | 'mid' | 'senior' | 'lead' | 'principal'
 
@@ -401,6 +403,12 @@ export type Database = {
            *  automatique, accord écrit requis). Défaut false → seule la durée
            *  initiale est appliquée dans le chart Risque rupture. */
           essai_renouvele: boolean
+          /** Critères flexibles choisis par Nora + validés par le sourceur (PR-Z).
+           *  NULL avant l'onboarding critères. Cf. lib/job-criteria-catalog.ts. */
+          criteria: Criterion[] | null
+          /** Timestamp de validation des critères par le sourceur. NULL = onboarding
+           *  pas fait, l'UI montre le wizard. */
+          criteria_locked_at: string | null
           created_at: string
           updated_at: string
         }
@@ -435,6 +443,8 @@ export type Database = {
           has_grand_deplacement?: boolean
           is_expatriated?: boolean
           essai_renouvele?: boolean
+          criteria?: Criterion[] | null
+          criteria_locked_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -543,6 +553,9 @@ export type Database = {
            *  - vivier_assigned : assigné manuellement depuis le vivier
            */
           source: 'applied' | 'uploaded' | 'vivier_matched' | 'vivier_assigned'
+          /** Évaluation par critère pour ce (candidat × mission). Remplace
+           *  progressivement score_dimensions. Voir lib/job-criteria-catalog.ts. */
+          criteria_eval: CriterionEval[] | null
           pipeline_stage: 'identified' | 'pricing' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
           /** true = candidat suivi dans la pipeline (ajout explicite ou contact
            *  auto). false = simple résultat de matching, non affiché en pipeline. */
@@ -576,6 +589,7 @@ export type Database = {
           justification?: string | null
           match_tier?: 'excellent' | 'good' | 'fair' | 'poor' | null
           source?: 'applied' | 'uploaded' | 'vivier_matched' | 'vivier_assigned'
+          criteria_eval?: CriterionEval[] | null
           pipeline_stage?: 'identified' | 'pricing' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
           in_pipeline?: boolean
           pricing_tjm?: number | null
