@@ -536,6 +536,13 @@ export type Database = {
           score_dimensions: ScoreDimensions | null
           justification: string | null
           match_tier: 'excellent' | 'good' | 'fair' | 'poor' | null
+          /** Provenance du match — voir migration 053.
+           *  - applied         : candidature spontanée (formulaire public E2)
+           *  - uploaded        : CV déposé directement sur la fiche mission (E1)
+           *  - vivier_matched  : remonté par le matching auto
+           *  - vivier_assigned : assigné manuellement depuis le vivier
+           */
+          source: 'applied' | 'uploaded' | 'vivier_matched' | 'vivier_assigned'
           pipeline_stage: 'identified' | 'pricing' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
           /** true = candidat suivi dans la pipeline (ajout explicite ou contact
            *  auto). false = simple résultat de matching, non affiché en pipeline. */
@@ -568,6 +575,7 @@ export type Database = {
           score_dimensions?: ScoreDimensions | null
           justification?: string | null
           match_tier?: 'excellent' | 'good' | 'fair' | 'poor' | null
+          source?: 'applied' | 'uploaded' | 'vivier_matched' | 'vivier_assigned'
           pipeline_stage?: 'identified' | 'pricing' | 'contacted' | 'replied' | 'interview' | 'offer' | 'hired' | 'rejected'
           in_pipeline?: boolean
           pricing_tjm?: number | null

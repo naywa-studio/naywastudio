@@ -33,12 +33,18 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
   const body = await req.json().catch(() => null) as
-    { candidate_id?: unknown; job_id?: unknown } | null
+    { candidate_id?: unknown; job_id?: unknown; source?: unknown } | null
   const candidateId = typeof body?.candidate_id === "string" ? body.candidate_id : null
   const jobId = typeof body?.job_id === "string" ? body.job_id : null
   if (!candidateId || !jobId) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 })
   }
+  // E1 (modale upload mission) envoie source="uploaded". E2 (formulaire
+  // public, à venir) enverra source="applied". Défaut "uploaded" puisque
+  // cette route n'est aujourd'hui appelée que par E1.
+  const sourceParam = typeof body?.source === "string" ? body.source : "uploaded"
+  const source: "applied" | "uploaded" =
+    sourceParam === "applied" ? "applied" : "uploaded"
 
   // RLS-scoped reads pour vérifier que les deux appartiennent à l'org.
   const [{ data: candRow }, { data: jobRow }] = await Promise.all([
@@ -114,6 +120,7 @@ export async function POST(req: NextRequest) {
       justification: r.justification,
       match_tier: r.tier,
       pipeline_stage: "identified",
+      source,
     }
     const { data } = await admin
       .from("match_assessments")

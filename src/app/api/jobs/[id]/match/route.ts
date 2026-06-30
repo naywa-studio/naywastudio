@@ -208,6 +208,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
             justification: r.justification,
             match_tier: r.tier,
             pipeline_stage: "identified",
+            source: "vivier_matched",
           })
         }
       }

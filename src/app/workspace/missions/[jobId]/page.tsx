@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
-import type { Job, Candidate, MatchAssessment, MatchTier } from "@/lib/database.types"
+import type { Job, Candidate, MatchAssessment, MatchTier, ScoreDimensions } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { MissionCvUploadModal } from "@/components/workspace/MissionCvUploadModal"
@@ -32,12 +32,55 @@ function jobSeniorityLabel(job: Job): string | null {
 type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
 
 const TIER_META: Record<MatchTier, { label: string; color: string; bg: string; bd: string }> = {
-  excellent: { label: "Excellent match", color: "#15803d", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
-  good:      { label: "Bon match",       color: "#7C63C8", bg: "rgba(124,99,200,0.07)", bd: "rgba(124,99,200,0.22)" },
-  fair:      { label: "Match moyen",     color: "#B45309", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
-  poor:      { label: "Match faible",    color: "#6B7280", bg: "#F9FAFB", bd: "#E5E7EB" },
+  excellent: { label: "Excellent",   color: "#15803d", bg: "rgba(34,197,94,0.10)",  bd: "rgba(34,197,94,0.30)" },
+  good:      { label: "Bon",         color: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.20)" },
+  fair:      { label: "Moyen",       color: "#B45309", bg: "rgba(245,158,11,0.08)", bd: "rgba(245,158,11,0.25)" },
+  poor:      { label: "Faible",      color: "#6B7280", bg: "#F3F4F6",                bd: "#E5E7EB" },
 }
-const TIER_ORDER: MatchTier[] = ["excellent", "good", "fair", "poor"]
+
+/* ── Sources (PR-Y) ────────────────────────────────────────────────
+ * Provenance d'un (candidat × mission). 4 valeurs en DB, mais 3 tabs
+ * côté UI : "vivier_matched" et "vivier_assigned" sont fusionnés dans
+ * l'onglet Vivier (l'utilisateur a confirmé : assignés = "aussi du
+ * vivier"). Le badge dans la ligne différencie les deux. */
+type MatchSource = "applied" | "uploaded" | "vivier_matched" | "vivier_assigned"
+type SourceTab = "all" | "applied" | "uploaded" | "vivier"
+
+const SOURCE_META: Record<MatchSource, { label: string; short: string; color: string; bg: string; bd: string }> = {
+  applied:         { label: "Postulé",  short: "Postulé",  color: "#15803d", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)" },
+  uploaded:        { label: "Importé",  short: "Importé",  color: "#1D4ED8", bg: "rgba(59,130,246,0.08)", bd: "rgba(59,130,246,0.25)" },
+  vivier_matched:  { label: "Vivier",   short: "Vivier",   color: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" },
+  vivier_assigned: { label: "Assigné",  short: "Assigné",  color: "#6B7280", bg: "#F3F4F6",                bd: "#E5E7EB" },
+}
+
+/* ── Dimensions LLM (prompt v3) ─────────────────────────────────────
+ * 4 critères 0-100 affichés en colonnes dans le tableau, avec fond
+ * pastel selon palier. L'utilisateur peut filtrer "≥ 70" sur chaque. */
+type DimKey = keyof ScoreDimensions
+const DIM_COLS: Array<{ key: DimKey; label: string; full: string }> = [
+  { key: "skills_match",   label: "Comp.",  full: "Compétences"  },
+  { key: "seniority_fit",  label: "Sén.",   full: "Séniorité"    },
+  { key: "experience_fit", label: "Exp.",   full: "Expérience"   },
+  { key: "domain_fit",     label: "Sect.",  full: "Secteur"      },
+]
+function dimPalette(v: number | null | undefined): { color: string; bg: string } {
+  if (v == null) return { color: "#9CA3AF", bg: "transparent" }
+  if (v >= 75)   return { color: "#15803d", bg: "rgba(34,197,94,0.12)" }
+  if (v >= 55)   return { color: "#15803d", bg: "rgba(34,197,94,0.06)" }
+  if (v >= 35)   return { color: "#B45309", bg: "rgba(245,158,11,0.10)" }
+  return            { color: "#B91C1C", bg: "rgba(239,68,68,0.08)" }
+}
+
+/** Onglet courant → set des sources DB acceptées. */
+function sourcesForTab(tab: SourceTab): Set<MatchSource> {
+  if (tab === "all")      return new Set(["applied", "uploaded", "vivier_matched", "vivier_assigned"])
+  if (tab === "applied")  return new Set(["applied"])
+  if (tab === "uploaded") return new Set(["uploaded"])
+  return new Set(["vivier_matched", "vivier_assigned"])
+}
+
+type SortCol = "score" | "name" | DimKey
+type SortDir = "desc" | "asc"
 
 export default function JobDetailPage() {
   const router = useRouter()
@@ -49,17 +92,16 @@ export default function JobDetailPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [matchError, setMatchError] = useState<string | null>(null)
-  const [showWeak, setShowWeak] = useState(false)
-  // Si on a moins de 3 matchs forts (≥60), c'est que le vivier n'a pas de
-  // profil 100% aligné — on déplie automatiquement les matchs plus faibles
-  // pour ne pas laisser le sourceur croire qu'il n'y a "rien". Idée : mieux
-  // vaut montrer ce qu'on a et l'assumer qu'afficher une page vide.
-  const SCARCE_THRESHOLD = 3
   const [assignOpen, setAssignOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [briefing, setBriefing] = useState("")
   const [briefingSaving, setBriefingSaving] = useState<"idle" | "saving" | "saved">("idle")
   const [showEdit, setShowEdit] = useState(false)
+  // Onglets par source + filtres "≥ 70" par critère + tri.
+  const [activeTab, setActiveTab] = useState<SourceTab>("all")
+  const [dimFilters, setDimFilters] = useState<Partial<Record<DimKey, boolean>>>({})
+  const [sortCol, setSortCol] = useState<SortCol>("score")
+  const [sortDir, setSortDir] = useState<SortDir>("desc")
 
   const loadAll = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`)
@@ -206,22 +248,59 @@ export default function JobDetailPage() {
   }
 
   const matching = job.match_status === "matching"
-  // Manually assigned matches have score === null. Pinned at the top of
-  // the page so the sourcer never loses track of who they pushed in by hand.
-  const manualRows = rows
-    .filter((r) => r.score == null)
-    .sort((a, b) => (a.candidate?.full_name ?? "").localeCompare(b.candidate?.full_name ?? ""))
-  const scoredRows = rows.filter((r) => r.score != null)
-  const grouped = TIER_ORDER.map((tier) => ({
-    tier,
-    rows: scoredRows
-      .filter((r) => (r.match_tier ?? "poor") === tier)
-      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0)),
-  }))
-  const strong = grouped.filter((g) => g.tier === "excellent" || g.tier === "good")
-  const weak = grouped.filter((g) => g.tier === "fair" || g.tier === "poor")
-  const strongCount = strong.reduce((n, g) => n + g.rows.length, 0)
-  const weakCount = weak.reduce((n, g) => n + g.rows.length, 0)
+
+  // Compteurs par source (badges des onglets). Inclut tout, peu importe les
+  // filtres dimensions actifs — on veut savoir combien existent par source.
+  const sourceCounts = (() => {
+    const c: Record<MatchSource, number> = {
+      applied: 0, uploaded: 0, vivier_matched: 0, vivier_assigned: 0,
+    }
+    for (const r of rows) c[(r.source as MatchSource) ?? "vivier_matched"]++
+    return c
+  })()
+  const tabCounts: Record<SourceTab, number> = {
+    all: rows.length,
+    applied: sourceCounts.applied,
+    uploaded: sourceCounts.uploaded,
+    vivier: sourceCounts.vivier_matched + sourceCounts.vivier_assigned,
+  }
+
+  // Filtrage onglet + critères ≥ 70 + tri.
+  const allowedSources = sourcesForTab(activeTab)
+  const activeDimFilters = (Object.keys(dimFilters) as DimKey[]).filter((k) => dimFilters[k])
+  const filteredRows = rows
+    .filter((r) => allowedSources.has((r.source as MatchSource) ?? "vivier_matched"))
+    .filter((r) => {
+      if (activeDimFilters.length === 0) return true
+      const d = r.score_dimensions
+      if (!d) return false // pas de filtre possible sans dimensions
+      return activeDimFilters.every((k) => (d[k] ?? 0) >= 70)
+    })
+    .sort((a, b) => {
+      const mul = sortDir === "desc" ? -1 : 1
+      if (sortCol === "name") {
+        const an = a.candidate?.full_name ?? a.candidate?.cv_file_name ?? ""
+        const bn = b.candidate?.full_name ?? b.candidate?.cv_file_name ?? ""
+        return an.localeCompare(bn) * mul
+      }
+      if (sortCol === "score") {
+        // Les rows sans score (assignés manuellement) finissent toujours en bas.
+        const av = a.score, bv = b.score
+        if (av == null && bv == null) return 0
+        if (av == null) return 1
+        if (bv == null) return -1
+        return (av - bv) * mul
+      }
+      // Dimension column
+      const av = a.score_dimensions?.[sortCol] ?? null
+      const bv = b.score_dimensions?.[sortCol] ?? null
+      if (av == null && bv == null) return 0
+      if (av == null) return 1
+      if (bv == null) return -1
+      return (av - bv) * mul
+    })
+
+  const strongCount = rows.filter((r) => (r.score ?? 0) >= 55).length
 
   // Stats sourcing — vu / retenu / écarté + raison dominante des rejets.
   // "Vu" = tous les matchs scorés (le sourceur a parcouru les profils que
@@ -483,9 +562,8 @@ export default function JobDetailPage() {
 
       </m.section>
 
-      {/* ── Colonne droite : résultats du matching ── */}
+      {/* ── Colonne droite : tableau de matching + onglets sources ── */}
       <div className="mission-right">
-      {/* Results */}
       {rows.length === 0 ? (
         <div style={{
           padding: "56px 24px", textAlign: "center",
@@ -500,24 +578,22 @@ export default function JobDetailPage() {
           ) : (
             <>
               <div style={{ fontSize: 40, marginBottom: 10 }}>🎯</div>
-              <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>Aucun candidat matché pour l&apos;instant</p>
-              <p style={{ margin: 0, fontSize: 13 }}>Lancez le matching — Nora ne remontera que les profils pertinents.</p>
+              <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>Aucun candidat sur cette mission pour l&apos;instant</p>
+              <p style={{ margin: 0, fontSize: 13 }}>Importez des CVs, assignez depuis le vivier, ou lancez le matching auto.</p>
             </>
           )}
         </div>
       ) : (
         <>
-          <div style={{ marginBottom: 16, fontSize: 13, color: "#6B7280" }}>
+          {/* Récap rapide — chiffres haut-niveau, jamais cachés par les filtres. */}
+          <div style={{ marginBottom: 14, fontSize: 13, color: "#6B7280" }}>
             <strong style={{ color: "#111827" }}>{strongCount}</strong> candidat{strongCount > 1 ? "s" : ""} pertinent{strongCount > 1 ? "s" : ""}
-            {manualRows.length > 0 && <> · <strong style={{ color: "#7C63C8" }}>{manualRows.length}</strong> assigné{manualRows.length > 1 ? "s" : ""} manuellement</>}
-            {weakCount > 0 && <> · {weakCount} autre{weakCount > 1 ? "s" : ""} à plus faible affinité</>}
+            <span style={{ color: "#9CA3AF" }}> · {rows.length} au total</span>
           </div>
 
-          {/* Stats sourcing — vue d'ensemble pour reporter au client + signal
-              de calibration interne (quel motif d'écart domine). */}
           {(sourcingStats.seen > 0 || sourcingStats.rejected > 0) && (
             <div style={{
-              marginBottom: 16,
+              marginBottom: 14,
               display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
               gap: 8,
             }}>
@@ -542,53 +618,42 @@ export default function JobDetailPage() {
             </div>
           )}
 
-          {/* Manually assigned — always first, no score by definition */}
-          {manualRows.length > 0 && (
-            <ManualBlock rows={manualRows} />
-          )}
+          {/* Onglets par source de provenance. "Postulé" reste affiché même
+              à 0 — c'est un teaser pour le formulaire public (E2) à venir. */}
+          <SourceTabs
+            active={activeTab}
+            counts={tabCounts}
+            onChange={setActiveTab}
+          />
 
-          {strong.map((g) => g.rows.length > 0 && (
-            <TierBlock key={g.tier} tier={g.tier} rows={g.rows} onTogglePipeline={togglePipeline} />
-          ))}
+          {/* Filtres par critère — chips cumulables "≥ 70 sur cette dimension". */}
+          <DimensionFilters
+            active={dimFilters}
+            onToggle={(k) => setDimFilters((prev) => ({ ...prev, [k]: !prev[k] }))}
+            onClear={() => setDimFilters({})}
+          />
 
-          {weakCount > 0 && (() => {
-            const scarce = strongCount < SCARCE_THRESHOLD
-            const expanded = scarce || showWeak
-            return (
-              <div style={{ marginTop: 8 }}>
-                {/* Bannière de transparence quand le vivier ne sort pas de
-                    profil très aligné : on déplie d'office et on l'assume. */}
-                {scarce && (
-                  <div style={{
-                    margin: "10px 0 14px", padding: "11px 14px",
-                    background: "rgba(217,119,6,0.06)",
-                    border: "1px solid rgba(217,119,6,0.25)",
-                    borderRadius: 11,
-                    fontSize: 12.5, color: "#374151", lineHeight: 1.55,
-                  }}>
-                    <strong style={{ color: "#B45309" }}>Peu de profils correspondent à 100 %.</strong>{" "}
-                    Voici les meilleurs candidats de votre vivier sur cette mission — l&apos;affinité est moindre mais à examiner.
-                  </div>
-                )}
-                {!scarce && (
-                  <button onClick={() => setShowWeak((v) => !v)} style={{
-                    fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
-                    background: "transparent", border: "none", cursor: "pointer",
-                    padding: "8px 0", fontFamily: "inherit",
-                  }}>
-                    {showWeak ? "▾ Masquer" : "▸ Afficher"} les {weakCount} match{weakCount > 1 ? "s" : ""} à plus faible affinité
-                  </button>
-                )}
-                <AnimatePresence>
-                  {expanded && (
-                    <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ overflow: "hidden" }}>
-                      {weak.map((g) => g.rows.length > 0 && <TierBlock key={g.tier} tier={g.tier} rows={g.rows} onTogglePipeline={togglePipeline} />)}
-                    </m.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )
-          })()}
+          <MatchTable
+            rows={filteredRows}
+            sortCol={sortCol}
+            sortDir={sortDir}
+            onSort={(col) => {
+              if (col === sortCol) setSortDir((d) => (d === "desc" ? "asc" : "desc"))
+              else { setSortCol(col); setSortDir(col === "name" ? "asc" : "desc") }
+            }}
+            onTogglePipeline={togglePipeline}
+            emptyHint={
+              rows.length > 0 && filteredRows.length === 0
+                ? activeDimFilters.length > 0
+                  ? "Aucun candidat ne passe tous les filtres actifs."
+                  : tabCounts[activeTab] === 0
+                    ? activeTab === "applied"
+                      ? "Le formulaire de candidature public n'est pas encore activé."
+                      : "Aucun candidat dans cette catégorie pour l'instant."
+                    : "Aucun candidat à afficher."
+                : null
+            }
+          />
         </>
       )}
       </div>{/* /mission-right */}
@@ -966,182 +1031,342 @@ function MatchingProgress({
   )
 }
 
-/* ─── Tier block ───────────────────────────────────────────────── */
+/* ─── Onglets par source (PR-Y) ──────────────────────────────────── */
 
-function TierBlock({ tier, rows, onTogglePipeline }: { tier: MatchTier; rows: AssessmentRow[]; onTogglePipeline: (id: string, next: boolean) => void }) {
-  const meta = TIER_META[tier]
+function SourceTabs({
+  active, counts, onChange,
+}: {
+  active: SourceTab
+  counts: Record<SourceTab, number>
+  onChange: (t: SourceTab) => void
+}) {
+  const tabs: Array<{ key: SourceTab; label: string; hint?: string }> = [
+    { key: "all",      label: "Tous" },
+    { key: "applied",  label: "Ont postulé", hint: "Via le formulaire public (bientôt)" },
+    { key: "uploaded", label: "Vos importations", hint: "CVs déposés sur cette mission" },
+    { key: "vivier",   label: "Depuis le vivier", hint: "Matching auto + assignations" },
+  ]
   return (
-    <section style={{ marginBottom: 22 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <span style={{
-          fontSize: 11, fontWeight: 800, color: meta.color,
-          letterSpacing: "0.04em", textTransform: "uppercase",
-        }}>{meta.label}</span>
-        <span style={{ fontSize: 11, color: "#9CA3AF" }}>· {rows.length}</span>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {rows.map((r, i) => <MatchRow key={r.id} row={r} tier={tier} delay={Math.min(i * 0.03, 0.2)} onTogglePipeline={onTogglePipeline} />)}
-      </div>
-    </section>
+    <div style={{
+      display: "flex", gap: 4, flexWrap: "wrap",
+      marginBottom: 12, padding: 4,
+      background: "#F8F6FF", border: "1px solid #F0ECF8",
+      borderRadius: 12,
+    }}>
+      {tabs.map((t) => {
+        const isActive = active === t.key
+        const n = counts[t.key]
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            title={t.hint}
+            style={{
+              flex: "1 1 auto", minWidth: 120,
+              padding: "8px 12px", borderRadius: 9,
+              fontSize: 12.5, fontWeight: 700,
+              fontFamily: "inherit", cursor: "pointer",
+              border: "none",
+              background: isActive ? "white" : "transparent",
+              color: isActive ? "#111827" : "#6B7280",
+              boxShadow: isActive ? "0 1px 4px rgba(17,24,39,0.06)" : "none",
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+              transition: "all 120ms",
+            }}
+          >
+            {t.label}
+            <span style={{
+              fontSize: 10.5, fontWeight: 800,
+              color: isActive ? "#7C63C8" : "#9CA3AF",
+              background: isActive ? "rgba(124,99,200,0.08)" : "transparent",
+              border: `1px solid ${isActive ? "rgba(124,99,200,0.18)" : "transparent"}`,
+              padding: "1px 7px", borderRadius: 99,
+              fontVariantNumeric: "tabular-nums",
+            }}>{n}</span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
-function MatchRow({ row, tier, delay, onTogglePipeline }: { row: AssessmentRow; tier: MatchTier; delay: number; onTogglePipeline: (id: string, next: boolean) => void }) {
-  const meta = TIER_META[tier]
-  const c = row.candidate
-  const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
-  const initials = name.split(/\s+/).slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase() || "?"
+/* ─── Chips filtres dimensions ───────────────────────────────────── */
 
+function DimensionFilters({
+  active, onToggle, onClear,
+}: {
+  active: Partial<Record<DimKey, boolean>>
+  onToggle: (k: DimKey) => void
+  onClear: () => void
+}) {
+  const anyActive = Object.values(active).some(Boolean)
   return (
-    <m.div
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay, ease: EASE }}
-      style={{
-        background: meta.bg, border: `1px solid ${meta.bd}`,
-        borderRadius: 13, padding: "14px 16px",
-        display: "flex", gap: 14, alignItems: "flex-start",
-      }}
-    >
-      <div style={{
-        width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-        background: "white", border: `1px solid ${meta.bd}`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        color: meta.color, fontWeight: 800, fontSize: 13,
-      }}>{initials}</div>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "#111827" }}>{name}</p>
-          <span style={{
-            fontSize: 12, fontWeight: 800, color: meta.color,
-            background: "white", border: `1px solid ${meta.bd}`,
-            padding: "1px 8px", borderRadius: 100,
-          }}>{row.score ?? "—"}</span>
-        </div>
-        {c?.current_title && (
-          <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#6B7280" }}>
-            {c.current_title}{c.current_company ? ` · ${c.current_company}` : ""}
-          </p>
-        )}
-        {row.justification && (
-          <p style={{ margin: "8px 0 0", fontSize: 13, color: "#4B5563", lineHeight: 1.6 }}>
-            {row.justification}
-          </p>
-        )}
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0, alignSelf: "center" }}>
+    <div style={{
+      display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6,
+      marginBottom: 12,
+    }}>
+      <span style={{ fontSize: 11, color: "#9CA3AF", marginRight: 4 }}>
+        Filtrer ≥ 70 sur :
+      </span>
+      {DIM_COLS.map((d) => {
+        const on = !!active[d.key]
+        return (
+          <button
+            key={d.key}
+            type="button"
+            onClick={() => onToggle(d.key)}
+            style={{
+              fontSize: 11.5, fontWeight: 700,
+              padding: "5px 11px", borderRadius: 99,
+              border: on
+                ? "1px solid rgba(34,197,94,0.35)"
+                : "1px solid #E5E7EB",
+              background: on
+                ? "rgba(34,197,94,0.10)"
+                : "white",
+              color: on ? "#15803D" : "#374151",
+              cursor: "pointer", fontFamily: "inherit",
+              transition: "all 120ms",
+            }}
+          >
+            {on ? "✓ " : ""}{d.full}
+          </button>
+        )
+      })}
+      {anyActive && (
         <button
-          onClick={() => onTogglePipeline(row.id, !row.in_pipeline)}
-          title={row.in_pipeline ? "Retirer de la pipeline" : "Suivre ce candidat dans la pipeline"}
+          type="button"
+          onClick={onClear}
           style={{
-            fontSize: 11.5, fontWeight: 700, fontFamily: "inherit", cursor: "pointer",
-            padding: "6px 11px", borderRadius: 8,
-            color: row.in_pipeline ? "#15803d" : "#7C63C8",
-            background: row.in_pipeline ? "rgba(34,197,94,0.08)" : "white",
-            border: `1px solid ${row.in_pipeline ? "rgba(34,197,94,0.3)" : "rgba(124,99,200,0.3)"}`,
-            whiteSpace: "nowrap",
+            fontSize: 11.5, fontWeight: 600,
+            color: "#7C63C8", background: "transparent", border: "none",
+            cursor: "pointer", fontFamily: "inherit",
+            padding: "5px 8px",
           }}
         >
-          {row.in_pipeline ? "✓ Dans le pipeline" : "+ Pipeline"}
+          Réinitialiser
         </button>
-        <Link href={`/workspace/match/${row.id}`} style={{
-          fontSize: 12, fontWeight: 700, color: "white",
-          padding: "6px 12px", borderRadius: 8,
-          background: `linear-gradient(120deg, ${meta.color} 0%, ${meta.color} 100%)`,
-          textDecoration: "none",
-        }}>
-          Ouvrir ▶
-        </Link>
-        {c && (
-          <Link href={`/workspace/vivier/${c.id}`} title="Fiche candidat (identité)" style={{
-            fontSize: 11, color: "#9CA3AF", textDecoration: "none",
-          }}>
-            👤 Fiche
-          </Link>
-        )}
-      </div>
-    </m.div>
+      )}
+    </div>
   )
 }
 
-/* ─── Manual block ─────────────────────────────────────────────── */
+/* ─── Tableau de matching ────────────────────────────────────────── */
 
-function ManualBlock({ rows }: { rows: AssessmentRow[] }) {
+function MatchTable({
+  rows, sortCol, sortDir, onSort, onTogglePipeline, emptyHint,
+}: {
+  rows: AssessmentRow[]
+  sortCol: SortCol
+  sortDir: SortDir
+  onSort: (col: SortCol) => void
+  onTogglePipeline: (id: string, next: boolean) => void
+  emptyHint: string | null
+}) {
+  if (rows.length === 0) {
+    return (
+      <div style={{
+        padding: "40px 20px", textAlign: "center",
+        background: "white", border: "1px dashed #E2DAF6", borderRadius: 14,
+        color: "#6B7280", fontSize: 13.5,
+      }}>
+        {emptyHint ?? "Aucun candidat à afficher."}
+      </div>
+    )
+  }
   return (
-    <section style={{ marginBottom: 22 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <span style={{
-          fontSize: 11, fontWeight: 800, color: "#7C63C8",
-          letterSpacing: "0.04em", textTransform: "uppercase",
+    <div style={{
+      background: "white", border: "1px solid #F0ECF8", borderRadius: 14,
+      overflow: "hidden",
+    }}>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{
+          width: "100%", borderCollapse: "collapse",
+          fontSize: 13, color: "#111827",
         }}>
-          ✋ Assignés manuellement
-        </span>
-        <span style={{ fontSize: 11, color: "#9CA3AF" }}>· {rows.length}</span>
-        <span style={{ fontSize: 11, color: "#9CA3AF", fontStyle: "italic" }}>
-          — en dehors du matching auto
-        </span>
+          <thead>
+            <tr style={{ background: "#FAF9FE" }}>
+              <Th width="30%" onClick={() => onSort("name")} active={sortCol === "name"} dir={sortDir} align="left">
+                Candidat
+              </Th>
+              <Th width="auto" align="center">Source</Th>
+              {DIM_COLS.map((d) => (
+                <Th
+                  key={d.key}
+                  width="9%"
+                  onClick={() => onSort(d.key)}
+                  active={sortCol === d.key}
+                  dir={sortDir}
+                  align="center"
+                  title={d.full}
+                >
+                  {d.label}
+                </Th>
+              ))}
+              <Th width="9%" onClick={() => onSort("score")} active={sortCol === "score"} dir={sortDir} align="center">
+                Score
+              </Th>
+              <Th width="auto" align="right">Actions</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <MatchRow key={r.id} row={r} onTogglePipeline={onTogglePipeline} />
+            ))}
+          </tbody>
+        </table>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {rows.map((r) => {
-          const c = r.candidate
-          const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
-          const init = name.split(/\s+/).slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase() || "?"
-          return (
-            <div key={r.id} style={{
-              background: "rgba(124,99,200,0.07)",
-              border: "1px solid rgba(124,99,200,0.25)",
-              borderRadius: 13, padding: "14px 16px",
-              display: "flex", gap: 14, alignItems: "flex-start",
+    </div>
+  )
+}
+
+function Th({
+  children, onClick, active, dir, align = "left", width, title,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  active?: boolean
+  dir?: SortDir
+  align?: "left" | "center" | "right"
+  width?: string
+  title?: string
+}) {
+  return (
+    <th
+      title={title}
+      onClick={onClick}
+      style={{
+        textAlign: align, width,
+        padding: "10px 10px",
+        fontSize: 10.5, fontWeight: 800,
+        letterSpacing: "0.05em", textTransform: "uppercase",
+        color: active ? "#7C63C8" : "#9CA3AF",
+        borderBottom: "1px solid #F0ECF8",
+        cursor: onClick ? "pointer" : "default",
+        userSelect: "none", whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+      {active && onClick && (
+        <span style={{ marginLeft: 4, fontSize: 9 }}>
+          {dir === "desc" ? "▼" : "▲"}
+        </span>
+      )}
+    </th>
+  )
+}
+
+function MatchRow({
+  row, onTogglePipeline,
+}: {
+  row: AssessmentRow
+  onTogglePipeline: (id: string, next: boolean) => void
+}) {
+  const c = row.candidate
+  const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
+  const dims = row.score_dimensions
+  const tier = (row.match_tier ?? "poor") as MatchTier
+  const tierMeta = TIER_META[tier]
+  const source = (row.source as MatchSource) ?? "vivier_matched"
+  const srcMeta = SOURCE_META[source]
+  const isAssigned = source === "vivier_assigned"
+
+  return (
+    <tr style={{ borderBottom: "1px solid #F4F1FA" }}>
+      <td style={{ padding: "10px 10px", verticalAlign: "middle" }}>
+        <Link
+          href={`/workspace/match/${row.id}`}
+          style={{
+            display: "block",
+            color: "#111827", textDecoration: "none",
+            fontWeight: 600, fontSize: 13.5,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}
+        >
+          {name}
+        </Link>
+        {c?.current_title && (
+          <span style={{
+            display: "block",
+            fontSize: 11.5, color: "#9CA3AF",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {c.current_title}{c.current_company ? ` · ${c.current_company}` : ""}
+          </span>
+        )}
+      </td>
+      <td style={{ padding: "10px 10px", textAlign: "center", verticalAlign: "middle" }}>
+        <span title={isAssigned ? "Assignation manuelle depuis le vivier" : srcMeta.label} style={{
+          fontSize: 10.5, fontWeight: 700,
+          color: srcMeta.color, background: srcMeta.bg,
+          border: `1px solid ${srcMeta.bd}`,
+          padding: "2px 8px", borderRadius: 99,
+          letterSpacing: "0.03em", whiteSpace: "nowrap",
+        }}>
+          {srcMeta.short}
+        </span>
+      </td>
+      {DIM_COLS.map((d) => {
+        const v = dims?.[d.key] ?? null
+        const p = dimPalette(v)
+        return (
+          <td key={d.key} style={{ padding: "10px 6px", textAlign: "center", verticalAlign: "middle" }}>
+            <span style={{
+              display: "inline-block", minWidth: 34,
+              padding: "3px 6px", borderRadius: 7,
+              background: p.bg, color: p.color,
+              fontSize: 12.5, fontWeight: 700,
+              fontVariantNumeric: "tabular-nums",
             }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-                background: "white", border: "1px solid rgba(124,99,200,0.25)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#7C63C8", fontWeight: 800, fontSize: 13,
-              }}>{init}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "#111827" }}>{name}</p>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, color: "#7C63C8",
-                    background: "white", border: "1px solid rgba(124,99,200,0.25)",
-                    padding: "1px 8px", borderRadius: 100,
-                  }}>Manuel</span>
-                </div>
-                {c?.current_title && (
-                  <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#6B7280" }}>
-                    {c.current_title}{c.current_company ? ` · ${c.current_company}` : ""}
-                  </p>
-                )}
-                {r.justification && (
-                  <p style={{ margin: "8px 0 0", fontSize: 13, color: "#4B5563", lineHeight: 1.6 }}>
-                    {r.justification}
-                  </p>
-                )}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end", flexShrink: 0, alignSelf: "center" }}>
-                <Link href={`/workspace/match/${r.id}`} style={{
-                  fontSize: 12, fontWeight: 700, color: "white",
-                  padding: "6px 12px", borderRadius: 8,
-                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                  textDecoration: "none",
-                }}>
-                  Ouvrir ▶
-                </Link>
-                {c && (
-                  <Link href={`/workspace/vivier/${c.id}`} title="Fiche candidat (identité)" style={{
-                    fontSize: 11, color: "#9CA3AF", textDecoration: "none",
-                  }}>
-                    👤 Fiche
-                  </Link>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </section>
+              {v != null ? v : "—"}
+            </span>
+          </td>
+        )
+      })}
+      <td style={{ padding: "10px 10px", textAlign: "center", verticalAlign: "middle" }}>
+        {row.score != null ? (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            fontSize: 12.5, fontWeight: 800,
+            color: tierMeta.color, background: tierMeta.bg,
+            border: `1px solid ${tierMeta.bd}`,
+            padding: "3px 9px", borderRadius: 99,
+            fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap",
+          }}>
+            {row.score}<span style={{ fontSize: 10, opacity: 0.7, fontWeight: 600 }}>· {tierMeta.label}</span>
+          </span>
+        ) : (
+          <span style={{ fontSize: 12, color: "#9CA3AF" }}>—</span>
+        )}
+      </td>
+      <td style={{ padding: "10px 10px", textAlign: "right", verticalAlign: "middle" }}>
+        <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+          <button
+            onClick={() => onTogglePipeline(row.id, !row.in_pipeline)}
+            title={row.in_pipeline ? "Retirer de la pipeline" : "Suivre dans la pipeline"}
+            style={{
+              fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer",
+              padding: "5px 9px", borderRadius: 7,
+              color: row.in_pipeline ? "#15803d" : "#7C63C8",
+              background: row.in_pipeline ? "rgba(34,197,94,0.08)" : "white",
+              border: `1px solid ${row.in_pipeline ? "rgba(34,197,94,0.3)" : "rgba(124,99,200,0.3)"}`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {row.in_pipeline ? "✓ Pipeline" : "+ Pipeline"}
+          </button>
+          <Link href={`/workspace/match/${row.id}`} style={{
+            fontSize: 11.5, fontWeight: 700, color: "white",
+            padding: "5px 11px", borderRadius: 7,
+            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            textDecoration: "none", whiteSpace: "nowrap",
+          }}>
+            Ouvrir ▶
+          </Link>
+        </div>
+      </td>
+    </tr>
   )
 }
 
