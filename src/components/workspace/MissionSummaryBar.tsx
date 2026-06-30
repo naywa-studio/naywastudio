@@ -21,12 +21,13 @@ interface Props {
   onEditCriteria: () => void
   onImportCvs: () => void
   onMatchVivier: () => void
+  onAssignFromVivier: () => void
   onCreateForm?: () => void
   matching: boolean
 }
 
 export function MissionSummaryBar({
-  job, criteria, onEditCriteria, onImportCvs, onMatchVivier, onCreateForm, matching,
+  job, criteria, onEditCriteria, onImportCvs, onMatchVivier, onAssignFromVivier, onCreateForm, matching,
 }: Props) {
   const [open, setOpen] = useState(false)
 
@@ -75,6 +76,7 @@ export function MissionSummaryBar({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={onImportCvs} style={btnGhost}>+ Importer des CVs</button>
             <button onClick={onMatchVivier} style={btnGhost}>↻ Matcher le vivier</button>
+            <button onClick={onAssignFromVivier} style={btnGhost}>+ Assigner depuis le vivier</button>
             <button
               onClick={onCreateForm}
               disabled={!onCreateForm}

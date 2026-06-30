@@ -252,6 +252,7 @@ export default function JobDetailPage() {
           onEditCriteria={() => setEditCriteriaMode(true)}
           onImportCvs={() => setUploadOpen(true)}
           onMatchVivier={() => void runMatch()}
+          onAssignFromVivier={() => setAssignOpen(true)}
           onCreateForm={undefined}
           matching={matching}
         />

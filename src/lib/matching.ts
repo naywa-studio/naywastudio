@@ -19,11 +19,9 @@ import type {
   Job,
   JobNormalized,
   CandidateTaxonomy,
-  ScoreDimensions,
   MatchTier,
 } from "./database.types"
 import {
-  CRITERION_CATALOG,
   kindOf,
   type Criterion,
   type CriterionEval,
@@ -222,120 +220,11 @@ export function prefilterCandidates(job: JobNormalized, candidates: Candidate[])
   return hits
 }
 
-/* ───────────────────────────── LLM scoring ─────────────────────────────── */
-
-/**
- * Prompt v2 (PR 7) :
- *  - cadrage explicite du rôle (juger l'adéquation profil ↔ besoin client,
- *    pas faire "matcher des mots-clés")
- *  - acceptation explicite des profils stagiaires / alternants / étudiants
- *    QUAND le poste lui-même est ouvert à ce niveau (pas de rejet par
- *    défaut sur la séniorité)
- *  - chain-of-thought via le champ `reasoning` (rempli AVANT le score) :
- *    le LLM raisonne d'abord, ce qui stabilise le scoring et évite les
- *    contradictions entre justif et score
- *  - notation par dimension d'abord, score global = moyenne pondérée par
- *    importance perçue → cohérence dimensions ↔ score
- *  - règle explicite "concessions du sourceur" : si le briefing autorise
- *    des compromis (séniorité flexible, etc.), le LLM les applique sans
- *    pénaliser
- *  - justifications utiles : ce qui colle ET ce qui manque
- */
-const SCORE_PROMPT = `Tu es l'expert de matching recrutement de Naywa Studio. Pour chaque candidat fourni, détermine s'il colle au besoin du client.
-
-CONTEXTE
-- POSTE : intitulé, séniorité visée, contrat, compétences, description.
-- BRIEFING : contraintes client (budget, démarrage, deal-breakers, concessions acceptables). Prime sur tes intuitions.
-- CANDIDAT : poste, séniorité, compétences, domaines, années XP post-diplôme, résumé court. Pas le CV brut.
-
-RÈGLES
-1. Lis la description + briefing AVANT les candidats. Reconstruis le profil idéal et les concessions tolérées.
-2. Pour chaque candidat, attribue 4 dimensions 0-100 :
-   - skills_match : recouvrement compétences (avec synonymes/variantes)
-   - seniority_fit : adéquation séniorité demandée vs réelle
-   - domain_fit : alignement secteur/industrie
-   - experience_fit : années + nature des expériences
-3. Score global 0-100 = synthèse pondérée selon ce qui compte pour CE poste. Doit rester cohérent avec les dimensions.
-4. Tiers : excellent ≥ 75, good ≥ 55, fair ≥ 35, poor < 35.
-
-NIVEAU JUNIOR / STAGIAIRE / ALTERNANT
-Sur un poste ouvert à ce niveau (séniorité "etudiant"/"stagiaire"/"junior" OU mention dans la description), ces profils sont LÉGITIMES. Ne les pénalise pas pour manque d'expérience — c'est inhérent au niveau. Ils peuvent être "excellent" ou "good" si les compétences à ce niveau collent. Sur un poste senior, un profil clairement junior est "poor" ou "fair".
-
-CONCESSIONS DU SOURCEUR
-Si le briefing autorise un compromis ("séniorité flexible si très technique", "ok mid si solide sur Spark") : applique-le SANS pénaliser.
-
-DEAL-BREAKERS
-Si le briefing liste un deal-breaker explicite ("pas < 3 ans XP", "doit être sur Paris") et que le candidat le viole : perd au moins 30 points.
-
-RÉPONDS UNIQUEMENT EN JSON, pas de markdown :
-{
-  "results": [
-    {
-      "candidate_id": string,
-      "dimensions": {
-        "skills_match":   number,
-        "seniority_fit":  number,
-        "domain_fit":     number,
-        "experience_fit": number
-      },
-      "score": number,
-      "tier": "excellent" | "good" | "fair" | "poor"
-    }
-  ]
-}`
-
-export interface MatchResult {
-  candidate_id: string
-  score: number
-  tier: MatchTier
-  dimensions: ScoreDimensions
-  justification: string
-}
-
-function compactCandidate(c: Candidate): Record<string, unknown> {
-  const tax = c.taxonomy
-  return {
-    candidate_id: c.id,
-    title: c.current_title ?? null,
-    current_company: c.current_company ?? null,
-    years_experience: c.years_experience ?? null,
-    seniority: c.seniority_level ?? tax?.seniority ?? null,
-    // is_apprentice (= alternant en cours) est crucial pour ne pas le
-    // rejeter sur un poste ouvert aux étudiants/alternants. Le LLM doit
-    // savoir explicitement qu'on est sur ce profil.
-    is_apprentice: c.is_apprentice ?? false,
-    role_family: tax?.role_family ?? [],
-    core_skills: tax?.core_skills ?? (c.skills ?? []).slice(0, 12),
-    tools: tax?.tools ?? [],
-    domains: tax?.domains ?? [],
-    industries: tax?.industries ?? [],
-    summary: c.parsed_cv?.summary ?? null,
-  }
-}
-
-const clamp = (n: unknown, lo: number, hi: number): number => {
-  const x = typeof n === "number" && isFinite(n) ? n : 0
-  return Math.max(lo, Math.min(hi, Math.round(x)))
-}
-const TIERS: MatchTier[] = ["excellent", "good", "fair", "poor"]
-// Seuils tier — adoucis (juin 2026) après retour sourceur "le score
-// baisse vite". Un 58 avec dimensions 60/100/50/40 passe maintenant de
-// "fair" à "good" — plus en phase avec la pondération.
-function tierFor(score: number, raw: unknown): MatchTier {
-  if (typeof raw === "string" && (TIERS as string[]).includes(raw)) return raw as MatchTier
-  if (score >= 75) return "excellent"
-  if (score >= 55) return "good"
-  if (score >= 35) return "fair"
-  return "poor"
-}
+/* ───────────────────────────── LLM scoring helpers ─────────────────────── */
 
 /**
  * Seed déterministe dérivée du job + des candidats. Combinée à
- * temperature: 0, donne des résultats quasi-reproductibles entre runs
- * (avec gpt-4o-mini, les variations résiduelles sont rares et marginales).
- *
- * Pas de Math.random() : on veut que 2 runs du même job sur le même
- * vivier produisent la même seed et donc le même scoring.
+ * temperature: 0, donne des résultats quasi-reproductibles entre runs.
  */
 function deterministicSeed(jobId: string, candidateIds: string[]): number {
   let h = 0
@@ -345,106 +234,6 @@ function deterministicSeed(jobId: string, candidateIds: string[]): number {
   }
   // OpenAI/OpenRouter seed doit être un entier 32-bit non-négatif.
   return Math.abs(h)
-}
-
-/**
- * Appel LLM unique pour scorer un batch. Retourne uniquement les
- * candidats que le LLM a explicitement évalués. Les "skippés" (oubliés
- * dans la réponse, parsing raté, ID inconnu) ne sont PAS retournés —
- * c'est au caller de retry si nécessaire (cf. scoreBatch ci-dessous).
- */
-async function scoreBatchOnce(job: Job, candidates: Candidate[]): Promise<MatchResult[]> {
-  const jobPayload = {
-    // Le nom du poste est le signal métier principal ; on l'envoie comme
-    // "role". L'intitulé indicatif (title) n'est pas transmis au scoring.
-    role: job.role_name?.trim() || job.title,
-    location: job.location,
-    seniority: job.seniority ?? job.normalized?.seniority ?? null,
-    contract_type: job.contract_type,
-    normalized: job.normalized ?? null,
-    required_skills: job.required_skills ?? [],
-    nice_to_have_skills: job.nice_to_have_skills ?? [],
-    description: job.description ?? null,
-    briefing: job.briefing ?? null,
-  }
-  const candPayload = candidates.map(compactCandidate)
-  const seed = deterministicSeed(job.id, candidates.map((c) => c.id))
-
-  const result = await openrouterChat({
-    model: "openai/gpt-4o-mini",
-    // Stabilité maximum : temperature 0 + seed déterministe + JSON mode.
-    // maxTokens 1200 suffit après retrait du reasoning + justification
-    // (prompt v3, juin 2026) — chaque candidat = ~60 tokens output max,
-    // donc 8 candidats = ~500 tokens, marge x2.
-    temperature: 0,
-    seed,
-    responseFormat: "json_object",
-    maxTokens: 1200,
-    messages: [
-      { role: "system", content: SCORE_PROMPT },
-      { role: "user", content: `POSTE :\n${JSON.stringify(jobPayload)}\n\nCANDIDATS :\n${JSON.stringify(candPayload)}` },
-    ],
-  })
-
-  const parsed = safeJsonParse<{ results?: unknown[] }>(result.content)
-  const rows = Array.isArray(parsed?.results) ? parsed!.results : []
-  const out: MatchResult[] = []
-  const knownIds = new Set(candidates.map((c) => c.id))
-
-  for (const r of rows) {
-    if (!r || typeof r !== "object") continue
-    const o = r as Record<string, unknown>
-    const id = typeof o.candidate_id === "string" ? o.candidate_id : null
-    if (!id || !knownIds.has(id)) continue
-    const score = clamp(o.score, 0, 100)
-    const dims = (o.dimensions ?? {}) as Record<string, unknown>
-    out.push({
-      candidate_id: id,
-      score,
-      tier: tierFor(score, o.tier),
-      dimensions: {
-        skills_match: clamp(dims.skills_match, 0, 100),
-        seniority_fit: clamp(dims.seniority_fit, 0, 100),
-        domain_fit: clamp(dims.domain_fit, 0, 100),
-        experience_fit: clamp(dims.experience_fit, 0, 100),
-      },
-      justification: "",
-    })
-  }
-  return out
-}
-
-/**
- * Score un batch de candidats, avec un retry une fois sur ceux que le
- * LLM aurait oublié dans sa réponse.
- *
- * PHILOSOPHIE FIABILITÉ (PR 7) :
- * On préfère NE PAS scorer un candidat plutôt que de l'évaluer avec un
- * fallback arbitraire ("fair 45"). Si après retry il manque toujours
- * des candidats, ils sont simplement absents du résultat — la route
- * appelante n'inserera rien pour eux et l'UI ne mentionnera pas de
- * "fair 45" trompeur. Le sourceur peut relancer le matching si besoin.
- */
-export async function scoreBatch(job: Job, candidates: Candidate[]): Promise<MatchResult[]> {
-  if (candidates.length === 0) return []
-
-  // Passe 1.
-  const first = await scoreBatchOnce(job, candidates)
-  const scoredIds = new Set(first.map((r) => r.candidate_id))
-  const missing = candidates.filter((c) => !scoredIds.has(c.id))
-
-  if (missing.length === 0) return first
-
-  // Passe 2 : retry uniquement les manquants. Évite de re-payer tout le
-  // pool quand le LLM en a juste raté 1 ou 2 dans sa première réponse.
-  let second: MatchResult[] = []
-  try {
-    second = await scoreBatchOnce(job, missing)
-  } catch (err) {
-    console.error("[match] retry batch failed:", (err as Error).message)
-  }
-
-  return [...first, ...second]
 }
 
 /* ─────────────────────── Mission tag (vivier memory) ───────────────────── */
@@ -515,7 +304,7 @@ CONCESSIONS DU SOURCEUR
 Si le briefing autorise un compromis ("séniorité flexible si très technique"), applique-le sans pénaliser.
 
 DEAL-BREAKERS
-Si un critère main est clairement "no" ou un score quantitatif main < 30, le candidat sera automatiquement classé "poor" côté serveur — sois rigoureux.
+Quand le briefing liste un deal-breaker explicite ("permis B obligatoire", "minimum 5 ans d'XP") et que le candidat le viole : note ce critère avec sévérité (status "no" pour qualitatif, score ≤ 20 pour quantitatif). Le score global s'en ressentira mécaniquement (moyenne pondérée des main côté serveur).
 
 RÉPONDS UNIQUEMENT EN JSON, pas de markdown :
 {

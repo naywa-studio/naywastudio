@@ -60,28 +60,29 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria }: Props) {
 
   useEffect(() => {
     // Lance la proposition LLM uniquement au 1er mount sans critères
-    // pré-existants. Pattern fetch-on-mount accepté (cf. règle pureté
-    // Next 16 — setState dans subscription).
+    // pré-existants. Pattern fetch-on-mount avec cancelled-guard (règle
+    // pureté React 19 / Next 16).
     if (initialCriteria && initialCriteria.length > 0) return
     let cancelled = false
     ;(async () => {
-      const ok = await fetchPropose(jobId)
-      if (cancelled || !ok) return
-      setCriteria(ok.criteria)
-      setLoading(false)
+      try {
+        const res = await fetch(`/api/jobs/${jobId}/propose-criteria`, { method: "POST" })
+        const data = await res.json().catch(() => ({} as Record<string, unknown>))
+        if (cancelled) return
+        if (!res.ok) {
+          setError(String(data?.message ?? data?.error ?? "Échec de la proposition Nora."))
+        } else {
+          setCriteria(Array.isArray(data.criteria) ? data.criteria as Criterion[] : [])
+        }
+      } catch (e) {
+        if (!cancelled) setError((e as Error).message ?? "Erreur réseau.")
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId])
-
-  async function fetchPropose(id: string): Promise<{ criteria: Criterion[] } | null> {
-    try {
-      const res = await fetch(`/api/jobs/${id}/propose-criteria`, { method: "POST" })
-      const data = await res.json().catch(() => ({} as Record<string, unknown>))
-      if (!res.ok) return null
-      return { criteria: Array.isArray(data.criteria) ? data.criteria as Criterion[] : [] }
-    } catch { return null }
-  }
 
   const mainCount  = criteria.filter((c) => c.weight === "main").length
   const bonusCount = criteria.filter((c) => c.weight === "bonus").length
