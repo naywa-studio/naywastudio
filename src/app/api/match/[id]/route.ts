@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     .from("match_assessments")
     .select(`
       id, user_id, candidate_id, job_id,
-      score, score_dimensions, justification, match_tier,
+      score, score_dimensions, criteria_eval, justification, match_tier, source,
       pipeline_stage, in_pipeline, contacted_at, replied_at, interview_at,
       booking_token, created_at, updated_at,
       job:jobs(*)
