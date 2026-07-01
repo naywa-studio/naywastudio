@@ -298,7 +298,13 @@ RÈGLES PAR TYPE
 
 PRINCIPE D'OR
 - \`unknown\` = pas d'info dans le profil pour trancher. N'invente PAS : si le CV ne mentionne pas le permis, le statut est "unknown", PAS "no".
+- \`no\` est RÉSERVÉ à une incompatibilité CLAIRE et démontrée. En cas de doute → "unknown", JAMAIS "no".
 - Evidence COURTE : 1 phrase max, citation directe quand possible.
+
+INFÉRENCE INTELLIGENTE (crucial)
+- Un critère "type de contrat = alternance/stage/alternant" : un candidat ÉTUDIANT, ALTERNANT ou dont le titre/summary indique qu'il cherche/fait une alternance = "yes". Ne réponds "no" que pour un profil clairement incompatible (ex : senior 15 ans visant uniquement du CDI). Le titre "Alternant en …" ou "Étudiant …" implique "yes".
+- Un critère "disponibilité / date de démarrage" : sauf mention explicite d'indisponibilité, un étudiant/alternant est présumé disponible → "yes" ou "unknown", pas "no".
+- Utilise le titre, le summary, la séniorité et le champ is_apprentice du candidat pour inférer — pas seulement une mention littérale du mot.
 
 CONCESSIONS DU SOURCEUR
 Si le briefing autorise un compromis ("séniorité flexible si très technique"), applique-le sans pénaliser.
