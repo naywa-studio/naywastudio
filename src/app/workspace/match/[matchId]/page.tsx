@@ -7,7 +7,7 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Candidate, MatchAssessment, Job, MatchTier, PipelineStage, ScoreDimensions } from "@/lib/database.types"
 import { kindOf, type Criterion, type CriterionEval } from "@/lib/job-criteria-catalog"
-import { shortCriterionLabel, dimColor, statusColor } from "@/lib/criterion-display"
+import { shortCriterionName, shortCriterionLabel, dimColor, statusColor } from "@/lib/criterion-display"
 import ComposeBox from "@/components/workspace/ComposeBox"
 import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
 import { AnonymizePreview } from "@/components/workspace/anonymize/AnonymizePreview"
@@ -702,15 +702,43 @@ function CriteriaEvalLine({ criterion, ev }: { criterion: Criterion; ev: Criteri
   const isQuant = kindOf(criterion.type) === "quantitative"
   const score = isQuant ? (ev?.score ?? null) : null
   const status = isQuant ? undefined : ev?.status
-  const palette = isQuant ? dimColor(score) : statusColor(status)
-  const label = shortCriterionLabel(criterion)
+  const name = shortCriterionName(criterion)
+  const fullLabel = shortCriterionLabel(criterion)
+  const tooltip = ev?.evidence ? `${fullLabel} — ${ev.evidence}` : fullLabel
+
+  if (isQuant) {
+    const p = dimColor(score)
+    const pct = score != null ? Math.max(0, Math.min(100, score)) : 0
+    return (
+      <div title={tooltip} style={{ minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6, marginBottom: 4 }}>
+          <span style={{
+            fontSize: 11, color: "#6B7280", fontWeight: 600,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0,
+          }}>{name}</span>
+          <span style={{
+            fontSize: 12, fontWeight: 800, color: p.color,
+            fontVariantNumeric: "tabular-nums", flexShrink: 0,
+          }}>{score != null ? score : "—"}</span>
+        </div>
+        <div style={{ height: 5, borderRadius: 99, background: "#EEF0F3", overflow: "hidden" }}>
+          <div style={{
+            width: `${pct}%`, height: "100%", borderRadius: 99,
+            background: p.color, transition: "width 400ms cubic-bezier(0.22,1,0.36,1)",
+          }} />
+        </div>
+      </div>
+    )
+  }
+
+  const p = statusColor(status)
   return (
     <div
-      title={ev?.evidence ? `${label} — ${ev.evidence}` : label}
+      title={tooltip}
       style={{
         display: "flex", alignItems: "center", gap: 8,
         padding: "6px 10px",
-        background: palette.bg, border: `1px solid ${palette.bd}`,
+        background: p.bg, border: `1px solid ${p.bd}`,
         borderRadius: 8, minWidth: 0,
       }}
     >
@@ -718,26 +746,15 @@ function CriteriaEvalLine({ criterion, ev }: { criterion: Criterion; ev: Criteri
         fontSize: 11.5, color: "#4B5563", fontWeight: 600,
         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         flex: 1, minWidth: 0,
+      }}>{name}</span>
+      <span style={{
+        fontSize: 13, fontWeight: 800, color: p.color,
+        width: 18, height: 18, borderRadius: "50%",
+        background: "white", border: `1px solid ${p.bd}`,
+        display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
       }}>
-        {label}
+        {p.icon}
       </span>
-      {isQuant ? (
-        <span style={{
-          fontSize: 12.5, fontWeight: 800, color: palette.color,
-          fontVariantNumeric: "tabular-nums",
-        }}>
-          {score != null ? score : "—"}
-        </span>
-      ) : (
-        <span style={{
-          fontSize: 13, fontWeight: 800, color: palette.color,
-          width: 18, height: 18, borderRadius: "50%",
-          background: "white", border: `1px solid ${palette.bd}`,
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-        }}>
-          {(palette as unknown as { icon: string }).icon}
-        </span>
-      )}
     </div>
   )
 }

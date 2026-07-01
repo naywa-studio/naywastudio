@@ -8,14 +8,13 @@ import { getSupabase } from "@/lib/supabase"
 import type { Job, Candidate, MatchAssessment } from "@/lib/database.types"
 import type { Criterion, CriterionEval } from "@/lib/job-criteria-catalog"
 import { kindOf } from "@/lib/job-criteria-catalog"
-import { shortCriterionLabel } from "@/lib/criterion-display"
+import { shortCriterionName } from "@/lib/criterion-display"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { MissionCvUploadModal } from "@/components/workspace/MissionCvUploadModal"
 import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
 import { MissionSummaryBar } from "@/components/workspace/MissionSummaryBar"
 import { MatchCard } from "@/components/workspace/MatchCard"
-import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
 import { JobForm } from "../page"
 
 type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
@@ -199,23 +198,6 @@ export default function JobDetailPage() {
 
   const strongCount = rows.filter((r) => (r.score ?? 0) >= 55).length
 
-  // Stats sourcing.
-  const sourcingStats = (() => {
-    const seen = rows.filter((r) => r.score != null).length
-    const retained = rows.filter((r) => r.in_pipeline && r.pipeline_stage !== "rejected").length
-    const rejected = rows.filter((r) => r.pipeline_stage === "rejected")
-    const reasonCounts = new Map<RejectReason | "null", number>()
-    for (const r of rejected) {
-      const key = (r.reject_reason ?? "null") as RejectReason | "null"
-      reasonCounts.set(key, (reasonCounts.get(key) ?? 0) + 1)
-    }
-    let topReason: { key: RejectReason | "null"; count: number } | null = null
-    for (const [key, count] of reasonCounts) {
-      if (!topReason || count > topReason.count) topReason = { key, count }
-    }
-    return { seen, retained, rejected: rejected.length, topReason }
-  })()
-
   return (
     <main style={{
       padding: "32px 24px 80px", maxWidth: 1100, margin: "0 auto",
@@ -307,27 +289,6 @@ export default function JobDetailPage() {
             <strong style={{ color: "#111827" }}>{strongCount}</strong> candidat{strongCount > 1 ? "s" : ""} pertinent{strongCount > 1 ? "s" : ""}
             <span style={{ color: "#9CA3AF" }}> · {rows.length} au total</span>
           </div>
-
-          {(sourcingStats.seen > 0 || sourcingStats.rejected > 0) && (
-            <div style={{
-              marginBottom: 14,
-              display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-              gap: 8,
-            }}>
-              <SourcingStatTile label="Vus" value={String(sourcingStats.seen)} />
-              <SourcingStatTile label="Retenus" value={String(sourcingStats.retained)}
-                tone={sourcingStats.retained > 0 ? "good" : undefined} />
-              <SourcingStatTile label="Écartés" value={String(sourcingStats.rejected)}
-                tone={sourcingStats.rejected > 0 ? "warn" : undefined} />
-              {sourcingStats.topReason && sourcingStats.topReason.key !== "null" && (
-                <SourcingStatTile
-                  label="Top motif d'écart"
-                  value={rejectReasonLabel(sourcingStats.topReason.key as RejectReason)}
-                  hint={`${sourcingStats.topReason.count} candidat${sourcingStats.topReason.count > 1 ? "s" : ""}`}
-                />
-              )}
-            </div>
-          )}
 
           <SourceTabs active={activeTab} counts={tabCounts} onChange={setActiveTab} />
 
@@ -505,7 +466,7 @@ function DynamicCriteriaFilters({
               transition: "all 120ms",
             }}
           >
-            {on ? "✓ " : ""}{shortCriterionLabel(c)}
+            {on ? "✓ " : ""}{shortCriterionName(c)}
             <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 4 }}>{hint}</span>
           </button>
         )
@@ -806,34 +767,3 @@ function MatchingProgress({
   )
 }
 
-/* ─── Sourcing stats tile ───────────────────────────────────────── */
-
-function SourcingStatTile({
-  label, value, hint, tone,
-}: {
-  label: string
-  value: string
-  hint?: string
-  tone?: "good" | "warn"
-}) {
-  const palette = tone === "good"
-    ? { fg: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.22)" }
-    : tone === "warn"
-      ? { fg: "#B45309", bg: "rgba(217,119,6,0.06)", bd: "rgba(217,119,6,0.22)" }
-      : { fg: "#111827", bg: "white",                bd: "#F0ECF8" }
-  return (
-    <div style={{
-      background: palette.bg, border: `1px solid ${palette.bd}`,
-      borderRadius: 10, padding: "10px 12px",
-      display: "flex", flexDirection: "column", gap: 2,
-    }}>
-      <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 17, fontWeight: 800, color: palette.fg, fontVariantNumeric: "tabular-nums", lineHeight: 1.2 }}>
-        {value}
-      </div>
-      {hint && <div style={{ fontSize: 10.5, color: "#9CA3AF" }}>{hint}</div>}
-    </div>
-  )
-}

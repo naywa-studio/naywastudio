@@ -13,7 +13,7 @@ import { useState } from "react"
 import Link from "next/link"
 import type { Job } from "@/lib/database.types"
 import type { Criterion } from "@/lib/job-criteria-catalog"
-import { shortCriterionLabel } from "@/lib/criterion-display"
+import { shortCriterionName } from "@/lib/criterion-display"
 
 interface Props {
   job: Job
@@ -174,7 +174,7 @@ function CriterionPill({ c, kind }: { c: Criterion; kind: "main" | "bonus" }) {
       border: `1px solid ${palette.bd}`,
       borderRadius: 99, padding: "3px 9px", whiteSpace: "nowrap",
     }}>
-      {shortCriterionLabel(c)}
+      {shortCriterionName(c)}
     </span>
   )
 }

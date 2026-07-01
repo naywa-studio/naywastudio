@@ -6,7 +6,7 @@
  * mission, la fiche match et le wizard onboarding.
  */
 
-import type { Criterion, CriterionEval } from "./job-criteria-catalog"
+import type { Criterion, CriterionEval, CriterionType } from "./job-criteria-catalog"
 import { CRITERION_CATALOG, kindOf } from "./job-criteria-catalog"
 
 const LANG_NAMES: Record<string, string> = {
@@ -101,4 +101,64 @@ export function tierMeta(tier: "excellent" | "good" | "fair" | "poor" | null) {
 /** Helper pour générer un libellé de type ("Compétences", "Langue", ...). */
 export function typeLabel(type: Criterion["type"]): string {
   return CRITERION_CATALOG[type].defaultLabel
+}
+
+/** Libellés ultra-courts (1-2 mots) par type, pour l'affichage compact
+ *  dans les cartes candidat / jauges. Les libellés LLM verbeux
+ *  ("Compétences commerciales et relationnelles") deviennent illisibles
+ *  côte à côte — ici on veut juste identifier la dimension d'un coup d'œil. */
+const SHORT_TYPE_NAME: Record<CriterionType, string> = {
+  skills: "Compétences",
+  seniority_fit: "Séniorité",
+  experience_years: "Expérience",
+  role_fit: "Métier",
+  domain_fit: "Domaine",
+  industry_experience_years: "Secteur",
+  team_size: "Management",
+  management_experience_years: "Management",
+  client_facing: "Relation client",
+  notice_period_weeks: "Préavis",
+  language: "Langue",
+  license: "Permis",
+  certification: "Certification",
+  diploma: "Diplôme",
+  mobility: "Mobilité",
+  availability: "Disponibilité",
+  legal_status: "Statut",
+  clearance: "Habilitation",
+  methodology: "Méthode",
+  contract_preference: "Contrat",
+  salary_expectation: "Salaire",
+  travel_willingness: "Déplacements",
+  publication_portfolio: "Portfolio",
+  physical_requirements: "Aptitude",
+  custom: "Critère",
+}
+
+/** Nom court (1-2 mots) d'un critère pour l'affichage compact. Pour
+ *  certains types, on précise avec un param clé (langue → "Allemand",
+ *  certif → "TOEIC", permis → "Permis B"). Sinon nom générique du type. */
+export function shortCriterionName(c: Criterion): string {
+  const p = c.params as Record<string, unknown>
+  switch (c.type) {
+    case "language": {
+      const code = String(p.code ?? "").toLowerCase()
+      return LANG_NAMES[code] || SHORT_TYPE_NAME.language
+    }
+    case "license":
+      return p.code ? `Permis ${String(p.code).toUpperCase()}` : SHORT_TYPE_NAME.license
+    case "certification":
+      return p.name ? String(p.name) : SHORT_TYPE_NAME.certification
+    case "contract_preference": {
+      // "alternance", "cdi"… si un seul type demandé, on l'affiche.
+      const kinds = Array.isArray(p.kinds) ? p.kinds : []
+      if (kinds.length === 1) {
+        const k = String(kinds[0])
+        return k.charAt(0).toUpperCase() + k.slice(1)
+      }
+      return SHORT_TYPE_NAME.contract_preference
+    }
+    default:
+      return SHORT_TYPE_NAME[c.type] ?? c.label
+  }
 }

@@ -104,6 +104,11 @@ export function MissionCvUploadModal({
   const enqueue = useCallback(async (files: File[]) => {
     const pending: Array<{ id: string; file: File }> = []
     const invalid: FileJob[] = []
+    // Dédup côté client : le même fichier (nom+taille) sélectionné 2× ou
+    // présent dans 2 dossiers ne doit être uploadé qu'une fois. Évite
+    // aussi la race concurrente (2 workers créant 2 rows avant que le
+    // dédup serveur ne voie la 1ʳᵉ).
+    const seen = new Set<string>()
     for (const f of files) {
       const id = crypto.randomUUID()
       const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
@@ -115,6 +120,9 @@ export function MissionCvUploadModal({
         invalid.push({ id, fileName: f.name, size: f.size, stage: "error", error: "Fichier > 10 Mo." })
         continue
       }
+      const key = `${f.name}::${f.size}`
+      if (seen.has(key)) continue // doublon dans la sélection courante — ignoré
+      seen.add(key)
       pending.push({ id, file: f })
     }
 

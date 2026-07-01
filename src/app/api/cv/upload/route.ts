@@ -94,20 +94,36 @@ export async function POST(req: NextRequest) {
   // CV déjà uploadé. On évite de re-créer une candidate row + re-payer
   // le parsing LLM. Retourne le candidat existant avec duplicate=true
   // pour que l'UI puisse l'afficher comme "déjà dans le vivier".
-  const { data: existingDupe } = await admin
+  //
+  // On NE filtre PAS les "ancien" : si le candidat trouvé avait été
+  // archivé par la dédup, on le réactive (retire "ancien") plutôt que de
+  // créer un doublon — ré-importer un CV le fait revenir au vivier.
+  //
+  // On lit jusqu'à 2 rows + prend la plus ancienne (canonique) au lieu de
+  // .maybeSingle() qui PLANTE si 2+ copies existent déjà → l'ancien code
+  // retombait alors sur "pas de doublon" et en recréait un 3ᵉ.
+  const { data: existingDupes } = await admin
     .from("candidates")
     .select("*")
     .eq("organization_id", orgId)
     .eq("cv_file_name", file.name)
     .eq("cv_file_size", file.size)
-    .not("tags", "cs", "{ancien}")
-    .maybeSingle()
+    .order("created_at", { ascending: true })
+    .limit(2)
+  const existingDupe = (existingDupes ?? [])[0]
   if (existingDupe) {
-    return NextResponse.json({
-      ok: true,
-      duplicate: true,
-      candidate: existingDupe,
-    })
+    const tags = (existingDupe.tags ?? []) as string[]
+    if (tags.includes("ancien")) {
+      const revived = tags.filter((t) => t !== "ancien")
+      const { data: up } = await admin
+        .from("candidates")
+        .update({ tags: revived })
+        .eq("id", existingDupe.id)
+        .select("*")
+        .single()
+      return NextResponse.json({ ok: true, duplicate: true, candidate: up ?? existingDupe })
+    }
+    return NextResponse.json({ ok: true, duplicate: true, candidate: existingDupe })
   }
 
   const { data: created, error: insertErr } = await admin

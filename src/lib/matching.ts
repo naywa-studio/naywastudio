@@ -404,7 +404,10 @@ async function scoreBatchCriteriaOnce(
     temperature: 0,
     seed,
     responseFormat: "json_object",
-    maxTokens: Math.min(4000, 250 + candidates.length * criteria.length * 30),
+    // Budget large : chaque éval qualitative porte une phrase d'evidence
+    // (~45 tokens). Sous-dimensionner tronque la réponse JSON → candidats
+    // manquants → retry coûteux. gpt-4o-mini accepte jusqu'à 16k output.
+    maxTokens: Math.min(8000, 400 + candidates.length * criteria.length * 45),
     messages: [
       { role: "system", content: CRITERIA_SCORE_SYSTEM_PROMPT },
       { role: "user", content: `POSTE :\n${JSON.stringify(jobPayload)}\n\nCANDIDATS :\n${JSON.stringify(candPayload)}` },

@@ -143,11 +143,38 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ ok: true, scored: 0, prefiltered_out: 0, total: 0 })
     }
 
-    // 2. Pre-filter
+    // 2. Pre-filter — mais PERMISSIF (PR-Z).
+    //
+    // Le pré-filtre déterministe se base sur role_family/skills de
+    // l'ancienne extraction `normalized`, PAS sur les critères flexibles
+    // de la mission. Il pouvait donc écarter un candidat parfaitement
+    // pertinent au regard des critères (ex : "Commercial Immobilier" dont
+    // la taxonomy dit "Commerce" sans "Immobilier"). Résultat : le
+    // sourceur voyait "matcher le vivier" ne remonter qu'une poignée de
+    // profils sur un vivier de 80.
+    //
+    // Nouveau comportement : quand le vivier tient dans un run raisonnable
+    // (≤ SCORE_ALL_BELOW), on score TOUT le monde — c'est le scoring LLM
+    // par critères qui tranche la pertinence (un hors-sujet aura un score
+    // bas, pas besoin de le dropper en amont). Le pré-filtre ne sert alors
+    // qu'à ORDONNER la file (meilleurs candidats scorés en premier).
+    // Au-delà, on garde le drop pour maîtriser le budget LLM.
     const normalized = job.normalized ?? {}
     const hits = prefilterCandidates(normalized, candidates)
-    const pool = hits.slice(0, MAX_SCORED_PER_RUN).map((h) => h.candidate)
-    const prefilteredOut = candidates.length - hits.length
+    const SCORE_ALL_BELOW = 200
+    let pool: Candidate[]
+    if (candidates.length <= SCORE_ALL_BELOW) {
+      // Score tout : on part de l'ordre du pré-filtre (signal décroissant)
+      // puis on ajoute les candidats écartés à la fin (ils seront scorés
+      // aussi, juste en dernier).
+      const inHits = new Set(hits.map((h) => h.candidate.id))
+      const ordered = hits.map((h) => h.candidate)
+      const rest = candidates.filter((c) => !inHits.has(c.id))
+      pool = [...ordered, ...rest].slice(0, MAX_SCORED_PER_RUN)
+    } else {
+      pool = hits.slice(0, MAX_SCORED_PER_RUN).map((h) => h.candidate)
+    }
+    const prefilteredOut = candidates.length - pool.length
 
     // Stamp la taille du pool : la barre UI calcule pct = scored/total.
     await admin.from("jobs").update({

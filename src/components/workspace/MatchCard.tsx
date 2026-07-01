@@ -16,7 +16,7 @@ import type { Candidate, MatchAssessment } from "@/lib/database.types"
 import type { Criterion, CriterionEval } from "@/lib/job-criteria-catalog"
 import { kindOf } from "@/lib/job-criteria-catalog"
 import {
-  shortCriterionLabel, dimColor, statusColor, tierMeta,
+  shortCriterionName, shortCriterionLabel, dimColor, statusColor, tierMeta,
 } from "@/lib/criterion-display"
 
 type MatchSource = "applied" | "uploaded" | "vivier_matched" | "vivier_assigned"
@@ -145,49 +145,78 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
   )
 }
 
-/** Une ligne critère = label compact + valeur (jauge ou icône) + evidence tooltip. */
+/** Une ligne critère = nom court + jauge remplie (quant) ou badge ✓/✗/? (qual).
+ *  Le tooltip garde le label complet + l'evidence pour le détail. */
 function CriterionEvalRow({ criterion, ev }: { criterion: Criterion; ev: CriterionEval | undefined }) {
   const isQuant = kindOf(criterion.type) === "quantitative"
   const score = isQuant ? (ev?.score ?? null) : null
   const status = isQuant ? undefined : ev?.status
-  const palette = isQuant ? dimColor(score) : statusColor(status)
-  const label = shortCriterionLabel(criterion)
+  const name = shortCriterionName(criterion)
+  const fullLabel = shortCriterionLabel(criterion)
+  const tooltip = ev?.evidence ? `${fullLabel} — ${ev.evidence}` : fullLabel
 
+  if (isQuant) {
+    const p = dimColor(score)
+    const pct = score != null ? Math.max(0, Math.min(100, score)) : 0
+    return (
+      <div title={tooltip} style={{
+        padding: "7px 10px",
+        background: "#FAFAFB", border: "1px solid #F0ECF8",
+        borderRadius: 8, minWidth: 0,
+      }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6, marginBottom: 5 }}>
+          <span style={{
+            fontSize: 11, color: "#6B7280", fontWeight: 600,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0,
+          }}>
+            {name}
+          </span>
+          <span style={{
+            fontSize: 12, fontWeight: 800, color: p.color,
+            fontVariantNumeric: "tabular-nums", flexShrink: 0,
+          }}>
+            {score != null ? score : "—"}
+          </span>
+        </div>
+        {/* Jauge remplie proportionnelle au score */}
+        <div style={{ height: 5, borderRadius: 99, background: "#EAECEF", overflow: "hidden" }}>
+          <div style={{
+            width: `${pct}%`, height: "100%", borderRadius: 99,
+            background: p.color,
+            transition: "width 400ms cubic-bezier(0.22,1,0.36,1)",
+          }} />
+        </div>
+      </div>
+    )
+  }
+
+  // Qualitatif → conteneur identique (hauteur alignée) : nom + ✓/✗/?
+  const p = statusColor(status)
   return (
     <div
-      title={ev?.evidence ? `${label} — ${ev.evidence}` : label}
+      title={tooltip}
       style={{
         display: "flex", alignItems: "center", gap: 8,
-        padding: "6px 10px",
-        background: palette.bg, border: `1px solid ${palette.bd}`,
-        borderRadius: 8,
-        minWidth: 0,
+        padding: "7px 10px",
+        background: p.bg, border: `1px solid ${p.bd}`,
+        borderRadius: 8, minWidth: 0,
       }}
     >
       <span style={{
-        fontSize: 11.5, color: "#4B5563", fontWeight: 600,
+        fontSize: 11, color: "#6B7280", fontWeight: 600,
         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         flex: 1, minWidth: 0,
       }}>
-        {label}
+        {name}
       </span>
-      {isQuant ? (
-        <span style={{
-          fontSize: 12.5, fontWeight: 800, color: palette.color,
-          fontVariantNumeric: "tabular-nums",
-        }}>
-          {score != null ? score : "—"}
-        </span>
-      ) : (
-        <span style={{
-          fontSize: 13, fontWeight: 800, color: palette.color,
-          width: 18, height: 18, borderRadius: "50%",
-          background: "white", border: `1px solid ${palette.bd}`,
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-        }}>
-          {(palette as unknown as { icon: string }).icon}
-        </span>
-      )}
+      <span style={{
+        fontSize: 12, fontWeight: 800, color: p.color,
+        width: 18, height: 18, borderRadius: "50%",
+        background: "white", border: `1px solid ${p.bd}`,
+        display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        {p.icon}
+      </span>
     </div>
   )
 }
