@@ -265,11 +265,16 @@ export default function JobDetailPage() {
         <CriteriaOnboarding
           jobId={job.id}
           initialCriteria={editCriteriaMode ? criteria : null}
+          // Bouton "Annuler" seulement en mode édition (au 1ᵉʳ onboarding il
+          // FAUT configurer les critères avant de pouvoir matcher).
+          onCancel={editCriteriaMode ? () => setEditCriteriaMode(false) : undefined}
           onDone={async (updated) => {
+            const wasFirstOnboarding = needsOnboarding
             setJob((prev) => prev ? { ...prev, criteria: updated, criteria_locked_at: new Date().toISOString() } : prev)
             setEditCriteriaMode(false)
-            // Si c'était le 1er onboarding, lance direct le matching.
-            if (needsOnboarding) await runMatch()
+            // Lance le matching auto UNIQUEMENT au 1ᵉʳ onboarding. En édition,
+            // on sauve seulement — le sourceur relance via "Matcher le vivier".
+            if (wasFirstOnboarding) await runMatch()
           }}
         />
       ) : rows.length === 0 ? (

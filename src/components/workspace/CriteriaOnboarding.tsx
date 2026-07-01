@@ -32,9 +32,14 @@ interface Props {
    *  du wizard), on précharge les critères existants au lieu de re-payer
    *  un appel LLM. */
   initialCriteria?: Criterion[] | null
+  /** Fourni en mode ÉDITION (re-ouverture depuis "Modifier les critères").
+   *  Affiche un bouton "Annuler" pour fermer sans sauver ni relancer le
+   *  matching. Absent au 1ᵉʳ onboarding (pas d'échappatoire : il FAUT
+   *  configurer les critères avant de matcher). */
+  onCancel?: () => void
 }
 
-export function CriteriaOnboarding({ jobId, onDone, initialCriteria }: Props) {
+export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }: Props) {
   const [criteria, setCriteria] = useState<Criterion[]>(initialCriteria ?? [])
   const [loading, setLoading] = useState(!initialCriteria || initialCriteria.length === 0)
   const [saving, setSaving] = useState(false)
@@ -253,6 +258,21 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria }: Props) {
           {error && (
             <span style={{ fontSize: 12, color: "#B91C1C" }}>{error}</span>
           )}
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={saving}
+              style={{
+                fontSize: 13, fontWeight: 600, color: "#6B7280",
+                padding: "10px 16px", borderRadius: 10,
+                background: "white", border: "1px solid #E5E7EB",
+                cursor: saving ? "default" : "pointer", fontFamily: "inherit",
+              }}
+            >
+              Annuler
+            </button>
+          )}
           <button
             type="button"
             onClick={save}
@@ -268,7 +288,10 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria }: Props) {
               boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
             }}
           >
-            {saving ? "Enregistrement…" : "Valider et lancer le matching"}
+            {/* En mode édition (onCancel présent), ne pas promettre un
+                nouveau matching : la sauvegarde seule suffit, le sourceur
+                relance le matching quand il veut. */}
+            {saving ? "Enregistrement…" : onCancel ? "Enregistrer les critères" : "Valider et lancer le matching"}
           </button>
         </div>
       )}
