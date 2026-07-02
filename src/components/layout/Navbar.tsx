@@ -102,8 +102,51 @@ export function Navbar() {
           transition: "background 300ms ease, box-shadow 300ms ease",
         }}
       >
+        {/* Rappel des bandes animées de la marque, clippé à la capsule.
+            Bas opacité + derrière le contenu → cohérence sans nuire au texte. */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 999,
+            overflow: "hidden",
+            zIndex: 0,
+            pointerEvents: "none",
+          }}
+        >
+          <svg
+            viewBox="0 0 1 1"
+            preserveAspectRatio="none"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+          >
+            <path fill="none" stroke="rgba(184,174,222,0.45)" strokeWidth="1.4" vectorEffect="non-scaling-stroke">
+              <animate
+                attributeName="d"
+                dur="16s"
+                repeatCount="indefinite"
+                calcMode="spline"
+                keyTimes="0;0.5;1"
+                keySplines="0.45 0 0.55 1;0.45 0 0.55 1"
+                values="M-0.05,0.34 C0.25,0.72 0.7,0.10 1.05,0.50;M-0.05,0.40 C0.25,0.66 0.7,0.16 1.05,0.44;M-0.05,0.34 C0.25,0.72 0.7,0.10 1.05,0.50"
+              />
+            </path>
+            <path fill="none" stroke="rgba(184,174,222,0.28)" strokeWidth="1.2" vectorEffect="non-scaling-stroke">
+              <animate
+                attributeName="d"
+                dur="21s"
+                repeatCount="indefinite"
+                calcMode="spline"
+                keyTimes="0;0.5;1"
+                keySplines="0.45 0 0.55 1;0.45 0 0.55 1"
+                values="M-0.05,0.62 C0.30,0.98 0.65,0.35 1.05,0.78;M-0.05,0.68 C0.30,0.92 0.65,0.40 1.05,0.72;M-0.05,0.62 C0.30,0.98 0.65,0.35 1.05,0.78"
+              />
+            </path>
+          </svg>
+        </div>
+
         {/* LEFT: logo + nav links */}
-        <div style={{ display: "flex", alignItems: "center", gap: 20, minWidth: 0 }}>
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 20, minWidth: 0 }}>
           <Link href="/" style={{ textDecoration: "none", display: "inline-flex", flexShrink: 0 }} onClick={() => setMobileOpen(false)}>
             <Logo size="md" />
           </Link>
@@ -157,7 +200,7 @@ export function Navbar() {
         </div>
 
         {/* RIGHT: CTAs */}
-        <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="nv-desktop-cta" style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12 }}>
           {auth.loading ? (
             // Skeleton placeholder while session loads (avoids flash)
             <div style={{ width: 220, height: 38 }} />
@@ -336,6 +379,8 @@ export function Navbar() {
             cursor: "pointer",
             padding: 8,
             borderRadius: 999,
+            position: "relative",
+            zIndex: 1,
             display: "none",
             alignItems: "center",
             justifyContent: "center",
@@ -364,6 +409,7 @@ export function Navbar() {
               top: 66,
               left: 0,
               right: 0,
+              zIndex: 3,
               background: "rgba(255,255,255,0.85)",
               backdropFilter: "blur(18px) saturate(160%)",
               WebkitBackdropFilter: "blur(18px) saturate(160%)",
