@@ -48,9 +48,9 @@ RÈGLES
 1. Lis la mission EN ENTIER (titre, description, briefing, skills, normalized) avant de proposer.
 2. Propose 4-5 critères "main" (essentiels au scoring) et 3-5 "bonus" (informatifs, non bloquants).
 3. SKILLS est quasi toujours main (sauf mission pure soft skills).
-4. Si la mission mentionne une langue spécifique (allemand, anglais, etc.) → crée un "language" main ou bonus selon le contexte.
+4. LANGUES — RÈGLE STRICTE : chaque langue explicitement EXIGÉE dans la mission = UN critère "language" distinct, en **"main"** dès que le brief la présente comme requise/indispensable (formulations type "parfaite aisance en X", "maîtrise de X", "X courant", "bilingue X", "X et Y exigés"). Un critère "language" par langue (ex : "parfaite aisance en Français ET Anglais" → DEUX critères main : Français + Anglais). Ne mets une langue en "bonus" QUE si le brief la dit "appréciée"/"un plus". N'oublie JAMAIS une langue mentionnée dans le brief.
 5. Si elle mentionne un permis / habilitation / certification → crée le critère correspondant.
-6. Pour les critères qualitatifs (language, license, certification, etc.), remplis les params avec les valeurs extraites du brief ("Allemand B2 requis" → { code: "de", level_min: "B2" }).
+6. Pour les critères qualitatifs (language, license, certification, etc.), remplis les params avec les valeurs extraites du brief ("Allemand B2 requis" → { code: "de", level_min: "B2" } ; "parfaite aisance en anglais" → { code: "en", level_min: "C1" }).
 7. "custom" UNIQUEMENT si AUCUN type ne couvre le besoin (rare).
 8. Le label doit être PRÉCIS et human-readable ("Compétences Spark / Airflow", pas "Compétences techniques").
 9. N'inclus PAS d'id (le serveur en génère un).

@@ -107,13 +107,27 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }:
     setCriteria((prev) => prev.filter((c) => c.id !== id))
   }
 
+  /** Édite le libellé d'un critère (et, pour "custom", sa description dans
+   *  params — c'est ce que le LLM lit pour l'évaluer). */
+  const editLabel = (id: string, label: string) => {
+    setCriteria((prev) => prev.map((c) => {
+      if (c.id !== id) return c
+      if (c.type === "custom") {
+        return { ...c, label, params: { ...c.params, description: label } }
+      }
+      return { ...c, label }
+    }))
+  }
+
   const addManual = (type: CriterionType) => {
     if (criteria.length >= MAX_MAIN_CRITERIA + MAX_BONUS_CRITERIA) return
     const targetWeight = mainCount < MAX_MAIN_CRITERIA ? "main" : "bonus"
     setCriteria((prev) => [...prev, {
       id: crypto.randomUUID(),
       type,
-      label: CRITERION_CATALOG[type].defaultLabel,
+      // Custom : libellé vide au départ pour forcer la saisie (le placeholder
+      // invite à décrire). Les autres types gardent leur libellé par défaut.
+      label: type === "custom" ? "" : CRITERION_CATALOG[type].defaultLabel,
       weight: targetWeight,
       source: "manual",
       params: {},
@@ -128,6 +142,10 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }:
     }
     if (mainCount === 0) {
       setError("Il faut au moins un critère principal.")
+      return
+    }
+    if (criteria.some((c) => c.type === "custom" && !c.label.trim())) {
+      setError("Décrivez vos critères personnalisés (ou retirez-les).")
       return
     }
     setSaving(true); setError(null)
@@ -222,6 +240,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }:
             items={mainList}
             onToggleWeight={toggleWeight}
             onRemove={remove}
+            onEditLabel={editLabel}
             isMain
           />
           <Column
@@ -231,6 +250,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }:
             items={bonusList}
             onToggleWeight={toggleWeight}
             onRemove={remove}
+            onEditLabel={editLabel}
             isMain={false}
           />
         </div>
@@ -288,10 +308,10 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }:
               boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
             }}
           >
-            {/* En mode édition (onCancel présent), ne pas promettre un
-                nouveau matching : la sauvegarde seule suffit, le sourceur
-                relance le matching quand il veut. */}
-            {saving ? "Enregistrement…" : onCancel ? "Enregistrer les critères" : "Valider et lancer le matching"}
+            {/* Le matching ne se lance PLUS automatiquement (retour sourceur).
+                Le CTA ne promet donc jamais de matching : il valide/enregistre
+                les critères, le sourceur choisit ensuite l'action. */}
+            {saving ? "Enregistrement…" : onCancel ? "Enregistrer les critères" : "Valider les critères"}
           </button>
         </div>
       )}
@@ -336,7 +356,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }:
 }
 
 function Column({
-  title, subtitle, accent, items, onToggleWeight, onRemove, isMain,
+  title, subtitle, accent, items, onToggleWeight, onRemove, onEditLabel, isMain,
 }: {
   title: string
   subtitle: string
@@ -344,6 +364,7 @@ function Column({
   items: Criterion[]
   onToggleWeight: (id: string) => void
   onRemove: (id: string) => void
+  onEditLabel: (id: string, label: string) => void
   isMain: boolean
 }) {
   return (
@@ -372,9 +393,27 @@ function Column({
               display: "flex", alignItems: "center", gap: 8,
             }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {shortCriterionLabel(c)}
-                </p>
+                {c.type === "custom" ? (
+                  // Critère personnalisé : le libellé EST la description que le
+                  // LLM évalue → champ éditable obligatoire (sinon vide/inutile).
+                  <input
+                    type="text"
+                    value={c.label}
+                    onChange={(e) => onEditLabel(c.id, e.target.value)}
+                    placeholder="Décrivez le critère (ex : a déjà managé une équipe)"
+                    style={{
+                      width: "100%", boxSizing: "border-box",
+                      fontSize: 12.5, fontWeight: 600, color: "#111827",
+                      padding: "4px 6px", borderRadius: 6,
+                      border: "1px solid #E2DAF6", background: "#FAFAFF",
+                      outline: "none", fontFamily: "inherit",
+                    }}
+                  />
+                ) : (
+                  <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {shortCriterionLabel(c)}
+                  </p>
+                )}
                 <p style={{ margin: "2px 0 0", fontSize: 10.5, color: "#9CA3AF" }}>
                   {typeLabel(c.type)}{c.source === "manual" && " · ajouté"}
                 </p>

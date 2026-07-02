@@ -48,6 +48,10 @@ export default function JobDetailPage() {
   const [activeTab, setActiveTab] = useState<SourceTab>("all")
   /** Filtres actifs : Set des critère IDs sur lesquels exiger un "fort match". */
   const [activeCritFilters, setActiveCritFilters] = useState<Set<string>>(new Set())
+  /** Déplie les profils à faible affinité (tier "poor", score < 35), masqués
+   *  par défaut : le matching score tout le vivier pour ne rien rater, mais on
+   *  ne remonte que les profils pertinents. */
+  const [showWeak, setShowWeak] = useState(false)
 
   const loadAll = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`)
@@ -211,6 +215,13 @@ export default function JobDetailPage() {
 
   const strongCount = rows.filter((r) => (r.score ?? 0) >= 55).length
 
+  // Séparation pertinents / faible affinité. Les non-scorés (assignés
+  // manuellement, score null) sont toujours pertinents (choix explicite du
+  // sourceur). Seuil "poor" = score < 35 → masqués derrière un dépliable.
+  const WEAK_BELOW = 35
+  const relevantRows = filteredRows.filter((r) => r.score == null || r.score >= WEAK_BELOW)
+  const weakRows = filteredRows.filter((r) => r.score != null && r.score < WEAK_BELOW)
+
   return (
     <main style={{
       padding: "32px 24px 80px", maxWidth: 1100, margin: "0 auto",
@@ -360,7 +371,7 @@ export default function JobDetailPage() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {filteredRows.map((r) => (
+              {relevantRows.map((r) => (
                 <MatchCard
                   key={r.id}
                   row={r}
@@ -368,6 +379,47 @@ export default function JobDetailPage() {
                   onTogglePipeline={togglePipeline}
                 />
               ))}
+
+              {relevantRows.length === 0 && weakRows.length > 0 && (
+                <div style={{
+                  padding: "24px 20px", textAlign: "center",
+                  background: "white", border: "1px dashed #E2DAF6", borderRadius: 14,
+                  color: "#6B7280", fontSize: 13,
+                }}>
+                  Aucun profil pertinent sur ce vivier pour cette mission.
+                  Les profils ci-dessous sont à faible affinité.
+                </div>
+              )}
+
+              {/* Profils à faible affinité (tier "poor") — masqués par défaut :
+                  le matching a tout scoré mais on ne remonte que le pertinent. */}
+              {weakRows.length > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  <button
+                    onClick={() => setShowWeak((v) => !v)}
+                    style={{
+                      width: "100%", padding: "10px 14px", borderRadius: 10,
+                      background: "#FAFAFB", border: "1px solid #F0ECF8",
+                      color: "#6B7280", fontSize: 12.5, fontWeight: 600,
+                      cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    {showWeak ? "▲ Masquer" : "▼ Voir"} les {weakRows.length} profil{weakRows.length > 1 ? "s" : ""} à faible affinité
+                  </button>
+                  {showWeak && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10, opacity: 0.75 }}>
+                      {weakRows.map((r) => (
+                        <MatchCard
+                          key={r.id}
+                          row={r}
+                          mainCriteria={mainCriteria}
+                          onTogglePipeline={togglePipeline}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </>
