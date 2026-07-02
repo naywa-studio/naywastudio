@@ -155,6 +155,14 @@ export default function JobDetailPage() {
   const mainCriteria = criteria.filter((c) => c.weight === "main")
   const needsOnboarding = !job.criteria_locked_at || criteria.length === 0
   const showWizard = needsOnboarding || editCriteriaMode
+  // Critères modifiés depuis le dernier matching : les cartes affichent
+  // encore l'ancienne évaluation. On invite à relancer. (Édition de critères
+  // ne relance plus le matching auto — cf. wizard onCancel/onDone.)
+  const criteriaStale = !!(
+    job.criteria_locked_at &&
+    rows.length > 0 &&
+    (!job.matched_at || new Date(job.criteria_locked_at).getTime() > new Date(job.matched_at).getTime())
+  )
 
   // Compteurs par source pour les onglets.
   const tabCounts: Record<SourceTab, number> = (() => {
@@ -294,6 +302,27 @@ export default function JobDetailPage() {
             <strong style={{ color: "#111827" }}>{strongCount}</strong> candidat{strongCount > 1 ? "s" : ""} pertinent{strongCount > 1 ? "s" : ""}
             <span style={{ color: "#9CA3AF" }}> · {rows.length} au total</span>
           </div>
+
+          {criteriaStale && !matching && (
+            <div style={{
+              marginBottom: 12, padding: "10px 14px",
+              display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+              background: "rgba(217,119,6,0.06)", border: "1px solid rgba(217,119,6,0.25)",
+              borderRadius: 11, fontSize: 12.5, color: "#374151",
+            }}>
+              <span style={{ flex: 1, minWidth: 200 }}>
+                <strong style={{ color: "#B45309" }}>Critères modifiés</strong> depuis le dernier matching — les scores affichés datent de l&apos;évaluation précédente.
+              </span>
+              <button onClick={() => void runMatch()} style={{
+                fontSize: 12, fontWeight: 700, color: "white",
+                padding: "7px 14px", borderRadius: 9, border: "none",
+                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+              }}>
+                Relancer le matching
+              </button>
+            </div>
+          )}
 
           <SourceTabs active={activeTab} counts={tabCounts} onChange={setActiveTab} />
 
