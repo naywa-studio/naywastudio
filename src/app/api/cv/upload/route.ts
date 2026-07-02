@@ -95,13 +95,15 @@ export async function POST(req: NextRequest) {
   // le parsing LLM. Retourne le candidat existant avec duplicate=true
   // pour que l'UI puisse l'afficher comme "déjà dans le vivier".
   //
-  // On NE filtre PAS les "ancien" : si le candidat trouvé avait été
-  // archivé par la dédup, on le réactive (retire "ancien") plutôt que de
-  // créer un doublon — ré-importer un CV le fait revenir au vivier.
+  // Choix de la canonique :
+  //   1. S'il existe déjà une copie ACTIVE (non "ancien"), on la renvoie
+  //      telle quelle — rien à faire, le CV est déjà au vivier.
+  //   2. Sinon (toutes archivées "ancien"), on RÉACTIVE la plus ancienne
+  //      (retire "ancien") → ré-importer un CV archivé le fait revenir.
   //
-  // On lit jusqu'à 2 rows + prend la plus ancienne (canonique) au lieu de
-  // .maybeSingle() qui PLANTE si 2+ copies existent déjà → l'ancien code
-  // retombait alors sur "pas de doublon" et en recréait un 3ᵉ.
+  // On lit plusieurs rows au lieu de .maybeSingle() qui PLANTE si 2+ copies
+  // existent déjà → l'ancien code retombait sur "pas de doublon" et en
+  // recréait un de plus.
   const { data: existingDupes } = await admin
     .from("candidates")
     .select("*")
@@ -109,21 +111,24 @@ export async function POST(req: NextRequest) {
     .eq("cv_file_name", file.name)
     .eq("cv_file_size", file.size)
     .order("created_at", { ascending: true })
-    .limit(2)
-  const existingDupe = (existingDupes ?? [])[0]
-  if (existingDupe) {
-    const tags = (existingDupe.tags ?? []) as string[]
-    if (tags.includes("ancien")) {
-      const revived = tags.filter((t) => t !== "ancien")
-      const { data: up } = await admin
-        .from("candidates")
-        .update({ tags: revived })
-        .eq("id", existingDupe.id)
-        .select("*")
-        .single()
-      return NextResponse.json({ ok: true, duplicate: true, candidate: up ?? existingDupe })
+    .limit(10)
+  const dupes = existingDupes ?? []
+  if (dupes.length > 0) {
+    const active = dupes.find((d) => !((d.tags ?? []) as string[]).includes("ancien"))
+    if (active) {
+      // Déjà une copie vivante → on ne touche à rien.
+      return NextResponse.json({ ok: true, duplicate: true, candidate: active })
     }
-    return NextResponse.json({ ok: true, duplicate: true, candidate: existingDupe })
+    // Que des copies archivées → réactive la plus ancienne.
+    const archived = dupes[0]
+    const revived = ((archived.tags ?? []) as string[]).filter((t) => t !== "ancien")
+    const { data: up } = await admin
+      .from("candidates")
+      .update({ tags: revived })
+      .eq("id", archived.id)
+      .select("*")
+      .single()
+    return NextResponse.json({ ok: true, duplicate: true, candidate: up ?? archived })
   }
 
   const { data: created, error: insertErr } = await admin

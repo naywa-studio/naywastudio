@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Candidate, Job } from "@/lib/database.types"
@@ -40,6 +41,7 @@ const MONTH_START_ISO = (() => {
 })()
 
 export default function MissionsPage() {
+  const router = useRouter()
   const sb = useMemo(() => getSupabase(), [])
   const [jobs, setJobs] = useState<Job[]>([])
   const [visuals, setVisuals] = useState<Record<string, MissionVisual>>({})
@@ -198,7 +200,11 @@ export default function MissionsPage() {
   const handleCreated = useCallback((job: Job) => {
     setJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)])
     setFormOpen(false)
-  }, [])
+    // Redirige direct sur la fiche mission : le wizard de critères s'y
+    // ouvre automatiquement (criteria_locked_at NULL). Sans ça, le sourceur
+    // restait sur la liste et devait retrouver la carte + cliquer "Ouvrir".
+    router.push(`/workspace/missions/${job.id}`)
+  }, [router])
 
   return (
     <main style={{
@@ -1101,8 +1107,8 @@ export function JobForm({ onClose, onCreated, initialJob }: {
                 cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
               }}>
                 {submitting
-                  ? (editMode ? "Mise à jour + matching…" : "Création + matching…")
-                  : (editMode ? "Valider les modifications" : "Valider et lancer le matching")}
+                  ? (editMode ? "Mise à jour…" : "Création…")
+                  : (editMode ? "Valider les modifications" : "Créer la mission")}
               </button>
             </div>
           )}
