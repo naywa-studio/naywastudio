@@ -281,13 +281,13 @@ export default function JobDetailPage() {
           // Bouton "Annuler" seulement en mode édition (au 1ᵉʳ onboarding il
           // FAUT configurer les critères avant de pouvoir matcher).
           onCancel={editCriteriaMode ? () => setEditCriteriaMode(false) : undefined}
-          onDone={async (updated) => {
-            const wasFirstOnboarding = needsOnboarding
+          onDone={(updated) => {
+            // On NE lance PAS le matching automatiquement (retour sourceur) :
+            // après validation des critères, le sourceur choisit lui-même
+            // l'action (Matcher le vivier / Importer des CVs / Assigner /
+            // formulaire). On atterrit sur l'empty state avec les boutons.
             setJob((prev) => prev ? { ...prev, criteria: updated, criteria_locked_at: new Date().toISOString() } : prev)
             setEditCriteriaMode(false)
-            // Lance le matching auto UNIQUEMENT au 1ᵉʳ onboarding. En édition,
-            // on sauve seulement — le sourceur relance via "Matcher le vivier".
-            if (wasFirstOnboarding) await runMatch()
           }}
         />
       ) : rows.length === 0 ? (
@@ -297,8 +297,8 @@ export default function JobDetailPage() {
           color: "#6B7280",
         }}>
           <div style={{ fontSize: 40, marginBottom: 10 }}>🎯</div>
-          <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>Aucun candidat sur cette mission</p>
-          <p style={{ margin: 0, fontSize: 13 }}>Importez des CVs ou lancez le matching auto depuis le bandeau ci-dessus.</p>
+          <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>Critères validés — à vous de jouer</p>
+          <p style={{ margin: 0, fontSize: 13 }}>Depuis le bandeau ci-dessus : <strong>Matcher le vivier</strong>, <strong>Importer des CVs</strong> ou <strong>Assigner</strong> un candidat.</p>
         </div>
       ) : (
         <>
