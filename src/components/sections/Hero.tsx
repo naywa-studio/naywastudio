@@ -21,7 +21,7 @@ export function Hero() {
         background: 'transparent',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'flex-end',
+        justifyContent: 'center',
       }}
     >
       <div
@@ -43,10 +43,44 @@ export function Hero() {
           maxWidth: 1152,
           margin: '0',
           width: '100%',
-          padding: '0 0 88px 56px',
+          padding: '0 32px 0 56px',
         }}
         className="hero-content"
       >
+        {/* Eyebrow */}
+        <m.div
+          {...fu(0.04)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '7px 15px 7px 12px',
+            borderRadius: 999,
+            background: 'rgba(124,99,200,0.07)',
+            border: '1px solid rgba(124,99,200,0.20)',
+            margin: '0 0 24px',
+            fontFamily: 'var(--font-inter), sans-serif',
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: '#7C63C8',
+            letterSpacing: '-0.005em',
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#7C63C8',
+              boxShadow: '0 0 0 3px rgba(124,99,200,0.16)',
+              display: 'inline-block',
+              flexShrink: 0,
+            }}
+          />
+          Nora — l&apos;assistante IA du sourcing
+        </m.div>
+
         {/* H1 */}
         <m.h1
           {...fu(0.10)}
@@ -208,7 +242,7 @@ export function Hero() {
       <style>{`
         @media (max-width: 640px) {
           .hero-content {
-            padding: 0 0 72px 24px !important;
+            padding: 0 20px 0 24px !important;
           }
         }
       `}</style>
