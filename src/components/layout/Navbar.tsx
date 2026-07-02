@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Logo } from "@/components/ui/Logo"
 import { getSupabase } from "@/lib/supabase"
 
@@ -21,6 +21,7 @@ interface AuthState {
 
 export function Navbar() {
   const router = useRouter()
+  const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -101,54 +102,63 @@ export function Navbar() {
           transition: "background 300ms ease, box-shadow 300ms ease",
         }}
       >
-        {/* LEFT: logo only */}
-        <Link href="/" style={{ textDecoration: "none", display: "inline-flex", flexShrink: 0 }} onClick={() => setMobileOpen(false)}>
-          <Logo size="md" />
-        </Link>
+        {/* LEFT: logo + nav links */}
+        <div style={{ display: "flex", alignItems: "center", gap: 20, minWidth: 0 }}>
+          <Link href="/" style={{ textDecoration: "none", display: "inline-flex", flexShrink: 0 }} onClick={() => setMobileOpen(false)}>
+            <Logo size="md" />
+          </Link>
 
-        {/* RIGHT: nav links + CTAs */}
-        <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <nav className="nv-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {navLinks.map((link, i) => (
-              <span key={link.href} style={{ display: "inline-flex", alignItems: "center" }}>
-                {i > 0 && (
-                  <span
-                    aria-hidden
+            {navLinks.map((link, i) => {
+              const active = pathname === link.href
+              return (
+                <span key={link.href} style={{ display: "inline-flex", alignItems: "center" }}>
+                  {i > 0 && (
+                    <span
+                      aria-hidden
+                      style={{
+                        width: 3,
+                        height: 3,
+                        borderRadius: "50%",
+                        background: "rgba(184,174,222,0.55)",
+                        margin: "0 3px",
+                      }}
+                    />
+                  )}
+                  <Link
+                    href={link.href}
+                    aria-current={active ? "page" : undefined}
                     style={{
-                      width: 3,
-                      height: 3,
-                      borderRadius: "50%",
-                      background: "rgba(184,174,222,0.6)",
-                      margin: "0 4px",
+                      fontSize: 13.5,
+                      fontWeight: active ? 600 : 500,
+                      color: active ? "#111827" : "#4B5563",
+                      textDecoration: "none",
+                      padding: "8px 14px",
+                      borderRadius: 999,
+                      whiteSpace: "nowrap",
+                      background: active ? "rgba(124,99,200,0.09)" : "transparent",
+                      transition: "color 160ms ease, background 160ms ease",
+                      fontFamily: "var(--font-inter), sans-serif",
                     }}
-                  />
-                )}
-                <Link
-                  href={link.href}
-                  style={{
-                    fontSize: 13.5,
-                    fontWeight: 500,
-                    color: "#4B5563",
-                    textDecoration: "none",
-                    padding: "8px 14px",
-                    borderRadius: 999,
-                    transition: "color 160ms ease, background 160ms ease",
-                    fontFamily: "var(--font-inter), sans-serif",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "#111827"
-                    e.currentTarget.style.background = "rgba(124,99,200,0.06)"
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "#4B5563"
-                    e.currentTarget.style.background = "transparent"
-                  }}
-                >
-                  {link.label}
-                </Link>
-              </span>
-            ))}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = "#111827"
+                      e.currentTarget.style.background = "rgba(124,99,200,0.06)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = active ? "#111827" : "#4B5563"
+                      e.currentTarget.style.background = active ? "rgba(124,99,200,0.09)" : "transparent"
+                    }}
+                  >
+                    {link.label}
+                  </Link>
+                </span>
+              )
+            })}
           </nav>
+        </div>
+
+        {/* RIGHT: CTAs */}
+        <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {auth.loading ? (
             // Skeleton placeholder while session loads (avoids flash)
             <div style={{ width: 220, height: 38 }} />
@@ -367,24 +377,29 @@ export function Navbar() {
               boxShadow: "0 20px 60px -20px rgba(124,99,200,0.25)",
             }}
           >
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileOpen(false)}
-                style={{
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: "#4B5563",
-                  textDecoration: "none",
-                  padding: "11px 14px",
-                  borderRadius: 12,
-                  fontFamily: "var(--font-inter), sans-serif",
-                }}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const active = pathname === link.href
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  aria-current={active ? "page" : undefined}
+                  style={{
+                    fontSize: 14,
+                    fontWeight: active ? 600 : 500,
+                    color: active ? "#111827" : "#4B5563",
+                    background: active ? "rgba(124,99,200,0.08)" : "transparent",
+                    textDecoration: "none",
+                    padding: "11px 14px",
+                    borderRadius: 12,
+                    fontFamily: "var(--font-inter), sans-serif",
+                  }}
+                >
+                  {link.label}
+                </Link>
+              )
+            })}
             <div style={{ height: 1, background: "rgba(240,236,248,0.8)", margin: "6px 4px" }} />
 
             {isAuthed ? (
