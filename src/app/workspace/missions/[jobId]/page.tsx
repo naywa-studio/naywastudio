@@ -153,7 +153,12 @@ export default function JobDetailPage() {
   const matching = job.match_status === "matching"
   const criteria = (job.criteria ?? []) as Criterion[]
   const mainCriteria = criteria.filter((c) => c.weight === "main")
-  const needsOnboarding = !job.criteria_locked_at || criteria.length === 0
+  // criteria_locked_at est le flag AUTORITAIRE (posé en même temps que les
+  // critères par PATCH /criteria). On ne se base PAS sur criteria.length :
+  // un payload realtime transitoire (update de match_status) pouvait arriver
+  // sans le jsonb critères → criteria=[] → le wizard flashait + déclenchait
+  // un appel propose-criteria inutile. Le flag date/heure ne flanche pas.
+  const needsOnboarding = !job.criteria_locked_at
   const showWizard = needsOnboarding || editCriteriaMode
   // Critères modifiés depuis le dernier matching : les cartes affichent
   // encore l'ancienne évaluation. On invite à relancer. (Édition de critères
