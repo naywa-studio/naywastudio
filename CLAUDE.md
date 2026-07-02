@@ -693,7 +693,22 @@ Tout mergé sur main, par ordre chronologique :
 Cette section est à jour au 2026-06-26 (post-merge `3e57aff`). Sections 1-19 à relire après les multiples PRs : routes `/api/vivier/zones`, `/api/match/score-one`, `/api/admin/trial`, modèle de quotas anniversaire, suppression Calendly complète, prompt v3 matching, taxonomie zones fermée (code dispo, UI off).
 
 ### Compact-safety
-Si compactage en cours : **toutes les PRs ci-dessus sont mergées sur main**. La règle utilisateur stricte est désormais **push branche → attendre validation preview → puis merger** ([[feedback_preview_before_merge]]). Wipe org `elyas.malki@naywastudio.com` fait via MCP (4e39ce0f-879c-477d-96b7-d75bf81f3b04).
+Si compactage en cours : les PRs plus anciennes sont mergées sur main. La règle utilisateur stricte est **push branche → attendre validation preview → puis merger** ([[feedback_preview_before_merge]]).
+
+#### PR-Z en cours (matching par critères flexibles) — 2026-07-02
+**Branche `claude/pr-z-flexible-criteria` (PAS mergée sur main).** Dernier commit `76c3751`. Migrations 053 (source enum) + 054 (jobs.criteria/criteria_locked_at + match_assessments.criteria_eval) **déjà appliquées** sur le projet Supabase `gtxjrepqiqbqbyhtmtlk` via MCP. Preview Vercel branch alias = `nawa-studio-git-claude-pr-z-fle-3a570b-...` (dernier build READY = ed57ace/76c3751). Testé en live navigateur, gros du flow validé.
+
+Ce que PR-Z apporte :
+- **Critères flexibles par mission** (remplace les 4 dimensions hardcodées). Catalogue 25 types `lib/job-criteria-catalog.ts`. `POST /api/jobs/[id]/propose-criteria` (Nora propose) + `PATCH /api/jobs/[id]/criteria` (sauve + stamp `criteria_locked_at`). `scoreBatchCriteria()` dans `lib/matching.ts` (quantitatif=score 0-100, qualitatif=yes/no/unknown+evidence, score global = moyenne pondérée des "main").
+- **Flow mission** : création → redirect auto vers `/workspace/missions/[id]` → wizard `CriteriaOnboarding` (car `criteria_locked_at` NULL) → "Valider les critères" (PLUS de matching auto, le sourceur choisit) → empty state avec boutons.
+- **UI** : `MissionSummaryBar` (bandeau collapsible), `MatchCard` (cartes avec jauges 0-100 + badges ✓/✗/?), `DynamicCriteriaFilters`, onglets par source (Tous/Postulé/Importé/Vivier). Fiche match : section "Critères de cette mission". Bandeau "critères modifiés" si `criteria_locked_at > matched_at`.
+- **Affichage matching** : score TOUT le vivier (≤200) mais masque les profils "poor" (score < 35) derrière un dépliable "Voir N profils à faible affinité".
+- **Doublons** : dedup upload org-scopé (préfère copie active, réactive "ancien", jamais de nouvelle ligne) + `score-one` upsert (jamais 2 matchs par couple). Confirmé 0 doublon intra-org.
+- **Critère "custom"** éditable inline dans le wizard (libellé = description LLM).
+
+Points connus / à faire : previews Vercel SSO-protégées ([[feedback_vercel_preview_sso_protected]]) → tester via l'user + vérif DB MCP. `file_upload` navigateur refuse les chemins hors session (test doublon fait par l'user). R2 orphelins après wipe (MCP ne delete pas les objets R2). Tâche spawn : mutualiser les ~12 appels `/api/updates` par page (hors PR-Z). **Prochaine étape user : validation preview finale → décision merge sur main, PUIS visuels/couleurs de l'app.** Track Mac front `ent-mac-front` = couloir séparé ([[project_mac_front_track]]), ne pas toucher.
+
+Wipe : org `elyas.malki@naywastudio.com` (4e39ce0f) + org `elyas.malki@icloud.com` (`1680d9d9`, 91 candidats + 360 matchs supprimés, storage reset) faits via MCP.
 
 ---
 
