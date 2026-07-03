@@ -337,7 +337,7 @@ export default function JobDetailPage() {
           background: "white", border: "1px dashed #E2DAF6", borderRadius: 16,
           color: "#6B7280",
         }}>
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }} aria-hidden="true">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block", margin: "0 auto 12px" }} aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
             <circle cx="12" cy="12" r="4.5" />
             <path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" />

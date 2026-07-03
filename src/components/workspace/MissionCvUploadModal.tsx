@@ -211,7 +211,7 @@ export function MissionCvUploadModal({
             marginBottom: 14,
           }}
         >
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 8 }} aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block", margin: "0 auto 8px" }} aria-hidden="true">
             <path d="M12 16V6M8.5 9.5 12 6l3.5 3.5" />
             <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
           </svg>
