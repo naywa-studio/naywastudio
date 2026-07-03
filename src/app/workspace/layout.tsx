@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
-import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { ui } from "@/lib/ui-tokens"
 import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
 import { LockdownBanner } from "@/components/workspace/LockdownBanner"
 import { MemberWaitingBanner } from "@/components/workspace/MemberWaitingBanner"
@@ -234,7 +234,13 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         ),
       refetchProfile: fetchProfile,
     }}>
-      <ShaderBackground />
+      {/* Fond calme sur l'app connectée (dense) : on réserve le shader animé
+          aux pages marketing. Un léger halo statique suffit à garder l'âme
+          de la marque sans concurrencer le contenu. */}
+      <div aria-hidden style={{
+        position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none",
+        background: `${ui.bg} radial-gradient(120% 80% at 100% 0%, rgba(184,174,222,0.10) 0%, rgba(248,246,255,0) 55%)`,
+      }} />
       <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 2, fontFamily: "var(--font-inter), sans-serif" }}>
         {/* Top bar */}
         <header
