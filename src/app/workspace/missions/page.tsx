@@ -883,7 +883,20 @@ export function JobForm({ onClose, onCreated, initialJob }: {
           body: JSON.stringify(payload),
         },
       )
-      const data = await res.json()
+      // Parsing robuste : un timeout serveur (504) renvoie un corps NON-JSON
+      // ("An error occurred…"). res.json() planterait alors avec "Unexpected
+      // token" — on lit le texte d'abord et on parse à la main.
+      const rawText = await res.text()
+      let data: { job?: Job; message?: string; error?: string } = {}
+      try {
+        data = rawText ? JSON.parse(rawText) : {}
+      } catch {
+        setError(res.status === 504 || res.status === 502
+          ? "La création a pris trop de temps côté serveur. Réessayez — la mission a peut-être déjà été créée (vérifiez la liste)."
+          : `Réponse serveur illisible (${res.status}). Réessayez.`)
+        setSubmitting(false)
+        return
+      }
       if (!res.ok || !data.job) {
         setError(data.message ?? data.error ?? (editMode ? "Erreur de mise à jour." : "Erreur de création."))
         setSubmitting(false)

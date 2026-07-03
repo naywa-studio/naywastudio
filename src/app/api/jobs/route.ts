@@ -120,8 +120,20 @@ export async function POST(req: NextRequest) {
   }
 
   // Normalize for matching (best-effort — a failure here doesn't block creation).
+  // IMPORTANT : normalizeJob appelle le LLM (OpenRouter). Si l'appel traîne,
+  // le lambda serait tué à maxDuration (30 s) AVANT tout return → Vercel
+  // renvoie un 504 au corps non-JSON, et la mission (déjà insérée) devient
+  // orpheline côté client. On borne donc l'appel par un timeout : au-delà,
+  // on renvoie quand même la mission créée (normalisation = best-effort,
+  // recalculée au 1ᵉʳ matching de toute façon).
+  const NORMALIZE_TIMEOUT_MS = 15_000
   try {
-    const normalized = await normalizeJob(payload)
+    const normalized = await Promise.race([
+      normalizeJob(payload),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("normalize_timeout")), NORMALIZE_TIMEOUT_MS),
+      ),
+    ])
     // On force la séniorité dérivée + on conserve l'intervalle saisi.
     const enriched = {
       ...normalized,
