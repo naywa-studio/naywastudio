@@ -89,9 +89,9 @@ export function Founders() {
           </span>
           <h2
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
+              fontFamily: "var(--font-title), sans-serif",
               fontSize: "clamp(28px, 4vw, 44px)",
-              fontWeight: 800,
+              fontWeight: 700,
               letterSpacing: "-0.02em",
               color: "#111827",
               margin: 0,
@@ -101,7 +101,7 @@ export function Founders() {
             Une équipe{" "}
             <span
               style={{
-                fontFamily: "var(--font-instrument-serif), serif",
+                fontFamily: "var(--font-accent), serif",
                 fontWeight: 400,
                 fontStyle: "italic",
                 color: "#7C63C8",
