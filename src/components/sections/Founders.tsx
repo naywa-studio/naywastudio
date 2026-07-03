@@ -102,7 +102,7 @@ export function Founders() {
             <span
               style={{
                 fontFamily: "var(--font-accent), serif",
-                fontWeight: 400,
+                fontWeight: 700,
                 fontStyle: "italic",
                 color: "#7C63C8",
               }}

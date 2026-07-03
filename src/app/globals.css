@@ -25,7 +25,7 @@
 
   /* Familles de police — titres = Space Grotesk, accent = Instrument Serif */
   --font-title:  var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-accent: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --font-accent: "Times New Roman", Times, Georgia, serif;
 }
 
 /* ── Shared animations ── */

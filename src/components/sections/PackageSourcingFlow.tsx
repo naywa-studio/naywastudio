@@ -140,7 +140,7 @@ export function PackageSourcingFlow() {
             <span
               style={{
                 fontFamily: "var(--font-accent), serif",
-                fontWeight: 400,
+                fontWeight: 700,
                 fontStyle: "italic",
                 color: "#7C63C8",
               }}
@@ -315,7 +315,7 @@ export function PackageSourcingFlow() {
                 style={{
                   fontFamily: "var(--font-accent), serif",
                   fontStyle: "italic",
-                  fontWeight: 400,
+                  fontWeight: 700,
                   fontSize: "clamp(64px, 7vw, 96px)",
                   color: "#7C63C8",
                   lineHeight: 0.9,

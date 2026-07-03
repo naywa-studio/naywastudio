@@ -72,13 +72,10 @@ export function Hero() {
           <span
             style={{
               fontFamily: 'var(--font-accent), serif',
-              fontWeight: 400,
+              fontWeight: 700,
               fontStyle: 'italic',
               letterSpacing: '-0.01em',
-              background: 'linear-gradient(120deg, #7C63C8 0%, #B8AEDE 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
+              color: '#7C63C8',
             }}
           >
             décidez
