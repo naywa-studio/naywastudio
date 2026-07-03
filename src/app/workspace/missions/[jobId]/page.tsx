@@ -162,7 +162,14 @@ export default function JobDetailPage() {
   // un payload realtime transitoire (update de match_status) pouvait arriver
   // sans le jsonb critères → criteria=[] → le wizard flashait + déclenchait
   // un appel propose-criteria inutile. Le flag date/heure ne flanche pas.
-  const needsOnboarding = !job.criteria_locked_at
+  // Onboarding forcé UNIQUEMENT sur une mission vierge (aucun match). Une
+  // mission "legacy" (créée avant PR-Z : pas de critères mais des matchs déjà
+  // présents, éventuellement en pipeline) ne doit PAS voir ses matchs masqués
+  // derrière le wizard. On affiche ses matchs + une bannière non destructive
+  // qui propose de configurer les critères (ré-évaluation = upsert, la
+  // position pipeline est préservée).
+  const needsOnboarding = !job.criteria_locked_at && rows.length === 0
+  const legacyNoCriteria = !job.criteria_locked_at && rows.length > 0
   const showWizard = needsOnboarding || editCriteriaMode
   // Critères modifiés depuis le dernier matching : les cartes affichent
   // encore l'ancienne évaluation. On invite à relancer. (Édition de critères
@@ -264,6 +271,29 @@ export default function JobDetailPage() {
         />
       )}
 
+      {/* Mission "legacy" (créée avant les critères flexibles) : matchs
+          présents mais aucun critère. On ne masque rien — bannière opt-in. */}
+      {legacyNoCriteria && !matching && (
+        <div style={{
+          marginBottom: 16, padding: "12px 16px",
+          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          background: "rgba(124,99,200,0.05)", border: "1px solid rgba(124,99,200,0.22)",
+          borderRadius: 12, fontSize: 13, color: "#374151",
+        }}>
+          <span style={{ flex: 1, minWidth: 220 }}>
+            <strong style={{ color: "#111827" }}>Ancienne évaluation.</strong> Configurez les critères
+            de matching pour une analyse enrichie — la position pipeline de vos{" "}
+            {rows.length} candidat{rows.length > 1 ? "s" : ""} sera conservée.
+          </span>
+          <button onClick={() => setEditCriteriaMode(true)} style={{
+            fontSize: 12.5, fontWeight: 700, color: "white", fontFamily: "inherit",
+            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            border: "none", borderRadius: 9, padding: "8px 14px", cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}>Configurer les critères</button>
+        </div>
+      )}
+
       {/* Progress + erreurs */}
       {matching && (
         <div style={{ marginBottom: 16 }}>
@@ -288,7 +318,7 @@ export default function JobDetailPage() {
       {showWizard ? (
         <CriteriaOnboarding
           jobId={job.id}
-          initialCriteria={editCriteriaMode ? criteria : null}
+          initialCriteria={editCriteriaMode && criteria.length > 0 ? criteria : null}
           // Bouton "Annuler" seulement en mode édition (au 1ᵉʳ onboarding il
           // FAUT configurer les critères avant de pouvoir matcher).
           onCancel={editCriteriaMode ? () => setEditCriteriaMode(false) : undefined}
