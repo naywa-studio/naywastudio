@@ -39,7 +39,12 @@ export interface ORChatOptions {
   temperature?: number
   responseFormat?: "json_object" | "text"
   maxTokens?: number
-  /** Soft timeout in ms (default 45s). */
+  /** Soft timeout in ms (default 24s).
+   *  DOIT rester SOUS le maxDuration de la route appelante (souvent 30s sur
+   *  Vercel), sinon l'AbortController ne se déclenche jamais : le lambda est
+   *  tué en premier et renvoie un 504 au corps non-JSON (→ "Unexpected token"
+   *  côté client). Les routes qui ont un maxDuration plus large (matching,
+   *  cluster) peuvent passer une valeur plus haute explicitement. */
   timeoutMs?: number
   /** OpenRouter plugins, e.g. the file-parser/OCR engine. */
   plugins?: unknown[]
@@ -65,7 +70,7 @@ export async function openrouterChat(opts: ORChatOptions): Promise<ORChatResult>
   if (!key) throw new Error("OPENROUTER_API_KEY missing")
 
   const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 45_000)
+  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 24_000)
 
   let res: Response
   try {

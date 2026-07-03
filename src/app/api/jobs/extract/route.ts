@@ -16,11 +16,11 @@ import { consumeQuota, consumeOrgLlmActionForUser } from "@/lib/quota"
 import { openrouterChat } from "@/lib/openrouter"
 
 export const runtime = "nodejs"
-// Vercel Hobby plan capère à 10s en pratique : on cap maxDuration à 9s
-// pour être sûr de répondre avec un JSON propre (502) plutôt qu'une
-// réponse vide qui ferait crash le client avec "Unexpected end of JSON".
-// Si on migre Pro un jour, on peut remonter à 30s.
-export const maxDuration = 9
+// Projet sur Vercel Pro (des routes montent à 300s) → l'ancien cap Hobby 9s
+// était trop serré : sur un brief long, l'extraction LLM pouvait dépasser 9s
+// et le lambda mourait avant de répondre (504 non-JSON). On passe à 30s, et
+// le timeout LLM (timeoutMs) est tenu SOUS ce plafond (cf. openrouterChat).
+export const maxDuration = 30
 
 const MAX_BRIEF_CHARS = 12_000
 

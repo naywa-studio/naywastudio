@@ -89,6 +89,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       temperature: 0.2,
       responseFormat: "json_object",
       maxTokens: 280,
+      // maxDuration de la route = 20s → on borne le LLM en dessous.
+      timeoutMs: 15_000,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMsg },
