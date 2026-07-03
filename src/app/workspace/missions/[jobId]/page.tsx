@@ -307,7 +307,11 @@ export default function JobDetailPage() {
           background: "white", border: "1px dashed #E2DAF6", borderRadius: 16,
           color: "#6B7280",
         }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>🎯</div>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }} aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="4.5" />
+            <path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" />
+          </svg>
           <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>Critères validés — à vous de jouer</p>
           <p style={{ margin: 0, fontSize: 13 }}>Depuis le bandeau ci-dessus : <strong>Matcher le vivier</strong>, <strong>Importer des CVs</strong> ou <strong>Assigner</strong> un candidat.</p>
         </div>

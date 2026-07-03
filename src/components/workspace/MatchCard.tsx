@@ -16,7 +16,7 @@ import type { Candidate, MatchAssessment } from "@/lib/database.types"
 import type { Criterion, CriterionEval } from "@/lib/job-criteria-catalog"
 import { kindOf } from "@/lib/job-criteria-catalog"
 import {
-  shortCriterionName, shortCriterionLabel, dimColor, statusColor, tierMeta,
+  criterionHeaderLabel, shortCriterionLabel, dimColor, statusColor, tierMeta,
 } from "@/lib/criterion-display"
 
 type MatchSource = "applied" | "uploaded" | "vivier_matched" | "vivier_assigned"
@@ -128,8 +128,13 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
         {c && (
           <Link href={`/workspace/vivier/${c.id}`} style={{
             fontSize: 11.5, color: "#9CA3AF", textDecoration: "none",
+            display: "inline-flex", alignItems: "center", gap: 5,
           }}>
-            👤 Fiche
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            Fiche
           </Link>
         )}
         <Link href={`/workspace/match/${row.id}`} style={{
@@ -151,7 +156,7 @@ function CriterionEvalRow({ criterion, ev }: { criterion: Criterion; ev: Criteri
   const isQuant = kindOf(criterion.type) === "quantitative"
   const score = isQuant ? (ev?.score ?? null) : null
   const status = isQuant ? undefined : ev?.status
-  const name = shortCriterionName(criterion)
+  const name = criterionHeaderLabel(criterion)
   const fullLabel = shortCriterionLabel(criterion)
   const tooltip = ev?.evidence ? `${fullLabel} — ${ev.evidence}` : fullLabel
 

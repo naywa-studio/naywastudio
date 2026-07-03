@@ -211,7 +211,10 @@ export function MissionCvUploadModal({
             marginBottom: 14,
           }}
         >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 8 }} aria-hidden="true">
+            <path d="M12 16V6M8.5 9.5 12 6l3.5 3.5" />
+            <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+          </svg>
           <p style={{ margin: "0 0 4px", fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
             Glissez vos PDFs ici ou cliquez pour parcourir
           </p>

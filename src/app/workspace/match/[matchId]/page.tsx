@@ -7,7 +7,7 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Candidate, MatchAssessment, Job, MatchTier, PipelineStage, ScoreDimensions } from "@/lib/database.types"
 import { kindOf, type Criterion, type CriterionEval } from "@/lib/job-criteria-catalog"
-import { shortCriterionName, shortCriterionLabel, dimColor, statusColor } from "@/lib/criterion-display"
+import { criterionHeaderLabel, shortCriterionLabel, dimColor, statusColor } from "@/lib/criterion-display"
 import ComposeBox from "@/components/workspace/ComposeBox"
 import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
 import { AnonymizePreview } from "@/components/workspace/anonymize/AnonymizePreview"
@@ -702,7 +702,7 @@ function CriteriaEvalLine({ criterion, ev }: { criterion: Criterion; ev: Criteri
   const isQuant = kindOf(criterion.type) === "quantitative"
   const score = isQuant ? (ev?.score ?? null) : null
   const status = isQuant ? undefined : ev?.status
-  const name = shortCriterionName(criterion)
+  const name = criterionHeaderLabel(criterion)
   const fullLabel = shortCriterionLabel(criterion)
   const tooltip = ev?.evidence ? `${fullLabel} — ${ev.evidence}` : fullLabel
 

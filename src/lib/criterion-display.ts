@@ -54,6 +54,46 @@ export function shortCriterionLabel(c: Criterion): string {
   }
 }
 
+/** Suffixe "niveau attendu" compact à accoler au nom court sur les cartes
+ *  ("Anglais" + "C1" → "Anglais C1", "TOEIC" + "≥ 800", "Diplôme" + "BAC+5",
+ *  "Expérience" + "≥ 3 ans"). null si le type n'a pas de seuil parlant ou
+ *  si le seuil est déjà dans le nom (permis, contrat). */
+export function criterionLevelHint(c: Criterion): string | null {
+  const p = c.params as Record<string, unknown>
+  switch (c.type) {
+    case "language":
+      return p.level_min ? String(p.level_min).toUpperCase() : null
+    case "certification":
+      return p.min_score ? `≥ ${p.min_score}` : null
+    case "diploma": {
+      const lvl = p.level ? String(p.level).toUpperCase() : ""
+      return lvl || (p.school ? String(p.school) : null) || null
+    }
+    case "experience_years":
+      return p.min ? `≥ ${p.min} ans` : (p.target ? `~ ${p.target} ans` : null)
+    case "industry_experience_years":
+      return p.min ? `≥ ${p.min} ans` : null
+    case "seniority_fit":
+      return p.target ? String(p.target) : null
+    case "team_size":
+      return p.min ? `≥ ${p.min}` : null
+    case "management_experience_years":
+      return p.min ? `≥ ${p.min} ans` : null
+    case "notice_period_weeks":
+      return p.max ? `≤ ${p.max} sem.` : null
+    default:
+      return null
+  }
+}
+
+/** Nom court + éventuel niveau attendu, pour l'en-tête d'un critère sur les
+ *  cartes/fiche match ("Anglais C1", "TOEIC ≥ 800", "Compétences"). */
+export function criterionHeaderLabel(c: Criterion): string {
+  const name = shortCriterionName(c)
+  const hint = criterionLevelHint(c)
+  return hint ? `${name} ${hint}` : name
+}
+
 export function dimColor(score: number | null | undefined): { color: string; bg: string; bd: string } {
   if (score == null) return { color: "#9CA3AF", bg: "#F3F4F6", bd: "#E5E7EB" }
   if (score >= 75)   return { color: "#15803d", bg: "rgba(34,197,94,0.12)",   bd: "rgba(34,197,94,0.30)" }
