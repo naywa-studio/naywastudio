@@ -37,9 +37,15 @@ interface Props {
    *  matching. Absent au 1ᵉʳ onboarding (pas d'échappatoire : il FAUT
    *  configurer les critères avant de matcher). */
   onCancel?: () => void
+  /** Rendu compact SANS carte/entête propres — utilisé quand le composant
+   *  est embarqué comme étape d'un wizard (modale de création) qui fournit
+   *  déjà le cadre et le titre d'étape. */
+  embedded?: boolean
+  /** Libellé du bouton primaire (défaut selon le mode). */
+  submitLabel?: string
 }
 
-export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }: Props) {
+export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, embedded, submitLabel }: Props) {
   const [criteria, setCriteria] = useState<Criterion[]>(initialCriteria ?? [])
   const [loading, setLoading] = useState(!initialCriteria || initialCriteria.length === 0)
   const [saving, setSaving] = useState(false)
@@ -175,7 +181,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }:
     <m.section
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      style={{
+      style={embedded ? { background: "transparent" } : {
         background: "white", borderRadius: 16,
         border: "1px solid rgba(124,99,200,0.22)",
         padding: 24, marginBottom: 22,
@@ -184,13 +190,17 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }:
     >
       <header style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            Étape unique · Critères de matching
-          </p>
-          <h2 style={{ margin: "4px 0 0", fontSize: 19, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-            Nora propose, vous validez
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+          {!embedded && (
+            <>
+              <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                Étape unique · Critères de matching
+              </p>
+              <h2 style={{ margin: "4px 0 0", fontSize: 19, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+                Nora propose, vous validez
+              </h2>
+            </>
+          )}
+          <p style={{ margin: embedded ? 0 : "4px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
             Choisissez les critères qui comptent pour cette mission. Les <strong style={{ color: "#15803d" }}>principaux</strong> pèsent dans le score, les <strong style={{ color: "#7C63C8" }}>bonus</strong> sont affichés mais ne pénalisent pas.
           </p>
         </div>
@@ -311,7 +321,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel }:
             {/* Le matching ne se lance PLUS automatiquement (retour sourceur).
                 Le CTA ne promet donc jamais de matching : il valide/enregistre
                 les critères, le sourceur choisit ensuite l'action. */}
-            {saving ? "Enregistrement…" : onCancel ? "Enregistrer les critères" : "Valider les critères"}
+            {saving ? "Enregistrement…" : (submitLabel ?? (onCancel ? "Enregistrer les critères" : "Valider les critères"))}
           </button>
         </div>
       )}

@@ -9,6 +9,7 @@ import type { Candidate, Job } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import Select from "@/components/ui/Select"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
+import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
@@ -200,9 +201,8 @@ export default function MissionsPage() {
   const handleCreated = useCallback((job: Job) => {
     setJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)])
     setFormOpen(false)
-    // Redirige direct sur la fiche mission : le wizard de critères s'y
-    // ouvre automatiquement (criteria_locked_at NULL). Sans ça, le sourceur
-    // restait sur la liste et devait retrouver la carte + cliquer "Ouvrir".
+    // Les critères ont déjà été définis dans le wizard de création (étape 3).
+    // On atterrit donc directement sur le cockpit matching de la mission.
     router.push(`/workspace/missions/${job.id}`)
   }, [router])
 
@@ -746,7 +746,11 @@ export function JobForm({ onClose, onCreated, initialJob }: {
   useEscapeKey(onClose)
   // Stage 1 : brief texte. Stage 2 : form pré-rempli.
   const editMode = !!initialJob
-  const [stage, setStage] = useState<"brief" | "form" | "manual">(editMode ? "form" : "brief")
+  // "criteria" = 3ᵉ étape (création only) : les critères de matching sont
+  // définis DANS le flow de création, pas comme un 2ᵉ wizard sur la page
+  // mission. La page mission devient un pur cockpit.
+  const [stage, setStage] = useState<"brief" | "form" | "manual" | "criteria">(editMode ? "form" : "brief")
+  const [createdJob, setCreatedJob] = useState<Job | null>(null)
   const [brief, setBrief] = useState(initialJob?.briefing ?? "")
   const [extracting, setExtracting] = useState(false)
   const [extractError, setExtractError] = useState<string | null>(null)
@@ -885,7 +889,17 @@ export function JobForm({ onClose, onCreated, initialJob }: {
         setSubmitting(false)
         return
       }
-      onCreated(data.job as Job)
+      const jobRes = data.job as Job
+      if (editMode) {
+        // Édition : on ne touche pas aux critères, on ferme.
+        onCreated(jobRes)
+      } else {
+        // Création : dernière étape du wizard = les critères de matching,
+        // DANS la même modale (plus de 2ᵉ wizard sur la page mission).
+        setCreatedJob(jobRes)
+        setStage("criteria")
+        setSubmitting(false)
+      }
     } catch (err) {
       setError((err as Error).message ?? "Erreur réseau.")
       setSubmitting(false)
@@ -920,17 +934,18 @@ export function JobForm({ onClose, onCreated, initialJob }: {
           transition={{ duration: 0.3, ease: EASE }}
           onClick={(e) => e.stopPropagation()}
           style={{
-            width: "100%", maxWidth: 640,
+            width: "100%", maxWidth: stage === "criteria" ? 860 : 640,
             background: "white", borderRadius: 18,
             boxShadow: "0 30px 80px rgba(17,24,39,0.28)",
             display: "flex", flexDirection: "column",
             fontFamily: "var(--font-inter), sans-serif",
             overflow: "hidden",
+            transition: "max-width 260ms cubic-bezier(0.22,1,0.36,1)",
           }}
         >
           {/* Header */}
           <div style={{ padding: "22px 28px 18px", borderBottom: "1px solid #F0ECF8", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 {editMode ? "Modifier la mission" : "Nouvelle mission"}
               </p>
@@ -939,8 +954,40 @@ export function JobForm({ onClose, onCreated, initialJob }: {
                   ? "Édition de la mission"
                   : stage === "brief" ? "Donnez votre brief à Nora"
                   : stage === "manual" ? "Saisie manuelle"
+                  : stage === "criteria" ? "Critères de matching"
                   : "Vérifiez et complétez"}
               </h2>
+              {/* Stepper création (3 étapes) — masqué en édition/manuel. */}
+              {!editMode && stage !== "manual" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
+                  {[
+                    { k: "brief", n: 1, label: "Brief" },
+                    { k: "form", n: 2, label: "Mission" },
+                    { k: "criteria", n: 3, label: "Critères" },
+                  ].map((s, i) => {
+                    const order = ["brief", "form", "criteria"]
+                    const cur = order.indexOf(stage)
+                    const done = i < cur
+                    const active = order[i] === stage
+                    return (
+                      <span key={s.k} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        {i > 0 && <span style={{ width: 16, height: 1, background: done || active ? "#7C63C8" : "#E5E7EB" }} />}
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                          <span style={{
+                            width: 18, height: 18, borderRadius: "50%",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 10.5, fontWeight: 800,
+                            color: active ? "white" : done ? "#7C63C8" : "#9CA3AF",
+                            background: active ? "#7C63C8" : done ? "rgba(124,99,200,0.12)" : "#F3F4F6",
+                            border: `1px solid ${active || done ? "rgba(124,99,200,0.35)" : "#E5E7EB"}`,
+                          }}>{done ? "✓" : s.n}</span>
+                          <span style={{ fontSize: 11, fontWeight: active ? 700 : 600, color: active ? "#111827" : "#9CA3AF" }}>{s.label}</span>
+                        </span>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
             </div>
             <button onClick={onClose} aria-label="Fermer" style={{
               background: "transparent", border: "none", cursor: "pointer",
@@ -1110,6 +1157,27 @@ export function JobForm({ onClose, onCreated, initialJob }: {
                   ? (editMode ? "Mise à jour…" : "Création…")
                   : (editMode ? "Valider les modifications" : "Créer la mission")}
               </button>
+            </div>
+          )}
+
+          {/* ─── STAGE 3 (création uniquement) : critères de matching ───
+              La mission vient d'être créée ; on définit ses critères DANS le
+              même wizard (embedded). La page mission n'a donc plus de 2ᵉ
+              onboarding : elle s'ouvre directement en cockpit. */}
+          {stage === "criteria" && createdJob && (
+            <div style={{ padding: "18px 28px 26px" }}>
+              <CriteriaOnboarding
+                embedded
+                jobId={createdJob.id}
+                submitLabel="Valider et ouvrir la mission"
+                onDone={(updated) => {
+                  onCreated({
+                    ...createdJob,
+                    criteria: updated,
+                    criteria_locked_at: new Date().toISOString(),
+                  } as Job)
+                }}
+              />
             </div>
           )}
         </m.div>
