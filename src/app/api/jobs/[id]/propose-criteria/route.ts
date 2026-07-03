@@ -45,28 +45,44 @@ CATALOGUE DE TYPES DISPONIBLES (n'invente RIEN d'autre — sauf "custom" en dern
 ${catalog}
 
 RÈGLES
-1. Lis la mission EN ENTIER (titre, description, briefing, skills, normalized) avant de proposer.
-2. Propose 4-5 critères "main" (essentiels au scoring) et 3-5 "bonus" (informatifs, non bloquants).
-3. SKILLS est quasi toujours main (sauf mission pure soft skills).
-4. LANGUES — RÈGLE STRICTE : chaque langue explicitement EXIGÉE dans la mission = UN critère "language" distinct, en **"main"** dès que le brief la présente comme requise/indispensable (formulations type "parfaite aisance en X", "maîtrise de X", "X courant", "bilingue X", "X et Y exigés"). Un critère "language" par langue (ex : "parfaite aisance en Français ET Anglais" → DEUX critères main : Français + Anglais). Ne mets une langue en "bonus" QUE si le brief la dit "appréciée"/"un plus". N'oublie JAMAIS une langue mentionnée dans le brief.
-5. Si elle mentionne un permis / habilitation / certification → crée le critère correspondant.
-6. Pour les critères qualitatifs (language, license, certification, etc.), remplis les params avec les valeurs extraites du brief ("Allemand B2 requis" → { code: "de", level_min: "B2" } ; "parfaite aisance en anglais" → { code: "en", level_min: "C1" }).
-7. "custom" UNIQUEMENT si AUCUN type ne couvre le besoin (rare).
-8. Le label doit être PRÉCIS et human-readable ("Compétences Spark / Airflow", pas "Compétences techniques").
-9. N'inclus PAS d'id (le serveur en génère un).
+1. Lis la mission EN ENTIER (titre, description, briefing = brief BRUT du client, skills, normalized) avant de proposer. Le "briefing" est le texte original le plus riche : exploite-le en priorité.
 
-RÉPONDS UNIQUEMENT EN JSON :
+2. Propose 4-5 critères "main" (comptent dans le score) et 2-4 "bonus" (informatifs, non bloquants).
+
+3. UN SEUL critère "skills". Regroupe TOUTES les compétences techniques/métier en un unique critère "skills" (params.must = must-have, params.nice = souhaitées). Ne crée JAMAIS deux critères "skills" : c'est redondant et ça écrase tout le score sur une seule dimension.
+
+4. DIVERSIFIE LES TYPES — c'est la règle la plus importante. Un bon set de critères couvre PLUSIEURS dimensions du besoin, pas seulement les compétences. Après le critère "skills", balaie le brief et ajoute un critère du TYPE DÉDIÉ pour chaque dimension présente :
+   - langue(s) exigée(s) → "language" (un critère par langue)
+   - niveau d'études / école demandé → "diploma"
+   - secteur / domaine métier (immobilier, fintech, santé…) → "domain_fit" (ou "role_fit" si c'est l'adéquation au métier précis)
+   - type de contrat imposé (alternance, CDI, freelance…) → "contract_preference"
+   - années d'expérience / séniorité → "experience_years" / "seniority_fit"
+   - interface client, management, mobilité, permis, certif, habilitation… → le type dédié
+   Deux critères "main" ne doivent JAMAIS porter la MÊME dimension (hors langues multiples). Si tu te retrouves avec deux critères du même type (autre que "language"), fusionne-les ou remplace-en un par le bon type. Un set qui n'est QUE des "skills" est un échec.
+
+5. LANGUES — STRICT : chaque langue exigée (repérée dans le brief, required_skills OU nice_to_have_skills : "parfaite aisance en X", "maîtrise de X", "X courant", "bilingue X", "communication en X") = UN critère "language" distinct en "main". "parfaite aisance en Français ET Anglais" → DEUX critères main (fr + en). N'oublie JAMAIS une langue. Ne mets une langue en "bonus" QUE si le brief la dit explicitement "appréciée"/"un plus".
+
+6. Permis / habilitation / certification / diplôme précis → le type dédié correspondant.
+
+7. Pour les qualitatifs, remplis params depuis le brief ("Anglais courant" → { code: "en", level_min: "C1" } ; "Bac+5 école de commerce" → { level: "bac+5", field: "commerce" } ; "alternance" → { kinds: ["alternance"] }).
+
+8. "custom" UNIQUEMENT si aucun type ne couvre (rare).
+
+9. Label court et PRÉCIS ("Compétences commerciales", "Immobilier / luxe" — pas le libellé générique "Compétences techniques"). N'inclus PAS d'id.
+
+EXEMPLE — brief "Alternant commercial en immobilier au siège à Paris, parfaite aisance à l'oral et à l'écrit en Français ET Anglais, Bac+4/5 école de commerce, sensible au luxe et à l'immobilier haut de gamme, maîtrise du pack office" →
 {
   "criteria": [
-    {
-      "type": "skills" | "language" | ... (cf catalogue),
-      "label": "string court",
-      "weight": "main" | "bonus",
-      "params": { ... selon le type }
-    },
-    ...
+    { "type": "skills", "label": "Compétences commerciales", "weight": "main", "params": { "must": ["prospection", "négociation", "relation client", "closing"], "nice": ["CRM Salesforce", "pack office"] } },
+    { "type": "language", "label": "Français", "weight": "main", "params": { "code": "fr", "level_min": "C2" } },
+    { "type": "language", "label": "Anglais", "weight": "main", "params": { "code": "en", "level_min": "C1" } },
+    { "type": "domain_fit", "label": "Immobilier / luxe", "weight": "main", "params": { "domains": ["immobilier", "luxe"] } },
+    { "type": "diploma", "label": "Bac+4/5 commerce", "weight": "main", "params": { "level": "bac+5", "field": "commerce" } },
+    { "type": "contract_preference", "label": "Alternance", "weight": "bonus", "params": { "kinds": ["alternance"] } }
   ]
-}`
+}
+
+RÉPONDS UNIQUEMENT EN JSON, MÊME STRUCTURE que l'exemple.`
 }
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
