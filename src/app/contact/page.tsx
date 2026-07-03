@@ -87,9 +87,9 @@ export default function ContactPage() {
               </span>
               <h1
                 style={{
-                  fontFamily: "var(--font-inter), sans-serif",
+                  fontFamily: "var(--font-title), sans-serif",
                   fontSize: "clamp(34px, 4.5vw, 52px)",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   color: "#111827",
                   margin: 0,
                   lineHeight: 1.05,
@@ -99,7 +99,7 @@ export default function ContactPage() {
                 Parlons de votre{" "}
                 <span
                   style={{
-                    fontFamily: "var(--font-instrument-serif), serif",
+                    fontFamily: "var(--font-accent), serif",
                     fontWeight: 400,
                     fontStyle: "italic",
                     color: "#7C63C8",

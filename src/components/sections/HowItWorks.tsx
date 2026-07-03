@@ -94,7 +94,7 @@ export function HowItWorks() {
             style={{
               fontFamily: "var(--font-space-grotesk), sans-serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
-              fontWeight: 800,
+              fontWeight: 700,
               color: "#111827",
               letterSpacing: "-0.025em",
               lineHeight: 1.12,

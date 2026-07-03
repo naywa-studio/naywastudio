@@ -76,7 +76,7 @@ export function WhyNawa() {
             style={{
               fontFamily: "var(--font-space-grotesk), sans-serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
-              fontWeight: 800,
+              fontWeight: 700,
               color: "#111827",
               letterSpacing: "-0.025em",
               lineHeight: 1.12,
@@ -144,7 +144,7 @@ export function WhyNawa() {
                 style={{
                   fontFamily: "var(--font-space-grotesk), sans-serif",
                   fontSize: "clamp(56px, 6.5vw, 80px)",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   color: "#7C63C8",
                   lineHeight: 1,
                   letterSpacing: "-0.04em",
