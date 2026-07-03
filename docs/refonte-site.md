@@ -46,15 +46,17 @@
 
 ## 2. Décisions design figées
 
-### Typographie (validé par Elyas le 2026-07-02 — "Option C")
-- **Titres** = **Space Grotesk** (700), avec le **mot-accent en Instrument Serif
-  italique violet** (`#7C63C8`) — ex. le "*décidez*" du hero.
-- **Corps de texte** = **Inter**.
-- ⚠️ **Écart doc/implémentation à corriger** : le `CLAUDE.md` racine §14 annonçait
-  déjà "Space Grotesk pour les titres", mais l'implémentation réelle utilisait
-  **Inter 800** partout (hero, /tarifs, /solutions…). La Phase 0 **aligne enfin
-  l'implémentation** : migration des titres vers Space Grotesk. Les 3 polices sont
-  déjà chargées ([`lib/fonts.ts`](../src/lib/fonts.ts) + variables CSS).
+### Typographie — ⚠️ décision EN SUSPENS (revertée le 2026-07-02)
+- **Testé puis annulé** : la migration des titres en **Space Grotesk** + accent
+  **Times New Roman** gras italique (dite "Option C", PR #9 et #10) a été livrée
+  puis **entièrement revertée** à la demande d'Elyas — il n'était pas à l'aise avec
+  le rendu. Retour à l'état d'origine (PR #11).
+- **État actuel = l'original** : titres en **Inter** (poids 800), accents en
+  **Instrument Serif** italique. Le site reste légèrement incohérent (WhyNawa était
+  déjà en Space Grotesk à l'origine — non touché par le revert).
+- **À reprendre plus tard** avec une autre approche/police si Elyas le souhaite —
+  ne pas re-tenter Space Grotesk / Times sans nouvelle validation.
+- Les 3 polices restent chargées ([`lib/fonts.ts`](../src/lib/fonts.ts)).
 
 ### Couleurs & style (cf. `.impeccable.md`)
 - Primary `#7C63C8`, Secondary `#B8AEDE`, surface `#F8F6FF`, border `#E2DAF6`.
@@ -138,3 +140,8 @@ cibles cliquables ≥ 44px, textes alternatifs sur images.
   Navbar (PR #6) et Hero (PR #7) livrés et mergés. Typo "Option C" (Space Grotesk +
   accent serif) choisie. Node installé via nvm pour la preview locale (roue de
   secours, Vercel inaccessible). Plan de refonte rédigé (ce fichier).
+- **2026-07-02 (suite)** — Phase 0 typo livrée (PR #9 : Space Grotesk + tokens +
+  brique `EyebrowTag`) puis accent Times New Roman gras italique + hero violet plein
+  (PR #10). **Puis TOUT reverté (PR #11)** à la demande d'Elyas : pas à l'aise avec
+  la nouvelle typo → retour à l'original (Inter + Instrument Serif). Le hero remonté
+  et la navbar sont conservés. Décision typo à reprendre plus tard.

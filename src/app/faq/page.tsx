@@ -153,11 +153,11 @@ export default function FAQPage() {
           </span>
 
           <h1 style={{
-            fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 700, color: "#111827",
+            fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, color: "#111827",
             letterSpacing: "-0.03em", lineHeight: 1.08,
             margin: "0 0 18px",
             maxWidth: "22ch",
-            fontFamily: "var(--font-title), sans-serif",
+            fontFamily: "var(--font-inter), sans-serif",
           }}>
             Tout ce qu&apos;il faut savoir sur Nora.
           </h1>
@@ -177,9 +177,9 @@ export default function FAQPage() {
               <h2 style={{
                 margin: "0 0 18px",
                 fontSize: "clamp(20px, 2.2vw, 26px)",
-                fontWeight: 700, color: "#111827",
+                fontWeight: 800, color: "#111827",
                 letterSpacing: "-0.02em",
-                fontFamily: "var(--font-title), sans-serif",
+                fontFamily: "var(--font-inter), sans-serif",
               }}>
                 {cat.title}
               </h2>

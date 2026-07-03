@@ -68,7 +68,7 @@ export function AgentsPreview() {
             style={{
               fontFamily: "var(--font-space-grotesk), sans-serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
-              fontWeight: 700,
+              fontWeight: 800,
               color: "#111827",
               letterSpacing: "-0.025em",
               lineHeight: 1.12,
@@ -116,7 +116,7 @@ export function AgentsPreview() {
                 background: "rgba(124,99,200,0.10)",
                 border: "1px solid rgba(124,99,200,0.25)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 18, fontWeight: 700, color: "#7C63C8",
+                fontSize: 18, fontWeight: 800, color: "#7C63C8",
                 fontFamily: "var(--font-space-grotesk), sans-serif",
               }}>
                 N

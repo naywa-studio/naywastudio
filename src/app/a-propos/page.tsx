@@ -35,9 +35,9 @@ export default function AProposPage() {
             </span>
             <h1
               style={{
-                fontFamily: "var(--font-title), sans-serif",
+                fontFamily: "var(--font-inter), sans-serif",
                 fontSize: "clamp(32px, 4.6vw, 52px)",
-                fontWeight: 700,
+                fontWeight: 800,
                 color: "#111827",
                 margin: "12px 0 18px",
                 lineHeight: 1.05,
@@ -47,8 +47,8 @@ export default function AProposPage() {
               L&apos;IA traite,{" "}
               <span
                 style={{
-                  fontFamily: "var(--font-accent), serif",
-                  fontWeight: 700,
+                  fontFamily: "var(--font-instrument-serif), serif",
+                  fontWeight: 400,
                   fontStyle: "italic",
                   color: "#7C63C8",
                 }}
@@ -166,9 +166,9 @@ export default function AProposPage() {
           <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
             <h2
               style={{
-                fontFamily: "var(--font-title), sans-serif",
+                fontFamily: "var(--font-inter), sans-serif",
                 fontSize: "clamp(24px, 3.4vw, 36px)",
-                fontWeight: 700,
+                fontWeight: 800,
                 color: "#111827",
                 margin: "0 0 16px",
                 lineHeight: 1.15,

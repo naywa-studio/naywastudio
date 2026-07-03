@@ -127,9 +127,9 @@ export function PackageSourcingFlow() {
         >
           <h3
             style={{
-              fontFamily: "var(--font-title), sans-serif",
+              fontFamily: "var(--font-inter), sans-serif",
               fontSize: "clamp(22px, 2.8vw, 30px)",
-              fontWeight: 700,
+              fontWeight: 800,
               letterSpacing: "-0.02em",
               color: "#111827",
               margin: 0,
@@ -139,8 +139,8 @@ export function PackageSourcingFlow() {
             Le process en{" "}
             <span
               style={{
-                fontFamily: "var(--font-accent), serif",
-                fontWeight: 700,
+                fontFamily: "var(--font-instrument-serif), serif",
+                fontWeight: 400,
                 fontStyle: "italic",
                 color: "#7C63C8",
               }}
@@ -313,9 +313,9 @@ export function PackageSourcingFlow() {
               {/* Big numeral */}
               <div
                 style={{
-                  fontFamily: "var(--font-accent), serif",
+                  fontFamily: "var(--font-instrument-serif), serif",
                   fontStyle: "italic",
-                  fontWeight: 700,
+                  fontWeight: 400,
                   fontSize: "clamp(64px, 7vw, 96px)",
                   color: "#7C63C8",
                   lineHeight: 0.9,
@@ -333,9 +333,9 @@ export function PackageSourcingFlow() {
                   <h3
                     style={{
                       margin: 0,
-                      fontFamily: "var(--font-title), sans-serif",
+                      fontFamily: "var(--font-inter), sans-serif",
                       fontSize: 22,
-                      fontWeight: 700,
+                      fontWeight: 800,
                       color: "#111827",
                       letterSpacing: "-0.015em",
                     }}

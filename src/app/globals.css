@@ -13,19 +13,6 @@
   --accent-violet:       #B8AEDE;
   --accent-violet-light: #DDD8F5;
 
-  /* Rayons */
-  --radius-sm:   10px;
-  --radius-md:   14px;
-  --radius-lg:   20px;
-  --radius-pill: 999px;
-
-  /* Ombres (violet doux) */
-  --shadow-sm: 0 4px 20px -12px rgba(124, 99, 200, 0.18);
-  --shadow-md: 0 12px 40px -12px rgba(124, 99, 200, 0.22);
-
-  /* Familles de police — titres = Space Grotesk, accent = Instrument Serif */
-  --font-title:  var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-accent: "Times New Roman", Times, Georgia, serif;
 }
 
 /* ── Shared animations ── */

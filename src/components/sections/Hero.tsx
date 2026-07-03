@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { m } from 'framer-motion'
-import { EyebrowTag } from '@/components/ui/EyebrowTag'
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -49,19 +48,48 @@ export function Hero() {
         className="hero-content"
       >
         {/* Eyebrow */}
-        <m.div {...fu(0.04)} style={{ margin: '0 0 24px' }}>
-          <EyebrowTag>Nora — l&apos;assistante IA du sourcing</EyebrowTag>
+        <m.div
+          {...fu(0.04)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '7px 15px 7px 12px',
+            borderRadius: 999,
+            background: 'rgba(124,99,200,0.07)',
+            border: '1px solid rgba(124,99,200,0.20)',
+            margin: '0 0 24px',
+            fontFamily: 'var(--font-inter), sans-serif',
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: '#7C63C8',
+            letterSpacing: '-0.005em',
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#7C63C8',
+              boxShadow: '0 0 0 3px rgba(124,99,200,0.16)',
+              display: 'inline-block',
+              flexShrink: 0,
+            }}
+          />
+          Nora — l&apos;assistante IA du sourcing
         </m.div>
 
         {/* H1 */}
         <m.h1
           {...fu(0.10)}
           style={{
-            fontFamily: 'var(--font-title), sans-serif',
-            fontWeight: 700,
+            fontFamily: 'var(--font-inter), sans-serif',
+            fontWeight: 800,
             fontSize: 'clamp(40px, 5.6vw, 80px)',
             lineHeight: 1.04,
-            letterSpacing: '-0.03em',
+            letterSpacing: '-0.035em',
             color: '#111827',
             margin: '0 0 28px',
             maxWidth: '14ch',
@@ -71,11 +99,14 @@ export function Hero() {
           vous{' '}
           <span
             style={{
-              fontFamily: 'var(--font-accent), serif',
-              fontWeight: 700,
+              fontFamily: 'var(--font-instrument-serif), ui-serif, Georgia, serif',
+              fontWeight: 400,
               fontStyle: 'italic',
               letterSpacing: '-0.01em',
-              color: '#7C63C8',
+              background: 'linear-gradient(120deg, #7C63C8 0%, #B8AEDE 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
             }}
           >
             décidez

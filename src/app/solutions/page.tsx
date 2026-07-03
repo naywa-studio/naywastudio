@@ -65,9 +65,9 @@ export default function SolutionsPage() {
             </span>
             <h1
               style={{
-                fontFamily: "var(--font-title), sans-serif",
+                fontFamily: "var(--font-inter), sans-serif",
                 fontSize: "clamp(34px, 5vw, 56px)",
-                fontWeight: 700,
+                fontWeight: 800,
                 color: "#111827",
                 margin: "14px 0 20px",
                 lineHeight: 1.05,
@@ -76,8 +76,8 @@ export default function SolutionsPage() {
             >
               Des packages d&apos;<span
                 style={{
-                  fontFamily: "var(--font-accent), serif",
-                  fontWeight: 700,
+                  fontFamily: "var(--font-instrument-serif), serif",
+                  fontWeight: 400,
                   fontStyle: "italic",
                   color: "#7C63C8",
                 }}
@@ -126,9 +126,9 @@ export default function SolutionsPage() {
               </span>
               <h2
                 style={{
-                  fontFamily: "var(--font-title), sans-serif",
+                  fontFamily: "var(--font-inter), sans-serif",
                   fontSize: "clamp(28px, 3.8vw, 40px)",
-                  fontWeight: 700,
+                  fontWeight: 800,
                   color: "#111827",
                   margin: "12px 0 0",
                   lineHeight: 1.1,
@@ -165,7 +165,7 @@ export default function SolutionsPage() {
                 >
                   <span
                     style={{
-                      fontFamily: "var(--font-accent), serif",
+                      fontFamily: "var(--font-instrument-serif), serif",
                       fontStyle: "italic",
                       fontSize: 44,
                       lineHeight: 0.9,
@@ -235,9 +235,9 @@ export default function SolutionsPage() {
               </span>
               <h2
                 style={{
-                  fontFamily: "var(--font-title), sans-serif",
+                  fontFamily: "var(--font-inter), sans-serif",
                   fontSize: "clamp(32px, 4.4vw, 48px)",
-                  fontWeight: 700,
+                  fontWeight: 800,
                   color: "#111827",
                   margin: "14px 0 16px",
                   lineHeight: 1.05,
@@ -412,9 +412,9 @@ export default function SolutionsPage() {
             </span>
             <h2
               style={{
-                fontFamily: "var(--font-title), sans-serif",
+                fontFamily: "var(--font-inter), sans-serif",
                 fontSize: "clamp(26px, 3.5vw, 36px)",
-                fontWeight: 700,
+                fontWeight: 800,
                 color: "#111827",
                 margin: "12px 0 16px",
                 lineHeight: 1.1,
@@ -444,9 +444,9 @@ export default function SolutionsPage() {
           <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
             <h2
               style={{
-                fontFamily: "var(--font-title), sans-serif",
+                fontFamily: "var(--font-inter), sans-serif",
                 fontSize: "clamp(26px, 3.5vw, 36px)",
-                fontWeight: 700,
+                fontWeight: 800,
                 color: "#111827",
                 margin: "0 0 14px",
                 lineHeight: 1.1,

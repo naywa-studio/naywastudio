@@ -115,7 +115,7 @@ export function FinalCTA() {
             style={{
               fontFamily: "var(--font-space-grotesk), sans-serif",
               fontSize: "clamp(28px, 4vw, 48px)",
-              fontWeight: 700,
+              fontWeight: 800,
               color: "#FFFFFF",
               letterSpacing: "-0.03em",
               lineHeight: 1.1,

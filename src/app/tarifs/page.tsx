@@ -71,9 +71,9 @@ export default function TarifsPage() {
             </span>
             <h1
               style={{
-                fontFamily: "var(--font-title), sans-serif",
+                fontFamily: "var(--font-inter), sans-serif",
                 fontSize: "clamp(34px, 5vw, 56px)",
-                fontWeight: 700,
+                fontWeight: 800,
                 color: "#111827",
                 margin: "14px 0 18px",
                 lineHeight: 1.05,
@@ -83,8 +83,8 @@ export default function TarifsPage() {
               Essayez{" "}
               <span
                 style={{
-                  fontFamily: "var(--font-accent), serif",
-                  fontWeight: 700,
+                  fontFamily: "var(--font-instrument-serif), serif",
+                  fontWeight: 400,
                   fontStyle: "italic",
                   color: "#7C63C8",
                 }}
@@ -350,10 +350,10 @@ function PriceCard({
         </p>
         <h2
           style={{
-            fontFamily: "var(--font-title), sans-serif",
+            fontFamily: "var(--font-inter), sans-serif",
             margin: 0,
             fontSize: 24,
-            fontWeight: 700,
+            fontWeight: 800,
             color: "#111827",
             letterSpacing: "-0.02em",
             lineHeight: 1.15,
@@ -385,9 +385,9 @@ function PriceCard({
         <div style={{ display: "flex", alignItems: "flex-end", gap: 8, flexWrap: "wrap" }}>
           <span
             style={{
-              fontFamily: "var(--font-title), sans-serif",
+              fontFamily: "var(--font-inter), sans-serif",
               fontSize: 38,
-              fontWeight: 700,
+              fontWeight: 800,
               color: "#111827",
               lineHeight: 1,
               letterSpacing: "-0.025em",
