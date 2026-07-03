@@ -695,8 +695,17 @@ Cette section est à jour au 2026-06-26 (post-merge `3e57aff`). Sections 1-19 à
 ### Compact-safety
 Si compactage en cours : les PRs plus anciennes sont mergées sur main. La règle utilisateur stricte est **push branche → attendre validation preview → puis merger** ([[feedback_preview_before_merge]]).
 
-#### PR-Z en cours (matching par critères flexibles) — 2026-07-02
-**Branche `claude/pr-z-flexible-criteria` (PAS mergée sur main).** Dernier commit `76c3751`. Migrations 053 (source enum) + 054 (jobs.criteria/criteria_locked_at + match_assessments.criteria_eval) **déjà appliquées** sur le projet Supabase `gtxjrepqiqbqbyhtmtlk` via MCP. Preview Vercel branch alias = `nawa-studio-git-claude-pr-z-fle-3a570b-...` (dernier build READY = ed57ace/76c3751). Testé en live navigateur, gros du flow validé.
+#### PR-Z MERGÉE EN PROD — 2026-07-03
+**PR-Z (critères flexibles) est mergée sur `main` (commit `5913a10`) et déployée en PRODUCTION.** Elyas a validé le flow en live (brief Club Med alternant commercial immobilier) et donné le go merge. Corrections finales incluses : critères Nora diversifiés (fin des 5× "Compétences" → skills+langues+diplôme+secteur+contrat, `d1d2924`), mini-libellé niveau sur cartes/fiche ("Anglais C1", "TOEIC ≥ 800", `5d67c76`), emojis PR-Z → SVG, et **garde-fou missions legacy** (`5913a10` : `needsOnboarding` ne force le wizard que si 0 match ; sinon bannière opt-in "Configurer les critères"). **Garantie anciens matchs** : route match + `score-one` UPSERT en préservant `pipeline_stage`/`in_pipeline`/`source` — jamais de delete, la ré-évaluation ne rafraîchit que score/criteria_eval/tier.
+
+#### Refonte flow + visuel app EN COURS — 2026-07-03
+**Branche `claude/mission-flow-visual-refonte` (depuis main, PAS mergée).** Dernier commit `0449102`, build preview READY (alias `nawa-studio-git-claude-mission-c2d826-...`, **PAS dans l'allowlist Chrome → l'user teste, pas moi**). Décisions Elyas (via AskUserQuestion) : **wizard de création unifié 3 étapes** + passe visuelle (fondations tokens/contraste/fond + cartes/onglets/filtres + wizard critères).
+- **Lot 1 `a061db4`** : `src/lib/ui-tokens.ts` (tokens sémantiques `ui` + espacement `space`, `textMuted` #6B7280 remplace #9CA3AF ~2.5:1 qui échoue AA) + fond workspace : `ShaderBackground` animé retiré du layout workspace → halo statique calme (shader gardé pour marketing).
+- **Lot 2 `0449102`** : modale de création = wizard 3 étapes (Brief → Mission 14 champs → Critères) avec stepper. `CriteriaOnboarding` gagne `embedded` + `submitLabel`. Mission créée en fin d'étape 2, critères posés dans la foulée (étape 3) → atterrissage direct sur le cockpit (plus de 2ᵉ wizard sur la page mission ; chemin onboarding gardé en filet legacy).
+- **Reste à faire** : Lot 3 = refonte visuelle cartes de matching + onglets/filtres + sweep contraste `#9CA3AF`→`ui.textMuted` sur surfaces mission ; sweep emojis restants (pipeline/vivier/pricing) NON demandé par l'user (déprio). **Prochaine étape : Elyas valide le wizard unifié en preview → feu vert Lot 3.**
+
+#### PR-Z (archive détail) — branche `claude/pr-z-flexible-criteria`
+Dernier commit `76c3751`. Migrations 053 (source enum) + 054 (jobs.criteria/criteria_locked_at + match_assessments.criteria_eval) **déjà appliquées** sur le projet Supabase `gtxjrepqiqbqbyhtmtlk` via MCP. Preview Vercel branch alias = `nawa-studio-git-claude-pr-z-fle-3a570b-...` (dernier build READY = ed57ace/76c3751). Testé en live navigateur, gros du flow validé.
 
 Ce que PR-Z apporte :
 - **Critères flexibles par mission** (remplace les 4 dimensions hardcodées). Catalogue 25 types `lib/job-criteria-catalog.ts`. `POST /api/jobs/[id]/propose-criteria` (Nora propose) + `PATCH /api/jobs/[id]/criteria` (sauve + stamp `criteria_locked_at`). `scoreBatchCriteria()` dans `lib/matching.ts` (quantitatif=score 0-100, qualitatif=yes/no/unknown+evidence, score global = moyenne pondérée des "main").
