@@ -721,7 +721,7 @@ function CriteriaEvalLine({ criterion, ev }: { criterion: Criterion; ev: Criteri
             fontVariantNumeric: "tabular-nums", flexShrink: 0,
           }}>{score != null ? score : "—"}</span>
         </div>
-        <div style={{ height: 5, borderRadius: 99, background: "#EEF0F3", overflow: "hidden" }}>
+        <div style={{ height: 5, borderRadius: 99, background: "#EFEBF8", overflow: "hidden" }}>
           <div style={{
             width: `${pct}%`, height: "100%", borderRadius: 99,
             background: p.color, transition: "width 400ms cubic-bezier(0.22,1,0.36,1)",

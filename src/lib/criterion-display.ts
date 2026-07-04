@@ -94,12 +94,16 @@ export function criterionHeaderLabel(c: Criterion): string {
   return hint ? `${name} ${hint}` : name
 }
 
+/** Couleur d'une jauge quantitative. Charte violette (primary #7C63C8 /
+ *  secondary #B8AEDE), tons DOUX : la barre est déjà proportionnelle au score
+ *  (un score faible = barre courte), donc pas besoin d'un rouge criard. Le
+ *  badge tier (Excellent/Bon/Moyen/Faible) porte le signal qualité global. */
 export function dimColor(score: number | null | undefined): { color: string; bg: string; bd: string } {
-  if (score == null) return { color: "#9CA3AF", bg: "#F3F4F6", bd: "#E5E7EB" }
-  if (score >= 75)   return { color: "#15803d", bg: "rgba(34,197,94,0.12)",   bd: "rgba(34,197,94,0.30)" }
-  if (score >= 55)   return { color: "#15803d", bg: "rgba(34,197,94,0.06)",   bd: "rgba(34,197,94,0.20)" }
-  if (score >= 35)   return { color: "#B45309", bg: "rgba(245,158,11,0.10)",  bd: "rgba(245,158,11,0.25)" }
-  return                { color: "#B91C1C", bg: "rgba(239,68,68,0.08)",       bd: "rgba(239,68,68,0.22)" }
+  if (score == null) return { color: "#B6AEC9", bg: "#F5F3FB", bd: "#ECE8F6" }
+  if (score >= 75)   return { color: "#7C63C8", bg: "rgba(124,99,200,0.10)", bd: "rgba(124,99,200,0.26)" }
+  if (score >= 55)   return { color: "#8E79CF", bg: "rgba(124,99,200,0.07)", bd: "rgba(124,99,200,0.18)" }
+  if (score >= 35)   return { color: "#AEA1DB", bg: "rgba(184,174,222,0.14)", bd: "rgba(184,174,222,0.30)" }
+  return                { color: "#CBC3E6", bg: "rgba(184,174,222,0.10)", bd: "rgba(184,174,222,0.22)" }
 }
 
 export function statusColor(status: "yes" | "no" | "unknown" | undefined): { color: string; bg: string; bd: string; icon: string } {
@@ -197,6 +201,13 @@ export function shortCriterionName(c: Criterion): string {
         return k.charAt(0).toUpperCase() + k.slice(1)
       }
       return SHORT_TYPE_NAME.contract_preference
+    }
+    case "custom": {
+      // Le libellé porte le sens ("Kafka", "Azure"…). Le générique "Critère"
+      // ne dit rien au sourceur sur les cartes → on affiche le libellé (ou la
+      // description en params), tronqué pour rester compact.
+      const label = (c.label || String(p.description ?? "")).trim()
+      return label ? (label.length > 22 ? `${label.slice(0, 21)}…` : label) : SHORT_TYPE_NAME.custom
     }
     default:
       return SHORT_TYPE_NAME[c.type] ?? c.label

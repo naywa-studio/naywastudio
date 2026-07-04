@@ -184,7 +184,7 @@ function CriterionEvalRow({ criterion, ev }: { criterion: Criterion; ev: Criteri
           </span>
         </div>
         {/* Jauge remplie proportionnelle au score */}
-        <div style={{ height: 5, borderRadius: 99, background: "#EAECEF", overflow: "hidden" }}>
+        <div style={{ height: 5, borderRadius: 99, background: "#EFEBF8", overflow: "hidden" }}>
           <div style={{
             width: `${pct}%`, height: "100%", borderRadius: 99,
             background: p.color,

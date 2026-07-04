@@ -49,7 +49,9 @@ RÈGLES
 
 2. Propose 4-5 critères "main" (comptent dans le score) et 2-4 "bonus" (informatifs, non bloquants).
 
-3. UN SEUL critère "skills". Regroupe TOUTES les compétences techniques/métier en un unique critère "skills" (params.must = must-have, params.nice = souhaitées). Ne crée JAMAIS deux critères "skills" : c'est redondant et ça écrase tout le score sur une seule dimension.
+3. UN SEUL critère "skills". Regroupe TOUTES les compétences techniques/métier générales en un unique critère "skills" (params.must = must-have, params.nice = souhaitées — liste EXHAUSTIVE des compétences du brief). Ne crée JAMAIS deux critères "skills".
+
+3bis. TECHNOS SPÉCIFIQUES → CRITÈRE "custom" DÉDIÉ. Une technologie/outil précis et différenciant exigé par le client (ex : Kafka, Azure, Spark, Salesforce, SAP, Snowflake, Terraform…) mérite un critère "custom" À PART, en plus de sa présence dans params.must du critère skills, pour un scoring individuel. params.description = la techno ("Maîtrise de Kafka"). 1 à 3 max, en "main" si vraiment critique sinon "bonus". Ça permet au sourceur de filtrer précisément sur "a Kafka".
 
 4. DIVERSIFIE LES TYPES — c'est la règle la plus importante. Un bon set de critères couvre PLUSIEURS dimensions du besoin, pas seulement les compétences. Après le critère "skills", balaie le brief et ajoute un critère du TYPE DÉDIÉ pour chaque dimension présente :
    - langue(s) exigée(s) → "language" (un critère par langue)

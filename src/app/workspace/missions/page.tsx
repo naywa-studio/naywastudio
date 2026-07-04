@@ -1148,8 +1148,10 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
             </div>
           )}
 
-          {/* Footer */}
-          {stage !== "brief" && (
+          {/* Footer — uniquement sur le formulaire (stage 2). L'étape critères
+              a son propre pied ("Valider et ouvrir la mission"), et le brief
+              a le sien : on évite le double bouton de création. */}
+          {(stage === "form" || stage === "manual") && (
             <div style={{ padding: "16px 28px", borderTop: "1px solid #F0ECF8", display: "flex", gap: 10, justifyContent: "space-between" }}>
               {editMode ? (
                 <button onClick={onClose} style={{
