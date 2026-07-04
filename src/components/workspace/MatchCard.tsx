@@ -12,9 +12,11 @@
  */
 
 import Link from "next/link"
+import { m } from "framer-motion"
 import type { Candidate, MatchAssessment } from "@/lib/database.types"
 import type { Criterion, CriterionEval } from "@/lib/job-criteria-catalog"
 import { kindOf } from "@/lib/job-criteria-catalog"
+import { ui } from "@/lib/ui-tokens"
 import {
   criterionHeaderLabel, shortCriterionLabel, dimColor, statusColor, tierMeta,
 } from "@/lib/criterion-display"
@@ -46,11 +48,15 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
   const evalById = new Map((row.criteria_eval ?? []).map((e) => [e.id, e as CriterionEval]))
 
   return (
-    <article style={{
-      background: "white", border: "1px solid #F0ECF8", borderRadius: 13,
-      padding: "14px 16px",
-      display: "flex", flexDirection: "column", gap: 10,
-    }}>
+    <m.article
+      whileHover={{ y: -2, boxShadow: ui.shadowMd, borderColor: ui.borderBrand }}
+      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+      style={{
+        background: ui.surface, border: `1px solid ${ui.borderSoft}`, borderRadius: ui.radiusMd,
+        padding: "14px 16px", boxShadow: ui.shadowSm,
+        display: "flex", flexDirection: "column", gap: 10,
+      }}
+    >
       {/* Header — identité + provenance + avis + actions */}
       <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{
@@ -74,24 +80,28 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
             }}>{srcMeta.label}</span>
           </div>
           {c?.current_title && (
-            <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <p style={{ margin: "2px 0 0", fontSize: 11.5, color: ui.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {c.current_title}{c.current_company ? ` · ${c.current_company}` : ""}
             </p>
           )}
         </div>
+        {/* Score = héros de la carte : gros chiffre + tier en dessous. */}
         {row.score != null ? (
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 5,
-            fontSize: 12.5, fontWeight: 800,
-            color: tier.color, background: tier.bg,
-            border: `1px solid ${tier.bd}`,
-            padding: "4px 10px", borderRadius: 99,
-            fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap",
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
+            minWidth: 62, padding: "5px 10px", borderRadius: ui.radiusMd,
+            color: tier.color, background: tier.bg, border: `1px solid ${tier.bd}`,
+            flexShrink: 0,
           }}>
-            {row.score}<span style={{ fontSize: 10, opacity: 0.7, fontWeight: 600 }}>· {tier.label}</span>
-          </span>
+            <span style={{ fontSize: 20, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+              {row.score}
+            </span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              {tier.label}
+            </span>
+          </div>
         ) : (
-          <span style={{ fontSize: 11, color: "#9CA3AF", fontStyle: "italic" }}>Non scoré</span>
+          <span style={{ fontSize: 11, color: ui.textMuted, fontStyle: "italic", flexShrink: 0 }}>Non scoré</span>
         )}
       </header>
 
@@ -127,7 +137,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
         <div style={{ flex: 1 }} />
         {c && (
           <Link href={`/workspace/vivier/${c.id}`} style={{
-            fontSize: 11.5, color: "#9CA3AF", textDecoration: "none",
+            fontSize: 11.5, color: ui.textMuted, textDecoration: "none",
             display: "inline-flex", alignItems: "center", gap: 5,
           }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -143,10 +153,13 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
           background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
           textDecoration: "none",
         }}>
-          Ouvrir ▶
+          Ouvrir
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 5, verticalAlign: "-1px" }} aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
         </Link>
       </div>
-    </article>
+    </m.article>
   )
 }
 

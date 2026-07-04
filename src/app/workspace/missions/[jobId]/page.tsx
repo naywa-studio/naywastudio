@@ -569,7 +569,7 @@ function DynamicCriteriaFilters({
       display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6,
       marginBottom: 12,
     }}>
-      <span style={{ fontSize: 11, color: "#9CA3AF", marginRight: 4 }}>
+      <span style={{ fontSize: 11, color: "#6B7280", marginRight: 4 }}>
         Filtrer sur :
       </span>
       {criteria.map((c) => {
@@ -584,9 +584,9 @@ function DynamicCriteriaFilters({
             style={{
               fontSize: 11.5, fontWeight: 700,
               padding: "5px 11px", borderRadius: 99,
-              border: on ? "1px solid rgba(34,197,94,0.35)" : "1px solid #E5E7EB",
-              background: on ? "rgba(34,197,94,0.10)" : "white",
-              color: on ? "#15803D" : "#374151",
+              border: on ? "1px solid rgba(124,99,200,0.35)" : "1px solid #E5E7EB",
+              background: on ? "rgba(124,99,200,0.10)" : "white",
+              color: on ? "#6B54B2" : "#374151",
               cursor: "pointer", fontFamily: "inherit",
               transition: "all 120ms",
             }}
