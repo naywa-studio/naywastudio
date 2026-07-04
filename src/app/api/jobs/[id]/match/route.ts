@@ -282,6 +282,36 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     )
     await Promise.all(workers)
 
+    // 4bis. RATTRAPAGE — un batch qui a jeté (timeout OpenRouter, JSON
+    // malformé) était droppé silencieusement → des candidats du pool ne
+    // recevaient jamais de score (symptôme : "matcher le vivier" ne remonte
+    // pas tout, 37/66 au lieu de 66/66). On repasse sur les manquants en
+    // TRÈS petits batches (plus résilients) avec 2 tentatives. processOne
+    // persiste + met à jour la progression comme au 1er passage.
+    const RETRY_BATCH_SIZE = 3
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const scoredIds = new Set(results.map((r) => r.candidate_id))
+      const missing = pool.filter((c) => !scoredIds.has(c.id))
+      if (missing.length === 0) break
+      console.warn(`[match] retry ${attempt + 1}: ${missing.length} candidat(s) non scoré(s)`)
+      const retryBatches: Candidate[][] = []
+      for (let i = 0; i < missing.length; i += RETRY_BATCH_SIZE) {
+        retryBatches.push(missing.slice(i, i + RETRY_BATCH_SIZE))
+      }
+      const rQueue = [...retryBatches]
+      const rWorkers = Array.from(
+        { length: Math.min(CONCURRENT_BATCHES, rQueue.length) },
+        async () => {
+          while (rQueue.length > 0) {
+            const next = rQueue.shift()
+            if (!next) return
+            await processOne(next)
+          }
+        },
+      )
+      await Promise.all(rWorkers)
+    }
+
     // 5. Mission-tag write-back onto well-matched candidates' taxonomy.
     const tag = missionTagFor(job as Job)
     const winners = results.filter((r) => r.tier === "excellent" || r.tier === "good")
