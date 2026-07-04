@@ -565,6 +565,10 @@ export type Database = {
            *  job.target_gross_salary comme valeur de départ. */
           pricing_tjm: number | null
           pricing_brut: number | null
+          /** Prétention salariale du candidat (brut annuel €) pour cette mission.
+           *  Universelle (hors Suite Pricing) — saisie sur la fiche match, se
+           *  compare à jobs.target_gross_salary. NULL = non renseignée. */
+          salary_expectation_brut: number | null
           /** Per-match override of the avantages. NULL → cabinet defaults. */
           pricing_avantages_override: PricingDefaultAvantages | null
           /** Raison du rejet quand pipeline_stage = rejected. NULL sinon. */
@@ -594,6 +598,7 @@ export type Database = {
           in_pipeline?: boolean
           pricing_tjm?: number | null
           pricing_brut?: number | null
+          salary_expectation_brut?: number | null
           pricing_avantages_override?: PricingDefaultAvantages | null
           reject_reason?: 'too_expensive' | 'not_available' | 'wrong_stack' | 'seniority_mismatch' | 'location_mismatch' | 'other' | null
           reject_reason_note?: string | null

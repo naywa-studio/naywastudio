@@ -87,6 +87,27 @@ export function hasActiveAccess(
   )
 }
 
+/** L'org a-t-elle accès à la Suite Pricing (champs pricing mission, page
+ *  pricing, comparaison salaire) ? Règle produit :
+ *    - admin Naywa → toujours ;
+ *    - abonnement Stripe avec l'option pricing (subscription_has_pricing) ;
+ *    - essai gratuit 15 j actif → accès complet, pricing compris.
+ *  Le salaire cible du poste + la prétention candidat NE dépendent PAS de ça
+ *  (universels aux équipes de sourcing) — cf. formulaire mission / fiche match. */
+export function hasPricingAccess(
+  org: Pick<
+    Organization,
+    "trial_ends_at" | "subscription_status" | "current_period_end" | "subscription_has_pricing"
+  > | null | undefined,
+  opts?: { isAdmin?: boolean },
+): boolean {
+  if (opts?.isAdmin) return true
+  if (!org) return false
+  if (org.subscription_has_pricing) return true
+  // Essai gratuit = accès complet (l'abonnement Stripe, lui, respecte l'option).
+  return subscriptionAccess(org, opts).state === "trial"
+}
+
 /** Lockdown actif = sub past_due/unpaid/canceled mais avant le wipe à
  *  J+15. Le workspace doit rester accessible en LECTURE SEULE pour
  *  permettre l'export RGPD et donner une dernière chance de régulariser.

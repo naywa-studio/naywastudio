@@ -154,6 +154,9 @@ export default function MatchPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [pipelineSaving, setPipelineSaving] = useState(false)
+  // Prétention salariale du candidat (universelle, hors Suite Pricing).
+  const [salaryExp, setSalaryExp] = useState("")
+  const [salarySaving, setSalarySaving] = useState(false)
 
   // État anonymisation lifté ici pour piloter en même temps les
   // contrôles haut de page (AnonymizeControls) et l'aperçu bas de page
@@ -289,6 +292,13 @@ export default function MatchPage() {
   }
 
 
+  // Synchronise le champ prétention au (re)chargement du match uniquement
+  // (pas à chaque update local, pour ne pas écraser la saisie en cours).
+  useEffect(() => {
+    setSalaryExp(match?.salary_expectation_brut != null ? String(match.salary_expectation_brut) : "")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match?.id])
+
   if (loading) {
     return <NoraLoader />
   }
@@ -319,6 +329,24 @@ export default function MatchPage() {
     if (!res.ok) setMatch((prev) => prev ? { ...prev, in_pipeline: !next } : prev)
     setPipelineSaving(false)
   }
+
+  // Sauvegarde la prétention salariale du candidat (universel). No-op si
+  // inchangé. Persisté sur match_assessments, comparé au salaire cible du poste.
+  const saveSalaryExpectation = async () => {
+    const raw = salaryExp.trim()
+    const val: number | null = raw === "" ? null : Math.round(Number(raw))
+    if (raw !== "" && (val == null || !Number.isFinite(val) || val < 0)) return
+    if ((match.salary_expectation_brut ?? null) === val) return
+    setSalarySaving(true)
+    const res = await fetch(`/api/match/${match.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ salary_expectation_brut: val }),
+    })
+    setSalarySaving(false)
+    if (res.ok) setMatch((prev) => prev ? { ...prev, salary_expectation_brut: val } : prev)
+  }
+
   const tier = match.match_tier ? TIER_META[match.match_tier] : null
   // PR-Z : critères flexibles. Pour les anciens matchs (avant PR-Z), on
   // retombe sur score_dimensions pour ne pas perdre l'info.
@@ -559,6 +587,49 @@ export default function MatchPage() {
               </p>
             </section>
           )}
+
+          {/* Prétention salariale du candidat — universelle (hors Suite
+              Pricing). Comparée au salaire cible du poste si renseigné, et
+              réutilisable dans le pricing ensuite. */}
+          <section style={{ background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 16 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              Prétention salariale
+            </h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <input
+                type="number" min={0} value={salaryExp}
+                onChange={(e) => setSalaryExp(e.target.value)}
+                onBlur={saveSalaryExpectation}
+                placeholder="Ex : 45 000"
+                style={{ width: 150, padding: "9px 12px", fontSize: 13.5, borderRadius: 9, border: "1px solid #E2DAF6", outline: "none", fontFamily: "inherit" }}
+              />
+              <span style={{ fontSize: 12, color: "#6B7280" }}>€ brut / an{salarySaving ? " · enregistrement…" : ""}</span>
+            </div>
+            {(() => {
+              const target = match.job?.target_gross_salary ?? null
+              const ask = match.salary_expectation_brut ?? null
+              if (target == null) {
+                return <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "#9CA3AF" }}>Renseignez le salaire cible du poste (dans la mission) pour activer la comparaison.</p>
+              }
+              if (ask == null) {
+                return <p style={{ margin: "10px 0 0", fontSize: 12, color: "#6B7280" }}>Salaire cible du poste : <strong>{target.toLocaleString("fr-FR")} €</strong></p>
+              }
+              const diff = ask - target
+              const pct = target > 0 ? Math.round((diff / target) * 100) : 0
+              const over = diff > 0
+              const col = over
+                ? { fg: "#B45309", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.28)" }
+                : { fg: "#15803d", bg: "rgba(34,197,94,0.10)", bd: "rgba(34,197,94,0.28)" }
+              return (
+                <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, color: "#6B7280" }}>Cible du poste : <strong>{target.toLocaleString("fr-FR")} €</strong></span>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: col.fg, background: col.bg, border: `1px solid ${col.bd}`, borderRadius: 99, padding: "2px 10px" }}>
+                    {over ? "Au-dessus du budget" : diff === 0 ? "Dans le budget" : "Sous le budget"}{diff !== 0 ? ` · ${over ? "+" : ""}${pct}%` : ""}
+                  </span>
+                </div>
+              )
+            })()}
+          </section>
 
           <section style={{ flex: 1, background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>

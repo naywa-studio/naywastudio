@@ -11,6 +11,7 @@ import Select from "@/components/ui/Select"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
 import { useWorkspace } from "../layout"
+import { hasPricingAccess } from "@/lib/subscription"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
@@ -736,10 +737,11 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
   // En mode page, Échap ne ferme pas (pas de sens sur une page) — on garde le
   // hook uniquement pour l'overlay modal.
   useEscapeKey(variant === "modal" ? onClose : () => {})
-  // Champs adaptatifs : le bloc pricing (zone / TJM / brut) n'apparaît que si
-  // l'org dispose de la Suite Pricing — sinon c'est du bruit pour un sourceur.
-  const { organization } = useWorkspace()
-  const hasPricing = !!organization?.subscription_has_pricing
+  // Champs adaptatifs : le bloc pricing (zone / TJM) n'apparaît que si l'org a
+  // accès pricing (admin / abonnement pricing / essai gratuit). Le salaire
+  // cible du poste, lui, reste UNIVERSEL (affiché pour tous les sourceurs).
+  const { organization, profile } = useWorkspace()
+  const hasPricing = hasPricingAccess(organization, { isAdmin: !!profile?.is_admin })
   // Stage 1 : brief texte. Stage 2 : form pré-rempli.
   const editMode = !!initialJob
   // "criteria" = 3ᵉ étape (création only) : les critères de matching sont
@@ -1023,7 +1025,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
               <textarea
                 value={brief}
                 onChange={(e) => setBrief(e.target.value)}
-                placeholder="Ex : On cherche un Data Engineer Senior pour un client banque à Paris, démarrage septembre, mission 12 mois, stack Python + Spark + AWS, TJM autour de 600€…"
+                placeholder="Ex : On cherche un(e) chargé(e) de développement commercial pour un client à Paris, démarrage septembre, mission de 12 mois, aisance relationnelle et anglais courant, rémunération autour de 45 000 €…"
                 rows={briefExpanded ? 18 : 9}
                 style={{
                   ...inputStyle, resize: "vertical", lineHeight: 1.6,
@@ -1323,25 +1325,32 @@ function FormFieldGrid(p: FormFieldGridProps) {
       </div>
 
       <Field label="Compétences requises *" hint="Entrée ou virgule pour ajouter" status={reqState.statusPill}>
-        <TagInput tags={p.reqSkills} onChange={p.setReqSkills} placeholder="Python, Spark, AWS…"
+        <TagInput tags={p.reqSkills} onChange={p.setReqSkills} placeholder="Ex : compétences clés attendues"
           borderColor={reqState.border} />
       </Field>
 
       <Field label="Compétences souhaitées (nice to have)" hint="optionnel" status={niceState.statusPill}>
-        <TagInput tags={p.niceSkills} onChange={p.setNiceSkills} placeholder="Terraform, Kafka…"
+        <TagInput tags={p.niceSkills} onChange={p.setNiceSkills} placeholder="Ex : atouts appréciés"
           borderColor={niceState.border} />
       </Field>
 
-      {/* Bloc pricing (zone / TJM / brut) — uniquement pour les orgs avec la
-          Suite Pricing. Repliable : les champs de pricing sont un détail que
-          le sourceur ouvre s'il en a besoin. */}
+      {/* Salaire cible du poste — UNIVERSEL (indépendant de la Suite Pricing).
+          Toutes les équipes de sourcing en ont besoin : il sert de repère et
+          se compare à la prétention du candidat sur la fiche match. */}
+      <Field label="Salaire cible du poste (€/an brut)" hint="optionnel" status={brutState.statusPill}>
+        <input type="number" min={0} value={p.targetBrut}
+          onChange={(e) => p.setTargetBrut(e.target.value)} placeholder="Ex : 48 000" style={ringStyle(brutState.border)} />
+      </Field>
+
+      {/* Bloc pricing (zone / TJM) — uniquement pour les orgs avec accès
+          pricing. Repliable : c'est un détail que le sourceur ouvre au besoin. */}
       {p.hasPricing && (
         <details style={{
           background: "#FAF9FE", border: "1px solid #EDE8FA", borderRadius: 12,
           padding: "12px 14px",
         }}>
           <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: "#6B54B2", listStyle: "none" }}>
-            Détails pricing <span style={{ color: "#9CA3AF", fontWeight: 500 }}>· optionnel (Suite Pricing)</span>
+            Détails pricing <span style={{ color: "#6B7280", fontWeight: 500 }}>· optionnel (Suite Pricing)</span>
           </summary>
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
             <Field label="Zone pricing" hint="URSSAF / transport" status={pricingState.statusPill}>
@@ -1349,18 +1358,14 @@ function FormFieldGrid(p: FormFieldGridProps) {
                 border={pricingState.border} placeholder="non renseigné"
                 options={(Object.keys(LIEU_LABELS) as PricingLieu[]).map((k) => ({ value: k, label: LIEU_LABELS[k] }))} />
             </Field>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <Field label="TJM min (€/j HT)" hint="optionnel" status={tjmMinState.statusPill}>
                 <input type="number" min={0} value={p.tjmMin}
-                  onChange={(e) => p.setTjmMin(e.target.value)} placeholder="500" style={ringStyle(tjmMinState.border)} />
+                  onChange={(e) => p.setTjmMin(e.target.value)} placeholder="Ex : 500" style={ringStyle(tjmMinState.border)} />
               </Field>
               <Field label="TJM max (€/j HT)" hint="optionnel" status={tjmMaxState.statusPill}>
                 <input type="number" min={0} value={p.tjmMax}
-                  onChange={(e) => p.setTjmMax(e.target.value)} placeholder="600" style={ringStyle(tjmMaxState.border)} />
-              </Field>
-              <Field label="Brut cible (€/an)" hint="optionnel" status={brutState.statusPill}>
-                <input type="number" min={0} value={p.targetBrut}
-                  onChange={(e) => p.setTargetBrut(e.target.value)} placeholder="48000" style={ringStyle(brutState.border)} />
+                  onChange={(e) => p.setTjmMax(e.target.value)} placeholder="Ex : 600" style={ringStyle(tjmMaxState.border)} />
               </Field>
             </div>
           </div>
