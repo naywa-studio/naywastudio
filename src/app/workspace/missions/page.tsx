@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { m, AnimatePresence } from "framer-motion"
+import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Candidate, Job } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
@@ -48,7 +48,6 @@ export default function MissionsPage() {
   const [visuals, setVisuals] = useState<Record<string, MissionVisual>>({})
   const [stats, setStats] = useState<SidebarStatsData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [formOpen, setFormOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [members, setMembers] = useState<Map<string, string>>(new Map())
@@ -198,14 +197,6 @@ export default function MissionsPage() {
     return { mine, others, hasOthers: others.length > 0 }
   }, [filteredJobs, currentUserId, members])
 
-  const handleCreated = useCallback((job: Job) => {
-    setJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)])
-    setFormOpen(false)
-    // Les critères ont déjà été définis dans le wizard de création (étape 3).
-    // On atterrit donc directement sur le cockpit matching de la mission.
-    router.push(`/workspace/missions/${job.id}`)
-  }, [router])
-
   return (
     <main style={{
       minHeight: "calc(100vh - 60px)",
@@ -235,7 +226,7 @@ export default function MissionsPage() {
           </p>
         </div>
         <button
-          onClick={() => setFormOpen(true)}
+          onClick={() => router.push("/workspace/missions/new")}
           style={{
             fontSize: 13, fontWeight: 700, color: "white",
             background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
@@ -247,14 +238,10 @@ export default function MissionsPage() {
         </button>
       </div>
 
-      <AnimatePresence>
-        {formOpen && <JobForm onClose={() => setFormOpen(false)} onCreated={handleCreated} />}
-      </AnimatePresence>
-
       {loading ? (
         <NoraLoader />
       ) : jobs.length === 0 ? (
-        <EmptyState onCreate={() => setFormOpen(true)} />
+        <EmptyState onCreate={() => router.push("/workspace/missions/new")} />
       ) : (
         <div style={{
           display: "grid",
@@ -306,7 +293,7 @@ export default function MissionsPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setFormOpen(true)}
+                    onClick={() => router.push("/workspace/missions/new")}
                     style={{
                       padding: "9px 16px", borderRadius: 9,
                       border: "none", color: "white",
@@ -737,13 +724,17 @@ const EMPTY_EXTRACTED: ExtractedFields = {
   description: null,
 }
 
-export function JobForm({ onClose, onCreated, initialJob }: {
+export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
   onClose: () => void
   onCreated: (j: Job) => void
   /** Si fourni, le modal s'ouvre en mode "edit" (skip brief stage, PATCH au lieu de POST). */
   initialJob?: Job | null
+  /** "modal" (édition, overlay) ou "page" (création plein écran, pas de popup). */
+  variant?: "modal" | "page"
 }) {
-  useEscapeKey(onClose)
+  // En mode page, Échap ne ferme pas (pas de sens sur une page) — on garde le
+  // hook uniquement pour l'overlay modal.
+  useEscapeKey(variant === "modal" ? onClose : () => {})
   // Stage 1 : brief texte. Stage 2 : form pré-rempli.
   const editMode = !!initialJob
   // "criteria" = 3ᵉ étape (création only) : les critères de matching sont
@@ -928,12 +919,18 @@ export function JobForm({ onClose, onCreated, initialJob }: {
   }
   void statusOf // helper réservé si on veut afficher 3 états ; pour l'instant on affiche ⚠ uniquement sur manquant
 
+  const isPage = variant === "page"
   return (
     <>
       <m.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{
+        onClick={isPage ? undefined : onClose}
+        style={isPage ? {
+          // Mode page : conteneur statique centré, pas d'overlay ni de fond.
+          position: "relative", width: "100%",
+          display: "flex", alignItems: "flex-start", justifyContent: "center",
+          padding: 0,
+        } : {
           position: "fixed", inset: 0, zIndex: 50,
           background: "rgba(17,24,39,0.40)", backdropFilter: "blur(2px)",
           display: "flex", alignItems: "flex-start", justifyContent: "center",
@@ -941,7 +938,7 @@ export function JobForm({ onClose, onCreated, initialJob }: {
         }}
       >
         <m.div
-          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+          initial={{ opacity: 0, y: isPage ? 8 : 16, scale: isPage ? 1 : 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.98 }}
           transition={{ duration: 0.3, ease: EASE }}
@@ -949,7 +946,8 @@ export function JobForm({ onClose, onCreated, initialJob }: {
           style={{
             width: "100%", maxWidth: stage === "criteria" ? 860 : 640,
             background: "white", borderRadius: 18,
-            boxShadow: "0 30px 80px rgba(17,24,39,0.28)",
+            boxShadow: isPage ? "0 1px 3px rgba(17,24,39,0.06), 0 10px 34px -20px rgba(124,99,200,0.35)" : "0 30px 80px rgba(17,24,39,0.28)",
+            border: isPage ? "1px solid #F0ECF8" : undefined,
             display: "flex", flexDirection: "column",
             fontFamily: "var(--font-inter), sans-serif",
             overflow: "hidden",
