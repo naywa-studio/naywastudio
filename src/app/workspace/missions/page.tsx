@@ -10,6 +10,7 @@ import NoraLoader from "@/components/workspace/NoraLoader"
 import Select from "@/components/ui/Select"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
+import { useWorkspace } from "../layout"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
@@ -735,6 +736,10 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
   // En mode page, Échap ne ferme pas (pas de sens sur une page) — on garde le
   // hook uniquement pour l'overlay modal.
   useEscapeKey(variant === "modal" ? onClose : () => {})
+  // Champs adaptatifs : le bloc pricing (zone / TJM / brut) n'apparaît que si
+  // l'org dispose de la Suite Pricing — sinon c'est du bruit pour un sourceur.
+  const { organization } = useWorkspace()
+  const hasPricing = !!organization?.subscription_has_pricing
   // Stage 1 : brief texte. Stage 2 : form pré-rempli.
   const editMode = !!initialJob
   // "criteria" = 3ᵉ étape (création only) : les critères de matching sont
@@ -1131,6 +1136,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                 targetBrut={targetBrut} setTargetBrut={setTargetBrut}
                 description={description} setDescription={setDescription}
                 extracted={stage === "form" ? extracted : null}
+                hasPricing={hasPricing}
               />
 
               {error && (
@@ -1216,6 +1222,8 @@ interface FormFieldGridProps {
   targetBrut: string; setTargetBrut: (v: string) => void
   description: string; setDescription: (v: string) => void
   extracted: ExtractedFields | null
+  /** L'org a la Suite Pricing → affiche le bloc pricing (zone/TJM/brut). */
+  hasPricing: boolean
 }
 function FormFieldGrid(p: FormFieldGridProps) {
   // États possibles d'un champ :
@@ -1294,17 +1302,10 @@ function FormFieldGrid(p: FormFieldGridProps) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <Field label="Lieu *" hint="texte libre" status={loc.statusPill}>
-          <input value={p.location} onChange={(e) => p.setLocation(e.target.value)}
-            placeholder="Paris, Lyon, remote…" style={ringStyle(loc.border)} />
-        </Field>
-        <Field label="Zone pricing" hint="URSSAF / transport" status={pricingState.statusPill}>
-          <Select value={p.pricingLieu} onChange={(v) => p.setPricingLieu(v as PricingLieu | "")}
-            border={pricingState.border} placeholder="non renseigné"
-            options={(Object.keys(LIEU_LABELS) as PricingLieu[]).map((k) => ({ value: k, label: LIEU_LABELS[k] }))} />
-        </Field>
-      </div>
+      <Field label="Lieu *" hint="texte libre" status={loc.statusPill}>
+        <input value={p.location} onChange={(e) => p.setLocation(e.target.value)}
+          placeholder="Paris, Lyon, remote…" style={ringStyle(loc.border)} />
+      </Field>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <Field label="Durée (mois)" hint="vide = à voir avec le client" status={durState.statusPill}>
@@ -1329,20 +1330,40 @@ function FormFieldGrid(p: FormFieldGridProps) {
           borderColor={niceState.border} />
       </Field>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-        <Field label="TJM min (€/j HT)" hint="optionnel" status={tjmMinState.statusPill}>
-          <input type="number" min={0} value={p.tjmMin}
-            onChange={(e) => p.setTjmMin(e.target.value)} placeholder="500" style={ringStyle(tjmMinState.border)} />
-        </Field>
-        <Field label="TJM max (€/j HT)" hint="optionnel" status={tjmMaxState.statusPill}>
-          <input type="number" min={0} value={p.tjmMax}
-            onChange={(e) => p.setTjmMax(e.target.value)} placeholder="600" style={ringStyle(tjmMaxState.border)} />
-        </Field>
-        <Field label="Brut cible (€/an)" hint="optionnel" status={brutState.statusPill}>
-          <input type="number" min={0} value={p.targetBrut}
-            onChange={(e) => p.setTargetBrut(e.target.value)} placeholder="48000" style={ringStyle(brutState.border)} />
-        </Field>
-      </div>
+      {/* Bloc pricing (zone / TJM / brut) — uniquement pour les orgs avec la
+          Suite Pricing. Repliable : les champs de pricing sont un détail que
+          le sourceur ouvre s'il en a besoin. */}
+      {p.hasPricing && (
+        <details style={{
+          background: "#FAF9FE", border: "1px solid #EDE8FA", borderRadius: 12,
+          padding: "12px 14px",
+        }}>
+          <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: "#6B54B2", listStyle: "none" }}>
+            Détails pricing <span style={{ color: "#9CA3AF", fontWeight: 500 }}>· optionnel (Suite Pricing)</span>
+          </summary>
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+            <Field label="Zone pricing" hint="URSSAF / transport" status={pricingState.statusPill}>
+              <Select value={p.pricingLieu} onChange={(v) => p.setPricingLieu(v as PricingLieu | "")}
+                border={pricingState.border} placeholder="non renseigné"
+                options={(Object.keys(LIEU_LABELS) as PricingLieu[]).map((k) => ({ value: k, label: LIEU_LABELS[k] }))} />
+            </Field>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+              <Field label="TJM min (€/j HT)" hint="optionnel" status={tjmMinState.statusPill}>
+                <input type="number" min={0} value={p.tjmMin}
+                  onChange={(e) => p.setTjmMin(e.target.value)} placeholder="500" style={ringStyle(tjmMinState.border)} />
+              </Field>
+              <Field label="TJM max (€/j HT)" hint="optionnel" status={tjmMaxState.statusPill}>
+                <input type="number" min={0} value={p.tjmMax}
+                  onChange={(e) => p.setTjmMax(e.target.value)} placeholder="600" style={ringStyle(tjmMaxState.border)} />
+              </Field>
+              <Field label="Brut cible (€/an)" hint="optionnel" status={brutState.statusPill}>
+                <input type="number" min={0} value={p.targetBrut}
+                  onChange={(e) => p.setTargetBrut(e.target.value)} placeholder="48000" style={ringStyle(brutState.border)} />
+              </Field>
+            </div>
+          </div>
+        </details>
+      )}
 
       <Field label="Contexte / description" hint="affiché sur la fiche mission" status={descState.statusPill}>
         <textarea value={p.description} onChange={(e) => p.setDescription(e.target.value)}
