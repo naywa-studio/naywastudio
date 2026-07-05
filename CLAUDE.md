@@ -698,11 +698,28 @@ Si compactage en cours : les PRs plus anciennes sont mergées sur main. La règl
 #### PR-Z MERGÉE EN PROD — 2026-07-03
 **PR-Z (critères flexibles) est mergée sur `main` (commit `5913a10`) et déployée en PRODUCTION.** Elyas a validé le flow en live (brief Club Med alternant commercial immobilier) et donné le go merge. Corrections finales incluses : critères Nora diversifiés (fin des 5× "Compétences" → skills+langues+diplôme+secteur+contrat, `d1d2924`), mini-libellé niveau sur cartes/fiche ("Anglais C1", "TOEIC ≥ 800", `5d67c76`), emojis PR-Z → SVG, et **garde-fou missions legacy** (`5913a10` : `needsOnboarding` ne force le wizard que si 0 match ; sinon bannière opt-in "Configurer les critères"). **Garantie anciens matchs** : route match + `score-one` UPSERT en préservant `pipeline_stage`/`in_pipeline`/`source` — jamais de delete, la ré-évaluation ne rafraîchit que score/criteria_eval/tier.
 
-#### Refonte flow + visuel app EN COURS — 2026-07-03
-**Branche `claude/mission-flow-visual-refonte` (depuis main, PAS mergée).** Dernier commit `0449102`, build preview READY (alias `nawa-studio-git-claude-mission-c2d826-...`, **PAS dans l'allowlist Chrome → l'user teste, pas moi**). Décisions Elyas (via AskUserQuestion) : **wizard de création unifié 3 étapes** + passe visuelle (fondations tokens/contraste/fond + cartes/onglets/filtres + wizard critères).
-- **Lot 1 `a061db4`** : `src/lib/ui-tokens.ts` (tokens sémantiques `ui` + espacement `space`, `textMuted` #6B7280 remplace #9CA3AF ~2.5:1 qui échoue AA) + fond workspace : `ShaderBackground` animé retiré du layout workspace → halo statique calme (shader gardé pour marketing).
-- **Lot 2 `0449102`** : modale de création = wizard 3 étapes (Brief → Mission 14 champs → Critères) avec stepper. `CriteriaOnboarding` gagne `embedded` + `submitLabel`. Mission créée en fin d'étape 2, critères posés dans la foulée (étape 3) → atterrissage direct sur le cockpit (plus de 2ᵉ wizard sur la page mission ; chemin onboarding gardé en filet legacy).
-- **Reste à faire** : Lot 3 = refonte visuelle cartes de matching + onglets/filtres + sweep contraste `#9CA3AF`→`ui.textMuted` sur surfaces mission ; sweep emojis restants (pipeline/vivier/pricing) NON demandé par l'user (déprio). **Prochaine étape : Elyas valide le wizard unifié en preview → feu vert Lot 3.**
+#### Refonte flow + visuel MERGÉE EN PROD — 2026-07-04
+**Branche `claude/mission-flow-visual-refonte` mergée sur `main` (commit `7d8be6b`, fast-forward) et déployée.** Migration 055 (`match_assessments.salary_expectation_brut`) appliquée via MCP. Validé en live par Elyas. Contenu :
+- **Création en PAGE** (`/workspace/missions/new`) — fini la popup. `JobForm` a un prop `variant "modal"|"page"` (édition reste modale). Wizard 3 étapes Brief → Mission → Critères (stepper), `CriteriaOnboarding` en mode `embedded`. Atterrissage direct sur le cockpit.
+- **Fondations visuelles** : `src/lib/ui-tokens.ts` (`ui` + `space`), fond workspace calmé (ShaderBackground retiré du layout workspace, gardé pour marketing), jauges recolorées **charte violette douce** (`dimColor`), cartes de matching refondues (score héros + hover `m.article`), filtres actifs en violet, `#9CA3AF`→`ui.textMuted` partiel.
+- **Champs mission adaptatifs** : bloc pricing (Zone + TJM) affiché seulement si `hasPricingAccess(org,{isAdmin})` (**helper nouveau** dans `lib/subscription.ts` = admin OR pricing souscrit OR essai). **Salaire cible du poste = UNIVERSEL** (toujours visible). Placeholders sans jargon techno.
+- **Prétention salariale** sur la fiche match (universelle) : col `salary_expectation_brut`, `PATCH /api/match/[id]` universel, carte + comparaison avec le salaire cible (Sous/Dans/Au-dessus · %).
+- **Fiabilité 504** : `openrouterChat` timeout par défaut 45s→**24s** (sous les maxDuration 30s), `/api/jobs` borne normalizeJob 15s + parsing client robuste, extract maxDuration 9→30, critique timeoutMs 15s.
+- **Matching fiabilisé** : (a) **rattrapage** des candidats non scorés (batches LLM qui jetaient étaient droppés sans retry → 37/66 au lieu de 66 ; fix = 2ᵉ passe petits batches). (b) **incrémental** : mission non modifiée → ne re-score que les nouveaux CV ; modifiée (`criteria_locked_at > matched_at`) → tout. Aucun match auto à l'ajout de CV.
+- Critères : custom affiche son libellé sur les cartes, skills liste ses compétences repliées "voir plus", prompt crée des customs pour technos spécifiques.
+
+Wipe org icloud (`1680d9d9`) refait via MCP (66 cand + 566 matchs + 15 missions, storage reset). R2 orphelins (admin bypass quota → OK).
+
+**Reste (déprio Elyas)** : finition visuelle (sticky onglets/filtres, sweep `#9CA3AF` résiduel fiche match/barre mission, badges source). "Elyas reviendra sur les visuels plus tard."
+
+#### PROCHAINE PR (spec verrouillée) — Matching vivier par secteurs
+Objectif : réduire le LLM + laisser le sourceur choisir le périmètre. **Spec validée** :
+- **Secteurs** : label(s) multi par candidat (`candidates.sectors text[]` + table `sectors` org-scopée). **Nora classe à l'import** (libre ou depuis mission), **revue rapide optionnelle non bloquante** (menu déroulant par CV). Bucket **"À classer"** pour les incertains. Infra `cluster_manifests` (migr. 052, UI off) à rallumer.
+- **Périmètre à l'ONBOARDING mission** : Nora propose les secteurs cibles (comme les critères) → sourceur valide/corrige en chips. Fait partie de la définition mission.
+- **3 modes de match ADDITIFS** (adossés à l'incrémental, jamais 2× le même CV), sans chiffres, juste une indication : **Intelligent** (séniorité ±2 + contrat + secteurs de la mission — défaut) · **Approfondi** (séniorité seule marge large, hors secteur — score le delta) · **Complet** (tout le reste).
+- **UX** : un seul bouton "Matcher le vivier" → petit panneau au clic (mode, rien d'autre puisque secteurs déjà définis). Pas de prolifération de boutons.
+- **Garde-fous fiabilité** : séniorité inconnue = gardé ; secteur = guide jamais mur (rattrapable Approfondi/Complet 1 clic + secteur éditable) ; **canary** (scorer ~5% des écartés → alerte si un "bon" ressort) ; transparence.
+- Track Mac front `ent-mac-front` = couloir séparé ([[project_mac_front_track]]), ne pas toucher.
 
 #### PR-Z (archive détail) — branche `claude/pr-z-flexible-criteria`
 Dernier commit `76c3751`. Migrations 053 (source enum) + 054 (jobs.criteria/criteria_locked_at + match_assessments.criteria_eval) **déjà appliquées** sur le projet Supabase `gtxjrepqiqbqbyhtmtlk` via MCP. Preview Vercel branch alias = `nawa-studio-git-claude-pr-z-fle-3a570b-...` (dernier build READY = ed57ace/76c3751). Testé en live navigateur, gros du flow validé.
