@@ -409,6 +409,11 @@ export type Database = {
           /** Timestamp de validation des critères par le sourceur. NULL = onboarding
            *  pas fait, l'UI montre le wizard. */
           criteria_locked_at: string | null
+          /** Secteurs cibles de la mission (par nom), définis à l'onboarding.
+           *  Gate le "Matcher le vivier" en mode Intelligent. */
+          target_sectors: string[]
+          /** Dernier mode de match choisi (mémo pour repartir vite). */
+          last_match_mode: 'intelligent' | 'approfondi' | 'complet' | null
           created_at: string
           updated_at: string
         }
@@ -445,6 +450,8 @@ export type Database = {
           essai_renouvele?: boolean
           criteria?: Criterion[] | null
           criteria_locked_at?: string | null
+          target_sectors?: string[]
+          last_match_mode?: 'intelligent' | 'approfondi' | 'complet' | null
           created_at?: string
           updated_at?: string
         }
@@ -490,6 +497,11 @@ export type Database = {
           parsed_at: string | null
           notes: string | null
           tags: string[] | null
+          /** Secteurs du candidat (par nom). Multi-secteur (profils hybrides). */
+          sectors: string[]
+          /** auto = proposé Nora non validé · to_review = à classer · validated
+           *  = confirmé humain. to_review/vide → jamais exclu du matching. */
+          sector_status: 'auto' | 'to_review' | 'validated'
           created_at: string
           updated_at: string
           consulted_at: string | null
@@ -528,11 +540,31 @@ export type Database = {
           parsed_at?: string | null
           notes?: string | null
           tags?: string[] | null
+          sectors?: string[]
+          sector_status?: 'auto' | 'to_review' | 'validated'
           created_at?: string
           updated_at?: string
           consulted_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['candidates']['Insert']>
+        Relationships: []
+      }
+      sectors: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          created_by: 'user' | 'nora'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id?: string
+          name: string
+          created_by?: 'user' | 'nora'
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['sectors']['Insert']>
         Relationships: []
       }
       match_assessments: {
@@ -814,7 +846,7 @@ export const CANDIDATE_COLUMNS =
   "cv_file_path, cv_file_name, " +
   "cv_file_size, cv_mime_type, anonymized_pdf_path, anonymized_at, " +
   "outreach_draft, outreach_meta, parse_status, parse_error, parsed_at, " +
-  "notes, tags, created_at, updated_at, consulted_at"
+  "notes, tags, sectors, sector_status, created_at, updated_at, consulted_at"
 
 // ── Aliases métier ────────────────────────────────────────────────────────────
 export type Profile = Database['public']['Tables']['profiles']['Row']
@@ -823,6 +855,8 @@ export type OrgInvite = Database['public']['Tables']['org_invites']['Row']
 export type OrgRole = Profile['role']
 export type Job = Database['public']['Tables']['jobs']['Row']
 export type Candidate = Database['public']['Tables']['candidates']['Row']
+export type Sector = Database['public']['Tables']['sectors']['Row']
+export type SectorStatus = Candidate['sector_status']
 export type MatchAssessment = Database['public']['Tables']['match_assessments']['Row']
 export type EmailMessage = Database['public']['Tables']['email_messages']['Row']
 export type AppUpdate = Database['public']['Tables']['app_updates']['Row']
