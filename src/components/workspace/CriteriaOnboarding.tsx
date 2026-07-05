@@ -365,6 +365,32 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
   )
 }
 
+/** Liste grisée des compétences d'un critère skills, repliée à 5 + "voir plus". */
+function SkillsPreview({ skills }: { skills: string[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const LIMIT = 5
+  const shown = expanded ? skills : skills.slice(0, LIMIT)
+  const hidden = skills.length - LIMIT
+  return (
+    <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "#B6AEC9", lineHeight: 1.5 }}>
+      {shown.join(" · ")}
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          style={{
+            marginLeft: 6, background: "none", border: "none", padding: 0,
+            cursor: "pointer", fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+            fontFamily: "inherit",
+          }}
+        >
+          {expanded ? "voir moins" : `voir plus (+${hidden})`}
+        </button>
+      )}
+    </p>
+  )
+}
+
 function Column({
   title, subtitle, accent, items, onToggleWeight, onRemove, onEditLabel, isMain,
 }: {
@@ -427,18 +453,14 @@ function Column({
                 <p style={{ margin: "2px 0 0", fontSize: 10.5, color: "#9CA3AF" }}>
                   {typeLabel(c.type)}{c.source === "manual" && " · ajouté"}
                 </p>
-                {/* Skills : on liste les compétences rattachées à ce critère
-                    (grisées) pour que le sourceur voie ce qui est couvert. */}
+                {/* Skills : liste des compétences rattachées (grisées), repliée
+                    par défaut avec "voir plus" pour ne pas casser l'UI. */}
                 {c.type === "skills" && (() => {
                   const cp = c.params as Record<string, unknown>
                   const must = Array.isArray(cp.must) ? (cp.must as unknown[]).map(String) : []
                   const nice = Array.isArray(cp.nice) ? (cp.nice as unknown[]).map(String) : []
                   const all = [...must, ...nice].filter(Boolean)
-                  return all.length > 0 ? (
-                    <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "#B6AEC9", lineHeight: 1.5 }}>
-                      {all.join(" · ")}
-                    </p>
-                  ) : null
+                  return all.length > 0 ? <SkillsPreview skills={all} /> : null
                 })()}
               </div>
               <button

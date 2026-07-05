@@ -176,6 +176,37 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
     const prefilteredOut = candidates.length - pool.length
 
+    // Matchs déjà présents pour cette mission (id par candidat).
+    const { data: existingRows } = await admin
+      .from("match_assessments")
+      .select("id, candidate_id")
+      .eq("job_id", job.id)
+    const existingByCand = new Map((existingRows ?? []).map((r) => [r.candidate_id, r.id]))
+
+    // INCRÉMENTAL vs RESCORE COMPLET (économie LLM) :
+    //  - Mission jamais matchée OU critères modifiés depuis le dernier match
+    //    (criteria_locked_at > matched_at) → on reprend TOUT le vivier : les
+    //    critères ont changé, il faut ré-évaluer tout le monde.
+    //  - Sinon (critères inchangés) → on ne score QUE les candidats pas encore
+    //    évalués (nouveaux CV arrivés au vivier). Les scores existants restent.
+    const lastMatchedMs = job.matched_at ? new Date(job.matched_at).getTime() : 0
+    const critLockedMs = job.criteria_locked_at ? new Date(job.criteria_locked_at).getTime() : 0
+    const fullRescore = lastMatchedMs === 0 || critLockedMs > lastMatchedMs
+    if (!fullRescore) {
+      pool = pool.filter((c) => !existingByCand.has(c.id))
+    }
+
+    // Rien de nouveau à scorer : vivier déjà à jour pour ces critères.
+    if (pool.length === 0) {
+      await admin.from("jobs").update({
+        match_status: "done",
+        matched_at: new Date().toISOString(),
+        match_progress_total: null,
+        match_progress_scored: null,
+      }).eq("id", job.id)
+      return NextResponse.json({ ok: true, scored: 0, up_to_date: true, total: candidates.length })
+    }
+
     // Stamp la taille du pool : la barre UI calcule pct = scored/total.
     await admin.from("jobs").update({
       match_progress_total: pool.length,
@@ -189,12 +220,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     //    Si le runtime est killé mid-flight (timeout, OOM, deploy), chaque
     //    batch déjà settlé a déjà persisté ses résultats — le retry skip
     //    les candidats existants via existingByCand.
-    const { data: existingRows } = await admin
-      .from("match_assessments")
-      .select("id, candidate_id")
-      .eq("job_id", job.id)
-    const existingByCand = new Map((existingRows ?? []).map((r) => [r.candidate_id, r.id]))
-
     const batches: Candidate[][] = []
     for (let i = 0; i < pool.length; i += MATCH_BATCH_SIZE) {
       batches.push(pool.slice(i, i + MATCH_BATCH_SIZE))
