@@ -18,10 +18,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { CvParseError, extractPdfText, parseCvWithLlm, parseCvViaOcr } from "@/lib/cv-parser"
+import { classifySectors } from "@/lib/sector-classify"
 import type { ParsedCv, CandidateTaxonomy } from "@/lib/database.types"
 
 export const runtime = "nodejs"
-export const maxDuration = 60 // pdf-parse + LLM round-trip
+// pdf-parse + LLM parse + classification secteur (bornée 10 s). 90 s laisse
+// de la marge pour l'enchaînement parse (≤ watchdog) + classify.
+export const maxDuration = 90
 
 // Vercel kills the function at 60 s. We race the parse work against a
 // 57 s watchdog so we have ~3 s to flip parse_status to "error" before
@@ -29,12 +32,12 @@ export const maxDuration = 60 // pdf-parse + LLM round-trip
 // primary text call caps at 25 s and the OCR fallback at 30 s — total
 // worst case 55 s, comfortably under the watchdog. Without this, a hung
 // upstream would leave parse_status="parsing" forever.
-const WATCHDOG_MS = 57_000
+const WATCHDOG_MS = 75_000
 class ParseTimeoutError extends Error {
   constructor() { super("parse_watchdog_timeout") }
 }
 
-export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
 
   const sb = await createSupabaseServerClient()
@@ -241,6 +244,36 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     hasDoublon = liveSiblings.length > 0
   }
 
+  // Classement SECTEUR (best-effort, borné à 10 s). Nora range le CV dans les
+  // secteurs existants en priorité, crée un nouveau secteur si besoin, ou
+  // bascule en "à classer" si elle n'est pas sûre. Un candidat sans secteur /
+  // to_review n'est jamais exclu du matching.
+  let sectors: string[] = []
+  let sectorStatus: "auto" | "to_review" = "to_review"
+  if (candidate.organization_id) {
+    const { data: existingSectorsRows } = await admin
+      .from("sectors").select("name").eq("organization_id", candidate.organization_id)
+    const existingNames = (existingSectorsRows ?? []).map((s) => s.name)
+    const cls = await classifySectors({
+      current_title: parsedCv?.current_title,
+      current_company: parsedCv?.current_company,
+      years_experience: parsedCv?.years_experience,
+      skills: parsedCv?.skills,
+      summary: parsedCv?.summary,
+    }, existingNames)
+    sectors = cls.sectors
+    sectorStatus = cls.status
+    // Enregistre les secteurs NOUVEAUX proposés par Nora (created_by=nora).
+    const lowerExisting = new Set(existingNames.map((n) => n.toLowerCase()))
+    const toCreate = sectors.filter((s) => !lowerExisting.has(s.toLowerCase()))
+    if (toCreate.length > 0) {
+      await admin.from("sectors").upsert(
+        toCreate.map((name) => ({ organization_id: candidate.organization_id!, name, created_by: "nora" as const })),
+        { onConflict: "organization_id,name", ignoreDuplicates: true },
+      )
+    }
+  }
+
   const { data: updated, error: updateErr } = await admin
     .from("candidates")
     .update({
@@ -262,6 +295,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       is_apprentice:    parsedCv?.is_apprentice === true,
       skills:           parsedCv?.skills ?? [],
       languages:        parsedCv?.languages ?? [],
+      sectors,
+      sector_status:    sectorStatus,
       // Preserve every existing tag (custom + "ancien") and only flip the
       // "doublon" flag based on the fresh detection. Previously this row
       // was set to `hasDoublon ? ["doublon"] : []` which wiped "ancien"
@@ -279,18 +314,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: "db_update_failed", detail: updateErr.message }, { status: 500 })
   }
 
-  // Auto-matching against open jobs — fire-and-forget, don't block the
-  // parse response. The vivier UI picks up the new match_assessment rows
-  // via the pipeline's realtime subscription.
-  try {
-    const origin = new URL(req.url).origin
-    const cookieHeader = req.headers.get("cookie") ?? ""
-    void fetch(`${origin}/api/candidates/${candidate.id}/match-all`, {
-      method: "POST",
-      headers: { cookie: cookieHeader },
-      keepalive: true,
-    }).catch(() => { /* fire and forget */ })
-  } catch { /* ignore */ }
+  // PLUS d'auto-matching à l'ajout d'un CV (retour Elyas) : le scoring ne
+  // part que sur action explicite du sourceur — "Matcher le vivier" dans une
+  // mission (avec mode + secteurs), ou l'import depuis une mission (score-one).
+  // Ça évite de scorer tout le vivier × toutes les missions à chaque upload.
 
   return NextResponse.json({ ok: true, candidate: updated, has_doublon: hasDoublon })
 }
