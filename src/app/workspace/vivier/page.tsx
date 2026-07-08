@@ -8,6 +8,8 @@ import { CANDIDATE_COLUMNS, type Candidate } from "@/lib/database.types"
 import { customTagsOf } from "@/lib/tags"
 import { matchesCandidateRef, candidateRefLabel } from "@/lib/candidate-ref"
 import { candidateClusters, clusterHue } from "@/lib/vivier-clusters"
+import { SectorReviewControl } from "@/components/workspace/SectorReviewControl"
+import type { SectorStatus } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 // VivierMapView et ZonesManager retirés temporairement de l'UI.
 // Le code reste dispo (components/workspace/VivierMapView.tsx +
@@ -42,7 +44,29 @@ export default function VivierPage() {
   const [query, setQuery] = useState("")
   const [jobs, setJobs] = useState<UploadJob[]>([])
   const [isDragging, setIsDragging] = useState(false)
+  const [allSectors, setAllSectors] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Secteurs connus de l'org — alimente la revue rapide sur chaque carte.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/sectors")
+        const data = await res.json().catch(() => null) as { sectors?: { name: string }[] } | null
+        if (!cancelled && data?.sectors) setAllSectors(data.sectors.map((s) => s.name))
+      } catch { /* best-effort */ }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const registerSector = useCallback((name: string) => {
+    setAllSectors((prev) => prev.some((s) => s.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name])
+  }, [])
+
+  const applyCandidateSectors = useCallback((candId: string, sectors: string[], status: SectorStatus) => {
+    setCandidates((prev) => prev.map((c) => c.id === candId ? { ...c, sectors, sector_status: status } : c))
+  }, [])
 
   // Vue Liste uniquement — toggle Carte/Liste retiré le temps de
   // retravailler la taxonomie (Sprint B' juin 2026).
@@ -589,7 +613,15 @@ export default function VivierPage() {
           gap: 16,
         }}>
           {parsedOrErrored.map((c, i) => (
-            <CandidateCard key={c.id} c={c} delay={Math.min(i * 0.03, 0.25)} onDelete={() => handleDelete(c.id)} />
+            <CandidateCard
+              key={c.id}
+              c={c}
+              delay={Math.min(i * 0.03, 0.25)}
+              onDelete={() => handleDelete(c.id)}
+              allSectors={allSectors}
+              onSectorCreated={registerSector}
+              onSectorChange={(sectors, status) => applyCandidateSectors(c.id, sectors, status)}
+            />
           ))}
           {parsedOrErrored.length === 0 && parsingCandidates.length === 0 && candidates.length > 0 && (
             <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
@@ -625,7 +657,16 @@ function JobIcon({ status }: { status: UploadJob["status"] }) {
   )
 }
 
-function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDelete: () => void }) {
+function CandidateCard({
+  c, delay, onDelete, allSectors, onSectorCreated, onSectorChange,
+}: {
+  c: Candidate
+  delay: number
+  onDelete: () => void
+  allSectors: string[]
+  onSectorCreated: (name: string) => void
+  onSectorChange: (sectors: string[], status: SectorStatus) => void
+}) {
   const initials = (c.full_name ?? c.cv_file_name ?? "?")
     .split(/\s+/).slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase() || "?"
 
@@ -737,25 +778,17 @@ function CandidateCard({ c, delay, onDelete }: { c: Candidate; delay: number; on
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#9CA3AF", flexWrap: "wrap" }}>
           {c.location ?? "—"}
           {c.years_experience != null && <span>· {c.years_experience}a</span>}
-          {/* Secteur Nora — couleur reprise de la Carte pour cohérence
-              visuelle. Bicolore (gradient) si profil hybride. */}
+          {/* Secteur — revue rapide : statut (Nora / À classer / Validé) +
+              dropdown pour reclasser en un geste. */}
           {!parsing && !errored && (
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
-              fontSize: 10, fontWeight: 700,
-              color: `hsl(${primaryHue}, 55%, 35%)`,
-              background: `hsl(${primaryHue}, 70%, 94%)`,
-              border: `1px solid hsl(${primaryHue}, 50%, 80%)`,
-              borderRadius: 100, padding: "1px 8px",
-            }}>
-              <span style={{
-                width: 5, height: 5, borderRadius: "50%",
-                background: secondaryHue != null
-                  ? `linear-gradient(180deg, hsl(${primaryHue}, 65%, 55%) 0%, hsl(${secondaryHue}, 65%, 55%) 100%)`
-                  : `hsl(${primaryHue}, 65%, 55%)`,
-              }} />
-              {primary}
-            </span>
+            <SectorReviewControl
+              candidateId={c.id}
+              sectors={c.sectors ?? []}
+              status={c.sector_status ?? "to_review"}
+              allSectors={allSectors}
+              onSectorCreated={onSectorCreated}
+              onChange={onSectorChange}
+            />
           )}
           {customTagsOf(c.tags).slice(0, 2).map((t) => (
             <span key={t} style={{

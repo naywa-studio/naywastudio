@@ -13,8 +13,10 @@
  * temps réel (uploading → parsing → scoring → done/error).
  */
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
+import { SectorReviewControl } from "@/components/workspace/SectorReviewControl"
+import type { SectorStatus } from "@/lib/database.types"
 
 const MAX_BYTES = 10 * 1024 * 1024
 const CONCURRENCY = 5
@@ -28,6 +30,9 @@ interface FileJob {
   error?: string
   score?: number
   tier?: "excellent" | "good" | "fair" | "poor"
+  candidateId?: string
+  sectors?: string[]
+  sectorStatus?: SectorStatus
 }
 
 export function MissionCvUploadModal({
@@ -45,7 +50,26 @@ export function MissionCvUploadModal({
   const [jobs, setJobs] = useState<FileJob[]>([])
   const [busy, setBusy] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [allSectors, setAllSectors] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Liste des secteurs connus de l'org (pour la revue par CV). Chargée une
+  // fois — les nouveaux secteurs créés à la volée s'y ajoutent localement.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/sectors")
+        const data = await res.json().catch(() => null) as { sectors?: { name: string }[] } | null
+        if (!cancelled && data?.sectors) setAllSectors(data.sectors.map((s) => s.name))
+      } catch { /* best-effort — la revue reste possible en créant les secteurs */ }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const registerSector = useCallback((name: string) => {
+    setAllSectors((prev) => prev.some((s) => s.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name])
+  }, [])
 
   const patch = useCallback((id: string, p: Partial<FileJob>) => {
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...p } : j)))
@@ -62,10 +86,14 @@ export function MissionCvUploadModal({
       if (!uploadRes.ok || uploadData?.error) {
         throw new Error(String(uploadData?.message ?? uploadData?.error ?? `Upload échoué (${uploadRes.status})`))
       }
-      const cand = (uploadData as { candidate?: { id?: string; parse_status?: string } }).candidate
+      const cand = (uploadData as { candidate?: { id?: string; parse_status?: string; sectors?: string[]; sector_status?: SectorStatus } }).candidate
       const candId = cand?.id
       const isDuplicate = (uploadData as { duplicate?: boolean }).duplicate === true
       if (!candId) throw new Error("candidate_id manquant")
+
+      // Secteurs : un doublon déjà parsé les porte déjà (réponse upload) ;
+      // sinon on les récupère de la réponse parse ci-dessous.
+      patch(id, { candidateId: candId, sectors: cand?.sectors ?? [], sectorStatus: cand?.sector_status ?? "to_review" })
 
       // 2) Parse — uniquement si nouveau candidat ET pas déjà parsé.
       //    Un doublon parsé saute direct au scoring (gain ~5-10 s).
@@ -76,6 +104,9 @@ export function MissionCvUploadModal({
         if (!parseRes.ok || parseData?.error) {
           throw new Error(String(parseData?.message ?? parseData?.error ?? "Parse échoué"))
         }
+        const parsedCand = (parseData as { candidate?: { sectors?: string[]; sector_status?: SectorStatus } }).candidate
+        patch(id, { sectors: parsedCand?.sectors ?? [], sectorStatus: parsedCand?.sector_status ?? "to_review" })
+        for (const s of parsedCand?.sectors ?? []) registerSector(s)
       }
 
       // 3) Score contre cette mission spécifiquement.
@@ -99,7 +130,7 @@ export function MissionCvUploadModal({
     } catch (err) {
       patch(id, { stage: "error", error: (err as Error).message })
     }
-  }, [jobId, onAnyScored, patch])
+  }, [jobId, onAnyScored, patch, registerSector])
 
   const enqueue = useCallback(async (files: File[]) => {
     const pending: Array<{ id: string; file: File }> = []
@@ -168,6 +199,30 @@ export function MissionCvUploadModal({
   const doneCount = jobs.filter((j) => j.stage === "done").length
   const errorCount = jobs.filter((j) => j.stage === "error").length
 
+  // "Tout valider" : passe en "validated" tous les CV scorés encore non
+  // validés (Nora auto OU à classer). Conserve les secteurs déjà posés.
+  const [validatingAll, setValidatingAll] = useState(false)
+  const pendingReview = jobs.filter(
+    (j) => (j.stage === "done" || j.stage === "duplicate") && j.candidateId && j.sectorStatus !== "validated",
+  )
+  const validateAll = useCallback(async () => {
+    setValidatingAll(true)
+    try {
+      await Promise.all(pendingReview.map(async (j) => {
+        try {
+          await fetch(`/api/candidates/${j.candidateId}/sectors`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sectors: j.sectors ?? [], status: "validated" }),
+          })
+          patch(j.id, { sectorStatus: "validated" })
+        } catch { /* best-effort — l'utilisateur peut revalider ligne à ligne */ }
+      }))
+    } finally {
+      setValidatingAll(false)
+    }
+  }, [pendingReview, patch])
+
   return (
     <div
       role="dialog"
@@ -234,31 +289,70 @@ export function MissionCvUploadModal({
         {jobs.length > 0 && (
           <>
             <div style={{
-              display: "flex", gap: 12, marginBottom: 10,
+              display: "flex", gap: 12, marginBottom: 10, alignItems: "center",
               fontSize: 12, color: "#6B7280",
             }}>
               <span><strong style={{ color: "#15803D" }}>{doneCount}</strong> traités</span>
               {errorCount > 0 && <span><strong style={{ color: "#B91C1C" }}>{errorCount}</strong> en erreur</span>}
-              <span style={{ marginLeft: "auto", color: "#9CA3AF" }}>{jobs.length} fichier{jobs.length > 1 ? "s" : ""}</span>
+              {pendingReview.length > 0 && (
+                <button
+                  type="button"
+                  onClick={validateAll}
+                  disabled={validatingAll}
+                  title="Valider le classement secteur de tous les CV importés"
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: 11.5, fontWeight: 700,
+                    color: validatingAll ? "#9CA3AF" : "#15803D",
+                    background: validatingAll ? "#F3F4F6" : "rgba(34,197,94,0.08)",
+                    border: `1px solid ${validatingAll ? "#E5E7EB" : "rgba(34,197,94,0.30)"}`,
+                    borderRadius: 8, padding: "5px 11px",
+                    cursor: validatingAll ? "default" : "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  {validatingAll ? "Validation…" : `Tout valider (${pendingReview.length})`}
+                </button>
+              )}
+              <span style={{ marginLeft: pendingReview.length > 0 ? 0 : "auto", color: "#9CA3AF" }}>{jobs.length} fichier{jobs.length > 1 ? "s" : ""}</span>
             </div>
             <ul style={{
               listStyle: "none", margin: 0, padding: 0,
               maxHeight: 320, overflowY: "auto",
               border: "1px solid #F0ECF8", borderRadius: 10,
             }}>
-              {jobs.map((j) => (
-                <li key={j.id} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "9px 12px",
-                  borderBottom: "1px solid #F4F1FA",
-                  fontSize: 12.5,
-                }}>
-                  <span style={{ flex: 1, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {j.fileName}
-                  </span>
-                  <StageBadge stage={j.stage} score={j.score} tier={j.tier} error={j.error} />
-                </li>
-              ))}
+              {jobs.map((j) => {
+                const scored = (j.stage === "done" || j.stage === "duplicate") && !!j.candidateId
+                return (
+                  <li key={j.id} style={{
+                    display: "flex", flexDirection: "column", gap: 6,
+                    padding: "9px 12px",
+                    borderBottom: "1px solid #F4F1FA",
+                    fontSize: 12.5,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ flex: 1, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {j.fileName}
+                      </span>
+                      <StageBadge stage={j.stage} score={j.score} tier={j.tier} error={j.error} />
+                    </div>
+                    {scored && (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <span style={{ fontSize: 10.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.02em" }}>
+                          Secteur
+                        </span>
+                        <SectorReviewControl
+                          candidateId={j.candidateId!}
+                          sectors={j.sectors ?? []}
+                          status={j.sectorStatus ?? "to_review"}
+                          allSectors={allSectors}
+                          onSectorCreated={registerSector}
+                          onChange={(sectors, status) => patch(j.id, { sectors, sectorStatus: status })}
+                        />
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </>
         )}
