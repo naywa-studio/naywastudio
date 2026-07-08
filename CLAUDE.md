@@ -712,14 +712,27 @@ Wipe org icloud (`1680d9d9`) refait via MCP (66 cand + 566 matchs + 15 missions,
 
 **Reste (déprio Elyas)** : finition visuelle (sticky onglets/filtres, sweep `#9CA3AF` résiduel fiche match/barre mission, badges source). "Elyas reviendra sur les visuels plus tard."
 
-#### PROCHAINE PR (spec verrouillée) — Matching vivier par secteurs
-Objectif : réduire le LLM + laisser le sourceur choisir le périmètre. **Spec validée** :
-- **Secteurs** : label(s) multi par candidat (`candidates.sectors text[]` + table `sectors` org-scopée). **Nora classe à l'import** (libre ou depuis mission), **revue rapide optionnelle non bloquante** (menu déroulant par CV). Bucket **"À classer"** pour les incertains. Infra `cluster_manifests` (migr. 052, UI off) à rallumer.
-- **Périmètre à l'ONBOARDING mission** : Nora propose les secteurs cibles (comme les critères) → sourceur valide/corrige en chips. Fait partie de la définition mission.
-- **3 modes de match ADDITIFS** (adossés à l'incrémental, jamais 2× le même CV), sans chiffres, juste une indication : **Intelligent** (séniorité ±2 + contrat + secteurs de la mission — défaut) · **Approfondi** (séniorité seule marge large, hors secteur — score le delta) · **Complet** (tout le reste).
-- **UX** : un seul bouton "Matcher le vivier" → petit panneau au clic (mode, rien d'autre puisque secteurs déjà définis). Pas de prolifération de boutons.
-- **Garde-fous fiabilité** : séniorité inconnue = gardé ; secteur = guide jamais mur (rattrapable Approfondi/Complet 1 clic + secteur éditable) ; **canary** (scorer ~5% des écartés → alerte si un "bon" ressort) ; transparence.
-- Track Mac front `ent-mac-front` = couloir séparé ([[project_mac_front_track]]), ne pas toucher.
+#### PR EN COURS — Matching vivier par secteurs — branche `claude/vivier-sectors`
+**PAS mergée. Dernier commit `f480b5a`. Migration 056 déjà appliquée** sur le projet Supabase `gtxjrepqiqbqbyhtmtlk` via MCP (table `sectors` + `candidates.sectors/sector_status` + `jobs.target_sectors/last_match_mode`). tsc + lint clean. Reprise directe : faire le **lot 2b** puis 3, 4, 5.
+
+**Spec validée** (reste la référence) :
+- **Secteurs** : multi par candidat (par NOM). `sectors` table org-scopée (liste canonique) + `candidates.sectors text[]` + `candidates.sector_status` ('auto' Nora non validé / 'to_review' à classer / 'validated' humain). `jobs.target_sectors text[]` + `jobs.last_match_mode`.
+- **Classement à l'import** par Nora (précision > exhaustivité : 1-3 secteurs AVEC PREUVE, réutilise l'existant, "à classer" si pas sûre). **Revue rapide optionnelle non bloquante** (dropdown par CV, "Tout valider"). Profils hybrides = pas de plafond mais conservateur.
+- **Périmètre à l'ONBOARDING mission** : Nora propose les secteurs cibles (comme les critères) → chips à valider. `jobs.target_sectors`.
+- **3 modes ADDITIFS** (sur l'incrémental, jamais 2× le même CV), sans chiffres : **Intelligent** (séniorité ±2 + contrat + secteurs mission — défaut) · **Approfondi** (séniorité seule ±4, hors secteur — le delta) · **Complet** (le reste).
+- **UX matcher** : un seul bouton → petit panneau au clic (juste le mode, secteurs déjà définis à l'onboarding).
+- **Vivier** = organisé par secteurs : **liste de cartes secteur** (nom + nombre) → clic → **liste des CV**. Carte **"À classer"** en tête. Reclasser en 1 geste. Badges statut : Nora (violet clair) / À classer (ambré) / Validé (vert).
+- **Garde-fous fiabilité** (`lib/sector-gate.ts`) : séniorité inconnue = gardé ; candidat to_review/sans secteur = JAMAIS exclu ; mission sans cible = filtre off ; **canary** (~5% des écartés → alerte si un "bon" ressort — à faire lot 4) ; secteur = guide jamais mur.
+
+**Lots — état :**
+- ✅ **Lot 1** (`1a62cba`) — fondations : migration 056, types (candidates/jobs/table sectors + alias `Sector`/`SectorStatus`, `CANDIDATE_COLUMNS` étendu), `lib/sector-gate.ts` (3 modes, `passesGate`/`partitionByGate`), `GET/POST /api/sectors` (liste + comptage + "à classer" + création).
+- ✅ **Lot 2a** (`f480b5a`) — `lib/sector-classify.ts` (classif Nora bornée 10s), route `parse` appelle classifySectors + crée secteurs `created_by=nora` + stocke sectors/sector_status, **auto-match retiré du parse** (plus de match-all fire-and-forget → aligné "aucun match auto à l'ajout de CV"). `PATCH /api/candidates/[id]/sectors` (revue/édition → 'validated').
+- ⏳ **Lot 2b** (À FAIRE, reprise ici) — UI de revue à l'import : dans `MissionCvUploadModal` (+ upload libre vivier), colonne **secteur par CV** (dropdown éditable, appelle PATCH sectors) + **badge statut** (Nora/À classer/Validé) + bouton **"Tout valider"**.
+- ⏳ **Lot 3** — secteurs à l'onboarding : `POST /api/jobs/[id]/propose-sectors` (Nora, comme propose-criteria) + bloc chips "Secteurs ciblés" dans le wizard critères (`CriteriaOnboarding` ou étape mission) + allowlist `target_sectors` dans `PATCH /api/jobs/[id]`.
+- ⏳ **Lot 4** — modes de match : panneau reveal sur "Matcher le vivier" (3 modes radio + phrase, sans chiffres) + brancher `partitionByGate` dans `/api/jobs/[id]/match` (lit `body.mode`, défaut 'complet' pour ne rien casser tant que l'UI n'envoie pas) + **canary 5%** + mémo `last_match_mode`.
+- ⏳ **Lot 5** — vivier par secteurs : cartes secteur → liste CV + reclasser rapide + carte "À classer" + gestion secteurs (renommer/fusionner/supprimer avec cascade `candidates.sectors` + `jobs.target_sectors`) + action "Classer le vivier" (Nora sur les non classés).
+
+Track Mac front `ent-mac-front` = couloir séparé ([[project_mac_front_track]]), ne pas toucher. Maquette validée (statuts import + panneau modes) faite via l'outil visualize.
 
 #### PR-Z (archive détail) — branche `claude/pr-z-flexible-criteria`
 Dernier commit `76c3751`. Migrations 053 (source enum) + 054 (jobs.criteria/criteria_locked_at + match_assessments.criteria_eval) **déjà appliquées** sur le projet Supabase `gtxjrepqiqbqbyhtmtlk` via MCP. Preview Vercel branch alias = `nawa-studio-git-claude-pr-z-fle-3a570b-...` (dernier build READY = ed57ace/76c3751). Testé en live navigateur, gros du flow validé.
