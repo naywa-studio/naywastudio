@@ -60,6 +60,8 @@ export default function VivierPage() {
   const [view, setView] = useState<string>("overview")
   const [createOpen, setCreateOpen] = useState(false)
   const [classifying, setClassifying] = useState(false)
+  /** CV importés dans cette session — pour montrer où ils atterrissent. */
+  const [recentIds, setRecentIds] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
   const allSectors = useMemo(() => sectorsData.map((s) => s.name), [sectorsData])
@@ -98,7 +100,7 @@ export default function VivierPage() {
         const { data } = await sb
           .from("candidates").select(CANDIDATE_COLUMNS)
           .not("tags", "cs", "{ancien}")
-          .order("created_at", { ascending: false }).limit(200)
+          .order("created_at", { ascending: false }).limit(1000)
         setCandidates((data ?? []) as unknown as Candidate[])
         await refetchSectors()
       }
@@ -129,7 +131,7 @@ export default function VivierPage() {
         // candidate appears by default.
         .not("tags", "cs", "{ancien}")
         .order("created_at", { ascending: false })
-        .limit(200)
+        .limit(1000)
       if (!mounted) return
       // raw_text / search_tsv are intentionally not selected — unused in the UI.
       setCandidates((data ?? []) as unknown as Candidate[])
@@ -275,11 +277,13 @@ export default function VivierPage() {
         // The Realtime UPDATE will later overwrite this row by id, so no
         // risk of duplicates.
         if (cand?.id) {
+          const cid = cand.id
           setCandidates((prev) =>
-            prev.some((c) => c.id === cand.id) ? prev : [cand, ...prev]
+            prev.some((c) => c.id === cid) ? prev : [cand, ...prev]
           )
+          setRecentIds((prev) => prev.includes(cid) ? prev : [cid, ...prev])
           // Trigger parse in background — we explicitly don't await it.
-          void fetch(`/api/cv/${cand.id}/parse`, { method: "POST", keepalive: true }).catch(() => {})
+          void fetch(`/api/cv/${cid}/parse`, { method: "POST", keepalive: true }).catch(() => {})
         }
         patch(id, { status: "done", candidateId: cand?.id })
         setTimeout(() => {
@@ -368,6 +372,12 @@ export default function VivierPage() {
     return parsedOrErrored.filter((c) => (c.sectors ?? []).includes(view))
   }, [view, parsedOrErrored, unclassifiedList])
 
+  // CV importés dans cette session (parsés) — pour voir où ils atterrissent.
+  const recentParsed = useMemo(
+    () => parsedOrErrored.filter((c) => recentIds.includes(c.id)),
+    [parsedOrErrored, recentIds],
+  )
+
   // 5. Deletion — optimistic UI + undo toast (5 sec). The actual API
   // call only fires if the sourcer doesn't click "Annuler" in the toast.
   const handleDelete = async (id: string) => {
@@ -406,7 +416,7 @@ export default function VivierPage() {
           .select(CANDIDATE_COLUMNS)
           .not("tags", "cs", "{ancien}")
           .order("created_at", { ascending: false })
-          .limit(200)
+          .limit(1000)
         setCandidates((data ?? []) as unknown as Candidate[])
       }
     } finally {
@@ -682,14 +692,49 @@ export default function VivierPage() {
           )}
         </div>
       ) : view === "overview" ? (
-        <SectorOverview
-          sectors={sectorsData}
-          unclassifiedCount={unclassifiedList.length}
-          onOpen={setView}
-          onCreate={() => setCreateOpen(true)}
-          onClassify={runClassifyVivier}
-          classifying={classifying}
-        />
+        <>
+          {recentParsed.length > 0 && (
+            <section style={{
+              marginBottom: 20, background: "white",
+              border: "1px solid rgba(124,99,200,0.20)", borderRadius: 14, padding: 14,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: "#7C63C8" }}>Récemment importés</span>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                  background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
+                  borderRadius: 100, padding: "1px 8px",
+                }}>{recentParsed.length}</span>
+                <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>— vérifiez leur secteur ci-dessous</span>
+                <button
+                  onClick={() => setRecentIds([])}
+                  style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 600, color: "#9CA3AF", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Masquer
+                </button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+                {recentParsed.map((c, i) => (
+                  <CandidateCard
+                    key={c.id} c={c} delay={Math.min(i * 0.02, 0.15)}
+                    onDelete={() => handleDelete(c.id)}
+                    allSectors={allSectors}
+                    onSectorCreated={registerSector}
+                    onSectorChange={(sectors, status) => applyCandidateSectors(c.id, sectors, status)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+          <SectorOverview
+            sectors={sectorsData}
+            unclassifiedCount={unclassifiedList.length}
+            onOpen={setView}
+            onCreate={() => setCreateOpen(true)}
+            onClassify={runClassifyVivier}
+            classifying={classifying}
+          />
+        </>
       ) : (
         <SectorDetail
           view={view}
@@ -874,22 +919,12 @@ function CandidateCard({
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between", marginTop: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#9CA3AF", flexWrap: "wrap" }}>
+      {/* Pied : métadonnées (peuvent passer à la ligne) PUIS ligne d'actions
+          stable (secteur à gauche, Ouvrir/× à droite toujours alignés). */}
+      <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#9CA3AF", flexWrap: "wrap", minHeight: 16 }}>
           {c.location ?? "—"}
           {c.years_experience != null && <span>· {c.years_experience}a</span>}
-          {/* Secteur — revue rapide : statut (Nora / À classer / Validé) +
-              dropdown pour reclasser en un geste. */}
-          {!parsing && !errored && (
-            <SectorReviewControl
-              candidateId={c.id}
-              sectors={c.sectors ?? []}
-              status={c.sector_status ?? "to_review"}
-              allSectors={allSectors}
-              onSectorCreated={onSectorCreated}
-              onChange={onSectorChange}
-            />
-          )}
           {customTagsOf(c.tags).slice(0, 2).map((t) => (
             <span key={t} style={{
               fontSize: 10, fontWeight: 600, color: "#4B5563",
@@ -914,33 +949,46 @@ function CandidateCard({
             </span>
           )}
         </div>
-        <div style={{ display: "flex", gap: 4 }}>
-          <Link
-            href={`/workspace/vivier/${c.id}`}
-            style={{
-              fontSize: 11, fontWeight: 600, color: "#7C63C8",
-              padding: "5px 10px", borderRadius: 7,
-              background: "rgba(124,99,200,0.08)",
-              border: "1px solid rgba(124,99,200,0.16)",
-              textDecoration: "none",
-            }}
-          >
-            Ouvrir →
-          </Link>
-          <button
-            onClick={onDelete}
-            title="Supprimer du vivier"
-            style={{
-              background: "transparent", border: "1px solid #E5E7EB",
-              borderRadius: 7, padding: "5px 8px", cursor: "pointer",
-              color: "#9CA3AF",
-              fontSize: 11,
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "#9CA3AF"; e.currentTarget.style.borderColor = "#E5E7EB" }}
-          >
-            ✕
-          </button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+          {/* Secteur — reclasse en un geste (dropdown en portal). */}
+          {!parsing && !errored ? (
+            <SectorReviewControl
+              candidateId={c.id}
+              sectors={c.sectors ?? []}
+              status={c.sector_status ?? "to_review"}
+              allSectors={allSectors}
+              onSectorCreated={onSectorCreated}
+              onChange={onSectorChange}
+            />
+          ) : <span />}
+          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+            <Link
+              href={`/workspace/vivier/${c.id}`}
+              style={{
+                fontSize: 11, fontWeight: 600, color: "#7C63C8",
+                padding: "5px 10px", borderRadius: 7,
+                background: "rgba(124,99,200,0.08)",
+                border: "1px solid rgba(124,99,200,0.16)",
+                textDecoration: "none", whiteSpace: "nowrap",
+              }}
+            >
+              Ouvrir →
+            </Link>
+            <button
+              onClick={onDelete}
+              title="Supprimer du vivier"
+              style={{
+                background: "transparent", border: "1px solid #E5E7EB",
+                borderRadius: 7, padding: "5px 8px", cursor: "pointer",
+                color: "#9CA3AF", fontSize: 11,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#9CA3AF"; e.currentTarget.style.borderColor = "#E5E7EB" }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
       </div>
     </m.div>

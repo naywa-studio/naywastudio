@@ -33,9 +33,10 @@ export function MatchVivierPanel({
   const [mode, setMode] = useState<MatchMode>("intelligent")
   const [sectors, setSectors] = useState<string[]>(job.target_sectors ?? [])
   const [loadingProposal, setLoadingProposal] = useState(false)
-  /** Secteurs existants de l'org — pills cliquables (la création se fait dans
-   *  le vivier, avec définition Nora). */
-  const [orgSectors, setOrgSectors] = useState<string[]>([])
+  /** Secteurs de l'org AVEC comptage — on n'affiche que ceux présents dans le
+   *  vivier (≥ 1 candidat). La création se fait dans le vivier. */
+  const [orgSectors, setOrgSectors] = useState<{ name: string; count: number }[]>([])
+  const [showAllPills, setShowAllPills] = useState(false)
   const proposedOnce = useRef((job.target_sectors ?? []).length > 0)
 
   // Charge la liste des secteurs de l'org (pour les pills).
@@ -44,8 +45,8 @@ export function MatchVivierPanel({
     ;(async () => {
       try {
         const res = await fetch("/api/sectors")
-        const data = await res.json().catch(() => null) as { sectors?: { name: string }[] } | null
-        if (!cancelled && data?.sectors) setOrgSectors(data.sectors.map((s) => s.name))
+        const data = await res.json().catch(() => null) as { sectors?: { name: string; count: number }[] } | null
+        if (!cancelled && data?.sectors) setOrgSectors(data.sectors.map((s) => ({ name: s.name, count: s.count ?? 0 })))
       } catch { /* best-effort */ }
     })()
     return () => { cancelled = true }
@@ -80,19 +81,23 @@ export function MatchVivierPanel({
       ? sectors.filter((s) => s.toLowerCase() !== name.toLowerCase())
       : [...sectors, name].slice(0, 10))
   }
-  // Toutes les pills à afficher : union secteurs de l'org + ciblés (au cas où
-  // Nora en propose un pas encore listé). Proposés/ciblés en tête.
+  const isOn = (name: string) => sectors.some((s) => s.toLowerCase() === name.toLowerCase())
+  // Pills à afficher : secteurs PRÉSENTS dans le vivier (≥ 1 CV) + ceux déjà
+  // ciblés (au cas où Nora en propose un vide). Ciblés en tête.
   const allPills = useMemo(() => {
     const seen = new Set<string>()
     const out: string[] = []
-    for (const n of [...sectors, ...orgSectors]) {
+    const push = (n: string) => {
       const k = n.toLowerCase()
-      if (seen.has(k)) continue
+      if (seen.has(k)) return
       seen.add(k); out.push(n)
     }
+    for (const n of sectors) push(n)                    // ciblés (toujours visibles)
+    for (const s of orgSectors) if (s.count > 0) push(s.name) // présents dans le vivier
     return out
   }, [sectors, orgSectors])
-  const isOn = (name: string) => sectors.some((s) => s.toLowerCase() === name.toLowerCase())
+  const PILL_FOLD = 12
+  const shownPills = showAllPills ? allPills : allPills.slice(0, PILL_FOLD)
 
   const launch = () => {
     onLaunch(mode, mode === "complet" ? [] : sectors)
@@ -163,10 +168,10 @@ export function MatchVivierPanel({
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
                   {allPills.length === 0 && (
                     <span style={{ fontSize: 12, color: "#9CA3AF" }}>
-                      Aucun secteur — créez-en dans le Vivier ou passez en Complet.
+                      Aucun secteur dans le vivier — classez vos CV ou passez en Complet.
                     </span>
                   )}
-                  {allPills.map((s) => {
+                  {shownPills.map((s) => {
                     const on = isOn(s)
                     const col = sectorColors(s)
                     return (
@@ -199,6 +204,19 @@ export function MatchVivierPanel({
                     )
                   })}
                 </div>
+                {allPills.length > PILL_FOLD && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllPills((v) => !v)}
+                    style={{
+                      marginTop: 8, fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
+                      background: "transparent", border: "none", cursor: "pointer",
+                      fontFamily: "inherit", padding: 0,
+                    }}
+                  >
+                    {showAllPills ? "Voir moins" : `Voir tous les secteurs (+${allPills.length - PILL_FOLD})`}
+                  </button>
+                )}
                 <p style={{ margin: "10px 0 0", fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>
                   Pour créer un nouveau secteur, rendez-vous dans le Vivier — Nora l&apos;aide à le définir.
                 </p>

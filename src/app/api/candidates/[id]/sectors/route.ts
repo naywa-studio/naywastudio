@@ -25,7 +25,7 @@ function cleanSectors(raw: unknown): string[] {
     if (seen.has(k)) continue
     seen.add(k)
     out.push(s)
-    if (out.length >= 6) break
+    if (out.length >= 20) break
   }
   return out
 }

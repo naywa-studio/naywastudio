@@ -345,6 +345,7 @@ export function MissionCvUploadModal({
                           sectors={j.sectors ?? []}
                           status={j.sectorStatus ?? "to_review"}
                           allSectors={allSectors}
+                          showStatus
                           onSectorCreated={registerSector}
                           onChange={(sectors, status) => patch(j.id, { sectors, sectorStatus: status })}
                         />
