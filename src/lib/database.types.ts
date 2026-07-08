@@ -416,7 +416,7 @@ export type Database = {
            *  Gate le "Matcher le vivier" en mode Intelligent. */
           target_sectors: string[]
           /** Dernier mode de match choisi (mémo pour repartir vite). */
-          last_match_mode: 'intelligent' | 'approfondi' | 'complet' | null
+          last_match_mode: 'intelligent' | 'personnalise' | 'complet' | null
           created_at: string
           updated_at: string
         }
@@ -455,7 +455,7 @@ export type Database = {
           criteria?: Criterion[] | null
           criteria_locked_at?: string | null
           target_sectors?: string[]
-          last_match_mode?: 'intelligent' | 'approfondi' | 'complet' | null
+          last_match_mode?: 'intelligent' | 'personnalise' | 'complet' | null
           created_at?: string
           updated_at?: string
         }

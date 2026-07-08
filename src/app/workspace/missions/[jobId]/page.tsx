@@ -15,6 +15,8 @@ import { MissionCvUploadModal } from "@/components/workspace/MissionCvUploadModa
 import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
 import { MissionSummaryBar } from "@/components/workspace/MissionSummaryBar"
 import { MissionBriefSection } from "@/components/workspace/MissionBriefSection"
+import { MatchVivierPanel } from "@/components/workspace/MatchVivierPanel"
+import type { MatchMode } from "@/lib/sector-gate"
 import { MatchCard } from "@/components/workspace/MatchCard"
 import { JobForm } from "../page"
 
@@ -43,6 +45,9 @@ export default function JobDetailPage() {
   const [matchError, setMatchError] = useState<string | null>(null)
   const [assignOpen, setAssignOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [matchPanelOpen, setMatchPanelOpen] = useState(false)
+  /** Canary : nb de profils hors périmètre ressortis bons au dernier run. */
+  const [canaryHits, setCanaryHits] = useState(0)
   const [showEdit, setShowEdit] = useState(false)
   /** Force le wizard à s'afficher (édition manuelle des critères). */
   const [editCriteriaMode, setEditCriteriaMode] = useState(false)
@@ -108,18 +113,31 @@ export default function JobDetailPage() {
     }
   }, [isMatching, job?.updated_at])
 
-  const runMatch = useCallback(async (opts?: { force?: boolean }) => {
+  const runMatch = useCallback(async (opts?: { force?: boolean; mode?: MatchMode; sectors?: string[] }) => {
     if (!job) return
     setMatchError(null)
+    setCanaryHits(0)
     setJob({ ...job, match_status: "matching", updated_at: new Date().toISOString() })
     const qs = opts?.force ? "?force=1" : ""
-    const res = await fetch(`/api/jobs/${job.id}/match${qs}`, { method: "POST" })
+    const hasModeBody = !!opts?.mode
+    const res = await fetch(`/api/jobs/${job.id}/match${qs}`, {
+      method: "POST",
+      ...(hasModeBody
+        ? {
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode: opts!.mode, target_sectors: opts!.sectors ?? [] }),
+          }
+        : {}),
+    })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
       if (res.status === 409) { setMatchError(null); return }
       setMatchError(data?.message ?? data?.detail ?? data?.error ?? "Le matching a échoué.")
       setJob((prev) => prev ? { ...prev, match_status: "error" } : prev)
       return
+    }
+    if (typeof data?.canary_hits === "number" && data.canary_hits > 0) {
+      setCanaryHits(data.canary_hits)
     }
     await loadAll()
   }, [job, loadAll])
@@ -265,7 +283,7 @@ export default function JobDetailPage() {
           criteria={criteria}
           onEditCriteria={() => setEditCriteriaMode(true)}
           onImportCvs={() => setUploadOpen(true)}
-          onMatchVivier={() => void runMatch()}
+          onMatchVivier={() => setMatchPanelOpen(true)}
           onAssignFromVivier={() => setAssignOpen(true)}
           onCreateForm={undefined}
           matching={matching}
@@ -322,6 +340,25 @@ export default function JobDetailPage() {
           borderRadius: 10, fontSize: 13, color: "#B91C1C",
         }}>{matchError}</div>
       )}
+      {canaryHits > 0 && !matching && (
+        <div style={{
+          marginBottom: 16, padding: "11px 15px",
+          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          background: "rgba(217,119,6,0.06)", border: "1px solid rgba(217,119,6,0.28)",
+          borderRadius: 11, fontSize: 12.5, color: "#374151",
+        }}>
+          <span style={{ flex: 1, minWidth: 220 }}>
+            <strong style={{ color: "#B45309" }}>{canaryHits} profil{canaryHits > 1 ? "s" : ""} hors périmètre</strong> {canaryHits > 1 ? "sont ressortis" : "est ressorti"} pertinent{canaryHits > 1 ? "s" : ""}. Élargissez peut-être la recherche.
+          </span>
+          <button onClick={() => { setCanaryHits(0); setMatchPanelOpen(true) }} style={{
+            fontSize: 12, fontWeight: 700, color: "#B45309",
+            background: "white", border: "1px solid rgba(217,119,6,0.35)",
+            borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+          }}>
+            Élargir
+          </button>
+        </div>
+      )}
 
       {/* Wizard onboarding OU contenu principal */}
       {showWizard ? (
@@ -372,7 +409,7 @@ export default function JobDetailPage() {
               <span style={{ flex: 1, minWidth: 200 }}>
                 <strong style={{ color: "#B45309" }}>Critères modifiés</strong> depuis le dernier matching — les scores affichés datent de l&apos;évaluation précédente.
               </span>
-              <button onClick={() => void runMatch()} style={{
+              <button onClick={() => setMatchPanelOpen(true)} style={{
                 fontSize: 12, fontWeight: 700, color: "white",
                 padding: "7px 14px", borderRadius: 9, border: "none",
                 background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
@@ -483,6 +520,14 @@ export default function JobDetailPage() {
           jobLabel={job.role_name?.trim() || job.title}
           onClose={() => setUploadOpen(false)}
           onAnyScored={() => { loadAll() }}
+        />
+      )}
+
+      {matchPanelOpen && (
+        <MatchVivierPanel
+          job={job}
+          onClose={() => setMatchPanelOpen(false)}
+          onLaunch={(mode, sectors) => void runMatch({ mode, sectors })}
         />
       )}
 

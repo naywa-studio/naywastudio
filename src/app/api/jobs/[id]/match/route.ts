@@ -26,6 +26,7 @@ import {
   type CriteriaMatchResult,
 } from "@/lib/matching"
 import type { Criterion } from "@/lib/job-criteria-catalog"
+import { partitionByGate, type MatchMode } from "@/lib/sector-gate"
 import { consumeQuota, consumeOrgLlmActionForUser } from "@/lib/quota"
 import { CANDIDATE_COLUMNS, type Candidate, type Job, type Database } from "@/lib/database.types"
 
@@ -87,6 +88,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // when they're convinced the previous run is dead.
   const force = new URL(req.url).searchParams.get("force") === "1"
 
+  // Panneau "Matcher le vivier" : mode + secteurs cibles (chips éditées).
+  // Défaut "complet" quand le body est absent (ancien appelant / bouton
+  // "Forcer la relance") → on ne casse rien : tout le vivier est scoré.
+  const body = await req.json().catch(() => null) as
+    { mode?: unknown; target_sectors?: unknown } | null
+  const mode: MatchMode =
+    body?.mode === "intelligent" || body?.mode === "personnalise" ? body.mode : "complet"
+  const bodySectors = Array.isArray(body?.target_sectors)
+    ? (body!.target_sectors as unknown[]).map((s) => String(s).trim()).filter(Boolean)
+    : null
+  // Secteurs cibles effectifs : ceux édités dans le panneau sinon ceux mémo
+  // sur la mission. Persistés plus bas (mémo pour le prochain run).
+  const targetSectors = bodySectors ?? (job.target_sectors ?? [])
+
   // Recover from a previous run killed by Vercel mid-flight. Without this,
   // the job would stay "matching" forever and the UI's spinner never stops.
   if (!force && job.match_status === "matching") {
@@ -116,6 +131,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .update({
       match_status: "matching",
       updated_at: new Date().toISOString(),
+      // Mémo du mode + secteurs cibles (repart vite au prochain run).
+      // On ne persiste les secteurs que si le panneau les a envoyés (édition).
+      last_match_mode: mode,
+      ...(bodySectors ? { target_sectors: bodySectors } : {}),
       // Clear progression d'un éventuel run précédent — sera resettée
       // une fois le pool calculé ci-dessous.
       match_progress_total: null,
@@ -143,6 +162,37 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ ok: true, scored: 0, prefiltered_out: 0, total: 0 })
     }
 
+    // 1bis. GATE SECTEUR (modes Intelligent / Personnalisé). Pré-filtre
+    // déterministe GRATUIT avant le LLM : écarte les candidats clairement hors
+    // périmètre (séniorité absurde, hors secteurs cibles). "complet" = aucun
+    // gate. Règle de fiabilité : jamais d'exclusion dans le doute (cf.
+    // sector-gate.ts — séniorité inconnue / candidat non classé = gardés).
+    //
+    // CANARY : on garde ~5% des écartés (échantillon aléatoire) DANS le pool à
+    // scorer. Si l'un d'eux ressort bon, c'est le signal que le gate est trop
+    // serré → on le remonte à l'user (élargir le périmètre). Coût LLM marginal,
+    // filet contre un secteur/séniorité mal posé.
+    const CANARY_RATIO = 0.05
+    const CANARY_CAP = 15
+    let gateBase: Candidate[] = candidates
+    const canaryIds = new Set<string>()
+    if (mode !== "complet") {
+      const gateJob = {
+        normalized: job.normalized ?? null,
+        contract_type: job.contract_type,
+        target_sectors: targetSectors,
+      }
+      const { kept, gatedOut } = partitionByGate(candidates, gateJob, mode)
+      // Échantillon canary déterministe-léger (mélange par id, prend N).
+      const canaryCount = Math.min(CANARY_CAP, Math.ceil(gatedOut.length * CANARY_RATIO))
+      const canary = [...gatedOut]
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .slice(0, canaryCount)
+      for (const c of canary) canaryIds.add(c.id)
+      gateBase = [...kept, ...canary]
+    }
+    const gatedOutCount = candidates.length - gateBase.length
+
     // 2. Pre-filter — mais PERMISSIF (PR-Z).
     //
     // Le pré-filtre déterministe se base sur role_family/skills de
@@ -159,22 +209,25 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     // bas, pas besoin de le dropper en amont). Le pré-filtre ne sert alors
     // qu'à ORDONNER la file (meilleurs candidats scorés en premier).
     // Au-delà, on garde le drop pour maîtriser le budget LLM.
+    // NB : le pré-filtre travaille sur `gateBase` (le vivier APRÈS gate
+    // secteur/séniorité), pas sur tout le vivier. En mode "complet",
+    // gateBase === candidates.
     const normalized = job.normalized ?? {}
-    const hits = prefilterCandidates(normalized, candidates)
+    const hits = prefilterCandidates(normalized, gateBase)
     const SCORE_ALL_BELOW = 200
     let pool: Candidate[]
-    if (candidates.length <= SCORE_ALL_BELOW) {
+    if (gateBase.length <= SCORE_ALL_BELOW) {
       // Score tout : on part de l'ordre du pré-filtre (signal décroissant)
       // puis on ajoute les candidats écartés à la fin (ils seront scorés
       // aussi, juste en dernier).
       const inHits = new Set(hits.map((h) => h.candidate.id))
       const ordered = hits.map((h) => h.candidate)
-      const rest = candidates.filter((c) => !inHits.has(c.id))
+      const rest = gateBase.filter((c) => !inHits.has(c.id))
       pool = [...ordered, ...rest].slice(0, MAX_SCORED_PER_RUN)
     } else {
       pool = hits.slice(0, MAX_SCORED_PER_RUN).map((h) => h.candidate)
     }
-    const prefilteredOut = candidates.length - pool.length
+    const prefilteredOut = gateBase.length - pool.length
 
     // Matchs déjà présents pour cette mission (id par candidat).
     const { data: existingRows } = await admin
@@ -361,11 +414,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       match_progress_scored: null,
     }).eq("id", job.id)
 
+    // CANARY : un candidat écarté par le gate qui ressort bon = signal que le
+    // périmètre est trop serré. On le remonte à l'UI (proposer d'élargir).
+    const canaryHits = results.filter(
+      (r) => canaryIds.has(r.candidate_id) && (r.tier === "excellent" || r.tier === "good"),
+    ).length
+
     return NextResponse.json({
       ok: true,
       total: candidates.length,
       prefiltered_out: prefilteredOut,
+      gated_out: gatedOutCount,
       scored: results.length,
+      canary_hits: canaryHits,
       capped: hits.length > MAX_SCORED_PER_RUN,
     })
   } catch (err) {
