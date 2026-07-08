@@ -21,10 +21,9 @@ export function MissionBriefSection({
   job: Job
   onSaved: (patch: Partial<Job>) => void
 }) {
-  const hasBrief = !!(job.briefing?.trim())
   const hasClientBrief = !!(job.client_brief?.trim())
-  // Ouvert d'emblée si au moins un brief existe (info utile), replié sinon.
-  const [open, setOpen] = useState(hasBrief || hasClientBrief)
+  // Toujours replié par défaut — on n'encombre pas le cockpit.
+  const [open, setOpen] = useState(false)
 
   return (
     <section style={{
