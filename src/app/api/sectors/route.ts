@@ -1,14 +1,15 @@
 /**
- * GET  /api/sectors  — liste des secteurs de l'org + comptage de candidats
- *                      par secteur + total "à classer" (feed des cartes vivier).
- * POST /api/sectors  — crée un secteur { name } (created_by = 'user').
+ * GET  /api/sectors  — liste des secteurs de l'org (+ définition) + comptage de
+ *                      candidats par secteur + total "à classer". SEED des
+ *                      secteurs par défaut à la première visite (org vide).
+ * POST /api/sectors  — crée un secteur { name, description? } (created_by='user').
  *
- * RLS org-scopée via le client server (policy `sectors_org_all`). Le comptage
- * lit les colonnes `sectors` + `sector_status` des candidats (léger).
+ * RLS org-scopée via le client server (policy `sectors_org_all`).
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { DEFAULT_SECTORS } from "@/lib/sector-defaults"
 
 export const runtime = "nodejs"
 
@@ -17,8 +18,31 @@ export async function GET() {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
+  const { data: profile } = await sb
+    .from("profiles").select("organization_id").eq("user_id", user.id).maybeSingle()
+  if (!profile?.organization_id) {
+    return NextResponse.json({ error: "no_organization" }, { status: 400 })
+  }
+
+  // Seed à la première visite : si l'org n'a AUCUN secteur, on crée la liste
+  // par défaut (avec définitions → classement Nora cohérent d'emblée).
+  // Idempotent : ne seed que sur org vide, onConflict ignore les doublons.
+  const { count } = await sb
+    .from("sectors").select("id", { count: "exact", head: true })
+  if ((count ?? 0) === 0) {
+    await sb.from("sectors").upsert(
+      DEFAULT_SECTORS.map((s) => ({
+        organization_id: profile.organization_id,
+        name: s.name,
+        description: s.description,
+        created_by: "nora" as const,
+      })),
+      { onConflict: "organization_id,name", ignoreDuplicates: true },
+    )
+  }
+
   const [{ data: sectorsRows }, { data: candRows }] = await Promise.all([
-    sb.from("sectors").select("id, name, created_by, created_at").order("name", { ascending: true }),
+    sb.from("sectors").select("id, name, description, created_by, created_at").order("name", { ascending: true }),
     sb.from("candidates").select("sectors, sector_status"),
   ])
 
@@ -44,24 +68,22 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
   const { data: profile } = await sb
-    .from("profiles")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .maybeSingle()
+    .from("profiles").select("organization_id").eq("user_id", user.id).maybeSingle()
   if (!profile?.organization_id) {
     return NextResponse.json({ error: "no_organization" }, { status: 400 })
   }
 
-  const body = await req.json().catch(() => null) as { name?: unknown } | null
+  const body = await req.json().catch(() => null) as { name?: unknown; description?: unknown } | null
   const name = typeof body?.name === "string" ? body.name.trim() : ""
+  const description = typeof body?.description === "string" ? body.description.trim() || null : null
   if (!name || name.length > 60) {
     return NextResponse.json({ error: "invalid_name" }, { status: 400 })
   }
 
   const { data, error } = await sb
     .from("sectors")
-    .insert({ organization_id: profile.organization_id, name, created_by: "user" })
-    .select("id, name, created_by, created_at")
+    .insert({ organization_id: profile.organization_id, name, description, created_by: "user" })
+    .select("id, name, description, created_by, created_at")
     .single()
 
   // 23505 = unique_violation → le secteur existe déjà, on le renvoie.
@@ -69,7 +91,7 @@ export async function POST(req: NextRequest) {
     if (error.code === "23505") {
       const { data: existing } = await sb
         .from("sectors")
-        .select("id, name, created_by, created_at")
+        .select("id, name, description, created_by, created_at")
         .eq("name", name)
         .maybeSingle()
       if (existing) return NextResponse.json({ ok: true, sector: existing, existed: true })

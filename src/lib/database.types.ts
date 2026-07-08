@@ -558,6 +558,9 @@ export type Database = {
           id: string
           organization_id: string
           name: string
+          /** Définition courte (validée par le sourceur), réinjectée dans le
+           *  classement Nora pour un rangement cohérent dans le temps. */
+          description: string | null
           created_by: 'user' | 'nora'
           created_at: string
         }
@@ -565,6 +568,7 @@ export type Database = {
           id?: string
           organization_id?: string
           name: string
+          description?: string | null
           created_by?: 'user' | 'nora'
           created_at?: string
         }

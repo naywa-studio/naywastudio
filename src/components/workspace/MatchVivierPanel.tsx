@@ -32,8 +32,24 @@ export function MatchVivierPanel({
   const [mode, setMode] = useState<MatchMode>("intelligent")
   const [sectors, setSectors] = useState<string[]>(job.target_sectors ?? [])
   const [loadingProposal, setLoadingProposal] = useState(false)
-  const [newSector, setNewSector] = useState("")
+  /** Secteurs existants de l'org — on pioche dedans (la création se fait dans
+   *  le vivier, avec définition Nora). */
+  const [orgSectors, setOrgSectors] = useState<string[]>([])
+  const [pick, setPick] = useState("")
   const proposedOnce = useRef((job.target_sectors ?? []).length > 0)
+
+  // Charge la liste des secteurs de l'org (pour le sélecteur d'ajout).
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/sectors")
+        const data = await res.json().catch(() => null) as { sectors?: { name: string }[] } | null
+        if (!cancelled && data?.sectors) setOrgSectors(data.sectors.map((s) => s.name))
+      } catch { /* best-effort */ }
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   // Proposition Nora : uniquement si la mission n'a pas déjà des secteurs
   // mémorisés (sinon on réutilise, 0 appel LLM).
@@ -59,12 +75,15 @@ export function MatchVivierPanel({
     if (mode === "intelligent") setMode("personnalise")
   }
   const removeSector = (name: string) => editSectors(sectors.filter((s) => s !== name))
-  const addSector = () => {
-    const n = newSector.trim()
-    if (!n || sectors.some((s) => s.toLowerCase() === n.toLowerCase())) { setNewSector(""); return }
+  const addPicked = (name: string) => {
+    const n = name.trim()
+    if (!n || sectors.some((s) => s.toLowerCase() === n.toLowerCase())) return
     editSectors([...sectors, n].slice(0, 8))
-    setNewSector("")
   }
+  // Secteurs de l'org pas encore ciblés (proposables dans le sélecteur).
+  const addable = orgSectors.filter(
+    (n) => !sectors.some((s) => s.toLowerCase() === n.toLowerCase()),
+  )
 
   const launch = () => {
     onLaunch(mode, mode === "complet" ? [] : sectors)
@@ -155,30 +174,25 @@ export function MatchVivierPanel({
                     </span>
                   ))}
                 </div>
-                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                  <input
-                    value={newSector}
-                    onChange={(e) => setNewSector(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSector() } }}
-                    placeholder="Ajouter un secteur…"
-                    style={{
-                      flex: 1, minWidth: 0, fontSize: 12.5, color: "#111827",
-                      padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 8,
-                      outline: "none", fontFamily: "inherit",
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={addSector}
-                    disabled={!newSector.trim()}
-                    style={{
-                      fontSize: 13, fontWeight: 700, color: newSector.trim() ? "#7C63C8" : "#C4C4C4",
-                      background: "white", border: "1px solid #E5E7EB", borderRadius: 8,
-                      padding: "0 12px", cursor: newSector.trim() ? "pointer" : "default",
-                      fontFamily: "inherit",
-                    }}
-                  >+</button>
-                </div>
+                {addable.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <select
+                      value={pick}
+                      onChange={(e) => { addPicked(e.target.value); setPick("") }}
+                      style={{
+                        width: "100%", fontSize: 12.5, color: "#374151",
+                        padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 8,
+                        outline: "none", fontFamily: "inherit", background: "white",
+                      }}
+                    >
+                      <option value="">+ Ajouter un secteur ciblé…</option>
+                      {addable.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                )}
+                <p style={{ margin: "8px 0 0", fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>
+                  Pour créer un nouveau secteur, rendez-vous dans le Vivier — Nora l&apos;aide à le définir.
+                </p>
               </>
             )}
           </div>

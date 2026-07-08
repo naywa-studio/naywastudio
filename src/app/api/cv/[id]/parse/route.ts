@@ -252,15 +252,16 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   let sectorStatus: "auto" | "to_review" = "to_review"
   if (candidate.organization_id) {
     const { data: existingSectorsRows } = await admin
-      .from("sectors").select("name").eq("organization_id", candidate.organization_id)
-    const existingNames = (existingSectorsRows ?? []).map((s) => s.name)
+      .from("sectors").select("name, description").eq("organization_id", candidate.organization_id)
+    const existingKnown = (existingSectorsRows ?? []).map((s) => ({ name: s.name, description: s.description }))
+    const existingNames = existingKnown.map((s) => s.name)
     const cls = await classifySectors({
       current_title: parsedCv?.current_title,
       current_company: parsedCv?.current_company,
       years_experience: parsedCv?.years_experience,
       skills: parsedCv?.skills,
       summary: parsedCv?.summary,
-    }, existingNames)
+    }, existingKnown)
     sectors = cls.sectors
     sectorStatus = cls.status
     // Enregistre les secteurs NOUVEAUX proposés par Nora (created_by=nora).

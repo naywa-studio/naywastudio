@@ -25,6 +25,12 @@ export interface SectorClassifyResult {
   status: "auto" | "to_review"
 }
 
+/** Secteur connu de l'org, avec sa définition (réinjectée dans le prompt). */
+export interface KnownSector {
+  name: string
+  description?: string | null
+}
+
 const SYSTEM_PROMPT = `Tu es l'assistante de sourcing Naywa. Tu ranges un CV dans des SECTEURS (domaines métier) pour organiser le vivier.
 
 RÈGLES
@@ -55,7 +61,7 @@ function normalizeSectors(raw: unknown): string[] {
 
 export async function classifySectors(
   input: SectorClassifyInput,
-  existingSectors: string[],
+  existingSectors: KnownSector[],
 ): Promise<SectorClassifyResult> {
   const payload = {
     poste: input.current_title ?? null,
@@ -64,8 +70,12 @@ export async function classifySectors(
     competences: (input.skills ?? []).slice(0, 20),
     resume: (input.summary ?? "").slice(0, 800),
   }
+  // On fournit les définitions quand elles existent → Nora range CONTRE les
+  // définitions du cabinet, pas au feeling (classement cohérent dans le temps).
   const existing = existingSectors.length > 0
-    ? existingSectors.join(", ")
+    ? existingSectors
+        .map((s) => s.description?.trim() ? `- ${s.name} : ${s.description.trim()}` : `- ${s.name}`)
+        .join("\n")
     : "(aucun secteur existant — tu peux en créer)"
 
   try {
