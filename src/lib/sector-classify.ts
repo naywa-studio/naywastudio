@@ -42,6 +42,21 @@ RÈGLES
 
 RÉPONDS UNIQUEMENT EN JSON : { "sectors": ["..."], "confident": true|false }`
 
+// Variante DÉCISIVE : utilisée quand le sourceur clique explicitement
+// "Classer le vivier". On demande à Nora de TRANCHER (placer au mieux) plutôt
+// que de laisser "à classer". Le résultat reste révisable (statut 'auto').
+const SYSTEM_PROMPT_DECISIVE = `Tu es l'assistante de sourcing Naywa. Tu ranges un CV dans des SECTEURS (domaines métier) pour organiser le vivier.
+
+Le sourceur te demande de CLASSER ce CV — tu dois TRANCHER, pas rester indécise.
+
+RÈGLES
+1. Choisis 1 à 2 secteurs, le(s) plus PLAUSIBLE(S) au vu du poste, de l'expérience et de la formation. Même si le CV est un peu ambigu, PLACE-le dans le secteur le plus probable (le sourceur pourra corriger).
+2. Réutilise EN PRIORITÉ les secteurs existants fournis. Ne crée un nouveau secteur QUE si vraiment aucun ne convient.
+3. Un secteur = domaine métier LARGE (Commercial, Immobilier, Finance, Marketing, RH, Data / Cloud, Ingénierie, Juridique, Santé, …). JAMAIS un intitulé de poste ni une techno.
+4. Ne laisse sectors VIDE que si le CV est totalement inexploitable (aucune info métier).
+
+RÉPONDS UNIQUEMENT EN JSON : { "sectors": ["..."], "confident": true|false }`
+
 /** Nettoie / borne une liste de secteurs (trim, dédup casse-insensible, cap 3). */
 function normalizeSectors(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []
@@ -62,6 +77,7 @@ function normalizeSectors(raw: unknown): string[] {
 export async function classifySectors(
   input: SectorClassifyInput,
   existingSectors: KnownSector[],
+  opts?: { decisive?: boolean },
 ): Promise<SectorClassifyResult> {
   const payload = {
     poste: input.current_title ?? null,
@@ -86,14 +102,18 @@ export async function classifySectors(
       maxTokens: 200,
       timeoutMs: 10_000,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: opts?.decisive ? SYSTEM_PROMPT_DECISIVE : SYSTEM_PROMPT },
         { role: "user", content: `SECTEURS EXISTANTS : ${existing}\n\nCV :\n${JSON.stringify(payload, null, 2)}` },
       ],
     })
     const parsed = safeJsonParse<{ sectors?: unknown; confident?: unknown }>(res.content)
     const sectors = normalizeSectors(parsed?.sectors)
-    const confident = parsed?.confident === true && sectors.length > 0
-    return { sectors, status: confident ? "auto" : "to_review" }
+    // En mode décisif : dès que Nora a posé un secteur, on le prend (statut
+    // 'auto', révisable). Sinon on exige son flag confident.
+    const placed = opts?.decisive
+      ? sectors.length > 0
+      : parsed?.confident === true && sectors.length > 0
+    return { sectors, status: placed ? "auto" : "to_review" }
   } catch {
     // Best-effort : à classer, aucun secteur → jamais exclu du matching.
     return { sectors: [], status: "to_review" }

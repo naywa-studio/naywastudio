@@ -20,7 +20,10 @@ import { CANDIDATE_COLUMNS, type Candidate } from "@/lib/database.types"
 export const runtime = "nodejs"
 export const maxDuration = 120
 
-const MAX_PER_RUN = 40
+// Plafond haut : on veut tout classer en un clic (56-150 CV passent largement
+// sous le maxDuration 120 avec concurrence 5 et le mode décisif). Au-delà, on
+// renvoie remaining=-1 et le sourceur relance.
+const MAX_PER_RUN = 150
 const CONCURRENCY = 5
 
 export async function POST() {
@@ -67,7 +70,7 @@ export async function POST() {
       years_experience: c.years_experience,
       skills: c.skills,
       summary: parsed?.summary ?? null,
-    }, known)
+    }, known, { decisive: true })
     // On ne bascule en 'auto' que si Nora a trouvé quelque chose ; sinon on
     // laisse 'to_review' (jamais un secteur au petit bonheur).
     if (cls.sectors.length > 0) {

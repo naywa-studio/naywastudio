@@ -36,6 +36,7 @@ interface SectorInfo {
   name: string
   description: string | null
   count: number
+  created_by?: "user" | "nora"
 }
 
 const UNCLASSIFIED = "__unclassified__"
@@ -79,7 +80,7 @@ export default function VivierPage() {
   const registerSector = useCallback((name: string) => {
     setSectorsData((prev) => prev.some((s) => s.name.toLowerCase() === name.toLowerCase())
       ? prev
-      : [...prev, { id: name, name, description: null, count: 0 }])
+      : [...prev, { id: name, name, description: null, count: 0, created_by: "user" }])
   }, [])
 
   const applyCandidateSectors = useCallback((candId: string, sectors: string[], status: SectorStatus) => {
@@ -1176,6 +1177,9 @@ function SectorOverview({
   onClassify: () => void
   classifying: boolean
 }) {
+  // On masque les secteurs seed VIDES (BTP… que le cabinet n'utilise pas) mais
+  // on garde ceux que l'user a créés explicitement (intention), même à 0 CV.
+  const visibleSectors = sectors.filter((s) => s.count > 0 || s.created_by === "user")
   return (
     <div>
       {/* Barre d'actions secteurs */}
@@ -1249,7 +1253,7 @@ function SectorOverview({
         gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
         gap: 14,
       }}>
-        {sectors.map((s) => (
+        {visibleSectors.map((s) => (
           <button
             key={s.id}
             onClick={() => onOpen(s.name)}
@@ -1283,9 +1287,9 @@ function SectorOverview({
             )}
           </button>
         ))}
-        {sectors.length === 0 && (
+        {visibleSectors.length === 0 && (
           <div style={{ gridColumn: "1 / -1", padding: 30, textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
-            Aucun secteur. Créez-en un ou laissez Nora classer le vivier.
+            Aucun secteur avec des candidats. Créez-en un ou laissez Nora classer le vivier.
           </div>
         )}
       </div>
