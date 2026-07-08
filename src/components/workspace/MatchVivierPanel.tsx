@@ -15,8 +15,9 @@
  * (`target_sectors`) → réouvertures instantanées, sans nouvel appel.
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
+import { sectorColors } from "@/lib/sector-color"
 import type { Job } from "@/lib/database.types"
 import type { MatchMode } from "@/lib/sector-gate"
 
@@ -32,13 +33,12 @@ export function MatchVivierPanel({
   const [mode, setMode] = useState<MatchMode>("intelligent")
   const [sectors, setSectors] = useState<string[]>(job.target_sectors ?? [])
   const [loadingProposal, setLoadingProposal] = useState(false)
-  /** Secteurs existants de l'org — on pioche dedans (la création se fait dans
+  /** Secteurs existants de l'org — pills cliquables (la création se fait dans
    *  le vivier, avec définition Nora). */
   const [orgSectors, setOrgSectors] = useState<string[]>([])
-  const [pick, setPick] = useState("")
   const proposedOnce = useRef((job.target_sectors ?? []).length > 0)
 
-  // Charge la liste des secteurs de l'org (pour le sélecteur d'ajout).
+  // Charge la liste des secteurs de l'org (pour les pills).
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -69,21 +69,30 @@ export function MatchVivierPanel({
     return () => { cancelled = true }
   }, [job.id])
 
-  // Éditer les chips = passer automatiquement en "Personnalisé".
+  // Éditer les pills = passer automatiquement en "Personnalisé".
   const editSectors = (next: string[]) => {
     setSectors(next)
     if (mode === "intelligent") setMode("personnalise")
   }
-  const removeSector = (name: string) => editSectors(sectors.filter((s) => s !== name))
-  const addPicked = (name: string) => {
-    const n = name.trim()
-    if (!n || sectors.some((s) => s.toLowerCase() === n.toLowerCase())) return
-    editSectors([...sectors, n].slice(0, 8))
+  const toggleSector = (name: string) => {
+    const on = sectors.some((s) => s.toLowerCase() === name.toLowerCase())
+    editSectors(on
+      ? sectors.filter((s) => s.toLowerCase() !== name.toLowerCase())
+      : [...sectors, name].slice(0, 10))
   }
-  // Secteurs de l'org pas encore ciblés (proposables dans le sélecteur).
-  const addable = orgSectors.filter(
-    (n) => !sectors.some((s) => s.toLowerCase() === n.toLowerCase()),
-  )
+  // Toutes les pills à afficher : union secteurs de l'org + ciblés (au cas où
+  // Nora en propose un pas encore listé). Proposés/ciblés en tête.
+  const allPills = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const n of [...sectors, ...orgSectors]) {
+      const k = n.toLowerCase()
+      if (seen.has(k)) continue
+      seen.add(k); out.push(n)
+    }
+    return out
+  }, [sectors, orgSectors])
+  const isOn = (name: string) => sectors.some((s) => s.toLowerCase() === name.toLowerCase())
 
   const launch = () => {
     onLaunch(mode, mode === "complet" ? [] : sectors)
@@ -133,9 +142,12 @@ export function MatchVivierPanel({
 
         {showSectors && (
           <div style={{ marginTop: 16 }}>
-            <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-              Secteurs ciblés
-            </p>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 9 }}>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                Secteurs ciblés
+              </p>
+              <span style={{ fontSize: 11, color: "#9CA3AF" }}>· cliquez pour cibler</span>
+            </div>
             {loadingProposal ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#7C63C8", padding: "4px 0" }}>
                 <span style={{
@@ -148,49 +160,46 @@ export function MatchVivierPanel({
               </div>
             ) : (
               <>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {sectors.length === 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                  {allPills.length === 0 && (
                     <span style={{ fontSize: 12, color: "#9CA3AF" }}>
-                      Aucun secteur ciblé — ajoutez-en ou passez en Complet.
+                      Aucun secteur — créez-en dans le Vivier ou passez en Complet.
                     </span>
                   )}
-                  {sectors.map((s) => (
-                    <span key={s} style={{
-                      display: "inline-flex", alignItems: "center", gap: 6,
-                      fontSize: 12, fontWeight: 600, color: "#6B54B2",
-                      background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.25)",
-                      borderRadius: 99, padding: "4px 10px",
-                    }}>
-                      {s}
+                  {allPills.map((s) => {
+                    const on = isOn(s)
+                    const col = sectorColors(s)
+                    return (
                       <button
+                        key={s}
                         type="button"
-                        onClick={() => removeSector(s)}
-                        aria-label={`Retirer ${s}`}
+                        onClick={() => toggleSector(s)}
+                        aria-pressed={on}
                         style={{
-                          background: "transparent", border: "none", cursor: "pointer",
-                          color: "#9C8BD0", fontSize: 13, lineHeight: 1, padding: 0,
+                          display: "inline-flex", alignItems: "center", gap: 6,
+                          fontSize: 12.5, fontWeight: 600, fontFamily: "inherit",
+                          color: on ? col.text : "#6B7280",
+                          background: on ? col.bg : "white",
+                          border: `1px solid ${on ? col.border : "#E5E7EB"}`,
+                          borderRadius: 99, padding: "5px 11px", cursor: "pointer",
+                          transition: "all 120ms",
                         }}
-                      >×</button>
-                    </span>
-                  ))}
+                      >
+                        <span style={{
+                          width: 8, height: 8, borderRadius: "50%",
+                          background: on ? col.solid : "#D1D5DB",
+                        }} />
+                        {s}
+                        {on && (
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={col.text} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
-                {addable.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    <select
-                      value={pick}
-                      onChange={(e) => { addPicked(e.target.value); setPick("") }}
-                      style={{
-                        width: "100%", fontSize: 12.5, color: "#374151",
-                        padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 8,
-                        outline: "none", fontFamily: "inherit", background: "white",
-                      }}
-                    >
-                      <option value="">+ Ajouter un secteur ciblé…</option>
-                      {addable.map((n) => <option key={n} value={n}>{n}</option>)}
-                    </select>
-                  </div>
-                )}
-                <p style={{ margin: "8px 0 0", fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>
+                <p style={{ margin: "10px 0 0", fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>
                   Pour créer un nouveau secteur, rendez-vous dans le Vivier — Nora l&apos;aide à le définir.
                 </p>
               </>

@@ -7,8 +7,8 @@ import { getSupabase } from "@/lib/supabase"
 import { CANDIDATE_COLUMNS, type Candidate } from "@/lib/database.types"
 import { customTagsOf } from "@/lib/tags"
 import { matchesCandidateRef, candidateRefLabel } from "@/lib/candidate-ref"
-import { candidateClusters, clusterHue } from "@/lib/vivier-clusters"
 import { SectorReviewControl } from "@/components/workspace/SectorReviewControl"
+import { sectorColors } from "@/lib/sector-color"
 import type { SectorStatus } from "@/lib/database.types"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import NoraLoader from "@/components/workspace/NoraLoader"
@@ -769,15 +769,16 @@ function CandidateCard({
   const parsing = c.parse_status === "parsing" || c.parse_status === "pending"
   const errored = c.parse_status === "error"
 
-  // Couleurs de secteur, reprises de la Carte. Quand Nora a classé le
-  // candidat, on prend la couleur de son secteur primaire (et un dégradé
-  // vers le secondaire pour les hybrides). Sinon, fallback neutre.
-  const { primary, secondary } = candidateClusters(c)
-  const primaryHue = clusterHue(primary)
-  const secondaryHue = secondary ? clusterHue(secondary) : null
-  const barBackground = secondaryHue != null
-    ? `linear-gradient(180deg, hsl(${primaryHue}, 60%, 55%) 0%, hsl(${secondaryHue}, 60%, 55%) 100%)`
-    : `hsl(${primaryHue}, 60%, 55%)`
+  // Barre couleur = SECTEUR du candidat (nouveau système). Secteur primaire =
+  // 1ᵉʳ de c.sectors ; dégradé vers le 2ᵉ pour les profils hybrides. Pas de
+  // secteur (à classer) → gris neutre.
+  const primarySector = (c.sectors ?? [])[0] ?? null
+  const secondarySector = (c.sectors ?? [])[1] ?? null
+  const barBackground = !primarySector
+    ? "#D1D5DB"
+    : secondarySector
+      ? `linear-gradient(180deg, ${sectorColors(primarySector).solid} 0%, ${sectorColors(secondarySector).solid} 100%)`
+      : sectorColors(primarySector).solid
 
   return (
     <m.div
@@ -1268,7 +1269,7 @@ function SectorOverview({
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#F0ECF8"; e.currentTarget.style.transform = "none" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#7C63C8", flexShrink: 0 }} />
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: sectorColors(s.name).solid, flexShrink: 0 }} />
               <span style={{ fontSize: 14, fontWeight: 700, color: "#111827", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {s.name}
               </span>
