@@ -10,6 +10,7 @@ import { matchesCandidateRef, candidateRefLabel } from "@/lib/candidate-ref"
 import { candidateClusters, clusterHue } from "@/lib/vivier-clusters"
 import { SectorReviewControl } from "@/components/workspace/SectorReviewControl"
 import type { SectorStatus } from "@/lib/database.types"
+import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import NoraLoader from "@/components/workspace/NoraLoader"
 // VivierMapView et ZonesManager retirés temporairement de l'UI.
 // Le code reste dispo (components/workspace/VivierMapView.tsx +
@@ -30,6 +31,15 @@ interface UploadJob {
   candidateId?: string
 }
 
+interface SectorInfo {
+  id: string
+  name: string
+  description: string | null
+  count: number
+}
+
+const UNCLASSIFIED = "__unclassified__"
+
 // ViewMode retiré : vue Liste uniquement (cf. import note ci-dessus).
 
 // SECTOR_META / SECTOR_ORDER / SENIORITY_OPTIONS retirés : la classification
@@ -44,29 +54,57 @@ export default function VivierPage() {
   const [query, setQuery] = useState("")
   const [jobs, setJobs] = useState<UploadJob[]>([])
   const [isDragging, setIsDragging] = useState(false)
-  const [allSectors, setAllSectors] = useState<string[]>([])
+  const [sectorsData, setSectorsData] = useState<SectorInfo[]>([])
+  /** Navigation vivier : overview (cartes) | "__unclassified__" | nom de secteur. */
+  const [view, setView] = useState<string>("overview")
+  const [createOpen, setCreateOpen] = useState(false)
+  const [classifying, setClassifying] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Secteurs connus de l'org — alimente la revue rapide sur chaque carte.
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch("/api/sectors")
-        const data = await res.json().catch(() => null) as { sectors?: { name: string }[] } | null
-        if (!cancelled && data?.sectors) setAllSectors(data.sectors.map((s) => s.name))
-      } catch { /* best-effort */ }
-    })()
-    return () => { cancelled = true }
+  const allSectors = useMemo(() => sectorsData.map((s) => s.name), [sectorsData])
+
+  // Secteurs de l'org (nom + définition + comptage) — alimente les cartes du
+  // vivier + le dropdown de reclassement. Seed initial fait côté GET.
+  const refetchSectors = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sectors")
+      const data = await res.json().catch(() => null) as
+        { sectors?: SectorInfo[] } | null
+      if (data?.sectors) setSectorsData(data.sectors)
+    } catch { /* best-effort */ }
   }, [])
 
+  useEffect(() => { void refetchSectors() }, [refetchSectors])
+
   const registerSector = useCallback((name: string) => {
-    setAllSectors((prev) => prev.some((s) => s.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name])
+    setSectorsData((prev) => prev.some((s) => s.name.toLowerCase() === name.toLowerCase())
+      ? prev
+      : [...prev, { id: name, name, description: null, count: 0 }])
   }, [])
 
   const applyCandidateSectors = useCallback((candId: string, sectors: string[], status: SectorStatus) => {
     setCandidates((prev) => prev.map((c) => c.id === candId ? { ...c, sectors, sector_status: status } : c))
-  }, [])
+    void refetchSectors()
+  }, [refetchSectors])
+
+  // "Classer le vivier" — Nora range les candidats "à classer".
+  const runClassifyVivier = useCallback(async () => {
+    setClassifying(true)
+    try {
+      const res = await fetch("/api/sectors/classify-vivier", { method: "POST" })
+      if (res.ok) {
+        // Refetch candidats + secteurs (Realtime peut rater les updates admin).
+        const { data } = await sb
+          .from("candidates").select(CANDIDATE_COLUMNS)
+          .not("tags", "cs", "{ancien}")
+          .order("created_at", { ascending: false }).limit(200)
+        setCandidates((data ?? []) as unknown as Candidate[])
+        await refetchSectors()
+      }
+    } finally {
+      setClassifying(false)
+    }
+  }, [sb, refetchSectors])
 
   // Vue Liste uniquement — toggle Carte/Liste retiré le temps de
   // retravailler la taxonomie (Sprint B' juin 2026).
@@ -315,6 +353,19 @@ export default function VivierPage() {
     () => filtered.filter((c) => c.parse_status !== "pending" && c.parse_status !== "parsing"),
     [filtered],
   )
+
+  // Regroupement par secteur pour la navigation "2 zones" du vivier.
+  //  - À classer : sector_status 'to_review' OU aucun secteur.
+  //  - Par secteur : un candidat hybride apparaît dans chacun de ses secteurs.
+  const unclassifiedList = useMemo(
+    () => parsedOrErrored.filter((c) => c.sector_status === "to_review" || (c.sectors ?? []).length === 0),
+    [parsedOrErrored],
+  )
+  const candidatesInView = useMemo(() => {
+    if (view === "overview") return []
+    if (view === UNCLASSIFIED) return unclassifiedList
+    return parsedOrErrored.filter((c) => (c.sectors ?? []).includes(view))
+  }, [view, parsedOrErrored, unclassifiedList])
 
   // 5. Deletion — optimistic UI + undo toast (5 sec). The actual API
   // call only fires if the sourcer doesn't click "Annuler" in the toast.
@@ -603,10 +654,12 @@ export default function VivierPage() {
         </section>
       )}
 
-      {/* Grid / empty state */}
+      {/* Contenu principal : recherche → liste plate ; sinon navigation par
+          secteurs (overview cartes → liste des CV). */}
       {empty ? (
         <EmptyDropZone onPick={() => inputRef.current?.click()} />
-      ) : (
+      ) : query.trim() ? (
+        // Recherche active → résultats à plat, on ignore la navigation secteur.
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
@@ -614,21 +667,63 @@ export default function VivierPage() {
         }}>
           {parsedOrErrored.map((c, i) => (
             <CandidateCard
-              key={c.id}
-              c={c}
-              delay={Math.min(i * 0.03, 0.25)}
+              key={c.id} c={c} delay={Math.min(i * 0.03, 0.25)}
               onDelete={() => handleDelete(c.id)}
               allSectors={allSectors}
               onSectorCreated={registerSector}
               onSectorChange={(sectors, status) => applyCandidateSectors(c.id, sectors, status)}
             />
           ))}
-          {parsedOrErrored.length === 0 && parsingCandidates.length === 0 && candidates.length > 0 && (
+          {parsedOrErrored.length === 0 && (
             <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
-              Aucun candidat ne correspond aux filtres.
+              Aucun candidat ne correspond à la recherche.
             </div>
           )}
         </div>
+      ) : view === "overview" ? (
+        <SectorOverview
+          sectors={sectorsData}
+          unclassifiedCount={unclassifiedList.length}
+          onOpen={setView}
+          onCreate={() => setCreateOpen(true)}
+          onClassify={runClassifyVivier}
+          classifying={classifying}
+        />
+      ) : (
+        <SectorDetail
+          view={view}
+          sector={sectorsData.find((s) => s.name === view) ?? null}
+          candidates={candidatesInView}
+          onBack={() => setView("overview")}
+          onDelete={handleDelete}
+          allSectors={allSectors}
+          onSectorCreated={registerSector}
+          onSectorChange={applyCandidateSectors}
+          onRenamed={(oldName, newName) => {
+            setView(newName)
+            void refetchSectors()
+            // rafraîchit les candidats (le nom a changé côté serveur).
+            setCandidates((prev) => prev.map((c) => ({
+              ...c,
+              sectors: (c.sectors ?? []).map((s) => s === oldName ? newName : s),
+            })))
+          }}
+          onDeletedSector={(name) => {
+            setView("overview")
+            void refetchSectors()
+            setCandidates((prev) => prev.map((c) => ({
+              ...c,
+              sectors: (c.sectors ?? []).filter((s) => s !== name),
+            })))
+          }}
+        />
+      )}
+
+      {createOpen && (
+        <CreateSectorModal
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => { setCreateOpen(false); void refetchSectors() }}
+        />
       )}
     </main>
   )
@@ -693,7 +788,9 @@ function CandidateCard({
         border: `1px solid ${errored ? "#FECACA" : "#F0ECF8"}`,
         padding: "12px 14px 12px 16px",
         display: "flex", flexDirection: "column", gap: 8,
-        position: "relative", overflow: "hidden",
+        // overflow visible : le dropdown de reclassement (SectorReviewControl)
+        // doit pouvoir déborder de la carte sans être coupé.
+        position: "relative", overflow: "visible",
         transition: "transform 180ms ease, box-shadow 180ms ease, border-color 180ms",
       }}
       whileHover={{ y: -2 }}
@@ -703,6 +800,7 @@ function CandidateCard({
         <span style={{
           position: "absolute", top: 0, bottom: 0, left: 0, width: 4,
           background: barBackground,
+          borderTopLeftRadius: 12, borderBottomLeftRadius: 12,
         }} />
       )}
       {/* Status chip */}
@@ -1065,3 +1163,347 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
     </m.div>
   )
 }
+
+/* ─── Vivier par secteurs ─────────────────────────────────────────── */
+
+function SectorOverview({
+  sectors, unclassifiedCount, onOpen, onCreate, onClassify, classifying,
+}: {
+  sectors: SectorInfo[]
+  unclassifiedCount: number
+  onOpen: (view: string) => void
+  onCreate: () => void
+  onClassify: () => void
+  classifying: boolean
+}) {
+  return (
+    <div>
+      {/* Barre d'actions secteurs */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Rangé par secteur</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          {unclassifiedCount > 0 && (
+            <button
+              onClick={onClassify}
+              disabled={classifying}
+              style={{
+                fontSize: 12.5, fontWeight: 700,
+                color: classifying ? "#9CA3AF" : "#7C63C8",
+                background: "white", border: "1px solid rgba(124,99,200,0.30)",
+                borderRadius: 9, padding: "8px 13px",
+                cursor: classifying ? "default" : "pointer", fontFamily: "inherit",
+              }}
+            >
+              {classifying ? "Nora range…" : "Classer le vivier"}
+            </button>
+          )}
+          <button
+            onClick={onCreate}
+            style={{
+              fontSize: 12.5, fontWeight: 700, color: "white",
+              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              border: "none", borderRadius: 9, padding: "8px 14px",
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            + Créer un secteur
+          </button>
+        </div>
+      </div>
+
+      {/* Zone 1 — À classer (seule action requise, en tête). */}
+      {unclassifiedCount > 0 && (
+        <button
+          onClick={() => onOpen(UNCLASSIFIED)}
+          style={{
+            display: "flex", alignItems: "center", gap: 12, width: "100%",
+            textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+            padding: "14px 16px", marginBottom: 16, borderRadius: 14,
+            background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.30)",
+          }}
+        >
+          <span style={{
+            width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(245,158,11,0.14)", color: "#B45309",
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 9v4M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+            </svg>
+          </span>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: "block", fontSize: 14, fontWeight: 800, color: "#92400E" }}>
+              À classer
+            </span>
+            <span style={{ display: "block", fontSize: 12, color: "#B45309", marginTop: 1 }}>
+              {unclassifiedCount} candidat{unclassifiedCount > 1 ? "s" : ""} que Nora n&apos;a pas su ranger — un clic pour les placer.
+            </span>
+          </span>
+          <span style={{ fontSize: 18, color: "#B45309" }}>→</span>
+        </button>
+      )}
+
+      {/* Zone 2 — Cartes par secteur. */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+        gap: 14,
+      }}>
+        {sectors.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => onOpen(s.name)}
+            style={{
+              display: "flex", flexDirection: "column", gap: 6, textAlign: "left",
+              cursor: "pointer", fontFamily: "inherit",
+              padding: "16px 16px", borderRadius: 14,
+              background: "white", border: "1px solid #F0ECF8",
+              transition: "border-color 150ms, transform 150ms",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#D8CEF0"; e.currentTarget.style.transform = "translateY(-2px)" }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#F0ECF8"; e.currentTarget.style.transform = "none" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#7C63C8", flexShrink: 0 }} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#111827", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {s.name}
+              </span>
+              <span style={{
+                fontSize: 12, fontWeight: 800, color: "#7C63C8",
+                background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
+                borderRadius: 100, padding: "1px 9px", fontVariantNumeric: "tabular-nums",
+              }}>
+                {s.count}
+              </span>
+            </div>
+            {s.description && (
+              <span style={{ fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                {s.description}
+              </span>
+            )}
+          </button>
+        ))}
+        {sectors.length === 0 && (
+          <div style={{ gridColumn: "1 / -1", padding: 30, textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
+            Aucun secteur. Créez-en un ou laissez Nora classer le vivier.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SectorDetail({
+  view, sector, candidates, onBack, onDelete, allSectors, onSectorCreated, onSectorChange, onRenamed, onDeletedSector,
+}: {
+  view: string
+  sector: SectorInfo | null
+  candidates: Candidate[]
+  onBack: () => void
+  onDelete: (id: string) => void
+  allSectors: string[]
+  onSectorCreated: (name: string) => void
+  onSectorChange: (candId: string, sectors: string[], status: SectorStatus) => void
+  onRenamed: (oldName: string, newName: string) => void
+  onDeletedSector: (name: string) => void
+}) {
+  const isUnclassified = view === UNCLASSIFIED
+  const title = isUnclassified ? "À classer" : view
+  const [renaming, setRenaming] = useState(false)
+  const [newName, setNewName] = useState(view)
+  const [busy, setBusy] = useState(false)
+
+  const doRename = async () => {
+    const n = newName.trim()
+    if (!sector || !n || n === view) { setRenaming(false); return }
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/sectors/${sector.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: n }),
+      })
+      if (res.ok) onRenamed(view, n)
+    } finally { setBusy(false); setRenaming(false) }
+  }
+
+  const doDelete = async () => {
+    if (!sector) return
+    if (!confirm(`Supprimer le secteur "${view}" ? Les candidats ne seront pas supprimés, seulement retirés de ce secteur.`)) return
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/sectors/${sector.id}`, { method: "DELETE" })
+      if (res.ok) onDeletedSector(view)
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <button onClick={onBack} style={{
+          fontSize: 13, fontWeight: 600, color: "#7C63C8",
+          background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0,
+        }}>← Secteurs</button>
+        {renaming ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") void doRename(); if (e.key === "Escape") setRenaming(false) }}
+              style={{ fontSize: 15, fontWeight: 700, color: "#111827", padding: "4px 8px", border: "1px solid #C4B6E0", borderRadius: 7, outline: "none", fontFamily: "inherit" }}
+            />
+            <button onClick={doRename} disabled={busy} style={{ fontSize: 12, fontWeight: 700, color: "white", background: "#7C63C8", border: "none", borderRadius: 7, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>OK</button>
+            <button onClick={() => setRenaming(false)} style={{ fontSize: 12, color: "#6B7280", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
+          </div>
+        ) : (
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+            {title}
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#9CA3AF", marginLeft: 8 }}>{candidates.length}</span>
+          </h2>
+        )}
+        {!isUnclassified && sector && !renaming && (
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button onClick={() => { setNewName(view); setRenaming(true) }} style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", background: "white", border: "1px solid #E5E7EB", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>Renommer</button>
+            <button onClick={doDelete} disabled={busy} style={{ fontSize: 12, fontWeight: 600, color: "#DC2626", background: "white", border: "1px solid #FCA5A5", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>Supprimer</button>
+          </div>
+        )}
+      </div>
+
+      {isUnclassified && (
+        <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#B45309", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 10, padding: "10px 13px" }}>
+          Nora n&apos;était pas sûre pour ces profils. Choisissez leur secteur ci-dessous (ou laissez, ils restent matchables).
+        </p>
+      )}
+
+      {candidates.length === 0 ? (
+        <div style={{ padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14, background: "white", border: "1px dashed #E2DAF6", borderRadius: 14 }}>
+          Aucun candidat dans ce secteur.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          {candidates.map((c, i) => (
+            <CandidateCard
+              key={c.id} c={c} delay={Math.min(i * 0.03, 0.25)}
+              onDelete={() => onDelete(c.id)}
+              allSectors={allSectors}
+              onSectorCreated={onSectorCreated}
+              onSectorChange={(sectors, status) => onSectorChange(c.id, sectors, status)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CreateSectorModal({
+  onClose, onCreated,
+}: {
+  onClose: () => void
+  onCreated: () => void
+}) {
+  useEscapeKey(onClose)
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [duplicateOf, setDuplicateOf] = useState<string | null>(null)
+  const [defining, setDefining] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [asked, setAsked] = useState(false)
+
+  const askNora = async () => {
+    const n = name.trim()
+    if (!n) return
+    setDefining(true); setDuplicateOf(null)
+    try {
+      const res = await fetch("/api/sectors/define", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: n }),
+      })
+      const data = await res.json().catch(() => null) as { description?: string; duplicate_of?: string | null } | null
+      if (data) {
+        setDescription(data.description ?? "")
+        setDuplicateOf(data.duplicate_of ?? null)
+        setAsked(true)
+      }
+    } finally { setDefining(false) }
+  }
+
+  const create = async () => {
+    const n = name.trim()
+    if (!n) return
+    setCreating(true)
+    try {
+      const res = await fetch("/api/sectors", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: n, description: description.trim() || null }),
+      })
+      if (res.ok) onCreated()
+    } finally { setCreating(false) }
+  }
+
+  return (
+    <div
+      role="dialog" aria-modal="true"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        background: "rgba(17,24,39,0.40)", backdropFilter: "blur(2px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20, fontFamily: "var(--font-inter), sans-serif",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 460, background: "white", borderRadius: 16, padding: 22, boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)" }}>
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827" }}>Créer un secteur</h2>
+        <p style={{ margin: "4px 0 16px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
+          Nommez le secteur, Nora en propose une définition — elle servira à ranger les CV de façon cohérente.
+        </p>
+
+        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
+          Nom du secteur
+        </label>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={name} onChange={(e) => { setName(e.target.value); setAsked(false) }} autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") void askNora() }}
+            placeholder="Ex : Assurance, Luxe, Aéronautique…"
+            style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: "#111827", padding: "9px 12px", border: "1px solid #E5E7EB", borderRadius: 9, outline: "none", fontFamily: "inherit" }}
+          />
+          <button
+            onClick={askNora} disabled={!name.trim() || defining}
+            style={{ fontSize: 12.5, fontWeight: 700, color: name.trim() && !defining ? "#7C63C8" : "#C4C4C4", background: "white", border: "1px solid #E5E7EB", borderRadius: 9, padding: "0 13px", cursor: name.trim() && !defining ? "pointer" : "default", fontFamily: "inherit", whiteSpace: "nowrap" }}
+          >
+            {defining ? "…" : "Demander à Nora"}
+          </button>
+        </div>
+
+        {duplicateOf && (
+          <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B45309", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.28)", borderRadius: 9, padding: "8px 11px" }}>
+            Proche du secteur existant <strong>{duplicateOf}</strong>. Vous pouvez quand même créer celui-ci si c&apos;est vraiment différent.
+          </p>
+        )}
+
+        {asked && (
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
+              Définition (modifiable)
+            </label>
+            <textarea
+              value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
+              style={{ width: "100%", boxSizing: "border-box", fontSize: 13, lineHeight: 1.5, color: "#111827", padding: "9px 11px", border: "1px solid #E2DAF6", background: "#FBFAFE", borderRadius: 9, outline: "none", fontFamily: "inherit", resize: "vertical" }}
+            />
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
+          <button onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: "#6B7280", background: "white", border: "1px solid #E5E7EB", borderRadius: 9, padding: "9px 15px", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
+          <button
+            onClick={create} disabled={!name.trim() || creating}
+            style={{ fontSize: 13, fontWeight: 700, color: "white", background: !name.trim() || creating ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)", border: "none", borderRadius: 9, padding: "9px 18px", cursor: !name.trim() || creating ? "default" : "pointer", fontFamily: "inherit" }}
+          >
+            {creating ? "Création…" : "Créer le secteur"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
