@@ -370,6 +370,9 @@ export type Database = {
           description: string | null
           brief: Record<string, unknown> | null
           briefing: string | null
+          /** Brief brut du client (appel d'offre / cahier des charges), optionnel.
+           *  Distinct de `briefing` (brief saisi par le sourceur). */
+          client_brief: string | null
           normalized: JobNormalized | null
           status: 'draft' | 'open' | 'filled' | 'archived'
           match_status: 'idle' | 'matching' | 'done' | 'error'
@@ -431,6 +434,7 @@ export type Database = {
           description?: string | null
           brief?: Record<string, unknown> | null
           briefing?: string | null
+          client_brief?: string | null
           normalized?: JobNormalized | null
           status?: 'draft' | 'open' | 'filled' | 'archived'
           match_status?: 'idle' | 'matching' | 'done' | 'error'

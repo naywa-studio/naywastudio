@@ -14,6 +14,7 @@ import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { MissionCvUploadModal } from "@/components/workspace/MissionCvUploadModal"
 import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
 import { MissionSummaryBar } from "@/components/workspace/MissionSummaryBar"
+import { MissionBriefSection } from "@/components/workspace/MissionBriefSection"
 import { MatchCard } from "@/components/workspace/MatchCard"
 import { JobForm } from "../page"
 
@@ -268,6 +269,14 @@ export default function JobDetailPage() {
           onAssignFromVivier={() => setAssignOpen(true)}
           onCreateForm={undefined}
           matching={matching}
+        />
+      )}
+
+      {/* Brief de la mission — brief original + brief client (appel d'offre). */}
+      {!showWizard && (
+        <MissionBriefSection
+          job={job}
+          onSaved={(patch) => setJob((prev) => prev ? { ...prev, ...patch } : prev)}
         />
       )}
 
