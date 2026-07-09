@@ -5,7 +5,8 @@
  * Permet d'accorder un quota custom à un client en dehors de Stripe
  * (extras facturés manuellement en V1).
  *
- * Body : { organization_id, storage_gb?, llm_monthly?, clear? }
+ * Body : { organization_id, cv?, storage_gb?, llm_monthly?, clear? }
+ *   - cv: capacité vivier custom (plafond principal visible client)
  *   - clear: true → reset à NULL (revient aux quotas du plan)
  *   - sinon → set le json avec les valeurs fournies
  *
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null) as {
     organization_id?: unknown
+    cv?: unknown
     storage_gb?: unknown
     llm_monthly?: unknown
     clear?: unknown
@@ -54,16 +56,19 @@ export async function POST(req: NextRequest) {
   }
 
   // Validation simple — borne haute pour éviter les valeurs débiles.
+  const cv = typeof body.cv === "number" && body.cv > 0 && body.cv <= 5_000_000
+    ? Math.round(body.cv) : undefined
   const storageGb = typeof body.storage_gb === "number" && body.storage_gb > 0 && body.storage_gb <= 10000
     ? Math.round(body.storage_gb) : undefined
   const llmMonthly = typeof body.llm_monthly === "number" && body.llm_monthly > 0 && body.llm_monthly <= 10_000_000
     ? Math.round(body.llm_monthly) : undefined
 
-  if (storageGb === undefined && llmMonthly === undefined) {
+  if (cv === undefined && storageGb === undefined && llmMonthly === undefined) {
     return NextResponse.json({ error: "no_valid_values" }, { status: 400 })
   }
 
   const override: Record<string, number> = {}
+  if (cv !== undefined) override.cv = cv
   if (storageGb !== undefined) override.storage_gb = storageGb
   if (llmMonthly !== undefined) override.llm_monthly = llmMonthly
 

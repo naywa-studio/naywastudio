@@ -266,9 +266,11 @@ export type Database = {
           /** Début du mois en cours (filet si le cron de reset rate
            *  un mois — check quota le reset à la volée). */
           llm_period_start: string
-          /** Override custom des quotas — { storage_gb, llm_monthly }.
-           *  NULL = quotas dérivés du plan. Set par admin Naywa. */
-          quota_override_json: { storage_gb?: number; llm_monthly?: number } | null
+          /** Override custom des quotas — { cv, storage_gb, llm_monthly }.
+           *  `cv` = capacité vivier custom (plafond visible client). Les deux
+           *  autres restent en filet interne. NULL = quotas dérivés du plan.
+           *  Set par admin Naywa. */
+          quota_override_json: { cv?: number; storage_gb?: number; llm_monthly?: number } | null
           created_at: string
           updated_at: string
         }

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
-import { QUOTAS_BY_PLAN, formatBytes } from "@/lib/quota-tiers"
+import { QUOTAS_BY_PLAN } from "@/lib/quota-tiers"
 
 type SeatCount = 1 | 2 | 3 | 4
 
@@ -292,7 +292,7 @@ function PriceCard({
   perSeat: number
   recommended: boolean
   features: readonly string[]
-  quota?: { storageBytes: number; llmMonthly: number }
+  quota?: { cvLimit: number; storageBytes: number; llmMonthly: number }
   cta: string
   accentSoft: boolean
 }) {
@@ -434,15 +434,15 @@ function PriceCard({
             }}
           >
             <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7C63C8" }}>
-              Inclus chaque mois
+              Inclus
             </span>
             <span style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <span>Stockage CVs</span>
-              <strong>{formatBytes(quota.storageBytes)}</strong>
+              <span>Capacité vivier</span>
+              <strong>{quota.cvLimit.toLocaleString("fr-FR")} CV</strong>
             </span>
             <span style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <span>Actions IA / mois</span>
-              <strong>{quota.llmMonthly.toLocaleString("fr-FR")}</strong>
+              <span>Matchings &amp; anonymisations</span>
+              <strong>Illimités</strong>
             </span>
           </div>
         )}

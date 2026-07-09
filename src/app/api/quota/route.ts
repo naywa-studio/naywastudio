@@ -44,7 +44,19 @@ export async function GET() {
   const adminFlag = await isAdmin(user.id)
   const quotas = getQuotas(org, { isAdmin: adminFlag })
 
+  // Capacité vivier — SEUL plafond montré au client. On compte les lignes
+  // `candidates` de l'org (instantané, exact, sans dépendance cron), à la
+  // différence de storage_used_bytes qui dépend d'un recalcul nightly.
+  const { count: cvUsed } = await admin
+    .from("candidates")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", profile.organization_id)
+
   return NextResponse.json({
+    cv: {
+      used: cvUsed ?? 0,
+      limit: quotas.cvLimit,
+    },
     storage: {
       used_bytes: org.storage_used_bytes ?? 0,
       limit_bytes: quotas.storageBytes,

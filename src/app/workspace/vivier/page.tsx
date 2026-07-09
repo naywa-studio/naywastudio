@@ -12,6 +12,7 @@ import { sectorColors } from "@/lib/sector-color"
 import type { SectorStatus } from "@/lib/database.types"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import { QuotaGauges } from "@/components/quota/QuotaGauges"
 // VivierMapView et ZonesManager retirés temporairement de l'UI.
 // Le code reste dispo (components/workspace/VivierMapView.tsx +
 // ZonesManager.tsx + API /api/vivier/cluster, /api/vivier/zones) pour
@@ -503,6 +504,7 @@ export default function VivierPage() {
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <QuotaGauges variant="inline" />
           <button
             onClick={() => inputRef.current?.click()}
             style={{
@@ -1190,7 +1192,7 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
         Choisir des PDFs
       </span>
       <p style={{ margin: "18px 0 0", fontSize: 11, color: "#9CA3AF" }}>
-        PDF uniquement · 10 Mo max · 50 imports / jour pendant la beta
+        PDF uniquement · 10 Mo max · 500 fichiers max par lot
       </p>
     </m.div>
   )

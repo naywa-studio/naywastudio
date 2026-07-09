@@ -614,6 +614,7 @@ function QuotaOverrideModal({
   orgId, orgName, onClose,
 }: { orgId: string; orgName: string; onClose: () => void }) {
   useEscapeKey(onClose)
+  const [cv, setCv] = useState("")
   const [storageGb, setStorageGb] = useState("")
   const [llmMonthly, setLlmMonthly] = useState("")
   const [busy, setBusy] = useState(false)
@@ -624,8 +625,10 @@ function QuotaOverrideModal({
     setBusy(true); setError(null)
     try {
       const body: Record<string, unknown> = { organization_id: orgId }
+      const c = Number(cv)
       const s = Number(storageGb)
       const l = Number(llmMonthly)
+      if (Number.isFinite(c) && c > 0) body.cv = c
       if (Number.isFinite(s) && s > 0) body.storage_gb = s
       if (Number.isFinite(l) && l > 0) body.llm_monthly = l
       const r = await fetch("/api/admin/quota-override", {
@@ -715,8 +718,22 @@ function QuotaOverrideModal({
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
               <div>
-                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#374151" }}>
-                  Stockage (GB)
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 700, color: "#374151" }}>
+                  Capacité vivier (CV) — plafond principal
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={5_000_000}
+                  value={cv}
+                  onChange={(e) => setCv(e.target.value)}
+                  placeholder="ex: 50000"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#9CA3AF" }}>
+                  Stockage (GB) — filet interne, optionnel
                 </label>
                 <input
                   type="number"
@@ -724,13 +741,13 @@ function QuotaOverrideModal({
                   max={10000}
                   value={storageGb}
                   onChange={(e) => setStorageGb(e.target.value)}
-                  placeholder="ex: 20"
+                  placeholder="auto"
                   style={inputStyle}
                 />
               </div>
               <div>
-                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#374151" }}>
-                  Actions IA / mois
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#9CA3AF" }}>
+                  Actions IA / mois — filet interne, optionnel
                 </label>
                 <input
                   type="number"
@@ -738,7 +755,7 @@ function QuotaOverrideModal({
                   max={10_000_000}
                   value={llmMonthly}
                   onChange={(e) => setLlmMonthly(e.target.value)}
-                  placeholder="ex: 30000"
+                  placeholder="auto"
                   style={inputStyle}
                 />
               </div>
@@ -771,7 +788,7 @@ function QuotaOverrideModal({
                   Annuler
                 </button>
                 <button type="button" onClick={save}
-                  disabled={busy || (!storageGb && !llmMonthly)}
+                  disabled={busy || (!cv && !storageGb && !llmMonthly)}
                   style={{
                     padding: "9px 16px", borderRadius: 9,
                     border: "none", color: "white",
@@ -779,7 +796,7 @@ function QuotaOverrideModal({
                       : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
                     fontSize: 13, fontWeight: 700, cursor: busy ? "wait" : "pointer",
                     fontFamily: "inherit",
-                    opacity: (!storageGb && !llmMonthly) ? 0.5 : 1,
+                    opacity: (!cv && !storageGb && !llmMonthly) ? 0.5 : 1,
                   }}>
                   {busy ? "Enregistrement…" : "Enregistrer"}
                 </button>

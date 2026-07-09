@@ -4,8 +4,8 @@
  *   1. Auth check
  *   2. Validate (PDF, ≤10 MB)
  *   3. Enforce daily quota (consumeQuota — daily_usage, per-user/day)
- *   4. Enforce org storage quota (refus si dépasse)
- *   5. Enforce org LLM quota (refus si dépasse — parsing = action LLM)
+ *   4. Enforce org CV quota (plafond principal — capacité vivier en nb de CV)
+ *      + storage/LLM en filet interne (refus si dépasse)
  *   6. Insert candidate row (parse_status = "parsing")
  *   7. Upload PDF to R2 bucket naywa-cv : {org_id}/{candidate_id}/{filename}
  *   8. Bump storage_used_bytes par la vraie taille
@@ -23,7 +23,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { isAdmin } from "@/lib/admin"
-import { consumeQuota, consumeOrgLlmAction, checkStorageQuota, incrementStorageUsed } from "@/lib/quota"
+import { consumeQuota, consumeOrgLlmAction, checkCvQuota, checkStorageQuota, incrementStorageUsed } from "@/lib/quota"
 import { r2Upload } from "@/lib/r2-storage"
 
 export const runtime = "nodejs"
@@ -129,6 +129,18 @@ export async function POST(req: NextRequest) {
       .select("*")
       .single()
     return NextResponse.json({ ok: true, duplicate: true, candidate: up ?? archived })
+  }
+
+  // Plafond PRINCIPAL (visible client) : capacité du vivier en nombre de CV.
+  // Placé APRÈS la détection de doublon — ré-importer un CV déjà présent ne
+  // doit jamais être bloqué (il n'ajoute pas de ligne). On ne cape que la
+  // création d'un NOUVEAU candidat.
+  const cvCheck = await checkCvQuota(admin, orgId, { isAdmin: isAdminUser })
+  if (!cvCheck.ok) {
+    return NextResponse.json({
+      error: cvCheck.code ?? "cv_quota_exceeded",
+      message: cvCheck.message,
+    }, { status: 413 })
   }
 
   const { data: created, error: insertErr } = await admin

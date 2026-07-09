@@ -8,7 +8,7 @@ import { getSupabase } from "@/lib/supabase"
 import { trialStatus, TRIAL_DURATION_DAYS, TRIAL_SEAT_CAP } from "@/lib/trial"
 import { subscriptionAccess, hasActiveAccess } from "@/lib/subscription"
 import { PLAN_PRICES_EUR, lookupKey, type PlanTier, type PlanSeats } from "@/lib/stripe"
-import { QUOTAS_BY_PLAN, formatBytes } from "@/lib/quota-tiers"
+import { QUOTAS_BY_PLAN } from "@/lib/quota-tiers"
 import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
@@ -1028,17 +1028,14 @@ function PlanPickerModal({
                       <path d="M3 7l9 6 9-6"/>
                       <rect x="3" y="5" width="18" height="2"/>
                     </svg>
-                    {formatBytes(q.storageBytes)} stockage
+                    {q.cvLimit.toLocaleString("fr-FR")} CV
                   </span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M12 2v4"/><path d="M12 18v4"/>
-                      <path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/>
-                      <path d="M2 12h4"/><path d="M18 12h4"/>
-                      <path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 7.76 2.83-2.83"/>
+                      <path d="M20 6 9 17l-5-5"/>
                     </svg>
-                    {q.llmMonthly.toLocaleString("fr-FR")} actions IA / mois
+                    Matchings illimités
                   </span>
                 </div>
               )}

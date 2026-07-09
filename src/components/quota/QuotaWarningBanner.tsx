@@ -1,8 +1,8 @@
 "use client"
 
 /**
- * Banner discret en haut du workspace quand le quota stockage ou LLM
- * dépasse 80%. Disparaît sous 80% (refetch toutes les 60s).
+ * Banner discret en haut du workspace quand la capacité du vivier (nombre
+ * de CV) dépasse 80%. Disparaît sous 80% (refetch toutes les 60s).
  *
  * À mettre dans le layout workspace + organisation. Reste muet en
  * dessous du seuil pour ne pas être anxiogène.
@@ -10,16 +10,20 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { quotaPercent } from "@/lib/quota-tiers"
 
 interface QuotaResponse {
-  storage: { used_bytes: number; limit_bytes: number }
-  llm: { used: number; limit: number }
+  cv: { used: number; limit: number }
+  plan?: { source: string }
 }
 
 const REFRESH_MS = 60_000
 const WARN_PCT = 80
 const CRIT_PCT = 100
+
+function pct(used: number, limit: number): number {
+  if (limit <= 0) return 0
+  return Math.min(100, Math.round((used / limit) * 100))
+}
 
 export function QuotaWarningBanner() {
   const [data, setData] = useState<QuotaResponse | null>(null)
@@ -40,17 +44,14 @@ export function QuotaWarningBanner() {
   }, [])
 
   if (!data) return null
-  const sPct = quotaPercent(data.storage.used_bytes, data.storage.limit_bytes)
-  const lPct = quotaPercent(data.llm.used, data.llm.limit)
-  const max = Math.max(sPct, lPct)
+  // Admin Naywa : capacité ~illimitée, pas de bannière.
+  if (data.plan?.source === "admin") return null
+  const max = pct(data.cv.used, data.cv.limit)
 
   if (max < WARN_PCT) return null
 
   const critical = max >= CRIT_PCT
-  const kinds: string[] = []
-  if (sPct >= WARN_PCT) kinds.push("stockage")
-  if (lPct >= WARN_PCT) kinds.push("actions IA")
-  const kindLabel = kinds.join(" et ")
+  const kindLabel = "capacité de vivier"
 
   return (
     <div style={{
@@ -81,8 +82,8 @@ export function QuotaWarningBanner() {
         </strong>
         {" — "}
         {critical
-          ? `Vous avez atteint votre limite de ${kindLabel}. Les prochaines actions seront refusées jusqu'au renouvellement mensuel.`
-          : `Vous approchez de votre quota mensuel (${kindLabel}, ${max}%).`}
+          ? `Vous avez atteint votre ${kindLabel}. Supprimez d'anciens CV ou contactez-nous pour un palier supérieur.`
+          : `Vous approchez de votre ${kindLabel} (${max}%).`}
       </span>
       <Link
         href="/organisation"

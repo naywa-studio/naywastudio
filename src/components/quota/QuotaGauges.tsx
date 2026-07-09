@@ -1,56 +1,41 @@
 "use client"
 
 /**
- * Jauges quota stockage + LLM, pour le panneau "Mes packages" dans
- * /organisation et la section accueil du workspace.
+ * Jauge de capacité du vivier (nombre de CV), pour le panneau "Mes packages"
+ * dans /organisation et l'en-tête de /workspace/vivier.
  *
- * Affichage : barre + % (toujours visible), valeur absolue "X utilisés
- * ce mois" (toujours), valeur "X / Y" seulement au-delà de 70%.
- * Tooltip "Voir détail" ouvre une mini-modale avec le plan + extras.
+ * MODÈLE CLIENT : un SEUL plafond montré = la capacité du vivier en CV.
+ * Matchings + anonymisations restent illimités (on l'affiche comme argument).
+ * Le stockage bytes + le cap LLM existent toujours en filet interne mais ne
+ * sont PLUS montrés au client (opaques + fragiles).
  *
- * Couleur : verte 0-70%, ambrée 70-90%, rouge 90-100%.
+ * Deux variantes :
+ *   - "card"   : bloc encadré (colonne "Mes packages" de /organisation).
+ *   - "inline" : barre fine sur une ligne (en-tête du vivier).
  *
- * Refetch toutes les 60s pour suivre l'usage en temps quasi-réel sans
- * spammer l'API.
+ * Refetch toutes les 60s pour suivre l'usage en quasi temps réel.
  */
 
 import { useEffect, useState } from "react"
-import { formatBytes, quotaPercent } from "@/lib/quota-tiers"
 
 interface QuotaResponse {
-  storage: { used_bytes: number; limit_bytes: number }
-  llm: {
-    used: number
-    limit: number
-    period_start: string
-    period: "month" | "fixed"
-  }
+  cv: { used: number; limit: number }
   plan: { source: string; label: string }
-}
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000
-const RENEW_INTERVAL_MS = 30 * MS_PER_DAY
-
-/** Calcule la date de prochain renouvellement (period_start + 30 j) et
- *  le nombre de jours restants jusque-là. Renvoie null si pas applicable. */
-function nextRenewal(periodStart: string | null, now: number): {
-  date: Date; daysLeft: number
-} | null {
-  if (!periodStart) return null
-  const start = new Date(periodStart).getTime()
-  if (!Number.isFinite(start)) return null
-  const nextMs = start + RENEW_INTERVAL_MS
-  const daysLeft = Math.max(0, Math.ceil((nextMs - now) / MS_PER_DAY))
-  return { date: new Date(nextMs), daysLeft }
 }
 
 const REFRESH_MS = 60_000
 
-export function QuotaGauges({ compact = false }: { compact?: boolean }) {
-  const [data, setData] = useState<QuotaResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [detailOpen, setDetailOpen] = useState<"storage" | "llm" | null>(null)
+function pct(used: number, limit: number): number {
+  if (limit <= 0) return 0
+  return Math.min(100, Math.round((used / limit) * 100))
+}
 
+function colorFor(p: number): string {
+  return p >= 90 ? "#EF4444" : p >= 70 ? "#F59E0B" : "#7C63C8"
+}
+
+function useQuota(): QuotaResponse | null {
+  const [data, setData] = useState<QuotaResponse | null>(null)
   useEffect(() => {
     let cancelled = false
     const fetchQuota = async () => {
@@ -58,35 +43,78 @@ export function QuotaGauges({ compact = false }: { compact?: boolean }) {
         const res = await fetch("/api/quota", { cache: "no-store" })
         if (!res.ok) return
         const j = await res.json() as QuotaResponse
-        if (!cancelled) { setData(j); setError(null) }
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "erreur")
-      }
+        if (!cancelled) setData(j)
+      } catch { /* silent */ }
     }
     void fetchQuota()
     const t = window.setInterval(fetchQuota, REFRESH_MS)
     return () => { cancelled = true; window.clearInterval(t) }
   }, [])
+  return data
+}
 
-  if (error || !data) return null
+export function QuotaGauges({
+  variant = "card",
+  compact = false,
+}: { variant?: "card" | "inline"; compact?: boolean }) {
+  const data = useQuota()
+  const [detailOpen, setDetailOpen] = useState(false)
 
-  const storagePct = quotaPercent(data.storage.used_bytes, data.storage.limit_bytes)
-  const llmPct = quotaPercent(data.llm.used, data.llm.limit)
+  if (!data) return null
+
+  const { used, limit } = data.cv
+  // Comptes admin (limite ~illimitée) : on n'affiche pas de jauge — pas de
+  // plafond pertinent à montrer.
+  if (data.plan.source === "admin") return null
+  const p = pct(used, limit)
+  const color = colorFor(p)
+  const usedFmt = used.toLocaleString("fr-FR")
+  const limitFmt = limit.toLocaleString("fr-FR")
+
+  if (variant === "inline") {
+    return (
+      <button
+        type="button"
+        onClick={() => setDetailOpen(true)}
+        style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "6px 12px", borderRadius: 10,
+          border: "1px solid #F0ECF8", background: "white",
+          cursor: "pointer", fontFamily: "inherit",
+        }}
+        title="Voir le détail de votre capacité vivier"
+      >
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", whiteSpace: "nowrap" }}>
+          Vivier
+        </span>
+        <span style={{
+          width: 90, height: 6, borderRadius: 999,
+          background: "rgba(229,231,235,0.7)", overflow: "hidden",
+        }}>
+          <span style={{
+            display: "block", width: `${p}%`, height: "100%",
+            background: color, borderRadius: 999, transition: "width 400ms ease",
+          }} />
+        </span>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
+          {usedFmt}<span style={{ color: "#9CA3AF", fontWeight: 500 }}> / {limitFmt} CV</span>
+        </span>
+        {detailOpen && (
+          <DetailModal used={used} limit={limit} plan={data.plan} onClose={() => setDetailOpen(false)} />
+        )}
+      </button>
+    )
+  }
 
   return (
     <div style={{
-      display: "flex", flexDirection: "column", gap: compact ? 12 : 18,
+      display: "flex", flexDirection: "column", gap: compact ? 12 : 16,
       padding: compact ? 14 : 18,
-      borderRadius: 14,
-      border: "1px solid #F0ECF8",
-      background: "white",
+      borderRadius: 14, border: "1px solid #F0ECF8", background: "white",
     }}>
       <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <h3 style={{
-          margin: 0, fontSize: 13, fontWeight: 700, color: "#111827",
-          letterSpacing: "-0.005em",
-        }}>
-          {data.llm.period === "fixed" ? "Utilisation période d'essai" : "Utilisation"}
+        <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#111827", letterSpacing: "-0.005em" }}>
+          Capacité du vivier
         </h3>
         <span style={{
           fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
@@ -96,101 +124,59 @@ export function QuotaGauges({ compact = false }: { compact?: boolean }) {
         </span>
       </header>
 
-      <Gauge
-        label="Stockage"
-        percent={storagePct}
-        usedLabel={formatBytes(data.storage.used_bytes)}
-        limitLabel={formatBytes(data.storage.limit_bytes)}
-        showLimit={storagePct >= 70}
-        onDetail={() => setDetailOpen("storage")}
-      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: "#4B5563" }}>CV importés</span>
+          <span style={{ fontSize: 13.5, fontWeight: 800, color }}>{p}%</span>
+        </div>
+        <div style={{ height: 8, borderRadius: 999, background: "rgba(229,231,235,0.6)", overflow: "hidden" }}>
+          <div style={{
+            width: `${p}%`, height: "100%", background: color,
+            transition: "width 400ms ease", borderRadius: 999,
+          }} />
+        </div>
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "baseline",
+          fontSize: 11.5, color: "#9CA3AF",
+        }}>
+          <span>{usedFmt} / {limitFmt} CV</span>
+          <button
+            type="button"
+            onClick={() => setDetailOpen(true)}
+            style={{
+              background: "none", border: "none", padding: 0,
+              color: "#7C63C8", fontSize: 11.5, fontWeight: 600,
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            Voir détail
+          </button>
+        </div>
+      </div>
 
-      <Gauge
-        label="Actions IA"
-        percent={llmPct}
-        usedLabel={`${data.llm.used.toLocaleString("fr-FR")} actions`}
-        limitLabel={`${data.llm.limit.toLocaleString("fr-FR")} max`}
-        showLimit={llmPct >= 70}
-        onDetail={() => setDetailOpen("llm")}
-      />
+      <p style={{
+        margin: 0, fontSize: 11.5, color: "#6B7280", lineHeight: 1.5,
+        display: "flex", alignItems: "center", gap: 6,
+      }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22C55E"
+          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+        Matchings et anonymisations illimités
+      </p>
 
       {detailOpen && (
-        <DetailModal
-          kind={detailOpen}
-          plan={data.plan}
-          storage={data.storage}
-          llm={data.llm}
-          onClose={() => setDetailOpen(null)}
-        />
+        <DetailModal used={used} limit={limit} plan={data.plan} onClose={() => setDetailOpen(false)} />
       )}
     </div>
   )
 }
 
-function Gauge({
-  label, percent, usedLabel, limitLabel, showLimit, onDetail,
-}: {
-  label: string; percent: number; usedLabel: string; limitLabel: string
-  showLimit: boolean; onDetail: () => void
-}) {
-  const color = percent >= 90 ? "#EF4444"
-              : percent >= 70 ? "#F59E0B"
-              : "#7C63C8"
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "baseline",
-      }}>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#4B5563" }}>
-          {label}
-        </span>
-        <span style={{ fontSize: 13.5, fontWeight: 800, color: color }}>
-          {percent}%
-        </span>
-      </div>
-      <div style={{
-        height: 8, borderRadius: 999,
-        background: "rgba(229,231,235,0.6)",
-        overflow: "hidden",
-      }}>
-        <div style={{
-          width: `${percent}%`,
-          height: "100%",
-          background: color,
-          transition: "width 400ms ease",
-          borderRadius: 999,
-        }} />
-      </div>
-      <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "baseline",
-        fontSize: 11.5, color: "#9CA3AF",
-      }}>
-        <span>
-          {usedLabel}{showLimit ? ` / ${limitLabel}` : ""}
-        </span>
-        <button
-          type="button"
-          onClick={onDetail}
-          style={{
-            background: "none", border: "none", padding: 0,
-            color: "#7C63C8", fontSize: 11.5, fontWeight: 600,
-            cursor: "pointer", fontFamily: "inherit",
-          }}
-        >
-          Voir détail
-        </button>
-      </div>
-    </div>
-  )
-}
-
 function DetailModal({
-  kind, plan, storage, llm, onClose,
+  used, limit, plan, onClose,
 }: {
-  kind: "storage" | "llm"
+  used: number; limit: number
   plan: { source: string; label: string }
-  storage: { used_bytes: number; limit_bytes: number }
-  llm: { used: number; limit: number; period_start: string; period: "month" | "fixed" }
   onClose: () => void
 }) {
   useEffect(() => {
@@ -199,16 +185,9 @@ function DetailModal({
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])
 
-  const [nowMs, setNowMs] = useState<number | null>(null)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNowMs(Date.now())
-  }, [])
-
-  const title = kind === "storage" ? "Stockage" : "Actions IA"
-  const used = kind === "storage" ? formatBytes(storage.used_bytes) : llm.used.toLocaleString("fr-FR")
-  const limit = kind === "storage" ? formatBytes(storage.limit_bytes) : llm.limit.toLocaleString("fr-FR")
-  const renew = nowMs && llm.period === "month" ? nextRenewal(llm.period_start, nowMs) : null
+  const usedFmt = used.toLocaleString("fr-FR")
+  const limitFmt = limit.toLocaleString("fr-FR")
+  const remaining = Math.max(0, limit - used).toLocaleString("fr-FR")
 
   return (
     <div
@@ -226,12 +205,11 @@ function DetailModal({
         width: "100%", maxWidth: 440,
         background: "white", borderRadius: 16, padding: 24,
         boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)",
-      }}>
+      }} onClick={(e) => e.stopPropagation()}>
         <h2 style={{
-          margin: "0 0 6px", fontSize: 18, fontWeight: 800, color: "#111827",
-          letterSpacing: "-0.01em",
+          margin: "0 0 6px", fontSize: 18, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em",
         }}>
-          {title} — détail
+          Capacité du vivier
         </h2>
         <p style={{
           margin: "0 0 18px", fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
@@ -240,41 +218,22 @@ function DetailModal({
           {plan.label}
         </p>
 
-        <div style={{
-          padding: "14px 16px", borderRadius: 12, background: "#F8F6FF",
-          marginBottom: 16,
-        }}>
+        <div style={{ padding: "14px 16px", borderRadius: 12, background: "#F8F6FF", marginBottom: 16 }}>
           <div style={{ fontSize: 26, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
-            {used}<span style={{ fontSize: 14, fontWeight: 500, color: "#9CA3AF" }}> / {limit}</span>
+            {usedFmt}<span style={{ fontSize: 14, fontWeight: 500, color: "#9CA3AF" }}> / {limitFmt} CV</span>
           </div>
           <div style={{ marginTop: 6, fontSize: 12.5, color: "#6B7280" }}>
-            {kind === "storage" ? (
-              "Espace total occupé par vos CV. Le nettoyage des CV anciens libère du quota."
-            ) : llm.period === "fixed" ? (
-              <>
-                Pot fixe de crédits pour votre période d&apos;essai (15 jours).
-                Souscrivez à un plan payant pour basculer sur un cycle mensuel renouvelé.
-              </>
-            ) : renew ? (
-              <>
-                Crédits renouvelés à l&apos;anniversaire de votre abonnement.
-                Prochain reset le <strong>{formatDateFr(renew.date.toISOString())}</strong>
-                {` (dans ${renew.daysLeft} jour${renew.daysLeft > 1 ? "s" : ""})`}.
-              </>
-            ) : (
-              <>Crédits renouvelés tous les 30 jours à l&apos;anniversaire de votre abonnement.</>
-            )}
+            Il vous reste <strong>{remaining} CV</strong> à importer. Supprimer d&apos;anciens
+            CV libère de la capacité. Les matchings et anonymisations sont <strong>illimités</strong>.
           </div>
         </div>
 
         <div style={{
           padding: "12px 14px", borderRadius: 10, background: "#FEFCE8",
-          border: "1px solid #FDE68A",
-          fontSize: 12.5, color: "#854D0E", lineHeight: 1.55,
+          border: "1px solid #FDE68A", fontSize: 12.5, color: "#854D0E", lineHeight: 1.55,
         }}>
-          <strong>Besoin de plus ?</strong> Contactez-nous via le bouton support
-          dans le header — nous proposons des extensions sur mesure
-          (+5 GB, palier d&apos;actions IA supérieur, etc.).
+          <strong>Besoin de plus de place ?</strong> Contactez-nous via le bouton
+          support dans le header — nous augmentons votre capacité sur mesure.
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
@@ -294,12 +253,4 @@ function DetailModal({
       </div>
     </div>
   )
-}
-
-function formatDateFr(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("fr-FR", {
-      day: "numeric", month: "long", year: "numeric",
-    })
-  } catch { return iso }
 }

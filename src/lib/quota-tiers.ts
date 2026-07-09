@@ -18,6 +18,11 @@ import { hasActiveAccess, isInLockdown } from "@/lib/subscription"
 const GB = 1024 * 1024 * 1024
 
 export interface Quotas {
+  /** Capacité du vivier en NOMBRE DE CV — le SEUL plafond visible côté
+   *  client. On compte les lignes `candidates` de l'org (instantané, exact,
+   *  sans dépendance cron). Englobe implicitement stockage + parsing, qui
+   *  montent ensemble. Matchings/anonymisations restent illimités. */
+  cvLimit: number
   storageBytes: number
   /** Cap de crédits IA pour la période courante.
    *  - Sur un plan payant : cap mensuel renouvelé tous les 30 j à
@@ -43,25 +48,30 @@ export interface Quotas {
  * Grille par lookup_key Stripe. Les clés correspondent à
  * sourcing_1..4 et sourcing_pro_1..4 (cf. lib/stripe.ts).
  *
- * Stockage :
- *   - 1 GB / siège (Std) — couvre ~2 000 CVs/siège, soit environ 2 ans
- *     d'historique pour un sourceur actif
- *   - 1.5 GB / siège (Pro) — viviers souvent plus riches
+ * MODÈLE CLIENT : un seul plafond visible = `cvLimit` (capacité du vivier
+ * en nombre de CV). Matchings + anonymisations illimités. `storageBytes` et
+ * `llmMonthly` restent en FILET INTERNE (anti-abus, jamais montrés) et sont
+ * volontairement larges pour ne JAMAIS mordre avant la limite de CV.
  *
- * Crédits IA : généreux car le coût OpenRouter (gpt-4o-mini) est
- * dérisoire à notre échelle (~$0.001 par action). Marge largement
- * préservée même au plein usage. Les valeurs sont rondes (pas dérivées
- * par seat) pour être lisibles côté marketing/contrat.
+ * Dimensionnement :
+ *   - cvLimit : 5k / 10k / 20k / 30k selon sièges (généreux — nos coûts sont
+ *     dérisoires : ~1 Mo/CV sur R2 à $0.015/GB, ~$0.001/action gpt-4o-mini).
+ *   - storageBytes : ~2 Mo/CV de marge (original + PDF anonymisé + docx) →
+ *     toujours au-dessus du besoin réel, ne bloque jamais avant cvLimit.
+ *   - llmMonthly : plafond anti-abus très haut, invisible côté client.
+ *
+ * Pro = mêmes plafonds vivier que Std (le premium porte sur la Suite Pricing
+ * Syntec, pas sur des quotas gonflés).
  */
-export const QUOTAS_BY_PLAN: Record<string, { storageBytes: number; llmMonthly: number }> = {
-  sourcing_1:     { storageBytes: 1   * GB, llmMonthly:  3_500 },
-  sourcing_2:     { storageBytes: 2   * GB, llmMonthly:  8_000 },
-  sourcing_3:     { storageBytes: 3   * GB, llmMonthly: 12_500 },
-  sourcing_4:     { storageBytes: 4   * GB, llmMonthly: 17_000 },
-  sourcing_pro_1: { storageBytes: 1.5 * GB, llmMonthly:  4_500 },
-  sourcing_pro_2: { storageBytes: 3   * GB, llmMonthly: 10_500 },
-  sourcing_pro_3: { storageBytes: 4.5 * GB, llmMonthly: 16_500 },
-  sourcing_pro_4: { storageBytes: 6   * GB, llmMonthly: 22_500 },
+export const QUOTAS_BY_PLAN: Record<string, { cvLimit: number; storageBytes: number; llmMonthly: number }> = {
+  sourcing_1:     { cvLimit:  5_000, storageBytes: 10 * GB, llmMonthly: 1_000_000 },
+  sourcing_2:     { cvLimit: 10_000, storageBytes: 20 * GB, llmMonthly: 1_000_000 },
+  sourcing_3:     { cvLimit: 20_000, storageBytes: 40 * GB, llmMonthly: 1_000_000 },
+  sourcing_4:     { cvLimit: 30_000, storageBytes: 60 * GB, llmMonthly: 1_000_000 },
+  sourcing_pro_1: { cvLimit:  5_000, storageBytes: 10 * GB, llmMonthly: 1_000_000 },
+  sourcing_pro_2: { cvLimit: 10_000, storageBytes: 20 * GB, llmMonthly: 1_000_000 },
+  sourcing_pro_3: { cvLimit: 20_000, storageBytes: 40 * GB, llmMonthly: 1_000_000 },
+  sourcing_pro_4: { cvLimit: 30_000, storageBytes: 60 * GB, llmMonthly: 1_000_000 },
 }
 
 /**
@@ -70,13 +80,13 @@ export const QUOTAS_BY_PLAN: Record<string, { storageBytes: number; llmMonthly: 
  * sérieusement), crédits IA pensés pour 15 j d'usage normal :
  * 1 700 crédits ≈ ~110 actions LLM/jour pendant tout l'essai.
  */
-const TRIAL_QUOTAS = { storageBytes: 500 * 1024 * 1024, llmMonthly: 1_700 }
+const TRIAL_QUOTAS = { cvLimit: 500, storageBytes: 2 * GB, llmMonthly: 1_000_000 }
 
 /**
  * Quotas "infinis" pour les comptes admin Naywa. On retourne une valeur
  * très haute plutôt qu'Infinity pour éviter les soucis JSON/UI.
  */
-const ADMIN_QUOTAS = { storageBytes: 1024 * GB, llmMonthly: 999_999_999 }
+const ADMIN_QUOTAS = { cvLimit: 9_999_999, storageBytes: 1024 * GB, llmMonthly: 999_999_999 }
 
 /**
  * Résout les quotas effectifs pour une organisation. Ordre :
@@ -110,7 +120,7 @@ export function getQuotas(
 
   if (!org) {
     return {
-      storageBytes: 0, llmMonthly: 0, period: "month",
+      cvLimit: 0, storageBytes: 0, llmMonthly: 0, period: "month",
       source: "lockdown", label: "Aucune organisation",
     }
   }
@@ -118,10 +128,11 @@ export function getQuotas(
   // 1. Override custom prioritaire — admin Naywa a accordé un quota
   //    custom à ce client (extras facturés hors-Stripe en V1).
   const override = org.quota_override_json
-  if (override && (override.storage_gb != null || override.llm_monthly != null)) {
+  if (override && (override.cv != null || override.storage_gb != null || override.llm_monthly != null)) {
     return {
-      storageBytes: (override.storage_gb ?? 2) * GB,
-      llmMonthly: override.llm_monthly ?? 1_700,
+      cvLimit: override.cv ?? 5_000,
+      storageBytes: (override.storage_gb ?? 10) * GB,
+      llmMonthly: override.llm_monthly ?? 1_000_000,
       period: "month",
       source: "override",
       label: "Quota personnalisé",
@@ -131,7 +142,7 @@ export function getQuotas(
   // 2. Lockdown → stockage figé (lecture seule), aucune action LLM.
   if (isInLockdown(org)) {
     return {
-      storageBytes: 0, llmMonthly: 0, period: "month",
+      cvLimit: 0, storageBytes: 0, llmMonthly: 0, period: "month",
       source: "lockdown",
       label: "Abonnement suspendu",
     }
@@ -160,7 +171,7 @@ export function getQuotas(
 
   // 5. Aucun accès — l'org n'a ni trial actif ni abonnement.
   return {
-    storageBytes: 0, llmMonthly: 0, period: "month",
+    cvLimit: 0, storageBytes: 0, llmMonthly: 0, period: "month",
     source: "lockdown", label: "Aucun accès actif",
   }
 }

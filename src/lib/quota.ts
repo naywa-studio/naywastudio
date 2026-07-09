@@ -227,7 +227,63 @@ export async function consumeOrgLlmActionForUser(
   return consumeOrgLlmAction(admin, profile.organization_id, { isAdmin: adminFlag })
 }
 
-// ─── Niveau 3 : Per-org storage ───────────────────────────────────────
+// ─── Niveau 3 : Per-org CV (plafond principal, visible client) ─────────
+
+export interface CvQuotaResult {
+  ok: boolean
+  used: number
+  limit: number
+  code?: "quota_exceeded" | "no_org"
+  message?: string
+}
+
+/**
+ * Vérifie que l'org peut ajouter UN CV de plus. Plafond principal (et seul
+ * visible côté client) : nombre de CV dans le vivier vs `cvLimit` du plan.
+ * On compte les lignes `candidates` (exact, sans dépendance cron). À appeler
+ * juste avant d'insérer une NOUVELLE candidate (les doublons ne comptent pas
+ * — ils sont détectés + renvoyés avant, sans ajouter de ligne).
+ */
+export async function checkCvQuota(
+  admin: SupabaseClient<Database>,
+  orgId: string,
+  opts?: { isAdmin?: boolean },
+): Promise<CvQuotaResult> {
+  const { data: org, error } = await admin
+    .from("organizations")
+    .select("subscription_status, subscription_price_lookup, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json")
+    .eq("id", orgId)
+    .maybeSingle()
+
+  if (error || !org) {
+    return { ok: true, used: 0, limit: 0, code: "no_org" }
+  }
+
+  const quota = getQuotas(org as Parameters<typeof getQuotas>[0], { isAdmin: opts?.isAdmin })
+  if (quota.source === "admin") {
+    return { ok: true, used: 0, limit: quota.cvLimit }
+  }
+
+  const { count } = await admin
+    .from("candidates")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", orgId)
+  const used = count ?? 0
+
+  if (used >= quota.cvLimit) {
+    return {
+      ok: false,
+      used,
+      limit: quota.cvLimit,
+      code: "quota_exceeded",
+      message: `Capacité du vivier atteinte (${quota.cvLimit.toLocaleString("fr-FR")} CV sur ${quota.label}). Supprimez d'anciens CV ou contactez-nous pour un palier supérieur.`,
+    }
+  }
+
+  return { ok: true, used, limit: quota.cvLimit }
+}
+
+// ─── Niveau 4 : Per-org storage (filet interne, jamais montré) ─────────
 
 export interface StorageQuotaResult {
   ok: boolean
