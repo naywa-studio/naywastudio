@@ -83,12 +83,13 @@ export default function MissionsPage() {
       const jobsRows = (jobsData ?? []) as Job[]
       setJobs(jobsRows)
 
-      // 2) Matches scorés (score ≥ 50) → couleurs cluster par mission.
-      //    On récupère uniquement ce dont a besoin (cluster + taxonomy).
+      // 2) Matches PERTINENTS (score ≥ 55, même seuil que la fiche mission)
+      //    → couleurs cluster + compteur "pertinents" de la carte. Cohérent
+      //    avec le "N candidats pertinents" affiché sur la fiche.
       const { data: matchRows } = await sb
         .from("match_assessments")
         .select("job_id, candidate:candidates(id, cluster_assignments, taxonomy, parse_status, tags)")
-        .gte("score", 50)
+        .gte("score", 55)
       if (!mounted) return
       const byJob = new Map<string, Array<Candidate>>()
       for (const r of (matchRows ?? []) as unknown as Array<{ job_id: string; candidate: Candidate | null }>) {
@@ -590,7 +591,7 @@ function JobCard({ job, visual, delay }: {
             {visual.top1Label}
           </span>
           <span style={{ fontSize: 10, color: "#9CA3AF" }}>
-            · {visual.totalMatches} match{visual.totalMatches > 1 ? "s" : ""}
+            · {visual.totalMatches} pertinent{visual.totalMatches > 1 ? "s" : ""}
           </span>
         </div>
       )}

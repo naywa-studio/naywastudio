@@ -17,6 +17,13 @@ import { MissionSummaryBar } from "@/components/workspace/MissionSummaryBar"
 import { MissionBriefSection } from "@/components/workspace/MissionBriefSection"
 import { MatchVivierPanel } from "@/components/workspace/MatchVivierPanel"
 import type { MatchMode } from "@/lib/sector-gate"
+import { sectorColors } from "@/lib/sector-color"
+
+const MATCH_MODE_LABEL: Record<MatchMode, string> = {
+  intelligent: "Intelligent",
+  personnalise: "Personnalisé",
+  complet: "Complet",
+}
 import { MatchCard } from "@/components/workspace/MatchCard"
 import { JobForm } from "../page"
 
@@ -394,10 +401,36 @@ export default function JobDetailPage() {
       ) : (
         <>
           {/* Récap rapide */}
-          <div style={{ marginBottom: 12, fontSize: 13, color: "#6B7280" }}>
+          <div style={{ marginBottom: 8, fontSize: 13, color: "#6B7280" }}>
             <strong style={{ color: "#111827" }}>{strongCount}</strong> candidat{strongCount > 1 ? "s" : ""} pertinent{strongCount > 1 ? "s" : ""}
             <span style={{ color: "#9CA3AF" }}> · {rows.length} au total</span>
           </div>
+
+          {/* Rappel du dernier matching : date + mode + secteurs ciblés. */}
+          {job.matched_at && !matching && (
+            <div style={{
+              marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+              fontSize: 11.5, color: "#9CA3AF",
+            }}>
+              <span>
+                Dernier matching&nbsp;: {new Date(job.matched_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                {job.last_match_mode && <> · mode {MATCH_MODE_LABEL[job.last_match_mode] ?? job.last_match_mode}</>}
+              </span>
+              {job.last_match_mode !== "complet" && (job.target_sectors ?? []).length > 0 && (
+                <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
+                  · secteurs&nbsp;:
+                  {(job.target_sectors ?? []).map((s) => (
+                    <span key={s} style={{
+                      fontSize: 10.5, fontWeight: 600,
+                      color: sectorColors(s).text, background: sectorColors(s).bg,
+                      border: `1px solid ${sectorColors(s).border}`,
+                      borderRadius: 99, padding: "1px 7px",
+                    }}>{s}</span>
+                  ))}
+                </span>
+              )}
+            </div>
+          )}
 
           {criteriaStale && !matching && (
             <div style={{
