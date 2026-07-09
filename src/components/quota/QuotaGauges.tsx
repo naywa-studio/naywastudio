@@ -73,36 +73,38 @@ export function QuotaGauges({
 
   if (variant === "inline") {
     return (
-      <button
-        type="button"
-        onClick={() => setDetailOpen(true)}
-        style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "6px 12px", borderRadius: 10,
-          border: "1px solid #F0ECF8", background: "white",
-          cursor: "pointer", fontFamily: "inherit",
-        }}
-        title="Voir le détail de votre capacité vivier"
-      >
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", whiteSpace: "nowrap" }}>
-          Vivier
-        </span>
-        <span style={{
-          width: 90, height: 6, borderRadius: 999,
-          background: "rgba(229,231,235,0.7)", overflow: "hidden",
-        }}>
+      <>
+        <button
+          type="button"
+          onClick={() => setDetailOpen(true)}
+          style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "6px 12px", borderRadius: 10,
+            border: "1px solid #F0ECF8", background: "white",
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+          title="Voir le détail de votre capacité vivier"
+        >
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", whiteSpace: "nowrap" }}>
+            Vivier
+          </span>
           <span style={{
-            display: "block", width: `${p}%`, height: "100%",
-            background: color, borderRadius: 999, transition: "width 400ms ease",
-          }} />
-        </span>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
-          {usedFmt}<span style={{ color: "#9CA3AF", fontWeight: 500 }}> / {limitFmt} CV</span>
-        </span>
+            width: 90, height: 6, borderRadius: 999,
+            background: "rgba(229,231,235,0.7)", overflow: "hidden",
+          }}>
+            <span style={{
+              display: "block", width: `${p}%`, height: "100%",
+              background: color, borderRadius: 999, transition: "width 400ms ease",
+            }} />
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
+            {usedFmt}<span style={{ color: "#9CA3AF", fontWeight: 500 }}> / {limitFmt} CV</span>
+          </span>
+        </button>
         {detailOpen && (
           <DetailModal used={used} limit={limit} plan={data.plan} onClose={() => setDetailOpen(false)} />
         )}
-      </button>
+      </>
     )
   }
 
