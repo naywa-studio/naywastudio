@@ -938,7 +938,24 @@ function CandidateCard({
               onChange={onSectorChange}
             />
           ) : <span />}
-          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
+            <button
+              onClick={onDelete}
+              title="Supprimer du vivier"
+              style={{
+                height: 24, width: 24, boxSizing: "border-box",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                background: "transparent", border: "1px solid #E5E7EB",
+                borderRadius: 7, padding: 0, cursor: "pointer",
+                color: "#9CA3AF",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#9CA3AF"; e.currentTarget.style.borderColor = "#E5E7EB" }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
             <Link
               href={`/workspace/vivier/${c.id}`}
               style={{
@@ -953,23 +970,6 @@ function CandidateCard({
             >
               Ouvrir →
             </Link>
-            <button
-              onClick={onDelete}
-              title="Supprimer du vivier"
-              style={{
-                height: 28, width: 28, boxSizing: "border-box",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                background: "transparent", border: "1px solid #E5E7EB",
-                borderRadius: 7, padding: 0, cursor: "pointer",
-                color: "#9CA3AF",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "#9CA3AF"; e.currentTarget.style.borderColor = "#E5E7EB" }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
           </div>
         </div>
       </div>

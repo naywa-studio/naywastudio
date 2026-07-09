@@ -13,7 +13,8 @@ import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
 import { useWorkspace } from "../layout"
 import { hasPricingAccess } from "@/lib/subscription"
 import { seniorityIntervalLabel } from "@/lib/seniority"
-import { candidateClusters, clusterHue, hsl } from "@/lib/vivier-clusters"
+import { hsl } from "@/lib/vivier-clusters"
+import { sectorHue } from "@/lib/sector-color"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -88,7 +89,7 @@ export default function MissionsPage() {
       //    avec le "N candidats pertinents" affiché sur la fiche.
       const { data: matchRows } = await sb
         .from("match_assessments")
-        .select("job_id, candidate:candidates(id, cluster_assignments, taxonomy, parse_status, tags)")
+        .select("job_id, candidate:candidates(id, sectors, parse_status, tags)")
         .gte("score", 55)
       if (!mounted) return
       const byJob = new Map<string, Array<Candidate>>()
@@ -480,22 +481,24 @@ function StatRow({ label, value, tone }: { label: string; value: number | string
   )
 }
 
-/* ─── Cluster color helper ────────────────────────────────────── */
+/* ─── Couleur mission = secteurs des candidats matchés ──────────── */
 
 function computeMissionVisual(candidates: Candidate[]): MissionVisual {
+  // Secteur dominant parmi les candidats matchés (secteur primaire = 1ᵉʳ).
   const counts = new Map<string, number>()
   for (const c of candidates) {
-    const { primary } = candidateClusters(c)
+    const primary = (c.sectors ?? [])[0]
+    if (!primary) continue
     counts.set(primary, (counts.get(primary) ?? 0) + 1)
   }
-  const sorted = Array.from(counts, ([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count)
-  if (sorted.length === 0) return { hues: [], top1Label: null, totalMatches: 0 }
-  const top1 = sorted[0]
   const total = candidates.length
-  const hues: number[] = [clusterHue(top1.label)]
-  // Bicolore si le 2ᵉ représente ≥ 30 % du total — sinon couleur unique.
+  const sorted = Array.from(counts, ([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count)
+  if (sorted.length === 0) return { hues: [], top1Label: null, totalMatches: total }
+  const top1 = sorted[0]
+  const hues: number[] = [sectorHue(top1.label)]
+  // Bicolore si le 2ᵉ secteur représente ≥ 30 % — sinon couleur unique.
   if (sorted.length > 1 && sorted[1].count / total >= 0.3) {
-    hues.push(clusterHue(sorted[1].label))
+    hues.push(sectorHue(sorted[1].label))
   }
   return { hues, top1Label: top1.label, totalMatches: total }
 }
