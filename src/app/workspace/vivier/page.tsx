@@ -694,37 +694,13 @@ export default function VivierPage() {
       ) : view === "overview" ? (
         <>
           {recentParsed.length > 0 && (
-            <section style={{
-              marginBottom: 20, background: "white",
-              border: "1px solid rgba(124,99,200,0.20)", borderRadius: 14, padding: 14,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 800, color: "#7C63C8" }}>Récemment importés</span>
-                <span style={{
-                  fontSize: 11, fontWeight: 700, color: "#7C63C8",
-                  background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
-                  borderRadius: 100, padding: "1px 8px",
-                }}>{recentParsed.length}</span>
-                <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>— vérifiez leur secteur ci-dessous</span>
-                <button
-                  onClick={() => setRecentIds([])}
-                  style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 600, color: "#9CA3AF", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  Masquer
-                </button>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-                {recentParsed.map((c, i) => (
-                  <CandidateCard
-                    key={c.id} c={c} delay={Math.min(i * 0.02, 0.15)}
-                    onDelete={() => handleDelete(c.id)}
-                    allSectors={allSectors}
-                    onSectorCreated={registerSector}
-                    onSectorChange={(sectors, status) => applyCandidateSectors(c.id, sectors, status)}
-                  />
-                ))}
-              </div>
-            </section>
+            <RecentUploadsStrip
+              candidates={recentParsed}
+              onDelete={handleDelete}
+              allSectors={allSectors}
+              onSectorCreated={registerSector}
+              onSectorChange={applyCandidateSectors}
+            />
           )}
           <SectorOverview
             sectors={sectorsData}
@@ -962,12 +938,14 @@ function CandidateCard({
               onChange={onSectorChange}
             />
           ) : <span />}
-          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             <Link
               href={`/workspace/vivier/${c.id}`}
               style={{
-                fontSize: 11, fontWeight: 600, color: "#7C63C8",
-                padding: "5px 10px", borderRadius: 7,
+                height: 28, boxSizing: "border-box",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                fontSize: 11, fontWeight: 600, color: "#7C63C8", lineHeight: 1,
+                padding: "0 10px", borderRadius: 7,
                 background: "rgba(124,99,200,0.08)",
                 border: "1px solid rgba(124,99,200,0.16)",
                 textDecoration: "none", whiteSpace: "nowrap",
@@ -979,9 +957,11 @@ function CandidateCard({
               onClick={onDelete}
               title="Supprimer du vivier"
               style={{
+                height: 28, width: 28, boxSizing: "border-box",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
                 background: "transparent", border: "1px solid #E5E7EB",
-                borderRadius: 7, padding: "5px 8px", cursor: "pointer",
-                color: "#9CA3AF", fontSize: 11,
+                borderRadius: 7, padding: 0, cursor: "pointer",
+                color: "#9CA3AF", fontSize: 12, lineHeight: 1,
               }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
               onMouseLeave={(e) => { e.currentTarget.style.color = "#9CA3AF"; e.currentTarget.style.borderColor = "#E5E7EB" }}
@@ -1211,6 +1191,98 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
         PDF uniquement · 10 Mo max · 50 imports / jour pendant la beta
       </p>
     </m.div>
+  )
+}
+
+/* ─── Récemment importés (bande scrollable) ───────────────────────── */
+
+function RecentUploadsStrip({
+  candidates, onDelete, allSectors, onSectorCreated, onSectorChange,
+}: {
+  candidates: Candidate[]
+  onDelete: (id: string) => void
+  allSectors: string[]
+  onSectorCreated: (name: string) => void
+  onSectorChange: (candId: string, sectors: string[], status: SectorStatus) => void
+}) {
+  const [collapsed, setCollapsed] = useState(false)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [overflow, setOverflow] = useState(false)
+
+  // Détecte si la bande déborde (→ afficher les flèches).
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    const check = () => setOverflow(el.scrollWidth > el.clientWidth + 4)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [collapsed, candidates.length])
+
+  const scrollBy = (dir: 1 | -1) => {
+    scrollerRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" })
+  }
+
+  const arrowBtn: React.CSSProperties = {
+    width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    background: "white", border: "1px solid #E5E7EB", color: "#7C63C8",
+    cursor: "pointer", fontFamily: "inherit", fontSize: 14, lineHeight: 1,
+  }
+
+  return (
+    <section style={{
+      marginBottom: 20, background: "white",
+      border: "1px solid rgba(124,99,200,0.20)", borderRadius: 14, padding: 14,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: collapsed ? 0 : 12 }}>
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }} aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "#7C63C8" }}>Récemment importés</span>
+        </button>
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
+          borderRadius: 100, padding: "1px 8px",
+        }}>{candidates.length}</span>
+        <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>— vérifiez leur secteur</span>
+        {!collapsed && overflow && (
+          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            <button onClick={() => scrollBy(-1)} style={arrowBtn} aria-label="Défiler à gauche">‹</button>
+            <button onClick={() => scrollBy(1)} style={arrowBtn} aria-label="Défiler à droite">›</button>
+          </div>
+        )}
+      </div>
+
+      {!collapsed && (
+        <div
+          ref={scrollerRef}
+          style={{
+            display: "flex", gap: 14, overflowX: "auto", paddingBottom: 4,
+            scrollbarWidth: "thin",
+          }}
+        >
+          {candidates.map((c, i) => (
+            <div key={c.id} style={{ width: 300, flexShrink: 0, display: "flex" }}>
+              <div style={{ width: "100%" }}>
+                <CandidateCard
+                  c={c} delay={Math.min(i * 0.02, 0.15)}
+                  onDelete={() => onDelete(c.id)}
+                  allSectors={allSectors}
+                  onSectorCreated={onSectorCreated}
+                  onSectorChange={(sectors, status) => onSectorChange(c.id, sectors, status)}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 

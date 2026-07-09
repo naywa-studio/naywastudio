@@ -267,11 +267,12 @@ export function SectorReviewControl({
         onClick={() => setOpen((o) => !o)}
         title="Modifier le secteur"
         style={{
+          height: 28, boxSizing: "border-box",
           display: "inline-flex", alignItems: "center", gap: 5,
           maxWidth: 190, overflow: "hidden",
           fontSize: 11, fontWeight: 600, color: sectors.length ? "#4B5563" : "#9CA3AF",
           background: "white", border: "1px solid #E5E7EB",
-          borderRadius: 7, padding: "3px 8px",
+          borderRadius: 7, padding: "0 8px",
           cursor: disabled ? "default" : "pointer", fontFamily: "inherit",
         }}
       >
