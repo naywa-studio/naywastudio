@@ -41,18 +41,29 @@ export async function GET() {
     )
   }
 
-  const [{ data: sectorsRows }, { data: candRows }] = await Promise.all([
-    sb.from("sectors").select("id, name, description, created_by, created_at").order("name", { ascending: true }),
-    sb.from("candidates").select("sectors, sector_status"),
-  ])
-
+  // Comptage par secteur — paginé. Un `.select()` sans `.range()` est plafonné
+  // à 1000 lignes par Supabase : au-delà, les compteurs seraient sous-évalués
+  // (les plans généreux visent plusieurs milliers de CV). On boucle par pages
+  // de 1000 jusqu'à épuisement.
   const counts = new Map<string, number>()
   let toReview = 0
-  for (const c of candRows ?? []) {
-    const secs = (c.sectors ?? []) as string[]
-    if (c.sector_status === "to_review" || secs.length === 0) toReview++
-    for (const s of secs) counts.set(s, (counts.get(s) ?? 0) + 1)
-  }
+  const PAGE = 1000
+  const [{ data: sectorsRows }] = await Promise.all([
+    sb.from("sectors").select("id, name, description, created_by, created_at").order("name", { ascending: true }),
+    (async () => {
+      for (let from = 0; ; from += PAGE) {
+        const { data: rows } = await sb
+          .from("candidates").select("sectors, sector_status").range(from, from + PAGE - 1)
+        const page = rows ?? []
+        for (const c of page) {
+          const secs = (c.sectors ?? []) as string[]
+          if (c.sector_status === "to_review" || secs.length === 0) toReview++
+          for (const s of secs) counts.set(s, (counts.get(s) ?? 0) + 1)
+        }
+        if (page.length < PAGE) break
+      }
+    })(),
+  ])
 
   const sectors = (sectorsRows ?? []).map((s) => ({
     ...s,
