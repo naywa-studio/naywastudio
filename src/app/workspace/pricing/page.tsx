@@ -534,7 +534,7 @@ function PricingStatus({
       fontSize: 11, fontWeight: 600, color: "#B45309",
       display: "inline-flex", alignItems: "center", gap: 5,
     }}>
-      ⚠ À compléter
+      ⚠ À compléter · TJM, durée, date
     </span>
   )
 }

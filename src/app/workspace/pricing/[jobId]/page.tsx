@@ -287,7 +287,7 @@ function CompactHeader({ job }: { job: Job }) {
           borderRadius: 9, padding: "8px 14px", textDecoration: "none",
           whiteSpace: "nowrap",
         }}>
-          ⚙ Paramètres cabinet
+          ⚙ Paramètres organisation
         </Link>
         <Link href={`/workspace/missions/${job.id}`} style={{
           fontSize: 12, fontWeight: 700, color: "#7C63C8",
@@ -580,7 +580,7 @@ function MissionConfigWizard({
           value={tjm}
           onChange={setTjm}
           suffix="€/j"
-          placeholder="600"
+          placeholder="ex : 600"
           required
         />
         <WizardField
@@ -589,7 +589,7 @@ function MissionConfigWizard({
           value={duration}
           onChange={setDuration}
           suffix="mois"
-          placeholder="12"
+          placeholder="ex : 12"
           required
           max={120}
         />
@@ -731,7 +731,7 @@ function MissionConfigWizard({
       }}>
         <p style={{ margin: 0, fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>
           {requiredMissing
-            ? "Remplis TJM, durée et date de démarrage pour valider."
+            ? "Renseignez le TJM, la durée et la date de démarrage pour valider."
             : marginsInvalid
               ? "Corrige les marges (cible ≥ mini) pour valider."
               : ""}
@@ -1180,7 +1180,14 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
         borderRadius: 16, padding: "48px 28px", textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 40, marginBottom: 14 }}>👥</div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#B8AEDE"
+        strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+        style={{ marginBottom: 14 }} aria-hidden>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
       <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "#111827" }}>
         Aucun candidat à chiffrer
       </h3>
@@ -1189,8 +1196,8 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
         lineHeight: 1.6,
       }}>
         Seuls les candidats <strong>ajoutés à la pipeline</strong> apparaissent ici.
-        Depuis la fiche mission, clique <strong>+ Pipeline</strong> sur les profils que
-        tu veux chiffrer.
+        Depuis la fiche mission, cliquez <strong>« + Ajouter à la pipeline »</strong> sur
+        les profils que vous voulez chiffrer.
       </p>
       <Link href={`/workspace/missions/${jobId}`} style={{
         display: "inline-block",

@@ -253,7 +253,7 @@ export default function PipelinePage() {
           </h1>
           <p style={{ margin: "5px 0 0", fontSize: 13, color: "#6B7280" }}>
             {rows.length === 0
-              ? "Vos candidats matchés apparaîtront ici, étape par étape."
+              ? "Ajoutez des candidats à la pipeline depuis vos missions — vous les suivrez ici, étape par étape."
               : terminalView
                 ? "Issues finales. Glissez une carte vers le pipeline pour la réactiver."
                 : "Glissez une carte d'une colonne à l'autre pour faire avancer un candidat."}
@@ -355,7 +355,12 @@ export default function PipelinePage() {
             textAlign: "center", color: "#9CA3AF",
           }}>
             <div>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>📥</div>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#B8AEDE"
+                strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ marginBottom: 10 }} aria-hidden>
+                <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+                <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+              </svg>
               <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>
                 Aucun candidat dans la pipeline
               </p>
@@ -704,8 +709,12 @@ function EmptyState() {
         Votre pipeline est vide
       </h2>
       <p style={{ margin: "0 auto 18px", maxWidth: 460, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
-        Les candidats apparaissent ici dès qu&apos;ils sont matchés à une mission.
-        Créez une mission et lancez le matching pour démarrer.
+        {/* Matcher ne suffit PAS : il faut ajouter explicitement un candidat à
+            la pipeline depuis ses résultats de matching. L'ancien texte disait
+            l'inverse et perdait les users qui venaient de matcher. */}
+        Ajoutez vos candidats depuis une mission : sur chaque profil matché,
+        cliquez <strong>« + Ajouter à la pipeline »</strong> — vous suivrez ici
+        chaque étape, du premier contact à la signature.
       </p>
       <Link href="/workspace/missions" style={{
         display: "inline-block",
