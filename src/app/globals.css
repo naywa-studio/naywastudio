@@ -39,6 +39,11 @@
 /* ── Base ── */
 html {
   scroll-behavior: smooth;
+  /* L'app est 100 % thème clair. Sans cette déclaration, l'Auto Dark Mode
+     de Chrome (et consorts) force-inverse les pages "plates" (ex :
+     /auth/callback rendue sur fond noir chez certains users). `light`
+     dit explicitement au navigateur de ne jamais assombrir le site. */
+  color-scheme: light;
 }
 
 body {

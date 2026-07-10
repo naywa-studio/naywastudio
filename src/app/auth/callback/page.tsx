@@ -11,6 +11,10 @@ type Status = "loading" | "done" | "error"
 export default function AuthCallbackPage() {
   const router = useRouter()
   const [status, setStatus] = useState<Status>("loading")
+  // Le même callback sert au signup ET au login Google. On distingue les
+  // deux via l'âge du compte : créé il y a moins de 5 min = nouveau compte.
+  // Sans ça, un user qui se RECONNECTE lisait "Compte créé avec succès !".
+  const [isNewAccount, setIsNewAccount] = useState(false)
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -21,6 +25,9 @@ export default function AuthCallbackPage() {
         setStatus("error")
         return
       }
+
+      const createdMs = new Date(session.user.created_at).getTime()
+      setIsNewAccount(Number.isFinite(createdMs) && Date.now() - createdMs < 5 * 60_000)
 
       // Persist the first_name if the signup form stashed one before the
       // OAuth redirect. The on_auth_user_created trigger already inserted
@@ -59,38 +66,67 @@ export default function AuthCallbackPage() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "#FAFAFA",
-        gap: 16,
+        // Surface violette claire du design system (au lieu d'un gris neutre
+        // hors-charte) — la page fait partie de l'expérience Naywa.
+        background: "#F8F6FF",
+        gap: 14,
+        fontFamily: "var(--font-inter), ui-sans-serif, system-ui, sans-serif",
       }}
     >
+      {/* Wordmark — la page n'a ni navbar ni layout, sans lui elle est anonyme. */}
+      <span
+        style={{
+          fontFamily: "var(--font-space-grotesk), ui-sans-serif, sans-serif",
+          fontSize: 22, fontWeight: 700, color: "#111827",
+          letterSpacing: "-0.02em", marginBottom: 10,
+        }}
+      >
+        Naywa<span style={{ color: "#7C63C8" }}> Studio</span>
+      </span>
+
       {status === "loading" && (
         <>
           <Spinner />
-          <p style={{ color: "#4B5563", fontSize: 15 }}>Connexion en cours…</p>
+          <p style={{ margin: 0, color: "#4B5563", fontSize: 15 }}>Connexion en cours…</p>
         </>
       )}
       {status === "done" && (
         <>
-          <span style={{ fontSize: 40 }}>✓</span>
-          <p style={{ color: "#7C63C8", fontWeight: 600, fontSize: 16 }}>
-            Compte créé avec succès !
+          <span
+            aria-hidden
+            style={{
+              width: 44, height: 44, borderRadius: "50%",
+              background: "rgba(34,197,94,0.10)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22C55E"
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </span>
+          <p style={{ margin: 0, color: "#111827", fontWeight: 700, fontSize: 16 }}>
+            {isNewAccount ? "Compte créé avec succès !" : "Connexion réussie !"}
           </p>
-          <p style={{ color: "#9CA3AF", fontSize: 14 }}>Redirection…</p>
+          <p style={{ margin: 0, color: "#6B7280", fontSize: 14 }}>
+            {isNewAccount ? "Préparation de votre espace…" : "Ouverture de votre espace…"}
+          </p>
         </>
       )}
       {status === "error" && (
         <>
-          <p style={{ color: "#EF4444", fontSize: 15 }}>
+          <p style={{ margin: 0, color: "#EF4444", fontSize: 15 }}>
             Une erreur est survenue lors de la connexion.
           </p>
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/login")}
             style={{
               color: "#7C63C8", background: "none", border: "none",
               cursor: "pointer", fontSize: 14, textDecoration: "underline",
+              fontFamily: "inherit",
             }}
           >
-            Retour à l&apos;accueil
+            Réessayer de me connecter
           </button>
         </>
       )}
