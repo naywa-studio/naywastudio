@@ -13,6 +13,7 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { getQuotas } from "@/lib/quota-tiers"
+import { countActiveCvs } from "@/lib/quota"
 import { isAdmin } from "@/lib/admin"
 
 export const runtime = "nodejs"
