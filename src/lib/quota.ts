@@ -238,6 +238,28 @@ export interface CvQuotaResult {
 }
 
 /**
+ * Compte les CV ACTIFS d'une org = ce que le sourceur voit dans le vivier.
+ * On EXCLUT les doublons archivés (tag "ancien") : ce sont d'anciennes copies
+ * masquées de l'UI, elles ne doivent pas gonfler le compteur de capacité
+ * (sinon 80 affichés côté quota vs 77 dans le vivier = incohérence).
+ *
+ * Implémentation : total − archivés (2 counts). Évite le piège du filtre
+ * "not contains" sur les lignes à tags NULL (qui seraient wrongly exclues).
+ */
+export async function countActiveCvs(
+  admin: SupabaseClient<Database>,
+  orgId: string,
+): Promise<number> {
+  const [{ count: total }, { count: archived }] = await Promise.all([
+    admin.from("candidates").select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId),
+    admin.from("candidates").select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId).contains("tags", ["ancien"]),
+  ])
+  return Math.max(0, (total ?? 0) - (archived ?? 0))
+}
+
+/**
  * Vérifie que l'org peut ajouter UN CV de plus. Plafond principal (et seul
  * visible côté client) : nombre de CV dans le vivier vs `cvLimit` du plan.
  * On compte les lignes `candidates` (exact, sans dépendance cron). À appeler
@@ -264,11 +286,7 @@ export async function checkCvQuota(
     return { ok: true, used: 0, limit: quota.cvLimit }
   }
 
-  const { count } = await admin
-    .from("candidates")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", orgId)
-  const used = count ?? 0
+  const used = await countActiveCvs(admin, orgId)
 
   if (used >= quota.cvLimit) {
     return {

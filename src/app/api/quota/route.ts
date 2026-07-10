@@ -44,17 +44,14 @@ export async function GET() {
   const adminFlag = await isAdmin(user.id)
   const quotas = getQuotas(org, { isAdmin: adminFlag })
 
-  // Capacité vivier — SEUL plafond montré au client. On compte les lignes
-  // `candidates` de l'org (instantané, exact, sans dépendance cron), à la
-  // différence de storage_used_bytes qui dépend d'un recalcul nightly.
-  const { count: cvUsed } = await admin
-    .from("candidates")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", profile.organization_id)
+  // Capacité vivier — SEUL plafond montré au client. On compte les CV ACTIFS
+  // (hors doublons archivés "ancien") pour matcher exactement le nombre affiché
+  // dans le vivier. Instantané, exact, sans dépendance cron.
+  const cvUsed = await countActiveCvs(admin, profile.organization_id)
 
   return NextResponse.json({
     cv: {
-      used: cvUsed ?? 0,
+      used: cvUsed,
       limit: quotas.cvLimit,
     },
     storage: {
