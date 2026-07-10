@@ -591,9 +591,14 @@ function SourceTabs({
   counts: Record<SourceTab, number>
   onChange: (t: SourceTab) => void
 }) {
+  // "Ont postulé" (formulaire public E2, pas encore livré) : l'onglet ne
+  // s'affiche que s'il existe au moins une candidature — un onglet "0" en
+  // permanence fait produit inachevé. Réapparaîtra tout seul avec E2.
   const tabs: Array<{ key: SourceTab; label: string; hint?: string }> = [
     { key: "all",      label: "Tous" },
-    { key: "applied",  label: "Ont postulé", hint: "Via le formulaire public (bientôt)" },
+    ...(counts.applied > 0
+      ? [{ key: "applied" as const, label: "Ont postulé", hint: "Via le formulaire public" }]
+      : []),
     { key: "uploaded", label: "Vos importations" },
     { key: "vivier",   label: "Depuis le vivier" },
   ]

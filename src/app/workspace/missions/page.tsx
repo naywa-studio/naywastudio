@@ -110,7 +110,7 @@ export default function MissionsPage() {
       //    Pas de mails ici tant que l'intégration mail n'est pas en place.
       const { data: maRows } = await sb
         .from("match_assessments")
-        .select("in_pipeline, pipeline_stage, reject_reason, updated_at")
+        .select("in_pipeline, pipeline_stage, reject_reason, updated_at, score")
       if (!mounted) return
       const reasonCount = new Map<RejectReason, number>()
       let inPipeline = 0
@@ -121,8 +121,11 @@ export default function MissionsPage() {
         pipeline_stage: string | null
         reject_reason: RejectReason | null
         updated_at: string | null
+        score: number | null
       }>) {
-        totalMatches++
+        // Même seuil "pertinent" (score ≥ 55) que les cartes mission, la fiche
+        // et l'accueil — un seul chiffre, un seul sens, partout.
+        if ((r.score ?? 0) >= 55) totalMatches++
         if (r.in_pipeline) inPipeline++
         if (r.pipeline_stage === "hired") recruited++
         if (r.reject_reason && r.updated_at && r.updated_at >= MONTH_START_ISO) {
@@ -416,7 +419,7 @@ function SidebarStats({ stats, totalJobs }: { stats: SidebarStatsData | null; to
     }}>
       <StatGroup title="Vue d'ensemble">
         <StatRow label="Missions"            value={totalJobs} />
-        <StatRow label="Candidats matchés"   value={stats?.totalCandidatsMatches ?? 0} />
+        <StatRow label="Candidats pertinents" value={stats?.totalCandidatsMatches ?? 0} />
         <StatRow
           label="En pipeline"
           value={stats?.totalInPipeline ?? 0}

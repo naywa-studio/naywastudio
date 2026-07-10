@@ -77,14 +77,14 @@ export function MissionSummaryBar({
             <button onClick={onImportCvs} style={btnGhost}>+ Importer des CVs</button>
             <button onClick={onMatchVivier} style={btnGhost}>↻ Matcher le vivier</button>
             <button onClick={onAssignFromVivier} style={btnGhost}>+ Assigner depuis le vivier</button>
-            <button
-              onClick={onCreateForm}
-              disabled={!onCreateForm}
-              title={onCreateForm ? undefined : "Formulaire public bientôt disponible"}
-              style={onCreateForm ? btnGhost : { ...btnGhost, opacity: 0.5, cursor: "not-allowed" }}
-            >
-              + Créer un formulaire
-            </button>
+            {/* Formulaire public (E2) : masqué tant que la feature n'est pas
+                livrée — un bouton grisé "bientôt" fait produit inachevé. Il
+                réapparaîtra dès que le parent passera onCreateForm. */}
+            {onCreateForm && (
+              <button onClick={onCreateForm} style={btnGhost}>
+                + Créer un formulaire
+              </button>
+            )}
             <button onClick={onEditCriteria} style={btnPrimary}>
               Modifier les critères
             </button>

@@ -1310,6 +1310,9 @@ function SectorOverview({
       {/* Barre d'actions secteurs */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Rangé par secteur</span>
+        <span style={{ fontSize: 11.5, color: "#6B7280" }}>
+          · un profil hybride peut appartenir à plusieurs secteurs
+        </span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           {unclassifiedCount > 0 && (
             <button

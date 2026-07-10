@@ -351,7 +351,7 @@ export default function WorkspaceHome() {
           loading={loading}
         />
         <StatTile href="/workspace/pipeline"
-          label="Matches forts"
+          label="Matchs pertinents"
           value={stats?.strongMatches ?? null}
           delta={stats?.strongMatchesDelta ?? null}
           loading={loading}
@@ -567,7 +567,9 @@ function StatTile({ href, label, value, delta, loading }: {
         }}>
           {loading ? "—" : value ?? 0}
         </p>
-        {!loading && delta != null && delta > 0 && (
+        {/* Delta masqué quand il égale le total (ex : vivier entièrement
+            importé cette semaine) — "+77" sous "77" n'apporte rien. */}
+        {!loading && delta != null && delta > 0 && value != null && delta < value && (
           <span style={{
             fontSize: 11, fontWeight: 700, color: "#15803d",
           }}>

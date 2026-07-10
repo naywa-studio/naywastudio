@@ -235,6 +235,7 @@ export default function CabinetPage() {
                 organization={organization}
                 onActivated={refetch}
                 isOwner={isOwner}
+                isAdmin={profile.is_admin === true}
                 autoOpenPicker={action === "subscribe"}
               />
               <PricingPolicySectionCollapsible />
@@ -612,11 +613,15 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
 /* ────────────────────────────────────────────────────────────────── */
 
 function SubscriptionCard({
-  organization, onActivated, isOwner, autoOpenPicker = false,
+  organization, onActivated, isOwner, isAdmin = false, autoOpenPicker = false,
 }: {
   organization: Organization
   onActivated: () => Promise<void>
   isOwner: boolean
+  /** Admin Naywa : accès permanent — on n'affiche pas le panneau rouge
+   *  "Période d'essai terminée" (il contredisait la carte verte "Accès
+   *  complet au workspace" juste au-dessus). */
+  isAdmin?: boolean
   /** Si true (deep-link ?action=subscribe), ouvre le PlanPicker en mode
    *  paid dès le mount. Évite à l'owner de cliquer 2x après un lockdown. */
   autoOpenPicker?: boolean
@@ -761,7 +766,16 @@ function SubscriptionCard({
           </Panel>
         )}
 
-        {!hasStripeSub && trial.state === "expired" && (
+        {!hasStripeSub && trial.state === "expired" && isAdmin && (
+          <Panel tone="brand">
+            <p style={panelTitle("#7C63C8")}>Compte administrateur Naywa</p>
+            <p style={panelBody("#374151")}>
+              Accès permanent — aucun abonnement requis pour ce compte.
+            </p>
+          </Panel>
+        )}
+
+        {!hasStripeSub && trial.state === "expired" && !isAdmin && (
           <Panel tone="warn">
             <p style={panelTitle("#B91C1C")}>Période d&apos;essai terminée</p>
             <p style={panelBody("#7F1D1D")}>
