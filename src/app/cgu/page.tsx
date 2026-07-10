@@ -58,13 +58,13 @@ const SECTIONS: LegalSection[] = [
       "Le service Package Sourcing est commercialisé par siège. La grille tarifaire en vigueur est publiée sur la page Tarifs.",
       "**Suppression du compte** : l'Owner peut supprimer son cabinet à tout moment depuis la console. Si d'autres membres sont actifs, ils conservent l'accès au workspace jusqu'à la fin de la période payée. Passé ce délai, toutes les données du cabinet sont supprimées définitivement et sans retour possible.",
       "**Cession de siège** : un siège libéré pendant une période payée peut être ré-attribué par l'Owner sans surcoût.",
-      "Pendant la phase beta, aucune facturation n'est active.",
+      "L'essai gratuit de 15 jours n'entraîne aucune facturation. La souscription payante ne démarre qu'après validation explicite d'une formule par le Client.",
     ],
   },
   {
     title: "7. Engagement de service",
     content: [
-      "Naywa Studio met en œuvre les meilleurs efforts pour assurer la disponibilité du Service. Compte tenu de la nature d'Internet et des services tiers utilisés, **aucun engagement de disponibilité chiffré n'est donné en phase beta**.",
+      "Naywa Studio met en œuvre les meilleurs efforts pour assurer la disponibilité du Service. Compte tenu de la nature d'Internet et des services tiers utilisés, **aucun engagement de disponibilité chiffré n'est donné**.",
       "Naywa Studio se réserve le droit d'interrompre temporairement le Service pour maintenance, avec préavis dans la mesure du possible.",
       "Aucune garantie de résultat n'est donnée concernant la qualité des suggestions de l'IA. Le score de matching, l'analyse de sentiment ou le brouillon de message restent des aides. Le Client conserve son entière responsabilité dans le choix final.",
     ],
