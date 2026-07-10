@@ -212,7 +212,7 @@ export function AgentsPreview() {
             }}>
               <p style={{
                 margin: "0 0 12px", fontSize: 11, fontWeight: 700,
-                color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.07em",
+                color: "#6B7280", textTransform: "uppercase" as const, letterSpacing: "0.07em",
               }}>
                 Poste · Data Engineer Paris — 3 meilleurs
               </p>

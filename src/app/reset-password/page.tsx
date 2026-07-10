@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
 
         {hasSession === null && (
           <p style={{
-            textAlign: "center", fontSize: 13, color: "#9CA3AF",
+            textAlign: "center", fontSize: 13, color: "#6B7280",
             fontFamily: "var(--font-inter), sans-serif",
           }}>
             Chargement…

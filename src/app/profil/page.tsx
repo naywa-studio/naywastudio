@@ -424,7 +424,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       </span>
       {children}
       {hint && (
-        <span style={{ fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>
+        <span style={{ fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
           {hint}
         </span>
       )}

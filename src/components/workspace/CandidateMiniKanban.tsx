@@ -34,7 +34,7 @@ const STAGES: { key: PipelineStage; label: string; color: string; bg: string }[]
   { key: "interview",  label: "Entretien", color: "#B45309", bg: "rgba(245,158,11,0.06)" },
   { key: "offer",      label: "Offre",     color: "#15803d", bg: "rgba(34,197,94,0.06)" },
   { key: "hired",      label: "Recruté",   color: "#0F766E", bg: "rgba(15,118,110,0.06)" },
-  { key: "rejected",   label: "Écarté",    color: "#9CA3AF", bg: "#F3F4F6" },
+  { key: "rejected",   label: "Écarté",    color: "#6B7280", bg: "#F3F4F6" },
 ]
 
 /** Legacy 'pricing' rows (colonne supprimée) → rangées dans 'identified'. */
@@ -139,7 +139,7 @@ export default function CandidateMiniKanban({
   }, [visibleRows])
 
   if (loading) {
-    return <div style={{ padding: 14, fontSize: 12, color: "#9CA3AF" }}>Chargement du pipeline…</div>
+    return <div style={{ padding: 14, fontSize: 12, color: "#6B7280" }}>Chargement du pipeline…</div>
   }
 
   const vertical = layout === "vertical"
@@ -157,12 +157,12 @@ export default function CandidateMiniKanban({
         gap: vertical ? 4 : 0,
         marginBottom: 10, padding: "0 4px",
       }}>
-        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
           {onlyMatchId
             ? "Pipeline de ce match"
             : `Dans le pipeline · ${rows.length} poste${rows.length > 1 ? "s" : ""}`}
         </h3>
-        <span style={{ fontSize: 10.5, color: "#9CA3AF", fontStyle: "italic" }}>
+        <span style={{ fontSize: 10.5, color: "#6B7280", fontStyle: "italic" }}>
           {vertical ? "Glissez pour avancer" : "Glissez une carte pour avancer / reculer"}
         </span>
       </div>
@@ -199,7 +199,7 @@ export default function CandidateMiniKanban({
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px" }}>
                 <span style={{ fontSize: 11.5, fontWeight: 800, color: stage.color }}>{stage.label}</span>
                 <span style={{
-                  fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+                  fontSize: 10, fontWeight: 700, color: "#6B7280",
                   background: "white", borderRadius: 100, padding: "0 6px", border: "1px solid #F0ECF8",
                 }}>
                   {cards.length}
@@ -233,7 +233,7 @@ export default function CandidateMiniKanban({
                       {r.job?.title ?? "Sans poste"}
                     </div>
                     <div style={{
-                      fontSize: 10.5, color: "#9CA3AF", marginTop: 1,
+                      fontSize: 10.5, color: "#6B7280", marginTop: 1,
                       display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6,
                     }}>
                       <span>{r.score != null ? `${r.score}` : "manuel"}</span>

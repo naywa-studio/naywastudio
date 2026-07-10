@@ -108,7 +108,7 @@ export default function AdminMajPage() {
         </header>
 
         {loading ? (
-          <p style={{ fontSize: 13, color: "#9CA3AF" }}>Chargement…</p>
+          <p style={{ fontSize: 13, color: "#6B7280" }}>Chargement…</p>
         ) : rows.length === 0 ? (
           <div style={{
             padding: 32, textAlign: "center",
@@ -117,7 +117,7 @@ export default function AdminMajPage() {
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#374151" }}>
               Aucune nouveauté pour le moment.
             </p>
-            <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "#9CA3AF" }}>
+            <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "#6B7280" }}>
               Cliquez sur &ldquo;Publier une nouveauté&rdquo; pour commencer.
             </p>
           </div>
@@ -152,7 +152,7 @@ export default function AdminMajPage() {
                       </span>
                       <span style={{
                         fontSize: 10, fontWeight: 700,
-                        color: isDraft ? "#9CA3AF" : "#15803D",
+                        color: isDraft ? "#6B7280" : "#15803D",
                         background: isDraft ? "#F3F4F6" : "rgba(34,197,94,0.10)",
                         padding: "2px 7px", borderRadius: 100,
                         letterSpacing: "0.05em", textTransform: "uppercase",
@@ -372,7 +372,7 @@ Confirmation positive.
             </div>
             <div>
               <Label>Zones impactées (optionnel)</Label>
-              <p style={{ margin: "0 0 8px", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>
+              <p style={{ margin: "0 0 8px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
                 Une pastille violette apparaîtra sur chaque item de menu coché jusqu&apos;à
                 ce que l&apos;utilisateur ouvre &laquo;&nbsp;Nouveautés&nbsp;&raquo;. Laisser vide = pastille
                 globale uniquement.
@@ -441,7 +441,7 @@ Confirmation positive.
               minHeight: 320,
             }}>
               {title.trim() === "" && body.trim() === "" ? (
-                <p style={{ margin: 0, fontSize: 12.5, color: "#9CA3AF", fontStyle: "italic" }}>
+                <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", fontStyle: "italic" }}>
                   L&apos;aperçu apparaîtra ici…
                 </p>
               ) : (

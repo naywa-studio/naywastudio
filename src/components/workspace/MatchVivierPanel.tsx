@@ -148,10 +148,10 @@ export function MatchVivierPanel({
         {showSectors && (
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 9 }}>
-              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                 Secteurs ciblés
               </p>
-              <span style={{ fontSize: 11, color: "#9CA3AF" }}>· cliquez pour cibler</span>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>· cliquez pour cibler</span>
             </div>
             {loadingProposal ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#7C63C8", padding: "4px 0" }}>
@@ -167,7 +167,7 @@ export function MatchVivierPanel({
               <>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
                   {allPills.length === 0 && (
-                    <span style={{ fontSize: 12, color: "#9CA3AF" }}>
+                    <span style={{ fontSize: 12, color: "#6B7280" }}>
                       Aucun secteur dans le vivier — classez vos CV ou passez en Complet.
                     </span>
                   )}
@@ -217,7 +217,7 @@ export function MatchVivierPanel({
                     {showAllPills ? "Voir moins" : `Voir tous les secteurs (+${allPills.length - PILL_FOLD})`}
                   </button>
                 )}
-                <p style={{ margin: "10px 0 0", fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>
+                <p style={{ margin: "10px 0 0", fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>
                   Pour créer un nouveau secteur, rendez-vous dans le Vivier — Nora l&apos;aide à le définir.
                 </p>
               </>

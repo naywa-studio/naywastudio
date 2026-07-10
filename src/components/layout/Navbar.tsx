@@ -216,7 +216,7 @@ export function Navbar() {
                       borderBottom: "1px solid #F0ECF8",
                       marginBottom: 4,
                     }}>
-                      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>
                         Connecté en tant que
                       </p>
                       <p style={{
@@ -408,7 +408,7 @@ export function Navbar() {
                   Mon workspace →
                 </Link>
                 <p style={{
-                  margin: "8px 4px 0", fontSize: 11, color: "#9CA3AF",
+                  margin: "8px 4px 0", fontSize: 11, color: "#6B7280",
                   fontFamily: "var(--font-inter), sans-serif",
                 }}>
                   Connecté en tant que <strong style={{ color: "#374151" }}>{auth.email}</strong>

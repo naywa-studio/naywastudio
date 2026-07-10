@@ -395,7 +395,7 @@ function MacroMap({ onZoom }: { onZoom: (id: string) => void }) {
         transition={{ duration: 0.5, ease: EASE, delay: 0.4 }}
         style={{
           position: "absolute", bottom: 14, left: "50%", transform: "translateX(-50%)",
-          margin: 0, fontSize: 11, color: "#9CA3AF", fontStyle: "italic",
+          margin: 0, fontSize: 11, color: "#6B7280", fontStyle: "italic",
           pointerEvents: "none",
         }}
       >
@@ -491,7 +491,7 @@ function SectorZoomView({
 
       {/* Empty state si filtre vide */}
       {all.length === 0 && (
-        <p style={{ margin: "40px 0", fontSize: 13, color: "#9CA3AF", textAlign: "center" }}>
+        <p style={{ margin: "40px 0", fontSize: 13, color: "#6B7280", textAlign: "center" }}>
           Aucun candidat dans ce secteur ne correspond à la recherche.
         </p>
       )}
@@ -597,7 +597,7 @@ function CandidateCardLight({
           <div style={{ fontSize: 13.5, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {c.fullName}
           </div>
-          <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
+          <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
             {c.ref}
           </div>
         </div>
@@ -626,7 +626,7 @@ function CandidateCardLight({
         {c.title}{c.company ? ` · ${c.company}` : ""}
       </div>
 
-      <div style={{ display: "flex", gap: 6, alignItems: "center", paddingLeft: 42, fontSize: 10.5, color: "#9CA3AF" }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", paddingLeft: 42, fontSize: 10.5, color: "#6B7280" }}>
         {c.location} · {c.yearsExperience} an{c.yearsExperience !== 1 ? "s" : ""} XP
       </div>
 
@@ -712,7 +712,7 @@ function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () =
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase" }}>
                 Aperçu candidat
               </span>
               <button onClick={onClose} style={{
@@ -739,7 +739,7 @@ function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () =
                   <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
                     {cand.fullName}
                   </div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
                     {cand.ref}
                   </div>
                 </div>
@@ -747,7 +747,7 @@ function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () =
               <p style={{ margin: "10px 0 0", fontSize: 13, color: "#374151" }}>
                 {cand.title}{cand.company ? ` · ${cand.company}` : ""}
               </p>
-              <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF" }}>
+              <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6B7280" }}>
                 {cand.location} · {cand.yearsExperience} an{cand.yearsExperience !== 1 ? "s" : ""} d&apos;expérience
               </p>
             </div>
@@ -793,7 +793,7 @@ function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () =
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 7 }}>
+    <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 7 }}>
       {children}
     </div>
   )

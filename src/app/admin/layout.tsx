@@ -74,7 +74,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!ready || !ctx) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA" }}>
-        <span style={{ color: "#9CA3AF", fontSize: 14, fontFamily: "var(--font-inter), sans-serif" }}>
+        <span style={{ color: "#6B7280", fontSize: 14, fontFamily: "var(--font-inter), sans-serif" }}>
           Chargement…
         </span>
       </div>

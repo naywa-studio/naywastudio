@@ -331,7 +331,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
           marginTop: 12, padding: 12,
           background: "#FAF9FE", border: "1px solid #F0ECF8", borderRadius: 11,
         }}>
-          <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase" }}>
             Ajouter un critère depuis le catalogue
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -414,10 +414,10 @@ function Column({
           display: "inline-block",
         }} />
         <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: "#111827" }}>{title}</p>
-        <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF" }}>{subtitle}</p>
+        <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>{subtitle}</p>
       </div>
       {items.length === 0 ? (
-        <p style={{ margin: 0, padding: "16px 6px", fontSize: 12, color: "#9CA3AF", textAlign: "center", fontStyle: "italic" }}>
+        <p style={{ margin: 0, padding: "16px 6px", fontSize: 12, color: "#6B7280", textAlign: "center", fontStyle: "italic" }}>
           {isMain ? "Aucun critère principal" : "Aucun bonus"}
         </p>
       ) : (
@@ -450,7 +450,7 @@ function Column({
                     {shortCriterionLabel(c)}
                   </p>
                 )}
-                <p style={{ margin: "2px 0 0", fontSize: 10.5, color: "#9CA3AF" }}>
+                <p style={{ margin: "2px 0 0", fontSize: 10.5, color: "#6B7280" }}>
                   {typeLabel(c.type)}{c.source === "manual" && " · ajouté"}
                 </p>
                 {/* Skills : liste des compétences rattachées (grisées), repliée
@@ -481,7 +481,7 @@ function Column({
                 onClick={() => onRemove(c.id)}
                 title="Retirer"
                 style={{
-                  fontSize: 14, color: "#9CA3AF",
+                  fontSize: 14, color: "#6B7280",
                   background: "transparent", border: "none",
                   cursor: "pointer", padding: "2px 4px",
                 }}

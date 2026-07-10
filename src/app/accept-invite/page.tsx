@@ -269,7 +269,7 @@ function Inner() {
             placeholder="Min 6 caractères, 1 caractère spécial"
             minLength={PASSWORD_MIN_LENGTH} disabled={busy}
             style={formInputStyle} autoComplete="new-password" />
-          <p style={{ margin: "5px 0 0", fontSize: 11.5, color: "#9CA3AF" }}>
+          <p style={{ margin: "5px 0 0", fontSize: 11.5, color: "#6B7280" }}>
             Au moins 6 caractères et un caractère spécial (ex&nbsp;: !&nbsp;?&nbsp;@&nbsp;#&nbsp;…).
           </p>
         </div>

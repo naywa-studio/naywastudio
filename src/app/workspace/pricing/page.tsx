@@ -230,7 +230,7 @@ function PricingGroup({ title, rows, isMine }: {
   rows: MissionRow[]
   isMine?: boolean
 }) {
-  const accent = isMine ? "#7C63C8" : "#9CA3AF"
+  const accent = isMine ? "#7C63C8" : "#6B7280"
   return (
     <section>
       <header style={{
@@ -248,7 +248,7 @@ function PricingGroup({ title, rows, isMine }: {
         }}>
           {title}
         </h2>
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: "#9CA3AF" }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: "#6B7280" }}>
           · {rows.length} mission{rows.length > 1 ? "s" : ""}
         </span>
       </header>

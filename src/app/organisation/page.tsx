@@ -800,7 +800,7 @@ function SubscriptionCard({
           <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B91C1C" }}>{error}</p>
         )}
 
-        <div style={{ marginTop: 14, fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.55 }}>
+        <div style={{ marginTop: 14, fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
           {organization.seats_total} siège{organization.seats_total > 1 ? "s" : ""} alloué{organization.seats_total > 1 ? "s" : ""}.
         </div>
       </Card>
@@ -1498,7 +1498,7 @@ function BrandingSection({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
                 ) : (
-                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
+                  <span style={{ fontSize: 10, color: "#6B7280" }}>Aucun</span>
                 )}
               </div>
               {brandingLocked ? (
@@ -1552,7 +1552,7 @@ function BrandingSection({
 
           {/* Slogan */}
           <div>
-            <Label>Slogan <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span></Label>
+            <Label>Slogan <span style={{ color: "#6B7280", fontWeight: 400 }}>(optionnel)</span></Label>
             <input
               value={slogan}
               onChange={(e) => setSlogan(e.target.value.slice(0, 120))}
@@ -2024,7 +2024,7 @@ function BrandingChangeRequestModal({
           <div>
             <Label>
               Raison de la demande{" "}
-              <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span>
+              <span style={{ color: "#6B7280", fontWeight: 400 }}>(optionnel)</span>
             </Label>
             <textarea
               value={reason}
@@ -2044,7 +2044,7 @@ function BrandingChangeRequestModal({
           )}
 
           {!editName && !editLogo && !editEmail && (
-            <p style={{ margin: 0, fontSize: 12.5, color: "#9CA3AF", fontStyle: "italic" }}>
+            <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", fontStyle: "italic" }}>
               Cochez au moins une information à modifier.
             </p>
           )}
@@ -2149,7 +2149,7 @@ function LogoFrame({ src, placeholder, highlight }: { src: string | null | undef
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", padding: 6 }} />
       ) : (
-        <span style={{ fontSize: 11.5, color: "#9CA3AF", fontStyle: "italic" }}>{placeholder}</span>
+        <span style={{ fontSize: 11.5, color: "#6B7280", fontStyle: "italic" }}>{placeholder}</span>
       )}
     </div>
   )
@@ -2158,7 +2158,7 @@ function LogoFrame({ src, placeholder, highlight }: { src: string | null | undef
 const miniLabel: React.CSSProperties = {
   margin: "0 0 4px",
   fontSize: 10.5, fontWeight: 700,
-  color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase",
+  color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase",
 }
 
 /**
@@ -2484,7 +2484,7 @@ function MembersSection({
                   <p style={memberNameStyle}>
                     {m.first_name ?? "Sans prénom"}
                     {m.user_id === currentUserId && (
-                      <span style={{ color: "#9CA3AF", fontWeight: 500 }}> · vous</span>
+                      <span style={{ color: "#6B7280", fontWeight: 500 }}> · vous</span>
                     )}
                   </p>
                   {m.user_id === currentUserId && (
@@ -2577,7 +2577,7 @@ function MembersSection({
             <div key={`e-${idx}`} style={emptySeatRowStyle(false)}>
               <Avatar letter="·" dim />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ ...memberNameStyle, color: "#9CA3AF", fontWeight: 600 }}>
+                <p style={{ ...memberNameStyle, color: "#6B7280", fontWeight: 600 }}>
                   Siège vide
                 </p>
               </div>
@@ -2600,7 +2600,7 @@ function MembersSection({
 
       <p style={{
         margin: "12px 0 0",
-        fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.55,
+        fontSize: 11.5, color: "#6B7280", lineHeight: 1.55,
       }}>
         Les invitations sont envoyées par email. Le membre clique sur le lien
         reçu, choisit son mot de passe, et accède directement au workspace.
@@ -2708,7 +2708,7 @@ function EmptySeatActions({
               >
                 {isSelf ? "M'allouer un siège" : `Allouer à ${m.first_name ?? "Sans prénom"}`}
                 {m.role === "owner" && !isSelf && (
-                  <span style={{ marginLeft: 6, fontSize: 10.5, color: "#9CA3AF", fontWeight: 500 }}>
+                  <span style={{ marginLeft: 6, fontSize: 10.5, color: "#6B7280", fontWeight: 500 }}>
                     (owner)
                   </span>
                 )}
@@ -2756,7 +2756,7 @@ function Avatar({ letter, dim }: { letter: string; dim?: boolean }) {
       background: dim ? "#F3F4F6" : "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
       border: dim ? "1px solid #E5E7EB" : "1px solid rgba(124,99,200,0.30)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      color: dim ? "#9CA3AF" : "#7C63C8",
+      color: dim ? "#6B7280" : "#7C63C8",
       fontWeight: 700, fontSize: 11.5,
       flexShrink: 0,
     }}>
@@ -2941,7 +2941,7 @@ function ExportDataCard() {
         candidats, missions, matches, mails et paramétrage. Conservez-le
         comme archive.
       </p>
-      <p style={{ margin: "0 0 14px", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.55 }}>
+      <p style={{ margin: "0 0 14px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
         En raison des mises à jour produit, nous ne pouvons pas garantir la
         restauration complète de ces données dans une future version du service.
       </p>
@@ -2993,7 +2993,7 @@ function Card({ title, subtitle, children, headerRight }: {
         <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>{title}</h2>
         {headerRight}
       </div>
-      <p style={{ margin: "0 0 12px", fontSize: 12, color: "#9CA3AF" }}>{subtitle}</p>
+      <p style={{ margin: "0 0 12px", fontSize: 12, color: "#6B7280" }}>{subtitle}</p>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {children}
       </div>
@@ -3015,7 +3015,7 @@ function Label({ children }: { children: React.ReactNode }) {
 
 function Hint({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ margin: "5px 0 0", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>{children}</p>
+    <p style={{ margin: "5px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>{children}</p>
   )
 }
 
@@ -3066,6 +3066,6 @@ const memberNameStyle: React.CSSProperties = {
   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }
 const memberSubStyle: React.CSSProperties = {
-  margin: "1px 0 0", fontSize: 11, color: "#9CA3AF",
+  margin: "1px 0 0", fontSize: 11, color: "#6B7280",
   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }

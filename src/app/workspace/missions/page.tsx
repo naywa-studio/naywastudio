@@ -365,7 +365,7 @@ function MissionGroup({
   visuals: Record<string, MissionVisual>
   isMine?: boolean
 }) {
-  const accent = isMine ? "#7C63C8" : "#9CA3AF"
+  const accent = isMine ? "#7C63C8" : "#6B7280"
   return (
     <section>
       <header style={{
@@ -384,7 +384,7 @@ function MissionGroup({
           {title}
         </h2>
         <span style={{
-          fontSize: 11.5, fontWeight: 600, color: "#9CA3AF",
+          fontSize: 11.5, fontWeight: 600, color: "#6B7280",
         }}>
           · {jobs.length} mission{jobs.length > 1 ? "s" : ""}
         </span>
@@ -455,7 +455,7 @@ function StatGroup({ title, children }: { title: string; children: React.ReactNo
       padding: 12,
     }}>
       <div style={{
-        fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
+        fontSize: 9.5, fontWeight: 700, color: "#6B7280",
         letterSpacing: "0.08em", textTransform: "uppercase",
         marginBottom: 8, padding: "0 2px",
       }}>
@@ -563,7 +563,7 @@ function JobCard({ job, visual, delay }: {
             {job.role_name?.trim() || job.title}
           </h2>
           {job.role_name?.trim() && job.title && job.title !== job.role_name && (
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {job.title}
             </p>
           )}
@@ -596,14 +596,14 @@ function JobCard({ job, visual, delay }: {
             }} />
             {visual.top1Label}
           </span>
-          <span style={{ fontSize: 10, color: "#9CA3AF" }}>
+          <span style={{ fontSize: 10, color: "#6B7280" }}>
             · {visual.totalMatches} pertinent{visual.totalMatches > 1 ? "s" : ""}
           </span>
         </div>
       )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 2 }}>
-        <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+        <span style={{ fontSize: 11, color: "#6B7280" }}>
           {ms === "matching" ? "✦ Matching en cours…"
             : ms === "done" ? "✓ Matché"
             : ms === "error" ? "Erreur matching"
@@ -636,7 +636,7 @@ function StatusChip({ status }: { status: Job["status"] }) {
     draft:    { label: "Brouillon", bg: "#F3F4F6", fg: "#6B7280", bd: "#E5E7EB" },
     open:     { label: "Ouvert",    bg: "rgba(34,197,94,0.10)", fg: "#16a34a", bd: "rgba(34,197,94,0.22)" },
     filled:   { label: "Pourvu",    bg: "rgba(124,99,200,0.10)", fg: "#7C63C8", bd: "rgba(124,99,200,0.22)" },
-    archived: { label: "Archivé",   bg: "#F3F4F6", fg: "#9CA3AF", bd: "#E5E7EB" },
+    archived: { label: "Archivé",   bg: "#F3F4F6", fg: "#6B7280", bd: "#E5E7EB" },
   }
   const s = map[status]
   return (
@@ -1002,11 +1002,11 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                             width: 18, height: 18, borderRadius: "50%",
                             display: "inline-flex", alignItems: "center", justifyContent: "center",
                             fontSize: 10.5, fontWeight: 800,
-                            color: active ? "white" : done ? "#7C63C8" : "#9CA3AF",
+                            color: active ? "white" : done ? "#7C63C8" : "#6B7280",
                             background: active ? "#7C63C8" : done ? "rgba(124,99,200,0.12)" : "#F3F4F6",
                             border: `1px solid ${active || done ? "rgba(124,99,200,0.35)" : "#E5E7EB"}`,
                           }}>{done ? "✓" : s.n}</span>
-                          <span style={{ fontSize: 11, fontWeight: active ? 700 : 600, color: active ? "#111827" : "#9CA3AF" }}>{s.label}</span>
+                          <span style={{ fontSize: 11, fontWeight: active ? 700 : 600, color: active ? "#111827" : "#6B7280" }}>{s.label}</span>
                         </span>
                       </span>
                     )
@@ -1016,7 +1016,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
             </div>
             <button onClick={onClose} aria-label="Fermer" style={{
               background: "transparent", border: "none", cursor: "pointer",
-              fontSize: 22, color: "#9CA3AF", lineHeight: 1, padding: 4,
+              fontSize: 22, color: "#6B7280", lineHeight: 1, padding: 4,
             }}>✕</button>
           </div>
 
@@ -1046,7 +1046,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
               {brief.length > 0 && (
                 <div style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
-                  fontSize: 11.5, color: "#9CA3AF",
+                  fontSize: 11.5, color: "#6B7280",
                 }}>
                   <button
                     type="button"
@@ -1293,11 +1293,11 @@ function FormFieldGrid(p: FormFieldGridProps) {
             <input type="number" min={0} max={40} value={p.seniorityMin}
               onChange={(e) => p.setSeniorityMin(e.target.value)}
               placeholder="5" style={{ ...ringStyle(senState.border), width: 64, textAlign: "center" }} />
-            <span style={{ fontSize: 13, color: "#9CA3AF" }}>à</span>
+            <span style={{ fontSize: 13, color: "#6B7280" }}>à</span>
             <input type="number" min={0} max={40} value={p.seniorityMax}
               onChange={(e) => p.setSeniorityMax(e.target.value)}
               placeholder="10" style={{ ...ringStyle(senState.border), width: 64, textAlign: "center" }} />
-            <span style={{ fontSize: 13, color: "#9CA3AF" }}>ans</span>
+            <span style={{ fontSize: 13, color: "#6B7280" }}>ans</span>
           </div>
         </Field>
       </div>
@@ -1420,7 +1420,7 @@ function Field({ label, hint, status, children }: { label: string; hint?: string
     <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <span style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span>{label}</span>
-        {hint && <span style={{ fontWeight: 400, color: "#9CA3AF" }}>· {hint}</span>}
+        {hint && <span style={{ fontWeight: 400, color: "#6B7280" }}>· {hint}</span>}
         {status}
       </span>
       {children}
@@ -1461,7 +1461,7 @@ function TagInput({ tags, onChange, placeholder, borderColor }: { tags: string[]
           {t}
           <button onClick={() => onChange(tags.filter((x) => x !== t))} style={{
             background: "transparent", border: "none", cursor: "pointer",
-            color: "#9CA3AF", fontSize: 13, lineHeight: 1, padding: 0,
+            color: "#6B7280", fontSize: 13, lineHeight: 1, padding: 0,
           }}>✕</button>
         </span>
       ))}

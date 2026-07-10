@@ -71,7 +71,7 @@ export function StyledSelect({
           width: "100%",
           boxSizing: "border-box",
           fontSize: 13.5,
-          color: disabled ? "#9CA3AF" : "#111827",
+          color: disabled ? "#6B7280" : "#111827",
           padding: "9px 36px 9px 12px",
           background: disabled ? "#F3F4F6" : "#FAFAFA",
           border: `1px solid ${borderColor}`,
@@ -112,7 +112,7 @@ export function StyledSelect({
           top: "50%",
           transform: "translateY(-50%)",
           pointerEvents: "none",
-          color: disabled ? "#D1D5DB" : "#9CA3AF",
+          color: disabled ? "#D1D5DB" : "#6B7280",
         }}
       >
         <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />

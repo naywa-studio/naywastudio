@@ -140,10 +140,10 @@ export default function ForgotPasswordPage() {
 
         <p style={{
           marginTop: 22, textAlign: "center",
-          fontSize: 12, color: "#9CA3AF",
+          fontSize: 12, color: "#6B7280",
           fontFamily: "var(--font-inter), sans-serif",
         }}>
-          <Link href="/login" style={{ color: "#9CA3AF", textDecoration: "none" }}>
+          <Link href="/login" style={{ color: "#6B7280", textDecoration: "none" }}>
             ← Retour à la connexion
           </Link>
         </p>

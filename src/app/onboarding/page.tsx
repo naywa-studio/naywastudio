@@ -292,7 +292,7 @@ export default function OnboardingPage() {
   if (!ready) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA" }}>
-        <span style={{ color: "#9CA3AF", fontSize: 14, fontFamily: "var(--font-inter), sans-serif" }}>
+        <span style={{ color: "#6B7280", fontSize: 14, fontFamily: "var(--font-inter), sans-serif" }}>
           Chargement…
         </span>
       </div>
@@ -412,7 +412,7 @@ export default function OnboardingPage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={logoPreviewUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8 }} />
                     ) : (
-                      <span style={{ fontSize: 10, color: "#9CA3AF" }}>Aucun</span>
+                      <span style={{ fontSize: 10, color: "#6B7280" }}>Aucun</span>
                     )}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -634,7 +634,7 @@ export default function OnboardingPage() {
                 {submitting ? "Enregistrement…" : "Continuer sans activer pour l'instant"}
               </button>
 
-              <p style={{ margin: "16px 0 0", fontSize: 11.5, color: "#9CA3AF", textAlign: "center", lineHeight: 1.5 }}>
+              <p style={{ margin: "16px 0 0", fontSize: 11.5, color: "#6B7280", textAlign: "center", lineHeight: 1.5 }}>
                 Vous pourrez activer l&apos;essai à tout moment depuis votre console.
               </p>
             </m.div>
@@ -678,7 +678,7 @@ const fieldLabelStyle: React.CSSProperties = {
   fontSize: 12, fontWeight: 600, color: "#374151", letterSpacing: "0.01em",
 }
 const fieldHintStyle: React.CSSProperties = {
-  fontSize: 11.5, color: "#9CA3AF",
+  fontSize: 11.5, color: "#6B7280",
 }
 const inputStyle: React.CSSProperties = {
   padding: "12px 14px",
@@ -706,7 +706,7 @@ const smallIconBtn: React.CSSProperties = {
   background: "white",
   border: "1px solid #E2DAF6",
   borderRadius: 10,
-  color: "#9CA3AF",
+  color: "#6B7280",
   cursor: "pointer",
   padding: "0 12px",
 }

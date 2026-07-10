@@ -224,7 +224,7 @@ export function BrandColorPicker({
           <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
             Ajouter une couleur secondaire
           </span>
-          <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>
+          <span style={{ fontSize: 11.5, color: "#6B7280" }}>
             (titres de section, accents)
           </span>
         </label>
@@ -291,11 +291,11 @@ function CurrentColorPreview({ label, hex, isOff }: { label: string; hex: string
         boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.05)",
       }} />
       <div>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase" }}>
           {label}
         </p>
         <p style={{ margin: "2px 0 0", fontSize: 14, fontFamily: "var(--font-space-grotesk), monospace", fontWeight: 700, color: "#111827" }}>
-          {isOff ? <span style={{ color: "#9CA3AF" }}>Non configurée</span> : hex.toUpperCase()}
+          {isOff ? <span style={{ color: "#6B7280" }}>Non configurée</span> : hex.toUpperCase()}
         </p>
       </div>
     </div>
@@ -321,7 +321,7 @@ function PaletteRow({
         {title}
       </p>
       {colors.length === 0 && empty && (
-        <p style={{ margin: 0, fontSize: 11.5, color: "#9CA3AF", fontStyle: "italic" }}>{empty}</p>
+        <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280", fontStyle: "italic" }}>{empty}</p>
       )}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {colors.map((c, i) => {

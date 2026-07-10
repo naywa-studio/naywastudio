@@ -179,7 +179,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
               aria-label="Plus tard"
               style={{
                 background: "transparent", border: "none",
-                fontSize: 22, color: "#9CA3AF",
+                fontSize: 22, color: "#6B7280",
                 cursor: "pointer", padding: 4, marginTop: -4,
                 fontFamily: "inherit",
               }}

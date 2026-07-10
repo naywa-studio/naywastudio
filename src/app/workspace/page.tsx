@@ -64,7 +64,7 @@ const TIER_COLOR: Record<MatchTier, { fg: string; bg: string; bd: string }> = {
   excellent: { fg: "#15803d", bg: "rgba(34,197,94,0.10)",  bd: "rgba(34,197,94,0.3)" },
   good:      { fg: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.22)" },
   fair:      { fg: "#B45309", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" },
-  poor:      { fg: "#9CA3AF", bg: "#F3F4F6",               bd: "#E5E7EB" },
+  poor:      { fg: "#6B7280", bg: "#F3F4F6",               bd: "#E5E7EB" },
 }
 
 export default function WorkspaceHome() {
@@ -283,7 +283,7 @@ export default function WorkspaceHome() {
         <BrandAvatar logoUrl={brandLogoUrl} initials={brandInitials} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
-            margin: 0, fontSize: 12, fontWeight: 700, color: "#9CA3AF",
+            margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
             letterSpacing: "0.08em", textTransform: "uppercase",
           }}>
             {brandName ?? "Organisation sans nom"}
@@ -405,7 +405,7 @@ export default function WorkspaceHome() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={rowTitleStyle}>
                     {mm.candidate?.full_name ?? "Candidat"}
-                    <span style={{ color: "#9CA3AF", fontWeight: 500 }}> · {mm.job?.title ?? "—"}</span>
+                    <span style={{ color: "#6B7280", fontWeight: 500 }}> · {mm.job?.title ?? "—"}</span>
                   </p>
                   <p style={rowSubStyle}>{mm.candidate?.current_title ?? ""}</p>
                 </div>
@@ -555,7 +555,7 @@ function StatTile({ href, label, value, delta, loading }: {
       }}
     >
       <p style={{
-        margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF",
+        margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280",
         letterSpacing: "0.07em", textTransform: "uppercase",
       }}>
         {label}
@@ -602,7 +602,7 @@ function RecentPanel({
         display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
       }}>
         <h2 style={{
-          margin: 0, fontSize: 12, fontWeight: 700, color: "#9CA3AF",
+          margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
           letterSpacing: "0.08em", textTransform: "uppercase",
         }}>
           {title}
@@ -618,7 +618,7 @@ function RecentPanel({
         {loading ? (
           <div style={{ padding: "20px 12px" }}><NoraLoader inline /></div>
         ) : items.length === 0 ? (
-          <p style={{ margin: 0, padding: "20px 12px", fontSize: 13, color: "#9CA3AF" }}>
+          <p style={{ margin: 0, padding: "20px 12px", fontSize: 13, color: "#6B7280" }}>
             {empty}
           </p>
         ) : (
@@ -691,11 +691,11 @@ const rowTitleStyle: React.CSSProperties = {
   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }
 const rowSubStyle: React.CSSProperties = {
-  margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF",
+  margin: "2px 0 0", fontSize: 11.5, color: "#6B7280",
   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }
 const rowDateStyle: React.CSSProperties = {
-  fontSize: 11, color: "#9CA3AF", flexShrink: 0,
+  fontSize: 11, color: "#6B7280", flexShrink: 0,
 }
 
 function timeAgo(iso: string): string {

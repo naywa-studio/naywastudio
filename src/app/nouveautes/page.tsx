@@ -192,7 +192,7 @@ export default function NouveautesPage() {
         </header>
 
         {loading && (
-          <p style={{ fontSize: 13, color: "#9CA3AF" }}>Chargement…</p>
+          <p style={{ fontSize: 13, color: "#6B7280" }}>Chargement…</p>
         )}
 
         {error && (
@@ -216,7 +216,7 @@ export default function NouveautesPage() {
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#374151" }}>
               Aucune nouveauté pour le moment.
             </p>
-            <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "#9CA3AF" }}>
+            <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "#6B7280" }}>
               Revenez plus tard — on travaille sur la suite.
             </p>
           </div>
@@ -261,7 +261,7 @@ export default function NouveautesPage() {
                   {t.label}
                   <span style={{
                     fontSize: 10.5, fontWeight: 700,
-                    color: active ? "#7C63C8" : "#9CA3AF",
+                    color: active ? "#7C63C8" : "#6B7280",
                     background: active ? "rgba(124,99,200,0.10)" : "rgba(107,114,128,0.10)",
                     padding: "1px 7px", borderRadius: 999,
                     minWidth: 18, textAlign: "center",
@@ -351,7 +351,7 @@ export default function NouveautesPage() {
                       {u.title}
                     </p>
                     <p style={{
-                      margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF",
+                      margin: "2px 0 0", fontSize: 11.5, color: "#6B7280",
                     }}>
                       {formatDate(u.published_at)}
                     </p>
@@ -360,7 +360,7 @@ export default function NouveautesPage() {
                     animate={{ rotate: expanded ? 180 : 0 }}
                     transition={{ duration: 0.2, ease: EASE }}
                     width="16" height="16" viewBox="0 0 24 24"
-                    fill="none" stroke="#9CA3AF" strokeWidth="2.2"
+                    fill="none" stroke="#6B7280" strokeWidth="2.2"
                     strokeLinecap="round" strokeLinejoin="round"
                     style={{ flexShrink: 0 }}
                     aria-hidden
@@ -398,7 +398,7 @@ export default function NouveautesPage() {
 
         {filteredItems.length === 0 && !loading && items.length > 0 && (
           <p style={{
-            margin: "20px 0 0", fontSize: 13, color: "#9CA3AF",
+            margin: "20px 0 0", fontSize: 13, color: "#6B7280",
             textAlign: "center",
           }}>
             Rien dans cette zone pour l&apos;instant.

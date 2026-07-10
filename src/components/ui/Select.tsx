@@ -148,7 +148,7 @@ export default function Select({
         style={{
           width: "100%", boxSizing: "border-box",
           display: "flex", alignItems: "center", gap: 8,
-          fontSize: 13, color: selected ? "#111827" : "#9CA3AF",
+          fontSize: 13, color: selected ? "#111827" : "#6B7280",
           padding: "8px 12px",
           paddingRight: 32,
           background: "#FAFAFA",
@@ -199,7 +199,7 @@ export default function Select({
           }}
         >
           {options.length === 0 && (
-            <div style={{ padding: "10px 12px", fontSize: 12.5, color: "#9CA3AF" }}>
+            <div style={{ padding: "10px 12px", fontSize: 12.5, color: "#6B7280" }}>
               Aucune option
             </div>
           )}
@@ -235,7 +235,7 @@ export default function Select({
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {opt.label}
                   {opt.hint && (
-                    <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 400, marginLeft: 6 }}>
+                    <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 400, marginLeft: 6 }}>
                       {opt.hint}
                     </span>
                   )}

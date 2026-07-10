@@ -79,7 +79,7 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
           <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827", letterSpacing: "-0.005em" }}>
             Mes zones
           </h3>
-          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>
+          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
             Taxonomie utilisée par Nora pour ranger vos candidats. {customCount}/{MAX_ZONES - 1} zones personnalisées.
           </p>
         </div>
@@ -90,7 +90,7 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
           title={atCap ? `Limite atteinte (${MAX_ZONES - 1} zones max hors Autre).` : "Ajouter une zone"}
           style={{
             fontFamily: "inherit", fontSize: 12, fontWeight: 700,
-            color: atCap ? "#9CA3AF" : "#7C63C8",
+            color: atCap ? "#6B7280" : "#7C63C8",
             background: "white",
             border: `1px solid ${atCap ? "#E5E7EB" : "rgba(124,99,200,0.30)"}`,
             borderRadius: 8, padding: "6px 12px",
@@ -113,7 +113,7 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
       )}
 
       {loading ? (
-        <div style={{ fontSize: 12, color: "#9CA3AF", padding: 16, textAlign: "center" }}>
+        <div style={{ fontSize: 12, color: "#6B7280", padding: 16, textAlign: "center" }}>
           Chargement…
         </div>
       ) : sorted.length === 0 ? (
@@ -140,7 +140,7 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
                   </span>
                   {z.label === FALLBACK_LABEL && (
                     <span style={{
-                      fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
+                      fontSize: 9.5, fontWeight: 700, color: "#6B7280",
                       background: "#F3F4F6", border: "1px solid #E5E7EB",
                       borderRadius: 999, padding: "1px 6px",
                       letterSpacing: "0.05em", textTransform: "uppercase",
@@ -158,7 +158,7 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
                       Nora
                     </span>
                   )}
-                  <span style={{ fontSize: 11, color: "#9CA3AF", marginLeft: "auto" }}>
+                  <span style={{ fontSize: 11, color: "#6B7280", marginLeft: "auto" }}>
                     {z.candidate_count} {z.candidate_count > 1 ? "candidats" : "candidat"}
                   </span>
                 </div>
@@ -304,7 +304,7 @@ function ZoneEditModal({
                 boxSizing: "border-box",
               }}
             />
-            <p style={{ margin: "3px 0 0", fontSize: 11, color: "#9CA3AF" }}>2-60 caractères</p>
+            <p style={{ margin: "3px 0 0", fontSize: 11, color: "#6B7280" }}>2-60 caractères</p>
           </div>
           <div>
             <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#374151" }}>
@@ -324,7 +324,7 @@ function ZoneEditModal({
                 boxSizing: "border-box",
               }}
             />
-            <p style={{ margin: "3px 0 0", fontSize: 11, color: "#9CA3AF" }}>{description.trim().length}/280 caractères (10 min)</p>
+            <p style={{ margin: "3px 0 0", fontSize: 11, color: "#6B7280" }}>{description.trim().length}/280 caractères (10 min)</p>
           </div>
         </div>
 

@@ -180,7 +180,7 @@ export function HowItWorks() {
                       fontFamily: "var(--font-space-grotesk), sans-serif",
                       fontSize: 11,
                       fontWeight: 600,
-                      color: "#9CA3AF",
+                      color: "#6B7280",
                       letterSpacing: "0.08em",
                       textTransform: "uppercase" as const,
                     }}

@@ -549,7 +549,7 @@ export default function VivierPage() {
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {j.fileName}
                 </span>
-                <span style={{ fontSize: 11, color: j.status === "error" ? "#DC2626" : "#9CA3AF" }}>
+                <span style={{ fontSize: 11, color: j.status === "error" ? "#DC2626" : "#6B7280" }}>
                   {j.status === "uploading" && "Upload…"}
                   {j.status === "parsing"   && "Parsing IA…"}
                   {j.status === "done"      && "✓ Ajouté"}
@@ -583,7 +583,7 @@ export default function VivierPage() {
               onFocus={(e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,99,200,0.10)" }}
               onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none" }}
             />
-            <span style={{ fontSize: 12, color: "#9CA3AF" }}>
+            <span style={{ fontSize: 12, color: "#6B7280" }}>
               {filtered.length}{filtered.length !== candidates.length ? ` / ${candidates.length}` : ""} candidat{filtered.length > 1 ? "s" : ""}
             </span>
           </div>
@@ -649,7 +649,7 @@ export default function VivierPage() {
               background: "white", border: "1px solid rgba(124,99,200,0.22)",
               borderRadius: 100, padding: "1px 8px",
             }}>{parsingCandidates.length}</span>
-            <span style={{ fontSize: 11.5, color: "#9CA3AF", marginLeft: "auto" }}>
+            <span style={{ fontSize: 11.5, color: "#6B7280", marginLeft: "auto" }}>
               Nora extrait nom, expérience, compétences…
             </span>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -688,7 +688,7 @@ export default function VivierPage() {
             />
           ))}
           {parsedOrErrored.length === 0 && (
-            <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
+            <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "#6B7280", fontSize: 14 }}>
               Aucun candidat ne correspond à la recherche.
             </div>
           )}
@@ -865,10 +865,10 @@ function CandidateCard({
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {c.current_title ?? (errored ? c.parse_error ?? "Erreur" : "—")}
-            {c.current_company ? <> · <span style={{ color: "#9CA3AF" }}>{c.current_company}</span></> : null}
+            {c.current_company ? <> · <span style={{ color: "#6B7280" }}>{c.current_company}</span></> : null}
           </p>
           <p style={{
-            margin: "2px 0 0", fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
+            margin: "2px 0 0", fontSize: 9.5, fontWeight: 700, color: "#6B7280",
             letterSpacing: "0.04em",
             fontFamily: "var(--font-space-grotesk), monospace",
           }}>
@@ -890,7 +890,7 @@ function CandidateCard({
             </span>
           ))}
           {c.skills.length > 3 && (
-            <span style={{ fontSize: 10, color: "#9CA3AF", padding: "2px 3px" }}>
+            <span style={{ fontSize: 10, color: "#6B7280", padding: "2px 3px" }}>
               +{c.skills.length - 3}
             </span>
           )}
@@ -900,7 +900,7 @@ function CandidateCard({
       {/* Pied : métadonnées (peuvent passer à la ligne) PUIS ligne d'actions
           stable (secteur à gauche, Ouvrir/× à droite toujours alignés). */}
       <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#9CA3AF", flexWrap: "wrap", minHeight: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#6B7280", flexWrap: "wrap", minHeight: 16 }}>
           {c.location ?? "—"}
           {c.years_experience != null && <span>· {c.years_experience}a</span>}
           {customTagsOf(c.tags).slice(0, 2).map((t) => (
@@ -913,7 +913,7 @@ function CandidateCard({
             </span>
           ))}
           {customTagsOf(c.tags).length > 2 && (
-            <span style={{ fontSize: 10, color: "#9CA3AF" }}>+{customTagsOf(c.tags).length - 2}</span>
+            <span style={{ fontSize: 10, color: "#6B7280" }}>+{customTagsOf(c.tags).length - 2}</span>
           )}
           {c.tags?.includes("doublon") && (
             <span style={{
@@ -949,10 +949,10 @@ function CandidateCard({
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 background: "transparent", border: "1px solid #E5E7EB",
                 borderRadius: 7, padding: 0, cursor: "pointer",
-                color: "#9CA3AF",
+                color: "#6B7280",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "#9CA3AF"; e.currentTarget.style.borderColor = "#E5E7EB" }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#6B7280"; e.currentTarget.style.borderColor = "#E5E7EB" }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M18 6 6 18M6 6l12 12" />
@@ -1059,7 +1059,7 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
           }}>
             {c.cv_file_name ?? "Sans nom"}
           </p>
-          <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF" }}>
+          <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6B7280" }}>
             {label}
           </p>
         </div>
@@ -1069,7 +1069,7 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
           style={{
             background: "transparent", border: "1px solid #E5E7EB",
             borderRadius: 8, padding: "5px 8px", cursor: "pointer",
-            color: "#9CA3AF", fontSize: 11, lineHeight: 1, flexShrink: 0,
+            color: "#6B7280", fontSize: 11, lineHeight: 1, flexShrink: 0,
           }}
         >✕</button>
       </div>
@@ -1114,7 +1114,7 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
         <div style={{
           marginTop: 6, display: "flex", justifyContent: "space-between",
           alignItems: "center",
-          fontSize: 10.5, color: "#9CA3AF", fontVariantNumeric: "tabular-nums",
+          fontSize: 10.5, color: "#6B7280", fontVariantNumeric: "tabular-nums",
         }}>
           <span>{nearAsymptote ? "Finalisation…" : `${Math.round(pct)}%`}</span>
           {veryStalled ? (
@@ -1191,7 +1191,7 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
       }}>
         Choisir des PDFs
       </span>
-      <p style={{ margin: "18px 0 0", fontSize: 11, color: "#9CA3AF" }}>
+      <p style={{ margin: "18px 0 0", fontSize: 11, color: "#6B7280" }}>
         PDF uniquement · 10 Mo max · 500 fichiers max par lot
       </p>
     </m.div>
@@ -1254,7 +1254,7 @@ function RecentUploadsStrip({
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
           borderRadius: 100, padding: "1px 8px",
         }}>{candidates.length}</span>
-        <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>— vérifiez leur secteur</span>
+        <span style={{ fontSize: 11.5, color: "#6B7280" }}>— vérifiez leur secteur</span>
         {!collapsed && overflow && (
           <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
             <button onClick={() => scrollBy(-1)} style={arrowBtn} aria-label="Défiler à gauche">‹</button>
@@ -1320,7 +1320,7 @@ function SectorOverview({
               disabled={classifying}
               style={{
                 fontSize: 12.5, fontWeight: 700,
-                color: classifying ? "#9CA3AF" : "#7C63C8",
+                color: classifying ? "#6B7280" : "#7C63C8",
                 background: "white", border: "1px solid rgba(124,99,200,0.30)",
                 borderRadius: 9, padding: "8px 13px",
                 cursor: classifying ? "default" : "pointer", fontFamily: "inherit",
@@ -1409,14 +1409,14 @@ function SectorOverview({
               </span>
             </div>
             {s.description && (
-              <span style={{ fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              <span style={{ fontSize: 11.5, color: "#6B7280", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                 {s.description}
               </span>
             )}
           </button>
         ))}
         {visibleSectors.length === 0 && (
-          <div style={{ gridColumn: "1 / -1", padding: 30, textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
+          <div style={{ gridColumn: "1 / -1", padding: 30, textAlign: "center", color: "#6B7280", fontSize: 13 }}>
             Aucun secteur avec des candidats. Créez-en un ou laissez Nora classer le vivier.
           </div>
         )}
@@ -1489,7 +1489,7 @@ function SectorDetail({
         ) : (
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
             {title}
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#9CA3AF", marginLeft: 8 }}>{candidates.length}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#6B7280", marginLeft: 8 }}>{candidates.length}</span>
           </h2>
         )}
         {!isUnclassified && sector && !renaming && (
@@ -1507,7 +1507,7 @@ function SectorDetail({
       )}
 
       {candidates.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14, background: "white", border: "1px dashed #E2DAF6", borderRadius: 14 }}>
+        <div style={{ padding: 40, textAlign: "center", color: "#6B7280", fontSize: 14, background: "white", border: "1px dashed #E2DAF6", borderRadius: 14 }}>
           Aucun candidat dans ce secteur.
         </div>
       ) : (
@@ -1589,7 +1589,7 @@ function CreateSectorModal({
           Nommez le secteur, Nora en propose une définition — elle servira à ranger les CV de façon cohérente.
         </p>
 
-        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
           Nom du secteur
         </label>
         <div style={{ display: "flex", gap: 8 }}>
@@ -1615,7 +1615,7 @@ function CreateSectorModal({
 
         {asked && (
           <div style={{ marginTop: 14 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
               Définition (modifiable)
             </label>
             <textarea

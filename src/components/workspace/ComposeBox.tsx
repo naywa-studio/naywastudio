@@ -159,7 +159,7 @@ export default function ComposeBox({
           {composing ? "Nora rédige…" : hasDraft ? "Régénérer (version alternative)" : "Rédiger avec Nora"}
         </button>
         {existing?.generated_at && !composing && (
-          <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+          <span style={{ fontSize: 11, color: "#6B7280" }}>
             {new Date(existing.generated_at).toLocaleDateString("fr-FR")}
           </span>
         )}
@@ -232,7 +232,7 @@ export default function ComposeBox({
                   ✦ {critique.verdict === "ok" ? "Nora approuve" : "Nora suggère"}
                 </span>
                 <button onClick={() => setCritique(null)} style={{
-                  marginLeft: "auto", fontSize: 11, color: "#9CA3AF",
+                  marginLeft: "auto", fontSize: 11, color: "#6B7280",
                   background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit",
                 }}>
                   Masquer
@@ -275,7 +275,7 @@ export default function ComposeBox({
               {copied ? "✓ Copié" : "Copier"}
             </button>
           </div>
-          <span style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
+          <span style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.5 }}>
             Copiez le message et envoyez-le depuis votre outil habituel
             (Gmail, LinkedIn, etc.).
           </span>

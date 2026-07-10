@@ -152,7 +152,7 @@ export default function TarifsPage() {
             style={{
               textAlign: "center",
               fontSize: 12.5,
-              color: "#9CA3AF",
+              color: "#6B7280",
               margin: "12px 0 0",
               fontFamily: "var(--font-inter), sans-serif",
             }}
@@ -411,7 +411,7 @@ function PriceCard({
           style={{
             margin: "6px 0 0",
             fontSize: 12.5,
-            color: "#9CA3AF",
+            color: "#6B7280",
             fontFamily: "var(--font-inter), sans-serif",
           }}
         >
@@ -527,7 +527,7 @@ function PriceCard({
           margin: "10px 0 0",
           fontFamily: "var(--font-inter), sans-serif",
           fontSize: 11.5,
-          color: "#9CA3AF",
+          color: "#6B7280",
           textAlign: "center",
         }}
       >

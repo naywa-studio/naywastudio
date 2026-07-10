@@ -103,12 +103,12 @@ export default function TagPicker({
               style={{
                 width: 16, height: 16, borderRadius: "50%",
                 background: "transparent", border: "none",
-                color: "#9CA3AF", fontSize: 12, lineHeight: 1, padding: 0,
+                color: "#6B7280", fontSize: 12, lineHeight: 1, padding: 0,
                 cursor: "pointer", fontFamily: "inherit",
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "#F0ECF8"; e.currentTarget.style.color = "#7C63C8" }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF" }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6B7280" }}
             >
               ×
             </button>

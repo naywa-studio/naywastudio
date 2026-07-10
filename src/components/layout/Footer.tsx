@@ -143,7 +143,7 @@ export function Footer() {
           style={{
             fontFamily: 'var(--font-inter), sans-serif',
             fontSize: 12,
-            color: '#9CA3AF',
+            color: '#6B7280',
           }}
         >
           © 2026 Naywa Studio. Tous droits réservés.
@@ -152,7 +152,7 @@ export function Footer() {
           style={{
             fontFamily: 'var(--font-inter), sans-serif',
             fontSize: 12,
-            color: '#9CA3AF',
+            color: '#6B7280',
           }}
         >
           Fait avec soin à Paris

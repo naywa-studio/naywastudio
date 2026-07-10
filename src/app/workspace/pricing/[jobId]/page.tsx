@@ -679,7 +679,7 @@ function MissionConfigWizard({
             transform: advancedOpen ? "rotate(90deg)" : "none",
             transition: "transform 140ms",
           }}>›</span>
-          Overrides marges <span style={{ color: "#9CA3AF", fontWeight: 400 }}>· défaut = organisation</span>
+          Overrides marges <span style={{ color: "#6B7280", fontWeight: 400 }}>· défaut = organisation</span>
         </button>
         {advancedOpen && (
           <div style={{
@@ -729,7 +729,7 @@ function MissionConfigWizard({
         display: "flex", alignItems: "center", justifyContent: "space-between",
         gap: 12, flexWrap: "wrap",
       }}>
-        <p style={{ margin: 0, fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
           {requiredMissing
             ? "Renseignez le TJM, la durée et la date de démarrage pour valider."
             : marginsInvalid
@@ -823,9 +823,9 @@ function WizardToggleRow({
       </span>
       <div>
         <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{label}</p>
-        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{hint}</p>
       </div>
-      <span style={{ fontSize: 10.5, color: enabled ? "#7C63C8" : "#9CA3AF", fontWeight: 700 }}>
+      <span style={{ fontSize: 10.5, color: enabled ? "#7C63C8" : "#6B7280", fontWeight: 700 }}>
         {enabled ? "Actif" : "Inactif"}
       </span>
     </button>
@@ -868,12 +868,12 @@ function WizardField({
             appearance: "textfield",
           }}
         />
-        <span style={{ fontSize: 11.5, color: "#9CA3AF", flexShrink: 0 }}>{suffix}</span>
+        <span style={{ fontSize: 11.5, color: "#6B7280", flexShrink: 0 }}>{suffix}</span>
       </div>
       <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
         {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
       </span>
-      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>{hint}</span>}
     </label>
   )
 }
@@ -891,7 +891,7 @@ function WizardSelectField({
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <Select value={value} onChange={onChange} options={options} ariaLabel={label} />
       <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
-      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>{hint}</span>}
     </div>
   )
 }
@@ -921,7 +921,7 @@ function WizardDateField({
       <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
         {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
       </span>
-      {hint && <span style={{ fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>{hint}</span>}
     </label>
   )
 }
@@ -968,7 +968,7 @@ function CompactCandidatesList({
         gap: 8, marginBottom: 4,
       }}>
         <p style={{
-          margin: 0, fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+          margin: 0, fontSize: 10.5, fontWeight: 700, color: "#6B7280",
           letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
           Candidats · {sorted.length}
@@ -1023,7 +1023,7 @@ function CompactCandidatesList({
           candidate: c.candidate, job, profile,
           persistedTjm: c.pricingTjm, persistedBrut: c.pricingBrut,
         })
-        const margeColor = quick == null ? "#9CA3AF"
+        const margeColor = quick == null ? "#6B7280"
           : quick.margePct >= 22 ? "#15803d"
           : quick.margePct >= 15 ? "#B45309"
           : "#B91C1C"
@@ -1097,7 +1097,7 @@ function CompactCandidatesList({
             </div>
             {/* Ligne 1.5 : ref candidate */}
             <div style={{
-              paddingLeft: 34, fontSize: 9.5, color: "#9CA3AF",
+              paddingLeft: 34, fontSize: 9.5, color: "#6B7280",
               fontFamily: "var(--font-space-grotesk), monospace",
               letterSpacing: "0.04em", marginTop: -2,
             }}>
@@ -1110,7 +1110,7 @@ function CompactCandidatesList({
             {quick && (c.pricingTjm != null || c.pricingBrut != null) && (
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
-                gap: 6, paddingLeft: 34, fontSize: 10.5, color: "#9CA3AF",
+                gap: 6, paddingLeft: 34, fontSize: 10.5, color: "#6B7280",
                 fontVariantNumeric: "tabular-nums",
               }}>
                 <span>{Math.round(quick.brut / 1000)} k€</span>
@@ -1259,7 +1259,7 @@ function ComparisonPanel({
             Comparaison de candidats
           </h3>
           <p style={{
-            margin: "3px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4,
+            margin: "3px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4,
           }}>
             {picked.length}/2 sélectionnés · choisis les candidats dans la liste à gauche pour les comparer côte à côte.
           </p>
@@ -1394,7 +1394,7 @@ function NoraVerdictBubble({
           </>
         )}
         {state.kind === "loading" && (
-          <p style={{ margin: 0, fontSize: 12.5, color: "#9CA3AF", lineHeight: 1.55, fontStyle: "italic" }}>
+          <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", lineHeight: 1.55, fontStyle: "italic" }}>
             Nora analyse les deux candidats…
           </p>
         )}
@@ -1447,7 +1447,7 @@ function ComparisonEmptyState({ picked }: { picked: number }) {
       <p style={{ margin: 0, fontSize: 13, color: "#374151", fontWeight: 600 }}>
         {picked === 0 ? "Choisissez 2 candidats à comparer." : "Encore un candidat à choisir."}
       </p>
-      <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>
+      <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
         Cliquez dans la liste à gauche pour les ajouter à la comparaison.
       </p>
     </div>
@@ -1548,7 +1548,7 @@ function ComparisonCard({
       {/* Précision : si pas de pricing persisté, on prévient. */}
       {quick != null && pc.pricingTjm == null && pc.pricingBrut == null && (
         <p style={{
-          margin: 0, fontSize: 10.5, color: "#9CA3AF", lineHeight: 1.4,
+          margin: 0, fontSize: 10.5, color: "#6B7280", lineHeight: 1.4,
           fontStyle: "italic",
         }}>
           Valeurs auto-calculées (TJM mission + brut par défaut). Ouvre la
@@ -1563,7 +1563,7 @@ function CompareStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div style={{
-        fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
+        fontSize: 9.5, fontWeight: 700, color: "#6B7280",
         letterSpacing: "0.05em", textTransform: "uppercase",
       }}>
         {label}

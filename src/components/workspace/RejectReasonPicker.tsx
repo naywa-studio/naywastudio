@@ -81,7 +81,7 @@ export default function RejectReasonPicker({
             }}
           >
             <p style={{
-              margin: 0, fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+              margin: 0, fontSize: 10.5, fontWeight: 700, color: "#6B7280",
               letterSpacing: "0.08em", textTransform: "uppercase",
             }}>
               Écarter du sourcing
@@ -153,7 +153,7 @@ export default function RejectReasonPicker({
                 onClick={() => submit(null)}
                 style={{
                   fontFamily: "inherit", fontSize: 12, fontWeight: 600,
-                  color: "#9CA3AF",
+                  color: "#6B7280",
                   background: "transparent", border: "none", cursor: "pointer",
                   padding: "6px 0", textDecoration: "underline",
                 }}

@@ -30,7 +30,7 @@ export const AnonymizePreview = forwardRef<HTMLElement, {
     >
       <div style={{ marginBottom: 12 }}>
         <h3 style={{
-          margin: 0, fontSize: 12, fontWeight: 700, color: "#9CA3AF",
+          margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
           letterSpacing: "0.08em", textTransform: "uppercase",
         }}>
           📄 Aperçu PDF anonymisé
@@ -46,7 +46,7 @@ export const AnonymizePreview = forwardRef<HTMLElement, {
           background: "#FAFAFA",
         }}>
           <p style={{
-            margin: 0, fontSize: 13.5, color: "#9CA3AF",
+            margin: 0, fontSize: 13.5, color: "#6B7280",
             lineHeight: 1.6, maxWidth: 420, marginInline: "auto",
           }}>
             {status.state === "working"

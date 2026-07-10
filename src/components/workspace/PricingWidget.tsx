@@ -128,7 +128,7 @@ export default function PricingWidget({
       <section style={{
         background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
         padding: 18, minHeight: 200, display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 12, color: "#9CA3AF",
+        fontSize: 12, color: "#6B7280",
       }}>
         Chargement du chiffrage…
       </section>
@@ -806,7 +806,7 @@ function VerdictHero({
           {candidateTitle && <>{candidateTitle}{candidateYears != null && ` · ${candidateYears} ans XP`}</>}
         </div>
         <div style={{
-          fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+          fontSize: 10, fontWeight: 700, color: "#6B7280",
           letterSpacing: "0.04em", marginTop: 3,
           fontFamily: "var(--font-space-grotesk), monospace",
         }}>
@@ -891,7 +891,7 @@ function HeroKpi({
       display: "flex", flexDirection: "column", gap: 2,
     }}>
       <div style={{
-        fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+        fontSize: 10, fontWeight: 700, color: "#6B7280",
         letterSpacing: "0.04em", textTransform: "uppercase",
       }}>
         {label}
@@ -903,7 +903,7 @@ function HeroKpi({
       }}>
         {value}
       </div>
-      <div style={{ fontSize: 10.5, color: "#9CA3AF" }}>
+      <div style={{ fontSize: 10.5, color: "#6B7280" }}>
         {sub}
       </div>
     </div>
@@ -1055,7 +1055,7 @@ function ActiveAvantagesStrip({ avantages, job }: {
       display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
     }}>
       <span style={{
-        fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+        fontSize: 10, fontWeight: 700, color: "#6B7280",
         letterSpacing: "0.05em", textTransform: "uppercase", marginRight: 4,
       }}>
         Avantages appliqués
@@ -1150,7 +1150,7 @@ function SyntecContextBar({
             padding: 6, minWidth: 320, maxHeight: 320, overflowY: "auto",
           }}>
             <div style={{
-              fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+              fontSize: 10, fontWeight: 700, color: "#6B7280",
               letterSpacing: "0.05em", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
@@ -1318,7 +1318,7 @@ function StepperField({
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{
-          fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+          fontSize: 10.5, fontWeight: 700, color: "#6B7280",
           letterSpacing: "0.05em", textTransform: "uppercase",
         }}>
           {label}
@@ -1352,7 +1352,7 @@ function StepperField({
                 appearance: "textfield",
               }}
             />
-            <span style={{ fontSize: 12, color: "#9CA3AF" }}>{suffix}</span>
+            <span style={{ fontSize: 12, color: "#6B7280" }}>{suffix}</span>
           </div>
           <button
             onClick={() => nudge(step)}
@@ -1432,7 +1432,7 @@ function CostBreakdown({
       display: "flex", flexDirection: "column", gap: 6,
     }}>
       <div style={{
-        fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+        fontSize: 10.5, fontWeight: 700, color: "#6B7280",
         letterSpacing: "0.05em", textTransform: "uppercase",
       }}>
         Coût fixe mensuel (constant chaque mois)
@@ -1444,7 +1444,7 @@ function CostBreakdown({
         }}>
           <span>
             {r.label}
-            {r.hint && <span style={{ color: "#9CA3AF", marginLeft: 6 }}>· {r.hint}</span>}
+            {r.hint && <span style={{ color: "#6B7280", marginLeft: 6 }}>· {r.hint}</span>}
           </span>
           <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
             {formatEurSmart(r.value)}
@@ -1470,7 +1470,7 @@ function CostBreakdown({
         }}>
           <span>
             Impact CP{rttDaysPerYear > 0 ? " + RTT" : ""} non facturés
-            <span style={{ color: "#9CA3AF", marginLeft: 6 }}>
+            <span style={{ color: "#6B7280", marginLeft: 6 }}>
               · 25 CP{rttDaysPerYear > 0 ? ` + ${rttDaysPerYear} RTT` : ""}/an payés non facturables au client
             </span>
           </span>
@@ -1483,7 +1483,7 @@ function CostBreakdown({
       {cost.coutVariableJournalier > 0 && (
         <>
           <div style={{
-            fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+            fontSize: 10.5, fontWeight: 700, color: "#6B7280",
             letterSpacing: "0.05em", textTransform: "uppercase",
             marginTop: 10,
           }}>
@@ -1491,7 +1491,7 @@ function CostBreakdown({
           </div>
           {(avantages.urssafIndemniteJour ?? 0) > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#4B5563" }}>
-              <span>Indemnité URSSAF grand déplacement <span style={{ color: "#9CA3AF" }}>· exonérée</span></span>
+              <span>Indemnité URSSAF grand déplacement <span style={{ color: "#6B7280" }}>· exonérée</span></span>
               <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
                 {(avantages.urssafIndemniteJour ?? 0).toFixed(2)} € / jour
               </span>
@@ -1499,7 +1499,7 @@ function CostBreakdown({
           )}
           {(avantages.ticketsResto ?? 0) > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#4B5563" }}>
-              <span>Tickets restaurant (part employeur) <span style={{ color: "#9CA3AF" }}>· URSSAF strict</span></span>
+              <span>Tickets restaurant (part employeur) <span style={{ color: "#6B7280" }}>· URSSAF strict</span></span>
               <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
                 {(avantages.ticketsResto ?? 0).toFixed(2)} € / jour
               </span>
@@ -1525,7 +1525,7 @@ function CostBreakdown({
       }}>
         <span>
           Coût total estimé
-          <span style={{ fontSize: 11, fontWeight: 500, color: "#9CA3AF", marginLeft: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 500, color: "#6B7280", marginLeft: 6 }}>
             · mois moyen 21 j
           </span>
         </span>
@@ -1534,7 +1534,7 @@ function CostBreakdown({
         </span>
       </div>
       <p style={{
-        margin: "4px 0 0", fontSize: 11, color: "#9CA3AF",
+        margin: "4px 0 0", fontSize: 11, color: "#6B7280",
         fontStyle: "italic", lineHeight: 1.4,
       }}>
         Le chart « Marge mensuelle » applique le vrai nombre de jours travaillés de chaque

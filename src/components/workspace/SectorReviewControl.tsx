@@ -155,12 +155,12 @@ export function SectorReviewControl({
         padding: 10, fontFamily: "var(--font-inter), sans-serif",
       }}
     >
-      <p style={{ margin: "0 0 8px", fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+      <p style={{ margin: "0 0 8px", fontSize: 10.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>
         Secteurs
       </p>
       <div style={{ maxHeight: 168, overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
         {options.length === 0 && (
-          <p style={{ margin: "4px 2px", fontSize: 11.5, color: "#9CA3AF" }}>
+          <p style={{ margin: "4px 2px", fontSize: 11.5, color: "#6B7280" }}>
             Aucun secteur. Créez-en un ci-dessous.
           </p>
         )}
@@ -270,7 +270,7 @@ export function SectorReviewControl({
           height: 28, boxSizing: "border-box",
           display: "inline-flex", alignItems: "center", gap: 5,
           maxWidth: 190, overflow: "hidden",
-          fontSize: 11, fontWeight: 600, color: sectors.length ? "#4B5563" : "#9CA3AF",
+          fontSize: 11, fontWeight: 600, color: sectors.length ? "#4B5563" : "#6B7280",
           background: "white", border: "1px solid #E5E7EB",
           borderRadius: 7, padding: "0 8px",
           cursor: disabled ? "default" : "pointer", fontFamily: "inherit",

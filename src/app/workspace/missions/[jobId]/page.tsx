@@ -403,14 +403,14 @@ export default function JobDetailPage() {
           {/* Récap rapide */}
           <div style={{ marginBottom: 8, fontSize: 13, color: "#6B7280" }}>
             <strong style={{ color: "#111827" }}>{strongCount}</strong> candidat{strongCount > 1 ? "s" : ""} pertinent{strongCount > 1 ? "s" : ""}
-            <span style={{ color: "#9CA3AF" }}> · {rows.length} au total</span>
+            <span style={{ color: "#6B7280" }}> · {rows.length} au total</span>
           </div>
 
           {/* Rappel du dernier matching : date + mode + secteurs ciblés. */}
           {job.matched_at && !matching && (
             <div style={{
               marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-              fontSize: 11.5, color: "#9CA3AF",
+              fontSize: 11.5, color: "#6B7280",
             }}>
               <span>
                 Dernier matching&nbsp;: {new Date(job.matched_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
@@ -633,7 +633,7 @@ function SourceTabs({
             {t.label}
             <span style={{
               fontSize: 10.5, fontWeight: 800,
-              color: isActive ? "#7C63C8" : "#9CA3AF",
+              color: isActive ? "#7C63C8" : "#6B7280",
               background: isActive ? "rgba(124,99,200,0.08)" : "transparent",
               border: `1px solid ${isActive ? "rgba(124,99,200,0.18)" : "transparent"}`,
               padding: "1px 7px", borderRadius: 99,
@@ -793,7 +793,7 @@ function AssignModal({
         }}
       >
         <div style={{ padding: "18px 22px", borderBottom: "1px solid #F0ECF8" }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
             Assigner manuellement
           </p>
           <h3 style={{ margin: "4px 0 10px", fontSize: 17, fontWeight: 800, color: "#111827" }}>
@@ -816,7 +816,7 @@ function AssignModal({
           {loadingList ? (
             <div style={{ padding: 20 }}><NoraLoader inline /></div>
           ) : filtered.length === 0 ? (
-            <p style={{ padding: 20, fontSize: 13, color: "#9CA3AF", textAlign: "center" }}>
+            <p style={{ padding: 20, fontSize: 13, color: "#6B7280", textAlign: "center" }}>
               {query ? "Aucun candidat ne correspond." : "Tous les candidats du vivier sont déjà matchés."}
             </p>
           ) : (
@@ -841,7 +841,7 @@ function AssignModal({
                   <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {c.full_name ?? c.cv_file_name ?? "Sans nom"}
                   </p>
-                  <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {c.current_title ?? "—"}
                     {c.current_company ? ` · ${c.current_company}` : ""}
                     {c.location ? ` · ${c.location}` : ""}
@@ -931,7 +931,7 @@ function MatchingProgress({
             borderRadius: 100, padding: "1px 8px",
           }}>{partialCount} déjà remonté{partialCount > 1 ? "s" : ""}</span>
         )}
-        <span style={{ marginLeft: "auto", fontSize: 11.5, color: "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
+        <span style={{ marginLeft: "auto", fontSize: 11.5, color: "#6B7280", fontVariantNumeric: "tabular-nums" }}>
           {Math.round(pct)}% · {elapsedSec}s
         </span>
       </div>

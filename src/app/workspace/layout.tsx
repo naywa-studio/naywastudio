@@ -207,7 +207,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         {!t.showUnreadBadge && <NavUnreadDot href={t.href} />}
         {disabled && (
           <span style={{
-            fontSize: 9, fontWeight: 700, color: "#9CA3AF",
+            fontSize: 9, fontWeight: 700, color: "#6B7280",
             background: "#F3F4F6", border: "1px solid #E5E7EB",
             padding: "2px 6px", borderRadius: 100,
             letterSpacing: "0.04em", textTransform: "uppercase",
@@ -310,7 +310,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                     padding: "10px 12px",
                     borderBottom: "1px solid #F0ECF8", marginBottom: 4,
                   }}>
-                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>
                       Connecté en tant que
                     </p>
                     <p style={{

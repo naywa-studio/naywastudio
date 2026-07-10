@@ -150,7 +150,7 @@ export default function AdminDashboardPage() {
         </div>
 
         <p style={{
-          marginTop: 28, fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.55,
+          marginTop: 28, fontSize: 11.5, color: "#6B7280", lineHeight: 1.55,
         }}>
           Chaque KPI vient d&apos;une requête unique côté API. Aucun ratio
           composé. Le MRR estimé compte les sub Stripe actives ou en
@@ -193,7 +193,7 @@ function KpiCard({
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, color: "#7C63C8" }}>
           {icon}
           <span style={{
-            fontSize: 11, fontWeight: 700, color: "#9CA3AF",
+            fontSize: 11, fontWeight: 700, color: "#6B7280",
             letterSpacing: "0.06em", textTransform: "uppercase",
           }}>
             {label}
@@ -207,7 +207,7 @@ function KpiCard({
           {display}
         </p>
         <p style={{
-          margin: "6px 0 0", fontSize: 11.5, color: "#9CA3AF", lineHeight: 1.5,
+          margin: "6px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5,
         }}>
           {hint}
         </p>

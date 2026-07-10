@@ -332,7 +332,7 @@ export default function ParametragePage() {
           ))}
 
           <p style={{
-            margin: "8px 0 -2px", fontSize: 10.5, fontWeight: 700, color: "#9CA3AF",
+            margin: "8px 0 -2px", fontSize: 10.5, fontWeight: 700, color: "#6B7280",
             letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 4px",
           }}>
             Optionnels
@@ -411,7 +411,7 @@ export default function ParametragePage() {
                   ? "white"
                   : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
               color: confirming || margesInvalid
-                ? "#9CA3AF"
+                ? "#6B7280"
                 : onboarded ? "#7C63C8" : "white",
               border: onboarded ? "1px solid rgba(124,99,200,0.30)" : "none",
               fontSize: 13, fontWeight: 700, fontFamily: "inherit",
@@ -487,7 +487,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
       <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
-      {hint && <span style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{hint}</span>}
       {children}
     </label>
   )
@@ -515,7 +515,7 @@ function NumberInput({
         }}
         style={inputInnerStyle}
       />
-      <span style={{ fontSize: 12, color: "#9CA3AF", paddingRight: 12 }}>{suffix}</span>
+      <span style={{ fontSize: 12, color: "#6B7280", paddingRight: 12 }}>{suffix}</span>
     </div>
   )
 }
@@ -539,7 +539,7 @@ function BooleanAvantageRow({
       <Checkbox checked={enabled} onChange={onToggle} />
       <div>
         <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{label}</p>
-        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{hint}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{hint}</p>
       </div>
     </div>
   )
@@ -607,7 +607,7 @@ function SmartAvantageRow({
               </span>
             )}
           </p>
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>{config.hint}</p>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{config.hint}</p>
         </div>
         <div style={{ width: 140 }}>
           <div style={inputBoxStyle}>
@@ -621,7 +621,7 @@ function SmartAvantageRow({
               max={config.max}
               step={config.step ?? 1}
             />
-            <span style={{ fontSize: 11, color: "#9CA3AF", paddingRight: 10 }}>{config.suffix}</span>
+            <span style={{ fontSize: 11, color: "#6B7280", paddingRight: 10 }}>{config.suffix}</span>
           </div>
         </div>
       </div>

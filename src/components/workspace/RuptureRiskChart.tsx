@@ -87,7 +87,7 @@ export default function RuptureRiskChart({
     return (
       <div style={{
         background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
-        padding: 20, color: "#9CA3AF", fontSize: 13, textAlign: "center",
+        padding: 20, color: "#6B7280", fontSize: 13, textAlign: "center",
       }}>
         Renseigne la mission pour afficher l&apos;analyse de risque rupture.
       </div>
@@ -157,7 +157,7 @@ export default function RuptureRiskChart({
           <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
             Coût de rupture conventionnelle
           </h4>
-          <p style={{ margin: "3px 0 0", fontSize: 10.5, color: "#9CA3AF" }}>
+          <p style={{ margin: "3px 0 0", fontSize: 10.5, color: "#6B7280" }}>
             Marge restante si l&apos;employeur négocie une RC à chaque mois T
           </p>
         </div>
@@ -221,7 +221,7 @@ export default function RuptureRiskChart({
           <g key={`y-${v}`}>
             <line
               x1={PAD_L} y1={yOf(v)} x2={W - PAD_R} y2={yOf(v)}
-              stroke={v === 0 ? "#9CA3AF" : "#F0ECF8"}
+              stroke={v === 0 ? "#6B7280" : "#F0ECF8"}
               strokeWidth={v === 0 ? 1.2 : 1}
               strokeDasharray={v === 0 ? "none" : "2 4"}
             />
@@ -315,7 +315,7 @@ export default function RuptureRiskChart({
         <path
           d={curveLicPath}
           fill="none"
-          stroke="#9CA3AF"
+          stroke="#6B7280"
           strokeWidth={1.5}
           strokeDasharray="5 4"
           strokeLinejoin="round"
@@ -366,13 +366,13 @@ export default function RuptureRiskChart({
               </text>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 30}
-                fontSize={9} fill="#9CA3AF" textAnchor="middle"
+                fontSize={9} fill="#6B7280" textAnchor="middle"
               >
                 {r.year}
               </text>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 44}
-                fontSize={9} fill="#9CA3AF" textAnchor="middle" fontStyle="italic"
+                fontSize={9} fill="#6B7280" textAnchor="middle" fontStyle="italic"
               >
                 m{r.monthIndex}
               </text>
@@ -410,7 +410,7 @@ export default function RuptureRiskChart({
             zIndex: 5,
           }}>
             <div style={{
-              fontSize: 10, color: "#9CA3AF", fontWeight: 700,
+              fontSize: 10, color: "#6B7280", fontWeight: 700,
               letterSpacing: "0.05em", textTransform: "uppercase",
             }}>
               {MONTH_ABBR_FR[r.calendarMonth]} {r.year} · m{r.monthIndex}
@@ -424,12 +424,12 @@ export default function RuptureRiskChart({
                 <RowSmall label="CP non pris" value={formatEur(r.breakdown.indemniteCp)} swatch="rgba(124,99,200,0.85)" />
                 <div style={{ borderTop: "1px solid #F0ECF8", margin: "3px 0" }} />
                 <Row label="Net si RC" value={`${formatEur(r.margeNetteEur)} · ${r.margePct.toFixed(0)}%`} color={margeColor} bold />
-                <RowSmall label="Si licenciement" value={formatEur(r.margeNetteLicenciementEur)} swatch="#9CA3AF" dashed />
+                <RowSmall label="Si licenciement" value={formatEur(r.margeNetteLicenciementEur)} swatch="#6B7280" dashed />
               </>
             ) : (
               <>
-                <Row label="Coût rupture" value="—" color="#9CA3AF" />
-                <div style={{ fontSize: 10, color: "#9CA3AF", fontStyle: "italic", marginTop: 2 }}>
+                <Row label="Coût rupture" value="—" color="#6B7280" />
+                <div style={{ fontSize: 10, color: "#6B7280", fontStyle: "italic", marginTop: 2 }}>
                   En période d&apos;essai — rupture sans coût
                 </div>
               </>
@@ -450,7 +450,7 @@ export default function RuptureRiskChart({
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           <span style={{
             width: 16, height: 2,
-            background: "repeating-linear-gradient(to right, #9CA3AF 0 5px, transparent 5px 9px)",
+            background: "repeating-linear-gradient(to right, #6B7280 0 5px, transparent 5px 9px)",
           }} />
           marge si licenciement (worst case)
         </span>
@@ -494,12 +494,12 @@ function RowSmall({
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, paddingLeft: 8,
     }}>
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9.5, color: "#9CA3AF" }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9.5, color: "#6B7280" }}>
         <span style={{
           display: "inline-block",
           width: 10, height: dashed ? 1.5 : 8,
           background: dashed
-            ? "repeating-linear-gradient(to right, #9CA3AF 0 3px, transparent 3px 5px)"
+            ? "repeating-linear-gradient(to right, #6B7280 0 3px, transparent 3px 5px)"
             : swatch,
           borderRadius: dashed ? 0 : 2,
         }} />

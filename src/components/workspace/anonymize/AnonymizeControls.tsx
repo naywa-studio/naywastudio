@@ -228,7 +228,7 @@ export function AnonymizeControls({
       }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <h2 style={{
-            margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#9CA3AF",
+            margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#6B7280",
             letterSpacing: "0.08em", textTransform: "uppercase",
           }}>
             🔒 CV anonymisé
@@ -279,7 +279,7 @@ export function AnonymizeControls({
             title={!hasJob ? "Aucune mission sélectionnée" : undefined}
             style={{
               fontSize: 13, fontWeight: 700,
-              color: disabled ? "#9CA3AF" : "white",
+              color: disabled ? "#6B7280" : "white",
               background: disabled
                 ? "#F3F4F6"
                 : status.state === "working"
@@ -466,7 +466,7 @@ export function AnonymizeControls({
           {/* Textarea message custom */}
           <div style={{ gridColumn: "1 / -1" }}>
             <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
-              Message personnalisé <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optionnel)</span>
+              Message personnalisé <span style={{ color: "#6B7280", fontWeight: 400 }}>(optionnel)</span>
             </label>
             <textarea
               value={options.customText}
@@ -489,7 +489,7 @@ export function AnonymizeControls({
                 minHeight: 80,
               }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "#9CA3AF" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "#6B7280" }}>
               <span>S&apos;intègre sous le résumé (ou le remplace si décoché).</span>
               <span>{options.customText.length}/{CUSTOM_TEXT_MAX}</span>
             </div>

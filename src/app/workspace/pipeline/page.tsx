@@ -33,7 +33,7 @@ const ACTIVE_STAGES: StageMeta[] = [
 // above the board, never as columns (they'd just add horizontal scroll).
 const TERMINAL_STAGES: StageMeta[] = [
   { key: "hired",    label: "Recruté", color: "#0F766E", bg: "rgba(15,118,110,0.08)" },
-  { key: "rejected", label: "Écarté",  color: "#9CA3AF", bg: "#F3F4F6" },
+  { key: "rejected", label: "Écarté",  color: "#6B7280", bg: "#F3F4F6" },
 ]
 
 /** Legacy 'pricing' rows (column removed) are shown in 'identified'. */
@@ -268,7 +268,7 @@ export default function PipelinePage() {
           }}>
             {allJobs.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <label style={{ fontSize: 11.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                <label style={{ fontSize: 11.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                   Mission
                 </label>
                 <Select
@@ -352,7 +352,7 @@ export default function PipelinePage() {
         ) : lanes.length === 0 ? (
           <div style={{
             flex: 1, marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center",
-            textAlign: "center", color: "#9CA3AF",
+            textAlign: "center", color: "#6B7280",
           }}>
             <div>
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#B8AEDE"
@@ -379,7 +379,7 @@ export default function PipelinePage() {
               minWidth: 200 + ACTIVE_STAGES.length * 190,
             }}>
               {/* En-tête de colonnes — figé en haut */}
-              <div style={{ ...headerCellStyle, color: "#9CA3AF" }}>Mission</div>
+              <div style={{ ...headerCellStyle, color: "#6B7280" }}>Mission</div>
               {ACTIVE_STAGES.map((s) => (
                 <div key={s.key} style={{ ...headerCellStyle, display: "flex", alignItems: "center", gap: 7 }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, display: "inline-block" }} />
@@ -414,7 +414,7 @@ export default function PipelinePage() {
                           display: "block", fontSize: 12.5, fontWeight: 700, color: "#111827",
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3,
                         }}>{lane.jobTitle}</span>
-                        <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>
+                        <span style={{ fontSize: 10.5, color: "#6B7280" }}>
                           {lane.activeTotal} candidat{lane.activeTotal > 1 ? "s" : ""}
                         </span>
                       </span>
@@ -515,7 +515,7 @@ function TerminalListView({
       {rows.length === 0 ? (
         <div style={{
           flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#9CA3AF", fontSize: 14,
+          color: "#6B7280", fontSize: 14,
         }}>
           Aucun candidat dans « {stage.label} » pour l&apos;instant.
         </div>
@@ -539,7 +539,7 @@ function TerminalListView({
                       {name}
                     </p>
                     {c?.current_title && (
-                      <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {c.current_title}
                       </p>
                     )}
@@ -635,7 +635,7 @@ function Card({
 
       {c?.current_title && (
         <p style={{
-          margin: 0, fontSize: 11.5, color: "#9CA3AF",
+          margin: 0, fontSize: 11.5, color: "#6B7280",
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
           {c.current_title}
@@ -655,7 +655,7 @@ function Card({
       )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 2 }}>
-        <span style={{ fontSize: 10.5, color: "#9CA3AF" }}>{timeAgo(row.updated_at)}</span>
+        <span style={{ fontSize: 10.5, color: "#6B7280" }}>{timeAgo(row.updated_at)}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {relance && (
             <span title="À relancer, stagne dans cette étape" style={{
@@ -675,7 +675,7 @@ function Card({
           {/* Secondary: discreet shortcut to the bare candidate identity */}
           {c && (
             <Link href={`/workspace/vivier/${c.id}`} title="Fiche candidat (identité)" style={{
-              fontSize: 12, color: "#9CA3AF", textDecoration: "none",
+              fontSize: 12, color: "#6B7280", textDecoration: "none",
             }}>
               👤
             </Link>

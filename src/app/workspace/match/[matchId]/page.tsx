@@ -65,7 +65,7 @@ function PricingShortcut({ targets }: {
             padding: 6, minWidth: 260, maxHeight: 320, overflowY: "auto",
           }}>
             <div style={{
-              fontSize: 10, fontWeight: 700, color: "#9CA3AF",
+              fontSize: 10, fontWeight: 700, color: "#6B7280",
               letterSpacing: "0.05em", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
@@ -78,7 +78,7 @@ function PricingShortcut({ targets }: {
               }}>
                 {t.job!.title}
                 {t.score != null && (
-                  <span style={{ marginLeft: 6, fontSize: 11, color: "#9CA3AF" }}>· {t.score}</span>
+                  <span style={{ marginLeft: 6, fontSize: 11, color: "#6B7280" }}>· {t.score}</span>
                 )}
               </Link>
             ))}
@@ -397,7 +397,7 @@ export default function MatchPage() {
               margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#111827",
             }}>
               {candidate.full_name ?? "Candidat sans nom"}
-              <span style={{ fontWeight: 500, color: "#9CA3AF", fontSize: 15 }}> — pour </span>
+              <span style={{ fontWeight: 500, color: "#6B7280", fontSize: 15 }}> — pour </span>
             </h1>
             <RefBadge candidateId={candidate.id} />
             <div style={{ minWidth: 280, maxWidth: 420 }}>
@@ -531,7 +531,7 @@ export default function MatchPage() {
               {hasCriteriaEval ? (
                 <>
                   <div style={{ marginTop: 10 }}>
-                    <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                       Principaux
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
@@ -542,7 +542,7 @@ export default function MatchPage() {
                   </div>
                   {bonusCriteria.length > 0 && (
                     <div style={{ marginTop: 12 }}>
-                      <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                         Bonus
                       </p>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
@@ -609,7 +609,7 @@ export default function MatchPage() {
               const target = match.job?.target_gross_salary ?? null
               const ask = match.salary_expectation_brut ?? null
               if (target == null) {
-                return <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "#9CA3AF" }}>Renseignez le salaire cible du poste (dans la mission) pour activer la comparaison.</p>
+                return <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "#6B7280" }}>Renseignez le salaire cible du poste (dans la mission) pour activer la comparaison.</p>
               }
               if (ask == null) {
                 return <p style={{ margin: "10px 0 0", fontSize: 12, color: "#6B7280" }}>Salaire cible du poste : <strong>{target.toLocaleString("fr-FR")} €</strong></p>
@@ -632,7 +632,7 @@ export default function MatchPage() {
           </section>
 
           <section style={{ flex: 1, background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               Résumé candidat
             </h3>
             {cv?.summary && (
@@ -670,7 +670,7 @@ export default function MatchPage() {
             {/* Parcours — remplit la carte avec du concret plutôt que du vide */}
             {(cv?.experience?.length ?? 0) > 0 && (
               <div style={{ marginTop: 16 }}>
-                <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase" }}>
                   Parcours
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -688,7 +688,7 @@ export default function MatchPage() {
                             {xp.title}{xp.company ? <span style={{ fontWeight: 400, color: "#6B7280" }}> · {xp.company}</span> : null}
                           </p>
                           {period && (
-                            <p style={{ margin: "1px 0 0", fontSize: 11, color: "#9CA3AF" }}>{period}</p>
+                            <p style={{ margin: "1px 0 0", fontSize: 11, color: "#6B7280" }}>{period}</p>
                           )}
                         </div>
                       </div>
@@ -703,7 +703,7 @@ export default function MatchPage() {
         {/* COL 2 (rangée 1) — message d'approche */}
         <div style={{ gridColumn: "2", gridRow: "1", display: "flex", flexDirection: "column", gap: 14 }}>
           <section style={{ flex: 1, background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               ✉ Message d&apos;approche
             </h3>
             {candidate.parse_status === "parsed" ? (
@@ -714,7 +714,7 @@ export default function MatchPage() {
                 showJobBadge={false}
               />
             ) : (
-              <p style={{ margin: 0, fontSize: 13, color: "#9CA3AF" }}>
+              <p style={{ margin: 0, fontSize: 13, color: "#6B7280" }}>
                 Disponible une fois le CV parsé.
               </p>
             )}

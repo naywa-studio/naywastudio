@@ -265,7 +265,7 @@ function MacroMap({ clusters, onZoom }: { clusters: VivierCluster[]; onZoom: (id
         transition={{ duration: 0.5, ease: EASE, delay: 0.4 }}
         style={{
           position: "absolute", bottom: 14, left: "50%", transform: "translateX(-50%)",
-          margin: 0, fontSize: 11, color: "#9CA3AF", fontStyle: "italic",
+          margin: 0, fontSize: 11, color: "#6B7280", fontStyle: "italic",
           pointerEvents: "none",
         }}
       >
@@ -364,7 +364,7 @@ function SectorZoomView({
       </m.div>
 
       {cluster.total === 0 && (
-        <p style={{ margin: "40px 0", fontSize: 13, color: "#9CA3AF", textAlign: "center" }}>
+        <p style={{ margin: "40px 0", fontSize: 13, color: "#6B7280", textAlign: "center" }}>
           Aucun candidat dans ce secteur.
         </p>
       )}
@@ -455,7 +455,7 @@ function SideRailClusters({
         ◍ Vue d&apos;ensemble
       </button>
       <div style={{
-        fontSize: 9.5, fontWeight: 700, color: "#9CA3AF",
+        fontSize: 9.5, fontWeight: 700, color: "#6B7280",
         letterSpacing: "0.08em", textTransform: "uppercase",
         padding: "10px 4px 4px",
       }}>
@@ -590,7 +590,7 @@ function CandidateCardLight({
             <div style={{ fontSize: 13.5, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {c.full_name ?? "Nom à compléter"}
             </div>
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
               {candidateRefLabel(c.id)}
             </div>
           </div>
@@ -625,7 +625,7 @@ function CandidateCardLight({
           {title}{company ? ` · ${company}` : ""}
         </div>
 
-        <div style={{ display: "flex", gap: 6, alignItems: "center", paddingLeft: 42, fontSize: 10.5, color: "#9CA3AF", marginTop: 3 }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", paddingLeft: 42, fontSize: 10.5, color: "#6B7280", marginTop: 3 }}>
           {c.location ? `${c.location} · ` : ""}
           {yearsExperience != null ? `${yearsExperience} an${yearsExperience !== 1 ? "s" : ""} XP` : "XP n/c"}
         </div>

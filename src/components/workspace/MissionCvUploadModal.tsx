@@ -273,7 +273,7 @@ export function MissionCvUploadModal({
           <p style={{ margin: "0 0 4px", fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
             Glissez vos PDFs ici ou cliquez pour parcourir
           </p>
-          <p style={{ margin: 0, fontSize: 11.5, color: "#9CA3AF" }}>
+          <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280" }}>
             PDF uniquement · 10 Mo max · jusqu&apos;à 500 CVs par lot
           </p>
           <input
@@ -303,7 +303,7 @@ export function MissionCvUploadModal({
                   style={{
                     marginLeft: "auto",
                     fontSize: 11.5, fontWeight: 700,
-                    color: validatingAll ? "#9CA3AF" : "#15803D",
+                    color: validatingAll ? "#6B7280" : "#15803D",
                     background: validatingAll ? "#F3F4F6" : "rgba(34,197,94,0.08)",
                     border: `1px solid ${validatingAll ? "#E5E7EB" : "rgba(34,197,94,0.30)"}`,
                     borderRadius: 8, padding: "5px 11px",
@@ -313,7 +313,7 @@ export function MissionCvUploadModal({
                   {validatingAll ? "Validation…" : `Tout valider (${pendingReview.length})`}
                 </button>
               )}
-              <span style={{ marginLeft: pendingReview.length > 0 ? 0 : "auto", color: "#9CA3AF" }}>{jobs.length} fichier{jobs.length > 1 ? "s" : ""}</span>
+              <span style={{ marginLeft: pendingReview.length > 0 ? 0 : "auto", color: "#6B7280" }}>{jobs.length} fichier{jobs.length > 1 ? "s" : ""}</span>
             </div>
             <ul style={{
               listStyle: "none", margin: 0, padding: 0,
@@ -337,7 +337,7 @@ export function MissionCvUploadModal({
                     </div>
                     {scored && (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                        <span style={{ fontSize: 10.5, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.02em" }}>
+                        <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600, letterSpacing: "0.02em" }}>
                           Secteur
                         </span>
                         <SectorReviewControl

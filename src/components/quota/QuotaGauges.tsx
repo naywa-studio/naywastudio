@@ -102,7 +102,7 @@ export function QuotaGauges({
           )}
           <span style={{ fontSize: 12.5, fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
             {usedFmt}
-            <span style={{ color: "#9CA3AF", fontWeight: 500 }}>
+            <span style={{ color: "#6B7280", fontWeight: 500 }}>
               {isUnlimited ? " CV · illimité" : ` / ${limitFmt} CV`}
             </span>
           </span>
@@ -149,7 +149,7 @@ export function QuotaGauges({
         )}
         <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "baseline",
-          fontSize: 11.5, color: "#9CA3AF",
+          fontSize: 11.5, color: "#6B7280",
         }}>
           <span>{isUnlimited ? `${usedFmt} CV` : `${usedFmt} / ${limitFmt} CV`}</span>
           <button
@@ -233,7 +233,7 @@ function DetailModal({
 
         <div style={{ padding: "14px 16px", borderRadius: 12, background: "#F8F6FF", marginBottom: 16 }}>
           <div style={{ fontSize: 26, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
-            {usedFmt}<span style={{ fontSize: 14, fontWeight: 500, color: "#9CA3AF" }}>
+            {usedFmt}<span style={{ fontSize: 14, fontWeight: 500, color: "#6B7280" }}>
               {isUnlimited ? " CV · capacité illimitée" : ` / ${limitFmt} CV`}
             </span>
           </div>

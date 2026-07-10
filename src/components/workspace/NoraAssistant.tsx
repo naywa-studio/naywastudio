@@ -111,7 +111,7 @@ export function NoraAssistant() {
               }}>✦</span>
               <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#111827" }}>Nora</p>
-                <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF" }}>Assistante vivier</p>
+                <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>Assistante vivier</p>
               </div>
             </div>
 
@@ -138,7 +138,7 @@ export function NoraAssistant() {
               ))}
               {thinking && (
                 <div style={{
-                  alignSelf: "flex-start", fontSize: 13, color: "#9CA3AF",
+                  alignSelf: "flex-start", fontSize: 13, color: "#6B7280",
                   padding: "8px 12px", background: "#F4F1FB", borderRadius: "13px 13px 13px 4px",
                 }}>
                   Nora cherche…

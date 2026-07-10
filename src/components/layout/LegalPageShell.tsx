@@ -76,7 +76,7 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
             {title}
           </h1>
           <p style={{
-            fontSize: 14, color: "#9CA3AF", margin: 0,
+            fontSize: 14, color: "#6B7280", margin: 0,
             fontFamily: "var(--font-inter), sans-serif",
           }}>
             Dernière mise à jour : {lastUpdated}
@@ -168,7 +168,7 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
         gap: 16, flexWrap: "wrap",
       }}>
         <Logo size="sm" />
-        <span style={{ fontSize: 12, color: "#9CA3AF", fontFamily: "var(--font-inter), sans-serif" }}>
+        <span style={{ fontSize: 12, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
           © 2026 Naywa Studio
         </span>
         <FooterLink href="/mentions-legales">Mentions légales</FooterLink>
@@ -188,6 +188,6 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
 }
 
 const footerLinkStyle: React.CSSProperties = {
-  fontSize: 12, color: "#9CA3AF", textDecoration: "none",
+  fontSize: 12, color: "#6B7280", textDecoration: "none",
   fontFamily: "var(--font-inter), sans-serif",
 }

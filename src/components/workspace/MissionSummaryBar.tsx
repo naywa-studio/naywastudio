@@ -51,7 +51,7 @@ export function MissionSummaryBar({
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "Replier la mission" : "Déplier la mission"}
           style={{
-            fontSize: 11, fontWeight: 700, color: "#9CA3AF",
+            fontSize: 11, fontWeight: 700, color: "#6B7280",
             background: "transparent", border: "none",
             cursor: "pointer", fontFamily: "inherit",
             padding: "4px 6px",
@@ -98,7 +98,7 @@ export function MissionSummaryBar({
           {/* Skills + description */}
           {job.required_skills && job.required_skills.length > 0 && (
             <div style={{ marginTop: 14 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "#9CA3AF", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "#6B7280", letterSpacing: "0.07em", textTransform: "uppercase" }}>
                 Compétences requises
               </p>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>

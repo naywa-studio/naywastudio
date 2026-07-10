@@ -155,7 +155,7 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
             type="button"
             onClick={onClose}
             style={{
-              fontSize: 12, fontWeight: 600, color: "#9CA3AF",
+              fontSize: 12, fontWeight: 600, color: "#6B7280",
               background: "transparent", border: "none", cursor: "pointer",
               fontFamily: "inherit",
             }}
@@ -347,7 +347,7 @@ function FieldNum({
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
-      {hint && <span style={{ fontSize: 11, color: "#9CA3AF" }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 11, color: "#6B7280" }}>{hint}</span>}
       <div style={{
         display: "flex", alignItems: "center",
         background: "white", border: "1px solid #E5E7EB", borderRadius: 9,
@@ -368,7 +368,7 @@ function FieldNum({
             fontFamily: "inherit", minWidth: 0, width: "100%",
           }}
         />
-        <span style={{ fontSize: 12, color: "#9CA3AF", paddingRight: 12 }}>{suffix}</span>
+        <span style={{ fontSize: 12, color: "#6B7280", paddingRight: 12 }}>{suffix}</span>
       </div>
     </label>
   )

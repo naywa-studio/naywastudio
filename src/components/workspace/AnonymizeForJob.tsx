@@ -92,7 +92,7 @@ export default function AnonymizeForJob({
     }}>
       {!embedded && (
         <h2 style={{
-          margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#9CA3AF",
+          margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280",
           letterSpacing: "0.08em", textTransform: "uppercase",
         }}>
           🔒 CV anonymisé
@@ -115,7 +115,7 @@ export default function AnonymizeForJob({
           title={!hasJob ? "Aucune mission sélectionnée" : undefined}
           style={{
             fontSize: 12.5, fontWeight: 700,
-            color: (!candidateParsed || !hasJob) ? "#9CA3AF" : "white",
+            color: (!candidateParsed || !hasJob) ? "#6B7280" : "white",
             background: (!candidateParsed || !hasJob) ? "#F3F4F6"
               : state === "working" ? "#C4B6E0"
               : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",

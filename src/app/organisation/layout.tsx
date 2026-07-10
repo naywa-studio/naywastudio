@@ -195,7 +195,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
                     padding: "10px 12px",
                     borderBottom: "1px solid #F0ECF8", marginBottom: 4,
                   }}>
-                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>
                       Connecté en tant que
                     </p>
                     <p style={{

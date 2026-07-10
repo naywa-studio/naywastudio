@@ -177,7 +177,7 @@ function LoginInner() {
                 transition: "all 150ms",
                 fontFamily: "var(--font-inter), sans-serif",
                 background: mode === m ? "white" : "transparent",
-                color: mode === m ? "#7C63C8" : "#9CA3AF",
+                color: mode === m ? "#7C63C8" : "#6B7280",
                 boxShadow: mode === m ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
               }}
             >
@@ -217,7 +217,7 @@ function LoginInner() {
         {/* Divider */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
           <div style={{ flex: 1, height: 1, background: "#F0ECF8" }} />
-          <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 600, fontFamily: "var(--font-inter), sans-serif" }}>OU</span>
+          <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, fontFamily: "var(--font-inter), sans-serif" }}>OU</span>
           <div style={{ flex: 1, height: 1, background: "#F0ECF8" }} />
         </div>
 
@@ -321,11 +321,11 @@ function LoginInner() {
             marginTop: 20,
             textAlign: "center",
             fontSize: 12,
-            color: "#9CA3AF",
+            color: "#6B7280",
             fontFamily: "var(--font-inter), sans-serif",
           }}
         >
-          <Link href="/" style={{ color: "#9CA3AF", textDecoration: "none" }}>
+          <Link href="/" style={{ color: "#6B7280", textDecoration: "none" }}>
             ← Retour à l&apos;accueil
           </Link>
         </p>

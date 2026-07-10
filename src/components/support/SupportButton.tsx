@@ -259,7 +259,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                       lineHeight: 1.55,
                     }}
                   />
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "#9CA3AF" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "#6B7280" }}>
                     <span>Visible uniquement par notre équipe.</span>
                     <span>{message.length}/5000</span>
                   </div>

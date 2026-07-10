@@ -170,7 +170,7 @@ export default function AdminDemandesPage() {
       )}
 
       {loading ? (
-        <p style={{ fontSize: 13, color: "#9CA3AF" }}>Chargement…</p>
+        <p style={{ fontSize: 13, color: "#6B7280" }}>Chargement…</p>
       ) : batches.length === 0 ? (
         <div style={{
           padding: 32, textAlign: "center",
@@ -194,7 +194,7 @@ export default function AdminDemandesPage() {
                 <header style={{ marginBottom: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
                     <BatchStatusPill changes={batch.changes} />
-                    <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>
+                    <span style={{ fontSize: 11.5, color: "#6B7280" }}>
                       {new Date(batch.created_at).toLocaleString("fr-FR", {
                         day: "numeric", month: "short", year: "numeric",
                         hour: "2-digit", minute: "2-digit",
@@ -391,7 +391,7 @@ function ConfirmationModal({
           <>
             <label style={{
               display: "block", marginBottom: 5,
-              fontSize: 11, fontWeight: 700, color: "#9CA3AF",
+              fontSize: 11, fontWeight: 700, color: "#6B7280",
               letterSpacing: "0.05em", textTransform: "uppercase",
             }}>
               Raison du refus
@@ -439,7 +439,7 @@ function FieldHeader({ children }: { children: React.ReactNode }) {
   return (
     <p style={{
       margin: "0 0 6px", fontSize: 10.5, fontWeight: 700,
-      color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase",
+      color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase",
     }}>
       {children}
     </p>
@@ -453,10 +453,10 @@ function ValueBlock({ value, dim, highlight }: { value: string | null; dim?: boo
       background: highlight ? "rgba(124,99,200,0.05)" : "#FAFAFA",
       border: highlight ? "1px solid rgba(124,99,200,0.20)" : "1px solid #F0ECF8",
       fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
-      fontSize: 12.5, color: dim ? "#9CA3AF" : "#111827",
+      fontSize: 12.5, color: dim ? "#6B7280" : "#111827",
       wordBreak: "break-all", minHeight: 28,
     }}>
-      {value || <em style={{ color: "#9CA3AF" }}>(vide)</em>}
+      {value || <em style={{ color: "#6B7280" }}>(vide)</em>}
     </div>
   )
 }
@@ -475,7 +475,7 @@ function LogoPreview({ src, placeholder, highlight }: { src: string | null | und
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", padding: 8 }} />
       ) : (
-        <span style={{ fontSize: 11.5, color: "#9CA3AF", fontStyle: "italic" }}>{placeholder}</span>
+        <span style={{ fontSize: 11.5, color: "#6B7280", fontStyle: "italic" }}>{placeholder}</span>
       )}
     </div>
   )

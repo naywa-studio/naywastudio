@@ -141,7 +141,7 @@ export default function AdminRecherchePage() {
       )}
 
       {!searched && (
-        <p style={{ fontSize: 13, color: "#9CA3AF" }}>
+        <p style={{ fontSize: 13, color: "#6B7280" }}>
           Saisissez au moins 2 caractères pour lancer la recherche.
         </p>
       )}
@@ -180,9 +180,9 @@ export default function AdminRecherchePage() {
                 <tr key={r.user_id} style={{ borderTop: "1px solid #F0ECF8" }}>
                   <Td>
                     <div style={{ fontWeight: 600, color: "#111827" }}>
-                      {r.first_name ?? <em style={{ color: "#9CA3AF" }}>Sans prénom</em>}
+                      {r.first_name ?? <em style={{ color: "#6B7280" }}>Sans prénom</em>}
                     </div>
-                    <div style={{ fontSize: 11.5, color: "#9CA3AF", marginTop: 2 }}>
+                    <div style={{ fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
                       {r.email ?? "—"}
                     </div>
                   </Td>
@@ -212,7 +212,7 @@ export default function AdminRecherchePage() {
                       trialEndsAt={r.organization?.trial_ends_at ?? null}
                     />
                     {r.organization?.subscription_price_lookup && (
-                      <div style={{ fontSize: 10.5, color: "#9CA3AF", marginTop: 3 }}>
+                      <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 3 }}>
                         {r.organization.subscription_price_lookup}
                         {r.organization.subscription_seats != null && ` · ${r.organization.subscription_seats} siège${(r.organization.subscription_seats ?? 0) > 1 ? "s" : ""}`}
                       </div>
@@ -254,7 +254,7 @@ function Th({ children }: { children: React.ReactNode }) {
     <th style={{
       padding: "12px 14px",
       fontSize: 11, fontWeight: 700,
-      color: "#9CA3AF", letterSpacing: "0.05em", textTransform: "uppercase",
+      color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase",
     }}>
       {children}
     </th>
@@ -286,7 +286,7 @@ function DueDateCell({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setNow(Date.now())
   }, [currentPeriodEnd, trialEndsAt])
-  if (now == null) return <span style={{ color: "#9CA3AF" }}>—</span>
+  if (now == null) return <span style={{ color: "#6B7280" }}>—</span>
 
   const fmt = (iso: string) =>
     new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
@@ -303,7 +303,7 @@ function DueDateCell({
           </div>
           <div style={{
             fontSize: 11, marginTop: 2,
-            color: days < 0 ? "#B91C1C" : isSoon ? "#B45309" : "#9CA3AF",
+            color: days < 0 ? "#B91C1C" : isSoon ? "#B45309" : "#6B7280",
           }}>
             {days < 0
               ? `Échue depuis ${Math.abs(days)} j`
@@ -313,7 +313,7 @@ function DueDateCell({
         </div>
       )
     }
-    return <span style={{ color: "#9CA3AF" }}>—</span>
+    return <span style={{ color: "#6B7280" }}>—</span>
   }
 
   if (trialEndsAt) {
@@ -323,7 +323,7 @@ function DueDateCell({
       return (
         <div>
           <div style={{ color: "#B91C1C", fontWeight: 600 }}>Essai expiré</div>
-          <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
+          <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
         </div>
       )
     }
@@ -332,11 +332,11 @@ function DueDateCell({
         <div style={{ color: days <= 3 ? "#B91C1C" : "#374151", fontWeight: 600 }}>
           Essai · {days} j restant{days > 1 ? "s" : ""}
         </div>
-        <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
+        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
       </div>
     )
   }
-  return <span style={{ color: "#9CA3AF" }}>—</span>
+  return <span style={{ color: "#6B7280" }}>—</span>
 }
 
 function SubStatusPill({ status, trialEndsAt }: { status: string | null; trialEndsAt: string | null }) {
@@ -527,7 +527,7 @@ function TrialModal({
                   Ajouter {days} j
                 </button>
               </div>
-              <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "#9CA3AF" }}>
+              <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "#6B7280" }}>
                 Maximum 90 jours par opération. Si l&apos;essai est déjà expiré,
                 on prolonge à partir d&apos;aujourd&apos;hui.
               </p>
@@ -732,7 +732,7 @@ function QuotaOverrideModal({
                 />
               </div>
               <div>
-                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#9CA3AF" }}>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#6B7280" }}>
                   Stockage (GB) — filet interne, optionnel
                 </label>
                 <input
@@ -746,7 +746,7 @@ function QuotaOverrideModal({
                 />
               </div>
               <div>
-                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#9CA3AF" }}>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#6B7280" }}>
                   Actions IA / mois — filet interne, optionnel
                 </label>
                 <input
@@ -820,7 +820,7 @@ const inputStyle: React.CSSProperties = {
 const pillOwner = pill("#7C63C8", "rgba(124,99,200,0.08)", "rgba(124,99,200,0.22)")
 const pillMember = pill("#6B7280", "#F3F4F6", "#E5E7EB")
 const pillSeatOn = pill("#15803D", "rgba(34,197,94,0.08)", "rgba(34,197,94,0.22)")
-const pillSeatOff = pill("#9CA3AF", "#F3F4F6", "#E5E7EB")
+const pillSeatOff = pill("#6B7280", "#F3F4F6", "#E5E7EB")
 const pillOk = pill("#15803D", "rgba(34,197,94,0.08)", "rgba(34,197,94,0.22)")
 const pillTrial = pill("#7C63C8", "rgba(124,99,200,0.08)", "rgba(124,99,200,0.22)")
 const pillWarn = pill("#B91C1C", "rgba(220,38,38,0.06)", "rgba(220,38,38,0.25)")

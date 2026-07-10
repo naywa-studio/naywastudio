@@ -103,7 +103,7 @@ export default function MonthlyMarginChart({
     return (
       <div style={{
         background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
-        padding: 20, color: "#9CA3AF", fontSize: 13, textAlign: "center",
+        padding: 20, color: "#6B7280", fontSize: 13, textAlign: "center",
       }}>
         Renseigne <strong>la date de démarrage</strong> et <strong>la durée</strong> de
         la mission pour afficher l&apos;évolution de la marge mensuelle.
@@ -176,7 +176,7 @@ export default function MonthlyMarginChart({
           <g key={`y-${v}`}>
             <line
               x1={PAD_L} y1={yOf(v)} x2={W - PAD_R} y2={yOf(v)}
-              stroke={v === 0 ? "#9CA3AF" : "#F0ECF8"}
+              stroke={v === 0 ? "#6B7280" : "#F0ECF8"}
               strokeWidth={v === 0 ? 1.2 : 1}
               strokeDasharray={v === 0 ? "none" : "2 4"}
             />
@@ -260,7 +260,7 @@ export default function MonthlyMarginChart({
         {yMin < 0 && yMax > 0 && (
           <line
             x1={PAD_L} y1={zeroY} x2={W - PAD_R} y2={zeroY}
-            stroke="#9CA3AF" strokeWidth={1.5}
+            stroke="#6B7280" strokeWidth={1.5}
           />
         )}
 
@@ -316,8 +316,8 @@ export default function MonthlyMarginChart({
                   display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
                   marginTop: 1,
                 }}>
-                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>{p.workingDays} j ouvrés</span>
-                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>{formatEur(p.revenu)} revenu</span>
+                  <span style={{ fontSize: 10, color: "#6B7280" }}>{p.workingDays} j ouvrés</span>
+                  <span style={{ fontSize: 10, color: "#6B7280" }}>{formatEur(p.revenu)} revenu</span>
                 </div>
               </div>
             </foreignObject>
@@ -339,7 +339,7 @@ export default function MonthlyMarginChart({
               </text>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 30}
-                fontSize={9} fill="#9CA3AF" textAnchor="middle"
+                fontSize={9} fill="#6B7280" textAnchor="middle"
               >
                 {p.year}
               </text>
