@@ -101,13 +101,11 @@ export function Navbar() {
           transition: "background 300ms ease, box-shadow 300ms ease",
         }}
       >
-        {/* LEFT: logo only */}
-        <Link href="/" style={{ textDecoration: "none", display: "inline-flex", flexShrink: 0 }} onClick={() => setMobileOpen(false)}>
-          <Logo size="md" />
-        </Link>
-
-        {/* RIGHT: nav links + CTAs */}
-        <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        {/* LEFT: logo + navigation (les CTAs de connexion restent à droite) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <Link href="/" style={{ textDecoration: "none", display: "inline-flex", flexShrink: 0 }} onClick={() => setMobileOpen(false)}>
+            <Logo size="md" />
+          </Link>
           <nav className="nv-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 2 }}>
             {navLinks.map((link, i) => (
               <span key={link.href} style={{ display: "inline-flex", alignItems: "center" }}>
@@ -149,6 +147,10 @@ export function Navbar() {
               </span>
             ))}
           </nav>
+        </div>
+
+        {/* RIGHT: CTAs de connexion uniquement */}
+        <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {auth.loading ? (
             // Skeleton placeholder while session loads (avoids flash)
             <div style={{ width: 220, height: 38 }} />

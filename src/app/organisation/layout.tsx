@@ -136,18 +136,26 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           padding: "0 20px",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <Link href="/workspace" title="Retour au workspace"
-              style={{
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                width: 30, height: 30, borderRadius: 8,
-                border: "1px solid #E2DAF6", background: "white",
-                color: "#7C63C8", textDecoration: "none",
-              }}
-            >
-              <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-                <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </Link>
+            {/* Pont vers le workspace — labellisé, et affiché SEULEMENT si
+                l'user y a réellement accès (siège ou admin). Avant : chevron
+                anonyme montré à tous, qui envoyait l'owner sans siège dans
+                une redirection retour silencieuse. */}
+            {(ctx.profile.has_sourcing_seat || ctx.profile.is_admin) && (
+              <Link href="/workspace" title="Ouvrir le workspace"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "7px 12px", borderRadius: 9,
+                  border: "1px solid rgba(124,99,200,0.30)", background: "white",
+                  color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+                  textDecoration: "none", whiteSpace: "nowrap",
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden>
+                  <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Workspace
+              </Link>
+            )}
             <Link href="/" style={{ textDecoration: "none" }} title="Accueil naywastudio.com">
               <Logo size="md" />
             </Link>

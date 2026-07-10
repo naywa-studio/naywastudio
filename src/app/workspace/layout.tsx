@@ -187,6 +187,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         href={t.live ? t.href : "#"}
         onClick={(e) => { if (disabled) e.preventDefault() }}
         aria-disabled={disabled}
+        data-active={active || undefined}
         style={{
           position: "relative",
           fontSize: 13,
@@ -278,6 +279,30 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* Pont direct vers la console organisation pour l'owner (et
+                l'admin) — avant, seul le menu déroulant du profil y menait. */}
+            {(profile?.role === "owner" || profile?.is_admin) && (
+              <Link
+                href="/organisation"
+                className="ws-org-link"
+                title="Console organisation"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "7px 12px", borderRadius: 9,
+                  border: "1px solid rgba(124,99,200,0.30)", background: "white",
+                  color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+                  textDecoration: "none", whiteSpace: "nowrap",
+                  transition: "background 150ms",
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M3 21h18" /><path d="M5 21V7l7-4 7 4v14" />
+                  <path d="M9 21v-6h6v6" />
+                </svg>
+                Organisation
+              </Link>
+            )}
             <SupportButton variant="compact" />
 
             <div ref={menuRef} style={{ position: "relative" }}>
@@ -360,6 +385,14 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         </nav>
 
         <style>{`
+          /* Hover violet doux sur les onglets (le background est posé inline
+             → !important requis ; on épargne l'onglet actif et les disabled). */
+          .ws-tabs a:not([data-active]):not([aria-disabled="true"]):hover,
+          .ws-tabs-mobile a:not([data-active]):not([aria-disabled="true"]):hover {
+            background: rgba(124,99,200,0.07) !important;
+            color: #7C63C8 !important;
+          }
+          .ws-org-link:hover { background: rgba(124,99,200,0.08) !important; }
           @media (max-width: 720px) {
             .ws-tabs { display: none !important; }
             .ws-tabs-mobile { display: flex !important; }
