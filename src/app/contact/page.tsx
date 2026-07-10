@@ -193,7 +193,7 @@ export default function ContactPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="jean@cabinet.fr"
+                  placeholder="jean@entreprise.fr"
                   required
                   disabled={disabled}
                   style={inputStyle}
@@ -216,7 +216,7 @@ export default function ContactPage() {
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Décrivez votre besoin, votre cabinet, ou ce que vous aimeriez tester…"
+                  placeholder="Décrivez votre besoin, votre structure, ou ce que vous aimeriez tester…"
                   required
                   disabled={disabled}
                   rows={6}

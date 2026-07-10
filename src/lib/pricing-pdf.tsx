@@ -119,9 +119,10 @@ export function PricingScenarioPdf({ data }: { data: PricingPdfData }) {
             {data.cabinet.logoBase64 ? (
               <Image style={S.brandLogo} src={data.cabinet.logoBase64} />
             ) : null}
+            {/* Pas de sous-titre codé en dur ("Cabinet de recrutement" était
+                faux pour une ESN) — le nom + logo de l'organisation suffisent. */}
             <View>
               <Text style={S.brandText}>{data.cabinet.name}</Text>
-              <Text style={S.brandSub}>Cabinet de recrutement</Text>
             </View>
           </View>
           <View>

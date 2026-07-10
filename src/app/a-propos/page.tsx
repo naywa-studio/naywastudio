@@ -214,7 +214,7 @@ export default function AProposPage() {
                   boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55)",
                 }}
               >
-                Créer mon cabinet
+                Créer mon organisation
               </Link>
               <Link
                 href="/contact"
@@ -266,7 +266,7 @@ const PILLARS = [
   {
     title: "Vos données restent à vous",
     body:
-      "Hébergement européen, base PostgreSQL chiffrée, RLS strict par cabinet. Aucune donnée n'est partagée entre cabinets, jamais. Vous pouvez exporter ou supprimer votre vivier à tout moment.",
+      "Hébergement européen, base PostgreSQL chiffrée, isolation stricte par organisation. Aucune donnée n'est partagée entre organisations, jamais. Vous pouvez exporter ou supprimer votre vivier à tout moment.",
     icon: <>
       <path d="M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4z" />
     </>,

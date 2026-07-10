@@ -458,7 +458,7 @@ export function AnonymizeControls({
                 Filigrane diagonal
               </span>
               <span style={{ display: "block", fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
-                « Réf · Cabinet » en filigrane sur toutes les pages.
+                Le nom de votre organisation en filigrane sur toutes les pages.
               </span>
             </span>
           </label>

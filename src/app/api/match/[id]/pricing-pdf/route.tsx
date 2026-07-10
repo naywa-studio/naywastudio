@@ -104,7 +104,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 
   const data: PricingPdfData = {
     cabinet: {
-      name: brand?.brand_name?.trim() || brand?.organization_name || "Cabinet",
+      name: brand?.brand_name?.trim() || brand?.organization_name || "Organisation",
       logoBase64,
     },
     candidate: {
