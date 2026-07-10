@@ -11,11 +11,13 @@ const fu = (delay: number) => ({
   transition: { duration: 0.65, delay, ease: EASE },
 })
 
+// Pas d'emoji UI (design system) — check sobre uniforme. Les promesses
+// doivent refléter le produit LIVE : essai 15 j + matchings illimités.
 const guarantees = [
-  { icon: "⚡", label: "Setup en 2 min" },
-  { icon: "🆓", label: "Gratuit pendant la beta" },
-  { icon: "🎯", label: "60 candidats par mission" },
-  { icon: "🛠️", label: "Sans carte bancaire" },
+  { icon: "✓", label: "Setup en 2 min" },
+  { icon: "✓", label: "15 jours d'essai gratuits" },
+  { icon: "✓", label: "Matchings illimités" },
+  { icon: "✓", label: "Sans carte bancaire" },
 ]
 
 export function FinalCTA() {
@@ -106,7 +108,7 @@ export function FinalCTA() {
                 flexShrink: 0,
               }}
             />
-            Beta gratuite · Sans engagement
+            15 jours gratuits · Sans engagement
           </m.span>
 
           {/* Headline */}

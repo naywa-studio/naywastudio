@@ -279,17 +279,6 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <SupportButton variant="compact" />
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              fontSize: 11, fontWeight: 700, color: "#7C63C8",
-              background: "rgba(124,99,200,0.08)",
-              border: "1px solid rgba(124,99,200,0.18)",
-              padding: "4px 10px", borderRadius: 100,
-              letterSpacing: "0.08em", textTransform: "uppercase",
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#7C63C8" }} />
-              Beta
-            </span>
 
             <div ref={menuRef} style={{ position: "relative" }}>
               <button
