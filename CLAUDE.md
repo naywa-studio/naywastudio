@@ -712,6 +712,20 @@ Wipe org icloud (`1680d9d9`) refait via MCP (66 cand + 566 matchs + 15 missions,
 
 **Reste (déprio Elyas)** : finition visuelle (sticky onglets/filtres, sweep `#9CA3AF` résiduel fiche match/barre mission, badges source). "Elyas reviendra sur les visuels plus tard."
 
+#### Modèle quota « nombre de CV » — MERGÉ EN PROD — 2026-07-10
+**Branche `claude/quota-cv-model` mergée sur `main` (fast-forward). Pas de migration** (le CV utilisé = count des lignes `candidates`). tsc + lint clean. Validé en preview par Elyas (compte admin icloud).
+
+**Le modèle de quota côté client passe de « stockage GB + actions IA » à UN SEUL plafond visible : le NOMBRE DE CV du vivier.** Matchings + anonymisations affichés « illimités ». `storageBytes` + `llmMonthly` conservés en **filet interne invisible** (anti-abus), dimensionnés larges pour ne jamais mordre avant `cvLimit`.
+
+- **Pourquoi** : « actions IA » opaque + la jauge stockage dépendait du cron `recompute-storage` (fragile, souvent à 0). Compter les CV = un `count` sur `candidates` : instantané, exact, zéro cron → jauge fiable.
+- **Grille `lib/quota-tiers.ts`** (`cvLimit` ajouté à `QUOTAS_BY_PLAN` + trial + admin + override) : 1 siège **5 000 CV** · 2 → **10 000** · 3 → **20 000** · 4 → **30 000** · essai **500**. Pro = mêmes plafonds vivier (premium = Suite Pricing). Coûts réels < 1 €/mois même vivier plein.
+- **Comptage = CV ACTIFS** : `countActiveCvs()` dans `lib/quota.ts` = `total − archivés (tag "ancien")`, partagé par `/api/quota` (affichage) **et** `checkCvQuota()` (enforcement). Aligné exactement sur le nombre affiché dans le vivier (évite 80 compté vs 77 affiché). CV supprimé = ligne `DELETE` → hors table → non compté. Ré-upload d'un doublon = détecté avant insert → aucune ligne créée.
+- **Enforcement `/api/cv/upload`** : cap PRINCIPAL = CV, placé **après** la détection de doublon (ré-importer un CV présent n'est jamais bloqué). Storage/LLM = filet.
+- **UI** : `QuotaGauges` refondu autour du CV, variantes `inline` (en-tête `/workspace/vivier`) + `card` (`/organisation` Mes packages). **Admin** = jauge visible avec mention « illimité » (plus de `return null`). `QuotaWarningBanner` reframé (plus de « renouvellement mensuel » erroné pour un stock). `/tarifs` + modale plan `/organisation` = « X CV · matchings illimités ». `/admin/recherche` = champ « Capacité vivier (CV) » en plafond principal + `cv` dans `quota_override_json`.
+- **Limite obsolète retirée** : « 50 imports / jour pendant la beta » → « 500 fichiers max par lot ».
+
+**Reste quota (déprio)** : email auto proactif à 90 % de capacité, tests unitaires `getQuotas()`. Le « Période d'essai terminée » sur la carte Abonnement `/organisation` n'est PAS gaté admin (affiche l'état Stripe brut) — pré-existant, à gater un jour si ça gêne.
+
 #### Matching vivier par secteurs — MERGÉ EN PROD — 2026-07-09
 **Branche `claude/vivier-sectors` mergée sur `main` (fast-forward, dernier commit `dd33793`) et déployée.** Migrations 056→059 déjà appliquées via MCP sur `gtxjrepqiqbqbyhtmtlk` (`sectors` table + `sectors.description` + `candidates.sectors/sector_status` + `jobs.target_sectors/last_match_mode`). tsc + lint clean. Validé en live par Elyas au fil de l'eau.
 
