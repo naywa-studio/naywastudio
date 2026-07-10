@@ -35,8 +35,8 @@ const STEPS: Step[] = [
   {
     number: "01",
     title:  "Constituez votre vivier",
-    short:  "Upload de CVs + clustering automatique par Nora",
-    body:   "Glissez vos CVs (PDF, DOCX, photos) dans /workspace/vivier. Nora extrait le nom, l'expérience post-diplôme réelle, les compétences, la séniorité, et range chaque candidat dans sa zone métier. Le vivier est vivant : chaque nouvel upload enrichit les zones existantes plutôt que de tout reclasser.",
+    short:  "Upload de CVs + classement par secteur par Nora",
+    body:   "Glissez vos CVs en PDF (même scannés — OCR intégré) dans votre vivier. Nora extrait le nom, l'expérience post-diplôme réelle, les compétences, la séniorité, et classe chaque candidat dans son secteur. Chaque nouvel upload s'organise tout seul, sans tri manuel.",
     cta:    { label: "Ouvrir le vivier", href: "/workspace/vivier" },
   },
   {

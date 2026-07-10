@@ -52,8 +52,8 @@ const CATEGORIES = [
         a: "Nora détecte automatiquement les doublons par email ou téléphone et tague le CV concerné. Vous gardez les deux versions et choisissez laquelle prime. Pas de suppression silencieuse.",
       },
       {
-        q: "À quoi sert le vivier vivant ?",
-        a: "Nora range vos candidats par zone métier (par exemple Data Engineer, DevOps Cloud, Designer UI/UX) au fur et à mesure des uploads. Elle se souvient des zones déjà créées et fait grandir le vivier sans tout reclasser à chaque CV. C'est ce qui rend le vivier exploitable sur la durée, et pas juste un dépôt de fichiers.",
+        q: "Comment mon vivier est-il organisé ?",
+        a: "Nora classe vos candidats par secteur (Commercial, IT / Data, Ingénierie, Finance…) au fur et à mesure des uploads. Vous pouvez créer vos propres secteurs, les renommer, et reclasser un candidat en un geste — un profil hybride peut appartenir à plusieurs secteurs. C'est ce qui rend le vivier exploitable sur la durée, et pas juste un dépôt de fichiers.",
       },
     ],
   },

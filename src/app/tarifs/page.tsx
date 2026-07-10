@@ -23,7 +23,7 @@ const SOURCING_PRO: Record<SeatCount, number> = {
 }
 
 const SOURCING_INCLUDED = [
-  "Vivier vivant illimité (Nora range vos candidats par zone métier)",
+  "Vivier organisé par secteurs (Nora classe chaque CV automatiquement)",
   "Missions créées via brief LLM + matching scoré et justifié",
   "Anonymisation 1 clic — PDF brandé à votre structure",
   "Pipeline candidat partagé entre vos collègues",

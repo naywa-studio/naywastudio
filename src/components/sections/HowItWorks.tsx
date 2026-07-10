@@ -20,7 +20,7 @@ const steps = [
     ),
     title: "Importez vos CVs",
     subtitle: "Drag-drop",
-    desc: "PDF, DOCX, photo — Nora extrait automatiquement les compétences, l'expérience et les coordonnées. Tout est indexé dans votre vivier.",
+    desc: "Glissez vos PDFs — même les CVs scannés (OCR intégré). Nora extrait les compétences, l'expérience et les coordonnées, puis classe chaque candidat dans son secteur.",
   },
   {
     number: "02",

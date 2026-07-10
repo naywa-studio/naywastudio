@@ -13,7 +13,7 @@ const fu = (delay: number) => ({
 
 const NORA_FEATURES = [
   "Ingestion CV automatique (PDF, OCR pour CVs scannés)",
-  "Vivier vivant : Nora range vos candidats par zone métier",
+  "Vivier organisé : Nora classe vos candidats par secteur",
   "Matching IA contre vos missions avec score justifié et explicable",
   "Pricing Syntec automatisé : marge, charges, plafonds URSSAF, calendrier réel",
   "Risque rupture employeur visualisé mois par mois",

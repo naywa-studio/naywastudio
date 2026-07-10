@@ -32,7 +32,7 @@ const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 const PACKAGE_FEATURES = [
   "Vivier illimité, upload PDF, OCR et parsing IA",
-  "Clustering Nora, vos candidats rangés en zones métier",
+  "Vos candidats classés par secteur automatiquement",
   "Matching IA contre vos missions avec score justifié",
   "Anonymisation PDF en 1 clic",
   "Pipeline candidat avec suivi des relances et entretiens",

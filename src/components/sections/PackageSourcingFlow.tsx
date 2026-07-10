@@ -31,9 +31,9 @@ const STEPS: Step[] = [
   {
     number: "01",
     title:  "Vivier",
-    short:  "Upload CV + clustering automatique",
-    body:   "Drag-drop n'importe quel CV — PDF, DOCX, photo. Nora extrait le nom, l'expérience post-diplôme réelle, les compétences, la séniorité. Le candidat est rangé automatiquement dans sa zone métier (vivier vivant). Pas de reclassement manuel — les nouveaux candidats viennent enrichir les zones existantes.",
-    hint:   "Vue carte du vivier + fiche candidat parsée",
+    short:  "Upload CV + classement par secteur",
+    body:   "Drag-drop vos CVs en PDF — même scannés (OCR intégré). Nora extrait le nom, l'expérience post-diplôme réelle, les compétences, la séniorité, et classe chaque candidat dans son secteur (Commercial, IT / Data, Ingénierie…). Pas de tri manuel — votre vivier s'organise tout seul, CV après CV.",
+    hint:   "Vivier organisé par secteurs + fiche candidat parsée",
     x: 90,
     y: 110,
   },
