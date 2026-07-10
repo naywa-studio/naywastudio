@@ -63,10 +63,11 @@ export function QuotaGauges({
   if (!data) return null
 
   const { used, limit } = data.cv
-  // Comptes admin (limite ~illimitée) : on n'affiche pas de jauge — pas de
-  // plafond pertinent à montrer.
-  if (data.plan.source === "admin") return null
-  const p = pct(used, limit)
+  // Comptes admin Naywa : capacité effectivement illimitée. On affiche quand
+  // même la jauge (compteur + "illimité") plutôt que de la masquer — utile
+  // pour vérifier le rendu, et honnête (pas de faux pourcentage).
+  const isUnlimited = data.plan.source === "admin"
+  const p = isUnlimited ? 0 : pct(used, limit)
   const color = colorFor(p)
   const usedFmt = used.toLocaleString("fr-FR")
   const limitFmt = limit.toLocaleString("fr-FR")
@@ -88,17 +89,22 @@ export function QuotaGauges({
           <span style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", whiteSpace: "nowrap" }}>
             Vivier
           </span>
-          <span style={{
-            width: 90, height: 6, borderRadius: 999,
-            background: "rgba(229,231,235,0.7)", overflow: "hidden",
-          }}>
+          {!isUnlimited && (
             <span style={{
-              display: "block", width: `${p}%`, height: "100%",
-              background: color, borderRadius: 999, transition: "width 400ms ease",
-            }} />
-          </span>
+              width: 90, height: 6, borderRadius: 999,
+              background: "rgba(229,231,235,0.7)", overflow: "hidden",
+            }}>
+              <span style={{
+                display: "block", width: `${p}%`, height: "100%",
+                background: color, borderRadius: 999, transition: "width 400ms ease",
+              }} />
+            </span>
+          )}
           <span style={{ fontSize: 12.5, fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
-            {usedFmt}<span style={{ color: "#9CA3AF", fontWeight: 500 }}> / {limitFmt} CV</span>
+            {usedFmt}
+            <span style={{ color: "#9CA3AF", fontWeight: 500 }}>
+              {isUnlimited ? " CV · illimité" : ` / ${limitFmt} CV`}
+            </span>
           </span>
         </button>
         {detailOpen && (
@@ -129,19 +135,23 @@ export function QuotaGauges({
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: "#4B5563" }}>CV importés</span>
-          <span style={{ fontSize: 13.5, fontWeight: 800, color }}>{p}%</span>
+          <span style={{ fontSize: 13.5, fontWeight: 800, color }}>
+            {isUnlimited ? "illimité" : `${p}%`}
+          </span>
         </div>
-        <div style={{ height: 8, borderRadius: 999, background: "rgba(229,231,235,0.6)", overflow: "hidden" }}>
-          <div style={{
-            width: `${p}%`, height: "100%", background: color,
-            transition: "width 400ms ease", borderRadius: 999,
-          }} />
-        </div>
+        {!isUnlimited && (
+          <div style={{ height: 8, borderRadius: 999, background: "rgba(229,231,235,0.6)", overflow: "hidden" }}>
+            <div style={{
+              width: `${p}%`, height: "100%", background: color,
+              transition: "width 400ms ease", borderRadius: 999,
+            }} />
+          </div>
+        )}
         <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "baseline",
           fontSize: 11.5, color: "#9CA3AF",
         }}>
-          <span>{usedFmt} / {limitFmt} CV</span>
+          <span>{isUnlimited ? `${usedFmt} CV` : `${usedFmt} / ${limitFmt} CV`}</span>
           <button
             type="button"
             onClick={() => setDetailOpen(true)}
@@ -187,6 +197,7 @@ function DetailModal({
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])
 
+  const isUnlimited = plan.source === "admin"
   const usedFmt = used.toLocaleString("fr-FR")
   const limitFmt = limit.toLocaleString("fr-FR")
   const remaining = Math.max(0, limit - used).toLocaleString("fr-FR")
@@ -222,21 +233,30 @@ function DetailModal({
 
         <div style={{ padding: "14px 16px", borderRadius: 12, background: "#F8F6FF", marginBottom: 16 }}>
           <div style={{ fontSize: 26, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
-            {usedFmt}<span style={{ fontSize: 14, fontWeight: 500, color: "#9CA3AF" }}> / {limitFmt} CV</span>
+            {usedFmt}<span style={{ fontSize: 14, fontWeight: 500, color: "#9CA3AF" }}>
+              {isUnlimited ? " CV · capacité illimitée" : ` / ${limitFmt} CV`}
+            </span>
           </div>
           <div style={{ marginTop: 6, fontSize: 12.5, color: "#6B7280" }}>
-            Il vous reste <strong>{remaining} CV</strong> à importer. Supprimer d&apos;anciens
-            CV libère de la capacité. Les matchings et anonymisations sont <strong>illimités</strong>.
+            {isUnlimited ? (
+              <>Compte administrateur Naywa — capacité illimitée. Les matchings et
+              anonymisations sont eux aussi <strong>illimités</strong>.</>
+            ) : (
+              <>Il vous reste <strong>{remaining} CV</strong> à importer. Supprimer d&apos;anciens
+              CV libère de la capacité. Les matchings et anonymisations sont <strong>illimités</strong>.</>
+            )}
           </div>
         </div>
 
-        <div style={{
-          padding: "12px 14px", borderRadius: 10, background: "#FEFCE8",
-          border: "1px solid #FDE68A", fontSize: 12.5, color: "#854D0E", lineHeight: 1.55,
-        }}>
-          <strong>Besoin de plus de place ?</strong> Contactez-nous via le bouton
-          support dans le header — nous augmentons votre capacité sur mesure.
-        </div>
+        {!isUnlimited && (
+          <div style={{
+            padding: "12px 14px", borderRadius: 10, background: "#FEFCE8",
+            border: "1px solid #FDE68A", fontSize: 12.5, color: "#854D0E", lineHeight: 1.55,
+          }}>
+            <strong>Besoin de plus de place ?</strong> Contactez-nous via le bouton
+            support dans le header — nous augmentons votre capacité sur mesure.
+          </div>
+        )}
 
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
           <button
