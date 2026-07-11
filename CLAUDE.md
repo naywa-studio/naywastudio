@@ -712,6 +712,22 @@ Wipe org icloud (`1680d9d9`) refait via MCP (66 cand + 566 matchs + 15 missions,
 
 **Reste (déprio Elyas)** : finition visuelle (sticky onglets/filtres, sweep `#9CA3AF` résiduel fiche match/barre mission, badges source). "Elyas reviendra sur les visuels plus tard."
 
+#### Passe cohérence orientée vente — MERGÉE EN PROD — 2026-07-11
+**Branche `claude/coherence-pass` mergée sur `main` (14 commits, fast-forward). Pas de migration.** Audit complet vitrine + produit (fichier source : `AUDIT-coherence.md` au scratchpad session) puis exécution. Validé en preview par Elyas.
+
+Contenu (résumé) :
+- **Auth callback** : faux « Compte créé » aux reconnexions corrigé (âge du compte < 5 min = signup), page brandée, `color-scheme: light` global (anti Auto Dark Mode Chrome qui rendait la page noire).
+- **Vente/promesses** : « Beta » éradiqué partout (produit LIVE), « PDF, DOCX, photo » → « PDF + OCR » (seul le PDF est accepté), vitrine réalignée secteurs (fini « zones métier »/« Vue carte »), « 60 candidats par mission » → « Matchings illimités », **clauses beta des CGU retirées** (dont « aucune facturation n'est active » — dangereuse avec Stripe LIVE).
+- **Vocab** : cabinet → organisation sur tout le user-facing produit (dont bouton pricing détail + PDF pricing « Cabinet de recrutement » retiré). « cabinets de recrutement » = cible marché, conservé.
+- **Flow** : empty state pipeline réécrit (il mentait : « dès qu'ils sont matchés » → il faut « + Ajouter à la pipeline »), pricing détail vouvoyé + placeholders « ex : 600 », « À compléter · TJM, durée, date », amorces E2 masquées (bouton formulaire + onglet « Ont postulé » — réapparaissent automatiquement avec E2), compteurs unifiés « pertinents » (score ≥ 55) partout, panneau « essai terminé » gaté admin, mention hybrides vivier.
+- **A11y** : sweep `#9CA3AF` → `#6B7280` (ui.textMuted) sur 58 fichiers (emails/PDF exclus), emojis UI → SVG.
+- **UI** : hover violet onglets workspace, navbar marketing nav à GAUCHE + CTAs connexion à droite, **ponts workspace ↔ organisation** (bouton « Organisation » header workspace owner/admin ; bouton « Workspace » header organisation si siège/admin), **page 404 brandée**, **skeletons par page** (`PageSkeletons.tsx` : vivier/missions/pipeline/pricing/fiches — NoraLoader gardé pour l'inline), **onglets+filtres sticky** sur la fiche mission.
+- **StarterChecklist** (`components/workspace/StarterChecklist.tsx`) remplace la modale visite guidée : 4 étapes cochées sur l'ÉTAT RÉEL (candidats>0, mission, matched_at, anonymized_at), CTA sur la prochaine étape, 4/4 → stampe `package_sourcing_onboarded_at` (définitif) ; « Masquer » = sessionStorage (temporaire). Gating = `onboardingNeeded` (org avec accès actif) — un admin sur org à essai expiré ne la voit pas (by design).
+
+**Stripe refait (nouveau compte `acct_1TrljpD0dQXebFvJ`, accès ancien compte perdu)** : produits + 8 prix live recréés via MCP (lookup keys identiques `sourcing_1..4`, `sourcing_pro_1..4`, HT tax exclusive), webhook `naywa-prod-webhook` → `/api/stripe/webhook` (7 events, version 2026-06-24.dahlia) créé au dashboard, reçus « Paiements réussis » activés, portail client configuré (`bpc_1TrzgID0dQ…`). Clés actualisées sur Vercel par Elyas + redeploy fait. Sonde webhook = 400 signature (secret chargé ✓). `stripe_customer_id` de l'ancien compte nettoyés en DB (3 orgs). **Reste à confirmer d'un clic : un checkout live jusqu'à la page Stripe (valide STRIPE_SECRET_KEY).** Chaque paiement d'abonnement génère une facture PDF (portail) + email de reçu.
+
+Onboardings du compte icloud resets (cabinet re-fait par Elyas, checklist re-testable), essai org icloud réactivé jusqu'au 26/07 (nécessaire au gating checklist).
+
 #### Modèle quota « nombre de CV » — MERGÉ EN PROD — 2026-07-10
 **Branche `claude/quota-cv-model` mergée sur `main` (fast-forward). Pas de migration** (le CV utilisé = count des lignes `candidates`). tsc + lint clean. Validé en preview par Elyas (compte admin icloud).
 

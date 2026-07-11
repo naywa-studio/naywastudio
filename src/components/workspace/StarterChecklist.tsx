@@ -11,8 +11,9 @@
  * Cycle de vie :
  *   - Affichée tant que `profiles.package_sourcing_onboarded_at` est NULL
  *     (même flag que l'ancienne visite guidée — zéro migration).
- *   - 4/4 atteint → on stampe le flag automatiquement et la carte disparaît
- *     pour toujours. "Masquer" fait pareil, à la main.
+ *   - 4/4 atteint → on stampe le flag automatiquement : disparition DÉFINITIVE.
+ *   - "Masquer" = temporaire (sessionStorage) : la checklist revient à la
+ *     prochaine session tant que les 4 étapes ne sont pas faites.
  */
 
 import { useEffect, useMemo, useState } from "react"
@@ -32,6 +33,12 @@ export function StarterChecklist({ onComplete }: {
 }) {
   const sb = useMemo(() => getSupabase(), [])
   const [steps, setSteps] = useState<StepState | null>(null)
+  // "Masquer" ne clôt PAS la checklist (le flag DB n'est stampé qu'à 4/4) —
+  // simple repli de session, elle revient à la prochaine visite.
+  const [hidden, setHidden] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false
+    try { return sessionStorage.getItem("naywa.starterChecklist.hidden") === "1" } catch { return false }
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -53,11 +60,19 @@ export function StarterChecklist({ onComplete }: {
     return () => { cancelled = true }
   }, [sb])
 
+  // Clôture DÉFINITIVE (stamp DB) — uniquement à 4/4.
   const markDone = async () => {
     try {
       await fetch("/api/cabinet/package-onboarding-done", { method: "POST" })
     } catch { /* best-effort */ }
     onComplete()
+  }
+
+  // Repli TEMPORAIRE ("Masquer") — la checklist reviendra tant que les
+  // 4 étapes ne sont pas faites.
+  const hide = () => {
+    try { sessionStorage.setItem("naywa.starterChecklist.hidden", "1") } catch { /* noop */ }
+    setHidden(true)
   }
 
   // 4/4 → on clôture automatiquement (le flag évite tout re-affichage).
@@ -67,7 +82,7 @@ export function StarterChecklist({ onComplete }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allDone])
 
-  if (!steps || allDone) return null
+  if (!steps || allDone || hidden) return null
 
   const items: Array<{ label: string; done: boolean; href: string; cta: string }> = [
     { label: "Importez vos premiers CVs", done: steps.hasCvs, href: "/workspace/vivier", cta: "Ouvrir le vivier" },
@@ -98,7 +113,8 @@ export function StarterChecklist({ onComplete }: {
           </span>
           <button
             type="button"
-            onClick={() => void markDone()}
+            onClick={hide}
+            title="Masquer pour cette session — la checklist reviendra tant que tout n'est pas fait"
             style={{
               background: "none", border: "none", padding: 0,
               fontSize: 12, color: "#6B7280", cursor: "pointer",
