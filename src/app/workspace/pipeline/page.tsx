@@ -6,7 +6,7 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { MatchAssessment, PipelineStage } from "@/lib/database.types"
 import Select from "@/components/ui/Select"
-import NoraLoader from "@/components/workspace/NoraLoader"
+import { PipelineSkeleton } from "@/components/workspace/PageSkeletons"
 import RejectReasonPicker from "@/components/workspace/RejectReasonPicker"
 import type { RejectReason } from "@/lib/reject-reasons"
 
@@ -232,7 +232,7 @@ export default function PipelinePage() {
   )
 
   if (loading) {
-    return <NoraLoader />
+    return <PipelineSkeleton />
   }
 
   return (

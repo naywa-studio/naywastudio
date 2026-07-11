@@ -10,6 +10,7 @@ import type { Criterion, CriterionEval } from "@/lib/job-criteria-catalog"
 import { kindOf } from "@/lib/job-criteria-catalog"
 import { shortCriterionName } from "@/lib/criterion-display"
 import NoraLoader from "@/components/workspace/NoraLoader"
+import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { MissionCvUploadModal } from "@/components/workspace/MissionCvUploadModal"
 import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
@@ -168,7 +169,7 @@ export default function JobDetailPage() {
     }
   }
 
-  if (loading) return <NoraLoader />
+  if (loading) return <DetailSkeleton label="Chargement de la mission" />
   if (notFound || !job) {
     return (
       <div style={{ padding: "60px 24px", textAlign: "center", color: "#6B7280" }}>

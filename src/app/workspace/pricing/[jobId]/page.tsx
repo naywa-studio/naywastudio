@@ -19,7 +19,7 @@ import { m, AnimatePresence } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Candidate, Job, MatchTier } from "@/lib/database.types"
 import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabinet-config"
-import NoraLoader from "@/components/workspace/NoraLoader"
+import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import PricingWidget from "@/components/workspace/PricingWidget"
 import Select from "@/components/ui/Select"
 import { computeQuickMargin } from "@/lib/pricing/quick-margin"
@@ -131,7 +131,7 @@ export default function PricingMissionPage() {
     return () => { mounted = false }
   }, [jobId, sb])
 
-  if (loading) return <NoraLoader />
+  if (loading) return <DetailSkeleton label="Chargement du chiffrage" />
   if (notFound || !job) {
     return (
       <main style={mainStyle}>

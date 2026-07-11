@@ -19,7 +19,7 @@ import {
 } from "@/components/workspace/anonymize/types"
 import CandidateMiniKanban from "@/components/workspace/CandidateMiniKanban"
 import Select from "@/components/ui/Select"
-import NoraLoader from "@/components/workspace/NoraLoader"
+import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 
 /* Bouton "Voir le pricing" — direct si 1 mission en pipeline, dropdown si N. */
@@ -300,7 +300,7 @@ export default function MatchPage() {
   }, [match?.id])
 
   if (loading) {
-    return <NoraLoader />
+    return <DetailSkeleton label="Chargement du match" />
   }
   if (notFound || !match || !candidate) {
     return (

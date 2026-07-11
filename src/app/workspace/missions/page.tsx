@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Candidate, Job } from "@/lib/database.types"
-import NoraLoader from "@/components/workspace/NoraLoader"
+import { MissionsSkeleton } from "@/components/workspace/PageSkeletons"
 import Select from "@/components/ui/Select"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
@@ -246,7 +246,7 @@ export default function MissionsPage() {
       </div>
 
       {loading ? (
-        <NoraLoader />
+        <MissionsSkeleton />
       ) : jobs.length === 0 ? (
         <EmptyState onCreate={() => router.push("/workspace/missions/new")} />
       ) : (

@@ -9,7 +9,7 @@ import { CANDIDATE_COLUMNS, type Candidate, type ParsedCv, type MatchTier } from
 import { customTagsOf, SYSTEM_TAGS } from "@/lib/tags"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 import TagPicker from "@/components/workspace/TagPicker"
-import NoraLoader from "@/components/workspace/NoraLoader"
+import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { showUndoToast } from "@/components/ui/UndoToast"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -192,7 +192,7 @@ export default function CandidatePage() {
   }
 
   if (loading) {
-    return <NoraLoader />
+    return <DetailSkeleton label="Chargement du candidat" />
   }
   if (notFound || !candidate) {
     return (

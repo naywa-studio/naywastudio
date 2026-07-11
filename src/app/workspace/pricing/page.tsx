@@ -21,7 +21,7 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Job } from "@/lib/database.types"
 import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabinet-config"
-import NoraLoader from "@/components/workspace/NoraLoader"
+import { PricingSkeleton } from "@/components/workspace/PageSkeletons"
 import { useWorkspace } from "../layout"
 import PricingIcon from "@/components/workspace/PricingIcon"
 
@@ -154,7 +154,7 @@ export default function PricingPage() {
   }
 
   // Loading state — profile or missions not yet fetched.
-  if (missions === null || profile === undefined) return <NoraLoader />
+  if (missions === null || profile === undefined) return <PricingSkeleton />
 
   // Onboarding check : dedicated timestamp set by the wizard at finish.
   // Migration 012 had set DEFAULT 18 / 15 on the params columns, so they

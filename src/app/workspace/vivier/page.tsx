@@ -11,7 +11,7 @@ import { SectorReviewControl } from "@/components/workspace/SectorReviewControl"
 import { sectorColors } from "@/lib/sector-color"
 import type { SectorStatus } from "@/lib/database.types"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
-import NoraLoader from "@/components/workspace/NoraLoader"
+import { VivierSkeleton } from "@/components/workspace/PageSkeletons"
 import { QuotaGauges } from "@/components/quota/QuotaGauges"
 // VivierMapView et ZonesManager retirés temporairement de l'UI.
 // Le code reste dispo (components/workspace/VivierMapView.tsx +
@@ -426,7 +426,7 @@ export default function VivierPage() {
   }, [sb])
 
   if (!userId && loading) {
-    return <NoraLoader />
+    return <VivierSkeleton />
   }
 
   const hasActiveJobs = jobs.some((j) => j.status === "uploading" || j.status === "parsing")
