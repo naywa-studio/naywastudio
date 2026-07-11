@@ -82,6 +82,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Structure introuvable" }, { status: 404 })
   }
 
+  // Tout le flux Stripe sous try/catch : avant, un throw (clé invalide,
+  // moyen de paiement non activé, prix introuvable) remontait en 500 SANS
+  // corps → indiagnosticable côté client. On log + renvoie un JSON propre.
+  try {
   const stripe = getStripe()
 
   // Reuse or create the Stripe Customer. Email is taken from auth ;
@@ -113,7 +117,11 @@ export async function POST(req: Request) {
     mode: "subscription",
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
-    payment_method_types: ["card", "sepa_debit"],
+    // Pas de payment_method_types hardcodé : Stripe utilise les moyens de
+    // paiement ACTIVÉS au dashboard (dynamic payment methods). L'ancien
+    // hardcode ["card", "sepa_debit"] faisait un 500 quand SEPA n'était pas
+    // activé sur le compte — activer/désactiver un moyen ne demande plus
+    // aucun redeploy.
     locale: "fr",
     allow_promotion_codes: true,
     // Adresse de facturation obligatoire pour qu'une facture B2B française
@@ -148,4 +156,12 @@ export async function POST(req: Request) {
   })
 
   return NextResponse.json({ url: session.url })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Stripe inconnue"
+    console.error("[stripe/checkout] failed:", message)
+    return NextResponse.json(
+      { error: "checkout_failed", message: "Le paiement est momentanément indisponible. Réessayez ou contactez le support." },
+      { status: 502 },
+    )
+  }
 }

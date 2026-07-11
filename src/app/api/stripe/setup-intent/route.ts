@@ -71,7 +71,8 @@ export async function POST() {
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
     customer: customerId,
-    payment_method_types: ["card", "sepa_debit"],
+    // Moyens de paiement pilotés par le dashboard Stripe (pas de hardcode —
+    // ["card","sepa_debit"] plantait quand SEPA n'était pas activé).
     locale: "fr",
     success_url: `${appUrl}/organisation?setup=success`,
     cancel_url: `${appUrl}/organisation?setup=cancel`,
