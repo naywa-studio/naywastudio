@@ -5,7 +5,7 @@ import Link from "next/link"
 import { m } from "framer-motion"
 import { useWorkspace } from "./layout"
 import NoraLoader from "@/components/workspace/NoraLoader"
-import { PackageOnboardingModal } from "@/components/organisation/PackageOnboardingModal"
+import { StarterChecklist } from "@/components/workspace/StarterChecklist"
 import { getSupabase } from "@/lib/supabase"
 import { trialStatus } from "@/lib/trial"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
@@ -98,15 +98,8 @@ export default function WorkspaceHome() {
     orgHasAccess &&
     !organization.pending_deletion_at &&
     !organization.lockdown_started_at
-  const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false
-    try { return sessionStorage.getItem("naywa.packageOnboarding.dismissed") === "1" } catch { return false }
-  })
-  // Dérive l'affichage de la modale sans setState dans un effect
-  // (lint rule react-hooks/set-state-in-effect). La dismiss locale est
-  // gérée via le bouton croix qui setSessionStorage + force le state.
-  const [explicitlyClosed, setExplicitlyClosed] = useState(false)
-  const showOnboarding = onboardingNeeded && !onboardingDismissed && !explicitlyClosed
+  // L'ancienne modale "visite guidée" (lecture passive) est remplacée par
+  // la StarterChecklist (progression active) — même flag DB, même gating.
 
   // Grant the subscription if missing — first visit after signup.
   useEffect(() => {
@@ -223,52 +216,10 @@ export default function WorkspaceHome() {
       padding: "44px 24px 80px",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
-      {/* Reminder visite guidée si dismissée mais pas finie */}
-      {onboardingNeeded && !showOnboarding && (
-        <div style={{
-          marginBottom: 18,
-          padding: "12px 16px",
-          background: "linear-gradient(90deg, rgba(243,232,255,0.95) 0%, rgba(233,213,255,0.95) 100%)",
-          border: "1px solid rgba(124,99,200,0.25)",
-          borderRadius: 12,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          gap: 14, flexWrap: "wrap",
-        }}>
-          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#5B45A8" }}>
-            Bienvenue sur Naywa. Découvrez le Package Sourcing en 6 étapes.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              try { sessionStorage.removeItem("naywa.packageOnboarding.dismissed") } catch {}
-              setOnboardingDismissed(false)
-              setExplicitlyClosed(false)
-            }}
-            style={{
-              padding: "7px 14px", borderRadius: 9,
-              border: "none",
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              color: "white", fontSize: 12.5, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            Reprendre la visite →
-          </button>
-        </div>
-      )}
-
-      {showOnboarding && (
-        <PackageOnboardingModal
-          onDone={() => {
-            setExplicitlyClosed(true)
-            void refetchProfile()
-          }}
-          onDismiss={() => {
-            try { sessionStorage.setItem("naywa.packageOnboarding.dismissed", "1") } catch {}
-            setOnboardingDismissed(true)
-            setExplicitlyClosed(true)
-          }}
-        />
+      {/* Checklist de démarrage — cochée sur l'état réel du workspace,
+          disparaît définitivement à 4/4 (ou via "Masquer"). */}
+      {onboardingNeeded && (
+        <StarterChecklist onComplete={() => { void refetchProfile() }} />
       )}
 
       {/* ── Hero identité ─────────────────────────────────────── */}

@@ -454,20 +454,31 @@ export default function JobDetailPage() {
             </div>
           )}
 
-          <SourceTabs active={activeTab} counts={tabCounts} onChange={setActiveTab} />
+          {/* Onglets + filtres collés en haut pendant le scroll de la liste
+              (top: 60 = hauteur du header sticky). Fond opaque + blur pour
+              que les cartes ne transparaissent pas dessous. */}
+          <div style={{
+            position: "sticky", top: 60, zIndex: 30,
+            background: "rgba(248,246,255,0.92)",
+            backdropFilter: "blur(10px)",
+            margin: "0 -8px", padding: "8px 8px 2px",
+            borderRadius: "0 0 12px 12px",
+          }}>
+            <SourceTabs active={activeTab} counts={tabCounts} onChange={setActiveTab} />
 
-          {mainCriteria.length > 0 && (
-            <DynamicCriteriaFilters
-              criteria={mainCriteria}
-              active={activeCritFilters}
-              onToggle={(id) => setActiveCritFilters((prev) => {
-                const next = new Set(prev)
-                if (next.has(id)) next.delete(id); else next.add(id)
-                return next
-              })}
-              onClear={() => setActiveCritFilters(new Set())}
-            />
-          )}
+            {mainCriteria.length > 0 && (
+              <DynamicCriteriaFilters
+                criteria={mainCriteria}
+                active={activeCritFilters}
+                onToggle={(id) => setActiveCritFilters((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(id)) next.delete(id); else next.add(id)
+                  return next
+                })}
+                onClear={() => setActiveCritFilters(new Set())}
+              />
+            )}
+          </div>
 
           {filteredRows.length === 0 ? (
             <div style={{
