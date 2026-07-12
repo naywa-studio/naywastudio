@@ -1,6 +1,30 @@
+"use client"
+
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    backHome: "← Retour à l'accueil",
+    lastUpdated: "Dernière mise à jour :",
+    questionTitle: "Une question ?",
+    questionDesc: "Écrivez-nous, nous répondons sous 48 h ouvrées.",
+    footerLegal: "Mentions légales",
+    footerPrivacy: "Confidentialité",
+    footerTerms: "CGU",
+  },
+  en: {
+    backHome: "← Back to home",
+    lastUpdated: "Last updated:",
+    questionTitle: "A question?",
+    questionDesc: "Write to us, we reply within 48 business hours.",
+    footerLegal: "Legal Notice",
+    footerPrivacy: "Privacy",
+    footerTerms: "Terms",
+  },
+}
 
 /**
  * Shared chrome for the static legal pages :
@@ -26,7 +50,10 @@ interface Props {
   sections: LegalSection[]
 }
 
-export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, sections }: Props) {
+export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: Props) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const resolvedBadge = badge ?? (lang === "fr" ? "Légal" : "Legal")
   return (
     <div style={{ background: "transparent", minHeight: "100vh", position: "relative" }}>
       <ShaderBackground />
@@ -49,7 +76,7 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
           fontSize: 13, color: "#6B7280", textDecoration: "none",
           fontFamily: "var(--font-inter), sans-serif",
         }}>
-          ← Retour à l&apos;accueil
+          {t.backHome}
         </Link>
       </header>
 
@@ -65,7 +92,7 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
             padding: "5px 14px", borderRadius: 100, marginBottom: 20,
             fontFamily: "var(--font-inter), sans-serif",
           }}>
-            {badge}
+            {resolvedBadge}
           </span>
           <h1 style={{
             fontSize: "clamp(26px, 4vw, 38px)",
@@ -79,7 +106,7 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
             fontSize: 14, color: "#6B7280", margin: 0,
             fontFamily: "var(--font-inter), sans-serif",
           }}>
-            Dernière mise à jour : {lastUpdated}
+            {t.lastUpdated} {lastUpdated}
           </p>
           {intro && (
             <p style={{
@@ -144,13 +171,13 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
             margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "#111827",
             fontFamily: "var(--font-space-grotesk), sans-serif",
           }}>
-            Une question ?
+            {t.questionTitle}
           </p>
           <p style={{
             margin: "0 0 16px", fontSize: 14, color: "#6B7280",
             fontFamily: "var(--font-inter), sans-serif",
           }}>
-            Écrivez-nous, nous répondons sous 48 h ouvrées.
+            {t.questionDesc}
           </p>
           <a href="mailto:contact@naywastudio.com" style={{
             fontSize: 14, fontWeight: 600, color: "#7C63C8", textDecoration: "none",
@@ -171,9 +198,9 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
         <span style={{ fontSize: 12, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
           © 2026 Naywa Studio
         </span>
-        <FooterLink href="/mentions-legales">Mentions légales</FooterLink>
-        <FooterLink href="/politique-confidentialite">Confidentialité</FooterLink>
-        <FooterLink href="/cgu">CGU</FooterLink>
+        <FooterLink href="/mentions-legales">{t.footerLegal}</FooterLink>
+        <FooterLink href="/politique-confidentialite">{t.footerPrivacy}</FooterLink>
+        <FooterLink href="/cgu">{t.footerTerms}</FooterLink>
         <a href="mailto:contact@naywastudio.com" style={footerLinkStyle}>
           contact@naywastudio.com
         </a>

@@ -86,7 +86,7 @@ export function Hero() {
             letterSpacing: '-0.035em',
             color: '#111827',
             margin: '0 0 28px',
-            maxWidth: '14ch',
+            maxWidth: '18ch',
           }}
         >
           {c.titleLine1}<br />

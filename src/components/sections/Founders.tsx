@@ -86,8 +86,8 @@ const copy = {
   },
   en: {
     badge: "Who we are",
-    titlePre: "A ",
-    titleItalic: "small, hands-on",
+    titlePre: "A small, ",
+    titleItalic: "hands-on",
     titleSuffix: " team.",
     desc:
       "Naywa Studio is a project led by its founders. You talk directly with the people who design the product, build it, and evolve it — not with tier-1 support.",

@@ -6,8 +6,54 @@ import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import { getSupabase } from "@/lib/supabase"
 import { resolvePostLoginDestination } from "@/lib/post-login-destination"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 type Mode = "login" | "signup"
+
+const copy = {
+  fr: {
+    expired: "Le lien de confirmation a expiré ou a déjà été utilisé. Recommencez l'inscription pour recevoir un nouveau lien.",
+    wrongCredentials: "Email ou mot de passe incorrect.",
+    checkEmail: "Vérifiez votre email pour confirmer votre compte.",
+    login: "Se connecter",
+    signup: "Créer un compte",
+    loginWithGoogle: "Se connecter avec Google",
+    continueWithGoogle: "Continuer avec Google",
+    or: "OU",
+    firstName: "Prénom",
+    firstNamePlaceholder: "Votre prénom",
+    email: "Email",
+    emailPlaceholder: "vous@exemple.com",
+    password: "Mot de passe",
+    forgotPassword: "Mot de passe oublié ?",
+    passwordPlaceholderSignup: "Minimum 6 caractères",
+    loading: "Chargement…",
+    loginCta: "Se connecter →",
+    signupCta: "Créer mon compte →",
+    backHome: "← Retour à l'accueil",
+  },
+  en: {
+    expired: "The confirmation link has expired or was already used. Start the sign-up again to get a new link.",
+    wrongCredentials: "Incorrect email or password.",
+    checkEmail: "Check your email to confirm your account.",
+    login: "Sign in",
+    signup: "Create an account",
+    loginWithGoogle: "Sign in with Google",
+    continueWithGoogle: "Continue with Google",
+    or: "OR",
+    firstName: "First name",
+    firstNamePlaceholder: "Your first name",
+    email: "Email",
+    emailPlaceholder: "you@example.com",
+    password: "Password",
+    forgotPassword: "Forgot password?",
+    passwordPlaceholderSignup: "At least 6 characters",
+    loading: "Loading…",
+    loginCta: "Sign in →",
+    signupCta: "Create my account →",
+    backHome: "← Back to home",
+  },
+}
 
 export default function LoginPage() {
   return (
@@ -19,6 +65,8 @@ export default function LoginPage() {
 
 function LoginInner() {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const searchParams = useSearchParams()
   // ?next= éventuel, brut. La sanitization + le choix final entre
   // /workspace, /organisation et /onboarding sont délégués à
@@ -33,12 +81,15 @@ function LoginInner() {
   const [password, setPassword] = useState("")
   const [firstName, setFirstName] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(
-    expired
-      ? "Le lien de confirmation a expiré ou a déjà été utilisé. Recommencez l'inscription pour recevoir un nouveau lien."
-      : null,
-  )
+  const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // Set (and keep in sync with the current language) the "expired link"
+  // banner. Runs after mount since `lang` starts as a guess and can shift
+  // once the saved preference (localStorage or account) resolves.
+  useEffect(() => {
+    if (expired) setError(t.expired)
+  }, [expired, t.expired])
 
   // Redirect if already logged in : on résout la destination via le
   // helper pour ne pas envoyer un owner sans siège vers /workspace
@@ -62,7 +113,7 @@ function LoginInner() {
     if (mode === "login") {
       const { data: signInData, error: err } = await sb.auth.signInWithPassword({ email, password })
       if (err) {
-        setError("Email ou mot de passe incorrect.")
+        setError(t.wrongCredentials)
         setLoading(false)
         return
       }
@@ -98,7 +149,7 @@ function LoginInner() {
         const dest = await resolvePostLoginDestination(sb, data.user.id, requestedNext)
         router.replace(dest)
       } else {
-        setSuccess("Vérifiez votre email pour confirmer votre compte.")
+        setSuccess(t.checkEmail)
         setLoading(false)
       }
     }
@@ -181,7 +232,7 @@ function LoginInner() {
                 boxShadow: mode === m ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
               }}
             >
-              {m === "login" ? "Se connecter" : "Créer un compte"}
+              {m === "login" ? t.login : t.signup}
             </button>
           ))}
         </div>
@@ -211,13 +262,13 @@ function LoginInner() {
             <path fill="#4CAF50" d="M24 44c5 0 9.5-1.9 13-5l-6-5c-2 1.4-4.5 2.2-7 2.2-5.3 0-9.7-3.4-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
             <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.7 2-2 3.8-3.6 5l6 5c-.4.4 6.4-4.7 6.4-14 0-1.3-.2-2.4-.5-3.5z"/>
           </svg>
-          {mode === "login" ? "Se connecter avec Google" : "Continuer avec Google"}
+          {mode === "login" ? t.loginWithGoogle : t.continueWithGoogle}
         </button>
 
         {/* Divider */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
           <div style={{ flex: 1, height: 1, background: "#F0ECF8" }} />
-          <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, fontFamily: "var(--font-inter), sans-serif" }}>OU</span>
+          <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, fontFamily: "var(--font-inter), sans-serif" }}>{t.or}</span>
           <div style={{ flex: 1, height: 1, background: "#F0ECF8" }} />
         </div>
 
@@ -225,11 +276,11 @@ function LoginInner() {
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {mode === "signup" && (
             <div>
-              <label style={labelStyle}>Prénom</label>
+              <label style={labelStyle}>{t.firstName}</label>
               <input
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Votre prénom"
+                placeholder={t.firstNamePlaceholder}
                 style={inputStyle}
                 autoComplete="given-name"
               />
@@ -237,12 +288,12 @@ function LoginInner() {
           )}
 
           <div>
-            <label style={labelStyle}>Email</label>
+            <label style={labelStyle}>{t.email}</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="vous@exemple.com"
+              placeholder={t.emailPlaceholder}
               required
               style={inputStyle}
               autoComplete="email"
@@ -251,7 +302,7 @@ function LoginInner() {
 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <label style={labelStyle}>Mot de passe</label>
+              <label style={labelStyle}>{t.password}</label>
               {mode === "login" && (
                 <Link
                   href="/forgot-password"
@@ -261,7 +312,7 @@ function LoginInner() {
                     fontFamily: "var(--font-inter), sans-serif",
                   }}
                 >
-                  Mot de passe oublié ?
+                  {t.forgotPassword}
                 </Link>
               )}
             </div>
@@ -269,7 +320,7 @@ function LoginInner() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === "signup" ? "Minimum 6 caractères" : "••••••••"}
+              placeholder={mode === "signup" ? t.passwordPlaceholderSignup : "••••••••"}
               required
               minLength={6}
               style={inputStyle}
@@ -308,10 +359,10 @@ function LoginInner() {
             }}
           >
             {loading
-              ? "Chargement…"
+              ? t.loading
               : mode === "login"
-              ? "Se connecter →"
-              : "Créer mon compte →"}
+              ? t.loginCta
+              : t.signupCta}
           </button>
         </form>
 
@@ -326,7 +377,7 @@ function LoginInner() {
           }}
         >
           <Link href="/" style={{ color: "#6B7280", textDecoration: "none" }}>
-            ← Retour à l&apos;accueil
+            {t.backHome}
           </Link>
         </p>
       </div>
