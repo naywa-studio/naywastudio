@@ -171,6 +171,9 @@ export type Database = {
            *  organisations). Donne accès à /admin et bypasse les
            *  gates de paiement / siège. Élevé manuellement en SQL. */
           is_admin: boolean
+          /** Langue préférée du site (fr/en), choisie via le sélecteur de
+           *  langue. Fallback localStorage pour les visiteurs non connectés. */
+          preferred_language: 'fr' | 'en'
           created_at: string
           updated_at: string
         }

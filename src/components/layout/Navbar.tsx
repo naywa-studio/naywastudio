@@ -4,14 +4,50 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Logo } from "@/components/ui/Logo"
 import { getSupabase } from "@/lib/supabase"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher"
 
-const navLinks = [
-  { label: "Accueil",   href: "/" },
-  { label: "À propos",  href: "/a-propos" },
-  { label: "Solutions", href: "/solutions" },
-  { label: "Tarifs",    href: "/tarifs" },
-  { label: "Contact",   href: "/contact" },
-]
+const navLinks = {
+  fr: [
+    { label: "Accueil",   href: "/" },
+    { label: "À propos",  href: "/a-propos" },
+    { label: "Solutions", href: "/solutions" },
+    { label: "Tarifs",    href: "/tarifs" },
+    { label: "Contact",   href: "/contact" },
+  ],
+  en: [
+    { label: "Home",      href: "/" },
+    { label: "About",     href: "/a-propos" },
+    { label: "Solutions", href: "/solutions" },
+    { label: "Pricing",   href: "/tarifs" },
+    { label: "Contact",   href: "/contact" },
+  ],
+}
+
+const copy = {
+  fr: {
+    myWorkspace: "Mon workspace →",
+    myWorkspaceShort: "Mon workspace",
+    profile: "Profil",
+    menu: "Menu",
+    loggedInAs: "Connecté en tant que",
+    myProfile: "Mon profil",
+    logout: "Se déconnecter",
+    login: "Se connecter",
+    signup: "Créer un compte",
+  },
+  en: {
+    myWorkspace: "My workspace →",
+    myWorkspaceShort: "My workspace",
+    profile: "Profile",
+    menu: "Menu",
+    loggedInAs: "Signed in as",
+    myProfile: "My profile",
+    logout: "Sign out",
+    login: "Sign in",
+    signup: "Create an account",
+  },
+}
 
 interface AuthState {
   loading:   boolean
@@ -21,6 +57,9 @@ interface AuthState {
 
 export function Navbar() {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const links = navLinks[lang]
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -107,7 +146,7 @@ export function Navbar() {
             <Logo size="md" />
           </Link>
           <nav className="nv-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {navLinks.map((link, i) => (
+            {links.map((link, i) => (
               <span key={link.href} style={{ display: "inline-flex", alignItems: "center" }}>
                 {i > 0 && (
                   <span
@@ -149,8 +188,9 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* RIGHT: CTAs de connexion uniquement */}
-        <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        {/* RIGHT: langue + CTAs de connexion */}
+        <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <LanguageSwitcher />
           {auth.loading ? (
             // Skeleton placeholder while session loads (avoids flash)
             <div style={{ width: 220, height: 38 }} />
@@ -175,13 +215,13 @@ export function Navbar() {
                 onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)" }}
               >
-                Mon workspace →
+                {t.myWorkspace}
               </Link>
 
               <div style={{ position: "relative" }} ref={profileRef}>
                 <button
                   onClick={() => setProfileOpen((o) => !o)}
-                  aria-label="Profil"
+                  aria-label={t.profile}
                   style={{
                     width: 38, height: 38, borderRadius: "50%",
                     border: "1px solid rgba(124,99,200,0.30)",
@@ -219,7 +259,7 @@ export function Navbar() {
                       marginBottom: 4,
                     }}>
                       <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                        Connecté en tant que
+                        {t.loggedInAs}
                       </p>
                       <p style={{
                         margin: "2px 0 0", fontSize: 13, fontWeight: 600, color: "#111827",
@@ -235,7 +275,7 @@ export function Navbar() {
                       onMouseEnter={(e) => { e.currentTarget.style.background = "#F8F6FF" }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
                     >
-                      Mon workspace
+                      {t.myWorkspaceShort}
                     </Link>
                     <Link
                       href="/profil"
@@ -244,7 +284,7 @@ export function Navbar() {
                       onMouseEnter={(e) => { e.currentTarget.style.background = "#F8F6FF" }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
                     >
-                      Mon profil
+                      {t.myProfile}
                     </Link>
                     <button
                       onClick={handleLogout}
@@ -258,7 +298,7 @@ export function Navbar() {
                       onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.06)" }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
                     >
-                      Se déconnecter
+                      {t.logout}
                     </button>
                   </div>
                 )}
@@ -290,7 +330,7 @@ export function Navbar() {
                   e.currentTarget.style.borderColor = "rgba(124,99,200,0.25)"
                 }}
               >
-                Se connecter
+                {t.login}
               </Link>
 
               <Link
@@ -312,7 +352,7 @@ export function Navbar() {
                 onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)" }}
               >
-                Créer un compte
+                {t.signup}
               </Link>
             </>
           )}
@@ -322,7 +362,7 @@ export function Navbar() {
         <button
           className="nv-mobile-toggle"
           onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Menu"
+          aria-label={t.menu}
           style={{
             background: "rgba(124,99,200,0.08)",
             border: "1px solid rgba(124,99,200,0.2)",
@@ -369,7 +409,7 @@ export function Navbar() {
               boxShadow: "0 20px 60px -20px rgba(124,99,200,0.25)",
             }}
           >
-            {navLinks.map((link) => (
+            {links.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -387,6 +427,10 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+            <div style={{ height: 1, background: "rgba(240,236,248,0.8)", margin: "6px 4px" }} />
+            <div style={{ padding: "2px 4px 4px" }}>
+              <LanguageSwitcher />
+            </div>
             <div style={{ height: 1, background: "rgba(240,236,248,0.8)", margin: "6px 4px" }} />
 
             {isAuthed ? (
@@ -407,13 +451,13 @@ export function Navbar() {
                     boxShadow: "0 6px 20px -6px rgba(124,99,200,0.5)",
                   }}
                 >
-                  Mon workspace →
+                  {t.myWorkspace}
                 </Link>
                 <p style={{
                   margin: "8px 4px 0", fontSize: 11, color: "#6B7280",
                   fontFamily: "var(--font-inter), sans-serif",
                 }}>
-                  Connecté en tant que <strong style={{ color: "#374151" }}>{auth.email}</strong>
+                  {t.loggedInAs} <strong style={{ color: "#374151" }}>{auth.email}</strong>
                 </p>
                 <button
                   onClick={() => { setMobileOpen(false); handleLogout() }}
@@ -430,7 +474,7 @@ export function Navbar() {
                     fontFamily: "var(--font-inter), sans-serif",
                   }}
                 >
-                  Se déconnecter
+                  {t.logout}
                 </button>
               </>
             ) : (
@@ -451,7 +495,7 @@ export function Navbar() {
                     fontFamily: "var(--font-inter), sans-serif",
                   }}
                 >
-                  Se connecter
+                  {t.login}
                 </Link>
                 <Link
                   href="/login?mode=signup"
@@ -469,7 +513,7 @@ export function Navbar() {
                     boxShadow: "0 6px 20px -6px rgba(124,99,200,0.5)",
                   }}
                 >
-                  Créer un compte
+                  {t.signup}
                 </Link>
               </>
             )}

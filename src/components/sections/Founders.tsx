@@ -1,6 +1,7 @@
 "use client"
 
 import { m } from "framer-motion"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 /**
  * Founders — short trust section, two cards (Elyas + Hussein).
@@ -30,28 +31,74 @@ interface Founder {
   photoUrl?: string
 }
 
-const FOUNDERS: Founder[] = [
-  {
-    initials: "EM",
-    name: "Elyas Malki",
-    role: "Fondateur — Produit & Tech",
-    quote:
-      "J'ai construit Naywa parce que je voulais que l'IA travaille pour les sourceurs, pas à leur place. Nora propose, vous décidez.",
-    linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
-    avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
-    photoUrl: "/elyas.jpg",
+const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
+  fr: [
+    {
+      initials: "EM",
+      name: "Elyas Malki",
+      role: "Fondateur — Produit & Tech",
+      quote:
+        "J'ai construit Naywa parce que je voulais que l'IA travaille pour les sourceurs, pas à leur place. Nora propose, vous décidez.",
+      linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
+      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+      photoUrl: "/elyas.jpg",
+    },
+    {
+      initials: "HM",
+      name: "Hussein Malki",
+      role: "Direction artistique & Marque",
+      quote:
+        "On veut un produit qui se voit, se comprend, et qu'on a envie d'utiliser. La marque Naywa doit faire ressentir tout ça dès le premier coup d'œil.",
+      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+    },
+  ],
+  en: [
+    {
+      initials: "EM",
+      name: "Elyas Malki",
+      role: "Founder — Product & Tech",
+      quote:
+        "I built Naywa because I wanted AI to work for recruiters, not in their place. Nora suggests, you decide.",
+      linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
+      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+      photoUrl: "/elyas.jpg",
+    },
+    {
+      initials: "HM",
+      name: "Hussein Malki",
+      role: "Art Direction & Brand",
+      quote:
+        "We want a product that looks good, makes sense, and that people want to use. The Naywa brand has to convey all of that from the very first glance.",
+      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+    },
+  ],
+}
+
+const copy = {
+  fr: {
+    badge: "Qui sommes-nous ?",
+    titlePre: "Une équipe ",
+    titleItalic: "à taille humaine",
+    titleSuffix: ".",
+    desc:
+      "Naywa Studio est un projet porté par ses fondateurs. Vous échangez directement avec les personnes qui conçoivent le produit, le développent et le font évoluer — pas avec un support de niveau 1.",
+    linkedin: "Voir sur LinkedIn",
   },
-  {
-    initials: "HM",
-    name: "Hussein Malki",
-    role: "Direction artistique & Marque",
-    quote:
-      "On veut un produit qui se voit, se comprend, et qu'on a envie d'utiliser. La marque Naywa doit faire ressentir tout ça dès le premier coup d'œil.",
-    avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+  en: {
+    badge: "Who we are",
+    titlePre: "A ",
+    titleItalic: "small, hands-on",
+    titleSuffix: " team.",
+    desc:
+      "Naywa Studio is a project led by its founders. You talk directly with the people who design the product, build it, and evolve it — not with tier-1 support.",
+    linkedin: "View on LinkedIn",
   },
-]
+}
 
 export function Founders() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const founders = FOUNDERS[lang]
   return (
     <section
       id="fondateurs"
@@ -85,7 +132,7 @@ export function Founders() {
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
-            Qui sommes-nous&nbsp;?
+            {t.badge}
           </span>
           <h2
             style={{
@@ -98,7 +145,7 @@ export function Founders() {
               lineHeight: 1.1,
             }}
           >
-            Une équipe{" "}
+            {t.titlePre}
             <span
               style={{
                 fontFamily: "var(--font-instrument-serif), serif",
@@ -107,9 +154,9 @@ export function Founders() {
                 color: "#7C63C8",
               }}
             >
-              à taille humaine
+              {t.titleItalic}
             </span>
-            .
+            {t.titleSuffix}
           </h2>
           <p
             style={{
@@ -121,9 +168,7 @@ export function Founders() {
               margin: 0,
             }}
           >
-            Naywa Studio est un projet porté par ses fondateurs. Vous échangez
-            directement avec les personnes qui conçoivent le produit, le
-            développent et le font évoluer — pas avec un support de niveau 1.
+            {t.desc}
           </p>
         </m.div>
 
@@ -136,7 +181,7 @@ export function Founders() {
           }}
           className="founders-grid"
         >
-          {FOUNDERS.map((founder, i) => (
+          {founders.map((founder, i) => (
             <m.article
               key={founder.name}
               {...fu(0.10 + i * 0.08)}
@@ -255,7 +300,7 @@ export function Founders() {
                   >
                     <path d="M19 0h-14C2.239 0 0 2.239 0 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5V5c0-2.761-2.238-5-5-5zM8 19H5V8h3v11zM6.5 6.732c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zM20 19h-3v-5.604c0-3.368-4-3.113-4 0V19h-3V8h3v1.765c1.396-2.586 7-2.777 7 2.476V19z" />
                   </svg>
-                  Voir sur LinkedIn
+                  {t.linkedin}
                 </a>
               )}
             </m.article>

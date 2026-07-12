@@ -1,5 +1,6 @@
 "use client"
 import { m } from "framer-motion"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -10,43 +11,79 @@ const fu = (delay: number) => ({
   transition: { duration: 0.65, delay, ease: EASE },
 })
 
-const steps = [
-  {
-    number: "01",
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 11h-6M19 8v6" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-    title: "Importez vos CVs",
-    subtitle: "Drag-drop",
-    desc: "Glissez vos PDFs — même les CVs scannés (OCR intégré). Nora extrait les compétences, l'expérience et les coordonnées, puis classe chaque candidat dans son secteur.",
-  },
-  {
-    number: "02",
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-    title: "Décrivez vos missions",
-    subtitle: "1 minute par mission",
-    desc: "Brief court : titre, lieu, compétences, séniorité. Nora score immédiatement tous les CVs de votre vivier contre cette mission.",
-  },
-  {
-    number: "03",
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-    title: "Présentez votre shortlist",
-    subtitle: "Anonymisée si vous voulez",
-    desc: "Pour chaque mission, votre top candidats triés et justifiés. Génère un PDF anonymisé en 1 clic pour vos clients, suit la prise de contact dans le pipeline.",
-  },
+const icons = [
+  <svg key="0" width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 11h-6M19 8v6" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>,
+  <svg key="1" width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>,
+  <svg key="2" width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>,
 ]
 
+const content = {
+  fr: {
+    badge: "Comment ça marche",
+    titleLine1: "Votre vivier, organisé",
+    titleLine2: "et matché par Nora",
+    intro: "Trois étapes simples entre votre premier contact et vos premiers candidats qualifiés.",
+    stepLabel: "Étape",
+    steps: [
+      {
+        number: "01",
+        title: "Importez vos CVs",
+        subtitle: "Drag-drop",
+        desc: "Glissez vos PDFs — même les CVs scannés (OCR intégré). Nora extrait les compétences, l'expérience et les coordonnées, puis classe chaque candidat dans son secteur.",
+      },
+      {
+        number: "02",
+        title: "Décrivez vos missions",
+        subtitle: "1 minute par mission",
+        desc: "Brief court : titre, lieu, compétences, séniorité. Nora score immédiatement tous les CVs de votre vivier contre cette mission.",
+      },
+      {
+        number: "03",
+        title: "Présentez votre shortlist",
+        subtitle: "Anonymisée si vous voulez",
+        desc: "Pour chaque mission, votre top candidats triés et justifiés. Génère un PDF anonymisé en 1 clic pour vos clients, suit la prise de contact dans le pipeline.",
+      },
+    ],
+  },
+  en: {
+    badge: "How it works",
+    titleLine1: "Your talent pool, organized",
+    titleLine2: "and matched by Nora",
+    intro: "Three simple steps between your first contact and your first qualified candidates.",
+    stepLabel: "Step",
+    steps: [
+      {
+        number: "01",
+        title: "Import your CVs",
+        subtitle: "Drag & drop",
+        desc: "Drop your PDFs — even scanned CVs (built-in OCR). Nora extracts skills, experience, and contact details, then sorts each candidate into their sector.",
+      },
+      {
+        number: "02",
+        title: "Describe your job openings",
+        subtitle: "1 minute per opening",
+        desc: "Short brief: title, location, skills, seniority. Nora immediately scores every CV in your talent pool against that opening.",
+      },
+      {
+        number: "03",
+        title: "Present your shortlist",
+        subtitle: "Anonymized if you want",
+        desc: "For each opening, your top candidates sorted and justified. Generate an anonymized PDF in one click for your clients, and track outreach in the pipeline.",
+      },
+    ],
+  },
+}
+
 export function HowItWorks() {
+  const { lang } = useLanguage()
+  const c = content[lang]
+  const steps = c.steps.map((s, i) => ({ ...s, icon: icons[i] }))
   return (
     <section
       style={{
@@ -87,7 +124,7 @@ export function HowItWorks() {
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
-            Comment ça marche
+            {c.badge}
           </span>
 
           <h2
@@ -101,8 +138,8 @@ export function HowItWorks() {
               margin: 0,
             }}
           >
-            Votre vivier, organisé<br />
-            et matché par Nora
+            {c.titleLine1}<br />
+            {c.titleLine2}
           </h2>
 
           <p
@@ -115,7 +152,7 @@ export function HowItWorks() {
               maxWidth: "46ch",
             }}
           >
-            Trois étapes simples entre votre premier contact et vos premiers candidats qualifiés.
+            {c.intro}
           </p>
         </m.div>
 
@@ -185,7 +222,7 @@ export function HowItWorks() {
                       textTransform: "uppercase" as const,
                     }}
                   >
-                    Étape {number}
+                    {c.stepLabel} {number}
                   </p>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 3 }}>
                     <span

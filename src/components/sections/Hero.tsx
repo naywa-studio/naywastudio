@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { m } from 'framer-motion'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -11,7 +12,34 @@ const fu = (delay: number) => ({
   transition: { duration: 0.75, delay, ease: EASE },
 })
 
+const content = {
+  fr: {
+    titleLine1: "L'IA traite,",
+    titleLine2Pre: 'vous',
+    titleWord: 'décidez',
+    subtitle:
+      "Naywa Studio conçoit des packages d'optimisation de process métier augmentés par l'intelligence artificielle. Notre premier package est dédié au sourcing : Nora, l'assistante IA qui range, score, anonymise et suit votre vivier de candidats, sans jamais agir à votre place.",
+    ctaPrimary: 'Démarrer votre essai gratuit →',
+    ctaSecondary: 'Découvrir nos solutions',
+    trialBold: '15 jours offerts',
+    trialRest: ' · sans engagement · annulable à tout moment',
+  },
+  en: {
+    titleLine1: 'AI handles it,',
+    titleLine2Pre: 'you',
+    titleWord: 'decide',
+    subtitle:
+      'Naywa Studio designs AI-powered business process optimization packages. Our first package is built for sourcing: Nora, the AI assistant that organizes, scores, anonymizes, and tracks your talent pool — without ever acting in your place.',
+    ctaPrimary: 'Start your free trial →',
+    ctaSecondary: 'Discover our solutions',
+    trialBold: '15 days free',
+    trialRest: ' · no commitment · cancel anytime',
+  },
+}
+
 export function Hero() {
+  const { lang } = useLanguage()
+  const c = content[lang]
   return (
     <section
       style={{
@@ -61,8 +89,8 @@ export function Hero() {
             maxWidth: '14ch',
           }}
         >
-          L&apos;IA traite,<br />
-          vous{' '}
+          {c.titleLine1}<br />
+          {c.titleLine2Pre}{' '}
           <span
             style={{
               fontFamily: 'var(--font-instrument-serif), ui-serif, Georgia, serif',
@@ -75,7 +103,7 @@ export function Hero() {
               backgroundClip: 'text',
             }}
           >
-            décidez
+            {c.titleWord}
           </span>
           <span style={{ color: '#111827' }}>.</span>
         </m.h1>
@@ -92,11 +120,7 @@ export function Hero() {
             margin: '0 0 40px',
           }}
         >
-          Naywa Studio conçoit des packages d&apos;optimisation de process
-          métier augmentés par l&apos;intelligence artificielle. Notre premier
-          package est dédié au sourcing&nbsp;: Nora, l&apos;assistante IA qui
-          range, score, anonymise et suit votre vivier de candidats, sans
-          jamais agir à votre place.
+          {c.subtitle}
         </m.p>
 
         {/* CTAs */}
@@ -136,7 +160,7 @@ export function Hero() {
               e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,99,200,0.28)'
             }}
           >
-            Démarrer votre essai gratuit →
+            {c.ctaPrimary}
           </Link>
 
           <a
@@ -167,7 +191,7 @@ export function Hero() {
               e.currentTarget.style.color = '#4B5563'
             }}
           >
-            Découvrir nos solutions
+            {c.ctaSecondary}
           </a>
         </m.div>
 
@@ -198,8 +222,8 @@ export function Hero() {
             }}
           />
           <span>
-            <strong style={{ color: '#111827', fontWeight: 700 }}>15 jours offerts</strong>
-            {' · sans engagement · annulable à tout moment'}
+            <strong style={{ color: '#111827', fontWeight: 700 }}>{c.trialBold}</strong>
+            {c.trialRest}
           </span>
         </m.p>
 

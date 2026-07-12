@@ -2,34 +2,76 @@
 
 import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
+import { useLanguage, type Lang } from '@/lib/i18n/LanguageContext'
 
 type FooterLink = { label: string; href: string; external?: boolean }
 
-const footerLinks: Record<string, FooterLink[]> = {
-  Produit: [
-    { label: 'Solutions', href: '/solutions' },
-    { label: 'Tarifs', href: '/tarifs' },
-    { label: 'Mon espace', href: '/workspace' },
-    { label: "S'inscrire", href: '/login?mode=signup' },
-  ],
-  Ressources: [
-    { label: 'À propos', href: '/a-propos' },
-    { label: 'FAQ', href: '/faq' },
-  ],
-  Légal: [
-    { label: 'Mentions légales', href: '/mentions-legales' },
-    { label: 'Politique de confidentialité', href: '/politique-confidentialite' },
-    { label: "Conditions d'utilisation", href: '/cgu' },
-    { label: 'DPA (RGPD)', href: '/dpa-naywa-v1.pdf', external: true },
-  ],
-  Contact: [
-    { label: 'Nous contacter', href: '/contact' },
-    { label: 'contact@naywastudio.com', href: 'mailto:contact@naywastudio.com' },
-    { label: 'LinkedIn', href: 'https://www.linkedin.com/in/elyas-malki-2a6b7933a/', external: true },
-  ],
+const footerLinks: Record<Lang, Record<string, FooterLink[]>> = {
+  fr: {
+    Produit: [
+      { label: 'Solutions', href: '/solutions' },
+      { label: 'Tarifs', href: '/tarifs' },
+      { label: 'Mon espace', href: '/workspace' },
+      { label: "S'inscrire", href: '/login?mode=signup' },
+    ],
+    Ressources: [
+      { label: 'À propos', href: '/a-propos' },
+      { label: 'FAQ', href: '/faq' },
+    ],
+    Légal: [
+      { label: 'Mentions légales', href: '/mentions-legales' },
+      { label: 'Politique de confidentialité', href: '/politique-confidentialite' },
+      { label: "Conditions d'utilisation", href: '/cgu' },
+      { label: 'DPA (RGPD)', href: '/dpa-naywa-v1.pdf', external: true },
+    ],
+    Contact: [
+      { label: 'Nous contacter', href: '/contact' },
+      { label: 'contact@naywastudio.com', href: 'mailto:contact@naywastudio.com' },
+      { label: 'LinkedIn', href: 'https://www.linkedin.com/in/elyas-malki-2a6b7933a/', external: true },
+    ],
+  },
+  en: {
+    Product: [
+      { label: 'Solutions', href: '/solutions' },
+      { label: 'Pricing', href: '/tarifs' },
+      { label: 'My workspace', href: '/workspace' },
+      { label: 'Sign up', href: '/login?mode=signup' },
+    ],
+    Resources: [
+      { label: 'About', href: '/a-propos' },
+      { label: 'FAQ', href: '/faq' },
+    ],
+    Legal: [
+      { label: 'Legal Notice', href: '/mentions-legales' },
+      { label: 'Privacy Policy', href: '/politique-confidentialite' },
+      { label: 'Terms of Service', href: '/cgu' },
+      { label: 'DPA (GDPR)', href: '/dpa-naywa-v1.pdf', external: true },
+    ],
+    Contact: [
+      { label: 'Contact us', href: '/contact' },
+      { label: 'contact@naywastudio.com', href: 'mailto:contact@naywastudio.com' },
+      { label: 'LinkedIn', href: 'https://www.linkedin.com/in/elyas-malki-2a6b7933a/', external: true },
+    ],
+  },
+}
+
+const copy = {
+  fr: {
+    tagline: "Naywa Studio conçoit des packages d'optimisation de process métier. Nous traitons. Vous décidez.",
+    rights: '© 2026 Naywa Studio. Tous droits réservés.',
+    madeWith: 'Fait avec soin à Paris',
+  },
+  en: {
+    tagline: 'Naywa Studio designs AI-powered business process optimization packages. We handle it. You decide.',
+    rights: '© 2026 Naywa Studio. All rights reserved.',
+    madeWith: 'Made with care in Paris',
+  },
 }
 
 export function Footer() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const links = footerLinks[lang]
   return (
     <footer
       style={{
@@ -64,12 +106,12 @@ export function Footer() {
               maxWidth: '28ch',
             }}
           >
-            Naywa Studio conçoit des packages d&apos;optimisation de process métier. Nous traitons. Vous décidez.
+            {t.tagline}
           </p>
         </div>
 
         {/* Link columns */}
-        {Object.entries(footerLinks).map(([category, links]) => (
+        {Object.entries(links).map(([category, categoryLinks]) => (
           <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <p
               style={{
@@ -84,7 +126,7 @@ export function Footer() {
             >
               {category}
             </p>
-            {links.map(({ label, href, external }) => (
+            {categoryLinks.map(({ label, href, external }) => (
               external ? (
                 <a
                   key={label}
@@ -146,7 +188,7 @@ export function Footer() {
             color: '#6B7280',
           }}
         >
-          © 2026 Naywa Studio. Tous droits réservés.
+          {t.rights}
         </span>
         <span
           style={{
@@ -155,7 +197,7 @@ export function Footer() {
             color: '#6B7280',
           }}
         >
-          Fait avec soin à Paris
+          {t.madeWith}
         </span>
       </div>
 

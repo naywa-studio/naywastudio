@@ -13,6 +13,7 @@
 
 import { useState } from "react"
 import { m, AnimatePresence } from "framer-motion"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -27,69 +28,145 @@ interface Step {
   y: number
 }
 
-const STEPS: Step[] = [
-  {
-    number: "01",
-    title:  "Vivier",
-    short:  "Upload CV + classement par secteur",
-    body:   "Drag-drop vos CVs en PDF — même scannés (OCR intégré). Nora extrait le nom, l'expérience post-diplôme réelle, les compétences, la séniorité, et classe chaque candidat dans son secteur (Commercial, IT / Data, Ingénierie…). Pas de tri manuel — votre vivier s'organise tout seul, CV après CV.",
-    hint:   "Vivier organisé par secteurs + fiche candidat parsée",
-    x: 90,
-    y: 110,
-  },
-  {
-    number: "02",
-    title:  "Missions",
-    short:  "Brief texte → formulaire pré-rempli",
-    body:   "Vous collez un brief client, une fiche de poste ou un RFP. Nora extrait les 14 champs structurés en 5 secondes : intitulé, lieu, séniorité, compétences requises, type de contrat, TJM cible, brut cible. Vous corrigez ce qui doit l'être, vous validez — le matching se lance automatiquement.",
-    hint:   "Modal de création de mission avec bordures colorées",
-    x: 270,
-    y: 50,
-  },
-  {
-    number: "03",
-    title:  "Matching",
-    short:  "Score + justification multi-critères",
-    body:   "Pour chaque mission, Nora score tous les candidats du vivier. Le score est justifié dimension par dimension : compétences techniques, séniorité, secteur, localisation. Aucune boîte noire — vous cliquez sur un candidat et vous voyez pourquoi il a 87% et pas 60%.",
-    hint:   "Shortlist triée par tier : excellent / bon / moyen",
-    x: 450,
-    y: 110,
-  },
-  {
-    number: "04",
-    title:  "Pricing Syntec",
-    short:  "Calcul marge temps réel selon convention",
-    body:   "Vous réglez le TJM facturable et le brut consultant. Naywa calcule la marge mensuelle réelle, avec charges patronales par statut, plafonds URSSAF, calendrier fériés français, indemnité de congés payés, période d'essai. Bonus : un chart « risque de rupture » qui visualise mois par mois où sont les zones de fragilité.",
-    hint:   "Layout 2 colonnes : sliders + verdict + charts",
-    x: 630,
-    y: 50,
-  },
-  {
-    number: "05",
-    title:  "Anonymisation",
-    short:  "PDF brandé à votre organisation, 1 clic",
-    body:   "Bouton « Anonymiser pour cette mission ». PDF généré sans nom, sans photo, sans coordonnées, avec votre logo en header et une référence interne C-XXXXXXXX pour suivre le candidat avec votre client sans révéler son identité. Le CV original reste intact dans votre vivier.",
-    hint:   "Aperçu du PDF anonymisé téléchargeable",
-    x: 810,
-    y: 110,
-  },
-  {
-    number: "06",
-    title:  "Pipeline",
-    short:  "Suivi candidat Identifié → Offre",
-    body:   "Kanban partagé entre les membres de votre structure. Chaque candidat × mission a son étape : Identifié, Contacté, Réponse, Entretien, Offre. Vous déplacez à la main — Nora suggère mais ne décide jamais. Tout le monde voit où en est chaque positionnement, sans tableur partagé à maintenir.",
-    hint:   "Vue Kanban partagée avec colonnes par stage",
-    x: 990,
-    y: 50,
-  },
-]
+const STEPS: Record<'fr' | 'en', Step[]> = {
+  fr: [
+    {
+      number: "01",
+      title:  "Vivier",
+      short:  "Upload CV + classement par secteur",
+      body:   "Drag-drop vos CVs en PDF — même scannés (OCR intégré). Nora extrait le nom, l'expérience post-diplôme réelle, les compétences, la séniorité, et classe chaque candidat dans son secteur (Commercial, IT / Data, Ingénierie…). Pas de tri manuel — votre vivier s'organise tout seul, CV après CV.",
+      hint:   "Vivier organisé par secteurs + fiche candidat parsée",
+      x: 90,
+      y: 110,
+    },
+    {
+      number: "02",
+      title:  "Missions",
+      short:  "Brief texte → formulaire pré-rempli",
+      body:   "Vous collez un brief client, une fiche de poste ou un RFP. Nora extrait les 14 champs structurés en 5 secondes : intitulé, lieu, séniorité, compétences requises, type de contrat, TJM cible, brut cible. Vous corrigez ce qui doit l'être, vous validez — le matching se lance automatiquement.",
+      hint:   "Modal de création de mission avec bordures colorées",
+      x: 270,
+      y: 50,
+    },
+    {
+      number: "03",
+      title:  "Matching",
+      short:  "Score + justification multi-critères",
+      body:   "Pour chaque mission, Nora score tous les candidats du vivier. Le score est justifié dimension par dimension : compétences techniques, séniorité, secteur, localisation. Aucune boîte noire — vous cliquez sur un candidat et vous voyez pourquoi il a 87% et pas 60%.",
+      hint:   "Shortlist triée par tier : excellent / bon / moyen",
+      x: 450,
+      y: 110,
+    },
+    {
+      number: "04",
+      title:  "Pricing Syntec",
+      short:  "Calcul marge temps réel selon convention",
+      body:   "Vous réglez le TJM facturable et le brut consultant. Naywa calcule la marge mensuelle réelle, avec charges patronales par statut, plafonds URSSAF, calendrier fériés français, indemnité de congés payés, période d'essai. Bonus : un chart « risque de rupture » qui visualise mois par mois où sont les zones de fragilité.",
+      hint:   "Layout 2 colonnes : sliders + verdict + charts",
+      x: 630,
+      y: 50,
+    },
+    {
+      number: "05",
+      title:  "Anonymisation",
+      short:  "PDF brandé à votre organisation, 1 clic",
+      body:   "Bouton « Anonymiser pour cette mission ». PDF généré sans nom, sans photo, sans coordonnées, avec votre logo en header et une référence interne C-XXXXXXXX pour suivre le candidat avec votre client sans révéler son identité. Le CV original reste intact dans votre vivier.",
+      hint:   "Aperçu du PDF anonymisé téléchargeable",
+      x: 810,
+      y: 110,
+    },
+    {
+      number: "06",
+      title:  "Pipeline",
+      short:  "Suivi candidat Identifié → Offre",
+      body:   "Kanban partagé entre les membres de votre structure. Chaque candidat × mission a son étape : Identifié, Contacté, Réponse, Entretien, Offre. Vous déplacez à la main — Nora suggère mais ne décide jamais. Tout le monde voit où en est chaque positionnement, sans tableur partagé à maintenir.",
+      hint:   "Vue Kanban partagée avec colonnes par stage",
+      x: 990,
+      y: 50,
+    },
+  ],
+  en: [
+    {
+      number: "01",
+      title:  "Talent pool",
+      short:  "CV upload + sector classification",
+      body:   "Drag and drop your CVs as PDFs — even scanned ones (built-in OCR). Nora extracts the name, real post-graduation experience, skills, and seniority, then sorts each candidate into their sector (Sales, IT/Data, Engineering…). No manual sorting — your talent pool organizes itself, CV after CV.",
+      hint:   "Talent pool organized by sector + parsed candidate profile",
+      x: 90,
+      y: 110,
+    },
+    {
+      number: "02",
+      title:  "Job openings",
+      short:  "Text brief → pre-filled form",
+      body:   "You paste a client brief, a job description, or an RFP. Nora extracts 14 structured fields in 5 seconds: title, location, seniority, required skills, contract type, target daily rate, target salary. You correct what needs correcting, you validate — matching starts automatically.",
+      hint:   "Job creation modal with color-coded borders",
+      x: 270,
+      y: 50,
+    },
+    {
+      number: "03",
+      title:  "Matching",
+      short:  "Score + multi-criteria justification",
+      body:   "For each job opening, Nora scores every candidate in the talent pool. The score is justified dimension by dimension: technical skills, seniority, sector, location. No black box — you click on a candidate and see exactly why they scored 87% and not 60%.",
+      hint:   "Shortlist sorted by tier: excellent / good / fair",
+      x: 450,
+      y: 110,
+    },
+    {
+      number: "04",
+      title:  "Consulting-rate pricing",
+      short:  "Real-time margin calculation, industry rules",
+      body:   "You set the billable daily rate and the consultant's gross salary. Naywa calculates the real monthly margin, with employer payroll taxes by status, social security caps, the French holiday calendar, paid leave allowance, and probationary period. Bonus: a \"termination risk\" chart that visualizes month by month where the fragile spots are.",
+      hint:   "Two-column layout: sliders + verdict + charts",
+      x: 630,
+      y: 50,
+    },
+    {
+      number: "05",
+      title:  "Anonymization",
+      short:  "PDF branded to your organization, one click",
+      body:   "One click on \"Anonymize for this opening.\" A PDF is generated with no name, no photo, no contact details, your logo in the header, and an internal reference (C-XXXXXXXX) to track the candidate with your client without revealing their identity. The original CV stays untouched in your talent pool.",
+      hint:   "Preview of the downloadable anonymized PDF",
+      x: 810,
+      y: 110,
+    },
+    {
+      number: "06",
+      title:  "Pipeline",
+      short:  "Candidate tracking, Identified → Offer",
+      body:   "A Kanban board shared across your team. Every candidate × job pairing has its own stage: Identified, Contacted, Replied, Interview, Offer. You move things by hand — Nora suggests but never decides. Everyone can see where each candidate stands, with no shared spreadsheet to maintain.",
+      hint:   "Shared Kanban view with columns per stage",
+      x: 990,
+      y: 50,
+    },
+  ],
+}
 
-/** SVG path qui passe par les 6 nœuds avec une courbe douce. */
+const copy = {
+  fr: {
+    titlePre: "Le process en ",
+    titleItalic: "6 étapes",
+    intro:
+      "Cliquez sur une étape pour voir comment Naywa l'optimise. Du premier CV qui rentre dans votre vivier jusqu'à l'offre signée avec votre client.",
+    inTool: "Côté outil :",
+  },
+  en: {
+    titlePre: "The process in ",
+    titleItalic: "6 steps",
+    intro:
+      "Click a step to see how Naywa optimizes it. From the first CV entering your talent pool to the signed offer with your client.",
+    inTool: "In the tool:",
+  },
+}
+
+/** SVG path qui passe par les 6 nœuds avec une courbe douce. (positions identiques FR/EN) */
 const PATH = (() => {
-  let d = `M ${STEPS[0].x} ${STEPS[0].y}`
-  for (let i = 1; i < STEPS.length; i++) {
-    const prev = STEPS[i - 1]
-    const cur  = STEPS[i]
+  const pts = STEPS.fr
+  let d = `M ${pts[0].x} ${pts[0].y}`
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1]
+    const cur  = pts[i]
     const cx1  = prev.x + (cur.x - prev.x) * 0.5
     const cx2  = prev.x + (cur.x - prev.x) * 0.5
     d += ` C ${cx1} ${prev.y}, ${cx2} ${cur.y}, ${cur.x} ${cur.y}`
@@ -98,8 +175,11 @@ const PATH = (() => {
 })()
 
 export function PackageSourcingFlow() {
+  const { lang } = useLanguage()
+  const c = copy[lang]
+  const steps = STEPS[lang]
   const [active, setActive] = useState(0)
-  const step = STEPS[active]
+  const step = steps[active]
 
   return (
     <section
@@ -136,7 +216,7 @@ export function PackageSourcingFlow() {
               lineHeight: 1.15,
             }}
           >
-            Le process en{" "}
+            {c.titlePre}
             <span
               style={{
                 fontFamily: "var(--font-instrument-serif), serif",
@@ -145,7 +225,7 @@ export function PackageSourcingFlow() {
                 color: "#7C63C8",
               }}
             >
-              6 étapes
+              {c.titleItalic}
             </span>
           </h3>
           <p
@@ -158,9 +238,7 @@ export function PackageSourcingFlow() {
               margin: 0,
             }}
           >
-            Cliquez sur une étape pour voir comment Naywa l&apos;optimise. Du
-            premier CV qui rentre dans votre vivier jusqu&apos;à l&apos;offre
-            signée avec votre client.
+            {c.intro}
           </p>
         </m.div>
 
@@ -209,7 +287,7 @@ export function PackageSourcingFlow() {
             />
 
             {/* Nodes */}
-            {STEPS.map((s, i) => {
+            {steps.map((s, i) => {
               const isActive = active === i
               return (
                 <g key={s.number} style={{ cursor: "pointer" }} onClick={() => setActive(i)}>
@@ -260,7 +338,7 @@ export function PackageSourcingFlow() {
               marginTop: 14,
             }}
           >
-            {STEPS.map((s, i) => {
+            {steps.map((s, i) => {
               const isActive = active === i
               return (
                 <button
@@ -401,7 +479,7 @@ export function PackageSourcingFlow() {
                     </svg>
                   </span>
                   <span>
-                    <strong style={{ color: "#374151", fontWeight: 600 }}>Côté outil :</strong>{" "}
+                    <strong style={{ color: "#374151", fontWeight: 600 }}>{c.inTool}</strong>{" "}
                     {step.hint}
                   </span>
                 </p>

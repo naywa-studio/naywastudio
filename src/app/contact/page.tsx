@@ -6,12 +6,60 @@ import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import { getSupabase } from "@/lib/supabase"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 type Status = "idle" | "sending" | "sent" | "error"
 
+const content = {
+  fr: {
+    badge: "Contact",
+    titlePre: "Parlons de votre ",
+    titleItalic: "structure",
+    titleSuffix: ".",
+    intro: "Une question, un essai à organiser, un retour à nous faire ? Écrivez-nous directement, nous revenons vers vous sous 48h ouvrées.",
+    nameLabel: "Votre nom",
+    namePlaceholder: "Jean Dupont",
+    emailLabel: "Votre email",
+    emailPlaceholder: "jean@entreprise.fr",
+    subjectLabel: "Objet",
+    subjectPlaceholder: "Demande de démo / Essai gratuit / Question…",
+    messageLabel: "Votre message",
+    messagePlaceholder: "Décrivez votre besoin, votre structure, ou ce que vous aimeriez tester…",
+    sent: "Message envoyé. Nous revenons vers vous sous 48h ouvrées.",
+    errorFallback: "Impossible d'envoyer pour le moment. Réessayez ou utilisez l'email ci-dessus.",
+    sendError: "Impossible d'envoyer le message",
+    unknownError: "Erreur inconnue",
+    sending: "Envoi en cours…",
+    submit: "Envoyer le message",
+  },
+  en: {
+    badge: "Contact",
+    titlePre: "Let's talk about your ",
+    titleItalic: "team",
+    titleSuffix: ".",
+    intro: "A question, a trial to set up, feedback to share? Write to us directly, we'll get back to you within 48 business hours.",
+    nameLabel: "Your name",
+    namePlaceholder: "Jane Smith",
+    emailLabel: "Your email",
+    emailPlaceholder: "jane@company.com",
+    subjectLabel: "Subject",
+    subjectPlaceholder: "Demo request / Free trial / Question…",
+    messageLabel: "Your message",
+    messagePlaceholder: "Describe your needs, your team, or what you'd like to test…",
+    sent: "Message sent. We'll get back to you within 48 business hours.",
+    errorFallback: "Unable to send right now. Please try again or use the email above.",
+    sendError: "Unable to send the message",
+    unknownError: "Unknown error",
+    sending: "Sending…",
+    submit: "Send message",
+  },
+}
+
 export default function ContactPage() {
+  const { lang } = useLanguage()
+  const t = content[lang]
   const [email, setEmail]     = useState("")
   const [name,  setName]      = useState("")
   const [subject, setSubject] = useState("")
@@ -40,7 +88,7 @@ export default function ContactPage() {
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? "Impossible d'envoyer le message")
+        throw new Error(body.error ?? t.sendError)
       }
       setStatus("sent")
       setName("")
@@ -48,7 +96,7 @@ export default function ContactPage() {
       setMessage("")
     } catch (err: unknown) {
       setStatus("error")
-      setErrorMsg(err instanceof Error ? err.message : "Erreur inconnue")
+      setErrorMsg(err instanceof Error ? err.message : t.unknownError)
     }
   }
 
@@ -83,7 +131,7 @@ export default function ContactPage() {
                   fontFamily: "var(--font-inter), sans-serif",
                 }}
               >
-                Contact
+                {t.badge}
               </span>
               <h1
                 style={{
@@ -96,7 +144,7 @@ export default function ContactPage() {
                   letterSpacing: "-0.025em",
                 }}
               >
-                Parlons de votre{" "}
+                {t.titlePre}
                 <span
                   style={{
                     fontFamily: "var(--font-instrument-serif), serif",
@@ -105,9 +153,9 @@ export default function ContactPage() {
                     color: "#7C63C8",
                   }}
                 >
-                  structure
+                  {t.titleItalic}
                 </span>
-                .
+                {t.titleSuffix}
               </h1>
               <p
                 style={{
@@ -119,9 +167,7 @@ export default function ContactPage() {
                   margin: 0,
                 }}
               >
-                Une question, un essai à organiser, un retour à nous faire ?
-                Écrivez-nous directement, nous revenons vers vous sous 48h
-                ouvrées.
+                {t.intro}
               </p>
 
               <a
@@ -176,47 +222,47 @@ export default function ContactPage() {
                 gap: 18,
               }}
             >
-              <Field label="Votre nom" required>
+              <Field label={t.nameLabel} required>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Jean Dupont"
+                  placeholder={t.namePlaceholder}
                   required
                   disabled={disabled}
                   style={inputStyle}
                 />
               </Field>
 
-              <Field label="Votre email" required>
+              <Field label={t.emailLabel} required>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="jean@entreprise.fr"
+                  placeholder={t.emailPlaceholder}
                   required
                   disabled={disabled}
                   style={inputStyle}
                 />
               </Field>
 
-              <Field label="Objet" required>
+              <Field label={t.subjectLabel} required>
                 <input
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Demande de démo / Essai gratuit / Question…"
+                  placeholder={t.subjectPlaceholder}
                   required
                   disabled={disabled}
                   style={inputStyle}
                 />
               </Field>
 
-              <Field label="Votre message" required>
+              <Field label={t.messageLabel} required>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Décrivez votre besoin, votre structure, ou ce que vous aimeriez tester…"
+                  placeholder={t.messagePlaceholder}
                   required
                   disabled={disabled}
                   rows={6}
@@ -237,7 +283,7 @@ export default function ContactPage() {
                     fontWeight: 500,
                   }}
                 >
-                  Message envoyé. Nous revenons vers vous sous 48h ouvrées.
+                  {t.sent}
                 </div>
               )}
               {status === "error" && (
@@ -253,7 +299,7 @@ export default function ContactPage() {
                     fontWeight: 500,
                   }}
                 >
-                  {errorMsg || "Impossible d'envoyer pour le moment. Réessayez ou utilisez l'email ci-dessus."}
+                  {errorMsg || t.errorFallback}
                 </div>
               )}
 
@@ -283,7 +329,7 @@ export default function ContactPage() {
                   e.currentTarget.style.transform = "translateY(0)"
                 }}
               >
-                {status === "sending" ? "Envoi en cours…" : "Envoyer le message"}
+                {status === "sending" ? t.sending : t.submit}
               </button>
             </m.form>
           </div>

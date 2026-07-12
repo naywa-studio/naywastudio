@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import { spaceGrotesk, inter, instrumentSerif } from '@/lib/fonts'
 import { MotionProvider } from '@/components/providers/MotionProvider'
+import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import { CookieBanner } from '@/components/layout/CookieBanner'
 import { PreviewBadge } from '@/components/layout/PreviewBadge'
 import './globals.css'
@@ -132,11 +133,13 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${inter.variable} ${instrumentSerif.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
-        <MotionProvider>
-          <main className="flex-1">{children}</main>
-        </MotionProvider>
-        <PreviewBadge />
-        <CookieBanner />
+        <LanguageProvider>
+          <MotionProvider>
+            <main className="flex-1">{children}</main>
+          </MotionProvider>
+          <PreviewBadge />
+          <CookieBanner />
+        </LanguageProvider>
 
         {/* Structured Data */}
         <Script

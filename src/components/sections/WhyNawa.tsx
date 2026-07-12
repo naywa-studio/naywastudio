@@ -1,5 +1,6 @@
 "use client"
 import { m } from "framer-motion"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -10,25 +11,61 @@ const fu = (delay: number) => ({
   transition: { duration: 0.65, delay, ease: EASE },
 })
 
-const metrics = [
-  {
-    value: "Vous",
-    title: "Vous gardez la décision",
-    desc: "Aucun envoi, aucun classement, aucune action automatique. Nora propose, vous tranchez. Vos process, votre style, vos clients.",
+const content = {
+  fr: {
+    badge: "Notre proposition de valeur",
+    titleLine1: "Trois principes,",
+    titleLine2: "aucune fausse promesse.",
+    intro:
+      "Naywa n'automatise pas votre métier. Nous l'outillons pour que vous gardiez la main là où ça compte, et que la machine absorbe ce qui n'aurait jamais dû être à votre charge.",
+    metrics: [
+      {
+        value: "Vous",
+        title: "Vous gardez la décision",
+        desc: "Aucun envoi, aucun classement, aucune action automatique. Nora propose, vous tranchez. Vos process, votre style, vos clients.",
+      },
+      {
+        value: "IA",
+        title: "L'IA absorbe la friction",
+        desc: "Parsing, indexation, scoring justifié, anonymisation, calcul de marge : tout ce qui vous prenait des heures se fait pendant que vous lisez ce paragraphe.",
+      },
+      {
+        value: "Métier",
+        title: "Conçu pour le métier",
+        desc: "Naywa ne cherche pas à tout faire. Nous bâtissons un outil par métier, en profondeur, avec les structures qui le vivent au quotidien.",
+      },
+    ],
   },
-  {
-    value: "IA",
-    title: "L'IA absorbe la friction",
-    desc: "Parsing, indexation, scoring justifié, anonymisation, calcul de marge : tout ce qui vous prenait des heures se fait pendant que vous lisez ce paragraphe.",
+  en: {
+    badge: "Our value proposition",
+    titleLine1: "Three principles,",
+    titleLine2: "no false promises.",
+    intro:
+      "Naywa doesn't automate your job. We equip you to stay in control where it matters, while the machine absorbs what should never have been your burden.",
+    metrics: [
+      {
+        value: "You",
+        title: "You keep the decision",
+        desc: "No sending, no sorting, no automatic action. Nora suggests, you decide. Your process, your style, your clients.",
+      },
+      {
+        value: "AI",
+        title: "AI absorbs the friction",
+        desc: "Parsing, indexing, justified scoring, anonymization, margin calculation: everything that used to take you hours happens while you read this paragraph.",
+      },
+      {
+        value: "Craft",
+        title: "Built for the craft",
+        desc: "Naywa isn't trying to do everything. We build one tool per profession, in depth, with the teams who live it every day.",
+      },
+    ],
   },
-  {
-    value: "Métier",
-    title: "Conçu pour le métier",
-    desc: "Naywa ne cherche pas à tout faire. Nous bâtissons un outil par métier, en profondeur, avec les structures qui le vivent au quotidien.",
-  },
-]
+}
 
 export function WhyNawa() {
+  const { lang } = useLanguage()
+  const c = content[lang]
+  const metrics = c.metrics
   return (
     <section
       style={{
@@ -69,7 +106,7 @@ export function WhyNawa() {
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
-            Notre proposition de valeur
+            {c.badge}
           </span>
 
           <h2
@@ -84,8 +121,8 @@ export function WhyNawa() {
               maxWidth: "22ch",
             }}
           >
-            Trois principes,<br />
-            aucune fausse promesse.
+            {c.titleLine1}<br />
+            {c.titleLine2}
           </h2>
 
           <p
@@ -98,9 +135,7 @@ export function WhyNawa() {
               maxWidth: "50ch",
             }}
           >
-            Naywa n&apos;automatise pas votre métier. Nous l&apos;outillons
-            pour que vous gardiez la main là où ça compte, et que la machine
-            absorbe ce qui n&apos;aurait jamais dû être à votre charge.
+            {c.intro}
           </p>
         </m.div>
 

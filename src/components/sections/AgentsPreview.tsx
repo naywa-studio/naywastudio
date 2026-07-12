@@ -1,6 +1,7 @@
 "use client"
 import { m } from "framer-motion"
 import Link from "next/link"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -11,17 +12,54 @@ const fu = (delay: number) => ({
   transition: { duration: 0.65, delay, ease: EASE },
 })
 
-const NORA_FEATURES = [
-  "Ingestion CV automatique (PDF, OCR pour CVs scannés)",
-  "Vivier organisé : Nora classe vos candidats par secteur",
-  "Matching IA contre vos missions avec score justifié et explicable",
-  "Pricing Syntec automatisé : marge, charges, plafonds URSSAF, calendrier réel",
-  "Risque rupture employeur visualisé mois par mois",
-  "Anonymisation 1 clic — PDF brandé à votre structure, prêt client",
-  "Pipeline candidat partagé entre vos collègues",
-]
+const content = {
+  fr: {
+    badge: "L'agent disponible",
+    titlePre: "Faites connaissance avec ",
+    titleName: "Nora",
+    subtitle: "L'assistante IA du Package Sourcing. Elle traite, vous décidez.",
+    role: "CV management & matching IA",
+    available: "Disponible",
+    desc:
+      "Vous uploadez vos CVs et décrivez vos missions. Nora parse, indexe, match, chiffre selon Syntec et justifie ses scores. Vous obtenez des shortlists prêtes à présenter — anonymisées si besoin.",
+    features: [
+      "Ingestion CV automatique (PDF, OCR pour CVs scannés)",
+      "Vivier organisé : Nora classe vos candidats par secteur",
+      "Matching IA contre vos missions avec score justifié et explicable",
+      "Pricing Syntec automatisé : marge, charges, plafonds URSSAF, calendrier réel",
+      "Risque rupture employeur visualisé mois par mois",
+      "Anonymisation 1 clic — PDF brandé à votre structure, prêt client",
+      "Pipeline candidat partagé entre vos collègues",
+    ],
+    cta: "15 jours gratuits →",
+    cardLabel: "Poste · Data Engineer Paris — 3 meilleurs",
+  },
+  en: {
+    badge: "The agent on duty",
+    titlePre: "Meet ",
+    titleName: "Nora",
+    subtitle: "The AI assistant behind Package Sourcing. She handles it, you decide.",
+    role: "CV management & AI matching",
+    available: "Available",
+    desc:
+      "You upload your CVs and describe your job openings. Nora parses, indexes, matches, prices using consulting-rate rules, and justifies her scores. You get shortlists ready to present — anonymized if needed.",
+    features: [
+      "Automatic CV ingestion (PDF, OCR for scanned CVs)",
+      "Organized talent pool: Nora sorts your candidates by sector",
+      "AI matching against your job openings with a justified, explainable score",
+      "Automated consulting-rate pricing: margin, payroll taxes, social security caps, real calendar",
+      "Termination risk visualized month by month",
+      "One-click anonymization — PDF branded to your team, client-ready",
+      "Shared candidate pipeline across your team",
+    ],
+    cta: "15 days free →",
+    cardLabel: "Role · Data Engineer Paris — top 3",
+  },
+}
 
 export function AgentsPreview() {
+  const { lang } = useLanguage()
+  const c = content[lang]
   return (
     <section
       style={{
@@ -61,7 +99,7 @@ export function AgentsPreview() {
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
-            L&apos;agent disponible
+            {c.badge}
           </span>
 
           <h2
@@ -75,7 +113,7 @@ export function AgentsPreview() {
               margin: 0,
             }}
           >
-            Faites connaissance avec <span style={{ color: "#7C63C8" }}>Nora</span>
+            {c.titlePre}<span style={{ color: "#7C63C8" }}>{c.titleName}</span>
           </h2>
 
           <p
@@ -88,8 +126,7 @@ export function AgentsPreview() {
               maxWidth: "52ch",
             }}
           >
-            L&apos;assistante IA du Package Sourcing. Elle traite, vous
-            décidez.
+            {c.subtitle}
           </p>
         </m.div>
 
@@ -132,7 +169,7 @@ export function AgentsPreview() {
                   margin: 0, fontFamily: "var(--font-inter), sans-serif",
                   fontSize: 13, color: "#7C63C8", fontWeight: 600,
                 }}>
-                  CV management & matching IA
+                  {c.role}
                 </p>
               </div>
               <span style={{
@@ -143,7 +180,7 @@ export function AgentsPreview() {
                 fontFamily: "var(--font-inter), sans-serif",
                 border: "1px solid rgba(34,197,94,0.25)",
               }}>
-                Disponible
+                {c.available}
               </span>
             </div>
 
@@ -151,14 +188,11 @@ export function AgentsPreview() {
               margin: 0, fontFamily: "var(--font-inter), sans-serif",
               fontSize: 15, color: "#374151", lineHeight: 1.7,
             }}>
-              Vous uploadez vos CVs et décrivez vos missions. Nora parse,
-              indexe, match, chiffre selon Syntec et justifie ses scores.
-              Vous obtenez des shortlists prêtes à présenter — anonymisées si
-              besoin.
+              {c.desc}
             </p>
 
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-              {NORA_FEATURES.map((f) => (
+              {c.features.map((f) => (
                 <li key={f} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   fontFamily: "var(--font-inter), sans-serif",
@@ -188,7 +222,7 @@ export function AgentsPreview() {
               boxShadow: "0 6px 20px rgba(124,99,200,0.3)",
               fontFamily: "var(--font-inter), sans-serif",
             }}>
-              15 jours gratuits →
+              {c.cta}
             </Link>
           </div>
 
@@ -214,7 +248,7 @@ export function AgentsPreview() {
                 margin: "0 0 12px", fontSize: 11, fontWeight: 700,
                 color: "#6B7280", textTransform: "uppercase" as const, letterSpacing: "0.07em",
               }}>
-                Poste · Data Engineer Paris — 3 meilleurs
+                {c.cardLabel}
               </p>
               {[
                 { name: "Mike M.", title: "Senior Data Engineer · BNP", score: 92 },

@@ -6,6 +6,7 @@ import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import { QUOTAS_BY_PLAN } from "@/lib/quota-tiers"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 type SeatCount = 1 | 2 | 3 | 4
 
@@ -22,23 +23,141 @@ const SOURCING_PRO: Record<SeatCount, number> = {
   4: 151.99,
 }
 
-const SOURCING_INCLUDED = [
-  "Vivier organisé par secteurs (Nora classe chaque CV automatiquement)",
-  "Missions créées via brief LLM + matching scoré et justifié",
-  "Anonymisation 1 clic — PDF brandé à votre structure",
-  "Pipeline candidat partagé entre vos collègues",
-  "Support fondateurs (vous parlez à Elyas et Hussein)",
-]
+const content = {
+  fr: {
+    badge: "Tarifs",
+    titlePre: "Essayez ",
+    titleItalic: "gratuitement",
+    titleSuffix: " pendant 15 jours.",
+    heroDesc:
+      "15 jours offerts, jusqu'à 2 sièges, sans carte bancaire. Pour aller au-delà ou prolonger l'accès, vous choisissez une formule ci-dessous — la souscription ne démarre qu'une fois validée.",
+    seatLabel: (n: number) => `${n} ${n === 1 ? "siège" : "sièges"}`,
+    beyondPre: "Au-delà de 4 sièges, ",
+    beyondLink: "contactez-nous",
+    sourcingTag: "Le package",
+    sourcingTitle: "Package Sourcing",
+    sourcingSubtitle: "Tout le workspace Nora, partagé entre vos collègues.",
+    sourcingIncluded: [
+      "Vivier organisé par secteurs (Nora classe chaque CV automatiquement)",
+      "Missions créées via brief LLM + matching scoré et justifié",
+      "Anonymisation 1 clic — PDF brandé à votre structure",
+      "Pipeline candidat partagé entre vos collègues",
+      "Support fondateurs (vous parlez à Elyas et Hussein)",
+    ],
+    proTag: "Premium",
+    proTitle: "Package Sourcing Pro",
+    proSubtitle: "Pour les structures qui veulent un accompagnement renforcé.",
+    proExtra: [
+      "Tout Package Sourcing",
+      "Pricing Syntec automatisé — marge, charges, calendrier réel",
+      "Chart risque rupture employeur (RC + licenciement)",
+      "Export PDF des chiffrages, nominatif ou anonymisé",
+    ],
+    cta: "Démarrer mes 15 jours →",
+    recommended: "Recommandé",
+    perMonth: "/mois HT",
+    perSeat: (price: string) => `soit ${price}/siège/mois — dégressif`,
+    included: "Inclus",
+    cvCapacity: "Capacité vivier",
+    cvUnit: "CV",
+    matchingLabel: "Matchings & anonymisations",
+    unlimited: "Illimités",
+    trialNote: "15 jours offerts — aucun prélèvement, résiliable à tout moment.",
+    faqTitle: "Questions fréquentes",
+    faqOtherPre: "Une autre question ? ",
+    faqOtherLink: "Écrivez-nous",
+    faq: [
+      {
+        q: "Comment se passe la période d'essai ?",
+        a: "Vous créez votre compte, votre structure dispose immédiatement de 15 jours d'accès complet au workspace, jusqu'à 2 sièges (vous + 1 collègue). Aucune carte bancaire n'est demandée. Pour ajouter plus de membres ou prolonger après les 15 jours, vous choisissez une formule et activez l'abonnement.",
+      },
+      {
+        q: "Quels moyens de paiement sont acceptés ?",
+        a: "Carte bancaire et prélèvement SEPA, via Stripe. Facturation mensuelle, sans engagement de durée. La résiliation est faite depuis votre console organisation, l'abonnement s'arrête à la fin de la période en cours.",
+      },
+      {
+        q: "Que se passe-t-il si je dépasse mon nombre de sièges ?",
+        a: "Vous pouvez ajouter ou retirer des sièges à tout moment depuis votre console organisation. La facturation est ajustée au prorata sur votre prochaine facture. Au-delà de 4 sièges, contactez-nous pour une offre adaptée.",
+      },
+      {
+        q: "Quelle différence entre Sourcing et Sourcing Pro ?",
+        a: "Sourcing donne accès à tout le workspace candidat : vivier vivant, missions, matching scoré, anonymisation et pipeline partagé. Sourcing Pro ajoute le moteur Pricing Syntec — calcul de marge automatisé, charges et plafonds URSSAF, calendrier réel, chart de risque rupture employeur, export PDF des chiffrages. C'est l'offre adaptée aux structures qui chiffrent leurs missions au TJM.",
+      },
+      {
+        q: "Mes données sont-elles isolées des autres structures ?",
+        a: "Oui. Chaque structure dispose de son propre périmètre, isolé via Row Level Security au niveau de la base de données. Aucun candidat, aucune mission, aucun chiffrage ne fuite entre structures, même en cas d'erreur applicative.",
+      },
+    ],
+  },
+  en: {
+    badge: "Pricing",
+    titlePre: "Try it ",
+    titleItalic: "free",
+    titleSuffix: " for 15 days.",
+    heroDesc:
+      "15 days free, up to 2 seats, no credit card required. To go further or extend access, choose a plan below — your subscription only starts once confirmed.",
+    seatLabel: (n: number) => `${n} ${n === 1 ? "seat" : "seats"}`,
+    beyondPre: "More than 4 seats? ",
+    beyondLink: "Contact us",
+    sourcingTag: "The package",
+    sourcingTitle: "Package Sourcing",
+    sourcingSubtitle: "The full Nora workspace, shared with your team.",
+    sourcingIncluded: [
+      "Talent pool organized by sector (Nora sorts every CV automatically)",
+      "Job openings created via AI brief + scored, justified matching",
+      "One-click anonymization — PDF branded to your team",
+      "Shared candidate pipeline across your team",
+      "Founder support (you talk directly to Elyas and Hussein)",
+    ],
+    proTag: "Premium",
+    proTitle: "Package Sourcing Pro",
+    proSubtitle: "For teams that want extra support.",
+    proExtra: [
+      "Everything in Package Sourcing",
+      "Automated consulting-rate pricing — margin, payroll taxes, real calendar",
+      "Termination risk chart (mutual agreement + dismissal)",
+      "PDF export of quotes, named or anonymized",
+    ],
+    cta: "Start my 15 days →",
+    recommended: "Recommended",
+    perMonth: "/month excl. VAT",
+    perSeat: (price: string) => `i.e. ${price}/seat/month — volume discount`,
+    included: "Included",
+    cvCapacity: "Talent pool capacity",
+    cvUnit: "CVs",
+    matchingLabel: "Matching & anonymization",
+    unlimited: "Unlimited",
+    trialNote: "15 days free — no charge, cancel anytime.",
+    faqTitle: "Frequently asked questions",
+    faqOtherPre: "Another question? ",
+    faqOtherLink: "Write to us",
+    faq: [
+      {
+        q: "How does the trial period work?",
+        a: "You create your account and your team gets immediate 15-day access to the full workspace, up to 2 seats (you + 1 colleague). No credit card required. To add more members or extend access after the 15 days, you choose a plan and activate the subscription.",
+      },
+      {
+        q: "What payment methods are accepted?",
+        a: "Credit card and SEPA direct debit, via Stripe. Monthly billing, no fixed-term commitment. Cancellation is done from your organization console; the subscription ends at the end of the current period.",
+      },
+      {
+        q: "What happens if I exceed my seat count?",
+        a: "You can add or remove seats at any time from your organization console. Billing is prorated on your next invoice. Beyond 4 seats, contact us for a tailored offer.",
+      },
+      {
+        q: "What's the difference between Sourcing and Sourcing Pro?",
+        a: "Sourcing gives you the full candidate workspace: a living talent pool, job openings, scored matching, anonymization, and a shared pipeline. Sourcing Pro adds the consulting-rate pricing engine — automated margin calculation, payroll taxes and social security caps, a real calendar, a termination risk chart, and PDF export of quotes. It's the right offer for teams that price their engagements by daily rate.",
+      },
+      {
+        q: "Is my data isolated from other organizations?",
+        a: "Yes. Each organization has its own scope, isolated via Row Level Security at the database level. No candidate, job opening, or quote ever leaks between organizations, even in the event of an application error.",
+      },
+    ],
+  },
+}
 
-const PRO_EXTRA = [
-  "Tout Package Sourcing",
-  "Pricing Syntec automatisé — marge, charges, calendrier réel",
-  "Chart risque rupture employeur (RC + licenciement)",
-  "Export PDF des chiffrages, nominatif ou anonymisé",
-]
-
-function formatEur(n: number): string {
-  return new Intl.NumberFormat("fr-FR", {
+function formatEur(n: number, lang: Lang): string {
+  return new Intl.NumberFormat(lang === "fr" ? "fr-FR" : "en-IE", {
     style: "currency",
     currency: "EUR",
     minimumFractionDigits: 2,
@@ -46,6 +165,8 @@ function formatEur(n: number): string {
 }
 
 export default function TarifsPage() {
+  const { lang } = useLanguage()
+  const c = content[lang]
   const [seats, setSeats] = useState<SeatCount>(3)
 
   return (
@@ -67,7 +188,7 @@ export default function TarifsPage() {
                 fontFamily: "var(--font-inter), sans-serif",
               }}
             >
-              Tarifs
+              {c.badge}
             </span>
             <h1
               style={{
@@ -80,7 +201,7 @@ export default function TarifsPage() {
                 letterSpacing: "-0.025em",
               }}
             >
-              Essayez{" "}
+              {c.titlePre}
               <span
                 style={{
                   fontFamily: "var(--font-instrument-serif), serif",
@@ -89,9 +210,9 @@ export default function TarifsPage() {
                   color: "#7C63C8",
                 }}
               >
-                gratuitement
-              </span>{" "}
-              pendant 15 jours.
+                {c.titleItalic}
+              </span>
+              {c.titleSuffix}
             </h1>
             <p
               style={{
@@ -103,10 +224,7 @@ export default function TarifsPage() {
                 maxWidth: "55ch",
               }}
             >
-              15 jours offerts, jusqu&apos;à 2 sièges, sans carte bancaire.
-              Pour aller au-delà ou prolonger l&apos;accès, vous choisissez
-              une formule ci-dessous — la souscription ne démarre qu&apos;une
-              fois validée.
+              {c.heroDesc}
             </p>
           </div>
         </section>
@@ -143,7 +261,7 @@ export default function TarifsPage() {
                     minWidth: 84,
                   }}
                 >
-                  {n} {n === 1 ? "siège" : "sièges"}
+                  {c.seatLabel(n)}
                 </button>
               ))}
             </div>
@@ -157,9 +275,9 @@ export default function TarifsPage() {
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
-            Au-delà de 4 sièges,{" "}
+            {c.beyondPre}
             <Link href="/contact" style={{ color: "#7C63C8", fontWeight: 600 }}>
-              contactez-nous
+              {c.beyondLink}
             </Link>
             .
           </p>
@@ -178,28 +296,32 @@ export default function TarifsPage() {
             }}
           >
             <PriceCard
-              tag="Le package"
-              title="Package Sourcing"
-              subtitle="Tout le workspace Nora, partagé entre vos collègues."
+              tag={c.sourcingTag}
+              title={c.sourcingTitle}
+              subtitle={c.sourcingSubtitle}
               priceMonthly={SOURCING[seats]}
               perSeat={SOURCING[seats] / seats}
               recommended={seats === 3}
-              features={SOURCING_INCLUDED}
+              features={c.sourcingIncluded}
               quota={QUOTAS_BY_PLAN[`sourcing_${seats}`]}
-              cta="Démarrer mes 15 jours →"
+              cta={c.cta}
               accentSoft={false}
+              lang={lang}
+              t={c}
             />
             <PriceCard
-              tag="Premium"
-              title="Package Sourcing Pro"
-              subtitle="Pour les structures qui veulent un accompagnement renforcé."
+              tag={c.proTag}
+              title={c.proTitle}
+              subtitle={c.proSubtitle}
               priceMonthly={SOURCING_PRO[seats]}
               perSeat={SOURCING_PRO[seats] / seats}
               recommended={false}
-              features={PRO_EXTRA}
+              features={c.proExtra}
               quota={QUOTAS_BY_PLAN[`sourcing_pro_${seats}`]}
-              cta="Démarrer mes 15 jours →"
+              cta={c.cta}
               accentSoft
+              lang={lang}
+              t={c}
             />
           </div>
         </section>
@@ -217,10 +339,10 @@ export default function TarifsPage() {
                 letterSpacing: "-0.01em",
               }}
             >
-              Questions fréquentes
+              {c.faqTitle}
             </h3>
             <div style={{ display: "grid", gap: 12 }}>
-              {FAQ.map((q) => (
+              {c.faq.map((q) => (
                 <details
                   key={q.q}
                   style={{
@@ -264,12 +386,12 @@ export default function TarifsPage() {
                 textAlign: "center",
               }}
             >
-              Une autre question ?{" "}
+              {c.faqOtherPre}
               <Link
                 href="/contact"
                 style={{ color: "#7C63C8", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
               >
-                Écrivez-nous
+                {c.faqOtherLink}
               </Link>
               .
             </p>
@@ -283,7 +405,7 @@ export default function TarifsPage() {
 }
 
 function PriceCard({
-  tag, title, subtitle, priceMonthly, perSeat, recommended, features, quota, cta, accentSoft,
+  tag, title, subtitle, priceMonthly, perSeat, recommended, features, quota, cta, accentSoft, lang, t,
 }: {
   tag: string
   title: string
@@ -295,6 +417,8 @@ function PriceCard({
   quota?: { cvLimit: number; storageBytes: number; llmMonthly: number }
   cta: string
   accentSoft: boolean
+  lang: Lang
+  t: (typeof content)["fr"]
 }) {
   return (
     <article
@@ -330,7 +454,7 @@ function PriceCard({
             boxShadow: "0 8px 20px -6px rgba(124,99,200,0.55)",
           }}
         >
-          Recommandé
+          {t.recommended}
         </div>
       )}
 
@@ -393,7 +517,7 @@ function PriceCard({
               letterSpacing: "-0.025em",
             }}
           >
-            {formatEur(priceMonthly)}
+            {formatEur(priceMonthly, lang)}
           </span>
           <span
             style={{
@@ -404,7 +528,7 @@ function PriceCard({
               fontWeight: 500,
             }}
           >
-            /mois HT
+            {t.perMonth}
           </span>
         </div>
         <p
@@ -415,7 +539,7 @@ function PriceCard({
             fontFamily: "var(--font-inter), sans-serif",
           }}
         >
-          soit {formatEur(perSeat)}/siège/mois — dégressif
+          {t.perSeat(formatEur(perSeat, lang))}
         </p>
         {quota && (
           <div
@@ -434,15 +558,15 @@ function PriceCard({
             }}
           >
             <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7C63C8" }}>
-              Inclus
+              {t.included}
             </span>
             <span style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <span>Capacité vivier</span>
-              <strong>{quota.cvLimit.toLocaleString("fr-FR")} CV</strong>
+              <span>{t.cvCapacity}</span>
+              <strong>{quota.cvLimit.toLocaleString(lang === "fr" ? "fr-FR" : "en-US")} {t.cvUnit}</strong>
             </span>
             <span style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <span>Matchings &amp; anonymisations</span>
-              <strong>Illimités</strong>
+              <span>{t.matchingLabel}</span>
+              <strong>{t.unlimited}</strong>
             </span>
           </div>
         )}
@@ -531,31 +655,8 @@ function PriceCard({
           textAlign: "center",
         }}
       >
-        15 jours offerts — aucun prélèvement, résiliable à tout moment.
+        {t.trialNote}
       </p>
     </article>
   )
 }
-
-const FAQ = [
-  {
-    q: "Comment se passe la période d'essai ?",
-    a: "Vous créez votre compte, votre structure dispose immédiatement de 15 jours d'accès complet au workspace, jusqu'à 2 sièges (vous + 1 collègue). Aucune carte bancaire n'est demandée. Pour ajouter plus de membres ou prolonger après les 15 jours, vous choisissez une formule et activez l'abonnement.",
-  },
-  {
-    q: "Quels moyens de paiement sont acceptés ?",
-    a: "Carte bancaire et prélèvement SEPA, via Stripe. Facturation mensuelle, sans engagement de durée. La résiliation est faite depuis votre console organisation, l'abonnement s'arrête à la fin de la période en cours.",
-  },
-  {
-    q: "Que se passe-t-il si je dépasse mon nombre de sièges ?",
-    a: "Vous pouvez ajouter ou retirer des sièges à tout moment depuis votre console organisation. La facturation est ajustée au prorata sur votre prochaine facture. Au-delà de 4 sièges, contactez-nous pour une offre adaptée.",
-  },
-  {
-    q: "Quelle différence entre Sourcing et Sourcing Pro ?",
-    a: "Sourcing donne accès à tout le workspace candidat : vivier vivant, missions, matching scoré, anonymisation et pipeline partagé. Sourcing Pro ajoute le moteur Pricing Syntec — calcul de marge automatisé, charges et plafonds URSSAF, calendrier réel, chart de risque rupture employeur, export PDF des chiffrages. C'est l'offre adaptée aux structures qui chiffrent leurs missions au TJM.",
-  },
-  {
-    q: "Mes données sont-elles isolées des autres structures ?",
-    a: "Oui. Chaque structure dispose de son propre périmètre, isolé via Row Level Security au niveau de la base de données. Aucun candidat, aucune mission, aucun chiffrage ne fuite entre structures, même en cas d'erreur applicative.",
-  },
-] as const
