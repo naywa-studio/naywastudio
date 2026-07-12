@@ -101,6 +101,8 @@ export function Hero() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
+              paddingRight: '0.15em',
+              marginRight: '-0.15em',
             }}
           >
             {c.titleWord}
