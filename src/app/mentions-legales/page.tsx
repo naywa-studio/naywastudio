@@ -31,8 +31,10 @@ const SECTIONS: LegalSection[] = [
     content: [
       "L'application web est hébergée par :",
       "**Vercel Inc.**, 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis. Site : vercel.com",
-      "La base de données et les fichiers (CVs, logos) sont hébergés par :",
-      "**Supabase Inc.**, 970 Toa Payoh North, Singapour. Site : supabase.com. Région de stockage : eu-central-1 (Francfort).",
+      "La base de données, l'authentification et les logos sont hébergés par :",
+      "**Supabase Inc.**, 970 Toa Payoh North, Singapour. Site : supabase.com. Région de stockage de la base : eu-central-1 (Francfort).",
+      "Les CVs et les documents anonymisés générés sont stockés par :",
+      "**Cloudflare, Inc.**, 101 Townsend Street, San Francisco, CA 94107, États-Unis — stockage objet R2 en **jurisdiction Union européenne** (données stockées dans l'UE). Site : cloudflare.com.",
     ],
   },
   {
@@ -43,6 +45,8 @@ const SECTIONS: LegalSection[] = [
       "• **Vercel** : hébergement de l'application web.",
       "• **Resend** : envoi et réception des emails (mail.naywastudio.com).",
       "• **OpenRouter** : passerelle d'accès aux modèles d'IA (gpt-4o-mini pour le parsing, le scoring et la génération de messages).",
+      "• **Cloudflare R2** : stockage des CVs et des documents anonymisés générés.",
+      "• **Stripe** : traitement des paiements et de la facturation des abonnements.",
       "La liste détaillée et les engagements de chaque prestataire sont décrits dans la politique de confidentialité.",
     ],
   },
@@ -90,7 +94,7 @@ export default function MentionsLegalesPage() {
     <LegalPageShell
       badge="Légal"
       title="Mentions légales"
-      lastUpdated="juin 2026"
+      lastUpdated="juillet 2026"
       sections={SECTIONS}
     />
   )

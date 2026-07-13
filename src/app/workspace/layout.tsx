@@ -40,16 +40,16 @@ export function useWorkspace() {
   return ctx
 }
 
-const TABS: { href: string; label: string; live: boolean; showUnreadBadge?: boolean }[] = [
-  { href: "/workspace",          label: "Accueil",  live: true },
+const TABS: { href: string; label: string; showUnreadBadge?: boolean }[] = [
+  { href: "/workspace",          label: "Accueil" },
   // Missions en 2e (E1, juin 2026) : c'est l'entrée principale du
   // sourceur — d'abord ouvrir une mission, puis y rattacher des CVs
   // (upload direct ou matcher le vivier).
-  { href: "/workspace/missions", label: "Missions", live: true },
-  { href: "/workspace/vivier",   label: "Vivier",   live: true },
-  { href: "/workspace/pricing",  label: "Pricing",  live: true },
-  { href: "/workspace/pipeline", label: "Pipeline", live: true },
-  { href: "/nouveautes",         label: "Nouveautés", live: true, showUnreadBadge: true },
+  { href: "/workspace/missions", label: "Missions" },
+  { href: "/workspace/vivier",   label: "Vivier" },
+  { href: "/workspace/pricing",  label: "Pricing" },
+  { href: "/workspace/pipeline", label: "Pipeline" },
+  { href: "/nouveautes",         label: "Nouveautés", showUnreadBadge: true },
 ]
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
@@ -180,24 +180,21 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
   const tabLinks = TABS.map((t) => {
     const active = isActive(t.href)
-    const disabled = !t.live
     return (
       <Link
         key={t.href}
-        href={t.live ? t.href : "#"}
-        onClick={(e) => { if (disabled) e.preventDefault() }}
-        aria-disabled={disabled}
+        href={t.href}
         data-active={active || undefined}
         style={{
           position: "relative",
           fontSize: 13,
           fontWeight: active ? 700 : 500,
-          color: disabled ? "#C4B6E0" : active ? "#7C63C8" : "#4B5563",
+          color: active ? "#7C63C8" : "#4B5563",
           textDecoration: "none",
           padding: "8px 12px",
           borderRadius: 8,
           background: active ? "rgba(124,99,200,0.08)" : "transparent",
-          cursor: disabled ? "not-allowed" : "pointer",
+          cursor: "pointer",
           display: "inline-flex", alignItems: "center", gap: 6,
           whiteSpace: "nowrap",
           transition: "background 150ms, color 150ms",
@@ -206,16 +203,6 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         {t.label}
         {t.showUnreadBadge && <UpdatesNavBadge />}
         {!t.showUnreadBadge && <NavUnreadDot href={t.href} />}
-        {disabled && (
-          <span style={{
-            fontSize: 9, fontWeight: 700, color: "#6B7280",
-            background: "#F3F4F6", border: "1px solid #E5E7EB",
-            padding: "2px 6px", borderRadius: 100,
-            letterSpacing: "0.04em", textTransform: "uppercase",
-          }}>
-            Bientôt
-          </span>
-        )}
       </Link>
     )
   })

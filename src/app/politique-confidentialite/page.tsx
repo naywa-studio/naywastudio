@@ -19,13 +19,13 @@ const SECTIONS: LegalSection[] = [
     title: "2. Données collectées",
     content: [
       "**Comptes utilisateurs**",
-      "Adresse email, prénom, mot de passe (haché), date de création, dernière connexion. Logo et nom du cabinet si vous les renseignez.",
+      "Adresse email, prénom, mot de passe (haché), date de création, dernière connexion. Logo et nom de l'organisation si vous les renseignez.",
       "**Données saisies dans le workspace**",
       "CVs au format PDF que vous importez. Données extraites par OCR + IA depuis ces CVs (nom, expériences, compétences, formation). Missions que vous créez (intitulé, description, lieu, paramètres de pricing). Évaluations de matching, échanges email avec les candidats.",
       "**Données techniques**",
       "Adresse IP, agent navigateur, identifiants de session, logs serveur (pour diagnostic incident).",
-      "**Données de facturation** *(quand Stripe sera branché)*",
-      "Nom du cabinet, adresse de facturation, statut d'abonnement. Aucune donnée bancaire ne transite chez Naywa Studio. Elle est traitée par Stripe.",
+      "**Données de facturation**",
+      "Nom de l'organisation, adresse de facturation, numéro de TVA éventuel, statut d'abonnement. Aucune donnée bancaire ne transite chez Naywa Studio : elle est traitée directement par Stripe.",
     ],
   },
   {
@@ -34,7 +34,7 @@ const SECTIONS: LegalSection[] = [
       "**Fournir le service** :vous donner accès à votre workspace, conserver vos CVs et missions, exécuter les fonctions de matching, de pricing, et de génération de messages.",
       "**Améliorer la pertinence du matching IA** :les évaluations sont produites pour vous uniquement et ne sont pas ré-exploitées pour entraîner un modèle généraliste.",
       "**Sécurité et lutte contre l'abus** :logs serveur conservés le temps nécessaire pour investiguer un incident.",
-      "**Facturation** :quand un abonnement payant sera actif, gérer le contrat et l'éventuelle TVA.",
+      "**Facturation** :gérer votre abonnement, le contrat et la TVA applicable.",
       "**Support client** :répondre à vos demandes envoyées à contact@naywastudio.com.",
       "Base légale : exécution du contrat de service que vous souscrivez avec Naywa Studio (RGPD Art. 6.1.b) et intérêt légitime à sécuriser le service (Art. 6.1.f).",
     ],
@@ -47,17 +47,19 @@ const SECTIONS: LegalSection[] = [
       "**Vercel Inc.** *(États-Unis)* :hébergement de l'application web. Région de déploiement : cdg1 (Paris).",
       "**Resend Inc.** *(États-Unis)* :envoi et réception des emails outbound/inbound. Domaine : mail.naywastudio.com.",
       "**OpenRouter** *(États-Unis)* :passerelle d'accès aux modèles de langage (gpt-4o-mini pour parsing CV / scoring / messages, plugin file-parser pour OCR).",
+      "**Cloudflare, Inc.** *(États-Unis)* :stockage des CVs et des documents anonymisés générés (service R2), en **jurisdiction Union européenne** — les fichiers sont stockés dans l'UE. Cloudflare étant une société américaine, la relation de sous-traitance reste encadrée par les clauses contractuelles types (SCC) et le Data Privacy Framework UE-USA.",
+      "**Stripe, Inc.** *(États-Unis)* :traitement des paiements et de la facturation des abonnements. Aucune donnée bancaire ne transite ni n'est stockée chez Naywa Studio.",
       "Aucun autre tiers ne reçoit vos données. Aucune donnée n'est revendue, échangée ou cédée.",
-      "**Transferts hors UE** :certains prestataires sont basés aux États-Unis. Les transferts s'effectuent sous le cadre des clauses contractuelles types de la Commission européenne (SCC) et/ou du Data Privacy Framework UE-USA.",
+      "**Localisation des données** :les données que vous confiez (base de données et fichiers CV) sont stockées dans l'**Union européenne** (Supabase Francfort, Cloudflare R2 jurisdiction UE). Certains sous-traitants sont des sociétés américaines qui traitent des données techniques (hébergement applicatif, emails, IA, paiement) ; ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (SCC) et/ou le Data Privacy Framework UE-USA.",
     ],
   },
   {
     title: "5. Durée de conservation",
     content: [
-      "**Données du cabinet** *(CVs, missions, échanges)* :conservées tant que votre cabinet est actif. Suppression complète à la résiliation, immédiate si vous êtes seul utilisateur, à la fin de la période payée si d'autres membres sont actifs (voir CGU).",
-      "**Compte utilisateur** :supprimé immédiatement à votre demande ou à la résiliation du cabinet.",
+      "**Données de l'organisation** *(CVs, missions, échanges)* :conservées tant que votre organisation est active. Suppression complète à la résiliation, immédiate si vous êtes seul utilisateur, à la fin de la période payée si d'autres membres sont actifs (voir CGU).",
+      "**Compte utilisateur** :supprimé immédiatement à votre demande ou à la résiliation de l'organisation.",
       "**Logs techniques** :conservés 30 jours puis purgés.",
-      "**Données de facturation** *(quand Stripe sera branché)* :10 ans, durée légale française de conservation des pièces comptables.",
+      "**Données de facturation** :10 ans, durée légale française de conservation des pièces comptables.",
     ],
   },
   {
@@ -66,7 +68,7 @@ const SECTIONS: LegalSection[] = [
       "En tant qu'utilisateur, vous disposez à tout moment des droits suivants sur vos données personnelles :",
       "• **Accès** :obtenir copie des données vous concernant",
       "• **Rectification** :corriger une donnée inexacte (modifiable directement dans le workspace ou par email)",
-      "• **Effacement** :supprimer votre compte et vos données (bouton « Supprimer mon cabinet » dans la console, ou demande à contact@naywastudio.com)",
+      "• **Effacement** :supprimer votre compte et vos données (bouton « Supprimer mon organisation » dans la console, ou demande à contact@naywastudio.com)",
       "• **Portabilité** :recevoir vos données dans un format structuré",
       "• **Opposition** :vous opposer à un traitement particulier",
       "• **Limitation** :demander la suspension temporaire d'un traitement",
@@ -79,16 +81,16 @@ const SECTIONS: LegalSection[] = [
     content: [
       "Lorsque vous importez un CV dans Naywa Studio, **vous êtes responsable du traitement** au sens du RGPD pour les données du candidat. Naywa Studio agit comme **sous-traitant**.",
       "Vous vous engagez à n'importer que des CVs collectés conformément aux règles applicables (consentement du candidat, sourcing depuis des canaux publics, etc.).",
-      "Les candidats peuvent exercer leurs droits auprès de vous, ou nous écrire à contact@naywastudio.com pour être redirigés vers votre cabinet.",
-      "Un Data Processing Agreement (DPA) plus détaillé est disponible sur demande pour formaliser cette relation, notamment pour les cabinets soumis à l'audit RGPD.",
+      "Les candidats peuvent exercer leurs droits auprès de vous, ou nous écrire à contact@naywastudio.com pour être redirigés vers votre organisation.",
+      "Un Data Processing Agreement (DPA) plus détaillé est disponible sur demande pour formaliser cette relation, notamment pour les organisations soumises à l'audit RGPD.",
     ],
   },
   {
     title: "8. Rôle administrateur Naywa",
     content: [
-      "Pour assurer le support technique du service, certains comptes nominatifs de l'équipe Naywa Studio disposent d'un rôle administrateur transverse aux cabinets.",
-      "**Ce que l'équipe Naywa peut faire** : consulter des statistiques agrégées du service (nombre de cabinets, d'utilisateurs, de candidats parsés, revenu mensuel estimé) ; rechercher un utilisateur par e-mail ou prénom pour identifier son cabinet et son statut d'abonnement dans le cadre d'une demande de support ; publier des nouveautés produit ; valider ou refuser les demandes de modification d'identité forte (logo, raison sociale, e-mail de contact).",
-      "**Ce que l'équipe Naywa ne peut pas faire** : consulter votre vivier, vos missions, vos chiffrages, votre pipeline, vos e-mails ; se connecter à votre place ; modifier vos données en dehors du processus de validation décrit ci-dessus ; supprimer votre cabinet.",
+      "Pour assurer le support technique du service, certains comptes nominatifs de l'équipe Naywa Studio disposent d'un rôle administrateur transverse aux organisations.",
+      "**Ce que l'équipe Naywa peut faire** : consulter des statistiques agrégées du service (nombre d'organisations, d'utilisateurs, de candidats parsés, revenu mensuel estimé) ; rechercher un utilisateur par e-mail ou prénom pour identifier son organisation et son statut d'abonnement dans le cadre d'une demande de support ; publier des nouveautés produit ; valider ou refuser les demandes de modification d'identité forte (logo, raison sociale, e-mail de contact).",
+      "**Ce que l'équipe Naywa ne peut pas faire** : consulter votre vivier, vos missions, vos chiffrages, votre pipeline, vos e-mails ; se connecter à votre place ; modifier vos données en dehors du processus de validation décrit ci-dessus ; supprimer votre organisation.",
       "**Journal d'audit** : toute consultation effectuée par un administrateur Naywa est tracée dans un registre interne (qui, quand, quel type d'action). Ce registre est tenu à votre disposition sur demande motivée.",
       "Cette section est reprise de manière plus formelle dans le DPA disponible sur demande.",
     ],
@@ -98,7 +100,7 @@ const SECTIONS: LegalSection[] = [
     content: [
       "**Chiffrement en transit** :toutes les connexions au service utilisent HTTPS/TLS.",
       "**Chiffrement au repos** :Supabase chiffre les données stockées dans la base et dans les buckets de fichiers.",
-      "**Cloisonnement multi-locataire** :chaque cabinet ne voit que ses propres données, garanti par des politiques Row Level Security côté base de données.",
+      "**Cloisonnement multi-locataire** :chaque organisation ne voit que ses propres données, garanti par des politiques Row Level Security côté base de données.",
       "**Stockage privé** :les CVs ne sont jamais accessibles publiquement. Le service génère des URLs signées temporaires pour les téléchargements.",
       "**Authentification** :mots de passe hachés, sessions JWT avec expiration courte, support de Google OAuth.",
       "**Audit régulier** :revues internes de sécurité et corrections continues.",
@@ -135,7 +137,7 @@ export default function PolitiqueConfidentialitePage() {
     <LegalPageShell
       badge="Confidentialité"
       title="Politique de confidentialité"
-      lastUpdated="20 juin 2026"
+      lastUpdated="13 juillet 2026"
       intro="Naywa Studio respecte la vie privée des utilisateurs et des candidats dont les données transitent par notre service. Cette politique explique en clair ce qui est collecté, pourquoi, avec qui, et comment exercer vos droits."
       sections={SECTIONS}
     />

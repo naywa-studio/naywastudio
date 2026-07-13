@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useRouter, useSearchParams } from "next/navigation"
 import { m } from "framer-motion"
 import { useCabinet } from "./layout"
@@ -228,6 +229,7 @@ export default function CabinetPage() {
             <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
               <MySeatBanner
                 hasSeat={profile.has_sourcing_seat}
+                hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
                 onToggle={refetch}
                 isOwner={isOwner}
               />
@@ -489,8 +491,12 @@ function EmailConfirmationBanner({ email }: { email: string }) {
 /* Mon siège                                                            */
 /* ────────────────────────────────────────────────────────────────── */
 
-function MySeatBanner({ hasSeat, onToggle, isOwner }: {
+function MySeatBanner({ hasSeat, hasAccess, onToggle, isOwner }: {
   hasSeat: boolean
+  /** Accès réel au workspace (trial actif / sub active / admin). Un siège
+   *  n'ouvre l'accès que si l'org a un accès actif — sinon le workspace
+   *  rebondit sur /organisation. */
+  hasAccess: boolean
   onToggle: () => Promise<void>
   isOwner: boolean
 }) {
@@ -530,6 +536,40 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
       await onToggle()
     }
     setBusy(false)
+  }
+
+  // Siège occupé MAIS accès suspendu (essai terminé / abonnement inactif) :
+  // ne pas promettre "Accès complet" ni "Ouvrir le workspace" (qui rebondit
+  // vers /organisation). On renvoie vers la souscription, juste en dessous.
+  if (hasSeat && !hasAccess) {
+    return (
+      <section style={{
+        padding: "12px 18px",
+        background: "rgba(245,158,11,0.08)",
+        border: "1px solid rgba(245,158,11,0.30)",
+        borderRadius: 12,
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+        flexWrap: "wrap",
+      }}>
+        <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#F59E0B", flexShrink: 0 }} />
+          <div>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#92400E" }}>
+              Vous occupez un siège, mais votre accès est suspendu.
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#92400E" }}>
+              Souscrivez ci-dessous pour rouvrir l&apos;accès au workspace.
+            </p>
+          </div>
+        </div>
+        {isOwner && (
+          <button type="button" onClick={release} disabled={busy} style={smallBtnGhost}>
+            {busy ? "…" : "Libérer le siège"}
+          </button>
+        )}
+        {error && <p style={{ width: "100%", margin: 0, fontSize: 12, color: "#EF4444" }}>{error}</p>}
+      </section>
+    )
   }
 
   if (hasSeat) {
@@ -2636,14 +2676,36 @@ function EmptySeatActions({
   onAllocate: (userId: string) => void
 }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement | null>(null)
+  // Position fixe calculée sur le bouton : le menu est rendu via createPortal
+  // dans <body> pour échapper à l'overflow:hidden de la carte Membres (sinon
+  // le dropdown est coupé).
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect()
+    if (r) setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) })
+    setOpen(true)
+  }
+
   useEffect(() => {
     if (!open) return
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return
+      setOpen(false)
     }
-    document.addEventListener("mousedown", onClick)
-    return () => document.removeEventListener("mousedown", onClick)
+    const close = () => setOpen(false)
+    document.addEventListener("mousedown", onDown)
+    window.addEventListener("resize", close)
+    // capture=true : suit aussi le scroll d'un conteneur interne.
+    window.addEventListener("scroll", close, true)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      window.removeEventListener("resize", close)
+      window.removeEventListener("scroll", close, true)
+    }
   }, [open])
 
   // Aucun membre disponible -> bouton simple, pas de dropdown.
@@ -2661,29 +2723,31 @@ function EmptySeatActions({
   }
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         disabled={busy}
         style={addMemberBtnStyle}
       >
         + Allouer un siège ▾
       </button>
-      {open && (
+      {open && pos && createPortal(
         <div
+          ref={menuRef}
           role="menu"
           style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            right: 0,
+            position: "fixed",
+            top: pos.top,
+            right: pos.right,
             minWidth: 240,
             background: "white",
             border: "1px solid #E5E7EB",
             borderRadius: 10,
             boxShadow: "0 12px 32px -8px rgba(17,24,39,0.20)",
             padding: 5,
-            zIndex: 10,
+            zIndex: 1000,
             fontFamily: "var(--font-inter), sans-serif",
           }}
         >
@@ -2715,9 +2779,10 @@ function EmptySeatActions({
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   )
 }
 
