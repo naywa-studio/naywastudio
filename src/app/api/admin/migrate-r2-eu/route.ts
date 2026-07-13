@@ -34,6 +34,11 @@ import {
   S3Client,
   type ListObjectsV2CommandOutput,
 } from "@aws-sdk/client-s3"
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+
+// Un objet GMH connu, pour le mode ?verify=1 (test de lecture post-bascule).
+const GMH_SAMPLE_KEY =
+  "121de2ba-e5dc-4b60-939d-5c8135181997/22ce1d03-00be-469a-ada1-942cac955e2d/CV_Aquila_Engineering_LDU.pdf"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
@@ -55,9 +60,31 @@ function makeClient(endpoint: string): S3Client {
   })
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const gate = await requireAdmin()
   if (!gate.ok) return gate.response
+
+  // ── Mode VÉRIFICATION (?verify=1) ──────────────────────────────────────
+  // Utilise la config LIVE de l'app (R2_ENDPOINT + R2_BUCKET_CV courants,
+  // = EU après la bascule) pour signer une URL de téléchargement d'un CV
+  // GMH. Si le lien ouvre le PDF, la lecture depuis l'EU est prouvée.
+  if (new URL(req.url).searchParams.has("verify")) {
+    const liveEndpoint = process.env.R2_ENDPOINT ?? ""
+    const liveBucket = process.env.R2_BUCKET_CV ?? "naywa-cv"
+    try {
+      const url = await getSignedUrl(
+        makeClient(liveEndpoint),
+        new GetObjectCommand({ Bucket: liveBucket, Key: GMH_SAMPLE_KEY }),
+        { expiresIn: 600 },
+      )
+      return NextResponse.json({ ok: true, liveEndpoint, liveBucket, key: GMH_SAMPLE_KEY, signedUrl: url })
+    } catch (e) {
+      return NextResponse.json(
+        { ok: false, liveEndpoint, liveBucket, error: e instanceof Error ? e.message : String(e) },
+        { status: 500 },
+      )
+    }
+  }
 
   const oldEndpoint = process.env.R2_ENDPOINT ?? ""
   if (!oldEndpoint) {
