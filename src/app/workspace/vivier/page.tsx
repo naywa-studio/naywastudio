@@ -19,6 +19,7 @@ import { QuotaGauges } from "@/components/quota/QuotaGauges"
 // quand on retravaillera la taxonomie. Pour l'instant : vue Liste pure,
 // pas de clustering automatique, pas de zones, juste les CVs uploadés.
 import { showUndoToast } from "@/components/ui/UndoToast"
+import { useWorkspace } from "../layout"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const MAX_BYTES = 10 * 1024 * 1024
@@ -49,6 +50,10 @@ const UNCLASSIFIED = "__unclassified__"
 // fermée de secteurs ni de filtres avancés sur la page Vivier.
 
 export default function VivierPage() {
+  // Lecture seule (lockdown / essai expiré / sans siège) : tout upload est
+  // interdit côté serveur (requireActiveAccess). On grise aussi l'UI pour
+  // éviter les 403 déroutants.
+  const { isReadOnly } = useWorkspace()
   const sb = useMemo(() => getSupabase(), [])
   const [userId, setUserId] = useState<string | null>(null)
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -310,6 +315,7 @@ export default function VivierPage() {
   }, [])
 
   const onFilesPicked = (files: FileList | null) => {
+    if (isReadOnly) return
     if (!files || files.length === 0) return
     enqueue(Array.from(files))
   }
@@ -318,9 +324,10 @@ export default function VivierPage() {
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
+    if (isReadOnly) return
     const files = Array.from(e.dataTransfer?.files ?? [])
     if (files.length) enqueue(files)
-  }, [enqueue])
+  }, [enqueue, isReadOnly])
 
   const onDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -507,12 +514,14 @@ export default function VivierPage() {
           <QuotaGauges variant="inline" />
           <button
             onClick={() => inputRef.current?.click()}
+            disabled={isReadOnly}
+            title={isReadOnly ? "Lecture seule — souscrivez pour importer des CVs" : undefined}
             style={{
               fontSize: 13, fontWeight: 700, color: "white",
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
               border: "none", borderRadius: 10, padding: "10px 18px",
-              cursor: "pointer",
-              boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
+              cursor: isReadOnly ? "not-allowed" : "pointer",
+              boxShadow: isReadOnly ? "none" : "0 6px 20px -8px rgba(124,99,200,0.55)",
               fontFamily: "inherit",
             }}
           >

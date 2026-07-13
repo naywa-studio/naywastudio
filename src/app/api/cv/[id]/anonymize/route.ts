@@ -245,6 +245,12 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+  // Anti-extraction : en lecture seule on bloque AUSSI le téléchargement d'un
+  // anonymisé déjà généré (le CV anonymisé est le livrable — sa récupération
+  // hors abonnement actif serait une fuite de valeur). La consultation des CV
+  // ORIGINAUX reste ouverte (route signed-url, non gardée).
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
 
   const { data: candidate, error } = await sb
     .from("candidates")
