@@ -47,10 +47,10 @@ const SECTIONS: LegalSection[] = [
       "**Vercel Inc.** *(États-Unis)* :hébergement de l'application web. Région de déploiement : cdg1 (Paris).",
       "**Resend Inc.** *(États-Unis)* :envoi et réception des emails outbound/inbound. Domaine : mail.naywastudio.com.",
       "**OpenRouter** *(États-Unis)* :passerelle d'accès aux modèles de langage (gpt-4o-mini pour parsing CV / scoring / messages, plugin file-parser pour OCR).",
-      "**Cloudflare, Inc.** *(États-Unis)* :stockage des CVs et des documents anonymisés générés (service R2). Les fichiers sont actuellement stockés hors Union européenne ; les transferts sont encadrés par les clauses contractuelles types (SCC) et le Data Privacy Framework UE-USA.",
+      "**Cloudflare, Inc.** *(États-Unis)* :stockage des CVs et des documents anonymisés générés (service R2), en **jurisdiction Union européenne** — les fichiers sont stockés dans l'UE. Cloudflare étant une société américaine, la relation de sous-traitance reste encadrée par les clauses contractuelles types (SCC) et le Data Privacy Framework UE-USA.",
       "**Stripe, Inc.** *(États-Unis)* :traitement des paiements et de la facturation des abonnements. Aucune donnée bancaire ne transite ni n'est stockée chez Naywa Studio.",
       "Aucun autre tiers ne reçoit vos données. Aucune donnée n'est revendue, échangée ou cédée.",
-      "**Transferts hors UE** :certains prestataires sont basés aux États-Unis. Les transferts s'effectuent sous le cadre des clauses contractuelles types de la Commission européenne (SCC) et/ou du Data Privacy Framework UE-USA.",
+      "**Localisation des données** :les données que vous confiez (base de données et fichiers CV) sont stockées dans l'**Union européenne** (Supabase Francfort, Cloudflare R2 jurisdiction UE). Certains sous-traitants sont des sociétés américaines qui traitent des données techniques (hébergement applicatif, emails, IA, paiement) ; ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (SCC) et/ou le Data Privacy Framework UE-USA.",
     ],
   },
   {
@@ -137,7 +137,7 @@ export default function PolitiqueConfidentialitePage() {
     <LegalPageShell
       badge="Confidentialité"
       title="Politique de confidentialité"
-      lastUpdated="20 juin 2026"
+      lastUpdated="13 juillet 2026"
       intro="Naywa Studio respecte la vie privée des utilisateurs et des candidats dont les données transitent par notre service. Cette politique explique en clair ce qui est collecté, pourquoi, avec qui, et comment exercer vos droits."
       sections={SECTIONS}
     />

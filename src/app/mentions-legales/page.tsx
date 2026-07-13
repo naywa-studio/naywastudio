@@ -34,7 +34,7 @@ const SECTIONS: LegalSection[] = [
       "La base de données, l'authentification et les logos sont hébergés par :",
       "**Supabase Inc.**, 970 Toa Payoh North, Singapour. Site : supabase.com. Région de stockage de la base : eu-central-1 (Francfort).",
       "Les CVs et les documents anonymisés générés sont stockés par :",
-      "**Cloudflare, Inc.**, 101 Townsend Street, San Francisco, CA 94107, États-Unis — stockage objet R2 (localisation actuelle : Amérique du Nord). Site : cloudflare.com.",
+      "**Cloudflare, Inc.**, 101 Townsend Street, San Francisco, CA 94107, États-Unis — stockage objet R2 en **jurisdiction Union européenne** (données stockées dans l'UE). Site : cloudflare.com.",
     ],
   },
   {
@@ -94,7 +94,7 @@ export default function MentionsLegalesPage() {
     <LegalPageShell
       badge="Légal"
       title="Mentions légales"
-      lastUpdated="juin 2026"
+      lastUpdated="juillet 2026"
       sections={SECTIONS}
     />
   )
