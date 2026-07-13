@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
   prefilterCandidates,
@@ -34,6 +35,8 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
 
   // RLS-scoped read to verify ownership before doing any admin work.
   const { data: candRow, error: candErr } = await sb
