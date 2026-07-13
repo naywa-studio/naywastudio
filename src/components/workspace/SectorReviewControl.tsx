@@ -15,17 +15,47 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { SectorStatus } from "@/lib/database.types"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 const CAP = 20 // pas de vraie limite produit ; garde-fou anti-abus.
 
-const STATUS_META: Record<SectorStatus, { label: string; color: string; bg: string; border: string }> = {
-  auto:      { label: "Nora",      color: "#7C63C8", bg: "rgba(124,99,200,0.10)", border: "rgba(124,99,200,0.28)" },
-  to_review: { label: "À classer", color: "#B45309", bg: "rgba(245,158,11,0.10)", border: "rgba(245,158,11,0.30)" },
-  validated: { label: "Validé",    color: "#15803D", bg: "rgba(34,197,94,0.10)",  border: "rgba(34,197,94,0.30)" },
+const STATUS_META: Record<Lang, Record<SectorStatus, { label: string; color: string; bg: string; border: string }>> = {
+  fr: {
+    auto:      { label: "Nora",      color: "#7C63C8", bg: "rgba(124,99,200,0.10)", border: "rgba(124,99,200,0.28)" },
+    to_review: { label: "À classer", color: "#B45309", bg: "rgba(245,158,11,0.10)", border: "rgba(245,158,11,0.30)" },
+    validated: { label: "Validé",    color: "#15803D", bg: "rgba(34,197,94,0.10)",  border: "rgba(34,197,94,0.30)" },
+  },
+  en: {
+    auto:      { label: "Nora",      color: "#7C63C8", bg: "rgba(124,99,200,0.10)", border: "rgba(124,99,200,0.28)" },
+    to_review: { label: "To classify", color: "#B45309", bg: "rgba(245,158,11,0.10)", border: "rgba(245,158,11,0.30)" },
+    validated: { label: "Validated", color: "#15803D", bg: "rgba(34,197,94,0.10)",  border: "rgba(34,197,94,0.30)" },
+  },
+}
+
+const copy = {
+  fr: {
+    sectors: "Secteurs",
+    noSectors: "Aucun secteur. Créez-en un ci-dessous.",
+    newSectorPlaceholder: "Nouveau secteur…",
+    cancel: "Annuler",
+    validate: "Valider",
+    editSector: "Modifier le secteur",
+    choose: "Choisir…",
+  },
+  en: {
+    sectors: "Sectors",
+    noSectors: "No sector. Create one below.",
+    newSectorPlaceholder: "New sector…",
+    cancel: "Cancel",
+    validate: "Validate",
+    editSector: "Edit sector",
+    choose: "Choose…",
+  },
 }
 
 export function SectorStatusBadge({ status }: { status: SectorStatus }) {
-  const m = STATUS_META[status] ?? STATUS_META.to_review
+  const { lang } = useLanguage()
+  const m = STATUS_META[lang][status] ?? STATUS_META[lang].to_review
   return (
     <span style={{
       fontSize: 9.5, fontWeight: 700, color: m.color,
@@ -61,6 +91,8 @@ export function SectorReviewControl({
   /** Affiche la pastille de statut (Nora / À classer / Validé). Défaut : non. */
   showStatus?: boolean
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<string[]>(sectors)
   const [newName, setNewName] = useState("")
@@ -142,7 +174,7 @@ export function SectorReviewControl({
   }
 
   const options = Array.from(new Set([...allSectors, ...draft]))
-    .sort((a, b) => a.localeCompare(b, "fr"))
+    .sort((a, b) => a.localeCompare(b, lang))
 
   const panel = open && coords ? createPortal(
     <div
@@ -156,12 +188,12 @@ export function SectorReviewControl({
       }}
     >
       <p style={{ margin: "0 0 8px", fontSize: 10.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-        Secteurs
+        {t.sectors}
       </p>
       <div style={{ maxHeight: 168, overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
         {options.length === 0 && (
           <p style={{ margin: "4px 2px", fontSize: 11.5, color: "#6B7280" }}>
-            Aucun secteur. Créez-en un ci-dessous.
+            {t.noSectors}
           </p>
         )}
         {options.map((name) => {
@@ -204,7 +236,7 @@ export function SectorReviewControl({
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNew() } }}
-          placeholder="Nouveau secteur…"
+          placeholder={t.newSectorPlaceholder}
           style={{
             flex: 1, minWidth: 0, fontSize: 12, color: "#111827",
             padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 7,
@@ -237,7 +269,7 @@ export function SectorReviewControl({
             padding: "6px 11px", cursor: "pointer", fontFamily: "inherit",
           }}
         >
-          Annuler
+          {t.cancel}
         </button>
         <button
           type="button"
@@ -250,7 +282,7 @@ export function SectorReviewControl({
             cursor: saving ? "default" : "pointer", fontFamily: "inherit",
           }}
         >
-          {saving ? "…" : "Valider"}
+          {saving ? "…" : t.validate}
         </button>
       </div>
     </div>,
@@ -265,7 +297,7 @@ export function SectorReviewControl({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        title="Modifier le secteur"
+        title={t.editSector}
         style={{
           height: 28, boxSizing: "border-box",
           display: "inline-flex", alignItems: "center", gap: 5,
@@ -277,7 +309,7 @@ export function SectorReviewControl({
         }}
       >
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {sectors.length ? sectors.join(", ") : "Choisir…"}
+          {sectors.length ? sectors.join(", ") : t.choose}
         </span>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
           <path d="m6 9 6 6 6-6" />

@@ -18,6 +18,7 @@ import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { getSupabase } from "@/lib/supabase"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 interface ProfileState {
   first_name:               string | null
@@ -25,8 +26,91 @@ interface ProfileState {
   org_name:                 string | null
 }
 
+const copy = {
+  fr: {
+    badge: "Mon compte",
+    title: "Mon profil.",
+    personalInfoTitle: "Informations personnelles",
+    personalInfoSubtitle: "Visible par vos collègues de l'organisation.",
+    firstName: "Prénom",
+    firstNamePlaceholder: "Votre prénom",
+    email: "Email",
+    emailHint: "Non modifiable. Pour changer d'email, contactez le support.",
+    saveError: "Impossible d'enregistrer le prénom. Réessayez.",
+    saving: "Enregistrement…",
+    save: "Enregistrer",
+    saved: "Enregistré",
+    orgTitle: "Mon organisation",
+    orgSubtitle: "Organisation à laquelle votre compte est rattaché.",
+    orgName: "Nom de l'organisation",
+    myRole: "Mon rôle",
+    owner: "Owner",
+    member: "Membre",
+    manageOrg: "Gérer mon organisation →",
+    securityTitle: "Sécurité",
+    securitySubtitle: "Déconnectez-vous de tous vos onglets Naywa.",
+    logout: "Se déconnecter",
+    deleteTitle: "Supprimer mon compte",
+    deleteDesc: "Suppression définitive de votre compte et de toutes les données associées. Cette action est irréversible.",
+    ownerWarning: "Vous êtes propriétaire d'une organisation. Si d'autres membres en font partie, vous devrez d'abord les retirer (ou supprimer l'organisation) depuis l'onglet Sécurité de votre console. Si vous êtes seul, votre organisation sera supprimée en même temps que votre compte.",
+    deleteButton: "Supprimer mon compte",
+    confirmTitle: "Supprimer définitivement votre compte ?",
+    confirmDesc: (isOwner: boolean) =>
+      `Votre profil, vos préférences et votre accès au workspace seront supprimés. ${isOwner ? "Votre organisation sera également supprimée si vous en êtes le seul membre." : ""}`,
+    typeToConfirm: "SUPPRIMER",
+    typeToConfirmLabel: (word: string) => (
+      <>Tapez <strong>{word}</strong> pour confirmer</>
+    ),
+    cancel: "Annuler",
+    deleting: "Suppression…",
+    confirmDelete: "Confirmer la suppression",
+    genericDeleteError: "Erreur lors de la suppression.",
+  },
+  en: {
+    badge: "My account",
+    title: "My profile.",
+    personalInfoTitle: "Personal information",
+    personalInfoSubtitle: "Visible to your colleagues in the organization.",
+    firstName: "First name",
+    firstNamePlaceholder: "Your first name",
+    email: "Email",
+    emailHint: "Cannot be changed. To change your email, contact support.",
+    saveError: "Unable to save your first name. Please try again.",
+    saving: "Saving…",
+    save: "Save",
+    saved: "Saved",
+    orgTitle: "My organization",
+    orgSubtitle: "The organization your account belongs to.",
+    orgName: "Organization name",
+    myRole: "My role",
+    owner: "Owner",
+    member: "Member",
+    manageOrg: "Manage my organization →",
+    securityTitle: "Security",
+    securitySubtitle: "Sign out of all your Naywa tabs.",
+    logout: "Sign out",
+    deleteTitle: "Delete my account",
+    deleteDesc: "Permanent deletion of your account and all associated data. This action cannot be undone.",
+    ownerWarning: "You own an organization. If other members are part of it, you'll need to remove them first (or delete the organization) from the Security tab of your console. If you're the only member, your organization will be deleted along with your account.",
+    deleteButton: "Delete my account",
+    confirmTitle: "Permanently delete your account?",
+    confirmDesc: (isOwner: boolean) =>
+      `Your profile, preferences, and workspace access will be deleted. ${isOwner ? "Your organization will also be deleted if you're its only member." : ""}`,
+    typeToConfirm: "DELETE",
+    typeToConfirmLabel: (word: string) => (
+      <>Type <strong>{word}</strong> to confirm</>
+    ),
+    cancel: "Cancel",
+    deleting: "Deleting…",
+    confirmDelete: "Confirm deletion",
+    genericDeleteError: "Error while deleting.",
+  },
+}
+
 export default function ProfilPage() {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
 
   const [loading,   setLoading]   = useState(true)
@@ -90,7 +174,7 @@ export default function ProfilPage() {
         body: JSON.stringify({ first_name: firstName }),
       })
       if (!r.ok) {
-        setError("Impossible d'enregistrer le prénom. Réessayez.")
+        setError(t.saveError)
         return
       }
       setProfile((p) => p ? { ...p, first_name: firstName.trim() || null } : p)
@@ -120,7 +204,7 @@ export default function ProfilPage() {
               fontSize: 11, fontWeight: 700, color: "#7C63C8",
               letterSpacing: "0.10em", textTransform: "uppercase",
             }}>
-              Mon compte
+              {t.badge}
             </span>
             <h1 style={{
               fontFamily: "var(--font-inter), sans-serif",
@@ -128,7 +212,7 @@ export default function ProfilPage() {
               fontWeight: 800, color: "#111827",
               margin: "10px 0 0", lineHeight: 1.1, letterSpacing: "-0.025em",
             }}>
-              Mon profil.
+              {t.title}
             </h1>
           </header>
 
@@ -137,18 +221,18 @@ export default function ProfilPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {/* ── Informations personnelles ─── */}
-              <Card title="Informations personnelles" subtitle="Visible par vos collègues de l'organisation.">
-                <Field label="Prénom">
+              <Card title={t.personalInfoTitle} subtitle={t.personalInfoSubtitle}>
+                <Field label={t.firstName}>
                   <input
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     maxLength={60}
-                    placeholder="Votre prénom"
+                    placeholder={t.firstNamePlaceholder}
                     style={INPUT_STYLE}
                   />
                 </Field>
-                <Field label="Email" hint="Non modifiable. Pour changer d'email, contactez le support.">
+                <Field label={t.email} hint={t.emailHint}>
                   <input
                     type="email"
                     value={email}
@@ -170,19 +254,19 @@ export default function ProfilPage() {
                       cursor: (!firstNameDirty || saving) ? "default" : "pointer",
                     }}
                   >
-                    {saving ? "Enregistrement…" : "Enregistrer"}
+                    {saving ? t.saving : t.save}
                   </button>
                   {savedAt && (
                     <span style={{ fontSize: 13, color: "#22C55E", fontWeight: 600 }}>
-                      Enregistré
+                      {t.saved}
                     </span>
                   )}
                 </div>
               </Card>
 
               {/* ── Cabinet ─── */}
-              <Card title="Mon organisation" subtitle="Organisation à laquelle votre compte est rattaché.">
-                <Field label="Nom de l&apos;organisation">
+              <Card title={t.orgTitle} subtitle={t.orgSubtitle}>
+                <Field label={t.orgName}>
                   <input
                     type="text"
                     value={profile?.org_name ?? "—"}
@@ -190,7 +274,7 @@ export default function ProfilPage() {
                     style={{ ...INPUT_STYLE, background: "#F8F6FF", color: "#6B7280", cursor: "not-allowed" }}
                   />
                 </Field>
-                <Field label="Mon rôle">
+                <Field label={t.myRole}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{
                       display: "inline-flex", alignItems: "center", gap: 6,
@@ -202,11 +286,11 @@ export default function ProfilPage() {
                       letterSpacing: "0.04em", textTransform: "uppercase",
                       fontFamily: "var(--font-inter), sans-serif",
                     }}>
-                      {profile?.role === "owner" ? "Owner" : "Membre"}
+                      {profile?.role === "owner" ? t.owner : t.member}
                     </span>
                     {profile?.role === "owner" && (
                       <Link href="/organisation" style={{ fontSize: 13, color: "#7C63C8", textDecoration: "none", fontWeight: 600 }}>
-                        Gérer mon organisation →
+                        {t.manageOrg}
                       </Link>
                     )}
                   </div>
@@ -214,13 +298,13 @@ export default function ProfilPage() {
               </Card>
 
               {/* ── Sécurité ─── */}
-              <Card title="Sécurité" subtitle="Déconnectez-vous de tous vos onglets Naywa.">
+              <Card title={t.securityTitle} subtitle={t.securitySubtitle}>
                 <button
                   type="button"
                   onClick={signOut}
                   style={SECONDARY_BUTTON_DANGER}
                 >
-                  Se déconnecter
+                  {t.logout}
                 </button>
               </Card>
 
@@ -237,12 +321,14 @@ export default function ProfilPage() {
 
 function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [showModal, setShowModal] = useState(false)
   const [confirmText, setConfirmText] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const canDelete = confirmText.trim().toUpperCase() === "SUPPRIMER" && !busy
+  const canDelete = confirmText.trim().toUpperCase() === t.typeToConfirm && !busy
 
   const doDelete = async () => {
     if (!canDelete) return
@@ -250,7 +336,7 @@ function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
     const res = await fetch("/api/account/me", { method: "DELETE" })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Erreur lors de la suppression.")
+      setError(j.error ?? t.genericDeleteError)
       setBusy(false)
       return
     }
@@ -272,11 +358,10 @@ function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
           fontSize: 17, fontWeight: 700, color: "#B91C1C",
           letterSpacing: "-0.01em",
         }}>
-          Supprimer mon compte
+          {t.deleteTitle}
         </h2>
         <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
-          Suppression définitive de votre compte et de toutes les données
-          associées. Cette action est irréversible.
+          {t.deleteDesc}
         </p>
       </header>
 
@@ -288,11 +373,7 @@ function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
           border: "1px solid rgba(245,158,11,0.25)",
           fontSize: 12.5, color: "#92400E", lineHeight: 1.55,
         }}>
-          Vous êtes propriétaire d&apos;une organisation. Si d&apos;autres
-          membres en font partie, vous devrez d&apos;abord les retirer
-          (ou supprimer l&apos;organisation) depuis l&apos;onglet Sécurité de
-          votre console. Si vous êtes seul, votre organisation sera supprimée
-          en même temps que votre compte.
+          {t.ownerWarning}
         </p>
       )}
 
@@ -304,7 +385,7 @@ function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
           fontSize: 13, fontWeight: 700, cursor: "pointer",
           fontFamily: "var(--font-inter), sans-serif",
         }}>
-        Supprimer mon compte
+        {t.deleteButton}
       </button>
 
       {showModal && (
@@ -325,20 +406,19 @@ function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
             fontFamily: "var(--font-inter), sans-serif",
           }}>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#B91C1C" }}>
-              Supprimer définitivement votre compte ?
+              {t.confirmTitle}
             </h3>
             <p style={{ margin: "10px 0 16px", fontSize: 13.5, color: "#4B5563", lineHeight: 1.6 }}>
-              Votre profil, vos préférences et votre accès au workspace seront
-              supprimés. {isOwner ? "Votre organisation sera également supprimée si vous en êtes le seul membre." : ""}
+              {t.confirmDesc(isOwner)}
             </p>
             <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#374151" }}>
-              Tapez <strong>SUPPRIMER</strong> pour confirmer
+              {t.typeToConfirmLabel(t.typeToConfirm)}
             </p>
             <input
               type="text"
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
-              placeholder="SUPPRIMER"
+              placeholder={t.typeToConfirm}
               style={{
                 width: "100%", padding: "9px 12px", borderRadius: 8,
                 border: "1.5px solid #E5E7EB", fontSize: 14,
@@ -358,7 +438,7 @@ function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
                   color: "#374151", fontSize: 13, fontWeight: 600,
                   cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
                 }}>
-                Annuler
+                {t.cancel}
               </button>
               <button type="button" onClick={() => void doDelete()}
                 disabled={!canDelete}
@@ -370,7 +450,7 @@ function DeleteAccountCard({ isOwner }: { isOwner: boolean }) {
                   cursor: canDelete ? "pointer" : "not-allowed",
                   fontFamily: "inherit",
                 }}>
-                {busy ? "Suppression…" : "Confirmer la suppression"}
+                {busy ? t.deleting : t.confirmDelete}
               </button>
             </div>
           </div>

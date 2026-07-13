@@ -11,6 +11,7 @@ import { candidateRefLabel } from "@/lib/candidate-ref"
 import TagPicker from "@/components/workspace/TagPicker"
 import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { showUndoToast } from "@/components/ui/UndoToast"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -32,9 +33,137 @@ const TIER_COLOR: Record<MatchTier, { fg: string; bg: string; bd: string }> = {
   poor:      { fg: "#6B7280", bg: "#F3F4F6",               bd: "#E5E7EB" },
 }
 
-const STAGE_LABELS: Record<string, string> = {
-  identified: "Identifié", contacted: "Contacté", replied: "Réponse",
-  interview: "Entretien", offer: "Offre", hired: "Recruté", rejected: "Écarté",
+const STAGE_LABELS: Record<Lang, Record<string, string>> = {
+  fr: {
+    identified: "Identifié", contacted: "Contacté", replied: "Réponse",
+    interview: "Entretien", offer: "Offre", hired: "Recruté", rejected: "Écarté",
+  },
+  en: {
+    identified: "Identified", contacted: "Contacted", replied: "Replied",
+    interview: "Interview", offer: "Offer", hired: "Hired", rejected: "Rejected",
+  },
+}
+
+const LANGUAGE_LABEL: Record<Lang, Record<string, string>> = {
+  fr: {
+    fr: "Français", en: "Anglais", es: "Espagnol", de: "Allemand",
+    it: "Italien", pt: "Portugais", nl: "Néerlandais",
+  },
+  en: {
+    fr: "French", en: "English", es: "Spanish", de: "German",
+    it: "Italian", pt: "Portuguese", nl: "Dutch",
+  },
+}
+
+const copy = {
+  fr: {
+    loadingLabel: "Chargement du candidat",
+    notFound: "Candidat introuvable.",
+    backToVivier: "← Retour au vivier",
+    candidateFallback: "Candidat",
+    deletedToast: (label: string) => `${label} supprimé`,
+    delete: "Supprimer",
+    parsingFailed: "Parsing échoué.",
+    retryParsing: "Relancer le parsing",
+    retryParsingIcon: "⟳ Relancer le parsing",
+    analyzing: "✦ Nora est en train d'analyser le CV…",
+    email: "Email",
+    phone: "Téléphone",
+    location: "Localisation",
+    experience: "Expérience",
+    yearsSuffix: (n: number) => `${n} ans`,
+    seniority: "Séniorité",
+    retryTitle: "Re-soumettre le CV au parsing — utile après une mise à jour de l'analyse Nora",
+    tags: "Tags",
+    tagsPlaceholder: "ex : à recontacter, freelance, client X…",
+    summary: "Résumé",
+    experienceTitle: "Expérience",
+    skills: "Compétences",
+    technicalSkills: "Techniques & méthodes",
+    softSkills: "Qualités",
+    education: "Formation",
+    other: "Autres",
+    languagesLabel: "Langues:",
+    certificationsLabel: "Certifications:",
+    notes: "Notes",
+    saving: "Enregistrement…",
+    saved: "✓ Sauvegardé",
+    notesPlaceholder: "Vos observations privées sur ce candidat…",
+    matchedJobs: "📌 Missions matchées",
+    noMatchedJobs: "Ce candidat n'est associé à aucune mission pour l'instant.",
+    launchMatching: "Lancez un matching →",
+    manual: "Manuel",
+    openTriangle: "Ouvrir ▶",
+    matchHint: "Le message d'approche et la version anonymisée du CV se font depuis chaque fiche match — un message par mission pitchée.",
+    originalCv: "CV original",
+    openExternal: "Ouvrir ↗",
+    preparingPreview: "Préparation de l'aperçu…",
+    noPdf: "Aucun fichier PDF.",
+    nameToComplete: "Nom à compléter",
+    viewPricing: "€ Voir le pricing",
+    chooseJob: "Choisir la mission",
+    openProfile: (label: string) => `Ouvrir le profil ${label}`,
+    cvComplete: "CV complet",
+    cvPartial: "CV partiel",
+    cvPoor: "CV pauvre",
+    completenessTitle: (score: number) => `Score de complétude : ${score}/100`,
+    cvInLang: (lang: string) => `CV en ${lang}`,
+    website: "Site",
+  },
+  en: {
+    loadingLabel: "Loading candidate",
+    notFound: "Candidate not found.",
+    backToVivier: "← Back to talent pool",
+    candidateFallback: "Candidate",
+    deletedToast: (label: string) => `${label} deleted`,
+    delete: "Delete",
+    parsingFailed: "Parsing failed.",
+    retryParsing: "Retry parsing",
+    retryParsingIcon: "⟳ Retry parsing",
+    analyzing: "✦ Nora is analyzing the CV…",
+    email: "Email",
+    phone: "Phone",
+    location: "Location",
+    experience: "Experience",
+    yearsSuffix: (n: number) => `${n} years`,
+    seniority: "Seniority",
+    retryTitle: "Re-submit the CV for parsing — useful after a Nora analysis update",
+    tags: "Tags",
+    tagsPlaceholder: "e.g.: follow up, freelance, client X…",
+    summary: "Summary",
+    experienceTitle: "Experience",
+    skills: "Skills",
+    technicalSkills: "Technical skills & methods",
+    softSkills: "Soft skills",
+    education: "Education",
+    other: "Other",
+    languagesLabel: "Languages:",
+    certificationsLabel: "Certifications:",
+    notes: "Notes",
+    saving: "Saving…",
+    saved: "✓ Saved",
+    notesPlaceholder: "Your private notes on this candidate…",
+    matchedJobs: "📌 Matched job openings",
+    noMatchedJobs: "This candidate isn't linked to any job opening yet.",
+    launchMatching: "Run a matching →",
+    manual: "Manual",
+    openTriangle: "Open ▶",
+    matchHint: "The outreach message and anonymized CV version are handled from each match sheet — one message per pitched job opening.",
+    originalCv: "Original CV",
+    openExternal: "Open ↗",
+    preparingPreview: "Preparing preview…",
+    noPdf: "No PDF file.",
+    nameToComplete: "Name to complete",
+    viewPricing: "€ View pricing",
+    chooseJob: "Choose the job opening",
+    openProfile: (label: string) => `Open ${label} profile`,
+    cvComplete: "Complete CV",
+    cvPartial: "Partial CV",
+    cvPoor: "Sparse CV",
+    completenessTitle: (score: number) => `Completeness score: ${score}/100`,
+    cvInLang: (lang: string) => `CV in ${lang}`,
+    website: "Website",
+  },
 }
 
 /**
@@ -47,6 +176,8 @@ const STAGE_LABELS: Record<string, string> = {
  */
 export default function CandidatePage() {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const { candidateId } = useParams<{ candidateId: string }>()
   const sb = useMemo(() => getSupabase(), [])
 
@@ -163,11 +294,11 @@ export default function CandidatePage() {
 
   const handleDelete = async () => {
     if (!candidate) return
-    const label = candidate.full_name?.trim() || "Candidat"
+    const label = candidate.full_name?.trim() || t.candidateFallback
     // Send the sourcer back to the vivier first so the candidate vanishes
     // visually; the actual deletion is held by the undo toast.
     router.push("/workspace/vivier")
-    const { cancelled } = await showUndoToast(`${label} supprimé`)
+    const { cancelled } = await showUndoToast(t.deletedToast(label))
     if (cancelled) {
       router.push(`/workspace/vivier/${candidate.id}`)
       return
@@ -192,14 +323,14 @@ export default function CandidatePage() {
   }
 
   if (loading) {
-    return <DetailSkeleton label="Chargement du candidat" />
+    return <DetailSkeleton label={t.loadingLabel} />
   }
   if (notFound || !candidate) {
     return (
       <div style={{ padding: "60px 24px", textAlign: "center", color: "#6B7280" }}>
-        <p style={{ fontSize: 16, fontWeight: 600 }}>Candidat introuvable.</p>
+        <p style={{ fontSize: 16, fontWeight: 600 }}>{t.notFound}</p>
         <Link href="/workspace/vivier" style={{ color: "#7C63C8", textDecoration: "none", fontSize: 14 }}>
-          ← Retour au vivier
+          {t.backToVivier}
         </Link>
       </div>
     )
@@ -218,7 +349,7 @@ export default function CandidatePage() {
         fontSize: 13, color: "#7C63C8", textDecoration: "none",
         marginBottom: 22,
       }}>
-        ← Retour au vivier
+        {t.backToVivier}
       </Link>
 
       <m.div
@@ -244,7 +375,7 @@ export default function CandidatePage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
-                    {candidate.full_name ?? "Nom à compléter"}
+                    {candidate.full_name ?? t.nameToComplete}
                   </h1>
                   <RefBadge candidateId={candidate.id} />
                 </div>
@@ -269,7 +400,7 @@ export default function CandidatePage() {
                   fontFamily: "inherit",
                 }}
               >
-                Supprimer
+                {t.delete}
               </button>
             </div>
 
@@ -280,7 +411,7 @@ export default function CandidatePage() {
                 borderRadius: 10, fontSize: 13, color: "#B91C1C",
                 display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
               }}>
-                <span><strong>Parsing échoué.</strong> {candidate.parse_error}</span>
+                <span><strong>{t.parsingFailed}</strong> {candidate.parse_error}</span>
                 <button
                   onClick={handleRetryParse}
                   style={{
@@ -290,7 +421,7 @@ export default function CandidatePage() {
                     fontFamily: "inherit",
                   }}
                 >
-                  Relancer le parsing
+                  {t.retryParsing}
                 </button>
               </div>
             )}
@@ -300,7 +431,7 @@ export default function CandidatePage() {
                 background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.18)",
                 borderRadius: 10, fontSize: 13, color: "#7C63C8",
               }}>
-                ✦ Nora est en train d&apos;analyser le CV…
+                {t.analyzing}
               </div>
             )}
 
@@ -308,12 +439,12 @@ export default function CandidatePage() {
               marginTop: 18, display: "flex", flexWrap: "wrap", gap: 14,
               fontSize: 13, color: "#374151",
             }}>
-              <InfoChip label="Email"        value={candidate.email} />
-              <InfoChip label="Téléphone"    value={candidate.phone} />
-              <InfoChip label="Localisation" value={candidate.location} />
-              <InfoChip label="Expérience"   value={candidate.years_experience != null ? `${candidate.years_experience} ans` : null} />
+              <InfoChip label={t.email}       value={candidate.email} />
+              <InfoChip label={t.phone}       value={candidate.phone} />
+              <InfoChip label={t.location}    value={candidate.location} />
+              <InfoChip label={t.experience}  value={candidate.years_experience != null ? t.yearsSuffix(candidate.years_experience) : null} />
               <InfoChip
-                label="Séniorité"
+                label={t.seniority}
                 value={candidate.seniority_level
                   ? cv?.seniority_role
                     ? `${candidate.seniority_level} · ${cv.seniority_role}`
@@ -328,7 +459,7 @@ export default function CandidatePage() {
               <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
                 <button
                   onClick={handleRetryParse}
-                  title="Re-soumettre le CV au parsing — utile après une mise à jour de l'analyse Nora"
+                  title={t.retryTitle}
                   style={{
                     fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
                     background: "transparent", border: "1px solid rgba(124,99,200,0.3)",
@@ -337,20 +468,20 @@ export default function CandidatePage() {
                     display: "inline-flex", alignItems: "center", gap: 5,
                   }}
                 >
-                  ⟳ Relancer le parsing
+                  {t.retryParsingIcon}
                 </button>
               </div>
             )}
           </section>
 
           {/* Tags */}
-          <Section title="Tags">
+          <Section title={t.tags}>
             <TagPicker
               value={customTagsOf(candidate.tags)}
               suggestions={tagSuggestions}
               onChange={saveTags}
               saving={tagsSaving}
-              placeholder="ex : à recontacter, freelance, client X…"
+              placeholder={t.tagsPlaceholder}
             />
           </Section>
 
@@ -361,13 +492,13 @@ export default function CandidatePage() {
           }}>
             <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 22 }}>
               {cv?.summary && (
-                <SubSection title="Résumé">
+                <SubSection title={t.summary}>
                   <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.7 }}>{cv.summary}</p>
                 </SubSection>
               )}
 
               {cv?.experience && cv.experience.length > 0 && (
-                <SubSection title="Expérience">
+                <SubSection title={t.experienceTitle}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     {cv.experience.map((e, i) => <ExperienceItem key={i} e={e} />)}
                   </div>
@@ -375,11 +506,11 @@ export default function CandidatePage() {
               )}
 
               {((candidate.skills && candidate.skills.length > 0) || (cv?.qualities && cv.qualities.length > 0)) && (
-                <SubSection title="Compétences">
+                <SubSection title={t.skills}>
                   {candidate.skills && candidate.skills.length > 0 && (
                     <div>
                       <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                        Techniques &amp; méthodes
+                        {t.technicalSkills}
                       </p>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {candidate.skills.map((s) => (
@@ -395,7 +526,7 @@ export default function CandidatePage() {
                   {cv?.qualities && cv.qualities.length > 0 && (
                     <div style={{ marginTop: candidate.skills && candidate.skills.length > 0 ? 16 : 0 }}>
                       <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#16a34a", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                        Qualités
+                        {t.softSkills}
                       </p>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {cv.qualities.map((q) => (
@@ -412,7 +543,7 @@ export default function CandidatePage() {
               )}
 
               {cv?.education && cv.education.length > 0 && (
-                <SubSection title="Formation">
+                <SubSection title={t.education}>
                   <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
                     {cv.education.map((ed, i) => (
                       <li key={i} style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.55 }}>
@@ -429,15 +560,15 @@ export default function CandidatePage() {
               )}
 
               {((cv?.languages && cv.languages.length > 0) || (cv?.certifications && cv.certifications.length > 0)) && (
-                <SubSection title="Autres">
+                <SubSection title={t.other}>
                   {cv.languages && cv.languages.length > 0 && (
                     <p style={{ margin: "0 0 8px", fontSize: 13, color: "#374151" }}>
-                      <strong style={{ color: "#111827" }}>Langues:</strong> {cv.languages.join(" · ")}
+                      <strong style={{ color: "#111827" }}>{t.languagesLabel}</strong> {cv.languages.join(" · ")}
                     </p>
                   )}
                   {cv.certifications && cv.certifications.length > 0 && (
                     <p style={{ margin: 0, fontSize: 13, color: "#374151" }}>
-                      <strong style={{ color: "#111827" }}>Certifications:</strong> {cv.certifications.join(" · ")}
+                      <strong style={{ color: "#111827" }}>{t.certificationsLabel}</strong> {cv.certifications.join(" · ")}
                     </p>
                   )}
                 </SubSection>
@@ -447,15 +578,15 @@ export default function CandidatePage() {
 
           {/* Notes */}
           <Section
-            title="Notes"
-            right={savingNotes === "saving" ? <SmallStatus color="#7C63C8" label="Enregistrement…" />
-              : savingNotes === "saved" ? <SmallStatus color="#16a34a" label="✓ Sauvegardé" /> : null}
+            title={t.notes}
+            right={savingNotes === "saving" ? <SmallStatus color="#7C63C8" label={t.saving} />
+              : savingNotes === "saved" ? <SmallStatus color="#16a34a" label={t.saved} /> : null}
           >
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               onBlur={saveNotes}
-              placeholder="Vos observations privées sur ce candidat…"
+              placeholder={t.notesPlaceholder}
               rows={4}
               style={{
                 width: "100%", boxSizing: "border-box",
@@ -487,13 +618,13 @@ export default function CandidatePage() {
               margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "#6B7280",
               letterSpacing: "0.08em", textTransform: "uppercase",
             }}>
-              📌 Missions matchées
+              {t.matchedJobs}
             </h3>
             {jobMatches.length === 0 ? (
               <p style={{ margin: 0, fontSize: 13, color: "#6B7280", lineHeight: 1.6 }}>
-                Ce candidat n&apos;est associé à aucune mission pour l&apos;instant.
+                {t.noMatchedJobs}
                 {" "}<Link href="/workspace/missions" style={{ color: "#7C63C8", textDecoration: "none", fontWeight: 600 }}>
-                  Lancez un matching →
+                  {t.launchMatching}
                 </Link>
               </p>
             ) : (
@@ -524,15 +655,15 @@ export default function CandidatePage() {
                           border: `1px solid ${tier?.bd ?? "rgba(124,99,200,0.22)"}`,
                           padding: "2px 7px", borderRadius: 100, flexShrink: 0,
                         }}>
-                          {isManual ? "Manuel" : `${m.score} · ${m.match_tier}`}
+                          {isManual ? t.manual : `${m.score} · ${m.match_tier}`}
                         </span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 11, color: "#6B7280" }}>
-                          {STAGE_LABELS[m.pipeline_stage] ?? m.pipeline_stage}
+                          {STAGE_LABELS[lang][m.pipeline_stage] ?? m.pipeline_stage}
                         </span>
                         <span style={{ fontSize: 11, color: "#7C63C8", fontWeight: 700 }}>
-                          Ouvrir ▶
+                          {t.openTriangle}
                         </span>
                       </div>
                     </Link>
@@ -544,8 +675,7 @@ export default function CandidatePage() {
               margin: "12px 0 0", fontSize: 11, color: "#6B7280",
               lineHeight: 1.55, fontStyle: "italic",
             }}>
-              Le message d&apos;approche et la version anonymisée du CV se font
-              depuis chaque fiche match — un message par mission pitchée.
+              {t.matchHint}
             </p>
           </section>
 
@@ -564,14 +694,14 @@ export default function CandidatePage() {
                 margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
                 letterSpacing: "0.08em", textTransform: "uppercase",
               }}>
-                CV original
+                {t.originalCv}
               </h3>
               {signedUrl && (
                 <a href={signedUrl} target="_blank" rel="noreferrer" style={{
                   fontSize: 11, fontWeight: 700, color: "#7C63C8",
                   textDecoration: "none",
                 }}>
-                  Ouvrir ↗
+                  {t.openExternal}
                 </a>
               )}
             </div>
@@ -583,7 +713,7 @@ export default function CandidatePage() {
               />
             ) : (
               <p style={{ margin: 0, padding: 24, fontSize: 13, color: "#6B7280" }}>
-                {candidate.cv_file_path ? "Préparation de l'aperçu…" : "Aucun fichier PDF."}
+                {candidate.cv_file_path ? t.preparingPreview : t.noPdf}
               </p>
             )}
           </section>
@@ -665,6 +795,8 @@ const PROFILE_BRANDS: Record<ProfileBrand, { label: string; color: string; path:
 /* Bouton "Voir le pricing" — direct si 1 seule mission en pipeline, dropdown
  * si N missions. Caché quand le candidat n'est sur aucune mission active. */
 export function PricingShortcut({ matches }: { matches: JobMatch[] }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [open, setOpen] = useState(false)
   const pipelineMatches = matches.filter((m) => m.in_pipeline)
   if (pipelineMatches.length === 0) return null
@@ -683,7 +815,7 @@ export function PricingShortcut({ matches }: { matches: JobMatch[] }) {
     const only = pipelineMatches[0]
     return (
       <Link href={`/workspace/pricing/${only.job_id}`} style={{ ...btnStyle, textDecoration: "none" }}>
-        € Voir le pricing
+        {t.viewPricing}
       </Link>
     )
   }
@@ -692,7 +824,7 @@ export function PricingShortcut({ matches }: { matches: JobMatch[] }) {
   return (
     <div style={{ position: "relative" }}>
       <button onClick={() => setOpen((v) => !v)} style={btnStyle}>
-        € Voir le pricing
+        {t.viewPricing}
         <span style={{ fontSize: 10 }}>▾</span>
       </button>
       {open && (
@@ -709,7 +841,7 @@ export function PricingShortcut({ matches }: { matches: JobMatch[] }) {
               letterSpacing: "0.05em", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
-              Choisir la mission
+              {t.chooseJob}
             </div>
             {pipelineMatches.map((m) => (
               <Link key={m.id} href={`/workspace/pricing/${m.job_id}`} style={{
@@ -750,14 +882,17 @@ export function RefBadge({ candidateId }: { candidateId: string }) {
 }
 
 function ProfileButton({ href, brand }: { href: string | null; brand: ProfileBrand }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   if (!href) return null
   const b = PROFILE_BRANDS[brand]
+  const label = brand === "portfolio" ? t.website : b.label
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      title={`Ouvrir le profil ${b.label}`}
+      title={t.openProfile(label)}
       style={{
         display: "inline-flex", alignItems: "center", gap: 6,
         fontSize: 12, fontWeight: 700, color: b.color,
@@ -769,7 +904,7 @@ function ProfileButton({ href, brand }: { href: string | null; brand: ProfileBra
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
         <path d={b.path} />
       </svg>
-      {b.label}
+      {label}
     </a>
   )
 }
@@ -827,28 +962,25 @@ function ExperienceItem({ e }: { e: NonNullable<ParsedCv["experience"]>[number] 
   )
 }
 
-const LANGUAGE_LABEL: Record<string, string> = {
-  fr: "Français", en: "Anglais", es: "Espagnol", de: "Allemand",
-  it: "Italien", pt: "Portugais", nl: "Néerlandais",
-}
-
 function CvHealthBar({ cv }: { cv: ParsedCv | null }) {
+  const { lang: uiLang } = useLanguage()
+  const t = copy[uiLang]
   if (!cv) return null
   const score = typeof cv.completeness === "number" ? cv.completeness : null
-  const lang = cv.language ?? null
+  const cvLang = cv.language ?? null
   const warnings = Array.isArray(cv.warnings) ? cv.warnings : []
-  if (score == null && !lang && warnings.length === 0) return null
+  if (score == null && !cvLang && warnings.length === 0) return null
 
   const tier = score == null ? null
-    : score >= 75 ? { label: "CV complet",  fg: "#15803d", bg: "rgba(34,197,94,0.10)", bd: "rgba(34,197,94,0.3)" }
-    : score >= 40 ? { label: "CV partiel",  fg: "#B45309", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" }
-    :               { label: "CV pauvre",   fg: "#B91C1C", bg: "rgba(220,38,38,0.10)", bd: "rgba(220,38,38,0.3)" }
+    : score >= 75 ? { label: t.cvComplete, fg: "#15803d", bg: "rgba(34,197,94,0.10)", bd: "rgba(34,197,94,0.3)" }
+    : score >= 40 ? { label: t.cvPartial,  fg: "#B45309", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" }
+    :               { label: t.cvPoor,     fg: "#B91C1C", bg: "rgba(220,38,38,0.10)", bd: "rgba(220,38,38,0.3)" }
 
   return (
     <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {tier && (
-          <span title={`Score de complétude : ${score}/100`} style={{
+          <span title={t.completenessTitle(score!)} style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             fontSize: 11, fontWeight: 700, color: tier.fg,
             background: tier.bg, border: `1px solid ${tier.bd}`,
@@ -857,13 +989,13 @@ function CvHealthBar({ cv }: { cv: ParsedCv | null }) {
             {tier.label} <span style={{ opacity: 0.7 }}>· {score}/100</span>
           </span>
         )}
-        {lang && (
+        {cvLang && (
           <span style={{
             fontSize: 11, fontWeight: 700, color: "#4B5563",
             background: "#F3F4F6", border: "1px solid #E5E7EB",
             borderRadius: 100, padding: "3px 9px",
           }}>
-            CV en {LANGUAGE_LABEL[lang] ?? lang.toUpperCase()}
+            {t.cvInLang(LANGUAGE_LABEL[uiLang][cvLang] ?? cvLang.toUpperCase())}
           </span>
         )}
       </div>

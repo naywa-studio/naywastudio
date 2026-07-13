@@ -19,9 +19,179 @@ import { QuotaGauges } from "@/components/quota/QuotaGauges"
 // quand on retravaillera la taxonomie. Pour l'instant : vue Liste pure,
 // pas de clustering automatique, pas de zones, juste les CVs uploadés.
 import { showUndoToast } from "@/components/ui/UndoToast"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const MAX_BYTES = 10 * 1024 * 1024
+
+const copy = {
+  fr: {
+    dropTitle: "Lâchez vos PDFs ici",
+    dropSubtitle: "Nora se charge du parsing",
+    badge: "Vivier",
+    title: "Votre base de CVs",
+    subtitleEmpty: "Glissez vos PDFs ici — Nora extrait nom, expérience, compétences.",
+    subtitleCount: (n: number) => `${n} candidat${n > 1 ? "s" : ""} dans votre vivier.`,
+    importCta: "+ Importer des CVs",
+    jobUploading: "Upload…",
+    jobParsing: "Parsing IA…",
+    jobDone: "✓ Ajouté",
+    searchPlaceholder: "Rechercher par nom, poste, compétence, ref C-, tag…",
+    resultsCount: (n: number, total: number) => `${n}${n !== total ? ` / ${total}` : ""} candidat${n > 1 ? "s" : ""}`,
+    doublonFound: (n: number) => `✦ Nora a trouvé ${n} doublon${n > 1 ? "s" : ""} potentiel${n > 1 ? "s" : ""}.`,
+    doublonDesc: " Elle peut garder la version la plus à jour de chaque candidat et masquer les autres.",
+    dedupRunning: "Tri en cours…",
+    dedupCta: "Lancer le tri",
+    parsingStripTitle: "Parsing en cours",
+    parsingStripSubtitle: "Nora extrait nom, expérience, compétences…",
+    noSearchResults: "Aucun candidat ne correspond à la recherche.",
+    uploadErrorFormat: "Format non supporté (PDF uniquement).",
+    uploadErrorSize: "Fichier > 10 Mo.",
+    uploadErrorNetwork: "Erreur réseau.",
+    // CandidateCard
+    errorParsing: "Erreur parsing",
+    parsingEllipsis: "Parsing…",
+    parsingInProgress: "Parsing en cours…",
+    noName: "Sans nom",
+    errorFallback: "Erreur",
+    yearsAbbrev: (n: number) => `${n}a`,
+    duplicateBadge: "Doublon",
+    deleteFromVivier: "Supprimer du vivier",
+    openLink: "Ouvrir →",
+    // ParsingCard
+    veryStalled: "Le PDF est peut-être trop complexe — réessayez.",
+    stalling: "Plus long que d'habitude — Nora finalise.",
+    extracting: "Extraction du texte…",
+    analyzing: "Analyse par Nora…",
+    structuring: "Structuration des compétences…",
+    cancelTitle: "Annuler",
+    finalizing: "Finalisation…",
+    retry: "Réessayer",
+    // EmptyDropZone
+    emptyTitle: "Commencez votre vivier",
+    emptyDesc: "Glissez vos CVs PDF ici (ou cliquez). Nora extrait nom, expérience, compétences et coordonnées. Une fois votre vivier en place, vous pourrez créer des missions et obtenir vos shortlists automatiques.",
+    emptyCta: "Choisir des PDFs",
+    emptyHint: "PDF uniquement · 10 Mo max · 500 fichiers max par lot",
+    // RecentUploadsStrip
+    recentTitle: "Récemment importés",
+    recentHint: "— vérifiez leur secteur",
+    scrollLeft: "Défiler à gauche",
+    scrollRight: "Défiler à droite",
+    // SectorOverview
+    rangedBy: "Rangé par secteur",
+    hybridHint: "· un profil hybride peut appartenir à plusieurs secteurs",
+    classifying: "Nora range…",
+    classifyCta: "Classer le vivier",
+    createSectorCta: "+ Créer un secteur",
+    toClassifyTitle: "À classer",
+    toClassifyDesc: (n: number) => `${n} candidat${n > 1 ? "s" : ""} que Nora n'a pas su ranger — un clic pour les placer.`,
+    noSectors: "Aucun secteur avec des candidats. Créez-en un ou laissez Nora classer le vivier.",
+    // SectorDetail
+    backToSectors: "← Secteurs",
+    ok: "OK",
+    cancel: "Annuler",
+    rename: "Renommer",
+    delete: "Supprimer",
+    confirmDeleteSector: (name: string) => `Supprimer le secteur "${name}" ? Les candidats ne seront pas supprimés, seulement retirés de ce secteur.`,
+    unclassifiedHint: "Nora n'était pas sûre pour ces profils. Choisissez leur secteur ci-dessous (ou laissez, ils restent matchables).",
+    noCandidatesInSector: "Aucun candidat dans ce secteur.",
+    // CreateSectorModal
+    createModalTitle: "Créer un secteur",
+    createModalDesc: "Nommez le secteur, Nora en propose une définition — elle servira à ranger les CV de façon cohérente.",
+    sectorNameLabel: "Nom du secteur",
+    sectorNamePlaceholder: "Ex : Assurance, Luxe, Aéronautique…",
+    askNora: "Demander à Nora",
+    duplicateHint: (name: string) => (
+      <>Proche du secteur existant <strong>{name}</strong>. Vous pouvez quand même créer celui-ci si c&apos;est vraiment différent.</>
+    ),
+    definitionLabel: "Définition (modifiable)",
+    createSector: "Créer le secteur",
+    creatingSector: "Création…",
+  },
+  en: {
+    dropTitle: "Drop your PDFs here",
+    dropSubtitle: "Nora handles the parsing",
+    badge: "Talent pool",
+    title: "Your CV database",
+    subtitleEmpty: "Drop your PDFs here — Nora extracts name, experience, skills.",
+    subtitleCount: (n: number) => `${n} candidate${n > 1 ? "s" : ""} in your talent pool.`,
+    importCta: "+ Import CVs",
+    jobUploading: "Uploading…",
+    jobParsing: "AI parsing…",
+    jobDone: "✓ Added",
+    searchPlaceholder: "Search by name, role, skill, ref C-, tag…",
+    resultsCount: (n: number, total: number) => `${n}${n !== total ? ` / ${total}` : ""} candidate${n > 1 ? "s" : ""}`,
+    doublonFound: (n: number) => `✦ Nora found ${n} potential duplicate${n > 1 ? "s" : ""}.`,
+    doublonDesc: " She can keep the most up-to-date version of each candidate and hide the others.",
+    dedupRunning: "Sorting…",
+    dedupCta: "Run the sort",
+    parsingStripTitle: "Parsing in progress",
+    parsingStripSubtitle: "Nora is extracting name, experience, skills…",
+    noSearchResults: "No candidate matches your search.",
+    uploadErrorFormat: "Unsupported format (PDF only).",
+    uploadErrorSize: "File > 10 MB.",
+    uploadErrorNetwork: "Network error.",
+    // CandidateCard
+    errorParsing: "Parsing error",
+    parsingEllipsis: "Parsing…",
+    parsingInProgress: "Parsing in progress…",
+    noName: "No name",
+    errorFallback: "Error",
+    yearsAbbrev: (n: number) => `${n}y`,
+    duplicateBadge: "Duplicate",
+    deleteFromVivier: "Remove from talent pool",
+    openLink: "Open →",
+    // ParsingCard
+    veryStalled: "This PDF might be too complex — try again.",
+    stalling: "Taking longer than usual — Nora is finishing up.",
+    extracting: "Extracting text…",
+    analyzing: "Nora is analyzing…",
+    structuring: "Structuring skills…",
+    cancelTitle: "Cancel",
+    finalizing: "Finalizing…",
+    retry: "Retry",
+    // EmptyDropZone
+    emptyTitle: "Start your talent pool",
+    emptyDesc: "Drop your PDF CVs here (or click). Nora extracts name, experience, skills, and contact details. Once your talent pool is set up, you'll be able to create job openings and get automatic shortlists.",
+    emptyCta: "Choose PDFs",
+    emptyHint: "PDF only · 10 MB max · 500 files max per batch",
+    // RecentUploadsStrip
+    recentTitle: "Recently imported",
+    recentHint: "— check their sector",
+    scrollLeft: "Scroll left",
+    scrollRight: "Scroll right",
+    // SectorOverview
+    rangedBy: "Organized by sector",
+    hybridHint: "· a hybrid profile can belong to several sectors",
+    classifying: "Nora is sorting…",
+    classifyCta: "Classify the talent pool",
+    createSectorCta: "+ Create a sector",
+    toClassifyTitle: "To classify",
+    toClassifyDesc: (n: number) => `${n} candidate${n > 1 ? "s" : ""} Nora wasn't sure how to sort — one click to place them.`,
+    noSectors: "No sector has candidates yet. Create one or let Nora classify the talent pool.",
+    // SectorDetail
+    backToSectors: "← Sectors",
+    ok: "OK",
+    cancel: "Cancel",
+    rename: "Rename",
+    delete: "Delete",
+    confirmDeleteSector: (name: string) => `Delete the sector "${name}"? Candidates won't be deleted, just removed from this sector.`,
+    unclassifiedHint: "Nora wasn't sure about these profiles. Choose their sector below (or leave them, they stay matchable).",
+    noCandidatesInSector: "No candidate in this sector.",
+    // CreateSectorModal
+    createModalTitle: "Create a sector",
+    createModalDesc: "Name the sector, Nora suggests a definition — it will be used to sort CVs consistently.",
+    sectorNameLabel: "Sector name",
+    sectorNamePlaceholder: "E.g.: Insurance, Luxury, Aerospace…",
+    askNora: "Ask Nora",
+    duplicateHint: (name: string) => (
+      <>Close to the existing sector <strong>{name}</strong>. You can still create this one if it's truly different.</>
+    ),
+    definitionLabel: "Definition (editable)",
+    createSector: "Create sector",
+    creatingSector: "Creating…",
+  },
+}
 
 interface UploadJob {
   id: string          // local id
@@ -49,6 +219,8 @@ const UNCLASSIFIED = "__unclassified__"
 // fermée de secteurs ni de filtres avancés sur la page Vivier.
 
 export default function VivierPage() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const [userId, setUserId] = useState<string | null>(null)
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -234,11 +406,11 @@ export default function VivierPage() {
       const id = crypto.randomUUID()
       const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
       if (!isPdf) {
-        invalid.push({ id, fileName: f.name, size: f.size, status: "error", error: "Format non supporté (PDF uniquement)." })
+        invalid.push({ id, fileName: f.name, size: f.size, status: "error", error: t.uploadErrorFormat })
         continue
       }
       if (f.size > MAX_BYTES) {
-        invalid.push({ id, fileName: f.name, size: f.size, status: "error", error: "Fichier > 10 Mo." })
+        invalid.push({ id, fileName: f.name, size: f.size, status: "error", error: t.uploadErrorSize })
         continue
       }
       pending.push({ id, file: f })
@@ -291,7 +463,7 @@ export default function VivierPage() {
           setJobs((prev) => prev.filter((j) => !(j.id === id && j.status === "done")))
         }, 2400)
       } catch (err) {
-        patch(id, { status: "error", error: (err as Error).message ?? "Erreur réseau." })
+        patch(id, { status: "error", error: (err as Error).message ?? t.uploadErrorNetwork })
       }
     }
 
@@ -307,7 +479,7 @@ export default function VivierPage() {
       }
     })
     await Promise.all(workers)
-  }, [])
+  }, [t])
 
   const onFilesPicked = (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -467,10 +639,10 @@ export default function VivierPage() {
             }}>
               <div style={{ fontSize: 44, marginBottom: 12 }}>📥</div>
               <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827" }}>
-                Lâchez vos PDFs ici
+                {t.dropTitle}
               </p>
               <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6B7280" }}>
-                Nora se charge du parsing
+                {t.dropSubtitle}
               </p>
             </div>
           </m.div>
@@ -488,18 +660,18 @@ export default function VivierPage() {
             letterSpacing: "0.08em", textTransform: "uppercase",
             marginBottom: 12,
           }}>
-            Vivier
+            {t.badge}
           </span>
           <h1 style={{
             margin: 0, fontSize: "clamp(26px, 3vw, 34px)", fontWeight: 800,
             color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1,
           }}>
-            Votre base de CVs
+            {t.title}
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
             {candidates.length === 0
-              ? "Glissez vos PDFs ici — Nora extrait nom, expérience, compétences."
-              : `${candidates.length} candidat${candidates.length > 1 ? "s" : ""} dans votre vivier.`}
+              ? t.subtitleEmpty
+              : t.subtitleCount(candidates.length)}
           </p>
         </div>
 
@@ -516,7 +688,7 @@ export default function VivierPage() {
               fontFamily: "inherit",
             }}
           >
-            + Importer des CVs
+            {t.importCta}
           </button>
           <input
             ref={inputRef}
@@ -550,9 +722,9 @@ export default function VivierPage() {
                   {j.fileName}
                 </span>
                 <span style={{ fontSize: 11, color: j.status === "error" ? "#DC2626" : "#6B7280" }}>
-                  {j.status === "uploading" && "Upload…"}
-                  {j.status === "parsing"   && "Parsing IA…"}
-                  {j.status === "done"      && "✓ Ajouté"}
+                  {j.status === "uploading" && t.jobUploading}
+                  {j.status === "parsing"   && t.jobParsing}
+                  {j.status === "done"      && t.jobDone}
                   {j.status === "error"     && j.error}
                 </span>
               </div>
@@ -567,7 +739,7 @@ export default function VivierPage() {
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <input
               type="search"
-              placeholder="Rechercher par nom, poste, compétence, ref C-, tag…"
+              placeholder={t.searchPlaceholder}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               style={{
@@ -584,7 +756,7 @@ export default function VivierPage() {
               onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none" }}
             />
             <span style={{ fontSize: 12, color: "#6B7280" }}>
-              {filtered.length}{filtered.length !== candidates.length ? ` / ${candidates.length}` : ""} candidat{filtered.length > 1 ? "s" : ""}
+              {t.resultsCount(filtered.length, candidates.length)}
             </span>
           </div>
         </div>
@@ -600,8 +772,8 @@ export default function VivierPage() {
           display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         }}>
           <span style={{ fontSize: 13.5, color: "#92400E", flex: 1, minWidth: 240 }}>
-            <strong>✦ Nora a trouvé {doublonCount} doublon{doublonCount > 1 ? "s" : ""} potentiel{doublonCount > 1 ? "s" : ""}.</strong>
-            {" "}Elle peut garder la version la plus à jour de chaque candidat et masquer les autres.
+            <strong>{t.doublonFound(doublonCount)}</strong>
+            {t.doublonDesc}
           </span>
           <button
             onClick={runDedup}
@@ -614,7 +786,7 @@ export default function VivierPage() {
               fontFamily: "inherit",
             }}
           >
-            {dedupRunning ? "Tri en cours…" : "Lancer le tri"}
+            {dedupRunning ? t.dedupRunning : t.dedupCta}
           </button>
         </div>
       )}
@@ -642,7 +814,7 @@ export default function VivierPage() {
               animation: "spin 0.9s linear infinite",
             }} />
             <span style={{ fontSize: 13, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.02em" }}>
-              Parsing en cours
+              {t.parsingStripTitle}
             </span>
             <span style={{
               fontSize: 11, fontWeight: 700, color: "#7C63C8",
@@ -650,7 +822,7 @@ export default function VivierPage() {
               borderRadius: 100, padding: "1px 8px",
             }}>{parsingCandidates.length}</span>
             <span style={{ fontSize: 11.5, color: "#6B7280", marginLeft: "auto" }}>
-              Nora extrait nom, expérience, compétences…
+              {t.parsingStripSubtitle}
             </span>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
@@ -689,7 +861,7 @@ export default function VivierPage() {
           ))}
           {parsedOrErrored.length === 0 && (
             <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "#6B7280", fontSize: 14 }}>
-              Aucun candidat ne correspond à la recherche.
+              {t.noSearchResults}
             </div>
           )}
         </div>
@@ -786,6 +958,8 @@ function CandidateCard({
   onSectorCreated: (name: string) => void
   onSectorChange: (sectors: string[], status: SectorStatus) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const initials = (c.full_name ?? c.cv_file_name ?? "?")
     .split(/\s+/).slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase() || "?"
 
@@ -839,7 +1013,7 @@ function CandidateCard({
           color:      errored ? "#B91C1C" : "#7C63C8",
           border:     errored ? "1px solid #FCA5A5" : "1px solid rgba(124,99,200,0.18)",
         }}>
-          {errored ? "Erreur parsing" : "Parsing…"}
+          {errored ? t.errorParsing : t.parsingEllipsis}
         </span>
       )}
 
@@ -858,13 +1032,13 @@ function CandidateCard({
             margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
-            {c.full_name ?? (parsing ? "Parsing en cours…" : c.cv_file_name ?? "Sans nom")}
+            {c.full_name ?? (parsing ? t.parsingInProgress : c.cv_file_name ?? t.noName)}
           </p>
           <p style={{
             margin: "1px 0 0", fontSize: 11.5, color: "#6B7280",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
-            {c.current_title ?? (errored ? c.parse_error ?? "Erreur" : "—")}
+            {c.current_title ?? (errored ? c.parse_error ?? t.errorFallback : "—")}
             {c.current_company ? <> · <span style={{ color: "#6B7280" }}>{c.current_company}</span></> : null}
           </p>
           <p style={{
@@ -902,7 +1076,7 @@ function CandidateCard({
       <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#6B7280", flexWrap: "wrap", minHeight: 16 }}>
           {c.location ?? "—"}
-          {c.years_experience != null && <span>· {c.years_experience}a</span>}
+          {c.years_experience != null && <span>· {t.yearsAbbrev(c.years_experience)}</span>}
           {customTagsOf(c.tags).slice(0, 2).map((t) => (
             <span key={t} style={{
               fontSize: 10, fontWeight: 600, color: "#4B5563",
@@ -923,7 +1097,7 @@ function CandidateCard({
               fontSize: 10, fontWeight: 700,
               letterSpacing: "0.04em", textTransform: "uppercase",
             }}>
-              Doublon
+              {t.duplicateBadge}
             </span>
           )}
         </div>
@@ -943,7 +1117,7 @@ function CandidateCard({
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
             <button
               onClick={onDelete}
-              title="Supprimer du vivier"
+              title={t.deleteFromVivier}
               style={{
                 height: 24, width: 24, boxSizing: "border-box",
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -970,7 +1144,7 @@ function CandidateCard({
                 textDecoration: "none", whiteSpace: "nowrap",
               }}
             >
-              Ouvrir →
+              {t.openLink}
             </Link>
           </div>
         </div>
@@ -988,6 +1162,8 @@ function CandidateCard({
  * automatique…" hint — the parent already re-fires the parse endpoint.
  */
 function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDelete: () => void }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 600)
@@ -1010,11 +1186,11 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
   const [retrying, setRetrying] = useState(false)
 
   const label =
-    veryStalled ? "Le PDF est peut-être trop complexe — réessayez."
-    : stalling  ? "Plus long que d'habitude — Nora finalise."
-    : elapsedSec < 6 ? "Extraction du texte…"
-    : elapsedSec < 18 ? "Analyse par Nora…"
-    : "Structuration des compétences…"
+    veryStalled ? t.veryStalled
+    : stalling  ? t.stalling
+    : elapsedSec < 6 ? t.extracting
+    : elapsedSec < 18 ? t.analyzing
+    : t.structuring
 
   const manualRetry = async () => {
     setRetrying(true)
@@ -1057,7 +1233,7 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
             margin: 0, fontSize: 14, fontWeight: 700, color: "#111827",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
-            {c.cv_file_name ?? "Sans nom"}
+            {c.cv_file_name ?? t.noName}
           </p>
           <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6B7280" }}>
             {label}
@@ -1065,7 +1241,7 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
         </div>
         <button
           onClick={onDelete}
-          title="Annuler"
+          title={t.cancelTitle}
           style={{
             background: "transparent", border: "1px solid #E5E7EB",
             borderRadius: 8, padding: "5px 8px", cursor: "pointer",
@@ -1116,7 +1292,7 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
           alignItems: "center",
           fontSize: 10.5, color: "#6B7280", fontVariantNumeric: "tabular-nums",
         }}>
-          <span>{nearAsymptote ? "Finalisation…" : `${Math.round(pct)}%`}</span>
+          <span>{nearAsymptote ? t.finalizing : `${Math.round(pct)}%`}</span>
           {veryStalled ? (
             <button
               onClick={manualRetry}
@@ -1129,7 +1305,7 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
                 cursor: retrying ? "default" : "pointer", fontFamily: "inherit",
               }}
             >
-              {retrying ? "…" : "Réessayer"}
+              {retrying ? "…" : t.retry}
             </button>
           ) : (
             <span>{elapsedSec}s</span>
@@ -1152,6 +1328,8 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
 }
 
 function EmptyDropZone({ onPick }: { onPick: () => void }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <m.div
       initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
@@ -1175,12 +1353,10 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
         margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827",
         letterSpacing: "-0.015em",
       }}>
-        Commencez votre vivier
+        {t.emptyTitle}
       </h2>
       <p style={{ margin: "0 auto 18px", maxWidth: 480, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
-        Glissez vos CVs PDF ici (ou cliquez). Nora extrait nom, expérience, compétences
-        et coordonnées. Une fois votre vivier en place, vous pourrez créer des missions
-        et obtenir vos shortlists automatiques.
+        {t.emptyDesc}
       </p>
       <span style={{
         display: "inline-block",
@@ -1189,10 +1365,10 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
         color: "white", fontWeight: 700, fontSize: 14,
         boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
-        Choisir des PDFs
+        {t.emptyCta}
       </span>
       <p style={{ margin: "18px 0 0", fontSize: 11, color: "#6B7280" }}>
-        PDF uniquement · 10 Mo max · 500 fichiers max par lot
+        {t.emptyHint}
       </p>
     </m.div>
   )
@@ -1209,6 +1385,8 @@ function RecentUploadsStrip({
   onSectorCreated: (name: string) => void
   onSectorChange: (candId: string, sectors: string[], status: SectorStatus) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [collapsed, setCollapsed] = useState(false)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const [overflow, setOverflow] = useState(false)
@@ -1247,18 +1425,18 @@ function RecentUploadsStrip({
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }} aria-hidden="true">
             <path d="m6 9 6 6 6-6" />
           </svg>
-          <span style={{ fontSize: 13, fontWeight: 800, color: "#7C63C8" }}>Récemment importés</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "#7C63C8" }}>{t.recentTitle}</span>
         </button>
         <span style={{
           fontSize: 11, fontWeight: 700, color: "#7C63C8",
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
           borderRadius: 100, padding: "1px 8px",
         }}>{candidates.length}</span>
-        <span style={{ fontSize: 11.5, color: "#6B7280" }}>— vérifiez leur secteur</span>
+        <span style={{ fontSize: 11.5, color: "#6B7280" }}>{t.recentHint}</span>
         {!collapsed && overflow && (
           <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-            <button onClick={() => scrollBy(-1)} style={arrowBtn} aria-label="Défiler à gauche">‹</button>
-            <button onClick={() => scrollBy(1)} style={arrowBtn} aria-label="Défiler à droite">›</button>
+            <button onClick={() => scrollBy(-1)} style={arrowBtn} aria-label={t.scrollLeft}>‹</button>
+            <button onClick={() => scrollBy(1)} style={arrowBtn} aria-label={t.scrollRight}>›</button>
           </div>
         )}
       </div>
@@ -1302,6 +1480,8 @@ function SectorOverview({
   onClassify: () => void
   classifying: boolean
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // On masque les secteurs seed VIDES (BTP… que le cabinet n'utilise pas) mais
   // on garde ceux que l'user a créés explicitement (intention), même à 0 CV.
   const visibleSectors = sectors.filter((s) => s.count > 0 || s.created_by === "user")
@@ -1309,9 +1489,9 @@ function SectorOverview({
     <div>
       {/* Barre d'actions secteurs */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Rangé par secteur</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>{t.rangedBy}</span>
         <span style={{ fontSize: 11.5, color: "#6B7280" }}>
-          · un profil hybride peut appartenir à plusieurs secteurs
+          {t.hybridHint}
         </span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           {unclassifiedCount > 0 && (
@@ -1326,7 +1506,7 @@ function SectorOverview({
                 cursor: classifying ? "default" : "pointer", fontFamily: "inherit",
               }}
             >
-              {classifying ? "Nora range…" : "Classer le vivier"}
+              {classifying ? t.classifying : t.classifyCta}
             </button>
           )}
           <button
@@ -1338,7 +1518,7 @@ function SectorOverview({
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
-            + Créer un secteur
+            {t.createSectorCta}
           </button>
         </div>
       </div>
@@ -1365,10 +1545,10 @@ function SectorOverview({
           </span>
           <span style={{ flex: 1 }}>
             <span style={{ display: "block", fontSize: 14, fontWeight: 800, color: "#92400E" }}>
-              À classer
+              {t.toClassifyTitle}
             </span>
             <span style={{ display: "block", fontSize: 12, color: "#B45309", marginTop: 1 }}>
-              {unclassifiedCount} candidat{unclassifiedCount > 1 ? "s" : ""} que Nora n&apos;a pas su ranger — un clic pour les placer.
+              {t.toClassifyDesc(unclassifiedCount)}
             </span>
           </span>
           <span style={{ fontSize: 18, color: "#B45309" }}>→</span>
@@ -1417,7 +1597,7 @@ function SectorOverview({
         ))}
         {visibleSectors.length === 0 && (
           <div style={{ gridColumn: "1 / -1", padding: 30, textAlign: "center", color: "#6B7280", fontSize: 13 }}>
-            Aucun secteur avec des candidats. Créez-en un ou laissez Nora classer le vivier.
+            {t.noSectors}
           </div>
         )}
       </div>
@@ -1439,8 +1619,10 @@ function SectorDetail({
   onRenamed: (oldName: string, newName: string) => void
   onDeletedSector: (name: string) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const isUnclassified = view === UNCLASSIFIED
-  const title = isUnclassified ? "À classer" : view
+  const title = isUnclassified ? t.toClassifyTitle : view
   const [renaming, setRenaming] = useState(false)
   const [newName, setNewName] = useState(view)
   const [busy, setBusy] = useState(false)
@@ -1461,7 +1643,7 @@ function SectorDetail({
 
   const doDelete = async () => {
     if (!sector) return
-    if (!confirm(`Supprimer le secteur "${view}" ? Les candidats ne seront pas supprimés, seulement retirés de ce secteur.`)) return
+    if (!confirm(t.confirmDeleteSector(view))) return
     setBusy(true)
     try {
       const res = await fetch(`/api/sectors/${sector.id}`, { method: "DELETE" })
@@ -1475,7 +1657,7 @@ function SectorDetail({
         <button onClick={onBack} style={{
           fontSize: 13, fontWeight: 600, color: "#7C63C8",
           background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0,
-        }}>← Secteurs</button>
+        }}>{t.backToSectors}</button>
         {renaming ? (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input
@@ -1483,8 +1665,8 @@ function SectorDetail({
               onKeyDown={(e) => { if (e.key === "Enter") void doRename(); if (e.key === "Escape") setRenaming(false) }}
               style={{ fontSize: 15, fontWeight: 700, color: "#111827", padding: "4px 8px", border: "1px solid #C4B6E0", borderRadius: 7, outline: "none", fontFamily: "inherit" }}
             />
-            <button onClick={doRename} disabled={busy} style={{ fontSize: 12, fontWeight: 700, color: "white", background: "#7C63C8", border: "none", borderRadius: 7, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>OK</button>
-            <button onClick={() => setRenaming(false)} style={{ fontSize: 12, color: "#6B7280", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
+            <button onClick={doRename} disabled={busy} style={{ fontSize: 12, fontWeight: 700, color: "white", background: "#7C63C8", border: "none", borderRadius: 7, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.ok}</button>
+            <button onClick={() => setRenaming(false)} style={{ fontSize: 12, color: "#6B7280", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{t.cancel}</button>
           </div>
         ) : (
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
@@ -1494,21 +1676,21 @@ function SectorDetail({
         )}
         {!isUnclassified && sector && !renaming && (
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            <button onClick={() => { setNewName(view); setRenaming(true) }} style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", background: "white", border: "1px solid #E5E7EB", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>Renommer</button>
-            <button onClick={doDelete} disabled={busy} style={{ fontSize: 12, fontWeight: 600, color: "#DC2626", background: "white", border: "1px solid #FCA5A5", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>Supprimer</button>
+            <button onClick={() => { setNewName(view); setRenaming(true) }} style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", background: "white", border: "1px solid #E5E7EB", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.rename}</button>
+            <button onClick={doDelete} disabled={busy} style={{ fontSize: 12, fontWeight: 600, color: "#DC2626", background: "white", border: "1px solid #FCA5A5", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.delete}</button>
           </div>
         )}
       </div>
 
       {isUnclassified && (
         <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#B45309", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 10, padding: "10px 13px" }}>
-          Nora n&apos;était pas sûre pour ces profils. Choisissez leur secteur ci-dessous (ou laissez, ils restent matchables).
+          {t.unclassifiedHint}
         </p>
       )}
 
       {candidates.length === 0 ? (
         <div style={{ padding: 40, textAlign: "center", color: "#6B7280", fontSize: 14, background: "white", border: "1px dashed #E2DAF6", borderRadius: 14 }}>
-          Aucun candidat dans ce secteur.
+          {t.noCandidatesInSector}
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
@@ -1534,6 +1716,8 @@ function CreateSectorModal({
   onCreated: () => void
 }) {
   useEscapeKey(onClose)
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [duplicateOf, setDuplicateOf] = useState<string | null>(null)
@@ -1584,39 +1768,39 @@ function CreateSectorModal({
       }}
     >
       <div style={{ width: "100%", maxWidth: 460, background: "white", borderRadius: 16, padding: 22, boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)" }}>
-        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827" }}>Créer un secteur</h2>
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827" }}>{t.createModalTitle}</h2>
         <p style={{ margin: "4px 0 16px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
-          Nommez le secteur, Nora en propose une définition — elle servira à ranger les CV de façon cohérente.
+          {t.createModalDesc}
         </p>
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
-          Nom du secteur
+          {t.sectorNameLabel}
         </label>
         <div style={{ display: "flex", gap: 8 }}>
           <input
             value={name} onChange={(e) => { setName(e.target.value); setAsked(false) }} autoFocus
             onKeyDown={(e) => { if (e.key === "Enter") void askNora() }}
-            placeholder="Ex : Assurance, Luxe, Aéronautique…"
+            placeholder={t.sectorNamePlaceholder}
             style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: "#111827", padding: "9px 12px", border: "1px solid #E5E7EB", borderRadius: 9, outline: "none", fontFamily: "inherit" }}
           />
           <button
             onClick={askNora} disabled={!name.trim() || defining}
             style={{ fontSize: 12.5, fontWeight: 700, color: name.trim() && !defining ? "#7C63C8" : "#C4C4C4", background: "white", border: "1px solid #E5E7EB", borderRadius: 9, padding: "0 13px", cursor: name.trim() && !defining ? "pointer" : "default", fontFamily: "inherit", whiteSpace: "nowrap" }}
           >
-            {defining ? "…" : "Demander à Nora"}
+            {defining ? "…" : t.askNora}
           </button>
         </div>
 
         {duplicateOf && (
           <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B45309", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.28)", borderRadius: 9, padding: "8px 11px" }}>
-            Proche du secteur existant <strong>{duplicateOf}</strong>. Vous pouvez quand même créer celui-ci si c&apos;est vraiment différent.
+            {t.duplicateHint(duplicateOf)}
           </p>
         )}
 
         {asked && (
           <div style={{ marginTop: 14 }}>
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
-              Définition (modifiable)
+              {t.definitionLabel}
             </label>
             <textarea
               value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
@@ -1626,12 +1810,12 @@ function CreateSectorModal({
         )}
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
-          <button onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: "#6B7280", background: "white", border: "1px solid #E5E7EB", borderRadius: 9, padding: "9px 15px", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
+          <button onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: "#6B7280", background: "white", border: "1px solid #E5E7EB", borderRadius: 9, padding: "9px 15px", cursor: "pointer", fontFamily: "inherit" }}>{t.cancel}</button>
           <button
             onClick={create} disabled={!name.trim() || creating}
             style={{ fontSize: 13, fontWeight: 700, color: "white", background: !name.trim() || creating ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)", border: "none", borderRadius: 9, padding: "9px 18px", cursor: !name.trim() || creating ? "default" : "pointer", fontFamily: "inherit" }}
           >
-            {creating ? "Création…" : "Créer le secteur"}
+            {creating ? t.creatingSector : t.createSector}
           </button>
         </div>
       </div>

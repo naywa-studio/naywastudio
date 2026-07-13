@@ -1,5 +1,24 @@
 "use client"
 
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    vivier: "Chargement du vivier",
+    missions: "Chargement des missions",
+    pipeline: "Chargement de la pipeline",
+    pricing: "Chargement du pricing",
+    generic: "Chargement",
+  },
+  en: {
+    vivier: "Loading talent pool",
+    missions: "Loading job openings",
+    pipeline: "Loading pipeline",
+    pricing: "Loading pricing",
+    generic: "Loading",
+  },
+}
+
 /**
  * Skeletons de chargement par page — chaque variante épouse la STRUCTURE
  * réelle de l'écran qu'elle précède (cartes secteurs au vivier, colonnes au
@@ -80,8 +99,9 @@ function Shell({
 
 /** Vivier : titre + barre de recherche + grille de cartes secteur. */
 export function VivierSkeleton() {
+  const { lang } = useLanguage()
   return (
-    <Shell label="Chargement du vivier" maxWidth={1640} pad="40px 24px 80px">
+    <Shell label={copy[lang].vivier} maxWidth={1640} pad="40px 24px 80px">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 28, gap: 16 }}>
         <div style={{ display: "grid", gap: 10 }}>
           <Sk w={64} h={22} r={100} />
@@ -113,8 +133,9 @@ export function VivierSkeleton() {
 /** Missions : sidebar stats à gauche + cartes mission à droite.
  *  Rendu DANS le container de la page (le vrai header est déjà affiché). */
 export function MissionsSkeleton() {
+  const { lang } = useLanguage()
   return (
-    <Shell label="Chargement des missions" inline>
+    <Shell label={copy[lang].missions} inline>
       <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 20, alignItems: "start" }}>
         <SkCard>
           <Sk w={110} h={12} style={{ marginBottom: 14 }} />
@@ -151,8 +172,9 @@ export function MissionsSkeleton() {
 
 /** Pipeline : 4 colonnes kanban avec quelques cartes. */
 export function PipelineSkeleton() {
+  const { lang } = useLanguage()
   return (
-    <Shell label="Chargement de la pipeline">
+    <Shell label={copy[lang].pipeline}>
       <div style={{ display: "grid", gap: 10, marginBottom: 24 }}>
         <Sk w={200} h={26} />
         <Sk w={320} h={14} />
@@ -182,8 +204,9 @@ export function PipelineSkeleton() {
 
 /** Pricing (liste) : 2 boutons doc + cartes mission à chiffrer. */
 export function PricingSkeleton() {
+  const { lang } = useLanguage()
   return (
-    <Shell label="Chargement du pricing">
+    <Shell label={copy[lang].pricing}>
       <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
         <Sk w={80} h={22} r={100} />
         <Sk w={260} h={28} />
@@ -217,9 +240,10 @@ export function PricingSkeleton() {
 
 /** Pages détail (fiche mission / match / candidat / chiffrage) :
  *  fil d'ariane + carte hero + deux cartes de contenu. */
-export function DetailSkeleton({ label = "Chargement" }: { label?: string }) {
+export function DetailSkeleton({ label }: { label?: string }) {
+  const { lang } = useLanguage()
   return (
-    <Shell label={label}>
+    <Shell label={label ?? copy[lang].generic}>
       <Sk w={180} h={14} style={{ marginBottom: 20 }} />
       <SkCard style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
