@@ -34,7 +34,6 @@ import {
   S3Client,
   type ListObjectsV2CommandOutput,
 } from "@aws-sdk/client-s3"
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
 // Un objet GMH connu, pour le mode ?verify=1 (test de lecture post-bascule).
 const GMH_SAMPLE_KEY =
@@ -66,18 +65,29 @@ export async function GET(req: Request) {
 
   // ── Mode VÉRIFICATION (?verify=1) ──────────────────────────────────────
   // Utilise la config LIVE de l'app (R2_ENDPOINT + R2_BUCKET_CV courants,
-  // = EU après la bascule) pour signer une URL de téléchargement d'un CV
-  // GMH. Si le lien ouvre le PDF, la lecture depuis l'EU est prouvée.
+  // = EU après la bascule) pour un HEAD sur un objet GMH : prouve que
+  // l'app LIT bien depuis le bucket EU (endpoint + bucket + creds OK), sans
+  // jamais télécharger ni afficher le contenu du CV (respect de la
+  // politique de confidentialité : Naywa ne consulte pas les CV clients).
   if (new URL(req.url).searchParams.has("verify")) {
     const liveEndpoint = process.env.R2_ENDPOINT ?? ""
     const liveBucket = process.env.R2_BUCKET_CV ?? "naywa-cv"
     try {
-      const url = await getSignedUrl(
-        makeClient(liveEndpoint),
-        new GetObjectCommand({ Bucket: liveBucket, Key: GMH_SAMPLE_KEY }),
-        { expiresIn: 600 },
+      const head = await makeClient(liveEndpoint).send(
+        new HeadObjectCommand({ Bucket: liveBucket, Key: GMH_SAMPLE_KEY }),
       )
-      return NextResponse.json({ ok: true, liveEndpoint, liveBucket, key: GMH_SAMPLE_KEY, signedUrl: url })
+      return NextResponse.json({
+        ok: true,
+        readsFromEu: liveEndpoint.includes(".eu.") && liveBucket === "naywa-cv-eu",
+        liveEndpoint,
+        liveBucket,
+        object: {
+          key: GMH_SAMPLE_KEY,
+          sizeBytes: head.ContentLength ?? null,
+          contentType: head.ContentType ?? null,
+          lastModified: head.LastModified ?? null,
+        },
+      })
     } catch (e) {
       return NextResponse.json(
         { ok: false, liveEndpoint, liveBucket, error: e instanceof Error ? e.message : String(e) },
