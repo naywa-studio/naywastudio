@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 interface QuotaResponse {
   cv: { used: number; limit: number }
@@ -20,12 +21,33 @@ const REFRESH_MS = 60_000
 const WARN_PCT = 80
 const CRIT_PCT = 100
 
+const copy = {
+  fr: {
+    kindLabel: "capacité de vivier",
+    reached: "Quota atteint",
+    nearLimit: "Quota proche de la limite",
+    criticalMsg: (kind: string) => `Vous avez atteint votre ${kind}. Supprimez d'anciens CV ou contactez-nous pour un palier supérieur.`,
+    warningMsg: (kind: string, pct: number) => `Vous approchez de votre ${kind} (${pct}%).`,
+    cta: "Voir mes quotas →",
+  },
+  en: {
+    kindLabel: "talent pool capacity",
+    reached: "Quota reached",
+    nearLimit: "Approaching your quota",
+    criticalMsg: (kind: string) => `You've reached your ${kind}. Delete older CVs or contact us for a higher tier.`,
+    warningMsg: (kind: string, pct: number) => `You're approaching your ${kind} (${pct}%).`,
+    cta: "View my quotas →",
+  },
+}
+
 function pct(used: number, limit: number): number {
   if (limit <= 0) return 0
   return Math.min(100, Math.round((used / limit) * 100))
 }
 
 export function QuotaWarningBanner() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [data, setData] = useState<QuotaResponse | null>(null)
 
   useEffect(() => {
@@ -51,7 +73,7 @@ export function QuotaWarningBanner() {
   if (max < WARN_PCT) return null
 
   const critical = max >= CRIT_PCT
-  const kindLabel = "capacité de vivier"
+  const kindLabel = t.kindLabel
 
   return (
     <div style={{
@@ -78,12 +100,12 @@ export function QuotaWarningBanner() {
       </svg>
       <span style={{ flex: 1, minWidth: 220 }}>
         <strong>
-          {critical ? "Quota atteint" : "Quota proche de la limite"}
+          {critical ? t.reached : t.nearLimit}
         </strong>
         {" — "}
         {critical
-          ? `Vous avez atteint votre ${kindLabel}. Supprimez d'anciens CV ou contactez-nous pour un palier supérieur.`
-          : `Vous approchez de votre ${kindLabel} (${max}%).`}
+          ? t.criticalMsg(kindLabel)
+          : t.warningMsg(kindLabel, max)}
       </span>
       <Link
         href="/organisation"
@@ -96,7 +118,7 @@ export function QuotaWarningBanner() {
           whiteSpace: "nowrap",
         }}
       >
-        Voir mes quotas →
+        {t.cta}
       </Link>
     </div>
   )

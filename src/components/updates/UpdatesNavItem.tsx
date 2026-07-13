@@ -10,13 +10,26 @@
  */
 
 import { useUnreadUpdates } from "./useUnreadUpdates"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    unread: (n: number) => `${n} nouveauté${n > 1 ? "s" : ""} non lue${n > 1 ? "s" : ""}`,
+    sectionUpdate: "Nouveauté pour cette section",
+  },
+  en: {
+    unread: (n: number) => `${n} unread update${n > 1 ? "s" : ""}`,
+    sectionUpdate: "New update for this section",
+  },
+}
 
 export function UpdatesNavBadge({ size = 7 }: { size?: number }) {
+  const { lang } = useLanguage()
   const { unreadCount } = useUnreadUpdates()
   if (unreadCount === 0) return null
   return (
     <span
-      aria-label={`${unreadCount} nouveauté${unreadCount > 1 ? "s" : ""} non lue${unreadCount > 1 ? "s" : ""}`}
+      aria-label={copy[lang].unread(unreadCount)}
       style={{
         display: "inline-block",
         width: size, height: size,
@@ -39,12 +52,13 @@ export function UpdatesNavBadge({ size = 7 }: { size?: number }) {
  * du Link englobant. Le composant ne rend rien si pas concerné.
  */
 export function NavUnreadDot({ href, size = 6 }: { href: string; size?: number }) {
+  const { lang } = useLanguage()
   const { unreadPaths } = useUnreadUpdates()
   if (!unreadPaths.has(href)) return null
   return (
     <span
-      aria-label="Nouveauté pour cette section"
-      title="Nouveauté pour cette section"
+      aria-label={copy[lang].sectionUpdate}
+      title={copy[lang].sectionUpdate}
       style={{
         display: "inline-block",
         width: size, height: size,

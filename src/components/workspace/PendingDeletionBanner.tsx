@@ -2,6 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { getSupabase } from "@/lib/supabase"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    message: (dateLabel: string) => (
+      <>L&apos;organisation sera fermée le <strong>{dateLabel}</strong>. Sauvegardez les données que vous souhaitez conserver d&apos;ici là.</>
+    ),
+  },
+  en: {
+    message: (dateLabel: string) => (
+      <>This organization will close on <strong>{dateLabel}</strong>. Save any data you want to keep before then.</>
+    ),
+  },
+}
 
 /**
  * Banner shown across the workspace when the cabinet's owner has cancelled
@@ -11,6 +25,8 @@ import { getSupabase } from "@/lib/supabase"
  * Lives at the very top of /workspace/layout.tsx below the header.
  */
 export default function PendingDeletionBanner() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const [iso, setIso] = useState<string | null>(null)
 
@@ -32,7 +48,7 @@ export default function PendingDeletionBanner() {
   if (!iso) return null
 
   const date = new Date(iso)
-  const dateLabel = date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+  const dateLabel = date.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "long", year: "numeric" })
 
   return (
     <div style={{
@@ -43,7 +59,7 @@ export default function PendingDeletionBanner() {
       textAlign: "center",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
-      L&apos;organisation sera fermée le <strong>{dateLabel}</strong>. Sauvegardez les données que vous souhaitez conserver d&apos;ici là.
+      {t.message(dateLabel)}
     </div>
   )
 }

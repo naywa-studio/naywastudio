@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { getSupabase } from "@/lib/supabase"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 interface StepState {
   hasCvs: boolean
@@ -27,10 +28,37 @@ interface StepState {
   hasAnonymized: boolean
 }
 
+const copy = {
+  fr: {
+    title: "Bien démarrer avec Nora",
+    hideTitle: "Masquer pour cette session — la checklist reviendra tant que tout n'est pas fait",
+    hide: "Masquer",
+    steps: [
+      { label: "Importez vos premiers CVs", href: "/workspace/vivier", cta: "Ouvrir le vivier" },
+      { label: "Créez votre première mission", href: "/workspace/missions/new", cta: "Créer une mission" },
+      { label: "Lancez un matching", href: "/workspace/missions", cta: "Voir mes missions" },
+      { label: "Exportez un CV anonymisé", href: "/workspace/missions", cta: "Choisir un candidat" },
+    ],
+  },
+  en: {
+    title: "Get started with Nora",
+    hideTitle: "Hide for this session — the checklist will come back until everything is done",
+    hide: "Hide",
+    steps: [
+      { label: "Import your first CVs", href: "/workspace/vivier", cta: "Open the talent pool" },
+      { label: "Create your first job opening", href: "/workspace/missions/new", cta: "Create a job opening" },
+      { label: "Run a matching", href: "/workspace/missions", cta: "View my job openings" },
+      { label: "Export an anonymized CV", href: "/workspace/missions", cta: "Choose a candidate" },
+    ],
+  },
+}
+
 export function StarterChecklist({ onComplete }: {
   /** Stampe package_sourcing_onboarded_at + refetch le profil. */
   onComplete: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const [steps, setSteps] = useState<StepState | null>(null)
   // "Masquer" ne clôt PAS la checklist (le flag DB n'est stampé qu'à 4/4) —
@@ -84,12 +112,9 @@ export function StarterChecklist({ onComplete }: {
 
   if (!steps || allDone || hidden) return null
 
-  const items: Array<{ label: string; done: boolean; href: string; cta: string }> = [
-    { label: "Importez vos premiers CVs", done: steps.hasCvs, href: "/workspace/vivier", cta: "Ouvrir le vivier" },
-    { label: "Créez votre première mission", done: steps.hasJob, href: "/workspace/missions/new", cta: "Créer une mission" },
-    { label: "Lancez un matching", done: steps.hasMatched, href: "/workspace/missions", cta: "Voir mes missions" },
-    { label: "Exportez un CV anonymisé", done: steps.hasAnonymized, href: "/workspace/missions", cta: "Choisir un candidat" },
-  ]
+  const doneFlags = [steps.hasCvs, steps.hasJob, steps.hasMatched, steps.hasAnonymized]
+  const items: Array<{ label: string; done: boolean; href: string; cta: string }> =
+    t.steps.map((s, i) => ({ ...s, done: doneFlags[i] }))
   const doneCount = items.filter((i) => i.done).length
   // La première étape restante = la prochaine action à faire (mise en avant).
   const nextIdx = items.findIndex((i) => !i.done)
@@ -105,7 +130,7 @@ export function StarterChecklist({ onComplete }: {
     }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-          Bien démarrer avec Nora
+          {t.title}
         </h2>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: "#7C63C8" }}>
@@ -114,14 +139,14 @@ export function StarterChecklist({ onComplete }: {
           <button
             type="button"
             onClick={hide}
-            title="Masquer pour cette session — la checklist reviendra tant que tout n'est pas fait"
+            title={t.hideTitle}
             style={{
               background: "none", border: "none", padding: 0,
               fontSize: 12, color: "#6B7280", cursor: "pointer",
               textDecoration: "underline", fontFamily: "inherit",
             }}
           >
-            Masquer
+            {t.hide}
           </button>
         </div>
       </div>

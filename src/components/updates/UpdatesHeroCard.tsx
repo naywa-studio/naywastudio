@@ -11,8 +11,26 @@
 
 import Link from "next/link"
 import { useUnreadUpdates } from "./useUnreadUpdates"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    single: "Nouveauté Naywa",
+    plural: (n: number) => `${n} nouveautés Naywa`,
+    fallback: "À découvrir dans Nouveautés.",
+    read: "Lire",
+  },
+  en: {
+    single: "Naywa update",
+    plural: (n: number) => `${n} Naywa updates`,
+    fallback: "Check it out in Updates.",
+    read: "Read",
+  },
+}
 
 export function UpdatesHeroCard() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const { unreadCount, latestTitle, loading } = useUnreadUpdates()
   if (loading || unreadCount === 0) return null
 
@@ -44,14 +62,14 @@ export function UpdatesHeroCard() {
           margin: 0, fontSize: 12, fontWeight: 700, color: "#7C63C8",
           letterSpacing: "0.05em", textTransform: "uppercase",
         }}>
-          {single ? "Nouveauté Naywa" : `${unreadCount} nouveautés Naywa`}
+          {single ? t.single : t.plural(unreadCount)}
         </p>
         <p style={{
           margin: "2px 0 0", fontSize: 13.5, color: "#374151",
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           lineHeight: 1.4,
         }}>
-          {latestTitle ?? "À découvrir dans Nouveautés."}
+          {latestTitle ?? t.fallback}
         </p>
       </div>
       <span style={{
@@ -59,7 +77,7 @@ export function UpdatesHeroCard() {
         whiteSpace: "nowrap",
         display: "inline-flex", alignItems: "center", gap: 6,
       }}>
-        Lire <ArrowRightIcon />
+        {t.read} <ArrowRightIcon />
       </span>
     </Link>
   )

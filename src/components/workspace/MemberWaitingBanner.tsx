@@ -2,6 +2,24 @@
 
 import type { Organization } from "@/lib/database.types"
 import { hasActiveAccess } from "@/lib/subscription"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    message: (orgName: string) => (
+      <>L&apos;owner de <strong>{orgName}</strong> n&apos;a pas encore
+        souscrit à un package. Vous pouvez consulter le workspace
+        mais pas le modifier tant que l&apos;accès n&apos;est pas activé.</>
+    ),
+  },
+  en: {
+    message: (orgName: string) => (
+      <>The owner of <strong>{orgName}</strong> hasn&apos;t subscribed
+        to a package yet. You can view the workspace but can&apos;t
+        make changes until access is activated.</>
+    ),
+  },
+}
 
 /**
  * Bannière sticky non-dismissable affichée en haut du workspace pour
@@ -23,6 +41,8 @@ interface Props {
 }
 
 export function MemberWaitingBanner({ organization, role }: Props) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   if (!organization) return null
   if (role !== "member") return null
   if (hasActiveAccess(organization)) return null
@@ -49,9 +69,7 @@ export function MemberWaitingBanner({ organization, role }: Props) {
         background: "#7C63C8", flexShrink: 0,
       }} />
       <span style={{ flex: "0 1 auto" }}>
-        L&apos;owner de <strong>{orgName}</strong> n&apos;a pas encore
-        souscrit à un package. Vous pouvez consulter le workspace
-        mais pas le modifier tant que l&apos;accès n&apos;est pas activé.
+        {t.message(orgName)}
       </span>
     </div>
   )

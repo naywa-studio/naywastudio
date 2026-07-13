@@ -5,6 +5,42 @@ import Link from "next/link"
 import type { Organization } from "@/lib/database.types"
 import { trialStatus } from "@/lib/trial"
 import { isInLockdown } from "@/lib/subscription"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    ctaDiscuss: "Discutons abonnement",
+    paymentFailed: "Échec du dernier prélèvement. ",
+    ctaUpdatePayment: "Mettre à jour mon moyen de paiement",
+    subCanceled: "Abonnement annulé. ",
+    ctaResubscribe: "Souscrire à nouveau",
+    trialEndingStripe: (n: number) => `Période d'essai Stripe terminée dans ${n} jour${n > 1 ? "s" : ""}. `,
+    renewingIn: (n: number) => `Renouvellement de votre abonnement dans ${n} jour${n > 1 ? "s" : ""}. `,
+    ctaManageSub: "Gérer mon abonnement",
+    trialExpired: "Période d'essai terminée. ",
+    ctaSubscribePackage: "Souscrire au Package Sourcing",
+    trialWarning: (n: number) => `Plus que ${n} jour${n > 1 ? "s" : ""} d'essai. `,
+    ctaSubscribeNow: "Souscrire maintenant",
+    trialInfo: (n: number) => `Essai gratuit — il vous reste ${n} jours. `,
+    dismissAria: "Masquer pour la session",
+  },
+  en: {
+    ctaDiscuss: "Let's talk subscription",
+    paymentFailed: "Your last payment failed. ",
+    ctaUpdatePayment: "Update my payment method",
+    subCanceled: "Subscription canceled. ",
+    ctaResubscribe: "Subscribe again",
+    trialEndingStripe: (n: number) => `Stripe trial ends in ${n} day${n > 1 ? "s" : ""}. `,
+    renewingIn: (n: number) => `Your subscription renews in ${n} day${n > 1 ? "s" : ""}. `,
+    ctaManageSub: "Manage my subscription",
+    trialExpired: "Trial period ended. ",
+    ctaSubscribePackage: "Subscribe to Package Sourcing",
+    trialWarning: (n: number) => `Only ${n} day${n > 1 ? "s" : ""} left in your trial. `,
+    ctaSubscribeNow: "Subscribe now",
+    trialInfo: (n: number) => `Free trial — ${n} days left. `,
+    dismissAria: "Dismiss for this session",
+  },
+}
 
 /**
  * Sticky banner sur /organisation et /workspace.
@@ -47,6 +83,8 @@ function readDismissed(): boolean {
 }
 
 export function TrialBanner({ organization, isOwner = true, alwaysVisible = false, isAdmin = false }: Props) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // État local pour pouvoir re-render quand l'utilisateur clique sur la
   // croix. La valeur initiale lit sessionStorage côté client uniquement
   // (en SSR on retourne false ; il y aura un éventuel flash 1 frame puis
@@ -79,18 +117,18 @@ export function TrialBanner({ organization, isOwner = true, alwaysVisible = fals
 
   let mode: "info" | "warning" | "expired" = "info"
   let message: string | null = null
-  let ctaLabel = "Discutons abonnement"
+  let ctaLabel = t.ctaDiscuss
   let ctaHref = "/contact"
 
   if (subStatus === "past_due" || subStatus === "unpaid") {
     mode = "expired"
-    message = "Échec du dernier prélèvement. "
-    ctaLabel = "Mettre à jour mon moyen de paiement"
+    message = t.paymentFailed
+    ctaLabel = t.ctaUpdatePayment
     ctaHref = "/organisation?tab=abonnement&action=subscribe"
   } else if (subStatus === "canceled" || subStatus === "incomplete_expired") {
     mode = "expired"
-    message = "Abonnement annulé. "
-    ctaLabel = "Souscrire à nouveau"
+    message = t.subCanceled
+    ctaLabel = t.ctaResubscribe
     ctaHref = "/organisation?tab=abonnement&action=subscribe"
   } else if (
     (subStatus === "active" || subStatus === "trialing") &&
@@ -98,9 +136,9 @@ export function TrialBanner({ organization, isOwner = true, alwaysVisible = fals
   ) {
     mode = daysToRenewal <= 2 ? "warning" : "info"
     message = subStatus === "trialing"
-      ? `Période d'essai Stripe terminée dans ${daysToRenewal} jour${daysToRenewal > 1 ? "s" : ""}. `
-      : `Renouvellement de votre abonnement dans ${daysToRenewal} jour${daysToRenewal > 1 ? "s" : ""}. `
-    ctaLabel = "Gérer mon abonnement"
+      ? t.trialEndingStripe(daysToRenewal)
+      : t.renewingIn(daysToRenewal)
+    ctaLabel = t.ctaManageSub
     ctaHref = "/organisation?tab=abonnement&action=subscribe"
   } else if (
     subStatus === "active" || subStatus === "trialing"
@@ -114,18 +152,18 @@ export function TrialBanner({ organization, isOwner = true, alwaysVisible = fals
 
     if (status.state === "expired") {
       mode = "expired"
-      message = "Période d'essai terminée. "
-      ctaLabel = "Souscrire au Package Sourcing"
+      message = t.trialExpired
+      ctaLabel = t.ctaSubscribePackage
       ctaHref = "/organisation?tab=abonnement&action=subscribe"
     } else if (status.daysLeft <= 3) {
       mode = "warning"
-      message = `Plus que ${status.daysLeft} jour${status.daysLeft > 1 ? "s" : ""} d'essai. `
-      ctaLabel = "Souscrire maintenant"
+      message = t.trialWarning(status.daysLeft)
+      ctaLabel = t.ctaSubscribeNow
       ctaHref = "/organisation?tab=abonnement&action=subscribe"
     } else {
       mode = "info"
-      message = `Essai gratuit — il vous reste ${status.daysLeft} jours. `
-      ctaLabel = "Souscrire maintenant"
+      message = t.trialInfo(status.daysLeft)
+      ctaLabel = t.ctaSubscribeNow
       ctaHref = "/organisation?tab=abonnement&action=subscribe"
     }
   }
@@ -216,7 +254,7 @@ export function TrialBanner({ organization, isOwner = true, alwaysVisible = fals
       {!alwaysVisible && mode === "info" && (
         <button
           onClick={dismiss}
-          aria-label="Masquer pour la session"
+          aria-label={t.dismissAria}
           style={{
             marginLeft: 4,
             background: "transparent",

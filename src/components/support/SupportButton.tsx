@@ -21,6 +21,7 @@ import { createPortal } from "react-dom"
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -28,32 +29,98 @@ interface TopicOption {
   value: string
   label: string
 }
-const TOPIC_OPTIONS: TopicOption[] = [
-  { value: "vivier",       label: "Vivier candidats" },
-  { value: "missions",     label: "Missions" },
-  { value: "pricing",      label: "Pricing / Chiffrage" },
-  { value: "pipeline",     label: "Pipeline candidats" },
-  { value: "workspace",    label: "Workspace (général)" },
-  { value: "organisation", label: "Organisation / Abonnement" },
-  { value: "onboarding",   label: "Onboarding / Premier accès" },
-  { value: "nouveautes",   label: "Nouveautés" },
-  { value: "compte",       label: "Mon compte / Connexion" },
-  { value: "facturation",  label: "Facturation / Paiement" },
-  { value: "other",        label: "Autre" },
-]
+const TOPIC_OPTIONS: Record<Lang, TopicOption[]> = {
+  fr: [
+    { value: "vivier",       label: "Vivier candidats" },
+    { value: "missions",     label: "Missions" },
+    { value: "pricing",      label: "Pricing / Chiffrage" },
+    { value: "pipeline",     label: "Pipeline candidats" },
+    { value: "workspace",    label: "Workspace (général)" },
+    { value: "organisation", label: "Organisation / Abonnement" },
+    { value: "onboarding",   label: "Onboarding / Premier accès" },
+    { value: "nouveautes",   label: "Nouveautés" },
+    { value: "compte",       label: "Mon compte / Connexion" },
+    { value: "facturation",  label: "Facturation / Paiement" },
+    { value: "other",        label: "Autre" },
+  ],
+  en: [
+    { value: "vivier",       label: "Candidate pool" },
+    { value: "missions",     label: "Job openings" },
+    { value: "pricing",      label: "Pricing / Quotes" },
+    { value: "pipeline",     label: "Candidate pipeline" },
+    { value: "workspace",    label: "Workspace (general)" },
+    { value: "organisation", label: "Organization / Subscription" },
+    { value: "onboarding",   label: "Onboarding / First access" },
+    { value: "nouveautes",   label: "Updates" },
+    { value: "compte",       label: "My account / Login" },
+    { value: "facturation",  label: "Billing / Payment" },
+    { value: "other",        label: "Other" },
+  ],
+}
+
+const copy = {
+  fr: {
+    buttonTitle: "Un bug, une question ? Contactez le support",
+    buttonLabel: "Un bug, une question ?",
+    sentTitle: "Message envoyé",
+    sentDesc: "Notre équipe vous répondra par email dans les meilleurs délais. Merci pour votre retour.",
+    close: "Fermer",
+    badge: "Support",
+    modalTitle: "Un bug, une question ?",
+    modalDesc: "Décrivez ce qui vous bloque. Nous vous répondons à l'adresse de votre compte.",
+    replyTo: "Réponse envoyée à",
+    loading: "(en cours de chargement…)",
+    whereIssue: "Où est le problème ?",
+    specify: "Précisez",
+    specifyPlaceholder: "Ex : import LinkedIn, export RGPD…",
+    yourMessage: "Votre message",
+    messagePlaceholder: "Décrivez le bug, votre question ou votre suggestion…",
+    teamOnly: "Visible uniquement par notre équipe.",
+    cancel: "Annuler",
+    sending: "Envoi…",
+    send: "Envoyer",
+    otherPrefix: "Autre : ",
+    genericError: (status: number) => `Erreur ${status}`,
+  },
+  en: {
+    buttonTitle: "A bug, a question? Contact support",
+    buttonLabel: "A bug, a question?",
+    sentTitle: "Message sent",
+    sentDesc: "Our team will reply by email as soon as possible. Thanks for your feedback.",
+    close: "Close",
+    badge: "Support",
+    modalTitle: "A bug, a question?",
+    modalDesc: "Describe what's blocking you. We'll reply to your account's email address.",
+    replyTo: "Reply sent to",
+    loading: "(loading…)",
+    whereIssue: "Where's the issue?",
+    specify: "Please specify",
+    specifyPlaceholder: "E.g.: LinkedIn import, GDPR export…",
+    yourMessage: "Your message",
+    messagePlaceholder: "Describe the bug, your question, or your suggestion…",
+    teamOnly: "Only visible to our team.",
+    cancel: "Cancel",
+    sending: "Sending…",
+    send: "Send",
+    otherPrefix: "Other: ",
+    genericError: (status: number) => `Error ${status}`,
+  },
+}
 
 export function SupportButton({ variant = "compact" }: { variant?: "compact" | "ghost" }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [open, setOpen] = useState(false)
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Un bug, une question ? Contactez le support"
+        title={t.buttonTitle}
         style={variant === "compact" ? compactStyle : ghostStyle}
       >
         <LifebuoyIcon />
-        <span>Un bug, une question ?</span>
+        <span>{t.buttonLabel}</span>
       </button>
       {open && <SupportModal onClose={() => setOpen(false)} />}
     </>
@@ -61,6 +128,9 @@ export function SupportButton({ variant = "compact" }: { variant?: "compact" | "
 }
 
 function SupportModal({ onClose }: { onClose: () => void }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const topicOptions = TOPIC_OPTIONS[lang]
   useEscapeKey(onClose)
   const [topic, setTopic] = useState<string>("workspace")
   const [topicOther, setTopicOther] = useState("")
@@ -105,8 +175,8 @@ function SupportModal({ onClose }: { onClose: () => void }) {
     setBusy(true); setError(null)
     try {
       const topicLabel = topic === "other"
-        ? `Autre : ${topicOther.trim()}`
-        : TOPIC_OPTIONS.find((t) => t.value === topic)?.label ?? topic
+        ? `${t.otherPrefix}${topicOther.trim()}`
+        : topicOptions.find((opt) => opt.value === topic)?.label ?? topic
       const r = await fetch("/api/support", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,7 +189,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
       })
       if (!r.ok) {
         const j = await r.json().catch(() => ({} as { error?: string }))
-        throw new Error(j.error ?? `Erreur ${r.status}`)
+        throw new Error(j.error ?? t.genericError(r.status))
       }
       setSent(true)
     } catch (err) {
@@ -167,11 +237,10 @@ function SupportModal({ onClose }: { onClose: () => void }) {
           {sent ? (
             <>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-                Message envoyé
+                {t.sentTitle}
               </h2>
               <p style={{ margin: "10px 0 18px", fontSize: 13.5, color: "#6B7280", lineHeight: 1.6 }}>
-                Notre équipe vous répondra par email dans les meilleurs délais.
-                Merci pour votre retour.
+                {t.sentDesc}
               </p>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button
@@ -185,7 +254,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                     cursor: "pointer", fontFamily: "inherit",
                   }}
                 >
-                  Fermer
+                  {t.close}
                 </button>
               </div>
             </>
@@ -193,39 +262,38 @@ function SupportModal({ onClose }: { onClose: () => void }) {
             <>
               <header style={{ marginBottom: 18 }}>
                 <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase" }}>
-                  Support
+                  {t.badge}
                 </p>
                 <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-                  Un bug, une question ?
+                  {t.modalTitle}
                 </h2>
                 <p style={{ margin: "10px 0 0", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
-                  Décrivez ce qui vous bloque. Nous vous répondons à
-                  l&apos;adresse de votre compte.
+                  {t.modalDesc}
                 </p>
               </header>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {/* Email connecté (read-only) */}
                 <div>
-                  <Label>Réponse envoyée à</Label>
+                  <Label>{t.replyTo}</Label>
                   <div style={readOnlyField}>
                     <MailIcon />
                     <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {email || "(en cours de chargement…)"}
+                      {email || t.loading}
                     </span>
                   </div>
                 </div>
 
                 {/* Topic */}
                 <div>
-                  <Label>Où est le problème ?</Label>
+                  <Label>{t.whereIssue}</Label>
                   <select
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     style={inputStyle}
                   >
-                    {TOPIC_OPTIONS.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
+                    {topicOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
                 </div>
@@ -233,11 +301,11 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                 {/* Topic libre si "Autre" */}
                 {topic === "other" && (
                   <div>
-                    <Label>Précisez</Label>
+                    <Label>{t.specify}</Label>
                     <input
                       value={topicOther}
                       onChange={(e) => setTopicOther(e.target.value)}
-                      placeholder="Ex : import LinkedIn, export RGPD…"
+                      placeholder={t.specifyPlaceholder}
                       maxLength={120}
                       style={inputStyle}
                     />
@@ -246,11 +314,11 @@ function SupportModal({ onClose }: { onClose: () => void }) {
 
                 {/* Message */}
                 <div>
-                  <Label>Votre message</Label>
+                  <Label>{t.yourMessage}</Label>
                   <textarea
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Décrivez le bug, votre question ou votre suggestion…"
+                    placeholder={t.messagePlaceholder}
                     rows={6}
                     maxLength={5000}
                     style={{
@@ -260,7 +328,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                     }}
                   />
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "#6B7280" }}>
-                    <span>Visible uniquement par notre équipe.</span>
+                    <span>{t.teamOnly}</span>
                     <span>{message.length}/5000</span>
                   </div>
                 </div>
@@ -282,7 +350,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                     cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
                   }}
                 >
-                  Annuler
+                  {t.cancel}
                 </button>
                 <button
                   type="button"
@@ -299,7 +367,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                     fontFamily: "inherit",
                   }}
                 >
-                  {busy ? "Envoi…" : "Envoyer"}
+                  {busy ? t.sending : t.send}
                 </button>
               </div>
             </>

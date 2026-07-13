@@ -4,6 +4,30 @@ import { useState } from "react"
 import Link from "next/link"
 import type { Organization } from "@/lib/database.types"
 import { isInLockdown } from "@/lib/subscription"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    readOnly: "Workspace en lecture seule. ",
+    daysLeft: (n: number) => (
+      <>Plus que <strong>{n} jour{n > 1 ? "s" : ""}</strong> avant la suppression des données. </>
+    ),
+    soon: "Suppression des données dans les prochaines heures. ",
+    resubscribe: "Souscrire à nouveau",
+    exportData: "Exporter mes données",
+    askOwner: "Demandez à l'owner de régulariser l'abonnement.",
+  },
+  en: {
+    readOnly: "Workspace in read-only mode. ",
+    daysLeft: (n: number) => (
+      <>Only <strong>{n} day{n > 1 ? "s" : ""}</strong> left before your data is deleted. </>
+    ),
+    soon: "Data will be deleted within the next few hours. ",
+    resubscribe: "Subscribe again",
+    exportData: "Export my data",
+    askOwner: "Ask the owner to settle the subscription.",
+  },
+}
 
 /**
  * Bannière rouge persistante affichée en haut du workspace quand l'org
@@ -24,6 +48,8 @@ interface Props {
 }
 
 export function LockdownBanner({ organization, isOwner = true }: Props) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // Date.now() capturé au mount via useState init (pattern react-hooks/purity).
   const [nowMs] = useState(() => Date.now())
 
@@ -55,9 +81,7 @@ export function LockdownBanner({ organization, isOwner = true }: Props) {
         background: "#DC2626", flexShrink: 0,
       }} />
       <span style={{ flex: "0 1 auto" }}>
-        Workspace en lecture seule. {daysLeft > 0
-          ? <>Plus que <strong>{daysLeft} jour{daysLeft > 1 ? "s" : ""}</strong> avant la suppression des données. </>
-          : <>Suppression des données dans les prochaines heures. </>}
+        {t.readOnly}{daysLeft > 0 ? t.daysLeft(daysLeft) : t.soon}
         {isOwner ? (
           <>
             <Link
@@ -67,7 +91,7 @@ export function LockdownBanner({ organization, isOwner = true }: Props) {
                 textDecoration: "underline", textUnderlineOffset: 2,
               }}
             >
-              Souscrire à nouveau
+              {t.resubscribe}
             </Link>
             {" "}·{" "}
             <Link
@@ -77,12 +101,12 @@ export function LockdownBanner({ organization, isOwner = true }: Props) {
                 textDecoration: "underline", textUnderlineOffset: 2,
               }}
             >
-              Exporter mes données
+              {t.exportData}
             </Link>
           </>
         ) : (
           <>
-            Demandez à l&apos;owner de régulariser l&apos;abonnement.{" "}
+            {t.askOwner}{" "}
             <Link
               href="/organisation?tab=securite"
               style={{
@@ -90,7 +114,7 @@ export function LockdownBanner({ organization, isOwner = true }: Props) {
                 textDecoration: "underline", textUnderlineOffset: 2,
               }}
             >
-              Exporter mes données
+              {t.exportData}
             </Link>
           </>
         )}

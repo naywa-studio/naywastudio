@@ -10,6 +10,87 @@ import { getSupabase } from "@/lib/supabase"
 import { trialStatus } from "@/lib/trial"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
 import type { MatchTier, Organization } from "@/lib/database.types"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    noOrgName: "Organisation sans nom",
+    hello: (firstName: string | null) => `Bonjour${firstName ? `, ${firstName}` : ""}`,
+    setIdentity: "Définir l'identité de votre organisation",
+    identityHint: " · apparaît sur les CV anonymisés",
+    addCv: "Ajouter un CV",
+    createMission: "Créer une mission",
+    launchMatching: "Lancer un matching",
+    priceMission: "Chiffrer une mission",
+    trackPipeline: "Suivre le pipeline",
+    vivier: "Vivier",
+    openMissions: "Missions ouvertes",
+    strongMatches: "Matchs pertinents",
+    pricingPool: "Candidats en pricing",
+    deltaThisWeek: (n: number) => `+${n} cette semaine`,
+    recentCandidates: "Récemment ajoutés au vivier",
+    noCandidates: "Aucun CV ajouté pour l'instant.",
+    viewVivier: "Voir le vivier",
+    recentMatches: "Meilleurs matches récents",
+    noMatches: "Aucun match excellent ou bon pour l'instant.",
+    viewPipeline: "Voir le pipeline",
+    missionsToPrice: "Missions à chiffrer",
+    noMissionsToPrice: "Aucun candidat n'attend de chiffrage.",
+    openPricing: "Ouvrir le pricing",
+    noName: "Sans nom",
+    candidateFallback: "Candidat",
+    waitingCandidates: (n: number) => `${n} candidat${n > 1 ? "s" : ""} en attente`,
+  },
+  en: {
+    noOrgName: "Unnamed organization",
+    hello: (firstName: string | null) => `Hello${firstName ? `, ${firstName}` : ""}`,
+    setIdentity: "Set up your organization's identity",
+    identityHint: " · appears on anonymized CVs",
+    addCv: "Add a CV",
+    createMission: "Create a job opening",
+    launchMatching: "Run a matching",
+    priceMission: "Price a job opening",
+    trackPipeline: "Track the pipeline",
+    vivier: "Talent pool",
+    openMissions: "Open job openings",
+    strongMatches: "Relevant matches",
+    pricingPool: "Candidates in pricing",
+    deltaThisWeek: (n: number) => `+${n} this week`,
+    recentCandidates: "Recently added to the talent pool",
+    noCandidates: "No CVs added yet.",
+    viewVivier: "View talent pool",
+    recentMatches: "Best recent matches",
+    noMatches: "No excellent or good match yet.",
+    viewPipeline: "View pipeline",
+    missionsToPrice: "Job openings to price",
+    noMissionsToPrice: "No candidate is waiting for pricing.",
+    openPricing: "Open pricing",
+    noName: "No name",
+    candidateFallback: "Candidate",
+    waitingCandidates: (n: number) => `${n} candidate${n > 1 ? "s" : ""} waiting`,
+  },
+}
+
+function timeAgo(iso: string, lang: Lang): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60_000)
+  if (lang === "fr") {
+    if (mins < 60) return `il y a ${mins}min`
+    const h = Math.floor(mins / 60)
+    if (h < 24) return `il y a ${h}h`
+    const d = Math.floor(h / 24)
+    if (d < 30) return `il y a ${d}j`
+    const mo = Math.floor(d / 30)
+    return `il y a ${mo}mois`
+  }
+  if (mins < 60) return `${mins}min ago`
+  const h = Math.floor(mins / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 30) return `${d}d ago`
+  const mo = Math.floor(d / 30)
+  return `${mo}mo ago`
+}
 
 /** Helper local : trial app-side actif. Évite de réimporter le helper
  *  complet juste pour ça. */
@@ -69,6 +150,8 @@ const TIER_COLOR: Record<MatchTier, { fg: string; bg: string; bd: string }> = {
 
 export default function WorkspaceHome() {
   const { profile, organization, hasSubscription, isReadOnly, refetchProfile } = useWorkspace()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const granted = useRef(false)
 
@@ -237,20 +320,20 @@ export default function WorkspaceHome() {
             margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
             letterSpacing: "0.08em", textTransform: "uppercase",
           }}>
-            {brandName ?? "Organisation sans nom"}
+            {brandName ?? t.noOrgName}
           </p>
           <h1 style={{
             margin: "4px 0 0", fontSize: "clamp(26px, 3.4vw, 34px)", fontWeight: 800,
             color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15,
           }}>
-            Bonjour{firstName ? `, ${firstName}` : ""}
+            {t.hello(firstName)}
           </h1>
           {!brandName && (
             <p style={{ margin: "8px 0 0", fontSize: 13, color: "#6B7280" }}>
               <Link href="/organisation" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "none" }}>
-                Définir l&apos;identité de votre organisation
-              </Link>{" "}
-              · apparaît sur les CV anonymisés
+                {t.setIdentity}
+              </Link>
+              {t.identityHint}
             </p>
           )}
         </div>
@@ -274,13 +357,13 @@ export default function WorkspaceHome() {
             tout est encore consultable, juste plus modifiable. */}
         {!isReadOnly && (
           <>
-            <ActionTile href="/workspace/vivier" label="Ajouter un CV"  icon={<IconUpload />} />
-            <ActionTile href="/workspace/missions" label="Créer une mission" icon={<IconPlus />} />
-            <ActionTile href="/workspace/missions" label="Lancer un matching" icon={<IconTarget />} />
-            <ActionTile href="/workspace/pricing" label="Chiffrer une mission" icon={<IconEuro />} />
+            <ActionTile href="/workspace/vivier" label={t.addCv}  icon={<IconUpload />} />
+            <ActionTile href="/workspace/missions" label={t.createMission} icon={<IconPlus />} />
+            <ActionTile href="/workspace/missions" label={t.launchMatching} icon={<IconTarget />} />
+            <ActionTile href="/workspace/pricing" label={t.priceMission} icon={<IconEuro />} />
           </>
         )}
-        <ActionTile href="/workspace/pipeline" label="Suivre le pipeline" icon={<IconKanban />} />
+        <ActionTile href="/workspace/pipeline" label={t.trackPipeline} icon={<IconKanban />} />
       </m.div>
 
       {/* ── Indicateurs ───────────────────────────────────────── */}
@@ -290,28 +373,32 @@ export default function WorkspaceHome() {
         gap: 12, marginBottom: 28,
       }}>
         <StatTile href="/workspace/vivier"
-          label="Vivier"
+          label={t.vivier}
           value={stats?.candidates ?? null}
           delta={stats?.candidatesDelta ?? null}
           loading={loading}
+          deltaLabel={t.deltaThisWeek}
         />
         <StatTile href="/workspace/missions"
-          label="Missions ouvertes"
+          label={t.openMissions}
           value={stats?.openJobs ?? null}
           delta={null}
           loading={loading}
+          deltaLabel={t.deltaThisWeek}
         />
         <StatTile href="/workspace/pipeline"
-          label="Matchs pertinents"
+          label={t.strongMatches}
           value={stats?.strongMatches ?? null}
           delta={stats?.strongMatchesDelta ?? null}
           loading={loading}
+          deltaLabel={t.deltaThisWeek}
         />
         <StatTile href="/workspace/pricing"
-          label="Candidats en pricing"
+          label={t.pricingPool}
           value={stats?.pricingPool ?? null}
           delta={null}
           loading={loading}
+          deltaLabel={t.deltaThisWeek}
         />
       </div>
 
@@ -322,31 +409,31 @@ export default function WorkspaceHome() {
         gap: 14, marginBottom: 28,
       }}>
         <RecentPanel
-          title="Récemment ajoutés au vivier"
+          title={t.recentCandidates}
           loading={loading}
-          empty="Aucun CV ajouté pour l'instant."
-          actionLabel="Voir le vivier"
+          empty={t.noCandidates}
+          actionLabel={t.viewVivier}
           actionHref="/workspace/vivier"
         >
           {recentCandidates.map((c) => (
             <Link key={c.id} href={`/workspace/vivier/${c.id}`} style={rowLinkStyle}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={rowTitleStyle}>{c.full_name ?? "Sans nom"}</p>
+                <p style={rowTitleStyle}>{c.full_name ?? t.noName}</p>
                 <p style={rowSubStyle}>
                   {c.current_title ?? "—"}
                   {c.current_company ? ` · ${c.current_company}` : ""}
                 </p>
               </div>
-              <span style={rowDateStyle}>{timeAgo(c.created_at)}</span>
+              <span style={rowDateStyle}>{timeAgo(c.created_at, lang)}</span>
             </Link>
           ))}
         </RecentPanel>
 
         <RecentPanel
-          title="Meilleurs matches récents"
+          title={t.recentMatches}
           loading={loading}
-          empty="Aucun match excellent ou bon pour l'instant."
-          actionLabel="Voir le pipeline"
+          empty={t.noMatches}
+          actionLabel={t.viewPipeline}
           actionHref="/workspace/pipeline"
         >
           {recentMatches.map((mm) => {
@@ -355,7 +442,7 @@ export default function WorkspaceHome() {
               <Link key={mm.id} href={`/workspace/match/${mm.id}`} style={rowLinkStyle}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={rowTitleStyle}>
-                    {mm.candidate?.full_name ?? "Candidat"}
+                    {mm.candidate?.full_name ?? t.candidateFallback}
                     <span style={{ color: "#6B7280", fontWeight: 500 }}> · {mm.job?.title ?? "—"}</span>
                   </p>
                   <p style={rowSubStyle}>{mm.candidate?.current_title ?? ""}</p>
@@ -375,10 +462,10 @@ export default function WorkspaceHome() {
         </RecentPanel>
 
         <RecentPanel
-          title="Missions à chiffrer"
+          title={t.missionsToPrice}
           loading={loading}
-          empty="Aucun candidat n'attend de chiffrage."
-          actionLabel="Ouvrir le pricing"
+          empty={t.noMissionsToPrice}
+          actionLabel={t.openPricing}
           actionHref="/workspace/pricing"
         >
           {missionsToPrice.map((mm) => (
@@ -386,7 +473,7 @@ export default function WorkspaceHome() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={rowTitleStyle}>{mm.title}</p>
                 <p style={rowSubStyle}>
-                  {mm.candidatesCount} candidat{mm.candidatesCount > 1 ? "s" : ""} en attente
+                  {t.waitingCandidates(mm.candidatesCount)}
                 </p>
               </div>
               <span style={{
@@ -482,12 +569,13 @@ function ActionTile({ href, label, icon }: {
   )
 }
 
-function StatTile({ href, label, value, delta, loading }: {
+function StatTile({ href, label, value, delta, loading, deltaLabel }: {
   href: string
   label: string
   value: number | null
   delta: number | null
   loading: boolean
+  deltaLabel: (n: number) => string
 }) {
   return (
     <Link href={href} style={{
@@ -524,7 +612,7 @@ function StatTile({ href, label, value, delta, loading }: {
           <span style={{
             fontSize: 11, fontWeight: 700, color: "#15803d",
           }}>
-            +{delta} cette semaine
+            {deltaLabel(delta)}
           </span>
         )}
       </div>
@@ -647,16 +735,4 @@ const rowSubStyle: React.CSSProperties = {
 }
 const rowDateStyle: React.CSSProperties = {
   fontSize: 11, color: "#6B7280", flexShrink: 0,
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60_000)
-  if (m < 60) return `il y a ${m}min`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `il y a ${h}h`
-  const d = Math.floor(h / 24)
-  if (d < 30) return `il y a ${d}j`
-  const mo = Math.floor(d / 30)
-  return `il y a ${mo}mois`
 }

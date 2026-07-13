@@ -16,6 +16,7 @@ import { hasActiveAccess, isInLockdown } from "@/lib/subscription"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 type Organization = Database["public"]["Tables"]["organizations"]["Row"]
@@ -40,21 +41,62 @@ export function useWorkspace() {
   return ctx
 }
 
-const TABS: { href: string; label: string; live: boolean; showUnreadBadge?: boolean }[] = [
-  { href: "/workspace",          label: "Accueil",  live: true },
-  // Missions en 2e (E1, juin 2026) : c'est l'entrée principale du
-  // sourceur — d'abord ouvrir une mission, puis y rattacher des CVs
-  // (upload direct ou matcher le vivier).
-  { href: "/workspace/missions", label: "Missions", live: true },
-  { href: "/workspace/vivier",   label: "Vivier",   live: true },
-  { href: "/workspace/pricing",  label: "Pricing",  live: true },
-  { href: "/workspace/pipeline", label: "Pipeline", live: true },
-  { href: "/nouveautes",         label: "Nouveautés", live: true, showUnreadBadge: true },
-]
+const TABS: Record<Lang, { href: string; label: string; live: boolean; showUnreadBadge?: boolean }[]> = {
+  fr: [
+    { href: "/workspace",          label: "Accueil",  live: true },
+    // Missions en 2e (E1, juin 2026) : c'est l'entrée principale du
+    // sourceur — d'abord ouvrir une mission, puis y rattacher des CVs
+    // (upload direct ou matcher le vivier).
+    { href: "/workspace/missions", label: "Missions", live: true },
+    { href: "/workspace/vivier",   label: "Vivier",   live: true },
+    { href: "/workspace/pricing",  label: "Pricing",  live: true },
+    { href: "/workspace/pipeline", label: "Pipeline", live: true },
+    { href: "/nouveautes",         label: "Nouveautés", live: true, showUnreadBadge: true },
+  ],
+  en: [
+    { href: "/workspace",          label: "Home",     live: true },
+    { href: "/workspace/missions", label: "Missions", live: true },
+    { href: "/workspace/vivier",   label: "Talent pool", live: true },
+    { href: "/workspace/pricing",  label: "Pricing",  live: true },
+    { href: "/workspace/pipeline", label: "Pipeline", live: true },
+    { href: "/nouveautes",         label: "Updates",  live: true, showUnreadBadge: true },
+  ],
+}
+
+const copy = {
+  fr: {
+    soon: "Bientôt",
+    backToSite: "Retour au site",
+    homeTitle: "Accueil naywastudio.com",
+    orgConsole: "Console organisation",
+    organization: "Organisation",
+    myProfileAria: "Mon profil",
+    loggedInAs: "Connecté en tant que",
+    myProfile: "Mon profil",
+    myOrganization: "Mon organisation",
+    adminConsole: "Console admin",
+    logout: "Se déconnecter",
+  },
+  en: {
+    soon: "Soon",
+    backToSite: "Back to site",
+    homeTitle: "naywastudio.com home",
+    orgConsole: "Organization console",
+    organization: "Organization",
+    myProfileAria: "My profile",
+    loggedInAs: "Signed in as",
+    myProfile: "My profile",
+    myOrganization: "My organization",
+    adminConsole: "Admin console",
+    logout: "Sign out",
+  },
+}
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [profile, setProfile] = useState<Profile | null>(null)
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [userEmail, setUserEmail] = useState("")
@@ -178,13 +220,13 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const isActive = (href: string) =>
     href === "/workspace" ? pathname === "/workspace" : pathname.startsWith(href)
 
-  const tabLinks = TABS.map((t) => {
-    const active = isActive(t.href)
-    const disabled = !t.live
+  const tabLinks = TABS[lang].map((tab) => {
+    const active = isActive(tab.href)
+    const disabled = !tab.live
     return (
       <Link
-        key={t.href}
-        href={t.live ? t.href : "#"}
+        key={tab.href}
+        href={tab.live ? tab.href : "#"}
         onClick={(e) => { if (disabled) e.preventDefault() }}
         aria-disabled={disabled}
         data-active={active || undefined}
@@ -203,9 +245,9 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           transition: "background 150ms, color 150ms",
         }}
       >
-        {t.label}
-        {t.showUnreadBadge && <UpdatesNavBadge />}
-        {!t.showUnreadBadge && <NavUnreadDot href={t.href} />}
+        {tab.label}
+        {tab.showUnreadBadge && <UpdatesNavBadge />}
+        {!tab.showUnreadBadge && <NavUnreadDot href={tab.href} />}
         {disabled && (
           <span style={{
             fontSize: 9, fontWeight: 700, color: "#6B7280",
@@ -213,7 +255,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
             padding: "2px 6px", borderRadius: 100,
             letterSpacing: "0.04em", textTransform: "uppercase",
           }}>
-            Bientôt
+            {t.soon}
           </span>
         )}
       </Link>
@@ -256,7 +298,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <Link href="/" title="Retour au site"
+            <Link href="/" title={t.backToSite}
               style={{
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 width: 30, height: 30, borderRadius: 8,
@@ -268,7 +310,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                 <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </Link>
-            <Link href="/" style={{ textDecoration: "none" }} title="Accueil naywastudio.com">
+            <Link href="/" style={{ textDecoration: "none" }} title={t.homeTitle}>
               <Logo size="md" />
             </Link>
 
@@ -285,7 +327,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
               <Link
                 href="/organisation"
                 className="ws-org-link"
-                title="Console organisation"
+                title={t.orgConsole}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "7px 12px", borderRadius: 9,
@@ -300,7 +342,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                   <path d="M3 21h18" /><path d="M5 21V7l7-4 7 4v14" />
                   <path d="M9 21v-6h6v6" />
                 </svg>
-                Organisation
+                {t.organization}
               </Link>
             )}
             <SupportButton variant="compact" />
@@ -309,7 +351,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
               <button
                 type="button"
                 onClick={() => setMenuOpen((o) => !o)}
-                aria-label="Mon profil"
+                aria-label={t.myProfileAria}
                 title={userEmail}
                 style={{
                   width: 34, height: 34, borderRadius: "50%",
@@ -336,7 +378,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                     borderBottom: "1px solid #F0ECF8", marginBottom: 4,
                   }}>
                     <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                      Connecté en tant que
+                      {t.loggedInAs}
                     </p>
                     <p style={{
                       margin: "2px 0 0", fontSize: 13, fontWeight: 600, color: "#111827",
@@ -346,23 +388,23 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                     </p>
                   </div>
                   <Link href="/profil" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
-                    Mon profil
+                    {t.myProfile}
                   </Link>
                   {profile?.role === "owner" && (
                     <Link href="/organisation" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
-                      Mon organisation
+                      {t.myOrganization}
                     </Link>
                   )}
                   {profile?.is_admin && (
                     <Link href="/admin" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
-                      Console admin
+                      {t.adminConsole}
                     </Link>
                   )}
                   <button
                     onClick={() => { setMenuOpen(false); handleLogout() }}
                     style={MENU_ITEM_DANGER}
                   >
-                    Se déconnecter
+                    {t.logout}
                   </button>
                 </div>
               )}
