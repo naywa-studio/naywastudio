@@ -32,9 +32,13 @@ const R2_ENDPOINT = process.env.R2_ENDPOINT ?? ""
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID ?? ""
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY ?? ""
 
+// Noms de buckets pilotés par env var (fallback = noms actuels). Permet
+// la bascule vers les buckets EU (jurisdiction UE) sans redéploiement de
+// code : il suffit de poser R2_BUCKET_CV / R2_BUCKET_LOGOS + R2_ENDPOINT
+// (variante `.eu`) côté Vercel. Cf. /api/admin/migrate-r2-eu pour la copie.
 export const R2_BUCKETS = {
-  cv: "naywa-cv",
-  logos: "naywa-logos",
+  cv: process.env.R2_BUCKET_CV ?? "naywa-cv",
+  logos: process.env.R2_BUCKET_LOGOS ?? "naywa-logos",
 } as const
 
 export type R2BucketKey = keyof typeof R2_BUCKETS
