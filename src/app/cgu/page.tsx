@@ -47,7 +47,7 @@ const SECTIONS: LegalSection[] = [
     title: "5. Création et gestion d'un compte",
     content: [
       "L'accès au Service nécessite la création d'un compte avec une adresse email valide.",
-      "À la création, le Client (« Owner ») crée automatiquement une « organisation » (le cabinet). L'Owner peut ensuite inviter d'autres collaborateurs (« Members ») à rejoindre l'organisation. Tous les membres d'une même organisation partagent le vivier.",
+      "À la création, le Client (« Owner ») crée automatiquement une « organisation ». L'Owner peut ensuite inviter d'autres collaborateurs (« Members ») à rejoindre l'organisation. Tous les membres d'une même organisation partagent le vivier.",
       "Le Client est responsable de la confidentialité de son mot de passe. Toute action effectuée depuis son compte est réputée effectuée par lui.",
       "L'Owner peut à tout moment retirer un Member, ajouter un nouveau Member dans la limite des sièges disponibles, ou supprimer l'organisation entière.",
     ],
@@ -56,7 +56,7 @@ const SECTIONS: LegalSection[] = [
     title: "6. Abonnement et résiliation",
     content: [
       "Le service Package Sourcing est commercialisé par siège. La grille tarifaire en vigueur est publiée sur la page Tarifs.",
-      "**Suppression du compte** : l'Owner peut supprimer son cabinet à tout moment depuis la console. Si d'autres membres sont actifs, ils conservent l'accès au workspace jusqu'à la fin de la période payée. Passé ce délai, toutes les données du cabinet sont supprimées définitivement et sans retour possible.",
+      "**Suppression du compte** : l'Owner peut supprimer son organisation à tout moment depuis la console. Si d'autres membres sont actifs, ils conservent l'accès au workspace jusqu'à la fin de la période payée. Passé ce délai, toutes les données de l'organisation sont supprimées définitivement et sans retour possible.",
       "**Cession de siège** : un siège libéré pendant une période payée peut être ré-attribué par l'Owner sans surcoût.",
       "L'essai gratuit de 15 jours n'entraîne aucune facturation. La souscription payante ne démarre qu'après validation explicite d'une formule par le Client.",
     ],
@@ -83,7 +83,7 @@ const SECTIONS: LegalSection[] = [
       "Le Client s'engage à :",
       "•n'importer que des CVs collectés conformément à la réglementation applicable ;",
       "•ne pas utiliser le Service à des fins illicites, discriminatoires ou contraires aux bonnes mœurs ;",
-      "•ne pas tenter d'accéder aux données d'un autre cabinet, ni d'interférer avec le fonctionnement technique du Service ;",
+      "•ne pas tenter d'accéder aux données d'une autre organisation, ni d'interférer avec le fonctionnement technique du Service ;",
       "•respecter les obligations légales applicables au recrutement, notamment la non-discrimination, la protection des candidats mineurs, et la transparence sur l'usage de l'IA en sourcing.",
     ],
   },
