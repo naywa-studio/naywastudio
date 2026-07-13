@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { r2GetSize, r2SumSizeByPrefix } from "@/lib/r2-storage"
 import { decrementStorageUsed } from "@/lib/quota"
@@ -19,6 +20,8 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
 
   // Verify access via user-scoped client. RLS is org-scoped (migration
   // 019), so a returned row proves the caller is in the same org as

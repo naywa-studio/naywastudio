@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { requireActiveAccess } from "@/lib/access-guard"
 import { normalizeJob } from "@/lib/matching"
 import { primarySeniority, normalizeInterval } from "@/lib/seniority"
 
@@ -57,6 +58,8 @@ export async function POST(req: NextRequest) {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
 
   const body = await req.json().catch(() => null) as Record<string, unknown> | null
 

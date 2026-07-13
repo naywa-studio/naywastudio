@@ -12,6 +12,7 @@
 
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeOrgLlmActionForUser } from "@/lib/quota"
 import { classifySectors } from "@/lib/sector-classify"
@@ -30,6 +31,8 @@ export async function POST() {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
 
   const { data: profile } = await sb
     .from("profiles").select("organization_id").eq("user_id", user.id).maybeSingle()

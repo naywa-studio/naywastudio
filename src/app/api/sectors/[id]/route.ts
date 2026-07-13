@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { requireActiveAccess } from "@/lib/access-guard"
 
 export const runtime = "nodejs"
 
@@ -51,6 +52,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
 
   const { data: sector } = await sb.from("sectors").select("id, name").eq("id", id).maybeSingle()
   if (!sector) return NextResponse.json({ error: "not_found" }, { status: 404 })
@@ -90,6 +93,8 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
 
   const { data: sector } = await sb.from("sectors").select("id, name").eq("id", id).maybeSingle()
   if (!sector) return NextResponse.json({ error: "not_found" }, { status: 404 })
