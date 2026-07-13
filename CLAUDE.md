@@ -620,6 +620,87 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
+#### Session RGPD/UE + audit bugs + garde read-only — 2026-07-13
+
+**Contexte** : passe post-cohérence. Audit flow/légal (doc `AUDIT-flow-legal.md` au
+scratchpad session), puis exécution. **4 branches créées ce jour.**
+
+**MERGÉ EN PROD (main = `882274b`)** :
+- **Legal/RGPD** (`claude/rgpd-legal-fixes` → merge `304f575`) : Cloudflare R2 **+**
+  Stripe déclarés sous-traitants (mentions légales + politique), retrait des mentions
+  « quand Stripe sera branché » (Stripe LIVE), vocab « cabinet » → « organisation » dans
+  le legal (garde « cabinet de recrutement » = cible). **R2 décrit en jurisdiction UE**
+  (après migration) → « données stockées dans l'UE » + note « Localisation des données :
+  base + fichiers CV en UE ; sous-traitants US pour données techniques, SCC/DPF ». Le
+  « (États-Unis) » sur chaque société = **normal/voulu** (nationalité de la société ≠
+  localisation des données).
+- **UI bugs B2/B4/B5** (`claude/ui-access-bugs` → merge `882274b`) :
+  - **B2** `MySeatBanner` (/organisation Mes packages) reçoit `hasActiveAccess(org,{isAdmin})` :
+    siège occupé mais accès suspendu → bandeau ambré « souscrivez ci-dessous » au lieu de
+    « Accès complet / Ouvrir le workspace » (qui rebondissait en boucle).
+  - **B4** dropdown « Allouer un siège » (`EmptySeatActions`) en `createPortal` (position
+    fixed sur le bouton) → plus clippé par l'overflow de la carte Membres.
+  - **B5** code mort « Bientôt » retiré de la nav workspace (+ champ `live` des TABS).
+  - **B3** = faux positif (SubscriptionCard reçoit déjà isAdmin, QuotaGauges lit /api/quota admin-aware).
+
+**EN ATTENTE DE VALIDATION (branche poussée, pas mergée)** :
+- **B1 garde read-only serveur** (`claude/readonly-server-guard`, commit `acf6355`) :
+  nouveau `lib/access-guard.ts` `requireActiveAccess()` (admin bypass OU accès actif ET
+  siège ; sinon 403) appliqué en 1ʳᵉ ligne de **16 routes de mutation non-quota** (match
+  stage/pipeline/pricing-params/[id], jobs POST/[id] PATCH+DELETE/assign/criteria, sectors
+  POST/[id] PATCH+DELETE/define/classify-vivier, candidates/[id]/sectors, cv/[id] DELETE).
+  Avant : read-only seulement côté client → mutation possible par appel API direct. Les
+  routes LLM restent gardées par le quota (=0 en lockdown). GET non gardés.
+  → **Pour tester** : org **TEST** (`e53056801@gmail.com`) mise en **lockdown** via SQL
+  (`subscription_status='canceled'` + `lockdown_started_at=now()`) → workspace lecture
+  seule, mutations doivent renvoyer 403. (Avant, ce compte avait juste l'essai expiré sans
+  sub → **bounce total** `/organisation`, ce qui est normal ≠ lecture seule. cf. workspace
+  layout ligne 130 : bounce owner si `!hasActiveAccess && !isInLockdown`.)
+
+**R2 → UE : FAIT ET PROUVÉ EN PROD.**
+- Buckets EU créés (dashboard) : `naywa-cv-eu` + `naywa-logos-eu` (jurisdiction EU,
+  endpoint `https://01cb35864ea60853989e788cc377749b.eu.r2.cloudflarestorage.com`).
+- Noms de buckets pilotés par env `R2_BUCKET_CV`/`R2_BUCKET_LOGOS` (fallback anciens noms) ;
+  `R2_ENDPOINT` mis en `.eu` sur Vercel par Elyas ; token R2 recréé « Object R/W all buckets ».
+- Route one-off `GET /api/admin/migrate-r2-eu` (admin, idempotent, copie pure) : a copié
+  les **8 objets GMH** (6 CV + 2 PDF anonymisés) vers `naywa-cv-eu`. `?verify=1` (HEAD, sans
+  lire le contenu — respect vie privée) confirme `readsFromEu:true`.
+- **Données de test purgées** avant migration (516 CV : KYPE 267 + Naywa 169 + Elyas 80) ;
+  seul **GMH** (2 orgs, 6 CV) conservé + migré.
+- **RESTE** : les **anciens buckets `naywa-cv`/`naywa-logos` (North America) sont GARDÉS**
+  quelques jours comme filet (Elyas). À supprimer (vider puis delete au dashboard — le
+  garde-fou auto-mode refuse le mass-delete sans nommage explicite du bucket) + retirer la
+  route `migrate-r2-eu` ensuite.
+
+**Fixes base ce jour** :
+- Org admin `Naywa` (`elyas.malki@naywastudio.com`, `4e39ce0f`) avait `pending_deletion_at`
+  = 4 août (résidu) → **allait être wipée par le cron** → nullifié + `owner_user_id` restauré.
+- `amine.errabih@naywastudio.com` (dev branche `traduction_fr_en`) passé **is_admin=true**
+  (prod+preview, DB partagée).
+
+**Branches abandonnées / stale (repérées, à nettoyer)** :
+- `ent-mac-front` = track Mac front **abandonné** (Elyas a arrêté ce couloir).
+- `traduction_fr_en` (Amine954) = **ACTIVE** (i18n FR/EN en cours) — NE PAS toucher.
+- ~25 vieilles `claude/*` (storage-r2-quota, stability-fixes, coherence-pass, vivier-sectors,
+  quota-cv-model, mission-flow-visual-refonte, pr-z…, sprint-*, upload-*, matching-*…) =
+  **déjà mergées sur main**, supprimables sans risque (proposé à Elyas, pas encore fait).
+
+**File d'attente (post-compact)** :
+1. Valider B1 en preview/lockdown → merger `claude/readonly-server-guard`.
+2. **Gros flow résiliation** (go explicite requis) : résilier → accès complet fin de période
+   → lecture seule 30 j → réactiver ; **owner détruit en grâce à corriger** (le garder en
+   lecture seule pour pouvoir annuler) ; **transfert d'ownership** (inexistant, cul-de-sac
+   409) ; export RGPD caché pendant grâce à garder ; aligner lockdown wipe 15 j → 30 j ;
+   réécrire CGU §6. Bouton « Annuler la suppression / Réactiver » **côté orga**.
+3. **Grille tarifaire = option B** (validée) : 1-4 sièges self-serve inchangés + **« 5+
+   sièges → nous consulter »** (page contact + **embed Lark inline** — Elyas fournira le
+   code embed de l'équipe). Paliers Stripe dégressifs (graduated tiers reproduisant les prix
+   actuels : Std +25€/siège au-delà de 4, Pro +33€) = V2 quand demande réelle.
+4. **Quiz onboarding** (validé) : 3 Q au clic « Souscrire » (sièges / régie-TJM / volume) +
+   Q type-structure light à l'étape 1 ; wording « Trouver ma formule idéale » / « Voir toutes
+   les formules » ; skippable ; stocker les tranches ; RGPD OK (données org, pas perso).
+5. Supprimer vieux buckets R2 + retirer route migrate-r2-eu.
+
 ### ✅ Livré récent (cette session, juin 26 2026)
 
 Tout mergé sur main, par ordre chronologique :
