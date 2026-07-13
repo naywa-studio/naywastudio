@@ -643,19 +643,33 @@ scratchpad session), puis exécution. **4 branches créées ce jour.**
   - **B5** code mort « Bientôt » retiré de la nav workspace (+ champ `live` des TABS).
   - **B3** = faux positif (SubscriptionCard reçoit déjà isAdmin, QuotaGauges lit /api/quota admin-aware).
 
-**EN ATTENTE DE VALIDATION (branche poussée, pas mergée)** :
-- **B1 garde read-only serveur** (`claude/readonly-server-guard`, commit `acf6355`) :
-  nouveau `lib/access-guard.ts` `requireActiveAccess()` (admin bypass OU accès actif ET
-  siège ; sinon 403) appliqué en 1ʳᵉ ligne de **16 routes de mutation non-quota** (match
-  stage/pipeline/pricing-params/[id], jobs POST/[id] PATCH+DELETE/assign/criteria, sectors
-  POST/[id] PATCH+DELETE/define/classify-vivier, candidates/[id]/sectors, cv/[id] DELETE).
-  Avant : read-only seulement côté client → mutation possible par appel API direct. Les
-  routes LLM restent gardées par le quota (=0 en lockdown). GET non gardés.
-  → **Pour tester** : org **TEST** (`e53056801@gmail.com`) mise en **lockdown** via SQL
-  (`subscription_status='canceled'` + `lockdown_started_at=now()`) → workspace lecture
-  seule, mutations doivent renvoyer 403. (Avant, ce compte avait juste l'essai expiré sans
-  sub → **bounce total** `/organisation`, ce qui est normal ≠ lecture seule. cf. workspace
-  layout ligne 130 : bounce owner si `!hasActiveAccess && !isInLockdown`.)
+**EN ATTENTE DE VALIDATION — B1 garde read-only** (`claude/readonly-server-guard`,
+dernier commit `c21d8c1`, **pas mergée**, à merger « quand ce sera bien fait » — Elyas) :
+- `lib/access-guard.ts` `requireActiveAccess()` (admin bypass OU accès actif ET siège ;
+  sinon 403). Appliqué en 1ʳᵉ ligne de **~33 routes** = **toutes les mutations + toutes les
+  créations/IA** : match stage/pipeline/pricing-params/[id] · jobs POST/[id] PATCH+DELETE/
+  assign/criteria/match/extract/chat/propose-criteria/propose-sectors · sectors POST/[id]
+  PATCH+DELETE/define/classify-vivier · candidates/[id]/sectors+match-all/dedup · cv
+  upload/[id] DELETE/parse/anonymize (POST **+ GET** = bloque aussi le download anonymisé)/
+  docx/critique/compose/send · match/score-one · assistant · pricing/compare.
+  → En lecture seule un user ne peut plus RIEN créer/uploader/générer/matcher/modifier ni
+  télécharger un anonymisé. GET de **consultation** (signed-url CV originaux, listes) OK.
+- **UI read-only** : passe DÉMARRÉE. Fait = **vivier** (bouton « + Importer des CVs » grisé/
+  disabled + onFilesPicked/onDrop court-circuités). **RESTE à griser** : créer mission,
+  matcher, pipeline (add/drag/stage), fiche match (anonymiser/compose/envoyer/pricing),
+  secteurs (créer/reclasser), `MissionCvUploadModal`. `isReadOnly` vient de `useWorkspace()`.
+- **Pour tester** : org **TEST** (`e53056801@gmail.com`) mise en **lockdown** via SQL
+  (`subscription_status='canceled'` + `lockdown_started_at=now()`) → workspace lecture seule.
+  (Un essai simplement expiré sans sub = **bounce total** `/organisation`, normal ≠ lecture
+  seule ; cf. workspace layout ligne 130 : bounce owner si `!hasActiveAccess && !isInLockdown`.)
+- **Rétention données post-essai** (question Elyas) : aujourd'hui un essai expiré sans sub
+  n'est wipé par AUCUN cron → **données conservées** (pas de perte). Le bon design (à intégrer
+  au flow résiliation) : unifier essai-expiré + résilié → lecture seule + grâce 30 j (export
+  RGPD + réactivation) → wipe si toujours pas d'abo.
+
+**Migration 060** (`profiles.preferred_language` fr/en, défaut fr + CHECK) **appliquée via MCP
++ vérifiée** — débloque la branche **`traduction_fr_en`** (Amine, ACTIVE, i18n) mergeable.
+**`ent-mac-front` supprimée** (track abandonné).
 
 **R2 → UE : FAIT ET PROUVÉ EN PROD.**
 - Buckets EU créés (dashboard) : `naywa-cv-eu` + `naywa-logos-eu` (jurisdiction EU,
