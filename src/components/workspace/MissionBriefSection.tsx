@@ -14,6 +14,38 @@
 
 import { useState } from "react"
 import type { Job } from "@/lib/database.types"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    briefTitle: "Brief de la mission",
+    rfpBadge: "Appel d'offre",
+    originalBrief: "Brief original",
+    originalBriefHint: "Le brief que vous avez saisi pour créer la mission.",
+    addBrief: "Ajouter le brief",
+    clientBrief: "Brief client / appel d'offre",
+    clientBriefHint: "Optionnel — le document brut transmis par le client (cahier des charges, appel d'offre).",
+    addClientBrief: "Ajouter le brief client",
+    edit: "Modifier",
+    cancel: "Annuler",
+    saving: "Enregistrement…",
+    save: "Enregistrer",
+  },
+  en: {
+    briefTitle: "Mission brief",
+    rfpBadge: "RFP",
+    originalBrief: "Original brief",
+    originalBriefHint: "The brief you entered when creating the mission.",
+    addBrief: "Add the brief",
+    clientBrief: "Client brief / RFP",
+    clientBriefHint: "Optional — the raw document sent by the client (specifications, RFP).",
+    addClientBrief: "Add the client brief",
+    edit: "Edit",
+    cancel: "Cancel",
+    saving: "Saving…",
+    save: "Save",
+  },
+}
 
 export function MissionBriefSection({
   job, onSaved,
@@ -21,6 +53,8 @@ export function MissionBriefSection({
   job: Job
   onSaved: (patch: Partial<Job>) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const hasClientBrief = !!(job.client_brief?.trim())
   // Toujours replié par défaut — on n'encombre pas le cockpit.
   const [open, setOpen] = useState(false)
@@ -44,7 +78,7 @@ export function MissionBriefSection({
           <path d="M14 4v5h5M8 13h8M8 17h5" />
         </svg>
         <span style={{ fontSize: 13.5, fontWeight: 800, color: "#111827", flex: 1 }}>
-          Brief de la mission
+          {t.briefTitle}
         </span>
         {hasClientBrief && (
           <span style={{
@@ -52,7 +86,7 @@ export function MissionBriefSection({
             background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
             borderRadius: 999, padding: "1px 8px", letterSpacing: "0.04em", textTransform: "uppercase",
           }}>
-            Appel d&apos;offre
+            {t.rfpBadge}
           </span>
         )}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} aria-hidden="true">
@@ -65,19 +99,19 @@ export function MissionBriefSection({
           <BriefBlock
             jobId={job.id}
             field="briefing"
-            label="Brief original"
-            hint="Le brief que vous avez saisi pour créer la mission."
+            label={t.originalBrief}
+            hint={t.originalBriefHint}
             value={job.briefing ?? ""}
-            emptyCta="Ajouter le brief"
+            emptyCta={t.addBrief}
             onSaved={(v) => onSaved({ briefing: v })}
           />
           <BriefBlock
             jobId={job.id}
             field="client_brief"
-            label="Brief client / appel d'offre"
-            hint="Optionnel — le document brut transmis par le client (cahier des charges, appel d'offre)."
+            label={t.clientBrief}
+            hint={t.clientBriefHint}
             value={job.client_brief ?? ""}
-            emptyCta="Ajouter le brief client"
+            emptyCta={t.addClientBrief}
             onSaved={(v) => onSaved({ client_brief: v })}
           />
         </div>
@@ -97,6 +131,8 @@ function BriefBlock({
   emptyCta: string
   onSaved: (value: string | null) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
   const [saving, setSaving] = useState(false)
@@ -137,7 +173,7 @@ function BriefBlock({
               fontFamily: "inherit", padding: 0,
             }}
           >
-            {value.trim() ? "Modifier" : ""}
+            {value.trim() ? t.edit : ""}
           </button>
         )}
       </div>
@@ -168,7 +204,7 @@ function BriefBlock({
                 padding: "7px 13px", cursor: "pointer", fontFamily: "inherit",
               }}
             >
-              Annuler
+              {t.cancel}
             </button>
             <button
               type="button"
@@ -181,7 +217,7 @@ function BriefBlock({
                 cursor: saving ? "default" : "pointer", fontFamily: "inherit",
               }}
             >
-              {saving ? "Enregistrement…" : "Enregistrer"}
+              {saving ? t.saving : t.save}
             </button>
           </div>
         </>

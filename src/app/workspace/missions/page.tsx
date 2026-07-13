@@ -16,8 +16,262 @@ import { seniorityIntervalLabel } from "@/lib/seniority"
 import { hsl } from "@/lib/vivier-clusters"
 import { sectorHue } from "@/lib/sector-color"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
+const copy = {
+  fr: {
+    noFirstName: "Sans prénom",
+    member: "Membre",
+    badge: "Missions",
+    title: "Vos missions",
+    subtitleEmpty: "Décrivez une mission. Nora la matche avec votre vivier.",
+    subtitleCount: (n: number) => `${n} mission${n > 1 ? "s" : ""}.`,
+    createMission: "+ Créer une mission",
+    searchPlaceholder: "Rechercher par titre, lieu, compétence…",
+    noResults: (q: string) => `Aucune mission ne correspond à « ${q} ».`,
+    clearFilter: "Effacer le filtre",
+    myMissions: "Mes missions",
+    missionsOf: (name: string) => `Missions de ${name}`,
+    missionCount: (n: number) => `· ${n} mission${n > 1 ? "s" : ""}`,
+    overview: "Vue d'ensemble",
+    relevantCandidates: "Candidats pertinents",
+    inPipeline: "En pipeline",
+    hired: "Recrutés",
+    topRejectReasons: "Top motifs d'écart (30 j)",
+    yearsSuffix: "ans",
+    matchingInProgress: "✦ Matching en cours…",
+    matched: "✓ Matché",
+    matchingError: "Erreur matching",
+    notMatchedYet: "Pas encore matché",
+    open: "Ouvrir →",
+    relevantSuffix: (n: number) => `· ${n} pertinent${n > 1 ? "s" : ""}`,
+    statusDraft: "Brouillon",
+    statusOpen: "Ouvert",
+    statusFilled: "Pourvu",
+    statusArchived: "Archivé",
+    emptyTitle: "Créez votre première mission",
+    emptyDesc: "Décrivez le besoin (titre, séniorité, compétences). Nora compare la mission à tout votre vivier et vous sort les candidats pertinents, classés et justifiés.",
+    emptyCta: "Créer une mission",
+    contractLabels: {
+      cdi: "CDI", cdd: "CDD", freelance: "Freelance",
+      portage: "Portage salarial", alternance: "Alternance",
+    } as Record<ContractType, string>,
+    lieuLabels: {
+      paris_petite_couronne: "Paris + petite couronne (92, 93, 94)",
+      idf_grande_couronne: "Île-de-France grande couronne",
+      lyon: "Lyon",
+      province: "Province",
+    } as Record<PricingLieu, string>,
+    briefRequired: "Collez votre brief, fiche de poste ou appel d'offre.",
+    analysisTimeout: "L'analyse a pris trop de temps. Tentez un brief plus court ou réessayez.",
+    emptyServerResponse: (status: number) => `Réponse vide du serveur (${status}). Réessayez ou utilisez la saisie manuelle.`,
+    unreadableResponse: "Réponse serveur illisible. Réessayez ou utilisez la saisie manuelle.",
+    analysisError: "Erreur d'analyse.",
+    networkError: "Erreur réseau.",
+    nameRequired: "Le nom de la mission est requis.",
+    locationRequired: "Le lieu est requis.",
+    skillRequired: "Au moins une compétence requise.",
+    creationTimeout: "La création a pris trop de temps côté serveur. Réessayez — la mission a peut-être déjà été créée (vérifiez la liste).",
+    unreadableResponseStatus: (status: number) => `Réponse serveur illisible (${status}). Réessayez.`,
+    updateError: "Erreur de mise à jour.",
+    createError: "Erreur de création.",
+    editMissionBadge: "Modifier la mission",
+    newMissionBadge: "Nouvelle mission",
+    editingMission: "Édition de la mission",
+    giveNoraBrief: "Donnez votre brief à Nora",
+    manualEntry: "Saisie manuelle",
+    matchingCriteria: "Critères de matching",
+    reviewAndComplete: "Vérifiez et complétez",
+    stepBrief: "Brief",
+    stepMission: "Mission",
+    stepCriteria: "Critères",
+    close: "Fermer",
+    briefIntro: "Collez votre brief, votre fiche de poste ou l'appel d'offre du client. Nora analyse, en extrait les détails et vous propose un formulaire pré-rempli — vous compléterez ce qui manque.",
+    briefPlaceholder: "Ex : On cherche un(e) chargé(e) de développement commercial pour un client à Paris, démarrage septembre, mission de 12 mois, aisance relationnelle et anglais courant, rémunération autour de 45 000 €…",
+    collapse: "Réduire",
+    expand: "Élargir la zone",
+    charCount: (n: string) => `${n} caractères · max 12 000`,
+    noBriefManual: "Sans brief — saisie manuelle",
+    analyzeCta: "Analyser avec Nora",
+    analyzing: "Analyse en cours…",
+    briefAnalyzed: (n: number) => `Brief analysé par Nora (${n} car.)`,
+    reanalyze: "Re-analyser",
+    reanalyzing: "Re-analyse…",
+    missionNameLabel: "Nom de la mission *",
+    missionNameHint: "signal principal du matching",
+    missionNamePlaceholder: "Ex : Data Engineer",
+    contractTypeLabel: "Type de contrat",
+    optional: "optionnel",
+    selectPlaceholder: "Sélectionner…",
+    experienceLabel: "Expérience attendue",
+    experienceHint: "optionnel, vide = matching ignore",
+    to: "à",
+    years: "ans",
+    noraUnderstood: "Nora a compris : ",
+    locationLabel: "Lieu *",
+    locationHint: "texte libre",
+    locationPlaceholder: "Paris, Lyon, remote…",
+    durationLabel: "Durée (mois)",
+    durationHint: "vide = à voir avec le client",
+    startDateLabel: "Date de début",
+    startDateHint: "vide = ASAP",
+    reqSkillsLabel: "Compétences requises *",
+    reqSkillsHint: "Entrée ou virgule pour ajouter",
+    reqSkillsPlaceholder: "Ex : compétences clés attendues",
+    niceSkillsLabel: "Compétences souhaitées (nice to have)",
+    niceSkillsPlaceholder: "Ex : atouts appréciés",
+    targetSalaryLabel: "Salaire cible du poste (€/an brut)",
+    targetSalaryPlaceholder: "Ex : 48 000",
+    pricingDetails: "Détails pricing",
+    pricingSuiteOnly: "· optionnel (Suite Pricing)",
+    pricingZoneLabel: "Zone pricing",
+    pricingZoneHint: "URSSAF / transport",
+    notSet: "non renseigné",
+    tjmMinLabel: "TJM min (€/j HT)",
+    tjmMinPlaceholder: "Ex : 500",
+    tjmMaxLabel: "TJM max (€/j HT)",
+    tjmMaxPlaceholder: "Ex : 600",
+    descriptionLabel: "Contexte / description",
+    descriptionHint: "affiché sur la fiche mission",
+    descriptionPlaceholder: "Contexte client, environnement technique, contraintes…",
+    toComplete: "À compléter",
+    detected: "Détecté",
+    cancel: "Annuler",
+    backToBrief: "← Retour au brief",
+    updating: "Mise à jour…",
+    creating: "Création…",
+    saveChanges: "Valider les modifications",
+    createMissionCta: "Créer la mission",
+    validateAndOpen: "Valider et ouvrir la mission",
+  },
+  en: {
+    noFirstName: "No first name",
+    member: "Member",
+    badge: "Missions",
+    title: "Your missions",
+    subtitleEmpty: "Describe a mission. Nora matches it against your talent pool.",
+    subtitleCount: (n: number) => `${n} mission${n > 1 ? "s" : ""}.`,
+    createMission: "+ Create a mission",
+    searchPlaceholder: "Search by title, location, skill…",
+    noResults: (q: string) => `No mission matches "${q}".`,
+    clearFilter: "Clear filter",
+    myMissions: "My missions",
+    missionsOf: (name: string) => `${name}'s missions`,
+    missionCount: (n: number) => `· ${n} mission${n > 1 ? "s" : ""}`,
+    overview: "Overview",
+    relevantCandidates: "Relevant candidates",
+    inPipeline: "In pipeline",
+    hired: "Hired",
+    topRejectReasons: "Top rejection reasons (30 days)",
+    yearsSuffix: "yrs",
+    matchingInProgress: "✦ Matching in progress…",
+    matched: "✓ Matched",
+    matchingError: "Matching error",
+    notMatchedYet: "Not matched yet",
+    open: "Open →",
+    relevantSuffix: (n: number) => `· ${n} relevant`,
+    statusDraft: "Draft",
+    statusOpen: "Open",
+    statusFilled: "Filled",
+    statusArchived: "Archived",
+    emptyTitle: "Create your first mission",
+    emptyDesc: "Describe the need (title, seniority, skills). Nora compares the mission against your entire talent pool and surfaces relevant candidates, ranked and justified.",
+    emptyCta: "Create a mission",
+    contractLabels: {
+      cdi: "Permanent contract", cdd: "Fixed-term contract", freelance: "Freelance",
+      portage: "Umbrella contract", alternance: "Apprenticeship",
+    } as Record<ContractType, string>,
+    lieuLabels: {
+      paris_petite_couronne: "Paris + inner suburbs (92, 93, 94)",
+      idf_grande_couronne: "Île-de-France outer suburbs",
+      lyon: "Lyon",
+      province: "Rest of France",
+    } as Record<PricingLieu, string>,
+    briefRequired: "Paste your brief, job description, or RFP.",
+    analysisTimeout: "The analysis took too long. Try a shorter brief or try again.",
+    emptyServerResponse: (status: number) => `Empty server response (${status}). Try again or use manual entry.`,
+    unreadableResponse: "Unreadable server response. Try again or use manual entry.",
+    analysisError: "Analysis error.",
+    networkError: "Network error.",
+    nameRequired: "The mission name is required.",
+    locationRequired: "Location is required.",
+    skillRequired: "At least one required skill.",
+    creationTimeout: "Creation took too long server-side. Try again — the mission may already have been created (check the list).",
+    unreadableResponseStatus: (status: number) => `Unreadable server response (${status}). Try again.`,
+    updateError: "Update error.",
+    createError: "Creation error.",
+    editMissionBadge: "Edit mission",
+    newMissionBadge: "New mission",
+    editingMission: "Editing the mission",
+    giveNoraBrief: "Give Nora your brief",
+    manualEntry: "Manual entry",
+    matchingCriteria: "Matching criteria",
+    reviewAndComplete: "Review and complete",
+    stepBrief: "Brief",
+    stepMission: "Mission",
+    stepCriteria: "Criteria",
+    close: "Close",
+    briefIntro: "Paste your brief, job description, or the client's RFP. Nora analyzes it, extracts the details, and gives you a pre-filled form — you complete what's missing.",
+    briefPlaceholder: "E.g.: Looking for a business development manager for a Paris-based client, starting September, 12-month mission, strong interpersonal skills and fluent English, salary around €45,000…",
+    collapse: "Collapse",
+    expand: "Expand the field",
+    charCount: (n: string) => `${n} characters · max 12,000`,
+    noBriefManual: "No brief — manual entry",
+    analyzeCta: "Analyze with Nora",
+    analyzing: "Analyzing…",
+    briefAnalyzed: (n: number) => `Brief analyzed by Nora (${n} chars.)`,
+    reanalyze: "Re-analyze",
+    reanalyzing: "Re-analyzing…",
+    missionNameLabel: "Mission name *",
+    missionNameHint: "main matching signal",
+    missionNamePlaceholder: "E.g.: Data Engineer",
+    contractTypeLabel: "Contract type",
+    optional: "optional",
+    selectPlaceholder: "Select…",
+    experienceLabel: "Expected experience",
+    experienceHint: "optional, empty = ignored by matching",
+    to: "to",
+    years: "years",
+    noraUnderstood: "Nora understood: ",
+    locationLabel: "Location *",
+    locationHint: "free text",
+    locationPlaceholder: "Paris, Lyon, remote…",
+    durationLabel: "Duration (months)",
+    durationHint: "empty = to discuss with the client",
+    startDateLabel: "Start date",
+    startDateHint: "empty = ASAP",
+    reqSkillsLabel: "Required skills *",
+    reqSkillsHint: "Enter or comma to add",
+    reqSkillsPlaceholder: "E.g.: key skills expected",
+    niceSkillsLabel: "Nice-to-have skills",
+    niceSkillsPlaceholder: "E.g.: bonus skills",
+    targetSalaryLabel: "Target salary for the role (€/year gross)",
+    targetSalaryPlaceholder: "E.g.: 48,000",
+    pricingDetails: "Pricing details",
+    pricingSuiteOnly: "· optional (Pricing Suite)",
+    pricingZoneLabel: "Pricing zone",
+    pricingZoneHint: "social security / commute",
+    notSet: "not set",
+    tjmMinLabel: "Min daily rate (€/day excl. VAT)",
+    tjmMinPlaceholder: "E.g.: 500",
+    tjmMaxLabel: "Max daily rate (€/day excl. VAT)",
+    tjmMaxPlaceholder: "E.g.: 600",
+    descriptionLabel: "Context / description",
+    descriptionHint: "shown on the mission sheet",
+    descriptionPlaceholder: "Client context, technical environment, constraints…",
+    toComplete: "To complete",
+    detected: "Detected",
+    cancel: "Cancel",
+    backToBrief: "← Back to brief",
+    updating: "Updating…",
+    creating: "Creating…",
+    saveChanges: "Save changes",
+    createMissionCta: "Create mission",
+    validateAndOpen: "Confirm and open the mission",
+  },
+}
 
 /** Pour chaque mission : couleurs dérivées de ses candidats matchés.
  *  - clusterBars : 1 ou 2 hues dominantes pour la bande verticale gauche.
@@ -46,6 +300,8 @@ const MONTH_START_ISO = (() => {
 
 export default function MissionsPage() {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const [jobs, setJobs] = useState<Job[]>([])
   const [visuals, setVisuals] = useState<Record<string, MissionVisual>>({})
@@ -72,7 +328,7 @@ export default function MissionsPage() {
       if (mounted && profilesData) {
         const m = new Map<string, string>()
         for (const p of profilesData as Array<{ user_id: string; first_name: string | null }>) {
-          m.set(p.user_id, (p.first_name?.trim() || "Sans prénom"))
+          m.set(p.user_id, (p.first_name?.trim() || t.noFirstName))
         }
         setMembers(m)
       }
@@ -197,7 +453,7 @@ export default function MissionsPage() {
       .filter(([uid]) => uid !== currentUserId)
       .map(([uid, missions]) => ({
         userId: uid,
-        firstName: members.get(uid) ?? "Membre",
+        firstName: members.get(uid) ?? t.member,
         missions,
       }))
       .sort((a, b) => a.firstName.localeCompare(b.firstName))
@@ -221,15 +477,15 @@ export default function MissionsPage() {
             padding: "4px 11px", borderRadius: 100,
             letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
           }}>
-            Missions
+            {t.badge}
           </span>
           <h1 style={{ margin: 0, fontSize: "clamp(26px, 3vw, 34px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
-            Vos missions
+            {t.title}
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
             {jobs.length === 0
-              ? "Décrivez une mission. Nora la matche avec votre vivier."
-              : `${jobs.length} mission${jobs.length > 1 ? "s" : ""}.`}
+              ? t.subtitleEmpty
+              : t.subtitleCount(jobs.length)}
           </p>
         </div>
         <button
@@ -241,7 +497,7 @@ export default function MissionsPage() {
             boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)", fontFamily: "inherit",
           }}
         >
-          + Créer une mission
+          {t.createMission}
         </button>
       </div>
 
@@ -262,7 +518,7 @@ export default function MissionsPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
             <input
               type="search"
-              placeholder="Rechercher par titre, lieu, compétence…"
+              placeholder={t.searchPlaceholder}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               style={{
@@ -285,7 +541,7 @@ export default function MissionsPage() {
                 color: "#6B7280", fontSize: 14,
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
               }}>
-                <div>Aucune mission ne correspond à &laquo;&nbsp;{query}&nbsp;&raquo;.</div>
+                <div>{t.noResults(query)}</div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
                   <button
                     type="button"
@@ -296,7 +552,7 @@ export default function MissionsPage() {
                       fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                     }}
                   >
-                    Effacer le filtre
+                    {t.clearFilter}
                   </button>
                   <button
                     type="button"
@@ -308,7 +564,7 @@ export default function MissionsPage() {
                       fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
                     }}
                   >
-                    + Créer une mission
+                    {t.createMission}
                   </button>
                 </div>
               </div>
@@ -316,7 +572,7 @@ export default function MissionsPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
                 {groupedJobs.mine.length > 0 && (
                   <MissionGroup
-                    title="Mes missions"
+                    title={t.myMissions}
                     isMine
                     jobs={groupedJobs.mine}
                     visuals={visuals}
@@ -325,7 +581,7 @@ export default function MissionsPage() {
                 {groupedJobs.others.map((g) => (
                   <MissionGroup
                     key={g.userId}
-                    title={`Missions de ${g.firstName}`}
+                    title={t.missionsOf(g.firstName)}
                     jobs={g.missions}
                     visuals={visuals}
                   />
@@ -365,6 +621,8 @@ function MissionGroup({
   visuals: Record<string, MissionVisual>
   isMine?: boolean
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const accent = isMine ? "#7C63C8" : "#6B7280"
   return (
     <section>
@@ -386,7 +644,7 @@ function MissionGroup({
         <span style={{
           fontSize: 11.5, fontWeight: 600, color: "#6B7280",
         }}>
-          · {jobs.length} mission{jobs.length > 1 ? "s" : ""}
+          {t.missionCount(jobs.length)}
         </span>
       </header>
       <div style={{
@@ -411,33 +669,35 @@ function MissionGroup({
 /* ─── Sidebar ──────────────────────────────────────────────────── */
 
 function SidebarStats({ stats, totalJobs }: { stats: SidebarStatsData | null; totalJobs: number }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <aside style={{
       position: "sticky", top: 16,
       display: "flex", flexDirection: "column", gap: 14,
       paddingTop: 38,  // aligne avec le bas de la recherche
     }}>
-      <StatGroup title="Vue d'ensemble">
-        <StatRow label="Missions"            value={totalJobs} />
-        <StatRow label="Candidats pertinents" value={stats?.totalCandidatsMatches ?? 0} />
+      <StatGroup title={t.overview}>
+        <StatRow label={t.badge}              value={totalJobs} />
+        <StatRow label={t.relevantCandidates} value={stats?.totalCandidatsMatches ?? 0} />
         <StatRow
-          label="En pipeline"
+          label={t.inPipeline}
           value={stats?.totalInPipeline ?? 0}
           tone={(stats?.totalInPipeline ?? 0) > 0 ? "good" : undefined}
         />
         <StatRow
-          label="Recrutés"
+          label={t.hired}
           value={stats?.totalRecruited ?? 0}
           tone={(stats?.totalRecruited ?? 0) > 0 ? "good" : undefined}
         />
       </StatGroup>
 
       {stats && stats.topRejectReasons.length > 0 && (
-        <StatGroup title="Top motifs d'écart (30 j)">
+        <StatGroup title={t.topRejectReasons}>
           {stats.topRejectReasons.map((r) => (
             <StatRow
               key={r.reason}
-              label={rejectReasonLabel(r.reason)}
+              label={rejectReasonLabel(r.reason, lang)}
               value={r.count}
               tone="warn"
             />
@@ -510,12 +770,12 @@ function computeMissionVisual(candidates: Candidate[]): MissionVisual {
 
 /** Human label for a mission's seniority — interval ("Mid → Senior") if the
  *  mission carries one in `normalized`, else the legacy free string. */
-function seniorityLabel(job: Job): string | null {
+function seniorityLabel(job: Job, lang: Lang): string | null {
   const n = job.normalized
   const iv = seniorityIntervalLabel(n?.seniority_min_years, n?.seniority_max_years)
   if (iv) {
     const lo = n?.seniority_min_years, hi = n?.seniority_max_years
-    if (lo != null && hi != null) return `${iv} · ${lo}–${hi} ans`
+    if (lo != null && hi != null) return `${iv} · ${lo}–${hi} ${copy[lang].yearsSuffix}`
     return iv
   }
   return job.seniority?.trim() || null
@@ -528,6 +788,8 @@ function JobCard({ job, visual, delay }: {
   visual: MissionVisual | undefined
   delay: number
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const ms = job.match_status
 
   // Bande couleur secteur — dérivée des candidats matchés. Monochrome ou
@@ -573,7 +835,7 @@ function JobCard({ job, visual, delay }: {
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: 11, color: "#6B7280" }}>
         {job.location && <Meta>{job.location}</Meta>}
-        {seniorityLabel(job) && <Meta>{seniorityLabel(job)}</Meta>}
+        {seniorityLabel(job, lang) && <Meta>{seniorityLabel(job, lang)}</Meta>}
         {job.contract_type && <Meta>{job.contract_type}</Meta>}
       </div>
 
@@ -597,17 +859,17 @@ function JobCard({ job, visual, delay }: {
             {visual.top1Label}
           </span>
           <span style={{ fontSize: 10, color: "#6B7280" }}>
-            · {visual.totalMatches} pertinent{visual.totalMatches > 1 ? "s" : ""}
+            {t.relevantSuffix(visual.totalMatches)}
           </span>
         </div>
       )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 2 }}>
         <span style={{ fontSize: 11, color: "#6B7280" }}>
-          {ms === "matching" ? "✦ Matching en cours…"
-            : ms === "done" ? "✓ Matché"
-            : ms === "error" ? "Erreur matching"
-            : "Pas encore matché"}
+          {ms === "matching" ? t.matchingInProgress
+            : ms === "done" ? t.matched
+            : ms === "error" ? t.matchingError
+            : t.notMatchedYet}
         </span>
         <Link href={`/workspace/missions/${job.id}`} style={{
           fontSize: 11, fontWeight: 600, color: "#7C63C8",
@@ -615,7 +877,7 @@ function JobCard({ job, visual, delay }: {
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.16)",
           textDecoration: "none",
         }}>
-          Ouvrir →
+          {t.open}
         </Link>
       </div>
     </m.div>
@@ -632,11 +894,13 @@ function Meta({ children }: { children: React.ReactNode }) {
 }
 
 function StatusChip({ status }: { status: Job["status"] }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const map: Record<Job["status"], { label: string; bg: string; fg: string; bd: string }> = {
-    draft:    { label: "Brouillon", bg: "#F3F4F6", fg: "#6B7280", bd: "#E5E7EB" },
-    open:     { label: "Ouvert",    bg: "rgba(34,197,94,0.10)", fg: "#16a34a", bd: "rgba(34,197,94,0.22)" },
-    filled:   { label: "Pourvu",    bg: "rgba(124,99,200,0.10)", fg: "#7C63C8", bd: "rgba(124,99,200,0.22)" },
-    archived: { label: "Archivé",   bg: "#F3F4F6", fg: "#6B7280", bd: "#E5E7EB" },
+    draft:    { label: t.statusDraft,    bg: "#F3F4F6", fg: "#6B7280", bd: "#E5E7EB" },
+    open:     { label: t.statusOpen,     bg: "rgba(34,197,94,0.10)", fg: "#16a34a", bd: "rgba(34,197,94,0.22)" },
+    filled:   { label: t.statusFilled,   bg: "rgba(124,99,200,0.10)", fg: "#7C63C8", bd: "rgba(124,99,200,0.22)" },
+    archived: { label: t.statusArchived, bg: "#F3F4F6", fg: "#6B7280", bd: "#E5E7EB" },
   }
   const s = map[status]
   return (
@@ -650,6 +914,8 @@ function StatusChip({ status }: { status: Job["status"] }) {
 }
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <m.div
       initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
@@ -662,11 +928,10 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
     >
       <div style={{ fontSize: 56, marginBottom: 16 }}>📋</div>
       <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.015em" }}>
-        Créez votre première mission
+        {t.emptyTitle}
       </h2>
       <p style={{ margin: "0 auto 18px", maxWidth: 460, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
-        Décrivez le besoin (titre, séniorité, compétences). Nora compare la mission
-        à tout votre vivier et vous sort les candidats pertinents, classés et justifiés.
+        {t.emptyDesc}
       </p>
       <button onClick={onCreate} style={{
         padding: "11px 22px", borderRadius: 12, border: "none", cursor: "pointer",
@@ -674,7 +939,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         color: "white", fontWeight: 700, fontSize: 14, fontFamily: "inherit",
         boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
-        Créer une mission
+        {t.emptyCta}
       </button>
     </m.div>
   )
@@ -684,20 +949,6 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 
 type ContractType = "cdi" | "cdd" | "freelance" | "portage" | "alternance"
 type PricingLieu = "paris_petite_couronne" | "idf_grande_couronne" | "lyon" | "province"
-
-const CONTRACT_LABELS: Record<ContractType, string> = {
-  cdi: "CDI",
-  cdd: "CDD",
-  freelance: "Freelance",
-  portage: "Portage salarial",
-  alternance: "Alternance",
-}
-const LIEU_LABELS: Record<PricingLieu, string> = {
-  paris_petite_couronne: "Paris + petite couronne (92, 93, 94)",
-  idf_grande_couronne: "Île-de-France grande couronne",
-  lyon: "Lyon",
-  province: "Province",
-}
 
 interface ExtractedFields {
   role_name: string | null
@@ -744,6 +995,8 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
   // En mode page, Échap ne ferme pas (pas de sens sur une page) — on garde le
   // hook uniquement pour l'overlay modal.
   useEscapeKey(variant === "modal" ? onClose : () => {})
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // Champs adaptatifs : le bloc pricing (zone / TJM) n'apparaît que si l'org a
   // accès pricing (admin / abonnement pricing / essai gratuit). Le salaire
   // cible du poste, lui, reste UNIVERSEL (affiché pour tous les sourceurs).
@@ -809,7 +1062,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
   }
 
   const runExtract = async () => {
-    if (!brief.trim()) { setExtractError("Collez votre brief, fiche de poste ou appel d'offre."); return }
+    if (!brief.trim()) { setExtractError(t.briefRequired); return }
     setExtracting(true); setExtractError(null)
     try {
       const res = await fetch("/api/jobs/extract", {
@@ -824,8 +1077,8 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
       const rawText = await res.text()
       if (!rawText) {
         setExtractError(res.status === 504 || res.status === 502
-          ? "L'analyse a pris trop de temps. Tentez un brief plus court ou réessayez."
-          : `Réponse vide du serveur (${res.status}). Réessayez ou utilisez la saisie manuelle.`)
+          ? t.analysisTimeout
+          : t.emptyServerResponse(res.status))
         setExtracting(false)
         return
       }
@@ -833,12 +1086,12 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
       try {
         data = JSON.parse(rawText)
       } catch {
-        setExtractError("Réponse serveur illisible. Réessayez ou utilisez la saisie manuelle.")
+        setExtractError(t.unreadableResponse)
         setExtracting(false)
         return
       }
       if (!res.ok || !data.ok || !data.extracted) {
-        setExtractError(data.message ?? data.error ?? "Erreur d'analyse.")
+        setExtractError(data.message ?? data.error ?? t.analysisError)
         setExtracting(false)
         return
       }
@@ -846,7 +1099,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
       setStage("form")
       setBriefExpanded(false)
     } catch (err) {
-      setExtractError((err as Error).message ?? "Erreur réseau.")
+      setExtractError((err as Error).message ?? t.networkError)
     } finally {
       setExtracting(false)
     }
@@ -856,9 +1109,9 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
     // Obligatoires V1 : juste nom du poste + lieu + compétences. Tout le
     // reste peut être complété plus tard (mission "ASAP" sans date, type
     // de contrat à confirmer côté pricing, durée à voir avec le client…).
-    if (!roleName.trim()) { setError("Le nom de la mission est requis."); return }
-    if (!location.trim()) { setError("Le lieu est requis."); return }
-    if (reqSkills.length === 0) { setError("Au moins une compétence requise."); return }
+    if (!roleName.trim()) { setError(t.nameRequired); return }
+    if (!location.trim()) { setError(t.locationRequired); return }
+    if (reqSkills.length === 0) { setError(t.skillRequired); return }
 
     setSubmitting(true); setError(null)
     const payload = {
@@ -897,13 +1150,13 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
         data = rawText ? JSON.parse(rawText) : {}
       } catch {
         setError(res.status === 504 || res.status === 502
-          ? "La création a pris trop de temps côté serveur. Réessayez — la mission a peut-être déjà été créée (vérifiez la liste)."
-          : `Réponse serveur illisible (${res.status}). Réessayez.`)
+          ? t.creationTimeout
+          : t.unreadableResponseStatus(res.status))
         setSubmitting(false)
         return
       }
       if (!res.ok || !data.job) {
-        setError(data.message ?? data.error ?? (editMode ? "Erreur de mise à jour." : "Erreur de création."))
+        setError(data.message ?? data.error ?? (editMode ? t.updateError : t.createError))
         setSubmitting(false)
         return
       }
@@ -919,7 +1172,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
         setSubmitting(false)
       }
     } catch (err) {
-      setError((err as Error).message ?? "Erreur réseau.")
+      setError((err as Error).message ?? t.networkError)
       setSubmitting(false)
     }
   }
@@ -972,23 +1225,23 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
           <div style={{ padding: "22px 28px 18px", borderBottom: "1px solid #F0ECF8", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div style={{ minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                {editMode ? "Modifier la mission" : "Nouvelle mission"}
+                {editMode ? t.editMissionBadge : t.newMissionBadge}
               </p>
               <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
                 {editMode
-                  ? "Édition de la mission"
-                  : stage === "brief" ? "Donnez votre brief à Nora"
-                  : stage === "manual" ? "Saisie manuelle"
-                  : stage === "criteria" ? "Critères de matching"
-                  : "Vérifiez et complétez"}
+                  ? t.editingMission
+                  : stage === "brief" ? t.giveNoraBrief
+                  : stage === "manual" ? t.manualEntry
+                  : stage === "criteria" ? t.matchingCriteria
+                  : t.reviewAndComplete}
               </h2>
               {/* Stepper création (3 étapes) — masqué en édition/manuel. */}
               {!editMode && stage !== "manual" && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
                   {[
-                    { k: "brief", n: 1, label: "Brief" },
-                    { k: "form", n: 2, label: "Mission" },
-                    { k: "criteria", n: 3, label: "Critères" },
+                    { k: "brief", n: 1, label: t.stepBrief },
+                    { k: "form", n: 2, label: t.stepMission },
+                    { k: "criteria", n: 3, label: t.stepCriteria },
                   ].map((s, i) => {
                     const order = ["brief", "form", "criteria"]
                     const cur = order.indexOf(stage)
@@ -1014,7 +1267,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                 </div>
               )}
             </div>
-            <button onClick={onClose} aria-label="Fermer" style={{
+            <button onClick={onClose} aria-label={t.close} style={{
               background: "transparent", border: "none", cursor: "pointer",
               fontSize: 22, color: "#6B7280", lineHeight: 1, padding: 4,
             }}>✕</button>
@@ -1024,15 +1277,13 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
           {stage === "brief" && (
             <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 16 }}>
               <p style={{ margin: 0, fontSize: 13, color: "#6B7280", lineHeight: 1.6 }}>
-                Collez votre brief, votre fiche de poste ou l&apos;appel d&apos;offre du client.
-                Nora analyse, en extrait les détails et vous propose un formulaire pré-rempli
-                — vous compléterez ce qui manque.
+                {t.briefIntro}
               </p>
 
               <textarea
                 value={brief}
                 onChange={(e) => setBrief(e.target.value)}
-                placeholder="Ex : On cherche un(e) chargé(e) de développement commercial pour un client à Paris, démarrage septembre, mission de 12 mois, aisance relationnelle et anglais courant, rémunération autour de 45 000 €…"
+                placeholder={t.briefPlaceholder}
                 rows={briefExpanded ? 18 : 9}
                 style={{
                   ...inputStyle, resize: "vertical", lineHeight: 1.6,
@@ -1057,9 +1308,9 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                       padding: 0, textDecoration: "underline",
                     }}
                   >
-                    {briefExpanded ? "Réduire" : "Élargir la zone"}
+                    {briefExpanded ? t.collapse : t.expand}
                   </button>
-                  <span>{brief.length.toLocaleString("fr-FR")} caractères · max 12 000</span>
+                  <span>{t.charCount(brief.length.toLocaleString(lang === "fr" ? "fr-FR" : "en-US"))}</span>
                 </div>
               )}
 
@@ -1079,7 +1330,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                     cursor: "pointer", textDecoration: "underline", padding: 0,
                   }}
                 >
-                  Sans brief — saisie manuelle
+                  {t.noBriefManual}
                 </button>
                 <button
                   type="button"
@@ -1095,7 +1346,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                     fontFamily: "inherit",
                   }}
                 >
-                  {extracting ? "Analyse en cours…" : "Analyser avec Nora"}
+                  {extracting ? t.analyzing : t.analyzeCta}
                 </button>
               </div>
             </div>
@@ -1110,7 +1361,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                   padding: "10px 14px", fontSize: 12.5,
                 }}>
                   <summary style={{ cursor: "pointer", fontWeight: 600, color: "#6B54B2" }}>
-                    Brief analysé par Nora ({brief.length} car.)
+                    {t.briefAnalyzed(brief.length)}
                   </summary>
                   <textarea
                     value={brief}
@@ -1123,7 +1374,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                       marginTop: 8, padding: "7px 14px", borderRadius: 8, border: "1px solid #7C63C8",
                       background: "white", color: "#7C63C8", fontSize: 12, fontWeight: 700, cursor: "pointer",
                     }}>
-                    {extracting ? "Re-analyse…" : "Re-analyser"}
+                    {extracting ? t.reanalyzing : t.reanalyze}
                   </button>
                 </details>
               )}
@@ -1167,13 +1418,13 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                   padding: "11px 18px", borderRadius: 10,
                   background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
                   fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-                }}>Annuler</button>
+                }}>{t.cancel}</button>
               ) : (
                 <button onClick={() => setStage("brief")} style={{
                   padding: "11px 18px", borderRadius: 10,
                   background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
                   fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-                }}>← Retour au brief</button>
+                }}>{t.backToBrief}</button>
               )}
               <button onClick={submitForm} disabled={submitting} style={{
                 padding: "11px 24px", borderRadius: 10, border: "none",
@@ -1182,8 +1433,8 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                 cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
               }}>
                 {submitting
-                  ? (editMode ? "Mise à jour…" : "Création…")
-                  : (editMode ? "Valider les modifications" : "Créer la mission")}
+                  ? (editMode ? t.updating : t.creating)
+                  : (editMode ? t.saveChanges : t.createMissionCta)}
               </button>
             </div>
           )}
@@ -1197,7 +1448,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
               <CriteriaOnboarding
                 embedded
                 jobId={createdJob.id}
-                submitLabel="Valider et ouvrir la mission"
+                submitLabel={t.validateAndOpen}
                 onDone={(updated) => {
                   onCreated({
                     ...createdJob,
@@ -1237,6 +1488,8 @@ interface FormFieldGridProps {
   hasPricing: boolean
 }
 function FormFieldGrid(p: FormFieldGridProps) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // États possibles d'un champ :
   //   - rempli + extrait par Nora     → bordure verte + pastille verte "Détecté"
   //   - rempli (manuel ou après edit) → bordure verte (pas de pastille)
@@ -1249,14 +1502,14 @@ function FormFieldGrid(p: FormFieldGridProps) {
     const empty = current === "" || current == null || (Array.isArray(current) && current.length === 0)
     if (empty) {
       return required
-        ? { border: BORDER.required, statusPill: <StatusPill kind="missing">À compléter</StatusPill> }
+        ? { border: BORDER.required, statusPill: <StatusPill kind="missing">{t.toComplete}</StatusPill> }
         : { border: BORDER.optional, statusPill: null }
     }
     const detected = !!(p.extracted && llmValue !== null && llmValue !== undefined &&
       (!Array.isArray(llmValue) || llmValue.length > 0))
     return {
       border: BORDER.ok,
-      statusPill: detected ? <StatusPill kind="ok">Détecté</StatusPill> : null,
+      statusPill: detected ? <StatusPill kind="ok">{t.detected}</StatusPill> : null,
     }
   }
   const ringStyle = (border: string): React.CSSProperties => ({ ...inputStyle, borderColor: border })
@@ -1277,27 +1530,27 @@ function FormFieldGrid(p: FormFieldGridProps) {
 
   return (
     <>
-      <Field label="Nom de la mission *" hint="signal principal du matching" status={role.statusPill}>
+      <Field label={t.missionNameLabel} hint={t.missionNameHint} status={role.statusPill}>
         <input value={p.roleName} onChange={(e) => p.setRoleName(e.target.value)}
-          placeholder="Ex : Data Engineer" style={ringStyle(role.border)} autoFocus />
+          placeholder={t.missionNamePlaceholder} style={ringStyle(role.border)} autoFocus />
       </Field>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <Field label="Type de contrat" hint="optionnel" status={ct.statusPill}>
+        <Field label={t.contractTypeLabel} hint={t.optional} status={ct.statusPill}>
           <Select value={p.contractType} onChange={(v) => p.setContractType(v as ContractType | "")}
-            border={ct.border} placeholder="Sélectionner…"
-            options={(Object.keys(CONTRACT_LABELS) as ContractType[]).map((k) => ({ value: k, label: CONTRACT_LABELS[k] }))} />
+            border={ct.border} placeholder={t.selectPlaceholder}
+            options={(Object.keys(t.contractLabels) as ContractType[]).map((k) => ({ value: k, label: t.contractLabels[k] }))} />
         </Field>
-        <Field label="Expérience attendue" hint="optionnel, vide = matching ignore" status={senState.statusPill}>
+        <Field label={t.experienceLabel} hint={t.experienceHint} status={senState.statusPill}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input type="number" min={0} max={40} value={p.seniorityMin}
               onChange={(e) => p.setSeniorityMin(e.target.value)}
               placeholder="5" style={{ ...ringStyle(senState.border), width: 64, textAlign: "center" }} />
-            <span style={{ fontSize: 13, color: "#6B7280" }}>à</span>
+            <span style={{ fontSize: 13, color: "#6B7280" }}>{t.to}</span>
             <input type="number" min={0} max={40} value={p.seniorityMax}
               onChange={(e) => p.setSeniorityMax(e.target.value)}
               placeholder="10" style={{ ...ringStyle(senState.border), width: 64, textAlign: "center" }} />
-            <span style={{ fontSize: 13, color: "#6B7280" }}>ans</span>
+            <span style={{ fontSize: 13, color: "#6B7280" }}>{t.years}</span>
           </div>
         </Field>
       </div>
@@ -1309,44 +1562,44 @@ function FormFieldGrid(p: FormFieldGridProps) {
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.20)",
           fontSize: 12, color: "#6B54B2",
         }}>
-          Nora a compris : <strong style={{ color: "#7C63C8" }}>{p.detected}</strong>
+          {t.noraUnderstood}<strong style={{ color: "#7C63C8" }}>{p.detected}</strong>
         </div>
       )}
 
-      <Field label="Lieu *" hint="texte libre" status={loc.statusPill}>
+      <Field label={t.locationLabel} hint={t.locationHint} status={loc.statusPill}>
         <input value={p.location} onChange={(e) => p.setLocation(e.target.value)}
-          placeholder="Paris, Lyon, remote…" style={ringStyle(loc.border)} />
+          placeholder={t.locationPlaceholder} style={ringStyle(loc.border)} />
       </Field>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <Field label="Durée (mois)" hint="vide = à voir avec le client" status={durState.statusPill}>
+        <Field label={t.durationLabel} hint={t.durationHint} status={durState.statusPill}>
           <input type="number" min={1} max={60} value={p.durationMonths}
             onChange={(e) => p.setDurationMonths(e.target.value)}
             placeholder="6" style={ringStyle(durState.border)} />
         </Field>
-        <Field label="Date de début" hint="vide = ASAP" status={startState.statusPill}>
+        <Field label={t.startDateLabel} hint={t.startDateHint} status={startState.statusPill}>
           <input type="date" value={p.startDate}
             onChange={(e) => p.setStartDate(e.target.value)}
             style={ringStyle(startState.border)} />
         </Field>
       </div>
 
-      <Field label="Compétences requises *" hint="Entrée ou virgule pour ajouter" status={reqState.statusPill}>
-        <TagInput tags={p.reqSkills} onChange={p.setReqSkills} placeholder="Ex : compétences clés attendues"
+      <Field label={t.reqSkillsLabel} hint={t.reqSkillsHint} status={reqState.statusPill}>
+        <TagInput tags={p.reqSkills} onChange={p.setReqSkills} placeholder={t.reqSkillsPlaceholder}
           borderColor={reqState.border} />
       </Field>
 
-      <Field label="Compétences souhaitées (nice to have)" hint="optionnel" status={niceState.statusPill}>
-        <TagInput tags={p.niceSkills} onChange={p.setNiceSkills} placeholder="Ex : atouts appréciés"
+      <Field label={t.niceSkillsLabel} hint={t.optional} status={niceState.statusPill}>
+        <TagInput tags={p.niceSkills} onChange={p.setNiceSkills} placeholder={t.niceSkillsPlaceholder}
           borderColor={niceState.border} />
       </Field>
 
       {/* Salaire cible du poste — UNIVERSEL (indépendant de la Suite Pricing).
           Toutes les équipes de sourcing en ont besoin : il sert de repère et
           se compare à la prétention du candidat sur la fiche match. */}
-      <Field label="Salaire cible du poste (€/an brut)" hint="optionnel" status={brutState.statusPill}>
+      <Field label={t.targetSalaryLabel} hint={t.optional} status={brutState.statusPill}>
         <input type="number" min={0} value={p.targetBrut}
-          onChange={(e) => p.setTargetBrut(e.target.value)} placeholder="Ex : 48 000" style={ringStyle(brutState.border)} />
+          onChange={(e) => p.setTargetBrut(e.target.value)} placeholder={t.targetSalaryPlaceholder} style={ringStyle(brutState.border)} />
       </Field>
 
       {/* Bloc pricing (zone / TJM) — uniquement pour les orgs avec accès
@@ -1357,31 +1610,31 @@ function FormFieldGrid(p: FormFieldGridProps) {
           padding: "12px 14px",
         }}>
           <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: "#6B54B2", listStyle: "none" }}>
-            Détails pricing <span style={{ color: "#6B7280", fontWeight: 500 }}>· optionnel (Suite Pricing)</span>
+            {t.pricingDetails} <span style={{ color: "#6B7280", fontWeight: 500 }}>{t.pricingSuiteOnly}</span>
           </summary>
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-            <Field label="Zone pricing" hint="URSSAF / transport" status={pricingState.statusPill}>
+            <Field label={t.pricingZoneLabel} hint={t.pricingZoneHint} status={pricingState.statusPill}>
               <Select value={p.pricingLieu} onChange={(v) => p.setPricingLieu(v as PricingLieu | "")}
-                border={pricingState.border} placeholder="non renseigné"
-                options={(Object.keys(LIEU_LABELS) as PricingLieu[]).map((k) => ({ value: k, label: LIEU_LABELS[k] }))} />
+                border={pricingState.border} placeholder={t.notSet}
+                options={(Object.keys(t.lieuLabels) as PricingLieu[]).map((k) => ({ value: k, label: t.lieuLabels[k] }))} />
             </Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <Field label="TJM min (€/j HT)" hint="optionnel" status={tjmMinState.statusPill}>
+              <Field label={t.tjmMinLabel} hint={t.optional} status={tjmMinState.statusPill}>
                 <input type="number" min={0} value={p.tjmMin}
-                  onChange={(e) => p.setTjmMin(e.target.value)} placeholder="Ex : 500" style={ringStyle(tjmMinState.border)} />
+                  onChange={(e) => p.setTjmMin(e.target.value)} placeholder={t.tjmMinPlaceholder} style={ringStyle(tjmMinState.border)} />
               </Field>
-              <Field label="TJM max (€/j HT)" hint="optionnel" status={tjmMaxState.statusPill}>
+              <Field label={t.tjmMaxLabel} hint={t.optional} status={tjmMaxState.statusPill}>
                 <input type="number" min={0} value={p.tjmMax}
-                  onChange={(e) => p.setTjmMax(e.target.value)} placeholder="Ex : 600" style={ringStyle(tjmMaxState.border)} />
+                  onChange={(e) => p.setTjmMax(e.target.value)} placeholder={t.tjmMaxPlaceholder} style={ringStyle(tjmMaxState.border)} />
               </Field>
             </div>
           </div>
         </details>
       )}
 
-      <Field label="Contexte / description" hint="affiché sur la fiche mission" status={descState.statusPill}>
+      <Field label={t.descriptionLabel} hint={t.descriptionHint} status={descState.statusPill}>
         <textarea value={p.description} onChange={(e) => p.setDescription(e.target.value)}
-          rows={3} placeholder="Contexte client, environnement technique, contraintes…"
+          rows={3} placeholder={t.descriptionPlaceholder}
           style={{ ...ringStyle(descState.border), resize: "vertical", lineHeight: 1.6 }} />
       </Field>
     </>

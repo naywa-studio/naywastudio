@@ -20,6 +20,48 @@ import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { sectorColors } from "@/lib/sector-color"
 import type { Job } from "@/lib/database.types"
 import type { MatchMode } from "@/lib/sector-gate"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    title: "Matcher le vivier",
+    intro: "Choisissez l'étendue de la recherche. Plus le périmètre est large, plus l'analyse est longue.",
+    modeIntelligent: "Intelligent",
+    modeIntelligentHint: "Nora cible les bons secteurs et écarte les profils hors sujet. Rapide.",
+    modePersonnalise: "Personnalisé",
+    modePersonnaliseHint: "Vous ajustez vous-même les secteurs ciblés ci-dessous.",
+    modeComplet: "Complet",
+    modeCompletHint: "Tout le vivier est analysé, sans filtre. Exhaustif mais plus long.",
+    targetedSectors: "Secteurs ciblés",
+    clickToTarget: "· cliquez pour cibler",
+    identifyingSectors: "Nora identifie les secteurs…",
+    noSectorsInVivier: "Aucun secteur dans le vivier — classez vos CV ou passez en Complet.",
+    seeLess: "Voir moins",
+    seeAllSectors: (n: number) => `Voir tous les secteurs (+${n})`,
+    createSectorHint: "Pour créer un nouveau secteur, rendez-vous dans le Vivier — Nora l'aide à le définir.",
+    cancel: "Annuler",
+    launchMatching: "Lancer le matching",
+  },
+  en: {
+    title: "Match the talent pool",
+    intro: "Choose the scope of the search. The wider the scope, the longer the analysis.",
+    modeIntelligent: "Smart",
+    modeIntelligentHint: "Nora targets the right sectors and screens out off-topic profiles. Fast.",
+    modePersonnalise: "Custom",
+    modePersonnaliseHint: "You adjust the targeted sectors yourself below.",
+    modeComplet: "Full",
+    modeCompletHint: "The entire talent pool is analyzed, no filter. Exhaustive but slower.",
+    targetedSectors: "Targeted sectors",
+    clickToTarget: "· click to target",
+    identifyingSectors: "Nora is identifying the sectors…",
+    noSectorsInVivier: "No sector in the talent pool — classify your CVs or switch to Full.",
+    seeLess: "See less",
+    seeAllSectors: (n: number) => `See all sectors (+${n})`,
+    createSectorHint: "To create a new sector, head to the Talent pool — Nora helps you define it.",
+    cancel: "Cancel",
+    launchMatching: "Launch matching",
+  },
+}
 
 export function MatchVivierPanel({
   job, onClose, onLaunch,
@@ -29,6 +71,8 @@ export function MatchVivierPanel({
   onLaunch: (mode: MatchMode, sectors: string[]) => void
 }) {
   useEscapeKey(onClose)
+  const { lang } = useLanguage()
+  const t = copy[lang]
 
   const [mode, setMode] = useState<MatchMode>("intelligent")
   const [sectors, setSectors] = useState<string[]>(job.target_sectors ?? [])
@@ -124,24 +168,24 @@ export function MatchVivierPanel({
         boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)",
       }}>
         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-          Matcher le vivier
+          {t.title}
         </h2>
         <p style={{ margin: "4px 0 16px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
-          Choisissez l&apos;étendue de la recherche. Plus le périmètre est large, plus l&apos;analyse est longue.
+          {t.intro}
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <ModeRow
             active={mode === "intelligent"} onClick={() => setMode("intelligent")}
-            label="Intelligent" hint="Nora cible les bons secteurs et écarte les profils hors sujet. Rapide."
+            label={t.modeIntelligent} hint={t.modeIntelligentHint}
           />
           <ModeRow
             active={mode === "personnalise"} onClick={() => setMode("personnalise")}
-            label="Personnalisé" hint="Vous ajustez vous-même les secteurs ciblés ci-dessous."
+            label={t.modePersonnalise} hint={t.modePersonnaliseHint}
           />
           <ModeRow
             active={mode === "complet"} onClick={() => setMode("complet")}
-            label="Complet" hint="Tout le vivier est analysé, sans filtre. Exhaustif mais plus long."
+            label={t.modeComplet} hint={t.modeCompletHint}
           />
         </div>
 
@@ -149,9 +193,9 @@ export function MatchVivierPanel({
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 9 }}>
               <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                Secteurs ciblés
+                {t.targetedSectors}
               </p>
-              <span style={{ fontSize: 11, color: "#6B7280" }}>· cliquez pour cibler</span>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>{t.clickToTarget}</span>
             </div>
             {loadingProposal ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#7C63C8", padding: "4px 0" }}>
@@ -160,7 +204,7 @@ export function MatchVivierPanel({
                   border: "2px solid rgba(124,99,200,0.25)", borderTopColor: "#7C63C8",
                   animation: "mvp-spin 0.9s linear infinite",
                 }} />
-                Nora identifie les secteurs…
+                {t.identifyingSectors}
                 <style>{`@keyframes mvp-spin { to { transform: rotate(360deg); } }`}</style>
               </div>
             ) : (
@@ -168,7 +212,7 @@ export function MatchVivierPanel({
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
                   {allPills.length === 0 && (
                     <span style={{ fontSize: 12, color: "#6B7280" }}>
-                      Aucun secteur dans le vivier — classez vos CV ou passez en Complet.
+                      {t.noSectorsInVivier}
                     </span>
                   )}
                   {shownPills.map((s) => {
@@ -214,11 +258,11 @@ export function MatchVivierPanel({
                       fontFamily: "inherit", padding: 0,
                     }}
                   >
-                    {showAllPills ? "Voir moins" : `Voir tous les secteurs (+${allPills.length - PILL_FOLD})`}
+                    {showAllPills ? t.seeLess : t.seeAllSectors(allPills.length - PILL_FOLD)}
                   </button>
                 )}
                 <p style={{ margin: "10px 0 0", fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>
-                  Pour créer un nouveau secteur, rendez-vous dans le Vivier — Nora l&apos;aide à le définir.
+                  {t.createSectorHint}
                 </p>
               </>
             )}
@@ -235,7 +279,7 @@ export function MatchVivierPanel({
               padding: "9px 15px", cursor: "pointer", fontFamily: "inherit",
             }}
           >
-            Annuler
+            {t.cancel}
           </button>
           <button
             type="button"
@@ -248,7 +292,7 @@ export function MatchVivierPanel({
               cursor: loadingProposal ? "default" : "pointer", fontFamily: "inherit",
             }}
           >
-            Lancer le matching
+            {t.launchMatching}
           </button>
         </div>
       </div>

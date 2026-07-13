@@ -20,15 +20,47 @@ import { ui } from "@/lib/ui-tokens"
 import {
   criterionHeaderLabel, shortCriterionLabel, dimColor, statusColor, tierMeta,
 } from "@/lib/criterion-display"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 type MatchSource = "applied" | "uploaded" | "vivier_matched" | "vivier_assigned"
 type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
 
-const SOURCE_META: Record<MatchSource, { label: string; color: string; bg: string; bd: string }> = {
-  applied:         { label: "Postulé",  color: "#15803d", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)" },
-  uploaded:        { label: "Importé",  color: "#1D4ED8", bg: "rgba(59,130,246,0.08)", bd: "rgba(59,130,246,0.25)" },
-  vivier_matched:  { label: "Vivier",   color: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" },
-  vivier_assigned: { label: "Assigné",  color: "#6B7280", bg: "#F3F4F6",                bd: "#E5E7EB" },
+const SOURCE_META: Record<Lang, Record<MatchSource, { label: string; color: string; bg: string; bd: string }>> = {
+  fr: {
+    applied:         { label: "Postulé",  color: "#15803d", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)" },
+    uploaded:        { label: "Importé",  color: "#1D4ED8", bg: "rgba(59,130,246,0.08)", bd: "rgba(59,130,246,0.25)" },
+    vivier_matched:  { label: "Vivier",   color: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" },
+    vivier_assigned: { label: "Assigné",  color: "#6B7280", bg: "#F3F4F6",                bd: "#E5E7EB" },
+  },
+  en: {
+    applied:         { label: "Applied",  color: "#15803d", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)" },
+    uploaded:        { label: "Imported", color: "#1D4ED8", bg: "rgba(59,130,246,0.08)", bd: "rgba(59,130,246,0.25)" },
+    vivier_matched:  { label: "Talent pool", color: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" },
+    vivier_assigned: { label: "Assigned", color: "#6B7280", bg: "#F3F4F6",                bd: "#E5E7EB" },
+  },
+}
+
+const copy = {
+  fr: {
+    candidateFallback: "Candidat",
+    notScored: "Non scoré",
+    removeFromPipeline: "Retirer de la pipeline",
+    trackInPipeline: "Suivre dans la pipeline",
+    inPipeline: "✓ Dans le pipeline",
+    addToPipeline: "+ Ajouter à la pipeline",
+    profile: "Fiche",
+    open: "Ouvrir",
+  },
+  en: {
+    candidateFallback: "Candidate",
+    notScored: "Not scored",
+    removeFromPipeline: "Remove from pipeline",
+    trackInPipeline: "Track in pipeline",
+    inPipeline: "✓ In pipeline",
+    addToPipeline: "+ Add to pipeline",
+    profile: "Profile",
+    open: "Open",
+  },
 }
 
 interface Props {
@@ -39,12 +71,14 @@ interface Props {
 }
 
 export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const c = row.candidate
-  const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
+  const name = c?.full_name ?? c?.cv_file_name ?? t.candidateFallback
   const initials = name.split(/\s+/).slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase() || "?"
   const source = (row.source as MatchSource) ?? "vivier_matched"
-  const srcMeta = SOURCE_META[source]
-  const tier = tierMeta(row.match_tier)
+  const srcMeta = SOURCE_META[lang][source]
+  const tier = tierMeta(row.match_tier, lang)
   const evalById = new Map((row.criteria_eval ?? []).map((e) => [e.id, e as CriterionEval]))
 
   return (
@@ -101,7 +135,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
             </span>
           </div>
         ) : (
-          <span style={{ fontSize: 11, color: ui.textMuted, fontStyle: "italic", flexShrink: 0 }}>Non scoré</span>
+          <span style={{ fontSize: 11, color: ui.textMuted, fontStyle: "italic", flexShrink: 0 }}>{t.notScored}</span>
         )}
       </header>
 
@@ -122,7 +156,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
         <button
           onClick={() => onTogglePipeline(row.id, !row.in_pipeline)}
-          title={row.in_pipeline ? "Retirer de la pipeline" : "Suivre dans la pipeline"}
+          title={row.in_pipeline ? t.removeFromPipeline : t.trackInPipeline}
           style={{
             fontSize: 11.5, fontWeight: 700, fontFamily: "inherit", cursor: "pointer",
             padding: "6px 11px", borderRadius: 8,
@@ -132,7 +166,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
             whiteSpace: "nowrap",
           }}
         >
-          {row.in_pipeline ? "✓ Dans le pipeline" : "+ Ajouter à la pipeline"}
+          {row.in_pipeline ? t.inPipeline : t.addToPipeline}
         </button>
         <div style={{ flex: 1 }} />
         {c && (
@@ -144,7 +178,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
-            Fiche
+            {t.profile}
           </Link>
         )}
         <Link href={`/workspace/match/${row.id}`} style={{
@@ -153,7 +187,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
           background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
           textDecoration: "none",
         }}>
-          Ouvrir
+          {t.open}
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 5, verticalAlign: "-1px" }} aria-hidden="true">
             <path d="M9 6l6 6-6 6" />
           </svg>
@@ -166,11 +200,12 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
 /** Une ligne critère = nom court + jauge remplie (quant) ou badge ✓/✗/? (qual).
  *  Le tooltip garde le label complet + l'evidence pour le détail. */
 function CriterionEvalRow({ criterion, ev }: { criterion: Criterion; ev: CriterionEval | undefined }) {
+  const { lang } = useLanguage()
   const isQuant = kindOf(criterion.type) === "quantitative"
   const score = isQuant ? (ev?.score ?? null) : null
   const status = isQuant ? undefined : ev?.status
-  const name = criterionHeaderLabel(criterion)
-  const fullLabel = shortCriterionLabel(criterion)
+  const name = criterionHeaderLabel(criterion, lang)
+  const fullLabel = shortCriterionLabel(criterion, lang)
   const tooltip = ev?.evidence ? `${fullLabel} — ${ev.evidence}` : fullLabel
 
   if (isQuant) {

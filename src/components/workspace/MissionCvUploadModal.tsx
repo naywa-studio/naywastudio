@@ -17,9 +17,93 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { SectorReviewControl } from "@/components/workspace/SectorReviewControl"
 import type { SectorStatus } from "@/lib/database.types"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const MAX_BYTES = 10 * 1024 * 1024
 const CONCURRENCY = 5
+
+const copy = {
+  fr: {
+    uploadFailed: (status: number) => `Upload échoué (${status})`,
+    missingCandidateId: "candidate_id manquant",
+    parseFailed: "Parse échoué",
+    scoringFailed: "Scoring échoué",
+    unsupportedFormat: "Format non supporté (PDF uniquement).",
+    fileTooLarge: "Fichier > 10 Mo.",
+    title: "Importer des CVs",
+    desc: (jobLabel: string) => (
+      <>Pour la mission <strong>{jobLabel}</strong>. Chaque CV est ajouté au vivier et scoré immédiatement contre cette mission.</>
+    ),
+    dropHint: "Glissez vos PDFs ici ou cliquez pour parcourir",
+    dropSubhint: "PDF uniquement · 10 Mo max · jusqu'à 500 CVs par lot",
+    processed: "traités",
+    withErrors: "en erreur",
+    validateAllTitle: "Valider le classement secteur de tous les CV importés",
+    validating: "Validation…",
+    validateAll: (n: number) => `Tout valider (${n})`,
+    fileCount: (n: number) => `${n} fichier${n > 1 ? "s" : ""}`,
+    sector: "Secteur",
+    closeInProgress: "Fermer (en cours)",
+    close: "Fermer",
+    duplicateTitle: "Ce CV était déjà dans votre vivier. Il a juste été scoré contre cette mission.",
+    duplicate: "Doublon",
+    errorFallback: "erreur",
+    stageLabels: {
+      uploading: "Upload…",
+      parsing: "Lecture du CV…",
+      scoring: "Scoring…",
+      done: "Fait",
+      duplicate: "Doublon",
+      error: "Erreur",
+    } as Record<Stage, string>,
+    tierLabels: {
+      excellent: "Excellent",
+      good: "Bon",
+      fair: "Moyen",
+      poor: "Faible",
+    } as Record<NonNullable<FileJob["tier"]>, string>,
+  },
+  en: {
+    uploadFailed: (status: number) => `Upload failed (${status})`,
+    missingCandidateId: "missing candidate_id",
+    parseFailed: "Parse failed",
+    scoringFailed: "Scoring failed",
+    unsupportedFormat: "Unsupported format (PDF only).",
+    fileTooLarge: "File > 10 MB.",
+    title: "Import CVs",
+    desc: (jobLabel: string) => (
+      <>For the mission <strong>{jobLabel}</strong>. Each CV is added to the talent pool and scored immediately against this mission.</>
+    ),
+    dropHint: "Drop your PDFs here or click to browse",
+    dropSubhint: "PDF only · 10 MB max · up to 500 CVs per batch",
+    processed: "processed",
+    withErrors: "with errors",
+    validateAllTitle: "Validate the sector classification of all imported CVs",
+    validating: "Validating…",
+    validateAll: (n: number) => `Validate all (${n})`,
+    fileCount: (n: number) => `${n} file${n > 1 ? "s" : ""}`,
+    sector: "Sector",
+    closeInProgress: "Close (in progress)",
+    close: "Close",
+    duplicateTitle: "This CV was already in your talent pool. It was just scored against this mission.",
+    duplicate: "Duplicate",
+    errorFallback: "error",
+    stageLabels: {
+      uploading: "Uploading…",
+      parsing: "Reading CV…",
+      scoring: "Scoring…",
+      done: "Done",
+      duplicate: "Duplicate",
+      error: "Error",
+    } as Record<Stage, string>,
+    tierLabels: {
+      excellent: "Excellent",
+      good: "Good",
+      fair: "Fair",
+      poor: "Poor",
+    } as Record<NonNullable<FileJob["tier"]>, string>,
+  },
+}
 
 type Stage = "uploading" | "parsing" | "scoring" | "done" | "duplicate" | "error"
 interface FileJob {
@@ -46,6 +130,8 @@ export function MissionCvUploadModal({
   onAnyScored?: () => void
 }) {
   useEscapeKey(onClose)
+  const { lang } = useLanguage()
+  const t = copy[lang]
 
   const [jobs, setJobs] = useState<FileJob[]>([])
   const [busy, setBusy] = useState(false)
@@ -84,12 +170,12 @@ export function MissionCvUploadModal({
       const uploadRes = await fetch("/api/cv/upload", { method: "POST", body: fd })
       const uploadData = await uploadRes.json().catch(() => ({} as Record<string, unknown>))
       if (!uploadRes.ok || uploadData?.error) {
-        throw new Error(String(uploadData?.message ?? uploadData?.error ?? `Upload échoué (${uploadRes.status})`))
+        throw new Error(String(uploadData?.message ?? uploadData?.error ?? t.uploadFailed(uploadRes.status)))
       }
       const cand = (uploadData as { candidate?: { id?: string; parse_status?: string; sectors?: string[]; sector_status?: SectorStatus } }).candidate
       const candId = cand?.id
       const isDuplicate = (uploadData as { duplicate?: boolean }).duplicate === true
-      if (!candId) throw new Error("candidate_id manquant")
+      if (!candId) throw new Error(t.missingCandidateId)
 
       // Secteurs : un doublon déjà parsé les porte déjà (réponse upload) ;
       // sinon on les récupère de la réponse parse ci-dessous.
@@ -102,7 +188,7 @@ export function MissionCvUploadModal({
         const parseRes = await fetch(`/api/cv/${candId}/parse`, { method: "POST" })
         const parseData = await parseRes.json().catch(() => ({} as Record<string, unknown>))
         if (!parseRes.ok || parseData?.error) {
-          throw new Error(String(parseData?.message ?? parseData?.error ?? "Parse échoué"))
+          throw new Error(String(parseData?.message ?? parseData?.error ?? t.parseFailed))
         }
         const parsedCand = (parseData as { candidate?: { sectors?: string[]; sector_status?: SectorStatus } }).candidate
         patch(id, { sectors: parsedCand?.sectors ?? [], sectorStatus: parsedCand?.sector_status ?? "to_review" })
@@ -118,7 +204,7 @@ export function MissionCvUploadModal({
       })
       const scoreData = await scoreRes.json().catch(() => ({} as Record<string, unknown>))
       if (!scoreRes.ok || scoreData?.error) {
-        throw new Error(String(scoreData?.message ?? scoreData?.error ?? "Scoring échoué"))
+        throw new Error(String(scoreData?.message ?? scoreData?.error ?? t.scoringFailed))
       }
       const result = (scoreData as { result?: { score?: number; tier?: FileJob["tier"] } }).result
       patch(id, {
@@ -130,7 +216,7 @@ export function MissionCvUploadModal({
     } catch (err) {
       patch(id, { stage: "error", error: (err as Error).message })
     }
-  }, [jobId, onAnyScored, patch, registerSector])
+  }, [jobId, onAnyScored, patch, registerSector, t])
 
   const enqueue = useCallback(async (files: File[]) => {
     const pending: Array<{ id: string; file: File }> = []
@@ -144,11 +230,11 @@ export function MissionCvUploadModal({
       const id = crypto.randomUUID()
       const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
       if (!isPdf) {
-        invalid.push({ id, fileName: f.name, size: f.size, stage: "error", error: "Format non supporté (PDF uniquement)." })
+        invalid.push({ id, fileName: f.name, size: f.size, stage: "error", error: t.unsupportedFormat })
         continue
       }
       if (f.size > MAX_BYTES) {
-        invalid.push({ id, fileName: f.name, size: f.size, stage: "error", error: "Fichier > 10 Mo." })
+        invalid.push({ id, fileName: f.name, size: f.size, stage: "error", error: t.fileTooLarge })
         continue
       }
       const key = `${f.name}::${f.size}`
@@ -177,7 +263,7 @@ export function MissionCvUploadModal({
     })
     await Promise.all(workers)
     setBusy(false)
-  }, [processOne])
+  }, [processOne, t])
 
   const onPick = (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -243,11 +329,10 @@ export function MissionCvUploadModal({
       }}>
         <header style={{ marginBottom: 14 }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-            Importer des CVs
+            {t.title}
           </h2>
           <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-            Pour la mission <strong>{jobLabel}</strong>. Chaque CV est ajouté au vivier
-            et scoré immédiatement contre cette mission.
+            {t.desc(jobLabel)}
           </p>
         </header>
 
@@ -271,10 +356,10 @@ export function MissionCvUploadModal({
             <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
           </svg>
           <p style={{ margin: "0 0 4px", fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
-            Glissez vos PDFs ici ou cliquez pour parcourir
+            {t.dropHint}
           </p>
           <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280" }}>
-            PDF uniquement · 10 Mo max · jusqu&apos;à 500 CVs par lot
+            {t.dropSubhint}
           </p>
           <input
             ref={inputRef}
@@ -292,14 +377,14 @@ export function MissionCvUploadModal({
               display: "flex", gap: 12, marginBottom: 10, alignItems: "center",
               fontSize: 12, color: "#6B7280",
             }}>
-              <span><strong style={{ color: "#15803D" }}>{doneCount}</strong> traités</span>
-              {errorCount > 0 && <span><strong style={{ color: "#B91C1C" }}>{errorCount}</strong> en erreur</span>}
+              <span><strong style={{ color: "#15803D" }}>{doneCount}</strong> {t.processed}</span>
+              {errorCount > 0 && <span><strong style={{ color: "#B91C1C" }}>{errorCount}</strong> {t.withErrors}</span>}
               {pendingReview.length > 0 && (
                 <button
                   type="button"
                   onClick={validateAll}
                   disabled={validatingAll}
-                  title="Valider le classement secteur de tous les CV importés"
+                  title={t.validateAllTitle}
                   style={{
                     marginLeft: "auto",
                     fontSize: 11.5, fontWeight: 700,
@@ -310,10 +395,10 @@ export function MissionCvUploadModal({
                     cursor: validatingAll ? "default" : "pointer", fontFamily: "inherit",
                   }}
                 >
-                  {validatingAll ? "Validation…" : `Tout valider (${pendingReview.length})`}
+                  {validatingAll ? t.validating : t.validateAll(pendingReview.length)}
                 </button>
               )}
-              <span style={{ marginLeft: pendingReview.length > 0 ? 0 : "auto", color: "#6B7280" }}>{jobs.length} fichier{jobs.length > 1 ? "s" : ""}</span>
+              <span style={{ marginLeft: pendingReview.length > 0 ? 0 : "auto", color: "#6B7280" }}>{t.fileCount(jobs.length)}</span>
             </div>
             <ul style={{
               listStyle: "none", margin: 0, padding: 0,
@@ -338,7 +423,7 @@ export function MissionCvUploadModal({
                     {scored && (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                         <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600, letterSpacing: "0.02em" }}>
-                          Secteur
+                          {t.sector}
                         </span>
                         <SectorReviewControl
                           candidateId={j.candidateId!}
@@ -369,7 +454,7 @@ export function MissionCvUploadModal({
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
-            {busy ? "Fermer (en cours)" : "Fermer"}
+            {busy ? t.closeInProgress : t.close}
           </button>
         </div>
       </div>
@@ -380,18 +465,20 @@ export function MissionCvUploadModal({
 function StageBadge({
   stage, score, tier, error,
 }: { stage: Stage; score?: number; tier?: FileJob["tier"]; error?: string }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   if ((stage === "done" || stage === "duplicate") && score !== undefined && tier) {
     const palette = TIER_COLORS[tier]
     return (
       <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
         {stage === "duplicate" && (
-          <span title="Ce CV était déjà dans votre vivier. Il a juste été scoré contre cette mission." style={{
+          <span title={t.duplicateTitle} style={{
             fontSize: 9.5, fontWeight: 700, color: "#B45309",
             background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.28)",
             borderRadius: 999, padding: "1px 6px",
             letterSpacing: "0.04em", textTransform: "uppercase",
           }}>
-            Doublon
+            {t.duplicate}
           </span>
         )}
         <span style={{
@@ -400,7 +487,7 @@ function StageBadge({
           borderRadius: 999, padding: "2px 9px",
           whiteSpace: "nowrap",
         }}>
-          {score}/100 · {TIER_LABELS[tier]}
+          {score}/100 · {t.tierLabels[tier]}
         </span>
       </span>
     )
@@ -413,7 +500,7 @@ function StageBadge({
         borderRadius: 999, padding: "2px 9px",
         whiteSpace: "nowrap", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis",
       }}>
-        ✕ {error?.slice(0, 30) ?? "erreur"}
+        ✕ {error?.slice(0, 30) ?? t.errorFallback}
       </span>
     )
   }
@@ -429,26 +516,12 @@ function StageBadge({
         animation: "miss-upload-spin 0.9s linear infinite",
         display: "inline-block",
       }} />
-      {STAGE_LABELS[stage]}
+      {t.stageLabels[stage]}
       <style>{`@keyframes miss-upload-spin { to { transform: rotate(360deg); } }`}</style>
     </span>
   )
 }
 
-const STAGE_LABELS: Record<Stage, string> = {
-  uploading: "Upload…",
-  parsing: "Lecture du CV…",
-  scoring: "Scoring…",
-  done: "Fait",
-  duplicate: "Doublon",
-  error: "Erreur",
-}
-const TIER_LABELS: Record<NonNullable<FileJob["tier"]>, string> = {
-  excellent: "Excellent",
-  good: "Bon",
-  fair: "Moyen",
-  poor: "Faible",
-}
 const TIER_COLORS: Record<NonNullable<FileJob["tier"]>, { color: string; bg: string; border: string }> = {
   excellent: { color: "#15803D", bg: "rgba(34,197,94,0.10)", border: "rgba(34,197,94,0.30)" },
   good:      { color: "#15803D", bg: "rgba(34,197,94,0.06)", border: "rgba(34,197,94,0.20)" },

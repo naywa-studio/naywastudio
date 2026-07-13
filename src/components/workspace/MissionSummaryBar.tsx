@@ -14,6 +14,38 @@ import Link from "next/link"
 import type { Job } from "@/lib/database.types"
 import type { Criterion } from "@/lib/job-criteria-catalog"
 import { shortCriterionName } from "@/lib/criterion-display"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    collapse: "Replier la mission",
+    expand: "Déplier la mission",
+    mainCriteriaSuffix: (n: number) => `critère${n > 1 ? "s" : ""} principa${n > 1 ? "ux" : "l"}`,
+    importCvs: "+ Importer des CVs",
+    matchVivier: "↻ Matcher le vivier",
+    assignFromVivier: "+ Assigner depuis le vivier",
+    createForm: "+ Créer un formulaire",
+    editCriteria: "Modifier les critères",
+    requiredSkills: "Compétences requises",
+    mainCriteria: "Critères principaux",
+    bonus: "Bonus",
+    pricingLink: "Chiffrer dans le pricing →",
+  },
+  en: {
+    collapse: "Collapse mission",
+    expand: "Expand mission",
+    mainCriteriaSuffix: (n: number) => `main criteri${n > 1 ? "a" : "on"}`,
+    importCvs: "+ Import CVs",
+    matchVivier: "↻ Match talent pool",
+    assignFromVivier: "+ Assign from talent pool",
+    createForm: "+ Create a form",
+    editCriteria: "Edit criteria",
+    requiredSkills: "Required skills",
+    mainCriteria: "Main criteria",
+    bonus: "Bonus",
+    pricingLink: "Price it in pricing →",
+  },
+}
 
 interface Props {
   job: Job
@@ -29,6 +61,8 @@ interface Props {
 export function MissionSummaryBar({
   job, criteria, onEditCriteria, onImportCvs, onMatchVivier, onAssignFromVivier, onCreateForm, matching,
 }: Props) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [open, setOpen] = useState(false)
 
   const mainCriteria  = criteria.filter((c) => c.weight === "main")
@@ -49,7 +83,7 @@ export function MissionSummaryBar({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          aria-label={open ? "Replier la mission" : "Déplier la mission"}
+          aria-label={open ? t.collapse : t.expand}
           style={{
             fontSize: 11, fontWeight: 700, color: "#6B7280",
             background: "transparent", border: "none",
@@ -68,25 +102,25 @@ export function MissionSummaryBar({
             {job.contract_type && <span>· {job.contract_type}</span>}
             {job.seniority && <span>· {job.seniority}</span>}
             {mainCriteria.length > 0 && (
-              <span>· <strong style={{ color: "#15803d", fontWeight: 700 }}>{mainCriteria.length}</strong> critère{mainCriteria.length > 1 ? "s" : ""} principa{mainCriteria.length > 1 ? "ux" : "l"}</span>
+              <span>· <strong style={{ color: "#15803d", fontWeight: 700 }}>{mainCriteria.length}</strong> {t.mainCriteriaSuffix(mainCriteria.length)}</span>
             )}
           </div>
         </div>
         {!matching && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={onImportCvs} style={btnGhost}>+ Importer des CVs</button>
-            <button onClick={onMatchVivier} style={btnGhost}>↻ Matcher le vivier</button>
-            <button onClick={onAssignFromVivier} style={btnGhost}>+ Assigner depuis le vivier</button>
+            <button onClick={onImportCvs} style={btnGhost}>{t.importCvs}</button>
+            <button onClick={onMatchVivier} style={btnGhost}>{t.matchVivier}</button>
+            <button onClick={onAssignFromVivier} style={btnGhost}>{t.assignFromVivier}</button>
             {/* Formulaire public (E2) : masqué tant que la feature n'est pas
                 livrée — un bouton grisé "bientôt" fait produit inachevé. Il
                 réapparaîtra dès que le parent passera onCreateForm. */}
             {onCreateForm && (
               <button onClick={onCreateForm} style={btnGhost}>
-                + Créer un formulaire
+                {t.createForm}
               </button>
             )}
             <button onClick={onEditCriteria} style={btnPrimary}>
-              Modifier les critères
+              {t.editCriteria}
             </button>
           </div>
         )}
@@ -99,7 +133,7 @@ export function MissionSummaryBar({
           {job.required_skills && job.required_skills.length > 0 && (
             <div style={{ marginTop: 14 }}>
               <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "#6B7280", letterSpacing: "0.07em", textTransform: "uppercase" }}>
-                Compétences requises
+                {t.requiredSkills}
               </p>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                 {job.required_skills.map((s) => (
@@ -125,7 +159,7 @@ export function MissionSummaryBar({
           {mainCriteria.length > 0 && (
             <div style={{ marginTop: 14 }}>
               <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "#15803d", letterSpacing: "0.07em", textTransform: "uppercase" }}>
-                Critères principaux
+                {t.mainCriteria}
               </p>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                 {mainCriteria.map((c) => (
@@ -139,7 +173,7 @@ export function MissionSummaryBar({
           {bonusCriteria.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.07em", textTransform: "uppercase" }}>
-                Bonus
+                {t.bonus}
               </p>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                 {bonusCriteria.map((c) => (
@@ -153,7 +187,7 @@ export function MissionSummaryBar({
             <Link href={`/workspace/pricing/${job.id}`} style={{
               fontSize: 12, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
             }}>
-              Chiffrer dans le pricing →
+              {t.pricingLink}
             </Link>
           </div>
         </div>
@@ -163,6 +197,7 @@ export function MissionSummaryBar({
 }
 
 function CriterionPill({ c, kind }: { c: Criterion; kind: "main" | "bonus" }) {
+  const { lang } = useLanguage()
   const palette = kind === "main"
     ? { color: "#15803d", bg: "rgba(34,197,94,0.08)", bd: "rgba(34,197,94,0.25)" }
     : { color: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" }
@@ -174,7 +209,7 @@ function CriterionPill({ c, kind }: { c: Criterion; kind: "main" | "bonus" }) {
       border: `1px solid ${palette.bd}`,
       borderRadius: 99, padding: "3px 9px", whiteSpace: "nowrap",
     }}>
-      {shortCriterionName(c)}
+      {shortCriterionName(c, lang)}
     </span>
   )
 }

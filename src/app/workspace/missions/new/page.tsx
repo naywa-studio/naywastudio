@@ -13,9 +13,17 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Job } from "@/lib/database.types"
 import { JobForm } from "../page"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: { back: "← Retour aux missions" },
+  en: { back: "← Back to missions" },
+}
 
 export default function NewMissionPage() {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <main style={{
       padding: "32px 24px 80px", maxWidth: 900, margin: "0 auto",
@@ -25,7 +33,7 @@ export default function NewMissionPage() {
         <Link href="/workspace/missions" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           fontSize: 13, color: "#7C63C8", textDecoration: "none",
-        }}>← Retour aux missions</Link>
+        }}>{t.back}</Link>
       </div>
       <JobForm
         variant="page"

@@ -19,14 +19,143 @@ import { MissionBriefSection } from "@/components/workspace/MissionBriefSection"
 import { MatchVivierPanel } from "@/components/workspace/MatchVivierPanel"
 import type { MatchMode } from "@/lib/sector-gate"
 import { sectorColors } from "@/lib/sector-color"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
-const MATCH_MODE_LABEL: Record<MatchMode, string> = {
-  intelligent: "Intelligent",
-  personnalise: "Personnalisé",
-  complet: "Complet",
+const MATCH_MODE_LABEL: Record<Lang, Record<MatchMode, string>> = {
+  fr: {
+    intelligent: "Intelligent",
+    personnalise: "Personnalisé",
+    complet: "Complet",
+  },
+  en: {
+    intelligent: "Smart",
+    personnalise: "Custom",
+    complet: "Full",
+  },
 }
 import { MatchCard } from "@/components/workspace/MatchCard"
 import { JobForm } from "../page"
+
+const copy = {
+  fr: {
+    confirmDelete: "Supprimer cette mission ? Les matchs associés seront perdus.",
+    matchingFailed: "Le matching a échoué.",
+    loadingMission: "Chargement de la mission",
+    notFound: "Mission introuvable.",
+    backToMissions: "← Retour aux missions",
+    editMission: "Modifier la mission",
+    delete: "Supprimer",
+    oldAssessment: "Ancienne évaluation.",
+    legacyBanner: (n: number) => `Configurez les critères de matching pour une analyse enrichie — la position pipeline de vos ${n} candidat${n > 1 ? "s" : ""} sera conservée.`,
+    configureCriteria: "Configurer les critères",
+    canaryBanner: (n: number) => `${n} profil${n > 1 ? "s" : ""} hors périmètre ${n > 1 ? "sont ressortis" : "est ressorti"} pertinent${n > 1 ? "s" : ""}. Élargissez peut-être la recherche.`,
+    broaden: "Élargir",
+    criteriaValidated: "Critères validés — à vous de jouer",
+    fromBarAbove: (
+      <>Depuis le bandeau ci-dessus : <strong>Matcher le vivier</strong>, <strong>Importer des CVs</strong> ou <strong>Assigner</strong> un candidat.</>
+    ),
+    relevantRecap: (n: number) => `${n} candidat${n > 1 ? "s" : ""} pertinent${n > 1 ? "s" : ""}`,
+    totalRecap: (n: number) => ` · ${n} au total`,
+    lastMatching: "Dernier matching : ",
+    modePrefix: " · mode ",
+    sectorsPrefix: " · secteurs : ",
+    criteriaChanged: "Critères modifiés",
+    criteriaChangedRest: " depuis le dernier matching — les scores affichés datent de l'évaluation précédente.",
+    rerunMatching: "Relancer le matching",
+    noCandidatesFiltered: "Aucun candidat ne passe les filtres actifs.",
+    formNotActive: "Le formulaire de candidature public n'est pas encore activé.",
+    noCandidatesCategory: "Aucun candidat dans cette catégorie.",
+    noCandidatesToShow: "Aucun candidat à afficher.",
+    noRelevantProfiles: "Aucun profil pertinent sur ce vivier pour cette mission. Les profils ci-dessous sont à faible affinité.",
+    weakToggle: (show: boolean, n: number) => `${show ? "▲ Masquer" : "▼ Voir"} les ${n} profil${n > 1 ? "s" : ""} à faible affinité`,
+    tabAll: "Tous",
+    tabApplied: "Ont postulé",
+    tabAppliedHint: "Via le formulaire public",
+    tabUploaded: "Vos importations",
+    tabVivier: "Depuis le vivier",
+    filterBy: "Filtrer sur :",
+    yesHint: "(oui)",
+    reset: "Réinitialiser",
+    assignmentFailed: "L'assignation a échoué.",
+    networkError: "Erreur réseau.",
+    assignManually: "Assigner manuellement",
+    chooseCandidate: "Choisir un candidat",
+    searchPlaceholder: "Chercher par nom, poste, entreprise…",
+    noCandidateMatches: "Aucun candidat ne correspond.",
+    allAlreadyMatched: "Tous les candidats du vivier sont déjà matchés.",
+    noName: "Sans nom",
+    assign: "Assigner",
+    close: "Fermer",
+    prefiltering: "Préfiltrage du vivier…",
+    aboutToScore: "Nora va scorer le pool…",
+    finalizing: "Finalisation du classement…",
+    probablyInterrupted: "Le matching a probablement été interrompu. Relancez.",
+    slowerThanUsual: "Plus long que d'habitude, encore quelques secondes.",
+    scoringProfiles: (scored: number, total: number) => `Nora score ${scored}/${total} profils…`,
+    matchingInProgress: "Matching en cours",
+    alreadySurfaced: (n: number) => `${n} déjà remonté${n > 1 ? "s" : ""}`,
+    forceRetry: "Forcer la relance",
+  },
+  en: {
+    confirmDelete: "Delete this mission? The associated matches will be lost.",
+    matchingFailed: "Matching failed.",
+    loadingMission: "Loading mission",
+    notFound: "Mission not found.",
+    backToMissions: "← Back to missions",
+    editMission: "Edit mission",
+    delete: "Delete",
+    oldAssessment: "Old assessment.",
+    legacyBanner: (n: number) => `Configure the matching criteria for a richer analysis — the pipeline position of your ${n} candidate${n > 1 ? "s" : ""} will be preserved.`,
+    configureCriteria: "Configure the criteria",
+    canaryBanner: (n: number) => `${n} out-of-scope profile${n > 1 ? "s" : ""} came back relevant. You might want to broaden the search.`,
+    broaden: "Broaden",
+    criteriaValidated: "Criteria validated — your move",
+    fromBarAbove: (
+      <>From the bar above: <strong>Match the talent pool</strong>, <strong>Import CVs</strong>, or <strong>Assign</strong> a candidate.</>
+    ),
+    relevantRecap: (n: number) => `${n} relevant candidate${n > 1 ? "s" : ""}`,
+    totalRecap: (n: number) => ` · ${n} total`,
+    lastMatching: "Last matching: ",
+    modePrefix: " · mode ",
+    sectorsPrefix: " · sectors: ",
+    criteriaChanged: "Criteria changed",
+    criteriaChangedRest: " since the last matching — the scores shown are from the previous assessment.",
+    rerunMatching: "Re-run matching",
+    noCandidatesFiltered: "No candidate passes the active filters.",
+    formNotActive: "The public application form isn't activated yet.",
+    noCandidatesCategory: "No candidate in this category.",
+    noCandidatesToShow: "No candidate to display.",
+    noRelevantProfiles: "No relevant profile in this talent pool for this mission. The profiles below have low affinity.",
+    weakToggle: (show: boolean, n: number) => `${show ? "▲ Hide" : "▼ Show"} the ${n} low-affinity profile${n > 1 ? "s" : ""}`,
+    tabAll: "All",
+    tabApplied: "Applied",
+    tabAppliedHint: "Via the public form",
+    tabUploaded: "Your imports",
+    tabVivier: "From the talent pool",
+    filterBy: "Filter by:",
+    yesHint: "(yes)",
+    reset: "Reset",
+    assignmentFailed: "Assignment failed.",
+    networkError: "Network error.",
+    assignManually: "Assign manually",
+    chooseCandidate: "Choose a candidate",
+    searchPlaceholder: "Search by name, role, company…",
+    noCandidateMatches: "No candidate matches.",
+    allAlreadyMatched: "All talent pool candidates are already matched.",
+    noName: "No name",
+    assign: "Assign",
+    close: "Close",
+    prefiltering: "Pre-filtering the talent pool…",
+    aboutToScore: "Nora is about to score the pool…",
+    finalizing: "Finalizing the ranking…",
+    probablyInterrupted: "Matching was probably interrupted. Try again.",
+    slowerThanUsual: "Taking longer than usual, a few more seconds.",
+    scoringProfiles: (scored: number, total: number) => `Nora is scoring ${scored}/${total} profiles…`,
+    matchingInProgress: "Matching in progress",
+    alreadySurfaced: (n: number) => `${n} already surfaced`,
+    forceRetry: "Force retry",
+  },
+}
 
 type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
 
@@ -43,6 +172,8 @@ function sourcesForTab(tab: SourceTab): Set<MatchSource> {
 
 export default function JobDetailPage() {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const { jobId } = useParams<{ jobId: string }>()
   const sb = useMemo(() => getSupabase(), [])
 
@@ -140,7 +271,7 @@ export default function JobDetailPage() {
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
       if (res.status === 409) { setMatchError(null); return }
-      setMatchError(data?.message ?? data?.detail ?? data?.error ?? "Le matching a échoué.")
+      setMatchError(data?.message ?? data?.detail ?? data?.error ?? t.matchingFailed)
       setJob((prev) => prev ? { ...prev, match_status: "error" } : prev)
       return
     }
@@ -148,11 +279,11 @@ export default function JobDetailPage() {
       setCanaryHits(data.canary_hits)
     }
     await loadAll()
-  }, [job, loadAll])
+  }, [job, loadAll, t])
 
   const handleDelete = async () => {
     if (!job) return
-    if (!confirm("Supprimer cette mission ? Les matchs associés seront perdus.")) return
+    if (!confirm(t.confirmDelete)) return
     const res = await fetch(`/api/jobs/${job.id}`, { method: "DELETE" })
     if (res.ok) router.push("/workspace/missions")
   }
@@ -169,13 +300,13 @@ export default function JobDetailPage() {
     }
   }
 
-  if (loading) return <DetailSkeleton label="Chargement de la mission" />
+  if (loading) return <DetailSkeleton label={t.loadingMission} />
   if (notFound || !job) {
     return (
       <div style={{ padding: "60px 24px", textAlign: "center", color: "#6B7280" }}>
-        <p style={{ fontSize: 16, fontWeight: 600 }}>Mission introuvable.</p>
+        <p style={{ fontSize: 16, fontWeight: 600 }}>{t.notFound}</p>
         <Link href="/workspace/missions" style={{ color: "#7C63C8", textDecoration: "none", fontSize: 14 }}>
-          ← Retour aux missions
+          {t.backToMissions}
         </Link>
       </div>
     )
@@ -269,18 +400,18 @@ export default function JobDetailPage() {
         <Link href="/workspace/missions" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           fontSize: 13, color: "#7C63C8", textDecoration: "none",
-        }}>← Retour aux missions</Link>
+        }}>{t.backToMissions}</Link>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setShowEdit(true)} title="Modifier la mission" style={{
+          <button onClick={() => setShowEdit(true)} title={t.editMission} style={{
             fontSize: 12, fontWeight: 600, color: "#7C63C8",
             background: "white", border: "1px solid rgba(124,99,200,0.30)",
             borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
-          }}>Modifier la mission</button>
-          <button onClick={handleDelete} title="Supprimer la mission" style={{
+          }}>{t.editMission}</button>
+          <button onClick={handleDelete} title={t.delete} style={{
             fontSize: 12, fontWeight: 600, color: "#DC2626",
             background: "transparent", border: "1px solid #FCA5A5",
             borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
-          }}>Supprimer</button>
+          }}>{t.delete}</button>
         </div>
       </div>
 
@@ -316,16 +447,14 @@ export default function JobDetailPage() {
           borderRadius: 12, fontSize: 13, color: "#374151",
         }}>
           <span style={{ flex: 1, minWidth: 220 }}>
-            <strong style={{ color: "#111827" }}>Ancienne évaluation.</strong> Configurez les critères
-            de matching pour une analyse enrichie — la position pipeline de vos{" "}
-            {rows.length} candidat{rows.length > 1 ? "s" : ""} sera conservée.
+            <strong style={{ color: "#111827" }}>{t.oldAssessment}</strong> {t.legacyBanner(rows.length)}
           </span>
           <button onClick={() => setEditCriteriaMode(true)} style={{
             fontSize: 12.5, fontWeight: 700, color: "white", fontFamily: "inherit",
             background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
             border: "none", borderRadius: 9, padding: "8px 14px", cursor: "pointer",
             whiteSpace: "nowrap",
-          }}>Configurer les critères</button>
+          }}>{t.configureCriteria}</button>
         </div>
       )}
 
@@ -356,14 +485,14 @@ export default function JobDetailPage() {
           borderRadius: 11, fontSize: 12.5, color: "#374151",
         }}>
           <span style={{ flex: 1, minWidth: 220 }}>
-            <strong style={{ color: "#B45309" }}>{canaryHits} profil{canaryHits > 1 ? "s" : ""} hors périmètre</strong> {canaryHits > 1 ? "sont ressortis" : "est ressorti"} pertinent{canaryHits > 1 ? "s" : ""}. Élargissez peut-être la recherche.
+            {t.canaryBanner(canaryHits)}
           </span>
           <button onClick={() => { setCanaryHits(0); setMatchPanelOpen(true) }} style={{
             fontSize: 12, fontWeight: 700, color: "#B45309",
             background: "white", border: "1px solid rgba(217,119,6,0.35)",
             borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
           }}>
-            Élargir
+            {t.broaden}
           </button>
         </div>
       )}
@@ -396,15 +525,15 @@ export default function JobDetailPage() {
             <circle cx="12" cy="12" r="4.5" />
             <path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" />
           </svg>
-          <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>Critères validés — à vous de jouer</p>
-          <p style={{ margin: 0, fontSize: 13 }}>Depuis le bandeau ci-dessus : <strong>Matcher le vivier</strong>, <strong>Importer des CVs</strong> ou <strong>Assigner</strong> un candidat.</p>
+          <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>{t.criteriaValidated}</p>
+          <p style={{ margin: 0, fontSize: 13 }}>{t.fromBarAbove}</p>
         </div>
       ) : (
         <>
           {/* Récap rapide */}
           <div style={{ marginBottom: 8, fontSize: 13, color: "#6B7280" }}>
-            <strong style={{ color: "#111827" }}>{strongCount}</strong> candidat{strongCount > 1 ? "s" : ""} pertinent{strongCount > 1 ? "s" : ""}
-            <span style={{ color: "#6B7280" }}> · {rows.length} au total</span>
+            <strong style={{ color: "#111827" }}>{strongCount}</strong> {t.relevantRecap(strongCount)}
+            <span style={{ color: "#6B7280" }}>{t.totalRecap(rows.length)}</span>
           </div>
 
           {/* Rappel du dernier matching : date + mode + secteurs ciblés. */}
@@ -414,12 +543,12 @@ export default function JobDetailPage() {
               fontSize: 11.5, color: "#6B7280",
             }}>
               <span>
-                Dernier matching&nbsp;: {new Date(job.matched_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
-                {job.last_match_mode && <> · mode {MATCH_MODE_LABEL[job.last_match_mode] ?? job.last_match_mode}</>}
+                {t.lastMatching}{new Date(job.matched_at).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short", year: "numeric" })}
+                {job.last_match_mode && <>{t.modePrefix}{MATCH_MODE_LABEL[lang][job.last_match_mode] ?? job.last_match_mode}</>}
               </span>
               {job.last_match_mode !== "complet" && (job.target_sectors ?? []).length > 0 && (
                 <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
-                  · secteurs&nbsp;:
+                  {t.sectorsPrefix}
                   {(job.target_sectors ?? []).map((s) => (
                     <span key={s} style={{
                       fontSize: 10.5, fontWeight: 600,
@@ -441,7 +570,7 @@ export default function JobDetailPage() {
               borderRadius: 11, fontSize: 12.5, color: "#374151",
             }}>
               <span style={{ flex: 1, minWidth: 200 }}>
-                <strong style={{ color: "#B45309" }}>Critères modifiés</strong> depuis le dernier matching — les scores affichés datent de l&apos;évaluation précédente.
+                <strong style={{ color: "#B45309" }}>{t.criteriaChanged}</strong>{t.criteriaChangedRest}
               </span>
               <button onClick={() => setMatchPanelOpen(true)} style={{
                 fontSize: 12, fontWeight: 700, color: "white",
@@ -449,7 +578,7 @@ export default function JobDetailPage() {
                 background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
                 cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
               }}>
-                Relancer le matching
+                {t.rerunMatching}
               </button>
             </div>
           )}
@@ -487,12 +616,12 @@ export default function JobDetailPage() {
               color: "#6B7280", fontSize: 13,
             }}>
               {activeCritFilters.size > 0
-                ? "Aucun candidat ne passe les filtres actifs."
+                ? t.noCandidatesFiltered
                 : tabCounts[activeTab] === 0
                   ? activeTab === "applied"
-                    ? "Le formulaire de candidature public n'est pas encore activé."
-                    : "Aucun candidat dans cette catégorie."
-                  : "Aucun candidat à afficher."}
+                    ? t.formNotActive
+                    : t.noCandidatesCategory
+                  : t.noCandidatesToShow}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -511,8 +640,7 @@ export default function JobDetailPage() {
                   background: "white", border: "1px dashed #E2DAF6", borderRadius: 14,
                   color: "#6B7280", fontSize: 13,
                 }}>
-                  Aucun profil pertinent sur ce vivier pour cette mission.
-                  Les profils ci-dessous sont à faible affinité.
+                  {t.noRelevantProfiles}
                 </div>
               )}
 
@@ -529,7 +657,7 @@ export default function JobDetailPage() {
                       cursor: "pointer", fontFamily: "inherit",
                     }}
                   >
-                    {showWeak ? "▲ Masquer" : "▼ Voir"} les {weakRows.length} profil{weakRows.length > 1 ? "s" : ""} à faible affinité
+                    {t.weakToggle(showWeak, weakRows.length)}
                   </button>
                   {showWeak && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10, opacity: 0.75 }}>
@@ -603,16 +731,18 @@ function SourceTabs({
   counts: Record<SourceTab, number>
   onChange: (t: SourceTab) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // "Ont postulé" (formulaire public E2, pas encore livré) : l'onglet ne
   // s'affiche que s'il existe au moins une candidature — un onglet "0" en
   // permanence fait produit inachevé. Réapparaîtra tout seul avec E2.
   const tabs: Array<{ key: SourceTab; label: string; hint?: string }> = [
-    { key: "all",      label: "Tous" },
+    { key: "all",      label: t.tabAll },
     ...(counts.applied > 0
-      ? [{ key: "applied" as const, label: "Ont postulé", hint: "Via le formulaire public" }]
+      ? [{ key: "applied" as const, label: t.tabApplied, hint: t.tabAppliedHint }]
       : []),
-    { key: "uploaded", label: "Vos importations" },
-    { key: "vivier",   label: "Depuis le vivier" },
+    { key: "uploaded", label: t.tabUploaded },
+    { key: "vivier",   label: t.tabVivier },
   ]
   return (
     <div style={{
@@ -621,15 +751,15 @@ function SourceTabs({
       background: "#F8F6FF", border: "1px solid #F0ECF8",
       borderRadius: 12,
     }}>
-      {tabs.map((t) => {
-        const isActive = active === t.key
-        const n = counts[t.key]
+      {tabs.map((tab) => {
+        const isActive = active === tab.key
+        const n = counts[tab.key]
         return (
           <button
-            key={t.key}
+            key={tab.key}
             type="button"
-            onClick={() => onChange(t.key)}
-            title={t.hint}
+            onClick={() => onChange(tab.key)}
+            title={tab.hint}
             style={{
               flex: "1 1 auto", minWidth: 120,
               padding: "8px 12px", borderRadius: 9,
@@ -642,7 +772,7 @@ function SourceTabs({
               transition: "all 120ms",
             }}
           >
-            {t.label}
+            {tab.label}
             <span style={{
               fontSize: 10.5, fontWeight: 800,
               color: isActive ? "#7C63C8" : "#6B7280",
@@ -668,18 +798,20 @@ function DynamicCriteriaFilters({
   onToggle: (id: string) => void
   onClear: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{
       display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6,
       marginBottom: 12,
     }}>
       <span style={{ fontSize: 11, color: "#6B7280", marginRight: 4 }}>
-        Filtrer sur :
+        {t.filterBy}
       </span>
       {criteria.map((c) => {
         const on = active.has(c.id)
         const isQuant = kindOf(c.type) === "quantitative"
-        const hint = isQuant ? "(≥ 70)" : "(oui)"
+        const hint = isQuant ? "(≥ 70)" : t.yesHint
         return (
           <button
             key={c.id}
@@ -695,7 +827,7 @@ function DynamicCriteriaFilters({
               transition: "all 120ms",
             }}
           >
-            {on ? "✓ " : ""}{shortCriterionName(c)}
+            {on ? "✓ " : ""}{shortCriterionName(c, lang)}
             <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 4 }}>{hint}</span>
           </button>
         )
@@ -710,7 +842,7 @@ function DynamicCriteriaFilters({
             cursor: "pointer", fontFamily: "inherit", padding: "5px 8px",
           }}
         >
-          Réinitialiser
+          {t.reset}
         </button>
       )}
     </div>
@@ -728,6 +860,8 @@ function AssignModal({
   onAssigned: () => void
 }) {
   useEscapeKey(onClose)
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const [query, setQuery] = useState("")
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -774,13 +908,13 @@ function AssignModal({
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setErr(data?.detail ?? data?.error ?? "L'assignation a échoué.")
+        setErr(data?.detail ?? data?.error ?? t.assignmentFailed)
         setAssigning(null)
         return
       }
       onAssigned()
     } catch (e) {
-      setErr((e as Error).message ?? "Erreur réseau.")
+      setErr((e as Error).message ?? t.networkError)
       setAssigning(null)
     }
   }
@@ -806,16 +940,16 @@ function AssignModal({
       >
         <div style={{ padding: "18px 22px", borderBottom: "1px solid #F0ECF8" }}>
           <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            Assigner manuellement
+            {t.assignManually}
           </p>
           <h3 style={{ margin: "4px 0 10px", fontSize: 17, fontWeight: 800, color: "#111827" }}>
-            Choisir un candidat
+            {t.chooseCandidate}
           </h3>
           <input
             autoFocus type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Chercher par nom, poste, entreprise…"
+            placeholder={t.searchPlaceholder}
             style={{
               width: "100%", boxSizing: "border-box",
               fontSize: 13.5, color: "#111827", padding: "10px 12px",
@@ -829,7 +963,7 @@ function AssignModal({
             <div style={{ padding: 20 }}><NoraLoader inline /></div>
           ) : filtered.length === 0 ? (
             <p style={{ padding: 20, fontSize: 13, color: "#6B7280", textAlign: "center" }}>
-              {query ? "Aucun candidat ne correspond." : "Tous les candidats du vivier sont déjà matchés."}
+              {query ? t.noCandidateMatches : t.allAlreadyMatched}
             </p>
           ) : (
             filtered.map((c) => (
@@ -851,7 +985,7 @@ function AssignModal({
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {c.full_name ?? c.cv_file_name ?? "Sans nom"}
+                    {c.full_name ?? c.cv_file_name ?? t.noName}
                   </p>
                   <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {c.current_title ?? "—"}
@@ -865,7 +999,7 @@ function AssignModal({
                   border: "1px solid rgba(124,99,200,0.18)",
                   borderRadius: 8, padding: "4px 10px", flexShrink: 0,
                 }}>
-                  {assigning === c.id ? "…" : "Assigner"}
+                  {assigning === c.id ? "…" : t.assign}
                 </span>
               </button>
             ))
@@ -882,7 +1016,7 @@ function AssignModal({
             background: "white", border: "1px solid #E5E7EB",
             borderRadius: 9, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit",
           }}>
-            Fermer
+            {t.close}
           </button>
         </div>
       </div>
@@ -901,6 +1035,8 @@ function MatchingProgress({
   startedAt: string
   onForceRetry: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 800)
@@ -916,12 +1052,12 @@ function MatchingProgress({
   const canForceRetry = elapsedMs > 75_000
 
   const label =
-    !hasReal ? "Préfiltrage du vivier…"
-    : safeScored === 0 ? "Nora va scorer le pool…"
-    : safeScored >= safeTotal! ? "Finalisation du classement…"
-    : canForceRetry ? "Le matching a probablement été interrompu. Relancez."
-    : stalling ? "Plus long que d'habitude, encore quelques secondes."
-    : `Nora score ${safeScored}/${safeTotal} profils…`
+    !hasReal ? t.prefiltering
+    : safeScored === 0 ? t.aboutToScore
+    : safeScored >= safeTotal! ? t.finalizing
+    : canForceRetry ? t.probablyInterrupted
+    : stalling ? t.slowerThanUsual
+    : t.scoringProfiles(safeScored, safeTotal!)
 
   return (
     <div style={{
@@ -935,13 +1071,13 @@ function MatchingProgress({
           border: "2px solid rgba(124,99,200,0.25)", borderTopColor: "#7C63C8",
           animation: "matching-spin 0.9s linear infinite",
         }} />
-        <span style={{ fontSize: 13.5, fontWeight: 800, color: "#7C63C8" }}>Matching en cours</span>
+        <span style={{ fontSize: 13.5, fontWeight: 800, color: "#7C63C8" }}>{t.matchingInProgress}</span>
         {partialCount > 0 && (
           <span style={{
             fontSize: 11, fontWeight: 700, color: "#7C63C8",
             background: "white", border: "1px solid rgba(124,99,200,0.22)",
             borderRadius: 100, padding: "1px 8px",
-          }}>{partialCount} déjà remonté{partialCount > 1 ? "s" : ""}</span>
+          }}>{t.alreadySurfaced(partialCount)}</span>
         )}
         <span style={{ marginLeft: "auto", fontSize: 11.5, color: "#6B7280", fontVariantNumeric: "tabular-nums" }}>
           {Math.round(pct)}% · {elapsedSec}s
@@ -983,7 +1119,7 @@ function MatchingProgress({
             background: "white", border: "1px solid rgba(124,99,200,0.3)",
             borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit",
           }}>
-            Forcer la relance
+            {t.forceRetry}
           </button>
         )}
       </div>

@@ -24,6 +24,82 @@ import {
   MAX_BONUS_CRITERIA,
 } from "@/lib/job-criteria-catalog"
 import { shortCriterionLabel, typeLabel } from "@/lib/criterion-display"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    proposalFailed: "Échec de la proposition Nora.",
+    networkError: "Erreur réseau.",
+    stepBadge: "Étape unique · Critères de matching",
+    title: "Nora propose, vous validez",
+    intro: (
+      <>Choisissez les critères qui comptent pour cette mission. Les <strong style={{ color: "#15803d" }}>principaux</strong> pèsent dans le score, les <strong style={{ color: "#7C63C8" }}>bonus</strong> sont affichés mais ne pénalisent pas.</>
+    ),
+    relaunchNora: "↻ Relancer Nora",
+    analyzing: "Nora analyse la mission…",
+    mainColumn: "Principaux",
+    mainSubtitle: (n: number, max: number) => `comptent dans le score · ${n}/${max}`,
+    bonusColumn: "Bonus",
+    bonusSubtitle: (n: number, max: number) => `informatifs · ${n}/${max}`,
+    selectAtLeastOne: "Sélectionne au moins un critère.",
+    needAtLeastOneMain: "Il faut au moins un critère principal.",
+    describeCustom: "Décrivez vos critères personnalisés (ou retirez-les).",
+    saveFailed: "Sauvegarde échouée.",
+    addCriterion: "+ Ajouter un critère",
+    cancel: "Annuler",
+    saving: "Enregistrement…",
+    saveCriteria: "Enregistrer les critères",
+    validateCriteria: "Valider les critères",
+    addFromCatalog: "Ajouter un critère depuis le catalogue",
+    noMainCriteria: "Aucun critère principal",
+    noBonus: "Aucun bonus",
+    customPlaceholder: "Décrivez le critère (ex : a déjà managé une équipe)",
+    addedSuffix: " · ajouté",
+    demoteToBonus: "Rétrograder en bonus",
+    promoteToMain: "Promouvoir en principal",
+    toBonus: "↓ bonus",
+    toMain: "↑ principal",
+    remove: "Retirer",
+    seeLess: "voir moins",
+    seeMore: (n: number) => `voir plus (+${n})`,
+  },
+  en: {
+    proposalFailed: "Nora's proposal failed.",
+    networkError: "Network error.",
+    stepBadge: "Single step · Matching criteria",
+    title: "Nora suggests, you confirm",
+    intro: (
+      <>Choose the criteria that matter for this mission. <strong style={{ color: "#15803d" }}>Main</strong> criteria weigh into the score, <strong style={{ color: "#7C63C8" }}>bonus</strong> ones are shown but don't penalize.</>
+    ),
+    relaunchNora: "↻ Re-run Nora",
+    analyzing: "Nora is analyzing the mission…",
+    mainColumn: "Main",
+    mainSubtitle: (n: number, max: number) => `count toward the score · ${n}/${max}`,
+    bonusColumn: "Bonus",
+    bonusSubtitle: (n: number, max: number) => `informative · ${n}/${max}`,
+    selectAtLeastOne: "Select at least one criterion.",
+    needAtLeastOneMain: "You need at least one main criterion.",
+    describeCustom: "Describe your custom criteria (or remove them).",
+    saveFailed: "Save failed.",
+    addCriterion: "+ Add a criterion",
+    cancel: "Cancel",
+    saving: "Saving…",
+    saveCriteria: "Save criteria",
+    validateCriteria: "Confirm criteria",
+    addFromCatalog: "Add a criterion from the catalog",
+    noMainCriteria: "No main criterion",
+    noBonus: "No bonus",
+    customPlaceholder: "Describe the criterion (e.g.: has already managed a team)",
+    addedSuffix: " · added",
+    demoteToBonus: "Demote to bonus",
+    promoteToMain: "Promote to main",
+    toBonus: "↓ bonus",
+    toMain: "↑ main",
+    remove: "Remove",
+    seeLess: "see less",
+    seeMore: (n: number) => `see more (+${n})`,
+  },
+}
 
 interface Props {
   jobId: string
@@ -46,6 +122,8 @@ interface Props {
 }
 
 export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, embedded, submitLabel }: Props) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [criteria, setCriteria] = useState<Criterion[]>(initialCriteria ?? [])
   const [loading, setLoading] = useState(!initialCriteria || initialCriteria.length === 0)
   const [saving, setSaving] = useState(false)
@@ -58,16 +136,16 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
       const res = await fetch(`/api/jobs/${jobId}/propose-criteria`, { method: "POST" })
       const data = await res.json().catch(() => ({} as Record<string, unknown>))
       if (!res.ok) {
-        setError(String(data?.message ?? data?.error ?? "Échec de la proposition Nora."))
+        setError(String(data?.message ?? data?.error ?? t.proposalFailed))
         setLoading(false)
         return
       }
       setCriteria(Array.isArray(data.criteria) ? data.criteria as Criterion[] : [])
     } catch (e) {
-      setError((e as Error).message ?? "Erreur réseau.")
+      setError((e as Error).message ?? t.networkError)
     }
     setLoading(false)
-  }, [jobId])
+  }, [jobId, t])
 
   useEffect(() => {
     // Lance la proposition LLM uniquement au 1er mount sans critères
@@ -81,12 +159,12 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
         const data = await res.json().catch(() => ({} as Record<string, unknown>))
         if (cancelled) return
         if (!res.ok) {
-          setError(String(data?.message ?? data?.error ?? "Échec de la proposition Nora."))
+          setError(String(data?.message ?? data?.error ?? t.proposalFailed))
         } else {
           setCriteria(Array.isArray(data.criteria) ? data.criteria as Criterion[] : [])
         }
       } catch (e) {
-        if (!cancelled) setError((e as Error).message ?? "Erreur réseau.")
+        if (!cancelled) setError((e as Error).message ?? t.networkError)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -143,15 +221,15 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
 
   const save = async () => {
     if (criteria.length === 0) {
-      setError("Sélectionne au moins un critère.")
+      setError(t.selectAtLeastOne)
       return
     }
     if (mainCount === 0) {
-      setError("Il faut au moins un critère principal.")
+      setError(t.needAtLeastOneMain)
       return
     }
     if (criteria.some((c) => c.type === "custom" && !c.label.trim())) {
-      setError("Décrivez vos critères personnalisés (ou retirez-les).")
+      setError(t.describeCustom)
       return
     }
     setSaving(true); setError(null)
@@ -163,13 +241,13 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
       })
       const data = await res.json().catch(() => ({} as Record<string, unknown>))
       if (!res.ok) {
-        setError(String(data?.message ?? data?.error ?? "Sauvegarde échouée."))
+        setError(String(data?.message ?? data?.error ?? t.saveFailed))
         setSaving(false)
         return
       }
       onDone(Array.isArray(data.criteria) ? data.criteria as Criterion[] : criteria)
     } catch (e) {
-      setError((e as Error).message ?? "Erreur réseau.")
+      setError((e as Error).message ?? t.networkError)
       setSaving(false)
     }
   }
@@ -193,15 +271,15 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
           {!embedded && (
             <>
               <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                Étape unique · Critères de matching
+                {t.stepBadge}
               </p>
               <h2 style={{ margin: "4px 0 0", fontSize: 19, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-                Nora propose, vous validez
+                {t.title}
               </h2>
             </>
           )}
           <p style={{ margin: embedded ? 0 : "4px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-            Choisissez les critères qui comptent pour cette mission. Les <strong style={{ color: "#15803d" }}>principaux</strong> pèsent dans le score, les <strong style={{ color: "#7C63C8" }}>bonus</strong> sont affichés mais ne pénalisent pas.
+            {t.intro}
           </p>
         </div>
         {!loading && criteria.length > 0 && (
@@ -217,7 +295,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
               fontFamily: "inherit",
             }}
           >
-            ↻ Relancer Nora
+            {t.relaunchNora}
           </button>
         )}
       </header>
@@ -233,7 +311,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
             animation: "criteria-spin 0.9s linear infinite",
             marginRight: 10, verticalAlign: "middle",
           }} />
-          Nora analyse la mission…
+          {t.analyzing}
           <style>{`@keyframes criteria-spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
@@ -244,8 +322,8 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
           marginTop: 4,
         }} className="criteria-grid">
           <Column
-            title="Principaux"
-            subtitle={`comptent dans le score · ${mainCount}/${MAX_MAIN_CRITERIA}`}
+            title={t.mainColumn}
+            subtitle={t.mainSubtitle(mainCount, MAX_MAIN_CRITERIA)}
             accent="#15803d"
             items={mainList}
             onToggleWeight={toggleWeight}
@@ -254,8 +332,8 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
             isMain
           />
           <Column
-            title="Bonus"
-            subtitle={`informatifs · ${bonusCount}/${MAX_BONUS_CRITERIA}`}
+            title={t.bonusColumn}
+            subtitle={t.bonusSubtitle(bonusCount, MAX_BONUS_CRITERIA)}
             accent="#7C63C8"
             items={bonusList}
             onToggleWeight={toggleWeight}
@@ -282,7 +360,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
-            + Ajouter un critère
+            {t.addCriterion}
           </button>
           <div style={{ flex: 1 }} />
           {error && (
@@ -300,7 +378,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
                 cursor: saving ? "default" : "pointer", fontFamily: "inherit",
               }}
             >
-              Annuler
+              {t.cancel}
             </button>
           )}
           <button
@@ -321,7 +399,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
             {/* Le matching ne se lance PLUS automatiquement (retour sourceur).
                 Le CTA ne promet donc jamais de matching : il valide/enregistre
                 les critères, le sourceur choisit ensuite l'action. */}
-            {saving ? "Enregistrement…" : (submitLabel ?? (onCancel ? "Enregistrer les critères" : "Valider les critères"))}
+            {saving ? t.saving : (submitLabel ?? (onCancel ? t.saveCriteria : t.validateCriteria))}
           </button>
         </div>
       )}
@@ -332,16 +410,16 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
           background: "#FAF9FE", border: "1px solid #F0ECF8", borderRadius: 11,
         }}>
           <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            Ajouter un critère depuis le catalogue
+            {t.addFromCatalog}
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {(Object.keys(CRITERION_CATALOG) as CriterionType[])
-              .filter((t) => !criteria.some((c) => c.type === t && c.type !== "custom" && c.type !== "language" && c.type !== "license" && c.type !== "certification"))
-              .map((t) => (
+              .filter((ct) => !criteria.some((c) => c.type === ct && c.type !== "custom" && c.type !== "language" && c.type !== "license" && c.type !== "certification"))
+              .map((ct) => (
                 <button
-                  key={t}
+                  key={ct}
                   type="button"
-                  onClick={() => addManual(t)}
+                  onClick={() => addManual(ct)}
                   style={{
                     fontSize: 11.5, fontWeight: 600, color: "#374151",
                     background: "white", border: "1px solid #E5E7EB",
@@ -349,7 +427,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
                     cursor: "pointer", fontFamily: "inherit",
                   }}
                 >
-                  + {typeLabel(t)}
+                  + {typeLabel(ct, lang)}
                 </button>
               ))}
           </div>
@@ -367,6 +445,8 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
 
 /** Liste grisée des compétences d'un critère skills, repliée à 5 + "voir plus". */
 function SkillsPreview({ skills }: { skills: string[] }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [expanded, setExpanded] = useState(false)
   const LIMIT = 5
   const shown = expanded ? skills : skills.slice(0, LIMIT)
@@ -384,7 +464,7 @@ function SkillsPreview({ skills }: { skills: string[] }) {
             fontFamily: "inherit",
           }}
         >
-          {expanded ? "voir moins" : `voir plus (+${hidden})`}
+          {expanded ? t.seeLess : t.seeMore(hidden)}
         </button>
       )}
     </p>
@@ -403,6 +483,8 @@ function Column({
   onEditLabel: (id: string, label: string) => void
   isMain: boolean
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{
       background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 12,
@@ -418,7 +500,7 @@ function Column({
       </div>
       {items.length === 0 ? (
         <p style={{ margin: 0, padding: "16px 6px", fontSize: 12, color: "#6B7280", textAlign: "center", fontStyle: "italic" }}>
-          {isMain ? "Aucun critère principal" : "Aucun bonus"}
+          {isMain ? t.noMainCriteria : t.noBonus}
         </p>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -436,7 +518,7 @@ function Column({
                     type="text"
                     value={c.label}
                     onChange={(e) => onEditLabel(c.id, e.target.value)}
-                    placeholder="Décrivez le critère (ex : a déjà managé une équipe)"
+                    placeholder={t.customPlaceholder}
                     style={{
                       width: "100%", boxSizing: "border-box",
                       fontSize: 12.5, fontWeight: 600, color: "#111827",
@@ -447,11 +529,11 @@ function Column({
                   />
                 ) : (
                   <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {shortCriterionLabel(c)}
+                    {shortCriterionLabel(c, lang)}
                   </p>
                 )}
                 <p style={{ margin: "2px 0 0", fontSize: 10.5, color: "#6B7280" }}>
-                  {typeLabel(c.type)}{c.source === "manual" && " · ajouté"}
+                  {typeLabel(c.type, lang)}{c.source === "manual" && t.addedSuffix}
                 </p>
                 {/* Skills : liste des compétences rattachées (grisées), repliée
                     par défaut avec "voir plus" pour ne pas casser l'UI. */}
@@ -466,7 +548,7 @@ function Column({
               <button
                 type="button"
                 onClick={() => onToggleWeight(c.id)}
-                title={isMain ? "Rétrograder en bonus" : "Promouvoir en principal"}
+                title={isMain ? t.demoteToBonus : t.promoteToMain}
                 style={{
                   fontSize: 10.5, fontWeight: 700, color: "#6B7280",
                   background: "transparent", border: "1px solid #E5E7EB",
@@ -474,12 +556,12 @@ function Column({
                   cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
                 }}
               >
-                {isMain ? "↓ bonus" : "↑ principal"}
+                {isMain ? t.toBonus : t.toMain}
               </button>
               <button
                 type="button"
                 onClick={() => onRemove(c.id)}
-                title="Retirer"
+                title={t.remove}
                 style={{
                   fontSize: 14, color: "#6B7280",
                   background: "transparent", border: "none",
