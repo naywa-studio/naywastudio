@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useState } from "react"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 interface QuotaResponse {
   cv: { used: number; limit: number }
@@ -24,6 +25,53 @@ interface QuotaResponse {
 }
 
 const REFRESH_MS = 60_000
+
+const copy = {
+  fr: {
+    talentPool: "Vivier",
+    unlimitedShort: " CV · illimité",
+    viewCapacityDetail: "Voir le détail de votre capacité vivier",
+    capacityTitle: "Capacité du vivier",
+    importedCvs: "CV importés",
+    unlimited: "illimité",
+    viewDetail: "Voir détail",
+    unlimitedMatching: "Matchings et anonymisations illimités",
+    unlimitedCapacity: " CV · capacité illimitée",
+    adminUnlimitedBody: (
+      <>Compte administrateur Naywa — capacité illimitée. Les matchings et
+      anonymisations sont eux aussi <strong>illimités</strong>.</>
+    ),
+    remainingBody: (remaining: string) => (
+      <>Il vous reste <strong>{remaining} CV</strong> à importer. Supprimer d&apos;anciens
+      CV libère de la capacité. Les matchings et anonymisations sont <strong>illimités</strong>.</>
+    ),
+    needMore: "Besoin de plus de place ?",
+    needMoreBody: " Contactez-nous via le bouton support dans le header — nous augmentons votre capacité sur mesure.",
+    close: "Fermer",
+  },
+  en: {
+    talentPool: "Talent pool",
+    unlimitedShort: " CVs · unlimited",
+    viewCapacityDetail: "See your talent pool capacity in detail",
+    capacityTitle: "Talent pool capacity",
+    importedCvs: "Imported CVs",
+    unlimited: "unlimited",
+    viewDetail: "View detail",
+    unlimitedMatching: "Unlimited matching and anonymization",
+    unlimitedCapacity: " CVs · unlimited capacity",
+    adminUnlimitedBody: (
+      <>Naywa admin account — unlimited capacity. Matching and
+      anonymization are also <strong>unlimited</strong>.</>
+    ),
+    remainingBody: (remaining: string) => (
+      <>You have <strong>{remaining} CVs</strong> left to import. Deleting old
+      CVs frees up capacity. Matching and anonymization are <strong>unlimited</strong>.</>
+    ),
+    needMore: "Need more room?",
+    needMoreBody: " Contact us via the support button in the header — we'll scale your capacity up.",
+    close: "Close",
+  },
+}
 
 function pct(used: number, limit: number): number {
   if (limit <= 0) return 0
@@ -57,6 +105,8 @@ export function QuotaGauges({
   variant = "card",
   compact = false,
 }: { variant?: "card" | "inline"; compact?: boolean }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const data = useQuota()
   const [detailOpen, setDetailOpen] = useState(false)
 
@@ -69,8 +119,9 @@ export function QuotaGauges({
   const isUnlimited = data.plan.source === "admin"
   const p = isUnlimited ? 0 : pct(used, limit)
   const color = colorFor(p)
-  const usedFmt = used.toLocaleString("fr-FR")
-  const limitFmt = limit.toLocaleString("fr-FR")
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
+  const usedFmt = used.toLocaleString(locale)
+  const limitFmt = limit.toLocaleString(locale)
 
   if (variant === "inline") {
     return (
@@ -84,10 +135,10 @@ export function QuotaGauges({
             border: "1px solid #F0ECF8", background: "white",
             cursor: "pointer", fontFamily: "inherit",
           }}
-          title="Voir le détail de votre capacité vivier"
+          title={t.viewCapacityDetail}
         >
           <span style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", whiteSpace: "nowrap" }}>
-            Vivier
+            {t.talentPool}
           </span>
           {!isUnlimited && (
             <span style={{
@@ -103,7 +154,7 @@ export function QuotaGauges({
           <span style={{ fontSize: 12.5, fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
             {usedFmt}
             <span style={{ color: "#6B7280", fontWeight: 500 }}>
-              {isUnlimited ? " CV · illimité" : ` / ${limitFmt} CV`}
+              {isUnlimited ? t.unlimitedShort : ` / ${limitFmt} CV`}
             </span>
           </span>
         </button>
@@ -122,7 +173,7 @@ export function QuotaGauges({
     }}>
       <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
         <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#111827", letterSpacing: "-0.005em" }}>
-          Capacité du vivier
+          {t.capacityTitle}
         </h3>
         <span style={{
           fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
@@ -134,9 +185,9 @@ export function QuotaGauges({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: "#4B5563" }}>CV importés</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: "#4B5563" }}>{t.importedCvs}</span>
           <span style={{ fontSize: 13.5, fontWeight: 800, color }}>
-            {isUnlimited ? "illimité" : `${p}%`}
+            {isUnlimited ? t.unlimited : `${p}%`}
           </span>
         </div>
         {!isUnlimited && (
@@ -161,7 +212,7 @@ export function QuotaGauges({
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
-            Voir détail
+            {t.viewDetail}
           </button>
         </div>
       </div>
@@ -174,7 +225,7 @@ export function QuotaGauges({
           strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M20 6 9 17l-5-5" />
         </svg>
-        Matchings et anonymisations illimités
+        {t.unlimitedMatching}
       </p>
 
       {detailOpen && (
@@ -191,6 +242,8 @@ function DetailModal({
   plan: { source: string; label: string }
   onClose: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
     window.addEventListener("keydown", onKey)
@@ -198,9 +251,10 @@ function DetailModal({
   }, [onClose])
 
   const isUnlimited = plan.source === "admin"
-  const usedFmt = used.toLocaleString("fr-FR")
-  const limitFmt = limit.toLocaleString("fr-FR")
-  const remaining = Math.max(0, limit - used).toLocaleString("fr-FR")
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
+  const usedFmt = used.toLocaleString(locale)
+  const limitFmt = limit.toLocaleString(locale)
+  const remaining = Math.max(0, limit - used).toLocaleString(locale)
 
   return (
     <div
@@ -222,7 +276,7 @@ function DetailModal({
         <h2 style={{
           margin: "0 0 6px", fontSize: 18, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em",
         }}>
-          Capacité du vivier
+          {t.capacityTitle}
         </h2>
         <p style={{
           margin: "0 0 18px", fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
@@ -234,17 +288,11 @@ function DetailModal({
         <div style={{ padding: "14px 16px", borderRadius: 12, background: "#F8F6FF", marginBottom: 16 }}>
           <div style={{ fontSize: 26, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
             {usedFmt}<span style={{ fontSize: 14, fontWeight: 500, color: "#6B7280" }}>
-              {isUnlimited ? " CV · capacité illimitée" : ` / ${limitFmt} CV`}
+              {isUnlimited ? t.unlimitedCapacity : ` / ${limitFmt} CV`}
             </span>
           </div>
           <div style={{ marginTop: 6, fontSize: 12.5, color: "#6B7280" }}>
-            {isUnlimited ? (
-              <>Compte administrateur Naywa — capacité illimitée. Les matchings et
-              anonymisations sont eux aussi <strong>illimités</strong>.</>
-            ) : (
-              <>Il vous reste <strong>{remaining} CV</strong> à importer. Supprimer d&apos;anciens
-              CV libère de la capacité. Les matchings et anonymisations sont <strong>illimités</strong>.</>
-            )}
+            {isUnlimited ? t.adminUnlimitedBody : t.remainingBody(remaining)}
           </div>
         </div>
 
@@ -253,8 +301,7 @@ function DetailModal({
             padding: "12px 14px", borderRadius: 10, background: "#FEFCE8",
             border: "1px solid #FDE68A", fontSize: 12.5, color: "#854D0E", lineHeight: 1.55,
           }}>
-            <strong>Besoin de plus de place ?</strong> Contactez-nous via le bouton
-            support dans le header — nous augmentons votre capacité sur mesure.
+            <strong>{t.needMore}</strong>{t.needMoreBody}
           </div>
         )}
 
@@ -269,7 +316,7 @@ function DetailModal({
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
-            Fermer
+            {t.close}
           </button>
         </div>
       </div>
