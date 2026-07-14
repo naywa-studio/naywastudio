@@ -17,10 +17,73 @@ import { useState } from "react"
 import {
   CUSTOM_TEXT_MAX,
   TEMPLATE_META,
+  TEMPLATE_META_EN,
   type AnonymizeOptions,
   type AnonymizeStatus,
   type AnonymizeTemplate,
 } from "./types"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    title: "🔒 CV anonymisé",
+    availableOnceParsed: "Disponible une fois le CV parsé.",
+    withJob: (jobTitle: string) => (
+      <>Générez un PDF présentable au client, orienté pour la mission <strong style={{ color: "#111827" }}>{jobTitle}</strong>. Identité retirée.</>
+    ),
+    noJobSelected: "Aucune mission sélectionnée — le PDF sera générique.",
+    customize: "Personnaliser",
+    noJobTitle: "Aucune mission sélectionnée",
+    generating: "Génération…",
+    regenerate: "Régénérer pour cette mission",
+    generate: "Anonymiser pour cette mission",
+    viewPdfTitle: "Aller à l'aperçu du PDF en bas de page",
+    viewPdf: "Voir le PDF ↓",
+    downloadPdf: "Télécharger PDF",
+    docxTitle: "Version .docx éditable dans Word",
+    docxGenerating: "Génération .docx…",
+    template: "Template",
+    keepNoraSummary: "Garder le résumé Nora",
+    keepNoraSummaryHint: "2-3 phrases factuelles orientées mission, générées automatiquement.",
+    watermark: "Filigrane diagonal",
+    watermarkHint: "Le nom de votre organisation en filigrane sur toutes les pages.",
+    customMessage: "Message personnalisé",
+    optional: "(optionnel)",
+    customMessagePlaceholder: "Ajoutez un message rédigé sous votre angle (positionnement candidat, contexte mission, etc.). S'affichera sous le résumé Nora, ou seul si vous décochez « Garder le résumé Nora ».",
+    customMessageHint: "S'intègre sous le résumé (ou le remplace si décoché).",
+    docxFailed: (status: number) => `Échec génération .docx (${status})`,
+    networkError: "Erreur réseau.",
+  },
+  en: {
+    title: "🔒 Anonymized CV",
+    availableOnceParsed: "Available once the CV is parsed.",
+    withJob: (jobTitle: string) => (
+      <>Generate a client-ready PDF, tailored for the mission <strong style={{ color: "#111827" }}>{jobTitle}</strong>. Identity removed.</>
+    ),
+    noJobSelected: "No mission selected — the PDF will be generic.",
+    customize: "Customize",
+    noJobTitle: "No mission selected",
+    generating: "Generating…",
+    regenerate: "Regenerate for this mission",
+    generate: "Anonymize for this mission",
+    viewPdfTitle: "Go to the PDF preview at the bottom of the page",
+    viewPdf: "View PDF ↓",
+    downloadPdf: "Download PDF",
+    docxTitle: "Editable .docx version for Word",
+    docxGenerating: "Generating .docx…",
+    template: "Template",
+    keepNoraSummary: "Keep Nora's summary",
+    keepNoraSummaryHint: "2-3 factual, mission-oriented sentences, generated automatically.",
+    watermark: "Diagonal watermark",
+    watermarkHint: "Your organization's name watermarked on every page.",
+    customMessage: "Custom message",
+    optional: "(optional)",
+    customMessagePlaceholder: "Add a message written from your angle (candidate positioning, mission context, etc.). Shows under Nora's summary, or alone if you uncheck « Keep Nora's summary ».",
+    customMessageHint: "Shows under the summary (or replaces it if unchecked).",
+    docxFailed: (status: number) => `.docx generation failed (${status})`,
+    networkError: "Network error.",
+  },
+}
 
 /**
  * Mini-preview SVG illustrant le layout d'un template, dans le
@@ -152,6 +215,9 @@ export function AnonymizeControls({
   /** Scroll vers la section AnonymizePreview en bas de la fiche match. */
   onScrollToPreview: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const templateMeta = lang === "fr" ? TEMPLATE_META : TEMPLATE_META_EN
   const [docxBusy, setDocxBusy] = useState(false)
   const [docxError, setDocxError] = useState<string | null>(null)
 
@@ -178,7 +244,7 @@ export function AnonymizeControls({
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({} as { message?: string }))
-        setDocxError(data.message ?? `Échec génération .docx (${res.status})`)
+        setDocxError(data.message ?? t.docxFailed(res.status))
         setDocxBusy(false)
         return
       }
@@ -194,7 +260,7 @@ export function AnonymizeControls({
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err) {
-      setDocxError((err as Error).message ?? "Erreur réseau.")
+      setDocxError((err as Error).message ?? t.networkError)
     } finally {
       setDocxBusy(false)
     }
@@ -231,14 +297,14 @@ export function AnonymizeControls({
             margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#6B7280",
             letterSpacing: "0.08em", textTransform: "uppercase",
           }}>
-            🔒 CV anonymisé
+            {t.title}
           </h2>
           <p style={{ margin: 0, fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
             {!candidateParsed
-              ? "Disponible une fois le CV parsé."
+              ? t.availableOnceParsed
               : hasJob
-                ? <>Générez un PDF présentable au client, orienté pour la mission <strong style={{ color: "#111827" }}>{jobTitle}</strong>. Identité retirée.</>
-                : "Aucune mission sélectionnée — le PDF sera générique."}
+                ? t.withJob(jobTitle ?? "")
+                : t.noJobSelected}
           </p>
           {status.error && (
             <p style={{ margin: "8px 0 0", fontSize: 12, color: "#B91C1C" }}>
@@ -262,7 +328,7 @@ export function AnonymizeControls({
               whiteSpace: "nowrap",
             }}
           >
-            <span>Personnaliser</span>
+            <span>{t.customize}</span>
             {hasOverrides && (
               <span aria-hidden style={{
                 display: "inline-block", width: 7, height: 7, borderRadius: "50%",
@@ -276,7 +342,7 @@ export function AnonymizeControls({
             type="button"
             onClick={() => void onGenerate()}
             disabled={disabled}
-            title={!hasJob ? "Aucune mission sélectionnée" : undefined}
+            title={!hasJob ? t.noJobTitle : undefined}
             style={{
               fontSize: 13, fontWeight: 700,
               color: disabled ? "#6B7280" : "white",
@@ -293,10 +359,10 @@ export function AnonymizeControls({
             }}
           >
             {status.state === "working"
-              ? "Génération…"
+              ? t.generating
               : status.state === "ready"
-                ? "Régénérer pour cette mission"
-                : "Anonymiser pour cette mission"}
+                ? t.regenerate
+                : t.generate}
           </button>
 
           {status.state === "ready" && status.previewUrl && (
@@ -311,9 +377,9 @@ export function AnonymizeControls({
                 display: "inline-flex", alignItems: "center", gap: 6,
                 whiteSpace: "nowrap",
               }}
-              title="Aller à l'aperçu du PDF en bas de page"
+              title={t.viewPdfTitle}
             >
-              Voir le PDF ↓
+              {t.viewPdf}
             </button>
           )}
 
@@ -329,7 +395,7 @@ export function AnonymizeControls({
                 whiteSpace: "nowrap",
               }}
             >
-              Télécharger PDF
+              {t.downloadPdf}
             </a>
           )}
 
@@ -339,7 +405,7 @@ export function AnonymizeControls({
             type="button"
             onClick={() => void downloadDocx()}
             disabled={!candidateParsed || docxBusy}
-            title="Version .docx éditable dans Word"
+            title={t.docxTitle}
             style={{
               fontSize: 12, fontWeight: 600, color: "#6B7280",
               background: "transparent", border: "none",
@@ -349,7 +415,7 @@ export function AnonymizeControls({
               whiteSpace: "nowrap",
             }}
           >
-            {docxBusy ? "Génération .docx…" : ".docx"}
+            {docxBusy ? t.docxGenerating : ".docx"}
           </button>
         </div>
       </div>
@@ -380,11 +446,11 @@ export function AnonymizeControls({
               display: "block", fontSize: 12.5, fontWeight: 600,
               color: "#374151", marginBottom: 8,
             }}>
-              Template
+              {t.template}
             </span>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
               {(Object.keys(TEMPLATE_META) as AnonymizeTemplate[]).map((tpl) => {
-                const meta = TEMPLATE_META[tpl]
+                const meta = templateMeta[tpl]
                 const active = options.template === tpl
                 return (
                   <button
@@ -433,10 +499,10 @@ export function AnonymizeControls({
             />
             <span style={{ minWidth: 0, flex: 1 }}>
               <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                Garder le résumé Nora
+                {t.keepNoraSummary}
               </span>
               <span style={{ display: "block", fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
-                2-3 phrases factuelles orientées mission, générées automatiquement.
+                {t.keepNoraSummaryHint}
               </span>
             </span>
           </label>
@@ -455,10 +521,10 @@ export function AnonymizeControls({
             />
             <span style={{ minWidth: 0, flex: 1 }}>
               <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                Filigrane diagonal
+                {t.watermark}
               </span>
               <span style={{ display: "block", fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
-                Le nom de votre organisation en filigrane sur toutes les pages.
+                {t.watermarkHint}
               </span>
             </span>
           </label>
@@ -466,12 +532,12 @@ export function AnonymizeControls({
           {/* Textarea message custom */}
           <div style={{ gridColumn: "1 / -1" }}>
             <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
-              Message personnalisé <span style={{ color: "#6B7280", fontWeight: 400 }}>(optionnel)</span>
+              {t.customMessage} <span style={{ color: "#6B7280", fontWeight: 400 }}>{t.optional}</span>
             </label>
             <textarea
               value={options.customText}
               onChange={(e) => setOption("customText", e.target.value.slice(0, CUSTOM_TEXT_MAX))}
-              placeholder="Ajoutez un message rédigé sous votre angle (positionnement candidat, contexte mission, etc.). S'affichera sous le résumé Nora, ou seul si vous décochez « Garder le résumé Nora »."
+              placeholder={t.customMessagePlaceholder}
               rows={4}
               maxLength={CUSTOM_TEXT_MAX}
               style={{
@@ -490,7 +556,7 @@ export function AnonymizeControls({
               }}
             />
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "#6B7280" }}>
-              <span>S&apos;intègre sous le résumé (ou le remplace si décoché).</span>
+              <span>{t.customMessageHint}</span>
               <span>{options.customText.length}/{CUSTOM_TEXT_MAX}</span>
             </div>
           </div>

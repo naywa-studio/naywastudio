@@ -2,6 +2,60 @@
 
 import { useState } from "react"
 import type { Candidate, OutreachMeta } from "@/lib/database.types"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const uiCopy = {
+  fr: {
+    email: "Email",
+    linkedin: "LinkedIn",
+    forLabel: (jobTitle: string) => `Pour : ${jobTitle}`,
+    instructionPlaceholder: "Consigne optionnelle — ex : insiste sur le télétravail, ton très direct…",
+    composing: "Nora rédige…",
+    regenerate: "Régénérer (version alternative)",
+    draftWithNora: "Rédiger avec Nora",
+    subjectPlaceholder: "Objet de l'email",
+    critiqueRunning: "✦ Nora relit…",
+    critiquePrompt: "✦ Une révision Nora ?",
+    noraApproves: "Nora approuve",
+    noraSuggests: "Nora suggère",
+    hide: "Masquer",
+    readyToSend: "Le message est prêt à être envoyé.",
+    critiqueRunning2: "Relecture…",
+    reReview: "Relire à nouveau",
+    copied: "✓ Copié",
+    copyBtn: "Copier",
+    footerHint: "Copiez le message et envoyez-le depuis votre outil habituel (Gmail, LinkedIn, etc.).",
+    subjectPrefix: "Objet",
+    generateFailed: "Échec de la génération.",
+    networkError: "Erreur réseau.",
+    critiqueFailed: "Nora n'a pas pu relire le message.",
+  },
+  en: {
+    email: "Email",
+    linkedin: "LinkedIn",
+    forLabel: (jobTitle: string) => `For: ${jobTitle}`,
+    instructionPlaceholder: "Optional instruction — e.g.: emphasize remote work, very direct tone…",
+    composing: "Nora is writing…",
+    regenerate: "Regenerate (alternative version)",
+    draftWithNora: "Draft with Nora",
+    subjectPlaceholder: "Email subject",
+    critiqueRunning: "✦ Nora is reviewing…",
+    critiquePrompt: "✦ Have Nora review it?",
+    noraApproves: "Nora approves",
+    noraSuggests: "Nora suggests",
+    hide: "Hide",
+    readyToSend: "The message is ready to send.",
+    critiqueRunning2: "Reviewing…",
+    reReview: "Review again",
+    copied: "✓ Copied",
+    copyBtn: "Copy",
+    footerHint: "Copy the message and send it from your usual tool (Gmail, LinkedIn, etc.).",
+    subjectPrefix: "Subject",
+    generateFailed: "Generation failed.",
+    networkError: "Network error.",
+    critiqueFailed: "Nora couldn't review the message.",
+  },
+}
 
 /**
  * ComposeBox — outreach draft editor.
@@ -25,6 +79,8 @@ export default function ComposeBox({
   /** Hide the "Pour : <job>" pill when the surrounding UI already shows it. */
   showJobBadge?: boolean
 }) {
+  const { lang } = useLanguage()
+  const t = uiCopy[lang]
   const existing = candidate.outreach_meta as OutreachMeta | null
   const [channel, setChannel] = useState<"email" | "linkedin">(existing?.channel ?? "email")
   const [instruction, setInstruction] = useState(existing?.instruction ?? "")
@@ -60,7 +116,7 @@ export default function ComposeBox({
       })
       const data = await res.json()
       if (!res.ok || !data.ok) {
-        setError(data?.message ?? data?.error ?? "Échec de la génération.")
+        setError(data?.message ?? data?.error ?? t.generateFailed)
         return
       }
       setSubject(data.subject ?? "")
@@ -69,7 +125,7 @@ export default function ComposeBox({
       setAiBody(data.body ?? "")
       setCritique(null)
     } catch (err) {
-      setError((err as Error).message ?? "Erreur réseau.")
+      setError((err as Error).message ?? t.networkError)
     } finally {
       setComposing(false)
     }
@@ -86,19 +142,19 @@ export default function ComposeBox({
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) {
-        setError(data?.message ?? data?.error ?? "Nora n'a pas pu relire le message.")
+        setError(data?.message ?? data?.error ?? t.critiqueFailed)
       } else {
         setCritique({ verdict: data.verdict, flags: data.flags ?? [] })
       }
     } catch (err) {
-      setError((err as Error).message ?? "Erreur réseau.")
+      setError((err as Error).message ?? t.networkError)
     } finally {
       setCritiqueState("idle")
     }
   }
 
-  const copy = async () => {
-    const text = channel === "email" && subject ? `Objet : ${subject}\n\n${bodyText}` : bodyText
+  const copyToClipboard = async () => {
+    const text = channel === "email" && subject ? `${t.subjectPrefix} : ${subject}\n\n${bodyText}` : bodyText
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
@@ -121,7 +177,7 @@ export default function ComposeBox({
                 color: channel === ch ? "white" : "#6B7280",
               }}
             >
-              {ch === "email" ? "Email" : "LinkedIn"}
+              {ch === "email" ? t.email : t.linkedin}
             </button>
           ))}
         </div>
@@ -132,7 +188,7 @@ export default function ComposeBox({
             border: "1px solid rgba(124,99,200,0.16)",
             borderRadius: 100, padding: "3px 10px",
           }}>
-            Pour : {jobTitle}
+            {t.forLabel(jobTitle)}
           </span>
         )}
       </div>
@@ -140,7 +196,7 @@ export default function ComposeBox({
       <input
         value={instruction}
         onChange={(e) => setInstruction(e.target.value)}
-        placeholder="Consigne optionnelle — ex : insiste sur le télétravail, ton très direct…"
+        placeholder={t.instructionPlaceholder}
         style={{
           width: "100%", boxSizing: "border-box",
           fontSize: 12.5, color: "#111827", padding: "8px 11px",
@@ -156,11 +212,11 @@ export default function ComposeBox({
           color: "white", fontSize: 12.5, fontWeight: 700,
           cursor: composing ? "default" : "pointer", fontFamily: "inherit",
         }}>
-          {composing ? "Nora rédige…" : hasDraft ? "Régénérer (version alternative)" : "Rédiger avec Nora"}
+          {composing ? t.composing : hasDraft ? t.regenerate : t.draftWithNora}
         </button>
         {existing?.generated_at && !composing && (
           <span style={{ fontSize: 11, color: "#6B7280" }}>
-            {new Date(existing.generated_at).toLocaleDateString("fr-FR")}
+            {new Date(existing.generated_at).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US")}
           </span>
         )}
       </div>
@@ -178,7 +234,7 @@ export default function ComposeBox({
             <input
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Objet de l'email"
+              placeholder={t.subjectPlaceholder}
               style={{
                 width: "100%", boxSizing: "border-box",
                 fontSize: 13, fontWeight: 600, color: "#111827", padding: "9px 12px",
@@ -213,7 +269,7 @@ export default function ComposeBox({
                 boxShadow: "0 2px 6px rgba(252,211,77,0.25)",
               }}
             >
-              {critiqueState === "running" ? "✦ Nora relit…" : "✦ Une révision Nora ?"}
+              {critiqueState === "running" ? t.critiqueRunning : t.critiquePrompt}
             </button>
           )}
           {critique && (
@@ -229,18 +285,18 @@ export default function ComposeBox({
                   color: critique.verdict === "ok" ? "#15803d" : "#92400E",
                   letterSpacing: "0.04em", textTransform: "uppercase",
                 }}>
-                  ✦ {critique.verdict === "ok" ? "Nora approuve" : "Nora suggère"}
+                  ✦ {critique.verdict === "ok" ? t.noraApproves : t.noraSuggests}
                 </span>
                 <button onClick={() => setCritique(null)} style={{
                   marginLeft: "auto", fontSize: 11, color: "#6B7280",
                   background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit",
                 }}>
-                  Masquer
+                  {t.hide}
                 </button>
               </div>
               {critique.verdict === "ok" && critique.flags.length === 0 ? (
                 <p style={{ margin: 0, fontSize: 12.5, color: "#374151" }}>
-                  Le message est prêt à être envoyé.
+                  {t.readyToSend}
                 </p>
               ) : (
                 <ul style={{ margin: 0, padding: "0 0 0 16px", display: "flex", flexDirection: "column", gap: 3 }}>
@@ -258,26 +314,25 @@ export default function ComposeBox({
                   fontSize: 11.5, fontWeight: 700, color: "#7C63C8",
                   cursor: critiqueState === "running" ? "default" : "pointer", fontFamily: "inherit",
                 }}>
-                  {critiqueState === "running" ? "Relecture…" : "Relire à nouveau"}
+                  {critiqueState === "running" ? t.critiqueRunning2 : t.reReview}
                 </button>
               )}
             </div>
           )}
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <button onClick={copy} style={{
+            <button onClick={copyToClipboard} style={{
               padding: "7px 12px", borderRadius: 9,
               background: copied ? "rgba(34,197,94,0.10)" : "white",
               border: `1px solid ${copied ? "rgba(34,197,94,0.3)" : "#E5E7EB"}`,
               color: copied ? "#15803d" : "#374151",
               fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
             }}>
-              {copied ? "✓ Copié" : "Copier"}
+              {copied ? t.copied : t.copyBtn}
             </button>
           </div>
           <span style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.5 }}>
-            Copiez le message et envoyez-le depuis votre outil habituel
-            (Gmail, LinkedIn, etc.).
+            {t.footerHint}
           </span>
         </div>
       )}

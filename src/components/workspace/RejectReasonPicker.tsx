@@ -11,9 +11,33 @@
 
 import { useState } from "react"
 import { m, AnimatePresence } from "framer-motion"
-import { REJECT_REASON_OPTIONS, type RejectReason } from "@/lib/reject-reasons"
+import { REJECT_REASON_OPTIONS_BY_LANG, type RejectReason } from "@/lib/reject-reasons"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
+const copy = {
+  fr: {
+    dialogLabel: "Raison de l'écart",
+    eyebrow: "Écarter du sourcing",
+    title: (name: string) => `Pourquoi écartez-vous ${name} ?`,
+    body: "Indiquez la raison principale. Cela aide à mesurer la qualité du sourcing et calibrer les prochaines vagues.",
+    otherPlaceholder: "Précisez la raison (optionnel, 280 caractères max)",
+    noReason: "Sans préciser",
+    cancel: "Annuler",
+    confirm: "Confirmer l'écart",
+  },
+  en: {
+    dialogLabel: "Rejection reason",
+    eyebrow: "Reject from sourcing",
+    title: (name: string) => `Why are you rejecting ${name}?`,
+    body: "Pick the main reason. It helps measure sourcing quality and calibrate the next rounds.",
+    otherPlaceholder: "Specify the reason (optional, 280 characters max)",
+    noReason: "Skip",
+    cancel: "Cancel",
+    confirm: "Confirm rejection",
+  },
+}
 
 export default function RejectReasonPicker({
   open, candidateName, onConfirm, onCancel,
@@ -25,6 +49,9 @@ export default function RejectReasonPicker({
   onConfirm: (reason: RejectReason | null, note: string | null) => void
   onCancel: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const options = REJECT_REASON_OPTIONS_BY_LANG[lang]
   const [reason, setReason] = useState<RejectReason | null>(null)
   const [note, setNote] = useState("")
 
@@ -68,7 +95,7 @@ export default function RejectReasonPicker({
             transition={{ duration: 0.22, ease: EASE }}
             role="dialog"
             aria-modal="true"
-            aria-label="Raison de l'écart"
+            aria-label={t.dialogLabel}
             style={{
               background: "white",
               border: "1px solid #E9E2F7",
@@ -84,23 +111,23 @@ export default function RejectReasonPicker({
               margin: 0, fontSize: 10.5, fontWeight: 700, color: "#6B7280",
               letterSpacing: "0.08em", textTransform: "uppercase",
             }}>
-              Écarter du sourcing
+              {t.eyebrow}
             </p>
             <h3 style={{
               margin: "4px 0 4px", fontSize: 15, fontWeight: 800, color: "#111827",
               letterSpacing: "-0.01em",
             }}>
-              Pourquoi écartez-vous {candidateName} ?
+              {t.title(candidateName)}
             </h3>
             <p style={{
               margin: "0 0 14px", fontSize: 12, color: "#6B7280", lineHeight: 1.55,
             }}>
-              Indiquez la raison principale. Cela aide à mesurer la qualité du sourcing et calibrer les prochaines vagues.
+              {t.body}
             </p>
 
             {/* Options */}
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {REJECT_REASON_OPTIONS.map((opt) => {
+              {options.map((opt) => {
                 const active = reason === opt.value
                 return (
                   <button
@@ -130,7 +157,7 @@ export default function RejectReasonPicker({
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value.slice(0, 280))}
-                  placeholder="Précisez la raison (optionnel, 280 caractères max)"
+                  placeholder={t.otherPlaceholder}
                   rows={3}
                   style={{
                     marginTop: 10, width: "100%", padding: "9px 12px",
@@ -158,7 +185,7 @@ export default function RejectReasonPicker({
                   padding: "6px 0", textDecoration: "underline",
                 }}
               >
-                Sans préciser
+                {t.noReason}
               </button>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
@@ -169,7 +196,7 @@ export default function RejectReasonPicker({
                     borderRadius: 9, padding: "8px 14px", cursor: "pointer",
                   }}
                 >
-                  Annuler
+                  {t.cancel}
                 </button>
                 <button
                   onClick={() => submit(reason)}
@@ -184,7 +211,7 @@ export default function RejectReasonPicker({
                     cursor: reason ? "pointer" : "not-allowed",
                   }}
                 >
-                  Confirmer l&apos;écart
+                  {t.confirm}
                 </button>
               </div>
             </div>

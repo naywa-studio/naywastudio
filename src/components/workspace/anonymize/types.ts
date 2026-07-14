@@ -99,4 +99,25 @@ export const TEMPLATE_META: Record<AnonymizeTemplate, { label: string; hint: str
   },
 }
 
+/** UI selector only (labels/hints for the "Personnaliser" panel) — the
+ *  generated PDF content stays French by design regardless of language. */
+export const TEMPLATE_META_EN: Record<AnonymizeTemplate, { label: string; hint: string }> = {
+  "classic": {
+    label: "Classic",
+    hint: "Sober, single-column, linear layout.",
+  },
+  "two-column": {
+    label: "Compact 2-column",
+    hint: "Skills sidebar + experience on the main side.",
+  },
+  "executive": {
+    label: "Executive",
+    hint: "Airy, big headline, few chips. Senior profiles.",
+  },
+  "bento": {
+    label: "Bento",
+    hint: "Modern card grid. For visually-minded clients.",
+  },
+}
+
 export const CUSTOM_TEXT_MAX = 600

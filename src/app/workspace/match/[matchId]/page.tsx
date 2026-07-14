@@ -21,13 +21,133 @@ import CandidateMiniKanban from "@/components/workspace/CandidateMiniKanban"
 import Select from "@/components/ui/Select"
 import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { candidateRefLabel } from "@/lib/candidate-ref"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    chooseMission: "Choisir la mission",
+    viewPricing: "€ Voir le pricing",
+    ref: "Ref",
+    tierMeta: {
+      excellent: { label: "Excellent match", fg: "#15803d", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
+      good:      { label: "Bon match",       fg: "#7C63C8", bg: "rgba(124,99,200,0.07)", bd: "rgba(124,99,200,0.22)" },
+      fair:      { label: "Match moyen",     fg: "#B45309", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
+      poor:      { label: "Match faible",    fg: "#6B7280", bg: "#F9FAFB", bd: "#E5E7EB" },
+    } as Record<MatchTier, { label: string; fg: string; bg: string; bd: string }>,
+    scoreDimLabels: {
+      skills_match: "Skills", seniority_fit: "Séniorité", location_fit: "Lieu",
+      experience_fit: "Expérience", language_fit: "Langue",
+    } as Record<keyof ScoreDimensions, string>,
+    loadingMatch: "Chargement du match",
+    matchNotFound: "Match introuvable.",
+    backToPipeline: "← Retour au pipeline",
+    missionPrefix: (title: string) => `← Mission : ${title}`,
+    pipelineArrow: "Pipeline →",
+    noNameCandidate: "Candidat sans nom",
+    forSuffix: " — pour ",
+    noMission: "Sans mission",
+    manual: "manuel",
+    removeFromPipeline: "Retirer de la pipeline",
+    followInPipeline: "Suivre ce candidat dans la pipeline",
+    inPipeline: "✓ Dans le pipeline",
+    addToPipeline: "+ Ajouter à la pipeline",
+    manuallyAssigned: "Assigné manuellement",
+    candidateSheet: "Fiche candidat →",
+    criteriaTitle: "✦ Critères de cette mission",
+    mainLabel: "Principaux",
+    bonusLabel: "Bonus",
+    manualAssignmentTitle: "✋ Assignation manuelle",
+    manualAssignmentBody: "Ajouté par le sourceur en dehors du matching automatique.",
+    salaryExpectationTitle: "Prétention salariale",
+    salaryPlaceholder: "Ex : 45 000",
+    grossPerYear: (saving: boolean) => `€ brut / an${saving ? " · enregistrement…" : ""}`,
+    fillTargetSalary: "Renseignez le salaire cible du poste (dans la mission) pour activer la comparaison.",
+    targetSalaryOnly: (target: string) => (
+      <>Salaire cible du poste : <strong>{target} €</strong></>
+    ),
+    targetSalaryLabel: "Cible du poste : ",
+    aboveBudget: "Au-dessus du budget",
+    inBudget: "Dans le budget",
+    underBudget: "Sous le budget",
+    candidateSummaryTitle: "Résumé candidat",
+    yearsExp: (n: number) => `${n} an${n > 1 ? "s" : ""}`,
+    experienceSuffix: "d'expérience",
+    pathTitle: "Parcours",
+    present: "auj.",
+    approachMessageTitle: "✉ Message d'approche",
+    availableOnceParsed: "Disponible une fois le CV parsé.",
+    emptyServerResponse: (status: number) => `Réponse vide du serveur (${status}).`,
+    unreadableServerResponse: "Réponse serveur illisible.",
+    anonymizeFailed: "Échec de l'anonymisation.",
+    networkError: "Erreur réseau.",
+  },
+  en: {
+    chooseMission: "Choose the mission",
+    viewPricing: "€ View pricing",
+    ref: "Ref",
+    tierMeta: {
+      excellent: { label: "Excellent match", fg: "#15803d", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
+      good:      { label: "Good match",      fg: "#7C63C8", bg: "rgba(124,99,200,0.07)", bd: "rgba(124,99,200,0.22)" },
+      fair:      { label: "Fair match",      fg: "#B45309", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
+      poor:      { label: "Weak match",      fg: "#6B7280", bg: "#F9FAFB", bd: "#E5E7EB" },
+    } as Record<MatchTier, { label: string; fg: string; bg: string; bd: string }>,
+    scoreDimLabels: {
+      skills_match: "Skills", seniority_fit: "Seniority", location_fit: "Location",
+      experience_fit: "Experience", language_fit: "Language",
+    } as Record<keyof ScoreDimensions, string>,
+    loadingMatch: "Loading match",
+    matchNotFound: "Match not found.",
+    backToPipeline: "← Back to pipeline",
+    missionPrefix: (title: string) => `← Mission: ${title}`,
+    pipelineArrow: "Pipeline →",
+    noNameCandidate: "Unnamed candidate",
+    forSuffix: " — for ",
+    noMission: "No mission",
+    manual: "manual",
+    removeFromPipeline: "Remove from pipeline",
+    followInPipeline: "Track this candidate in the pipeline",
+    inPipeline: "✓ In the pipeline",
+    addToPipeline: "+ Add to pipeline",
+    manuallyAssigned: "Manually assigned",
+    candidateSheet: "Candidate profile →",
+    criteriaTitle: "✦ Criteria for this mission",
+    mainLabel: "Main",
+    bonusLabel: "Bonus",
+    manualAssignmentTitle: "✋ Manual assignment",
+    manualAssignmentBody: "Added by the sourcer outside of automatic matching.",
+    salaryExpectationTitle: "Salary expectation",
+    salaryPlaceholder: "E.g.: 45,000",
+    grossPerYear: (saving: boolean) => `€ gross / year${saving ? " · saving…" : ""}`,
+    fillTargetSalary: "Fill in the position's target salary (in the mission) to enable the comparison.",
+    targetSalaryOnly: (target: string) => (
+      <>Position's target salary: <strong>{target} €</strong></>
+    ),
+    targetSalaryLabel: "Position target: ",
+    aboveBudget: "Above budget",
+    inBudget: "Within budget",
+    underBudget: "Below budget",
+    candidateSummaryTitle: "Candidate summary",
+    yearsExp: (n: number) => `${n} year${n > 1 ? "s" : ""}`,
+    experienceSuffix: "of experience",
+    pathTitle: "Career path",
+    present: "present",
+    approachMessageTitle: "✉ Approach message",
+    availableOnceParsed: "Available once the CV is parsed.",
+    emptyServerResponse: (status: number) => `Empty response from server (${status}).`,
+    unreadableServerResponse: "Unreadable server response.",
+    anonymizeFailed: "Anonymization failed.",
+    networkError: "Network error.",
+  },
+}
 
 /* Bouton "Voir le pricing" — direct si 1 mission en pipeline, dropdown si N. */
-function PricingShortcut({ targets }: {
+function PricingShortcut({ targets, lang }: {
   targets: Array<{ job: { id: string; title: string } | null; score: number | null }>
+  lang: Lang
 }) {
+  const t = copy[lang]
   const [open, setOpen] = useState(false)
-  const withJob = targets.filter((t) => t.job?.id)
+  const withJob = targets.filter((tg) => tg.job?.id)
   if (withJob.length === 0) return null
 
   const btnStyle: React.CSSProperties = {
@@ -44,7 +164,7 @@ function PricingShortcut({ targets }: {
     const only = withJob[0]
     return (
       <Link href={`/workspace/pricing/${only.job!.id}`} style={btnStyle}>
-        € Voir le pricing
+        {t.viewPricing}
       </Link>
     )
   }
@@ -52,7 +172,7 @@ function PricingShortcut({ targets }: {
   return (
     <div style={{ position: "relative" }}>
       <button onClick={() => setOpen((v) => !v)} style={btnStyle}>
-        € Voir le pricing
+        {t.viewPricing}
         <span style={{ fontSize: 10 }}>▾</span>
       </button>
       {open && (
@@ -69,16 +189,16 @@ function PricingShortcut({ targets }: {
               letterSpacing: "0.05em", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
-              Choisir la mission
+              {t.chooseMission}
             </div>
-            {withJob.map((t) => (
-              <Link key={t.job!.id} href={`/workspace/pricing/${t.job!.id}`} style={{
+            {withJob.map((tg) => (
+              <Link key={tg.job!.id} href={`/workspace/pricing/${tg.job!.id}`} style={{
                 display: "block", fontSize: 12.5, color: "#374151", fontWeight: 600,
                 padding: "8px 10px", borderRadius: 7, textDecoration: "none",
               }}>
-                {t.job!.title}
-                {t.score != null && (
-                  <span style={{ marginLeft: 6, fontSize: 11, color: "#6B7280" }}>· {t.score}</span>
+                {tg.job!.title}
+                {tg.score != null && (
+                  <span style={{ marginLeft: 6, fontSize: 11, color: "#6B7280" }}>· {tg.score}</span>
                 )}
               </Link>
             ))}
@@ -92,7 +212,8 @@ function PricingShortcut({ targets }: {
 /* Réf candidat — même valeur que celle imprimée dans le PDF anonymisé.
  * Permet au sourceur de retrouver instantanément qui est derrière une ref
  * quand le client en mentionne une au téléphone. */
-function RefBadge({ candidateId }: { candidateId: string }) {
+function RefBadge({ candidateId, lang }: { candidateId: string; lang: Lang }) {
+  const t = copy[lang]
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 4,
@@ -104,7 +225,7 @@ function RefBadge({ candidateId }: { candidateId: string }) {
       padding: "2px 8px",
       fontFamily: "var(--font-space-grotesk), monospace",
     }}>
-      Ref · {candidateRefLabel(candidateId)}
+      {t.ref} · {candidateRefLabel(candidateId)}
     </span>
   )
 }
@@ -112,21 +233,6 @@ function RefBadge({ candidateId }: { candidateId: string }) {
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 type LoadedMatch = MatchAssessment & { job: Job | null }
-
-const TIER_META: Record<MatchTier, { label: string; fg: string; bg: string; bd: string }> = {
-  excellent: { label: "Excellent match", fg: "#15803d", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
-  good:      { label: "Bon match",       fg: "#7C63C8", bg: "rgba(124,99,200,0.07)", bd: "rgba(124,99,200,0.22)" },
-  fair:      { label: "Match moyen",     fg: "#B45309", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
-  poor:      { label: "Match faible",    fg: "#6B7280", bg: "#F9FAFB", bd: "#E5E7EB" },
-}
-
-const SCORE_DIM_LABELS: Record<keyof ScoreDimensions, string> = {
-  skills_match:   "Skills",
-  seniority_fit:  "Séniorité",
-  location_fit:   "Lieu",
-  experience_fit: "Expérience",
-  language_fit:   "Langue",
-}
 
 interface MatchSummary {
   id: string
@@ -144,6 +250,8 @@ interface MatchSummary {
  * actions in one place, with the match reason + mini pipeline on top.
  */
 export default function MatchPage() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const { matchId } = useParams<{ matchId: string }>()
   const router = useRouter()
   const sb = useMemo(() => getSupabase(), [])
@@ -247,7 +355,7 @@ export default function MatchPage() {
           state: "error",
           previewUrl: null,
           downloadUrl: null,
-          error: `Réponse vide du serveur (${res.status}).`,
+          error: t.emptyServerResponse(res.status),
         })
         return
       }
@@ -259,7 +367,7 @@ export default function MatchPage() {
           state: "error",
           previewUrl: null,
           downloadUrl: null,
-          error: "Réponse serveur illisible.",
+          error: t.unreadableServerResponse,
         })
         return
       }
@@ -268,7 +376,7 @@ export default function MatchPage() {
           state: "error",
           previewUrl: null,
           downloadUrl: null,
-          error: data.message ?? data.error ?? "Échec de l'anonymisation.",
+          error: data.message ?? data.error ?? t.anonymizeFailed,
         })
         return
       }
@@ -286,7 +394,7 @@ export default function MatchPage() {
         state: "error",
         previewUrl: null,
         downloadUrl: null,
-        error: (err as Error).message ?? "Erreur réseau.",
+        error: (err as Error).message ?? t.networkError,
       })
     }
   }
@@ -300,14 +408,14 @@ export default function MatchPage() {
   }, [match?.id])
 
   if (loading) {
-    return <DetailSkeleton label="Chargement du match" />
+    return <DetailSkeleton label={t.loadingMatch} />
   }
   if (notFound || !match || !candidate) {
     return (
       <div style={{ padding: "60px 24px", textAlign: "center", color: "#6B7280" }}>
-        <p style={{ fontSize: 16, fontWeight: 600 }}>Match introuvable.</p>
+        <p style={{ fontSize: 16, fontWeight: 600 }}>{t.matchNotFound}</p>
         <Link href="/workspace/pipeline" style={{ color: "#7C63C8", textDecoration: "none", fontSize: 14 }}>
-          ← Retour au pipeline
+          {t.backToPipeline}
         </Link>
       </div>
     )
@@ -347,7 +455,7 @@ export default function MatchPage() {
     if (res.ok) setMatch((prev) => prev ? { ...prev, salary_expectation_brut: val } : prev)
   }
 
-  const tier = match.match_tier ? TIER_META[match.match_tier] : null
+  const tier = match.match_tier ? t.tierMeta[match.match_tier] : null
   // PR-Z : critères flexibles. Pour les anciens matchs (avant PR-Z), on
   // retombe sur score_dimensions pour ne pas perdre l'info.
   const jobCriteria = ((job?.criteria ?? []) as Criterion[])
@@ -369,12 +477,12 @@ export default function MatchPage() {
         {/* Gauche : retour à la mission (origine du candidat) */}
         {job ? (
           <Link href={`/workspace/missions/${job.id}`} style={{ color: "#7C63C8", textDecoration: "none" }}>
-            ← Mission : {job.title}
+            {t.missionPrefix(job.title)}
           </Link>
         ) : <span />}
         {/* Droite : avancer vers la pipeline (sens de progression du workspace) */}
         <Link href="/workspace/pipeline" style={{ color: "#7C63C8", textDecoration: "none" }}>
-          Pipeline →
+          {t.pipelineArrow}
         </Link>
       </div>
 
@@ -396,10 +504,10 @@ export default function MatchPage() {
             <h1 style={{
               margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#111827",
             }}>
-              {candidate.full_name ?? "Candidat sans nom"}
-              <span style={{ fontWeight: 500, color: "#6B7280", fontSize: 15 }}> — pour </span>
+              {candidate.full_name ?? t.noNameCandidate}
+              <span style={{ fontWeight: 500, color: "#6B7280", fontSize: 15 }}>{t.forSuffix}</span>
             </h1>
-            <RefBadge candidateId={candidate.id} />
+            <RefBadge candidateId={candidate.id} lang={lang} />
             <div style={{ minWidth: 280, maxWidth: 420 }}>
               <Select
                 value={match.id}
@@ -407,12 +515,12 @@ export default function MatchPage() {
                 options={siblingMatches.length > 0
                   ? siblingMatches.map((m) => ({
                       value: m.id,
-                      label: m.job?.title ?? "Sans mission",
+                      label: m.job?.title ?? t.noMission,
                       hint: m.score != null
                         ? `${m.score} · ${m.match_tier ?? ""}`.trim()
-                        : "manuel",
+                        : t.manual,
                     }))
-                  : [{ value: match.id, label: job?.title ?? "Sans mission" }]
+                  : [{ value: match.id, label: job?.title ?? t.noMission }]
                 }
               />
             </div>
@@ -429,7 +537,7 @@ export default function MatchPage() {
           <button
             onClick={togglePipeline}
             disabled={pipelineSaving}
-            title={match.in_pipeline ? "Retirer de la pipeline" : "Suivre ce candidat dans la pipeline"}
+            title={match.in_pipeline ? t.removeFromPipeline : t.followInPipeline}
             style={{
               fontSize: 13, fontWeight: 700, fontFamily: "inherit",
               cursor: pipelineSaving ? "default" : "pointer",
@@ -439,7 +547,7 @@ export default function MatchPage() {
                 : { color: "white", background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)", border: "none", boxShadow: "0 6px 18px -8px rgba(124,99,200,0.6)" }),
             }}
           >
-            {match.in_pipeline ? "✓ Dans le pipeline" : "+ Ajouter à la pipeline"}
+            {match.in_pipeline ? t.inPipeline : t.addToPipeline}
           </button>
           {isManual ? (
             <span style={{
@@ -448,7 +556,7 @@ export default function MatchPage() {
               border: "1px solid rgba(124,99,200,0.22)",
               borderRadius: 10, padding: "8px 12px",
             }}>
-              Assigné manuellement
+              {t.manuallyAssigned}
             </span>
           ) : tier && (
             <span style={{
@@ -469,14 +577,14 @@ export default function MatchPage() {
             const targets = pipelineSiblings.length > 0
               ? pipelineSiblings
               : [{ id: match.id, job: job ? { id: job.id, title: job.title } : null, score: match.score, match_tier: match.match_tier, in_pipeline: true }]
-            return <PricingShortcut targets={targets} />
+            return <PricingShortcut targets={targets} lang={lang} />
           })()}
           <Link href={`/workspace/vivier/${candidate.id}`} style={{
             fontSize: 12, fontWeight: 700, color: "#7C63C8",
             background: "white", border: "1px solid rgba(124,99,200,0.25)",
             borderRadius: 9, padding: "8px 12px", textDecoration: "none",
           }}>
-            Fiche candidat →
+            {t.candidateSheet}
           </Link>
         </div>
       </m.section>
@@ -524,7 +632,7 @@ export default function MatchPage() {
                 margin: 0, fontSize: 11, fontWeight: 800, color: "#15803d",
                 letterSpacing: "0.06em", textTransform: "uppercase",
               }}>
-                ✦ Critères de cette mission
+                {t.criteriaTitle}
               </h3>
 
               {/* PR-Z : critères flexibles. Affiche main + bonus séparément. */}
@@ -532,22 +640,22 @@ export default function MatchPage() {
                 <>
                   <div style={{ marginTop: 10 }}>
                     <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                      Principaux
+                      {t.mainLabel}
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
                       {mainCriteria.map((crit) => (
-                        <CriteriaEvalLine key={crit.id} criterion={crit} ev={evalById.get(crit.id)} />
+                        <CriteriaEvalLine key={crit.id} criterion={crit} ev={evalById.get(crit.id)} lang={lang} />
                       ))}
                     </div>
                   </div>
                   {bonusCriteria.length > 0 && (
                     <div style={{ marginTop: 12 }}>
                       <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                        Bonus
+                        {t.bonusLabel}
                       </p>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
                         {bonusCriteria.map((crit) => (
-                          <CriteriaEvalLine key={crit.id} criterion={crit} ev={evalById.get(crit.id)} />
+                          <CriteriaEvalLine key={crit.id} criterion={crit} ev={evalById.get(crit.id)} lang={lang} />
                         ))}
                       </div>
                     </div>
@@ -559,7 +667,7 @@ export default function MatchPage() {
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 10 }}>
                     {dimEntries.map(([k, v]) => (
                       <span key={k} style={{ fontSize: 11, color: "#15803d", fontWeight: 700 }}>
-                        {SCORE_DIM_LABELS[k] ?? k} <strong style={{ fontSize: 14 }}>{v}</strong>
+                        {t.scoreDimLabels[k] ?? k} <strong style={{ fontSize: 14 }}>{v}</strong>
                       </span>
                     ))}
                   </div>
@@ -580,10 +688,10 @@ export default function MatchPage() {
               borderRadius: 16, padding: 16,
             }}>
               <h3 style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                ✋ Assignation manuelle
+                {t.manualAssignmentTitle}
               </h3>
               <p style={{ margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
-                {match.justification ?? "Ajouté par le sourceur en dehors du matching automatique."}
+                {match.justification ?? t.manualAssignmentBody}
               </p>
             </section>
           )}
@@ -593,26 +701,27 @@ export default function MatchPage() {
               réutilisable dans le pricing ensuite. */}
           <section style={{ background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 16 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              Prétention salariale
+              {t.salaryExpectationTitle}
             </h3>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <input
                 type="number" min={0} value={salaryExp}
                 onChange={(e) => setSalaryExp(e.target.value)}
                 onBlur={saveSalaryExpectation}
-                placeholder="Ex : 45 000"
+                placeholder={t.salaryPlaceholder}
                 style={{ width: 150, padding: "9px 12px", fontSize: 13.5, borderRadius: 9, border: "1px solid #E2DAF6", outline: "none", fontFamily: "inherit" }}
               />
-              <span style={{ fontSize: 12, color: "#6B7280" }}>€ brut / an{salarySaving ? " · enregistrement…" : ""}</span>
+              <span style={{ fontSize: 12, color: "#6B7280" }}>{t.grossPerYear(salarySaving)}</span>
             </div>
             {(() => {
               const target = match.job?.target_gross_salary ?? null
               const ask = match.salary_expectation_brut ?? null
+              const locale = lang === "fr" ? "fr-FR" : "en-US"
               if (target == null) {
-                return <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "#6B7280" }}>Renseignez le salaire cible du poste (dans la mission) pour activer la comparaison.</p>
+                return <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "#6B7280" }}>{t.fillTargetSalary}</p>
               }
               if (ask == null) {
-                return <p style={{ margin: "10px 0 0", fontSize: 12, color: "#6B7280" }}>Salaire cible du poste : <strong>{target.toLocaleString("fr-FR")} €</strong></p>
+                return <p style={{ margin: "10px 0 0", fontSize: 12, color: "#6B7280" }}>{t.targetSalaryOnly(target.toLocaleString(locale))}</p>
               }
               const diff = ask - target
               const pct = target > 0 ? Math.round((diff / target) * 100) : 0
@@ -622,9 +731,9 @@ export default function MatchPage() {
                 : { fg: "#15803d", bg: "rgba(34,197,94,0.10)", bd: "rgba(34,197,94,0.28)" }
               return (
                 <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 12, color: "#6B7280" }}>Cible du poste : <strong>{target.toLocaleString("fr-FR")} €</strong></span>
+                  <span style={{ fontSize: 12, color: "#6B7280" }}>{t.targetSalaryLabel}<strong>{target.toLocaleString(locale)} €</strong></span>
                   <span style={{ fontSize: 11.5, fontWeight: 700, color: col.fg, background: col.bg, border: `1px solid ${col.bd}`, borderRadius: 99, padding: "2px 10px" }}>
-                    {over ? "Au-dessus du budget" : diff === 0 ? "Dans le budget" : "Sous le budget"}{diff !== 0 ? ` · ${over ? "+" : ""}${pct}%` : ""}
+                    {over ? t.aboveBudget : diff === 0 ? t.inBudget : t.underBudget}{diff !== 0 ? ` · ${over ? "+" : ""}${pct}%` : ""}
                   </span>
                 </div>
               )
@@ -633,7 +742,7 @@ export default function MatchPage() {
 
           <section style={{ flex: 1, background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              Résumé candidat
+              {t.candidateSummaryTitle}
             </h3>
             {cv?.summary && (
               <p style={{ margin: "0 0 10px", fontSize: 13.5, color: "#374151", lineHeight: 1.65 }}>
@@ -659,7 +768,7 @@ export default function MatchPage() {
                 fontSize: 12, color: "#6B7280",
               }}>
                 {cv?.years_experience != null && (
-                  <span>📈 <strong style={{ color: "#374151" }}>{cv.years_experience} an{cv.years_experience > 1 ? "s" : ""}</strong> d&apos;expérience</span>
+                  <span>📈 <strong style={{ color: "#374151" }}>{t.yearsExp(cv.years_experience)}</strong> {t.experienceSuffix}</span>
                 )}
                 {(cv?.languages?.length ?? 0) > 0 && (
                   <span>🌐 {cv!.languages!.join(", ")}</span>
@@ -671,11 +780,11 @@ export default function MatchPage() {
             {(cv?.experience?.length ?? 0) > 0 && (
               <div style={{ marginTop: 16 }}>
                 <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  Parcours
+                  {t.pathTitle}
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {cv!.experience!.slice(0, 6).map((xp, i) => {
-                    const end = xp.end === null ? "auj." : (xp.end ?? "")
+                    const end = xp.end === null ? t.present : (xp.end ?? "")
                     const period = [xp.start ?? "", end].filter(Boolean).join(" – ")
                     return (
                       <div key={i} style={{ display: "flex", gap: 10 }}>
@@ -704,7 +813,7 @@ export default function MatchPage() {
         <div style={{ gridColumn: "2", gridRow: "1", display: "flex", flexDirection: "column", gap: 14 }}>
           <section style={{ flex: 1, background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              ✉ Message d&apos;approche
+              {t.approachMessageTitle}
             </h3>
             {candidate.parse_status === "parsed" ? (
               <ComposeBox
@@ -715,7 +824,7 @@ export default function MatchPage() {
               />
             ) : (
               <p style={{ margin: 0, fontSize: 13, color: "#6B7280" }}>
-                Disponible une fois le CV parsé.
+                {t.availableOnceParsed}
               </p>
             )}
           </section>
@@ -769,12 +878,12 @@ export default function MatchPage() {
  *  - qualitatif  → badge ✓ / ✗ / ? avec evidence en tooltip
  * Conçu pour s'aligner verticalement dans une grid auto-fit responsive.
  */
-function CriteriaEvalLine({ criterion, ev }: { criterion: Criterion; ev: CriterionEval | undefined }) {
+function CriteriaEvalLine({ criterion, ev, lang }: { criterion: Criterion; ev: CriterionEval | undefined; lang: Lang }) {
   const isQuant = kindOf(criterion.type) === "quantitative"
   const score = isQuant ? (ev?.score ?? null) : null
   const status = isQuant ? undefined : ev?.status
-  const name = criterionHeaderLabel(criterion)
-  const fullLabel = shortCriterionLabel(criterion)
+  const name = criterionHeaderLabel(criterion, lang)
+  const fullLabel = shortCriterionLabel(criterion, lang)
   const tooltip = ev?.evidence ? `${fullLabel} — ${ev.evidence}` : fullLabel
 
   if (isQuant) {

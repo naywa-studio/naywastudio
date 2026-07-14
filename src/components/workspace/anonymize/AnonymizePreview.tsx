@@ -12,12 +12,30 @@
 
 import { forwardRef } from "react"
 import type { AnonymizeStatus } from "./types"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    title: "📄 Aperçu PDF anonymisé",
+    working: "Génération du PDF en cours…",
+    idle: "L'aperçu apparaîtra ici une fois que vous aurez cliqué sur « Anonymiser pour cette mission » en haut de page.",
+    iframeTitle: "CV anonymisé",
+  },
+  en: {
+    title: "📄 Anonymized PDF preview",
+    working: "Generating the PDF…",
+    idle: "The preview will appear here once you click « Anonymize for this mission » at the top of the page.",
+    iframeTitle: "Anonymized CV",
+  },
+}
 
 export const AnonymizePreview = forwardRef<HTMLElement, {
   status: AnonymizeStatus
   /** Fired once the preview iframe finishes loading. */
   onPreviewLoad?: () => void
 }>(function AnonymizePreview({ status, onPreviewLoad }, ref) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <section
       ref={ref}
@@ -33,7 +51,7 @@ export const AnonymizePreview = forwardRef<HTMLElement, {
           margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
           letterSpacing: "0.08em", textTransform: "uppercase",
         }}>
-          📄 Aperçu PDF anonymisé
+          {t.title}
         </h3>
       </div>
 
@@ -49,9 +67,7 @@ export const AnonymizePreview = forwardRef<HTMLElement, {
             margin: 0, fontSize: 13.5, color: "#6B7280",
             lineHeight: 1.6, maxWidth: 420, marginInline: "auto",
           }}>
-            {status.state === "working"
-              ? "Génération du PDF en cours…"
-              : "L'aperçu apparaîtra ici une fois que vous aurez cliqué sur « Anonymiser pour cette mission » en haut de page."}
+            {status.state === "working" ? t.working : t.idle}
           </p>
         </div>
       ) : (
@@ -67,7 +83,7 @@ export const AnonymizePreview = forwardRef<HTMLElement, {
               #view=FitH   ajuste à la largeur de la frame */}
           <iframe
             src={`${status.previewUrl}#toolbar=1&navpanes=0&view=FitH`}
-            title="CV anonymisé"
+            title={t.iframeTitle}
             onLoad={() => onPreviewLoad?.()}
             style={{ width: "100%", height: 820, border: "none", display: "block" }}
           />

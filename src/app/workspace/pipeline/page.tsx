@@ -9,6 +9,7 @@ import Select from "@/components/ui/Select"
 import { PipelineSkeleton } from "@/components/workspace/PageSkeletons"
 import RejectReasonPicker from "@/components/workspace/RejectReasonPicker"
 import type { RejectReason } from "@/lib/reject-reasons"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -17,24 +18,111 @@ type Row = MatchAssessment & {
   job: { id: string; title: string } | null
 }
 
-type StageMeta = { key: PipelineStage; label: string; color: string; bg: string }
+type StageMeta = { key: PipelineStage; color: string; bg: string }
 
 // Active board columns — the relational journey. Pricing was removed (handled
 // in the dedicated Pricing tab) and the terminal states live outside the board.
 const ACTIVE_STAGES: StageMeta[] = [
-  { key: "identified", label: "Identifié", color: "#6B7280", bg: "#F9FAFB" },
-  { key: "contacted",  label: "Contacté",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
-  { key: "replied",    label: "Réponse",   color: "#7C63C8", bg: "rgba(124,99,200,0.05)" },
-  { key: "interview",  label: "Entretien", color: "#B45309", bg: "rgba(245,158,11,0.06)" },
-  { key: "offer",      label: "Offre",     color: "#15803d", bg: "rgba(34,197,94,0.06)" },
+  { key: "identified", color: "#6B7280", bg: "#F9FAFB" },
+  { key: "contacted",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
+  { key: "replied",    color: "#7C63C8", bg: "rgba(124,99,200,0.05)" },
+  { key: "interview",  color: "#B45309", bg: "rgba(245,158,11,0.06)" },
+  { key: "offer",      color: "#15803d", bg: "rgba(34,197,94,0.06)" },
 ]
 
 // Terminal states — outcomes, not steps. Shown as clickable + droppable chips
 // above the board, never as columns (they'd just add horizontal scroll).
 const TERMINAL_STAGES: StageMeta[] = [
-  { key: "hired",    label: "Recruté", color: "#0F766E", bg: "rgba(15,118,110,0.08)" },
-  { key: "rejected", label: "Écarté",  color: "#6B7280", bg: "#F3F4F6" },
+  { key: "hired",    color: "#0F766E", bg: "rgba(15,118,110,0.08)" },
+  { key: "rejected", color: "#6B7280", bg: "#F3F4F6" },
 ]
+
+const copy = {
+  fr: {
+    stageLabels: {
+      identified: "Identifié", contacted: "Contacté", replied: "Réponse",
+      interview: "Entretien", offer: "Offre", hired: "Recruté", rejected: "Écarté",
+    } as Record<PipelineStage, string>,
+    title: "Suivi candidat",
+    subtitleEmpty: "Ajoutez des candidats à la pipeline depuis vos missions — vous les suivrez ici, étape par étape.",
+    subtitleTerminal: "Issues finales. Glissez une carte vers le pipeline pour la réactiver.",
+    subtitleBoard: "Glissez une carte d'une colonne à l'autre pour faire avancer un candidat.",
+    missionLabel: "Mission",
+    allMissions: (n: number) => `Toutes les missions (${n})`,
+    chipTitle: (label: string) => `${label}, cliquez pour voir, ou glissez une carte ici`,
+    relanceSuggested: (n: number) => `${n} relance${n > 1 ? "s" : ""} suggérée${n > 1 ? "s" : ""}`,
+    relanceBody: " : des candidats stagnent dans une étape (badge ⏰ sur les cartes).",
+    emptyLanesTitle: "Aucun candidat dans la pipeline",
+    emptyLanesBody: (
+      <>Depuis une mission, cliquez <strong>+ Pipeline</strong> sur les candidats à suivre — ils
+      apparaîtront ici, par mission.</>
+    ),
+    missionColumn: "Mission",
+    candidateCount: (n: number) => `${n} candidat${n > 1 ? "s" : ""}`,
+    noneInTerminal: (label: string) => `Aucun candidat dans « ${label} » pour l'instant.`,
+    candidateFallback: "Candidat",
+    thisCandidate: "ce candidat",
+    backToPipeline: "↩ Remettre dans le pipeline",
+    open: "Ouvrir ▶",
+    relanceTitle: "À relancer, stagne dans cette étape",
+    relanceBadge: "⏰ à relancer",
+    candidateProfileTitle: "Fiche candidat (identité)",
+    emptyPipelineTitle: "Votre pipeline est vide",
+    emptyPipelineBody: (
+      <>Ajoutez vos candidats depuis une mission : sur chaque profil matché,
+      cliquez <strong>« + Ajouter à la pipeline »</strong> — vous suivrez ici
+      chaque étape, du premier contact à la signature.</>
+    ),
+    goToMissions: "Aller aux missions",
+    noMission: "Sans mission",
+    today: "aujourd'hui",
+    yesterday: "hier",
+    daysAgo: (n: number) => `il y a ${n} j`,
+    monthsAgo: (n: number) => `il y a ${n} mois`,
+  },
+  en: {
+    stageLabels: {
+      identified: "Identified", contacted: "Contacted", replied: "Replied",
+      interview: "Interview", offer: "Offer", hired: "Hired", rejected: "Rejected",
+    } as Record<PipelineStage, string>,
+    title: "Candidate tracking",
+    subtitleEmpty: "Add candidates to the pipeline from your missions — you'll track them here, stage by stage.",
+    subtitleTerminal: "Final outcomes. Drag a card back to the pipeline to reactivate it.",
+    subtitleBoard: "Drag a card from one column to another to move a candidate forward.",
+    missionLabel: "Mission",
+    allMissions: (n: number) => `All missions (${n})`,
+    chipTitle: (label: string) => `${label}, click to view, or drop a card here`,
+    relanceSuggested: (n: number) => `${n} follow-up${n > 1 ? "s" : ""} suggested`,
+    relanceBody: ": some candidates are stalled in a stage (⏰ badge on the cards).",
+    emptyLanesTitle: "No candidates in the pipeline",
+    emptyLanesBody: (
+      <>From a mission, click <strong>+ Pipeline</strong> on the candidates to track — they'll
+      show up here, by mission.</>
+    ),
+    missionColumn: "Mission",
+    candidateCount: (n: number) => `${n} candidate${n > 1 ? "s" : ""}`,
+    noneInTerminal: (label: string) => `No candidates in "${label}" yet.`,
+    candidateFallback: "Candidate",
+    thisCandidate: "this candidate",
+    backToPipeline: "↩ Back to pipeline",
+    open: "Open ▶",
+    relanceTitle: "Needs a follow-up, stalled in this stage",
+    relanceBadge: "⏰ follow up",
+    candidateProfileTitle: "Candidate profile (identity)",
+    emptyPipelineTitle: "Your pipeline is empty",
+    emptyPipelineBody: (
+      <>Add candidates from a mission: on each matched profile,
+      click <strong>&quot;+ Add to pipeline&quot;</strong> — you&apos;ll track every
+      stage here, from first contact to signature.</>
+    ),
+    goToMissions: "Go to missions",
+    noMission: "No mission",
+    today: "today",
+    yesterday: "yesterday",
+    daysAgo: (n: number) => `${n} d ago`,
+    monthsAgo: (n: number) => `${n} mo ago`,
+  },
+}
 
 /** Legacy 'pricing' rows (column removed) are shown in 'identified'. */
 function displayStage(s: PipelineStage): PipelineStage {
@@ -61,12 +149,13 @@ const RELANCE_AFTER_DAYS: Partial<Record<PipelineStage, number>> = {
 function daysSince(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / 86_400_000
 }
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, lang: Lang): string {
+  const t = copy[lang]
   const d = daysSince(iso)
-  if (d < 1) return "aujourd'hui"
-  if (d < 2) return "hier"
-  if (d < 30) return `il y a ${Math.floor(d)} j`
-  return `il y a ${Math.floor(d / 30)} mois`
+  if (d < 1) return t.today
+  if (d < 2) return t.yesterday
+  if (d < 30) return t.daysAgo(Math.floor(d))
+  return t.monthsAgo(Math.floor(d / 30))
 }
 function needsRelance(row: Row): boolean {
   const threshold = RELANCE_AFTER_DAYS[row.pipeline_stage]
@@ -75,6 +164,8 @@ function needsRelance(row: Row): boolean {
 }
 
 export default function PipelinePage() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
@@ -159,7 +250,7 @@ export default function PipelinePage() {
     if (stage === "rejected") {
       setPendingReject({
         rowId,
-        name: row.candidate?.full_name ?? "ce candidat",
+        name: row.candidate?.full_name ?? t.thisCandidate,
       })
       return
     }
@@ -196,7 +287,7 @@ export default function PipelinePage() {
       const stage = displayStage(r.pipeline_stage)
       if (!ACTIVE_STAGES.some((s) => s.key === stage)) continue // skip terminal
       const id = r.job?.id ?? "_none"
-      const title = r.job?.title ?? "Sans mission"
+      const title = r.job?.title ?? t.noMission
       let lane = map.get(id)
       if (!lane) { lane = { jobId: id, jobTitle: title, byStage: new Map(), activeTotal: 0 }; map.set(id, lane) }
       const arr = lane.byStage.get(stage)
@@ -205,7 +296,7 @@ export default function PipelinePage() {
     }
     return Array.from(map.values())
       .sort((a, b) => b.activeTotal - a.activeTotal || a.jobTitle.localeCompare(b.jobTitle))
-  }, [filteredRows])
+  }, [filteredRows, t])
 
   // Terminal counts (respect the job filter, ignore the weak filter so an
   // outcome is never hidden). Keyed by stage.
@@ -249,14 +340,14 @@ export default function PipelinePage() {
         {/* Header (compact) */}
         <div style={{ flexShrink: 0 }}>
           <h1 style={{ margin: 0, fontSize: "clamp(22px, 2.4vw, 28px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
-            Suivi candidat
+            {t.title}
           </h1>
           <p style={{ margin: "5px 0 0", fontSize: 13, color: "#6B7280" }}>
             {rows.length === 0
-              ? "Ajoutez des candidats à la pipeline depuis vos missions — vous les suivrez ici, étape par étape."
+              ? t.subtitleEmpty
               : terminalView
-                ? "Issues finales. Glissez une carte vers le pipeline pour la réactiver."
-                : "Glissez une carte d'une colonne à l'autre pour faire avancer un candidat."}
+                ? t.subtitleTerminal
+                : t.subtitleBoard}
           </p>
         </div>
 
@@ -269,13 +360,13 @@ export default function PipelinePage() {
             {allJobs.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <label style={{ fontSize: 11.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                  Mission
+                  {t.missionLabel}
                 </label>
                 <Select
                   value={jobFilter}
                   onChange={setJobFilter}
                   options={[
-                    { value: "", label: `Toutes les missions (${allJobs.length})` },
+                    { value: "", label: t.allMissions(allJobs.length) },
                     ...allJobs.map((j) => ({ value: j.id, label: j.title })),
                   ]}
                   style={{ minWidth: 220 }}
@@ -298,7 +389,7 @@ export default function PipelinePage() {
                       if (dragId) moveCard(dragId, s.key)
                       setDragId(null); setOverTerminal(null)
                     }}
-                    title={`${s.label}, cliquez pour voir, ou glissez une carte ici`}
+                    title={t.chipTitle(t.stageLabels[s.key])}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 7,
                       fontSize: 12, fontWeight: 700, fontFamily: "inherit",
@@ -309,7 +400,7 @@ export default function PipelinePage() {
                       transition: "all 120ms",
                     }}
                   >
-                    {s.key === "hired" ? "✓" : "✕"} {s.label}
+                    {s.key === "hired" ? "✓" : "✕"} {t.stageLabels[s.key]}
                     <span style={{
                       fontSize: 10.5, fontWeight: 800,
                       color: active || isOver ? "white" : s.color,
@@ -334,8 +425,8 @@ export default function PipelinePage() {
           }}>
             <span style={{ fontSize: 14 }}>⏰</span>
             <span>
-              <strong>{relanceCount} relance{relanceCount > 1 ? "s" : ""} suggérée{relanceCount > 1 ? "s" : ""}</strong>
-              {" : "}des candidats stagnent dans une étape (badge ⏰ sur les cartes).
+              <strong>{t.relanceSuggested(relanceCount)}</strong>
+              {t.relanceBody}
             </span>
           </div>
         )}
@@ -362,11 +453,10 @@ export default function PipelinePage() {
                 <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
               </svg>
               <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>
-                Aucun candidat dans la pipeline
+                {t.emptyLanesTitle}
               </p>
               <p style={{ margin: 0, fontSize: 13, maxWidth: 420 }}>
-                Depuis une mission, cliquez <strong>+ Pipeline</strong> sur les candidats à suivre — ils
-                apparaîtront ici, par mission.
+                {t.emptyLanesBody}
               </p>
             </div>
           </div>
@@ -379,11 +469,11 @@ export default function PipelinePage() {
               minWidth: 200 + ACTIVE_STAGES.length * 190,
             }}>
               {/* En-tête de colonnes — figé en haut */}
-              <div style={{ ...headerCellStyle, color: "#6B7280" }}>Mission</div>
+              <div style={{ ...headerCellStyle, color: "#6B7280" }}>{t.missionColumn}</div>
               {ACTIVE_STAGES.map((s) => (
                 <div key={s.key} style={{ ...headerCellStyle, display: "flex", alignItems: "center", gap: 7 }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, display: "inline-block" }} />
-                  <span style={{ color: s.color }}>{s.label}</span>
+                  <span style={{ color: s.color }}>{t.stageLabels[s.key]}</span>
                 </div>
               ))}
 
@@ -415,7 +505,7 @@ export default function PipelinePage() {
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3,
                         }}>{lane.jobTitle}</span>
                         <span style={{ fontSize: 10.5, color: "#6B7280" }}>
-                          {lane.activeTotal} candidat{lane.activeTotal > 1 ? "s" : ""}
+                          {t.candidateCount(lane.activeTotal)}
                         </span>
                       </span>
                     </button>
@@ -485,7 +575,7 @@ export default function PipelinePage() {
 
       <RejectReasonPicker
         open={pendingReject !== null}
-        candidateName={pendingReject?.name ?? "ce candidat"}
+        candidateName={pendingReject?.name ?? t.thisCandidate}
         onCancel={() => setPendingReject(null)}
         onConfirm={(reason, note) => {
           const target = pendingReject
@@ -510,6 +600,8 @@ function TerminalListView({
   rows: Row[]
   onReactivate: (id: string) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{ flex: 1, minHeight: 0, marginTop: 14, display: "flex", flexDirection: "column" }}>
       {rows.length === 0 ? (
@@ -517,7 +609,7 @@ function TerminalListView({
           flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
           color: "#6B7280", fontSize: 14,
         }}>
-          Aucun candidat dans « {stage.label} » pour l&apos;instant.
+          {t.noneInTerminal(t.stageLabels[stage.key])}
         </div>
       ) : (
         <div style={{
@@ -527,7 +619,7 @@ function TerminalListView({
         }}>
           {rows.map((row) => {
             const c = row.candidate
-            const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
+            const name = c?.full_name ?? c?.cv_file_name ?? t.candidateFallback
             return (
               <div key={row.id} style={{
                 background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
@@ -568,11 +660,11 @@ function TerminalListView({
                       fontFamily: "inherit", padding: 0,
                     }}
                   >
-                    ↩ Remettre dans le pipeline
+                    {t.backToPipeline}
                   </button>
                   <Link href={`/workspace/match/${row.id}`} style={{
                     fontSize: 11, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
-                  }}>Ouvrir ▶</Link>
+                  }}>{t.open}</Link>
                 </div>
               </div>
             )
@@ -594,8 +686,10 @@ function Card({
   onDragEnd: () => void
   hideJobBadge?: boolean
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const c = row.candidate
-  const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
+  const name = c?.full_name ?? c?.cv_file_name ?? t.candidateFallback
   const relance = needsRelance(row)
   const scoreColor = (row.score ?? 0) >= 80 ? "#15803d" : (row.score ?? 0) >= 60 ? "#7C63C8" : "#B45309"
 
@@ -655,26 +749,26 @@ function Card({
       )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 2 }}>
-        <span style={{ fontSize: 10.5, color: "#6B7280" }}>{timeAgo(row.updated_at)}</span>
+        <span style={{ fontSize: 10.5, color: "#6B7280" }}>{timeAgo(row.updated_at, lang)}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {relance && (
-            <span title="À relancer, stagne dans cette étape" style={{
+            <span title={t.relanceTitle} style={{
               fontSize: 10, fontWeight: 700, color: "#92400E",
               background: "rgba(245,158,11,0.14)", border: "1px solid rgba(245,158,11,0.3)",
               borderRadius: 100, padding: "1px 6px",
             }}>
-              ⏰ à relancer
+              {t.relanceBadge}
             </span>
           )}
           {/* Primary: open the match workspace for this candidate × job */}
           <Link href={`/workspace/match/${row.id}`} style={{
             fontSize: 10.5, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
           }}>
-            Ouvrir ▶
+            {t.open}
           </Link>
           {/* Secondary: discreet shortcut to the bare candidate identity */}
           {c && (
-            <Link href={`/workspace/vivier/${c.id}`} title="Fiche candidat (identité)" style={{
+            <Link href={`/workspace/vivier/${c.id}`} title={t.candidateProfileTitle} style={{
               fontSize: 12, color: "#6B7280", textDecoration: "none",
             }}>
               👤
@@ -688,6 +782,8 @@ function Card({
 }
 
 function EmptyState() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <m.div
       initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
@@ -706,15 +802,13 @@ function EmptyState() {
         <rect x="17" y="6" width="4" height="15" rx="1.5" />
       </svg>
       <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.015em" }}>
-        Votre pipeline est vide
+        {t.emptyPipelineTitle}
       </h2>
       <p style={{ margin: "0 auto 18px", maxWidth: 460, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
         {/* Matcher ne suffit PAS : il faut ajouter explicitement un candidat à
             la pipeline depuis ses résultats de matching. L'ancien texte disait
             l'inverse et perdait les users qui venaient de matcher. */}
-        Ajoutez vos candidats depuis une mission : sur chaque profil matché,
-        cliquez <strong>« + Ajouter à la pipeline »</strong> — vous suivrez ici
-        chaque étape, du premier contact à la signature.
+        {t.emptyPipelineBody}
       </p>
       <Link href="/workspace/missions" style={{
         display: "inline-block",
@@ -723,7 +817,7 @@ function EmptyState() {
         color: "white", fontWeight: 700, fontSize: 14, textDecoration: "none",
         boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
-        Aller aux missions
+        {t.goToMissions}
       </Link>
     </m.div>
   )

@@ -6,6 +6,7 @@ import { getSupabase } from "@/lib/supabase"
 import type { MatchAssessment, PipelineStage } from "@/lib/database.types"
 import RejectReasonPicker from "@/components/workspace/RejectReasonPicker"
 import type { RejectReason } from "@/lib/reject-reasons"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 /**
  * Mini horizontal kanban scoped to one candidate.
@@ -27,15 +28,48 @@ type Row = Pick<MatchAssessment, "id" | "job_id" | "score" | "match_tier" | "pip
 // Étapes alignées sur la pipeline (colonne Pricing retirée). 'hired' et
 // 'rejected' sont conservés ici pour qu'un candidat à une issue terminale
 // reste visible dans ce mini-kanban contextuel.
-const STAGES: { key: PipelineStage; label: string; color: string; bg: string }[] = [
-  { key: "identified", label: "Identifié", color: "#6B7280", bg: "#F9FAFB" },
-  { key: "contacted",  label: "Contacté",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
-  { key: "replied",    label: "Réponse",   color: "#7C63C8", bg: "rgba(124,99,200,0.05)" },
-  { key: "interview",  label: "Entretien", color: "#B45309", bg: "rgba(245,158,11,0.06)" },
-  { key: "offer",      label: "Offre",     color: "#15803d", bg: "rgba(34,197,94,0.06)" },
-  { key: "hired",      label: "Recruté",   color: "#0F766E", bg: "rgba(15,118,110,0.06)" },
-  { key: "rejected",   label: "Écarté",    color: "#6B7280", bg: "#F3F4F6" },
+const STAGES: { key: PipelineStage; color: string; bg: string }[] = [
+  { key: "identified", color: "#6B7280", bg: "#F9FAFB" },
+  { key: "contacted",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
+  { key: "replied",    color: "#7C63C8", bg: "rgba(124,99,200,0.05)" },
+  { key: "interview",  color: "#B45309", bg: "rgba(245,158,11,0.06)" },
+  { key: "offer",      color: "#15803d", bg: "rgba(34,197,94,0.06)" },
+  { key: "hired",      color: "#0F766E", bg: "rgba(15,118,110,0.06)" },
+  { key: "rejected",   color: "#6B7280", bg: "#F3F4F6" },
 ]
+
+const copy = {
+  fr: {
+    stageLabels: {
+      identified: "Identifié", contacted: "Contacté", replied: "Réponse",
+      interview: "Entretien", offer: "Offre", hired: "Recruté", rejected: "Écarté",
+    } as Record<PipelineStage, string>,
+    loading: "Chargement du pipeline…",
+    thisMatchPipeline: "Pipeline de ce match",
+    inPipeline: (n: number) => `Dans le pipeline · ${n} poste${n > 1 ? "s" : ""}`,
+    dragVertical: "Glissez pour avancer",
+    dragHorizontal: "Glissez une carte pour avancer / reculer",
+    noJob: "Sans poste",
+    manual: "manuel",
+    here: "● ICI",
+    thisCandidate: "ce candidat",
+  },
+  en: {
+    stageLabels: {
+      identified: "Identified", contacted: "Contacted", replied: "Replied",
+      interview: "Interview", offer: "Offer", hired: "Hired", rejected: "Rejected",
+    } as Record<PipelineStage, string>,
+    loading: "Loading pipeline…",
+    thisMatchPipeline: "Pipeline for this match",
+    inPipeline: (n: number) => `In the pipeline · ${n} position${n > 1 ? "s" : ""}`,
+    dragVertical: "Drag to advance",
+    dragHorizontal: "Drag a card to advance / rewind",
+    noJob: "No position",
+    manual: "manual",
+    here: "● HERE",
+    thisCandidate: "this candidate",
+  },
+}
 
 /** Legacy 'pricing' rows (colonne supprimée) → rangées dans 'identified'. */
 function displayStage(s: PipelineStage): PipelineStage {
@@ -63,6 +97,8 @@ export default function CandidateMiniKanban({
    *  picker upstream. */
   onlyMatchId?: string
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
@@ -116,7 +152,7 @@ export default function CandidateMiniKanban({
     if (stage === "rejected") {
       setPendingReject({
         rowId,
-        name: candidateName?.trim() || "ce candidat",
+        name: candidateName?.trim() || t.thisCandidate,
       })
       return
     }
@@ -139,7 +175,7 @@ export default function CandidateMiniKanban({
   }, [visibleRows])
 
   if (loading) {
-    return <div style={{ padding: 14, fontSize: 12, color: "#6B7280" }}>Chargement du pipeline…</div>
+    return <div style={{ padding: 14, fontSize: 12, color: "#6B7280" }}>{t.loading}</div>
   }
 
   const vertical = layout === "vertical"
@@ -159,11 +195,11 @@ export default function CandidateMiniKanban({
       }}>
         <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
           {onlyMatchId
-            ? "Pipeline de ce match"
-            : `Dans le pipeline · ${rows.length} poste${rows.length > 1 ? "s" : ""}`}
+            ? t.thisMatchPipeline
+            : t.inPipeline(rows.length)}
         </h3>
         <span style={{ fontSize: 10.5, color: "#6B7280", fontStyle: "italic" }}>
-          {vertical ? "Glissez pour avancer" : "Glissez une carte pour avancer / reculer"}
+          {vertical ? t.dragVertical : t.dragHorizontal}
         </span>
       </div>
       <div style={{
@@ -197,7 +233,7 @@ export default function CandidateMiniKanban({
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px" }}>
-                <span style={{ fontSize: 11.5, fontWeight: 800, color: stage.color }}>{stage.label}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 800, color: stage.color }}>{t.stageLabels[stage.key]}</span>
                 <span style={{
                   fontSize: 10, fontWeight: 700, color: "#6B7280",
                   background: "white", borderRadius: 100, padding: "0 6px", border: "1px solid #F0ECF8",
@@ -224,19 +260,19 @@ export default function CandidateMiniKanban({
                     }}
                   >
                     {isCurrent ? (
-                      <div style={{ fontSize: 9, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.04em", marginBottom: 2 }}>● ICI</div>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.04em", marginBottom: 2 }}>{t.here}</div>
                     ) : null}
                     <div style={{
                       fontSize: 11.5, fontWeight: 700, color: "#111827",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>
-                      {r.job?.title ?? "Sans poste"}
+                      {r.job?.title ?? t.noJob}
                     </div>
                     <div style={{
                       fontSize: 10.5, color: "#6B7280", marginTop: 1,
                       display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6,
                     }}>
-                      <span>{r.score != null ? `${r.score}` : "manuel"}</span>
+                      <span>{r.score != null ? `${r.score}` : t.manual}</span>
                       {!isCurrent && r.id && (
                         <Link href={`/workspace/match/${r.id}`} style={{ color: "#7C63C8", fontWeight: 700 }}>→</Link>
                       )}
@@ -251,7 +287,7 @@ export default function CandidateMiniKanban({
 
       <RejectReasonPicker
         open={pendingReject !== null}
-        candidateName={pendingReject?.name ?? "ce candidat"}
+        candidateName={pendingReject?.name ?? t.thisCandidate}
         onCancel={() => setPendingReject(null)}
         onConfirm={(reason, note) => {
           const target = pendingReject
