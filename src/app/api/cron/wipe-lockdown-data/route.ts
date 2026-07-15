@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { r2DeleteByPrefix } from "@/lib/r2-storage"
 
 export const runtime = "nodejs"
 
@@ -112,6 +113,17 @@ export async function GET(req: NextRequest) {
       } else {
         counts[table] = count ?? 0
       }
+    }
+
+    // Purge des CV candidats sur R2 (les lignes candidates viennent d'être
+    // supprimées → leurs PDF ne doivent pas rester). On GARDE les logos
+    // (Supabase Storage) car le compte + le branding survivent au wipe
+    // business. Best-effort.
+    try {
+      counts.r2_cvs = await r2DeleteByPrefix("cv", `${org.id}/`)
+    } catch (r2Err) {
+      console.warn(`[cron/wipe-lockdown] R2 cv purge ${org.id}:`, r2Err)
+      errors.push({ org_id: org.id, step: "delete_r2_cv", message: (r2Err as Error).message })
     }
 
     // Reset l'UI côté sièges. On ne touche PAS trial_ends_at (garde la trace)

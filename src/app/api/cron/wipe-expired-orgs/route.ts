@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { r2DeleteByPrefix } from "@/lib/r2-storage"
 
 export const runtime = "nodejs"
 
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "list failed" }, { status: 500 })
   }
 
-  const wiped: Array<{ org_id: string; org_name: string; members_deleted: number; logo_deleted: boolean }> = []
+  const wiped: Array<{ org_id: string; org_name: string; members_deleted: number; logo_deleted: boolean; cvs_deleted: number }> = []
   const errors: Array<{ org_id: string; step: string; message: string }> = []
 
   for (const org of (orgs ?? []) as OrgRow[]) {
@@ -92,7 +93,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2d. Drop each member's auth.users entry (separate from public.*
+    // 2d. Purge des CV candidats sur R2 (bucket `cv`, préfixe `{org_id}/`).
+    //     RGPD : on ne garde AUCUN CV à l'insu du client après suppression.
+    //     Les logos sont sur Supabase Storage (traités en 2c), pas sur R2.
+    //     Best-effort : un échec R2 ne rollback pas la suppression DB.
+    let cvsDeleted = 0
+    try {
+      cvsDeleted = await r2DeleteByPrefix("cv", `${org.id}/`)
+    } catch (r2Err) {
+      console.warn(`[cron/wipe] R2 cv purge ${org.id}:`, r2Err)
+      errors.push({ org_id: org.id, step: "delete_r2_cv", message: (r2Err as Error).message })
+    }
+
+    // 2e. Drop each member's auth.users entry (separate from public.*
     //     cascade). Best-effort — if one user fails to delete we keep
     //     going for the rest.
     let membersDeleted = 0
@@ -111,6 +124,7 @@ export async function GET(req: NextRequest) {
       org_name: org.name,
       members_deleted: membersDeleted,
       logo_deleted: logoDeleted,
+      cvs_deleted: cvsDeleted,
     })
   }
 
@@ -119,6 +133,7 @@ export async function GET(req: NextRequest) {
     ran_at: now,
     orgs_wiped: wiped.length,
     members_deleted: wiped.reduce((s, w) => s + w.members_deleted, 0),
+    cvs_deleted: wiped.reduce((s, w) => s + w.cvs_deleted, 0),
     detail: wiped,
     errors,
   })

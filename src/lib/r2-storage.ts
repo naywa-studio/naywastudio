@@ -23,7 +23,7 @@
  */
 
 import type { ListObjectsV2CommandOutput } from "@aws-sdk/client-s3"
-import { GetObjectCommand, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3"
+import { GetObjectCommand, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
 // ─── Configuration ─────────────────────────────────────────────────────
@@ -201,4 +201,44 @@ export async function r2SumSizeByPrefix(bucket: R2BucketKey, prefix: string): Pr
     continuationToken = res.NextContinuationToken
   }
   return totalBytes
+}
+
+/**
+ * Supprime TOUS les objets sous un préfixe (ex: `{org_id}/`) — par lots de
+ * 1000 (limite S3 DeleteObjects). Utilisé par les crons de wipe pour purger
+ * les CV candidats d'une org à la suppression (RGPD : ne pas garder de CV à
+ * l'insu du client). Retourne le nombre d'objets supprimés.
+ *
+ * Garde-fou : le préfixe DOIT être non vide et se terminer par "/" — on ne
+ * doit jamais pouvoir vider un bucket entier par erreur. Idempotent.
+ *
+ * Variante admin : pas de assertOrgScopedPath (appelé server-only depuis un
+ * cron qui boucle sur toutes les orgs). À réserver au code admin.
+ */
+export async function r2DeleteByPrefix(bucket: R2BucketKey, prefix: string): Promise<number> {
+  if (!prefix || !prefix.endsWith("/") || prefix.length < 2 || prefix.includes("..")) {
+    throw new Error("r2DeleteByPrefix: unsafe prefix (must be non-empty and end with '/')")
+  }
+  const client = getR2Client()
+  let deleted = 0
+  let continuationToken: string | undefined = undefined
+  do {
+    const list = await client.send(new ListObjectsV2Command({
+      Bucket: R2_BUCKETS[bucket],
+      Prefix: prefix,
+      ContinuationToken: continuationToken,
+    })) as ListObjectsV2CommandOutput
+    const keys = (list.Contents ?? [])
+      .map((o) => o.Key)
+      .filter((k): k is string => !!k)
+    if (keys.length > 0) {
+      await client.send(new DeleteObjectsCommand({
+        Bucket: R2_BUCKETS[bucket],
+        Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+      }))
+      deleted += keys.length
+    }
+    continuationToken = list.IsTruncated ? list.NextContinuationToken : undefined
+  } while (continuationToken)
+  return deleted
 }
