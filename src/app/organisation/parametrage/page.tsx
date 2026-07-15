@@ -22,11 +22,99 @@ import type { PricingDefaultAvantages } from "@/lib/database.types"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import {
   AVANTAGES_CONFIG,
+  AVANTAGES_LABELS,
+  avantageSuffixLabel,
   avantagesMonthlyTotal,
   type AvantageConfig,
 } from "@/lib/pricing/avantages-meta"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
+const copy = {
+  fr: {
+    backToPricing: "← Retour au pricing",
+    badge: "Paramètres organisation",
+    title: "Réglages récurrents de votre organisation",
+    subtitle: "Marges et avantages standards de votre organisation.",
+    readOnlyBadge: "Lecture seule.",
+    readOnlyBody: "Seul l'owner de l'organisation modifie ces paramètres. Vous les consultez pour comprendre comment vos chiffrages sont calculés.",
+    marginThresholdsTitle: "Seuils de marge",
+    marginThresholdsSubtitle: "Plancher et objectif de rentabilité de votre organisation.",
+    marginMinLabel: "Marge minimum acceptable",
+    marginMinHint: "En dessous, refus du chiffrage.",
+    marginTargetLabel: "Marge cible",
+    marginTargetHint: "Objectif visé.",
+    marginInvalid: "La marge cible doit être supérieure ou égale à la marge mini.",
+    nonBillableTitle: "Jours payés non facturables",
+    nonBillableSubtitle: "Jours rémunérés sans revenu. Baissent la marge mensuelle de chaque mission.",
+    rttLabel: "RTT accordés par votre organisation",
+    rttHint: "0 si vous n'accordez pas de RTT.",
+    perYearAbbr: "j/an",
+    benefitsTitle: "Avantages standards",
+    benefitsSubtitle: "Avantages appliqués à toutes les missions.",
+    optional: "Optionnels",
+    thirteenthLabel: "13ᵉ mois",
+    thirteenthHint: "Non obligatoire. Équivaut à 1 mois de brut /12.",
+    monthlyEstimateTitle: "Coût mensuel estimé des avantages activés",
+    monthlyEstimateHint: "Tickets resto × 21 j · annuels /12 · hors URSSAF grand déplacement (conditionnel).",
+    confirmedTitle: "Politique pricing confirmée",
+    unconfirmedTitle: "Confirmer ces paramètres",
+    confirmedBody: "Vous pouvez modifier librement ; les changements sont enregistrés automatiquement.",
+    unconfirmedBody: "Vos chiffrages utiliseront ces valeurs. Confirmez pour marquer la politique comme configurée et masquer la bannière du pricing.",
+    saving: "Enregistrement…",
+    reconfirm: "Re-confirmer",
+    saveButton: "✓ Sauvegarder ces paramètres",
+    saved: "Enregistré",
+    saveFailed: (err: string) => `Échec : ${err}`,
+    saveFailedFallback: "réessaie",
+    saveErrorGeneric: "Erreur lors de la sauvegarde.",
+    confirmErrorGeneric: "Erreur lors de la confirmation.",
+    legalObligation: "Obligation légale, toujours actif",
+    required: "Obligatoire",
+  },
+  en: {
+    backToPricing: "← Back to pricing",
+    badge: "Organization settings",
+    title: "Recurring settings for your organization",
+    subtitle: "Standard margins and benefits for your organization.",
+    readOnlyBadge: "Read-only.",
+    readOnlyBody: "Only the organization owner can edit these settings. You can review them to understand how your pricing is calculated.",
+    marginThresholdsTitle: "Margin thresholds",
+    marginThresholdsSubtitle: "Your organization's profitability floor and target.",
+    marginMinLabel: "Minimum acceptable margin",
+    marginMinHint: "Below this, the pricing is rejected.",
+    marginTargetLabel: "Target margin",
+    marginTargetHint: "Goal to aim for.",
+    marginInvalid: "The target margin must be greater than or equal to the minimum margin.",
+    nonBillableTitle: "Paid non-billable days",
+    nonBillableSubtitle: "Paid days with no revenue. Lower the monthly margin of every mission.",
+    rttLabel: "RTT days granted by your organization",
+    rttHint: "0 if you don't grant RTT days.",
+    perYearAbbr: "days/yr",
+    benefitsTitle: "Standard benefits",
+    benefitsSubtitle: "Benefits applied to every mission.",
+    optional: "Optional",
+    thirteenthLabel: "13th month",
+    thirteenthHint: "Not mandatory. Equivalent to 1 month of gross salary /12.",
+    monthlyEstimateTitle: "Estimated monthly cost of enabled benefits",
+    monthlyEstimateHint: "Meal vouchers × 21 days · yearly ones /12 · excludes URSSAF extended-travel allowance (conditional).",
+    confirmedTitle: "Pricing policy confirmed",
+    unconfirmedTitle: "Confirm these settings",
+    confirmedBody: "You can edit freely; changes are saved automatically.",
+    unconfirmedBody: "Your pricing will use these values. Confirm to mark the policy as configured and hide the banner on the pricing page.",
+    saving: "Saving…",
+    reconfirm: "Re-confirm",
+    saveButton: "✓ Save these settings",
+    saved: "Saved",
+    saveFailed: (err: string) => `Failed: ${err}`,
+    saveFailedFallback: "try again",
+    saveErrorGeneric: "Error while saving.",
+    confirmErrorGeneric: "Error while confirming.",
+    legalObligation: "Legal obligation, always active",
+    required: "Required",
+  },
+}
 
 interface Form {
   pricing_margin_min_pct: number
@@ -58,6 +146,8 @@ const DEFAULT_FORM: Form = {
 
 export default function ParametragePage() {
   const { isOwner, organization, refetch } = useCabinet()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const [form, setForm] = useState<Form | null>(null)
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
@@ -85,9 +175,9 @@ export default function ParametragePage() {
     } else {
       const j = await res.json().catch(() => ({} as { error?: string }))
       setSaveState("error")
-      setError(j.error ?? "Erreur lors de la confirmation.")
+      setError(j.error ?? t.confirmErrorGeneric)
     }
-  }, [isOwner, confirming, refetch])
+  }, [isOwner, confirming, refetch, t.confirmErrorGeneric])
 
   // Initial load — pricing config now lives on `organizations` (one
   // source of truth) and reaches the user via profile.organization_id.
@@ -151,7 +241,7 @@ export default function ParametragePage() {
         if (!res.ok) {
           const j = await res.json().catch(() => ({} as { error?: string }))
           setSaveState("error")
-          setError(j.error ?? "Erreur lors de la sauvegarde.")
+          setError(j.error ?? t.saveErrorGeneric)
         } else {
           setSaveState("saved")
           setError(null)
@@ -159,7 +249,7 @@ export default function ParametragePage() {
         }
       }, 800)
     },
-    [isOwner],
+    [isOwner, t.saveErrorGeneric],
   )
 
   const update = useCallback(
@@ -206,7 +296,7 @@ export default function ParametragePage() {
         <Link href="/workspace/pricing" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           fontSize: 13, color: "#7C63C8", textDecoration: "none", marginBottom: 18,
-        }}>← Retour au pricing</Link>
+        }}>{t.backToPricing}</Link>
         <span style={{
           display: "inline-block",
           fontSize: 11, fontWeight: 700, color: "#7C63C8",
@@ -214,15 +304,15 @@ export default function ParametragePage() {
           padding: "4px 11px", borderRadius: 100,
           letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
         }}>
-          Paramètres organisation
+          {t.badge}
         </span>
         <h1 style={{ margin: 0, fontSize: "clamp(24px, 3vw, 30px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
-          Réglages récurrents de votre organisation
+          {t.title}
         </h1>
         <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6, maxWidth: 640 }}>
-          Marges et avantages standards de votre organisation.
+          {t.subtitle}
         </p>
-        {isOwner && <SaveBadge state={saveState} error={error} />}
+        {isOwner && <SaveBadge state={saveState} error={error} lang={lang} />}
       </div>
 
       {!isOwner && (
@@ -232,9 +322,8 @@ export default function ParametragePage() {
           border: "1px solid rgba(124,99,200,0.20)",
           borderRadius: 12, fontSize: 13, color: "#4B5563", lineHeight: 1.55,
         }}>
-          <strong style={{ color: "#7C63C8" }}>Lecture seule.</strong>{" "}
-          Seul l&apos;owner de l&apos;organisation modifie ces paramètres. Vous les consultez pour
-          comprendre comment vos chiffrages sont calculés.
+          <strong style={{ color: "#7C63C8" }}>{t.readOnlyBadge}</strong>{" "}
+          {t.readOnlyBody}
         </div>
       )}
 
@@ -255,9 +344,9 @@ export default function ParametragePage() {
         transition={{ duration: 0.35, ease: EASE }}
         style={sectionStyle}
       >
-        <SectionHeader title="Seuils de marge" subtitle="Plancher et objectif de rentabilité de votre organisation." />
+        <SectionHeader title={t.marginThresholdsTitle} subtitle={t.marginThresholdsSubtitle} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <Field label="Marge minimum acceptable" hint="En dessous, refus du chiffrage.">
+          <Field label={t.marginMinLabel} hint={t.marginMinHint}>
             <NumberInput
               value={form.pricing_margin_min_pct}
               onChange={(v) => update("pricing_margin_min_pct", v)}
@@ -265,7 +354,7 @@ export default function ParametragePage() {
               suffix="%"
             />
           </Field>
-          <Field label="Marge cible" hint="Objectif visé.">
+          <Field label={t.marginTargetLabel} hint={t.marginTargetHint}>
             <NumberInput
               value={form.pricing_margin_target_pct}
               onChange={(v) => update("pricing_margin_target_pct", v)}
@@ -280,7 +369,7 @@ export default function ParametragePage() {
             background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
             borderRadius: 9,
           }}>
-            La marge cible doit être supérieure ou égale à la marge mini.
+            {t.marginInvalid}
           </p>
         )}
       </m.section>
@@ -291,19 +380,19 @@ export default function ParametragePage() {
         style={sectionStyle}
       >
         <SectionHeader
-          title="Jours payés non facturables"
-          subtitle="Jours rémunérés sans revenu. Baissent la marge mensuelle de chaque mission."
+          title={t.nonBillableTitle}
+          subtitle={t.nonBillableSubtitle}
         />
 
         <Field
-          label="RTT accordés par votre organisation"
-          hint="0 si vous n'accordez pas de RTT."
+          label={t.rttLabel}
+          hint={t.rttHint}
         >
           <NumberInput
             value={form.pricing_rtt_days_per_year}
             onChange={(v) => update("pricing_rtt_days_per_year", v)}
             min={0} max={25} step={1}
-            suffix="j/an"
+            suffix={t.perYearAbbr}
           />
         </Field>
       </m.section>
@@ -317,8 +406,8 @@ export default function ParametragePage() {
         style={sectionStyle}
       >
         <SectionHeader
-          title="Avantages standards"
-          subtitle="Avantages appliqués à toutes les missions."
+          title={t.benefitsTitle}
+          subtitle={t.benefitsSubtitle}
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Obligatoires groupés en tête */}
@@ -326,6 +415,8 @@ export default function ParametragePage() {
             <SmartAvantageRow
               key={cfg.key}
               config={cfg}
+              lang={lang}
+              t={t}
               value={form.pricing_default_avantages[cfg.key as keyof PricingDefaultAvantages] as number | undefined}
               onChange={(v) => updateAvantage(cfg.key as keyof PricingDefaultAvantages, v as PricingDefaultAvantages[keyof PricingDefaultAvantages])}
             />
@@ -335,12 +426,12 @@ export default function ParametragePage() {
             margin: "8px 0 -2px", fontSize: 10.5, fontWeight: 700, color: "#6B7280",
             letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 4px",
           }}>
-            Optionnels
+            {t.optional}
           </p>
 
           <BooleanAvantageRow
-            label="13ᵉ mois"
-            hint="Non obligatoire. Équivaut à 1 mois de brut /12."
+            label={t.thirteenthLabel}
+            hint={t.thirteenthHint}
             enabled={form.treiziemeMois}
             onToggle={(on) => update("treiziemeMois", on)}
           />
@@ -349,6 +440,8 @@ export default function ParametragePage() {
             <SmartAvantageRow
               key={cfg.key}
               config={cfg}
+              lang={lang}
+              t={t}
               value={form.pricing_default_avantages[cfg.key as keyof PricingDefaultAvantages] as number | undefined}
               onChange={(v) => updateAvantage(cfg.key as keyof PricingDefaultAvantages, v as PricingDefaultAvantages[keyof PricingDefaultAvantages])}
             />
@@ -365,10 +458,10 @@ export default function ParametragePage() {
         }}>
           <div>
             <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-              Coût mensuel estimé des avantages activés
+              {t.monthlyEstimateTitle}
             </p>
             <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280" }}>
-              Tickets resto × 21 j · annuels /12 · hors URSSAF grand déplacement (conditionnel).
+              {t.monthlyEstimateHint}
             </p>
           </div>
           <span style={{ fontSize: 20, fontWeight: 800, color: "#7C63C8", fontVariantNumeric: "tabular-nums" }}>
@@ -391,12 +484,10 @@ export default function ParametragePage() {
         }}>
           <div style={{ minWidth: 0, flex: "1 1 280px" }}>
             <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
-              {onboarded ? "Politique pricing confirmée" : "Confirmer ces paramètres"}
+              {onboarded ? t.confirmedTitle : t.unconfirmedTitle}
             </p>
             <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
-              {onboarded
-                ? "Vous pouvez modifier librement ; les changements sont enregistrés automatiquement."
-                : "Vos chiffrages utiliseront ces valeurs. Confirmez pour marquer la politique comme configurée et masquer la bannière du pricing."}
+              {onboarded ? t.confirmedBody : t.unconfirmedBody}
             </p>
           </div>
           <button
@@ -422,10 +513,10 @@ export default function ParametragePage() {
             }}
           >
             {confirming
-              ? "Enregistrement…"
+              ? t.saving
               : onboarded
-                ? "Re-confirmer"
-                : "✓ Sauvegarder ces paramètres"}
+                ? t.reconfirm
+                : t.saveButton}
           </button>
         </div>
       )}
@@ -462,15 +553,16 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
   )
 }
 
-function SaveBadge({ state, error }: { state: "idle" | "saving" | "saved" | "error"; error: string | null }) {
+function SaveBadge({ state, error, lang }: { state: "idle" | "saving" | "saved" | "error"; error: string | null; lang: "fr" | "en" }) {
   if (state === "idle") return null
+  const t = copy[lang]
   const fg = state === "error" ? "#B91C1C" : state === "saved" ? "#15803d" : "#6B7280"
   const bg = state === "error" ? "rgba(220,38,38,0.06)" : state === "saved" ? "rgba(34,197,94,0.07)" : "#F3F4F6"
   const bd = state === "error" ? "rgba(220,38,38,0.25)" : state === "saved" ? "rgba(34,197,94,0.25)" : "#E5E7EB"
   const text =
-    state === "saving" ? "Enregistrement…"
-    : state === "saved" ? "Enregistré"
-    : `Échec : ${error ?? "réessaie"}`
+    state === "saving" ? t.saving
+    : state === "saved" ? t.saved
+    : t.saveFailed(error ?? t.saveFailedFallback)
   return (
     <span style={{
       marginTop: 14, display: "inline-block",
@@ -546,12 +638,16 @@ function BooleanAvantageRow({
 }
 
 function SmartAvantageRow({
-  config, value, onChange,
+  config, value, onChange, lang, t,
 }: {
   config: AvantageConfig
   value: number | undefined
   onChange: (v: number) => void
+  lang: "fr" | "en"
+  t: (typeof copy)["fr"]
 }) {
+  const labels = AVANTAGES_LABELS[lang][config.key]
+  const suffixLabel = avantageSuffixLabel(config.suffix, lang)
   const isRequired = config.required === true
   const externalValue = value ?? 0
   const enabled = isRequired || externalValue > 0
@@ -563,7 +659,7 @@ function SmartAvantageRow({
   // Input vide quand pas activé → placeholder grisé fantôme, on tape proprement.
   const inputValue = enabled ? String(Math.round(externalValue)) : ""
   const placeholderValue = enabled ? undefined : String(Math.round(remembered))
-  const warningMsg = enabled && config.warning ? config.warning(externalValue) : null
+  const warningMsg = enabled && labels.warning ? labels.warning(externalValue) : null
 
   const handleToggle = (on: boolean) => {
     onChange(on ? (remembered > 0 ? remembered : config.defaultValue) : 0)
@@ -589,13 +685,13 @@ function SmartAvantageRow({
           <span style={{
             display: "inline-block", width: 8, height: 8, borderRadius: "50%",
             background: "#7C63C8", margin: "0 6px",
-          }} title="Obligation légale, toujours actif" />
+          }} title={t.legalObligation} />
         ) : (
           <Checkbox checked={enabled} onChange={handleToggle} />
         )}
         <div>
           <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: 6 }}>
-            {config.label}
+            {labels.label}
             {isRequired && (
               <span style={{
                 fontSize: 9.5, fontWeight: 800, color: "#7C63C8",
@@ -603,11 +699,11 @@ function SmartAvantageRow({
                 borderRadius: 100, padding: "1px 7px",
                 letterSpacing: "0.05em", textTransform: "uppercase",
               }}>
-                Obligatoire
+                {t.required}
               </span>
             )}
           </p>
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{config.hint}</p>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{labels.hint}</p>
         </div>
         <div style={{ width: 140 }}>
           <div style={inputBoxStyle}>
@@ -621,7 +717,7 @@ function SmartAvantageRow({
               max={config.max}
               step={config.step ?? 1}
             />
-            <span style={{ fontSize: 11, color: "#6B7280", paddingRight: 10 }}>{config.suffix}</span>
+            <span style={{ fontSize: 11, color: "#6B7280", paddingRight: 10 }}>{suffixLabel}</span>
           </div>
         </div>
       </div>

@@ -743,7 +743,7 @@ function PricingWidgetInner({
              *  bougent rarement par tranches inférieures à 25 €). */
             step={tjm < 800 ? 10 : 25}
             max={2000}
-            suffix="€/j"
+            suffix={lang === "fr" ? "€/j" : "€/d"}
             onChange={setTjm}
             markers={[
               ...(limits ? [
@@ -760,7 +760,7 @@ function PricingWidgetInner({
             value={brutAnnuel}
             step={500}
             max={150000}
-            suffix="€/an"
+            suffix={lang === "fr" ? "€/an" : "€/yr"}
             onChange={setBrutAnnuel}
             markers={limits ? [
               { value: Math.round(limits.brutMin),   label: t.syntecMin,                 color: "#B91C1C" },
@@ -1291,22 +1291,25 @@ function ActiveAvantagesStrip({ avantages, job }: {
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
+  const perMo = lang === "fr" ? "€/mois" : "€/mo"
+  const perYr = lang === "fr" ? "€/an" : "€/yr"
+  const perD = lang === "fr" ? "€/j" : "€/d"
   type Chip = { label: string; value: string }
   const chips: Chip[] = []
-  if ((avantages.mutuellePremium ?? 0) > 0)        chips.push({ label: t.benefitMutuelle,        value: `${avantages.mutuellePremium} €/mois` })
-  if ((avantages.medecineDuTravailAnnuel ?? 0) > 0) chips.push({ label: t.benefitMedecine,        value: `${avantages.medecineDuTravailAnnuel} €/an` })
-  if ((avantages.transport ?? 0) > 0)              chips.push({ label: t.benefitTransport,       value: `${avantages.transport} €/mois` })
-  if ((avantages.ticketsResto ?? 0) > 0)           chips.push({ label: t.benefitTicketsResto,   value: `${avantages.ticketsResto} €/j` })
-  if ((avantages.forfaitMobilite ?? 0) > 0)        chips.push({ label: t.benefitMobilite, value: `${avantages.forfaitMobilite} €/mois` })
-  if ((avantages.indemniteKilometriqueAnnuelle ?? 0) > 0) chips.push({ label: t.benefitKm, value: `${avantages.indemniteKilometriqueAnnuelle} €/an` })
+  if ((avantages.mutuellePremium ?? 0) > 0)        chips.push({ label: t.benefitMutuelle,        value: `${avantages.mutuellePremium} ${perMo}` })
+  if ((avantages.medecineDuTravailAnnuel ?? 0) > 0) chips.push({ label: t.benefitMedecine,        value: `${avantages.medecineDuTravailAnnuel} ${perYr}` })
+  if ((avantages.transport ?? 0) > 0)              chips.push({ label: t.benefitTransport,       value: `${avantages.transport} ${perMo}` })
+  if ((avantages.ticketsResto ?? 0) > 0)           chips.push({ label: t.benefitTicketsResto,   value: `${avantages.ticketsResto} ${perD}` })
+  if ((avantages.forfaitMobilite ?? 0) > 0)        chips.push({ label: t.benefitMobilite, value: `${avantages.forfaitMobilite} ${perMo}` })
+  if ((avantages.indemniteKilometriqueAnnuelle ?? 0) > 0) chips.push({ label: t.benefitKm, value: `${avantages.indemniteKilometriqueAnnuelle} ${perYr}` })
   if (avantages.treiziemeMois) chips.push({ label: t.benefit13th, value: t.active })
   if (job?.has_grand_deplacement && (avantages.urssafIndemniteJour ?? 0) > 0) {
-    chips.push({ label: t.benefitGrandDeplacement, value: `${avantages.urssafIndemniteJour} €/j` })
+    chips.push({ label: t.benefitGrandDeplacement, value: `${avantages.urssafIndemniteJour} ${perD}` })
   }
   if (job?.is_expatriated && (avantages.expatriationMensuelle ?? 0) > 0) {
-    chips.push({ label: t.benefitExpatriation, value: `${avantages.expatriationMensuelle} €/mois` })
+    chips.push({ label: t.benefitExpatriation, value: `${avantages.expatriationMensuelle} ${perMo}` })
   }
-  if ((avantages.autresMensuels ?? 0) > 0) chips.push({ label: t.benefitAutres, value: `${avantages.autresMensuels} €/mois` })
+  if ((avantages.autresMensuels ?? 0) > 0) chips.push({ label: t.benefitAutres, value: `${avantages.autresMensuels} ${perMo}` })
 
   if (chips.length === 0) return null
 
