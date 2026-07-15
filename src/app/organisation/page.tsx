@@ -251,11 +251,18 @@ export default function CabinetPage() {
         )}
 
         {activeTab === "securite" && (
-          <div style={{ maxWidth: 720 }}>
+          <div style={{ maxWidth: 720, display: "grid", gap: 16 }}>
+            <ExportDataCard />
+            {isOwner && (
+              <TransferOwnershipCard
+                currentUserId={profile.user_id}
+                onTransferred={refetch}
+              />
+            )}
             <DangerSection
               organization={organization}
-              seatsUsed={seatsUsed}
-              onDeleted={() => router.replace("/")}
+              isOwner={isOwner}
+              onChanged={refetch}
             />
           </div>
         )}
@@ -699,13 +706,35 @@ function SubscriptionCard({
 
   if (organization.pending_deletion_at) {
     const date = new Date(organization.pending_deletion_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+    const cancelDeletion = async () => {
+      setBusy(true); setError(null)
+      try {
+        const r = await fetch("/api/cabinet/cancel-deletion", { method: "POST" })
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({} as { error?: string }))
+          throw new Error(j.error ?? "Annulation impossible")
+        }
+        await onActivated()
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Erreur")
+      } finally {
+        setBusy(false)
+      }
+    }
     return (
       <Card title="Abonnement" subtitle="Statut du Package Sourcing.">
         <Panel tone="warn">
-          <p style={panelTitle("#D97706")}>Résiliation en cours</p>
+          <p style={panelTitle("#D97706")}>Suppression programmée</p>
           <p style={panelBody("#92400E")}>
             L&apos;organisation et toutes ses données seront supprimées le <strong>{date}</strong>.
+            Le workspace est en lecture seule d&apos;ici là. Vous pouvez encore tout annuler.
           </p>
+          {isOwner && (
+            <button type="button" onClick={cancelDeletion} disabled={busy} style={{ ...ctaSecondaryBtn(busy), marginTop: 12 }}>
+              {busy ? "Annulation…" : "Annuler la suppression"}
+            </button>
+          )}
+          {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>}
         </Panel>
       </Card>
     )
@@ -2851,11 +2880,11 @@ function RolePill({ role }: { role: "owner" | "member" }) {
 /* ────────────────────────────────────────────────────────────────── */
 
 function DangerSection({
-  organization, seatsUsed, onDeleted,
+  organization, isOwner, onChanged,
 }: {
   organization: { id: string; name: string; pending_deletion_at: string | null }
-  seatsUsed: number
-  onDeleted: () => void
+  isOwner: boolean
+  onChanged: () => void | Promise<void>
 }) {
   const [showModal, setShowModal] = useState(false)
   const [confirmText, setConfirmText] = useState("")
@@ -2864,7 +2893,6 @@ function DangerSection({
 
   const expectedConfirm = (organization.name || "").trim()
   const canDelete = confirmText.trim() === expectedConfirm && !busy
-  const hasOtherMembers = seatsUsed > 1
 
   const doDelete = async () => {
     if (!canDelete) return
@@ -2876,41 +2904,84 @@ function DangerSection({
       setBusy(false)
       return
     }
-    await getSupabase().auth.signOut()
-    onDeleted()
+    // Pas de déconnexion : l'owner reste connecté pour pouvoir ANNULER pendant
+    // la grâce. L'org passe en lecture seule, l'UI se rafraîchit et bascule sur
+    // l'état "Suppression programmée · Annuler".
+    setShowModal(false); setConfirmText(""); setBusy(false)
+    await onChanged()
   }
 
-  if (organization.pending_deletion_at) return null
+  const cancelDeletion = async () => {
+    setBusy(true); setError(null)
+    const res = await fetch("/api/cabinet/cancel-deletion", { method: "POST" })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Annulation impossible.")
+      setBusy(false)
+      return
+    }
+    setBusy(false)
+    await onChanged()
+  }
+
+  // ─ Suppression déjà programmée → carte de rappel + annulation.
+  if (organization.pending_deletion_at) {
+    const date = new Date(organization.pending_deletion_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+    return (
+      <section style={{
+        padding: "16px 18px", background: "white",
+        border: "1px solid rgba(239,68,68,0.30)", borderRadius: 14, boxSizing: "border-box",
+      }}>
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>Suppression programmée</h2>
+        <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+          L&apos;organisation et toutes ses données seront supprimées définitivement le <strong style={{ color: "#111827" }}>{date}</strong>.
+          Le workspace est en lecture seule d&apos;ici là. Tant que ce délai n&apos;est pas écoulé, vous pouvez tout annuler.
+        </p>
+        {isOwner ? (
+          <button type="button" onClick={cancelDeletion} disabled={busy}
+            style={{
+              padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(124,99,200,0.35)",
+              background: "white", color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+              cursor: busy ? "default" : "pointer",
+            }}>
+            {busy ? "Annulation…" : "Annuler la suppression"}
+          </button>
+        ) : (
+          <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontStyle: "italic" }}>
+            Seul le propriétaire de l&apos;organisation peut annuler.
+          </p>
+        )}
+        {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>}
+      </section>
+    )
+  }
+
+  // ─ Suppression réservée à l'owner.
+  if (!isOwner) return null
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <ExportDataCard />
-
-      <section style={{
-        padding: "16px 18px",
-        background: "white",
-        border: "1px solid rgba(239,68,68,0.30)",
-        borderRadius: 14,
-        boxSizing: "border-box",
-      }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
-          Zone de danger
-        </h2>
-        <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-          Supprimer définitivement l&apos;organisation et toutes ses données.{" "}
-          {hasOtherMembers
-            ? <>Les autres membres garderont accès 30 jours.</>
-            : <>La suppression est immédiate.</>}
-        </p>
-        <button type="button" onClick={() => setShowModal(true)}
-          style={{
-            padding: "8px 14px", borderRadius: 9,
-            border: "1px solid rgba(239,68,68,0.35)",
-            background: "white", color: "#B91C1C",
-            fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-          }}>
-          Supprimer mon organisation
-        </button>
+    <section style={{
+      padding: "16px 18px", background: "white",
+      border: "1px solid rgba(239,68,68,0.30)", borderRadius: 14, boxSizing: "border-box",
+    }}>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
+        Zone de danger
+      </h2>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+        Programmer la suppression de l&apos;organisation et de toutes ses données.
+        Le workspace passe en lecture seule pendant <strong>30 jours</strong> (le temps
+        d&apos;exporter vos données), puis tout est supprimé définitivement. Vous pouvez
+        annuler à tout moment avant l&apos;échéance.
+      </p>
+      <button type="button" onClick={() => setShowModal(true)}
+        style={{
+          padding: "8px 14px", borderRadius: 9,
+          border: "1px solid rgba(239,68,68,0.35)",
+          background: "white", color: "#B91C1C",
+          fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+        }}>
+        Supprimer mon organisation
+      </button>
 
       {showModal && (
         <div role="dialog" aria-modal="true"
@@ -2932,11 +3003,10 @@ function DangerSection({
               Supprimer {organization.name} ?
             </h3>
             <p style={{ margin: "10px 0 18px", fontSize: 13.5, color: "#4B5563", lineHeight: 1.6 }}>
-              {hasOtherMembers ? (
-                <>Vos collègues garderont l&apos;accès au workspace pendant <strong>30 jours</strong>. Passé ce délai, l&apos;organisation et toutes ses données seront supprimées définitivement.</>
-              ) : (
-                <>Toutes vos données (vivier, missions, pipeline, emails, paramètres) seront supprimées <strong>immédiatement et définitivement</strong>. Cette action est irréversible.</>
-              )}
+              L&apos;organisation passe en <strong>lecture seule</strong> et sera supprimée
+              définitivement, avec toutes ses données, dans <strong>30 jours</strong>.
+              Vous (et vos collègues) pourrez exporter les données et <strong>annuler</strong>
+              {" "}la suppression à tout moment avant l&apos;échéance.
             </p>
             <Label>Tapez le nom de l&apos;organisation pour confirmer&nbsp;: <code style={{ background: "#F3F4F6", padding: "1px 6px", borderRadius: 4, color: "#111827" }}>{expectedConfirm}</code></Label>
             <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
@@ -2955,14 +3025,114 @@ function DangerSection({
                   fontSize: 13, fontWeight: 700,
                   cursor: canDelete ? "pointer" : "not-allowed",
                 }}>
-                {busy ? "Suppression…" : "Confirmer"}
+                {busy ? "Programmation…" : "Programmer la suppression"}
               </button>
             </div>
           </div>
         </div>
       )}
-      </section>
-    </div>
+    </section>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Transfert de propriété                                              */
+/* ────────────────────────────────────────────────────────────────── */
+
+function TransferOwnershipCard({
+  currentUserId, onTransferred,
+}: {
+  currentUserId: string
+  onTransferred: () => void | Promise<void>
+}) {
+  const [members, setMembers] = useState<Array<{ user_id: string; first_name: string | null; role: string }>>([])
+  const [loading, setLoading] = useState(true)
+  const [target, setTarget] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      const { data } = await getSupabase()
+        .from("profiles")
+        .select("user_id, first_name, role")
+        .neq("user_id", currentUserId)
+      if (!mounted) return
+      setMembers((data ?? []) as Array<{ user_id: string; first_name: string | null; role: string }>)
+      setLoading(false)
+    })()
+    return () => { mounted = false }
+  }, [currentUserId])
+
+  if (loading) return null
+  // Rien à transférer si l'owner est seul.
+  if (members.length === 0) return null
+
+  const label = (m: { first_name: string | null; user_id: string }) =>
+    m.first_name?.trim() || `Membre ${m.user_id.slice(0, 6)}`
+
+  const doTransfer = async () => {
+    if (!target) return
+    setBusy(true); setError(null)
+    const res = await fetch("/api/cabinet/transfer-ownership", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: target }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Transfert impossible.")
+      setBusy(false)
+      return
+    }
+    setBusy(false); setConfirming(false)
+    await onTransferred()
+  }
+
+  return (
+    <section style={{
+      padding: "16px 18px", background: "white",
+      border: "1px solid #F0ECF8", borderRadius: 14, boxSizing: "border-box",
+    }}>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>
+        Transférer la propriété
+      </h2>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+        Passez la main à un autre membre. Vous deviendrez membre de l&apos;organisation ;
+        le nouveau propriétaire gérera l&apos;abonnement, les sièges et le branding.
+      </p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <select value={target} onChange={(e) => { setTarget(e.target.value); setConfirming(false) }}
+          style={{ ...inputStyle, maxWidth: 260 }}>
+          <option value="">Choisir un membre…</option>
+          {members.map((m) => (
+            <option key={m.user_id} value={m.user_id}>{label(m)}</option>
+          ))}
+        </select>
+        {!confirming ? (
+          <button type="button" onClick={() => target && setConfirming(true)} disabled={!target}
+            style={{
+              padding: "9px 14px", borderRadius: 9, border: "1px solid rgba(124,99,200,0.35)",
+              background: "white", color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+              cursor: target ? "pointer" : "not-allowed",
+            }}>
+            Transférer
+          </button>
+        ) : (
+          <button type="button" onClick={doTransfer} disabled={busy}
+            style={{
+              padding: "9px 14px", borderRadius: 9, border: "none",
+              background: "#7C63C8", color: "white", fontSize: 12.5, fontWeight: 700,
+              cursor: busy ? "default" : "pointer",
+            }}>
+            {busy ? "Transfert…" : "Confirmer le transfert"}
+          </button>
+        )}
+      </div>
+      {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>}
+    </section>
   )
 }
 

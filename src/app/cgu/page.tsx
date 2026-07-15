@@ -53,10 +53,14 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
-    title: "6. Abonnement et résiliation",
+    title: "6. Abonnement, résiliation et rétention des données",
     content: [
       "Le service Package Sourcing est commercialisé par siège. La grille tarifaire en vigueur est publiée sur la page Tarifs.",
-      "**Suppression du compte** : l'Owner peut supprimer son organisation à tout moment depuis la console. Si d'autres membres sont actifs, ils conservent l'accès au workspace jusqu'à la fin de la période payée. Passé ce délai, toutes les données de l'organisation sont supprimées définitivement et sans retour possible.",
+      "**Résiliation de l'abonnement** : l'Owner peut résilier à tout moment depuis l'espace de gestion d'abonnement (portail sécurisé de notre prestataire de paiement). La résiliation prend effet à la fin de la période déjà payée : le Client conserve un accès complet jusqu'à cette date, aucun remboursement au prorata n'est dû.",
+      "**Période de grâce (lecture seule)** : à l'issue de la période payée sans reconduction — ou à l'expiration de l'essai gratuit sans souscription — l'organisation bascule en **lecture seule pendant 30 jours**. Pendant cette période, le Client peut consulter et **exporter** ses données (RGPD), et **réactiver** son abonnement pour retrouver un accès complet. Aucune donnée n'est créée, modifiée ou générée en lecture seule.",
+      "**Suppression des données après la grâce** : passé le délai de 30 jours sans réactivation, les données métier de l'organisation (vivier, missions, pipeline, messages) sont supprimées. Le compte et l'organisation sont conservés vides afin de permettre une éventuelle ré-souscription ultérieure.",
+      "**Suppression volontaire de l'organisation** : l'Owner peut programmer la suppression de son organisation à tout moment depuis la console. L'organisation passe alors en lecture seule et est **supprimée définitivement à l'issue d'un délai de 30 jours**, avec l'ensemble de ses données et des comptes associés. Le Client peut **annuler cette suppression** à tout moment avant l'échéance.",
+      "**Transfert de propriété** : l'Owner peut transférer la propriété de l'organisation à un autre membre depuis la console. L'ancien Owner devient alors membre.",
       "**Cession de siège** : un siège libéré pendant une période payée peut être ré-attribué par l'Owner sans surcoût.",
       "L'essai gratuit de 15 jours n'entraîne aucune facturation. La souscription payante ne démarre qu'après validation explicite d'une formule par le Client.",
     ],

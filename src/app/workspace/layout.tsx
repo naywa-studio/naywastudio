@@ -12,7 +12,7 @@ import { TrialBanner } from "@/components/trial/TrialBanner"
 import { QuotaWarningBanner } from "@/components/quota/QuotaWarningBanner"
 import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
 import { SupportButton } from "@/components/support/SupportButton"
-import { hasActiveAccess, isInLockdown } from "@/lib/subscription"
+import { isWorkspaceReadOnly } from "@/lib/subscription"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -127,10 +127,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       return
     }
 
-    if (isOwner && org && !hasActiveAccess(org) && !isInLockdown(org)) {
-      router.replace("/organisation")
-      return
-    }
+    // Owner avec siège mais sans accès actif (résiliation / impayé / essai
+    // expiré) OU suppression programmée : on ne le bounce PLUS vers
+    // /organisation. Il reste dans le workspace en LECTURE SEULE (cf.
+    // isWorkspaceReadOnly ci-dessous) pour consulter ses données, les
+    // exporter et réactiver / annuler depuis les bannières.
 
     setProfile(prof ?? null)
     setOrganization(org)
@@ -210,16 +211,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   return (
     <WorkspaceContext.Provider value={{
       profile, organization, userEmail, hasSubscription,
-      // Read-only si :
-      //   - lockdown actif (sub past_due / canceled, 15 j grace)
-      //   - OU member dont l'org n'a pas d'accès actif (l'owner n'a pas
-      //     encore souscrit) -> le member peut explorer mais rien créer.
-      isReadOnly:
-        // Les admins n'ont jamais de mode lecture seule (bypass paywall).
-        !profile?.is_admin && (
-          isInLockdown(organization) ||
-          (profile?.role === "member" && !!organization && !hasActiveAccess(organization))
-        ),
+      // Lecture seule dès qu'une suppression est programmée OU que l'org n'a
+      // plus d'accès actif (résiliation, impayé, essai expiré). Couvre l'owner
+      // (qui n'est plus bounce) comme les members. Admin Naywa = jamais.
+      isReadOnly: isWorkspaceReadOnly(organization, { isAdmin: profile?.is_admin === true }),
       refetchProfile: fetchProfile,
     }}>
       {/* Fond calme sur l'app connectée (dense) : on réserve le shader animé
