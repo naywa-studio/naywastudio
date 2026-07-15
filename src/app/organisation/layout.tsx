@@ -10,6 +10,37 @@ import { TrialBanner } from "@/components/trial/TrialBanner"
 import { SupportButton } from "@/components/support/SupportButton"
 import { getSupabase } from "@/lib/supabase"
 import type { Organization, Profile } from "@/lib/database.types"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher"
+
+const copy = {
+  fr: {
+    openWorkspace: "Ouvrir le workspace",
+    workspace: "Workspace",
+    homeTitle: "Accueil naywastudio.com",
+    orgConsole: "Console organisation",
+    myProfileAria: "Mon profil",
+    loggedInAs: "Connecté en tant que",
+    myProfile: "Mon profil",
+    myWorkspace: "Mon workspace",
+    updates: "Nouveautés",
+    adminConsole: "Console admin",
+    logout: "Se déconnecter",
+  },
+  en: {
+    openWorkspace: "Open workspace",
+    workspace: "Workspace",
+    homeTitle: "naywastudio.com home",
+    orgConsole: "Organization console",
+    myProfileAria: "My profile",
+    loggedInAs: "Signed in as",
+    myProfile: "My profile",
+    myWorkspace: "My workspace",
+    updates: "Updates",
+    adminConsole: "Admin console",
+    logout: "Sign out",
+  },
+}
 
 /**
  * Cabinet console — admin area for the org owner.
@@ -40,6 +71,8 @@ export function useCabinet() {
 
 export default function CabinetLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [ctx, setCtx] = useState<CabinetCtx | null>(null)
   const [ready, setReady] = useState(false)
 
@@ -141,7 +174,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
                 anonyme montré à tous, qui envoyait l'owner sans siège dans
                 une redirection retour silencieuse. */}
             {(ctx.profile.has_sourcing_seat || ctx.profile.is_admin) && (
-              <Link href="/workspace" title="Ouvrir le workspace"
+              <Link href="/workspace" title={t.openWorkspace}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "7px 12px", borderRadius: 9,
@@ -153,10 +186,10 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
                 <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden>
                   <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Workspace
+                {t.workspace}
               </Link>
             )}
-            <Link href="/" style={{ textDecoration: "none" }} title="Accueil naywastudio.com">
+            <Link href="/" style={{ textDecoration: "none" }} title={t.homeTitle}>
               <Logo size="md" />
             </Link>
             <span style={{
@@ -167,17 +200,18 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
               letterSpacing: "0.08em", textTransform: "uppercase",
               marginLeft: 12,
             }}>
-              Console organisation
+              {t.orgConsole}
             </span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <LanguageSwitcher />
             <SupportButton variant="compact" />
             <div ref={menuRef} style={{ position: "relative" }}>
               <button
                 type="button"
                 onClick={() => setMenuOpen((o) => !o)}
-                aria-label="Mon profil"
+                aria-label={t.myProfileAria}
                 title={ctx.userEmail}
                 style={{
                   width: 34, height: 34, borderRadius: "50%",
@@ -204,7 +238,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
                     borderBottom: "1px solid #F0ECF8", marginBottom: 4,
                   }}>
                     <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                      Connecté en tant que
+                      {t.loggedInAs}
                     </p>
                     <p style={{
                       margin: "2px 0 0", fontSize: 13, fontWeight: 600, color: "#111827",
@@ -214,26 +248,26 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
                     </p>
                   </div>
                   <Link href="/profil" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
-                    Mon profil
+                    {t.myProfile}
                   </Link>
                   {ctx.profile.has_sourcing_seat && (
                     <Link href="/workspace" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
-                      Mon workspace
+                      {t.myWorkspace}
                     </Link>
                   )}
                   <Link href="/nouveautes" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
-                    Nouveautés
+                    {t.updates}
                   </Link>
                   {ctx.profile.is_admin && (
                     <Link href="/admin" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
-                      Console admin
+                      {t.adminConsole}
                     </Link>
                   )}
                   <button
                     onClick={() => { setMenuOpen(false); handleLogout() }}
                     style={MENU_ITEM_DANGER}
                   >
-                    Se déconnecter
+                    {t.logout}
                   </button>
                 </div>
               )}

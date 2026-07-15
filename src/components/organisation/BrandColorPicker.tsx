@@ -23,6 +23,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 const OFF_COLOR = "#000000"
 
@@ -30,22 +31,69 @@ const OFF_COLOR = "#000000"
  * Palette curated — 14 couleurs sobres pour usage B2B.
  * On évite les fluo et les pastels trop juvéniles.
  */
-const CURATED_PALETTE: Array<{ hex: string; name: string }> = [
-  { hex: "#0F172A", name: "Encre" },
-  { hex: "#1E40AF", name: "Bleu profond" },
-  { hex: "#0369A1", name: "Bleu acier" },
-  { hex: "#0E7490", name: "Sarcelle" },
-  { hex: "#15803D", name: "Forêt" },
-  { hex: "#65A30D", name: "Olive" },
-  { hex: "#CA8A04", name: "Ocre" },
-  { hex: "#C2410C", name: "Cuivre" },
-  { hex: "#B91C1C", name: "Carmin" },
-  { hex: "#BE185D", name: "Magenta" },
-  { hex: "#7C3AED", name: "Violet" },
-  { hex: "#4F46E5", name: "Indigo" },
-  { hex: "#4B5563", name: "Graphite" },
-  { hex: "#7C63C8", name: "Naywa" },
-]
+const CURATED_PALETTE: Record<Lang, Array<{ hex: string; name: string }>> = {
+  fr: [
+    { hex: "#0F172A", name: "Encre" },
+    { hex: "#1E40AF", name: "Bleu profond" },
+    { hex: "#0369A1", name: "Bleu acier" },
+    { hex: "#0E7490", name: "Sarcelle" },
+    { hex: "#15803D", name: "Forêt" },
+    { hex: "#65A30D", name: "Olive" },
+    { hex: "#CA8A04", name: "Ocre" },
+    { hex: "#C2410C", name: "Cuivre" },
+    { hex: "#B91C1C", name: "Carmin" },
+    { hex: "#BE185D", name: "Magenta" },
+    { hex: "#7C3AED", name: "Violet" },
+    { hex: "#4F46E5", name: "Indigo" },
+    { hex: "#4B5563", name: "Graphite" },
+    { hex: "#7C63C8", name: "Naywa" },
+  ],
+  en: [
+    { hex: "#0F172A", name: "Ink" },
+    { hex: "#1E40AF", name: "Deep blue" },
+    { hex: "#0369A1", name: "Steel blue" },
+    { hex: "#0E7490", name: "Teal" },
+    { hex: "#15803D", name: "Forest" },
+    { hex: "#65A30D", name: "Olive" },
+    { hex: "#CA8A04", name: "Ochre" },
+    { hex: "#C2410C", name: "Copper" },
+    { hex: "#B91C1C", name: "Carmine" },
+    { hex: "#BE185D", name: "Magenta" },
+    { hex: "#7C3AED", name: "Violet" },
+    { hex: "#4F46E5", name: "Indigo" },
+    { hex: "#4B5563", name: "Graphite" },
+    { hex: "#7C63C8", name: "Naywa" },
+  ],
+}
+
+const copy = {
+  fr: {
+    mainColor: "Couleur principale",
+    yourLogoColors: "Couleurs de votre logo",
+    extracting: "Extraction en cours…",
+    noDominantColor: "Aucune couleur dominante détectée.",
+    suggestedPalette: "Palette suggérée",
+    reset: "Réinitialiser (noir)",
+    addSecondaryColor: "Ajouter une couleur secondaire",
+    addSecondaryHint: "(titres de section, accents)",
+    secondaryColor: "Couleur secondaire",
+    removeSecondaryColor: "Retirer la couleur secondaire",
+    notConfigured: "Non configurée",
+  },
+  en: {
+    mainColor: "Main color",
+    yourLogoColors: "Your logo's colors",
+    extracting: "Extracting…",
+    noDominantColor: "No dominant color detected.",
+    suggestedPalette: "Suggested palette",
+    reset: "Reset (black)",
+    addSecondaryColor: "Add a secondary color",
+    addSecondaryHint: "(section titles, accents)",
+    secondaryColor: "Secondary color",
+    removeSecondaryColor: "Remove secondary color",
+    notConfigured: "Not configured",
+  },
+}
 
 interface BrandColorPickerProps {
   primary: string | null      // valeur DB (hex sans rendu visuel actuel)
@@ -65,6 +113,9 @@ interface BrandColorPickerProps {
 export function BrandColorPicker({
   primary, secondary, isOwner, logoUrl, onSave, saving = false,
 }: BrandColorPickerProps) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const palette = CURATED_PALETTE[lang]
   const [logoColors, setLogoColors] = useState<string[]>([])
   const [extracting, setExtracting] = useState(false)
   const [bicolore, setBicolore] = useState<boolean>(secondary !== null)
@@ -162,7 +213,7 @@ export function BrandColorPicker({
 
       {/* Aperçu courant */}
       <CurrentColorPreview
-        label="Couleur principale"
+        label={t.mainColor}
         hex={primary ?? OFF_COLOR}
         isOff={isOff}
       />
@@ -170,20 +221,20 @@ export function BrandColorPicker({
       {/* Couleurs extraites du logo */}
       {logoUrl && (
         <PaletteRow
-          title="Couleurs de votre logo"
+          title={t.yourLogoColors}
           colors={logoColors}
           selected={primary}
           onSelect={setPrimary}
-          empty={extracting ? "Extraction en cours…" : "Aucune couleur dominante détectée."}
+          empty={extracting ? t.extracting : t.noDominantColor}
           disabled={!isOwner || saving}
         />
       )}
 
       {/* Palette curated */}
       <PaletteRow
-        title="Palette suggérée"
-        colors={CURATED_PALETTE.map((c) => c.hex)}
-        labels={CURATED_PALETTE.map((c) => c.name)}
+        title={t.suggestedPalette}
+        colors={palette.map((c) => c.hex)}
+        labels={palette.map((c) => c.name)}
         selected={primary}
         onSelect={setPrimary}
         disabled={!isOwner || saving}
@@ -203,7 +254,7 @@ export function BrandColorPicker({
             cursor: "pointer", fontFamily: "inherit",
           }}
         >
-          Réinitialiser (noir)
+          {t.reset}
         </button>
       )}
 
@@ -222,23 +273,23 @@ export function BrandColorPicker({
             style={{ accentColor: "#7C63C8" }}
           />
           <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
-            Ajouter une couleur secondaire
+            {t.addSecondaryColor}
           </span>
           <span style={{ fontSize: 11.5, color: "#6B7280" }}>
-            (titres de section, accents)
+            {t.addSecondaryHint}
           </span>
         </label>
 
         {bicolore && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingLeft: 4 }}>
             <CurrentColorPreview
-              label="Couleur secondaire"
+              label={t.secondaryColor}
               hex={secondary ?? OFF_COLOR}
               isOff={!secondary}
             />
             {logoUrl && logoColors.length > 0 && (
               <PaletteRow
-                title="Couleurs de votre logo"
+                title={t.yourLogoColors}
                 colors={logoColors}
                 selected={secondary}
                 onSelect={setSecondary}
@@ -247,9 +298,9 @@ export function BrandColorPicker({
               />
             )}
             <PaletteRow
-              title="Palette suggérée"
-              colors={CURATED_PALETTE.map((c) => c.hex)}
-              labels={CURATED_PALETTE.map((c) => c.name)}
+              title={t.suggestedPalette}
+              colors={palette.map((c) => c.hex)}
+              labels={palette.map((c) => c.name)}
               selected={secondary}
               onSelect={setSecondary}
               disabled={!isOwner || saving}
@@ -268,7 +319,7 @@ export function BrandColorPicker({
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >
-                Retirer la couleur secondaire
+                {t.removeSecondaryColor}
               </button>
             )}
           </div>
@@ -281,6 +332,8 @@ export function BrandColorPicker({
 /* ─── Sub-components ─────────────────────────────────────────────── */
 
 function CurrentColorPreview({ label, hex, isOff }: { label: string; hex: string; isOff: boolean }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
       <div style={{
@@ -295,7 +348,7 @@ function CurrentColorPreview({ label, hex, isOff }: { label: string; hex: string
           {label}
         </p>
         <p style={{ margin: "2px 0 0", fontSize: 14, fontFamily: "var(--font-space-grotesk), monospace", fontWeight: 700, color: "#111827" }}>
-          {isOff ? <span style={{ color: "#6B7280" }}>Non configurée</span> : hex.toUpperCase()}
+          {isOff ? <span style={{ color: "#6B7280" }}>{t.notConfigured}</span> : hex.toUpperCase()}
         </p>
       </div>
     </div>

@@ -15,8 +15,379 @@ import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { QuotaGauges } from "@/components/quota/QuotaGauges"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
+const copy = {
+  fr: {
+    // OrgTabs
+    orgFallback: "Organisation",
+    tabPackages: "Mes packages",
+    tabSecurity: "Sécurité",
+    // EmailConfirmationBanner
+    confirmEmailTitle: "Confirmez votre adresse",
+    confirmEmailBody: (email: string) => <>un email a été envoyé à <strong>{email}</strong>. Vérifiez votre boîte de réception (et le dossier spam) pour valider votre compte.</>,
+    emailResent: (s: number) => `Email renvoyé. Réessayez dans ${s}s.`,
+    sending: "Envoi…",
+    resendLink: "Renvoyer le lien",
+    resendFailed: "Impossible de renvoyer",
+    // MySeatBanner
+    allocationError: "Erreur lors de l'allocation.",
+    releaseConfirm: "Libérer votre siège ? Vous perdrez l'accès au workspace jusqu'à ce que vous vous en allouiez un nouveau.",
+    genericError: "Erreur.",
+    seatOccupiedTitle: "Vous occupez un siège du Package Sourcing.",
+    seatOccupiedBody: "Accès complet au workspace (vivier, missions, pricing, pipeline).",
+    openWorkspaceArrow: "Ouvrir le workspace →",
+    releaseSeat: "Libérer le siège",
+    noSeatTitle: "Vous n'avez pas encore alloué de siège du Package Sourcing.",
+    noSeatBody: "Allouez-vous un siège pour accéder au workspace, ou invitez un collègue pour qu'il utilise un siège à votre place.",
+    allocating: "Allocation…",
+    allocateSelf: "M'allouer un siège",
+    // SubscriptionCard
+    subscription: "Abonnement",
+    subStatusSubtitle: "Statut du Package Sourcing.",
+    cancellationInProgress: "Résiliation en cours",
+    orgWillBeDeleted: (date: string) => <>L&apos;organisation et toutes ses données seront supprimées le <strong>{date}</strong>.</>,
+    portalUnavailable: "Portail indisponible",
+    subSubtitle: "Package Sourcing : votre essai et votre formule.",
+    paymentFailed: "Échec du dernier paiement. Mettez à jour votre moyen de paiement.",
+    trialUntil: (date: string) => <>Période d&apos;essai jusqu&apos;au <strong>{date}</strong>.</>,
+    nextCharge: (date: string) => <>Prochain prélèvement le <strong>{date}</strong>.</>,
+    openingPortal: "Ouverture du portail…",
+    manageSubscription: "Gérer mon abonnement",
+    noActiveSubscription: "Aucun abonnement actif",
+    startTrialBody: (days: number, seats: number) => `Démarrez votre essai gratuit ${days} jours (jusqu'à ${seats} sièges, sans carte bancaire) ou souscrivez directement pour aller plus loin.`,
+    activating: "Activation…",
+    startFreeTrial: (days: number) => `Démarrer mes ${days} jours gratuits →`,
+    subscribeToPlan: "Souscrire à un abonnement",
+    trialActive: (days: number) => `Essai actif · ${days} jour${days > 1 ? "s" : ""} restant${days > 1 ? "s" : ""}`,
+    trialEndsOn: (date: string, seats: number) => <>Termine le <strong>{date}</strong>. Plafonné à {seats} sièges — souscrivez pour ajouter plus de membres ou continuer après l&apos;essai.</>,
+    subscribeToPlanArrow: "Souscrire à un abonnement →",
+    adminAccountTitle: "Compte administrateur Naywa",
+    adminAccountBody: "Accès permanent — aucun abonnement requis pour ce compte.",
+    trialEndedTitle: "Période d'essai terminée",
+    trialEndedBody: "Souscrivez pour reprendre l'accès à votre workspace.",
+    subscribeArrow: "Souscrire au Package Sourcing →",
+    seatsAllocated: (n: number) => `${n} siège${n > 1 ? "s" : ""} alloué${n > 1 ? "s" : ""}.`,
+    activationFailed: "Activation impossible",
+    // planLabel
+    planPro: "Package Sourcing Pro",
+    planStandard: "Package Sourcing",
+    // PlanPickerModal
+    checkoutUnavailable: "Checkout indisponible",
+    subscribeToTitle: "Souscrire au Package Sourcing",
+    chooseYourPlan: "Choisissez votre formule",
+    tierStandardDesc: "Vivier, matching, anonymisation.",
+    tierProDesc: "+ Suite Pricing Syntec (engine + chart + PDF).",
+    seatsCount: "Nombre de sièges",
+    recommended: "Reco",
+    seatSuffix: (n: number) => `siège${n > 1 ? "s" : ""}`,
+    monthlyTotalExclTax: "Total mensuel HT",
+    cvUnit: (n: string) => `${n} CV`,
+    unlimitedMatchings: "Matchings illimités",
+    noVatNote: "Pas de TVA appliquée (micro-entreprise). Annulation à tout moment depuis votre portail Stripe.",
+    beyond4Seats: " Au-delà de 4 sièges, contactez-nous pour un devis.",
+    cancel: "Annuler",
+    redirecting: "Redirection…",
+    continueToPayment: "Continuer vers le paiement →",
+    // IdentitySection
+    orgIdentityTitle: "Identité de l'organisation",
+    orgIdentitySubtitle: "Vitrine telle qu'elle apparaîtra sur les CV anonymisés. Modifiable dans Branding.",
+    noSlogan: "Pas de slogan",
+    defaultColorTitle: "Couleur par défaut (noir)",
+    noContactEmail: "Aucun email de contact",
+    // BrandingSection
+    saveError: "Erreur lors de la sauvegarde.",
+    summaryLogo: "Logo", summaryColor: "Couleur", summaryBicolor: "Bicolore",
+    summarySlogan: "Slogan", summaryContact: "Contact", summaryToConfigure: "À configurer",
+    branding: "Branding",
+    brandingSubtitle: "Logo, couleurs, slogan et contact qui apparaissent sur les CV anonymisés.",
+    requestChangeTitle: "Demander une modification du nom, du logo ou de l'email de contact",
+    editLockedInfo: "Modifier vos informations verrouillées",
+    collapse: "Replier ▴", expand: "Déplier ▾",
+    orgNameLabel: "Nom de l'organisation",
+    orgNamePlaceholder: "Cabinet Dupont",
+    saving: "Sauvegarde…",
+    autoSave: "Sauvegarde automatique",
+    logoLabel: "Logo",
+    none: "Aucun",
+    replaceLogo: "Remplacer",
+    uploadLogo: "Téléverser",
+    removeLogo: "Retirer",
+    brandColorsLabel: "Couleurs de marque",
+    brandColorsHint: "Non configurée = rendu en noir sur le PDF anonymisé. Choisissez une couleur de votre logo ou de la palette suggérée.",
+    sloganLabel: "Slogan", optionalTag: "(optionnel)",
+    sloganPlaceholder: "Recruter, c'est notre métier",
+    charsCount: (n: number) => `${n}/120 caractères`,
+    contactEmailLabel: "Email de contact",
+    contactEmailPlaceholder: "contact@votre-cabinet.com",
+    invalidEmailFormat: "Format d'email invalide",
+    contactEmailHint: "Ajouté en pied de page du CV anonymisé. Permet au client final de vous recontacter.",
+    // RequestStatusInline
+    requestPending: "Demande en cours de traitement.",
+    requestPendingBody: (date: string) => `Soumise le ${date}. Vous recevrez un email dès qu'elle est validée ou refusée.`,
+    requestApproved: "Modification validée",
+    onThe: (date: string) => ` le ${date}`,
+    requestRejected: "Demande refusée",
+    // LockedBadge
+    locked: "Verrouillé",
+    // BrandingChangeRequestModal
+    changeRequestEyebrow: "Demande de modification",
+    changeRequestTitle: "Modifier vos informations verrouillées",
+    changeRequestBody: "Cochez les informations que vous souhaitez modifier, puis indiquez la nouvelle valeur pour chacune. Notre équipe examinera votre demande sous 24 à 48 heures ouvrées et vous répondra par email.",
+    whyThisStep: "Pourquoi cette étape ?",
+    whyThisStepBody: "Le nom, le logo et l'email de contact apparaissent sur les CV anonymisés que vous présentez à vos clients. Pour éviter l'usurpation d'identité d'un cabinet, ces informations sont verrouillées 24 heures après la fin de votre onboarding et leur modification passe par une validation manuelle.",
+    undefined_: "(non défini)",
+    logoField: "Logo",
+    currentLogo: "Logo actuel",
+    noLogo: "Aucun logo",
+    current: "Actuel",
+    new_: "Nouveau",
+    toChoose: "À choisir",
+    uploading: "Upload…",
+    replaceFile: "Remplacer le fichier",
+    chooseFile: "Choisir un fichier",
+    reasonLabel: "Raison de la demande",
+    reasonPlaceholder: "Ex : nouveau positionnement de la marque, fusion, faute de frappe lors de l'inscription…",
+    checkAtLeastOne: "Cochez au moins une information à modifier.",
+    sendingRequest: "Envoi…",
+    sendRequest: "Envoyer la demande",
+    errorWithStatus: (status: number) => `Erreur ${status}`,
+    // ChangeBlock
+    currentPrefix: (v: string) => `Actuel : ${v}`,
+    // PricingPolicySectionCollapsible
+    pricingPolicyTitle: "Politique pricing",
+    pricingPolicySubtitle: "Marges cibles + avantages standards de l'organisation.",
+    pricingPolicyReused: "Réutilisé sur chaque chiffrage candidat × mission.",
+    marginsBenefitsLocations: "Marges, avantages, lieux",
+    configureDetails: "Configurez les paramètres détaillés.",
+    configureArrow: "Configurer →",
+    // MembersSection
+    invalidEmail: "Adresse email invalide.",
+    inviteSendError: "Erreur lors de l'envoi.",
+    inviteSentTo: (email: string) => `Invitation envoyée à ${email}.`,
+    revokeError: "Erreur lors de la révocation.",
+    removeConfirm: (label: string) => `Retirer ${label} de l'organisation ?`,
+    allocateError: "Allocation impossible.",
+    deallocateConfirm: (label: string) => `Libérer le siège de ${label} ? L'utilisateur reste dans l'organisation mais perd l'accès au workspace.`,
+    deallocateError: "Libération impossible.",
+    seatReleased: (label: string) => `Siège de ${label} libéré.`,
+    members: "Membres",
+    seatsSubtitle: (used: number, total: number) => `${used} sur ${total} sièges · vivier partagé`,
+    noFirstName: "Sans prénom",
+    youSuffix: " · vous",
+    releaseThisSeat: "Libérer ce siège",
+    releaseAction: "Libérer",
+    invitePending: "Invitation envoyée par email · en attente",
+    cancelAction: "Annuler",
+    inviteEmailPlaceholder: "email@organisation.com",
+    send: "Envoyer",
+    emptySeat: "Siège vide",
+    footerNote: "Les invitations sont envoyées par email. Le membre clique sur le lien reçu, choisit son mot de passe, et accède directement au workspace.",
+    // EmptySeatActions
+    addMember: "+ Ajouter un membre",
+    allocateSeatDropdown: "+ Allouer un siège ▾",
+    inviteNewMember: "+ Inviter un nouveau membre (email)",
+    allocateToSelf: "M'allouer un siège",
+    allocateTo: (name: string) => `Allouer à ${name}`,
+    ownerTag: "(owner)",
+    // DangerSection
+    deleteError: "Erreur lors de la suppression.",
+    dangerZone: "Zone de danger",
+    deleteOrgBody: "Supprimer définitivement l'organisation et toutes ses données.",
+    otherMembersKeepAccess: "Les autres membres garderont accès 30 jours.",
+    deletionImmediate: "La suppression est immédiate.",
+    deleteMyOrg: "Supprimer mon organisation",
+    deleteOrgConfirmTitle: (name: string) => `Supprimer ${name} ?`,
+    deleteOrgBodyMulti: <>Vos collègues garderont l&apos;accès au workspace pendant <strong>30 jours</strong>. Passé ce délai, l&apos;organisation et toutes ses données seront supprimées définitivement.</>,
+    deleteOrgBodySolo: <>Toutes vos données (vivier, missions, pipeline, emails, paramètres) seront supprimées <strong>immédiatement et définitivement</strong>. Cette action est irréversible.</>,
+    typeOrgNameToConfirm: <>Tapez le nom de l&apos;organisation pour confirmer&nbsp;:</>,
+    deleting: "Suppression…",
+    confirmAction: "Confirmer",
+    // ExportDataCard
+    exportMyData: "Exporter mes données",
+    exportBody: "Téléchargez un fichier JSON avec l'intégralité de votre organisation : candidats, missions, matches, mails et paramétrage. Conservez-le comme archive.",
+    exportDisclaimer: "En raison des mises à jour produit, nous ne pouvons pas garantir la restauration complète de ces données dans une future version du service.",
+    preparing: "Préparation…",
+    downloadJson: "Télécharger l'export JSON",
+  },
+  en: {
+    orgFallback: "Organization",
+    tabPackages: "My packages",
+    tabSecurity: "Security",
+    confirmEmailTitle: "Confirm your address",
+    confirmEmailBody: (email: string) => <>an email was sent to <strong>{email}</strong>. Check your inbox (and spam folder) to validate your account.</>,
+    emailResent: (s: number) => `Email resent. Try again in ${s}s.`,
+    sending: "Sending…",
+    resendLink: "Resend the link",
+    resendFailed: "Unable to resend",
+    allocationError: "Error while allocating.",
+    releaseConfirm: "Release your seat? You'll lose access to the workspace until you allocate a new one.",
+    genericError: "Error.",
+    seatOccupiedTitle: "You occupy a Sourcing Package seat.",
+    seatOccupiedBody: "Full workspace access (talent pool, missions, pricing, pipeline).",
+    openWorkspaceArrow: "Open workspace →",
+    releaseSeat: "Release seat",
+    noSeatTitle: "You haven't allocated a Sourcing Package seat yet.",
+    noSeatBody: "Allocate yourself a seat to access the workspace, or invite a colleague to use a seat instead.",
+    allocating: "Allocating…",
+    allocateSelf: "Allocate myself a seat",
+    subscription: "Subscription",
+    subStatusSubtitle: "Sourcing Package status.",
+    cancellationInProgress: "Cancellation in progress",
+    orgWillBeDeleted: (date: string) => <>The organization and all its data will be deleted on <strong>{date}</strong>.</>,
+    portalUnavailable: "Portal unavailable",
+    subSubtitle: "Sourcing Package: your trial and your plan.",
+    paymentFailed: "Last payment failed. Update your payment method.",
+    trialUntil: (date: string) => <>Trial until <strong>{date}</strong>.</>,
+    nextCharge: (date: string) => <>Next charge on <strong>{date}</strong>.</>,
+    openingPortal: "Opening portal…",
+    manageSubscription: "Manage my subscription",
+    noActiveSubscription: "No active subscription",
+    startTrialBody: (days: number, seats: number) => `Start your ${days}-day free trial (up to ${seats} seats, no credit card) or subscribe directly to go further.`,
+    activating: "Activating…",
+    startFreeTrial: (days: number) => `Start my ${days} free days →`,
+    subscribeToPlan: "Subscribe to a plan",
+    trialActive: (days: number) => `Trial active · ${days} day${days > 1 ? "s" : ""} left`,
+    trialEndsOn: (date: string, seats: number) => <>Ends on <strong>{date}</strong>. Capped at {seats} seats — subscribe to add more members or continue after the trial.</>,
+    subscribeToPlanArrow: "Subscribe to a plan →",
+    adminAccountTitle: "Naywa admin account",
+    adminAccountBody: "Permanent access — no subscription required for this account.",
+    trialEndedTitle: "Trial period ended",
+    trialEndedBody: "Subscribe to regain access to your workspace.",
+    subscribeArrow: "Subscribe to the Sourcing Package →",
+    seatsAllocated: (n: number) => `${n} seat${n > 1 ? "s" : ""} allocated.`,
+    activationFailed: "Activation failed",
+    planPro: "Sourcing Package Pro",
+    planStandard: "Sourcing Package",
+    checkoutUnavailable: "Checkout unavailable",
+    subscribeToTitle: "Subscribe to the Sourcing Package",
+    chooseYourPlan: "Choose your plan",
+    tierStandardDesc: "Talent pool, matching, anonymization.",
+    tierProDesc: "+ Syntec Pricing Suite (engine + chart + PDF).",
+    seatsCount: "Number of seats",
+    recommended: "Reco",
+    seatSuffix: (n: number) => `seat${n > 1 ? "s" : ""}`,
+    monthlyTotalExclTax: "Monthly total excl. VAT",
+    cvUnit: (n: string) => `${n} CVs`,
+    unlimitedMatchings: "Unlimited matchings",
+    noVatNote: "No VAT applied (micro-entreprise). Cancel anytime from your Stripe portal.",
+    beyond4Seats: " Beyond 4 seats, contact us for a quote.",
+    cancel: "Cancel",
+    redirecting: "Redirecting…",
+    continueToPayment: "Continue to payment →",
+    orgIdentityTitle: "Organization identity",
+    orgIdentitySubtitle: "Showcase as it will appear on anonymized CVs. Editable in Branding.",
+    noSlogan: "No slogan",
+    defaultColorTitle: "Default color (black)",
+    noContactEmail: "No contact email",
+    saveError: "Error while saving.",
+    summaryLogo: "Logo", summaryColor: "Color", summaryBicolor: "Two-tone",
+    summarySlogan: "Slogan", summaryContact: "Contact", summaryToConfigure: "To configure",
+    branding: "Branding",
+    brandingSubtitle: "Logo, colors, slogan and contact info that appear on anonymized CVs.",
+    requestChangeTitle: "Request a change to the name, logo, or contact email",
+    editLockedInfo: "Edit your locked information",
+    collapse: "Collapse ▴", expand: "Expand ▾",
+    orgNameLabel: "Organization name",
+    orgNamePlaceholder: "Smith Recruiting",
+    saving: "Saving…",
+    autoSave: "Auto-saved",
+    logoLabel: "Logo",
+    none: "None",
+    replaceLogo: "Replace",
+    uploadLogo: "Upload",
+    removeLogo: "Remove",
+    brandColorsLabel: "Brand colors",
+    brandColorsHint: "Not configured = rendered black on the anonymized PDF. Choose a color from your logo or the suggested palette.",
+    sloganLabel: "Slogan", optionalTag: "(optional)",
+    sloganPlaceholder: "Recruiting is our craft",
+    charsCount: (n: number) => `${n}/120 characters`,
+    contactEmailLabel: "Contact email",
+    contactEmailPlaceholder: "contact@your-firm.com",
+    invalidEmailFormat: "Invalid email format",
+    contactEmailHint: "Added to the footer of the anonymized CV. Lets the end client reach you.",
+    requestPending: "Request being processed.",
+    requestPendingBody: (date: string) => `Submitted on ${date}. You'll receive an email as soon as it's approved or rejected.`,
+    requestApproved: "Change approved",
+    onThe: (date: string) => ` on ${date}`,
+    requestRejected: "Request rejected",
+    locked: "Locked",
+    changeRequestEyebrow: "Change request",
+    changeRequestTitle: "Edit your locked information",
+    changeRequestBody: "Check the information you'd like to change, then enter the new value for each. Our team will review your request within 24-48 business hours and reply by email.",
+    whyThisStep: "Why this step?",
+    whyThisStepBody: "The name, logo, and contact email appear on the anonymized CVs you present to your clients. To prevent identity theft of a firm, this information is locked 24 hours after your onboarding ends and any change requires manual validation.",
+    undefined_: "(not set)",
+    logoField: "Logo",
+    currentLogo: "Current logo",
+    noLogo: "No logo",
+    current: "Current",
+    new_: "New",
+    toChoose: "To choose",
+    uploading: "Uploading…",
+    replaceFile: "Replace file",
+    chooseFile: "Choose a file",
+    reasonLabel: "Reason for the request",
+    reasonPlaceholder: "E.g.: new brand positioning, merger, typo during signup…",
+    checkAtLeastOne: "Check at least one item to change.",
+    sendingRequest: "Sending…",
+    sendRequest: "Send request",
+    errorWithStatus: (status: number) => `Error ${status}`,
+    currentPrefix: (v: string) => `Current: ${v}`,
+    pricingPolicyTitle: "Pricing policy",
+    pricingPolicySubtitle: "Target margins + standard benefits for your organization.",
+    pricingPolicyReused: "Reused for every candidate × mission pricing.",
+    marginsBenefitsLocations: "Margins, benefits, locations",
+    configureDetails: "Configure the detailed settings.",
+    configureArrow: "Configure →",
+    invalidEmail: "Invalid email address.",
+    inviteSendError: "Error while sending.",
+    inviteSentTo: (email: string) => `Invitation sent to ${email}.`,
+    revokeError: "Error while revoking.",
+    removeConfirm: (label: string) => `Remove ${label} from the organization?`,
+    allocateError: "Allocation failed.",
+    deallocateConfirm: (label: string) => `Release ${label}'s seat? They'll remain in the organization but lose workspace access.`,
+    deallocateError: "Release failed.",
+    seatReleased: (label: string) => `${label}'s seat released.`,
+    members: "Members",
+    seatsSubtitle: (used: number, total: number) => `${used} of ${total} seats · shared talent pool`,
+    noFirstName: "No name",
+    youSuffix: " · you",
+    releaseThisSeat: "Release this seat",
+    releaseAction: "Release",
+    invitePending: "Invitation sent by email · pending",
+    cancelAction: "Cancel",
+    inviteEmailPlaceholder: "email@organization.com",
+    send: "Send",
+    emptySeat: "Empty seat",
+    footerNote: "Invitations are sent by email. The member clicks the link they receive, chooses a password, and gets direct access to the workspace.",
+    addMember: "+ Add a member",
+    allocateSeatDropdown: "+ Allocate a seat ▾",
+    inviteNewMember: "+ Invite a new member (email)",
+    allocateToSelf: "Allocate myself a seat",
+    allocateTo: (name: string) => `Allocate to ${name}`,
+    ownerTag: "(owner)",
+    deleteError: "Error while deleting.",
+    dangerZone: "Danger zone",
+    deleteOrgBody: "Permanently delete the organization and all its data.",
+    otherMembersKeepAccess: "Other members will keep access for 30 days.",
+    deletionImmediate: "Deletion is immediate.",
+    deleteMyOrg: "Delete my organization",
+    deleteOrgConfirmTitle: (name: string) => `Delete ${name}?`,
+    deleteOrgBodyMulti: <>Your colleagues will keep workspace access for <strong>30 days</strong>. After that, the organization and all its data will be permanently deleted.</>,
+    deleteOrgBodySolo: <>All your data (talent pool, missions, pipeline, emails, settings) will be <strong>deleted immediately and permanently</strong>. This action is irreversible.</>,
+    typeOrgNameToConfirm: <>Type the organization name to confirm:</>,
+    deleting: "Deleting…",
+    confirmAction: "Confirm",
+    exportMyData: "Export my data",
+    exportBody: "Download a JSON file with your entire organization: candidates, missions, matches, emails and settings. Keep it as an archive.",
+    exportDisclaimer: "Due to product updates, we cannot guarantee full restoration of this data in a future version of the service.",
+    preparing: "Preparing…",
+    downloadJson: "Download JSON export",
+  },
+}
 
 /**
  * /cabinet — owner-facing console.
@@ -320,12 +691,14 @@ function OrgTabs({
    *  lien / les deep-links, mais sans dépendre du re-render Next. */
   onChange: (next: OrgTab) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // L'URL param reste "abonnement" pour ne pas casser les deep-links
   // historiques (mails Stripe, lockdown banner) — seul le label change.
   const tabs: { id: OrgTab; label: string }[] = [
-    { id: "org", label: orgLabel || "Organisation" },
-    { id: "abonnement", label: "Mes packages" },
-    { id: "securite", label: "Sécurité" },
+    { id: "org", label: orgLabel || t.orgFallback },
+    { id: "abonnement", label: t.tabPackages },
+    { id: "securite", label: t.tabSecurity },
   ]
 
   // Source de vérité = state parent (réactif instantanément).
@@ -400,6 +773,8 @@ function OrgTabs({
 /* ────────────────────────────────────────────────────────────────── */
 
 function EmailConfirmationBanner({ email }: { email: string }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -425,7 +800,7 @@ function EmailConfirmationBanner({ email }: { email: string }) {
       setSent(true)
       setCooldown(30)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Impossible de renvoyer")
+      setError(err instanceof Error ? err.message : t.resendFailed)
     } finally {
       setBusy(false)
     }
@@ -448,14 +823,13 @@ function EmailConfirmationBanner({ email }: { email: string }) {
         <polyline points="22,6 12,13 2,6" />
       </svg>
       <span style={{ flex: 1, minWidth: 220 }}>
-        <strong style={{ color: "#7C2D12" }}>Confirmez votre adresse</strong>
+        <strong style={{ color: "#7C2D12" }}>{t.confirmEmailTitle}</strong>
         {" : "}
-        un email a été envoyé à <strong>{email}</strong>. Vérifiez votre boîte
-        de réception (et le dossier spam) pour valider votre compte.
+        {t.confirmEmailBody(email)}
       </span>
       {sent && cooldown > 0 ? (
         <span style={{ fontSize: 12, fontWeight: 600, color: "#15803D", whiteSpace: "nowrap" }}>
-          Email renvoyé. Réessayez dans {cooldown}s.
+          {t.emailResent(cooldown)}
         </span>
       ) : (
         <button
@@ -473,7 +847,7 @@ function EmailConfirmationBanner({ email }: { email: string }) {
             opacity: cooldown > 0 ? 0.6 : 1,
           }}
         >
-          {busy ? "Envoi…" : "Renvoyer le lien"}
+          {busy ? t.sending : t.resendLink}
         </button>
       )}
       {error && (
@@ -495,6 +869,8 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
   isOwner: boolean
 }) {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -507,7 +883,7 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Erreur lors de l'allocation.")
+      setError(j.error ?? t.allocationError)
       setBusy(false)
       return
     }
@@ -516,7 +892,7 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
   }
 
   const release = async () => {
-    if (!confirm("Libérer votre siège ? Vous perdrez l'accès au workspace jusqu'à ce que vous vous en allouiez un nouveau.")) return
+    if (!confirm(t.releaseConfirm)) return
     setBusy(true); setError(null)
     const res = await fetch("/api/cabinet/seat", {
       method: "POST",
@@ -525,7 +901,7 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Erreur.")
+      setError(j.error ?? t.genericError)
     } else {
       await onToggle()
     }
@@ -549,20 +925,20 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
           }} />
           <div>
             <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#15803d" }}>
-              Vous occupez un siège du Package Sourcing.
+              {t.seatOccupiedTitle}
             </p>
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#166534" }}>
-              Accès complet au workspace (vivier, missions, pricing, pipeline).
+              {t.seatOccupiedBody}
             </p>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button type="button" onClick={() => router.push("/workspace")} style={smallBtnPrimary}>
-            Ouvrir le workspace →
+            {t.openWorkspaceArrow}
           </button>
           {isOwner && (
             <button type="button" onClick={release} disabled={busy} style={smallBtnGhost}>
-              {busy ? "…" : "Libérer le siège"}
+              {busy ? "…" : t.releaseSeat}
             </button>
           )}
         </div>
@@ -582,10 +958,10 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
     }}>
       <div style={{ minWidth: 0, flex: 1 }}>
         <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: "#111827" }}>
-          Vous n&apos;avez pas encore alloué de siège du Package Sourcing.
+          {t.noSeatTitle}
         </p>
         <p style={{ margin: "3px 0 0", fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
-          Allouez-vous un siège pour accéder au workspace, ou invitez un collègue pour qu&apos;il utilise un siège à votre place.
+          {t.noSeatBody}
         </p>
       </div>
       <button type="button" onClick={allocate} disabled={busy || !isOwner}
@@ -594,7 +970,7 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
           padding: "10px 16px", fontSize: 12.5,
           opacity: !isOwner ? 0.5 : 1,
         }}>
-        {busy ? "Allocation…" : "M'allouer un siège"}
+        {busy ? t.allocating : t.allocateSelf}
       </button>
       {error && <p style={{ width: "100%", margin: 0, fontSize: 12, color: "#EF4444" }}>{error}</p>}
     </section>
@@ -626,6 +1002,9 @@ function SubscriptionCard({
    *  paid dès le mount. Évite à l'owner de cliquer 2x après un lockdown. */
   autoOpenPicker?: boolean
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pickerMode, setPickerMode] = useState<"closed" | "paid">(
@@ -641,11 +1020,11 @@ function SubscriptionCard({
       const r = await fetch("/api/cabinet/activate-trial", { method: "POST" })
       if (!r.ok) {
         const j = await r.json().catch(() => ({} as { error?: string }))
-        throw new Error(j.error ?? "Activation impossible")
+        throw new Error(j.error ?? t.activationFailed)
       }
       await onActivated()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur")
+      setError(err instanceof Error ? err.message : t.genericError)
     } finally {
       setBusy(false)
     }
@@ -658,13 +1037,13 @@ function SubscriptionCard({
     organization.subscription_status === "past_due"
 
   if (organization.pending_deletion_at) {
-    const date = new Date(organization.pending_deletion_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+    const date = new Date(organization.pending_deletion_at).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })
     return (
-      <Card title="Abonnement" subtitle="Statut du Package Sourcing.">
+      <Card title={t.subscription} subtitle={t.subStatusSubtitle}>
         <Panel tone="warn">
-          <p style={panelTitle("#D97706")}>Résiliation en cours</p>
+          <p style={panelTitle("#D97706")}>{t.cancellationInProgress}</p>
           <p style={panelBody("#92400E")}>
-            L&apos;organisation et toutes ses données seront supprimées le <strong>{date}</strong>.
+            {t.orgWillBeDeleted(date)}
           </p>
         </Panel>
       </Card>
@@ -676,30 +1055,30 @@ function SubscriptionCard({
     try {
       const res = await fetch("/api/stripe/portal", { method: "POST" })
       const j = await res.json().catch(() => ({} as { url?: string; error?: string }))
-      if (!res.ok || !j.url) throw new Error(j.error ?? "Portail indisponible")
+      if (!res.ok || !j.url) throw new Error(j.error ?? t.portalUnavailable)
       window.location.href = j.url
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur")
+      setError(err instanceof Error ? err.message : t.genericError)
       setBusy(false)
     }
   }
 
   return (
     <>
-      <Card title="Abonnement" subtitle="Package Sourcing : votre essai et votre formule.">
+      <Card title={t.subscription} subtitle={t.subSubtitle}>
         {/* Stripe sub — affichage prioritaire si présente */}
         {hasStripeSub && (
           <Panel tone={access.state === "paid" ? "success" : access.state === "trialing" ? "brand" : "warn"}>
             <p style={panelTitle(access.state === "paid" ? "#15803D" : access.state === "trialing" ? "#7C63C8" : "#B91C1C")}>
-              {planLabel(organization)}
+              {planLabel(organization, lang)}
             </p>
             <p style={panelBody("#374151")}>
               {organization.subscription_status === "past_due"
-                ? "Échec du dernier paiement. Mettez à jour votre moyen de paiement."
+                ? t.paymentFailed
                 : access.state === "trialing" && "until" in access
-                  ? <>Période d&apos;essai jusqu&apos;au <strong>{access.until?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</strong>.</>
+                  ? t.trialUntil(access.until?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "")
                   : access.state === "paid" && "until" in access
-                    ? <>Prochain prélèvement le <strong>{access.until?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</strong>.</>
+                    ? t.nextCharge(access.until?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "")
                     : null}
             </p>
             <button
@@ -708,7 +1087,7 @@ function SubscriptionCard({
               disabled={busy || !isOwner}
               style={ctaSecondaryBtn(busy)}
             >
-              {busy ? "Ouverture du portail…" : "Gérer mon abonnement"}
+              {busy ? t.openingPortal : t.manageSubscription}
             </button>
           </Panel>
         )}
@@ -716,11 +1095,9 @@ function SubscriptionCard({
         {/* Pas de Stripe sub — pending : pas encore d'essai activé. */}
         {!hasStripeSub && trial.state === "pending" && (
           <Panel tone="brand">
-            <p style={panelTitle("#7C63C8")}>Aucun abonnement actif</p>
+            <p style={panelTitle("#7C63C8")}>{t.noActiveSubscription}</p>
             <p style={panelBody("#374151")}>
-              Démarrez votre essai gratuit {TRIAL_DURATION_DAYS} jours
-              (jusqu&apos;à {TRIAL_SEAT_CAP} sièges, sans carte bancaire)
-              ou souscrivez directement pour aller plus loin.
+              {t.startTrialBody(TRIAL_DURATION_DAYS, TRIAL_SEAT_CAP)}
             </p>
             <button
               type="button"
@@ -728,7 +1105,7 @@ function SubscriptionCard({
               disabled={!isOwner || busy}
               style={ctaPrimaryBtn(busy)}
             >
-              {busy ? "Activation…" : `Démarrer mes ${TRIAL_DURATION_DAYS} jours gratuits →`}
+              {busy ? t.activating : t.startFreeTrial(TRIAL_DURATION_DAYS)}
             </button>
             <button
               type="button"
@@ -736,7 +1113,7 @@ function SubscriptionCard({
               disabled={!isOwner || busy}
               style={{ ...ctaSecondaryBtn(false), marginTop: 8 }}
             >
-              Souscrire à un abonnement
+              {t.subscribeToPlan}
             </button>
           </Panel>
         )}
@@ -746,14 +1123,10 @@ function SubscriptionCard({
         {!hasStripeSub && trial.state === "active" && (
           <Panel tone="success">
             <p style={panelTitle("#15803D")}>
-              Essai actif · {trial.daysLeft} jour{trial.daysLeft > 1 ? "s" : ""} restant{trial.daysLeft > 1 ? "s" : ""}
+              {t.trialActive(trial.daysLeft)}
             </p>
             <p style={panelBody("#166534")}>
-              Termine le{" "}
-              <strong>
-                {trial.endsAt?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
-              </strong>
-              . Plafonné à {TRIAL_SEAT_CAP} sièges — souscrivez pour ajouter plus de membres ou continuer après l&apos;essai.
+              {t.trialEndsOn(trial.endsAt?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "", TRIAL_SEAT_CAP)}
             </p>
             <button
               type="button"
@@ -761,25 +1134,25 @@ function SubscriptionCard({
               disabled={!isOwner}
               style={ctaPrimaryBtn(false)}
             >
-              Souscrire à un abonnement →
+              {t.subscribeToPlanArrow}
             </button>
           </Panel>
         )}
 
         {!hasStripeSub && trial.state === "expired" && isAdmin && (
           <Panel tone="brand">
-            <p style={panelTitle("#7C63C8")}>Compte administrateur Naywa</p>
+            <p style={panelTitle("#7C63C8")}>{t.adminAccountTitle}</p>
             <p style={panelBody("#374151")}>
-              Accès permanent — aucun abonnement requis pour ce compte.
+              {t.adminAccountBody}
             </p>
           </Panel>
         )}
 
         {!hasStripeSub && trial.state === "expired" && !isAdmin && (
           <Panel tone="warn">
-            <p style={panelTitle("#B91C1C")}>Période d&apos;essai terminée</p>
+            <p style={panelTitle("#B91C1C")}>{t.trialEndedTitle}</p>
             <p style={panelBody("#7F1D1D")}>
-              Souscrivez pour reprendre l&apos;accès à votre workspace.
+              {t.trialEndedBody}
             </p>
             <button
               type="button"
@@ -791,7 +1164,7 @@ function SubscriptionCard({
                 boxShadow: "0 6px 16px -4px rgba(220,38,38,0.40)",
               }}
             >
-              Souscrire au Package Sourcing →
+              {t.subscribeArrow}
             </button>
           </Panel>
         )}
@@ -801,7 +1174,7 @@ function SubscriptionCard({
         )}
 
         <div style={{ marginTop: 14, fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
-          {organization.seats_total} siège{organization.seats_total > 1 ? "s" : ""} alloué{organization.seats_total > 1 ? "s" : ""}.
+          {t.seatsAllocated(organization.seats_total)}
         </div>
       </Card>
 
@@ -816,10 +1189,11 @@ function SubscriptionCard({
   )
 }
 
-function planLabel(org: Organization): string {
-  const tier = org.subscription_has_pricing ? "Package Sourcing Pro" : "Package Sourcing"
+function planLabel(org: Organization, lang: Lang): string {
+  const t = copy[lang]
+  const tier = org.subscription_has_pricing ? t.planPro : t.planStandard
   const seats = org.subscription_seats ?? 1
-  return `${tier} · ${seats} siège${seats > 1 ? "s" : ""}`
+  return `${tier} · ${seats} ${t.seatSuffix(seats)}`
 }
 
 const ctaPrimaryBtn = (busy: boolean): React.CSSProperties => ({
@@ -864,6 +1238,8 @@ function PlanPickerModal({
   onClose: () => void
 }) {
   useEscapeKey(onClose)
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [tier, setTier] = useState<PlanTier>(initialTier)
   const [seats, setSeats] = useState<PlanSeats>(initialSeats)
   const [busy, setBusy] = useState(false)
@@ -880,10 +1256,10 @@ function PlanPickerModal({
         body: JSON.stringify({ tier, seats }),
       })
       const j = await res.json().catch(() => ({} as { url?: string; error?: string }))
-      if (!res.ok || !j.url) throw new Error(j.error ?? "Checkout indisponible")
+      if (!res.ok || !j.url) throw new Error(j.error ?? t.checkoutUnavailable)
       window.location.href = j.url
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur")
+      setError(err instanceof Error ? err.message : t.genericError)
       setBusy(false)
     }
   }
@@ -917,10 +1293,10 @@ function PlanPickerModal({
       >
         <header style={{ marginBottom: 18 }}>
           <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase" }}>
-            Souscrire au Package Sourcing
+            {t.subscribeToTitle}
           </p>
           <h2 style={{ margin: "6px 0 0", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
-            Choisissez votre formule
+            {t.chooseYourPlan}
           </h2>
         </header>
 
@@ -928,13 +1304,13 @@ function PlanPickerModal({
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18,
         }}>
-          {(["sourcing", "sourcing_pro"] as const).map((t) => {
-            const active = tier === t
+          {(["sourcing", "sourcing_pro"] as const).map((tierOption) => {
+            const active = tier === tierOption
             return (
               <button
-                key={t}
+                key={tierOption}
                 type="button"
-                onClick={() => setTier(t)}
+                onClick={() => setTier(tierOption)}
                 style={{
                   padding: "14px 12px",
                   borderRadius: 14,
@@ -946,12 +1322,12 @@ function PlanPickerModal({
                 }}
               >
                 <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
-                  {t === "sourcing" ? "Package Sourcing" : "Package Sourcing Pro"}
+                  {tierOption === "sourcing" ? t.planStandard : t.planPro}
                 </p>
                 <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.45 }}>
-                  {t === "sourcing"
-                    ? "Vivier, matching, anonymisation."
-                    : "+ Suite Pricing Syntec (engine + chart + PDF)."}
+                  {tierOption === "sourcing"
+                    ? t.tierStandardDesc
+                    : t.tierProDesc}
                 </p>
               </button>
             )
@@ -960,7 +1336,7 @@ function PlanPickerModal({
 
         {/* Seats picker */}
         <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "#374151", letterSpacing: "0.01em" }}>
-          Nombre de sièges
+          {t.seatsCount}
         </p>
         <div style={{
           display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18,
@@ -991,12 +1367,12 @@ function PlanPickerModal({
                     fontSize: 8.5, fontWeight: 800, padding: "2px 6px",
                     borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase",
                   }}>
-                    Reco
+                    {t.recommended}
                   </span>
                 )}
                 <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827" }}>{s}</p>
                 <p style={{ margin: 0, fontSize: 10.5, color: "#6B7280" }}>
-                  siège{s > 1 ? "s" : ""}
+                  {t.seatSuffix(s)}
                 </p>
                 <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "#7C63C8", fontWeight: 700 }}>
                   {PLAN_PRICES_EUR[tier][s].toFixed(2)} €
@@ -1021,7 +1397,7 @@ function PlanPickerModal({
                 display: "flex", justifyContent: "space-between", alignItems: "baseline",
               }}>
                 <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
-                  Total mensuel HT
+                  {t.monthlyTotalExclTax}
                 </span>
                 <span style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
                   {price.toFixed(2)} €
@@ -1042,14 +1418,14 @@ function PlanPickerModal({
                       <path d="M3 7l9 6 9-6"/>
                       <rect x="3" y="5" width="18" height="2"/>
                     </svg>
-                    {q.cvLimit.toLocaleString("fr-FR")} CV
+                    {t.cvUnit(q.cvLimit.toLocaleString(lang === "fr" ? "fr-FR" : "en-US"))}
                   </span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                       <path d="M20 6 9 17l-5-5"/>
                     </svg>
-                    Matchings illimités
+                    {t.unlimitedMatchings}
                   </span>
                 </div>
               )}
@@ -1058,8 +1434,8 @@ function PlanPickerModal({
         })()}
 
         <p style={{ margin: "0 0 16px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
-          Pas de TVA appliquée (micro-entreprise). Annulation à tout moment depuis votre portail Stripe.
-          {seats >= 4 && " Au-delà de 4 sièges, contactez-nous pour un devis."}
+          {t.noVatNote}
+          {seats >= 4 && t.beyond4Seats}
         </p>
 
         {error && (
@@ -1084,7 +1460,7 @@ function PlanPickerModal({
               fontFamily: "inherit",
             }}
           >
-            Annuler
+            {t.cancel}
           </button>
           <button
             type="button"
@@ -1105,7 +1481,7 @@ function PlanPickerModal({
               fontFamily: "inherit",
             }}
           >
-            {busy ? "Redirection…" : "Continuer vers le paiement →"}
+            {busy ? t.redirecting : t.continueToPayment}
           </button>
         </div>
       </m.div>
@@ -1160,15 +1536,17 @@ function IdentitySection({
   }
   logoUrl: string | null
 }) {
-  const displayName = (organization.brand_name?.trim() || organization.name?.trim()) || "Organisation"
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const displayName = (organization.brand_name?.trim() || organization.name?.trim()) || t.orgFallback
   const initials = displayName
     .split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
   const colors = [organization.brand_color, organization.brand_color_secondary].filter(Boolean) as string[]
 
   return (
     <Card
-      title="Identité de l'organisation"
-      subtitle="Vitrine telle qu'elle apparaîtra sur les CV anonymisés. Modifiable dans Branding."
+      title={t.orgIdentityTitle}
+      subtitle={t.orgIdentitySubtitle}
     >
       <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
         <div style={{
@@ -1207,7 +1585,7 @@ function IdentitySection({
             </p>
           ) : (
             <p style={{ margin: "3px 0 0", fontSize: 12, color: "#C4B6E0" }}>
-              Pas de slogan
+              {t.noSlogan}
             </p>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
@@ -1217,7 +1595,7 @@ function IdentitySection({
                 <span style={{
                   display: "inline-block", width: 14, height: 14, borderRadius: 7,
                   background: "#000000", border: "1px solid rgba(0,0,0,0.10)",
-                }} title="Couleur par défaut (noir)" />
+                }} title={t.defaultColorTitle} />
               ) : (
                 colors.map((c) => (
                   <span key={c} style={{
@@ -1231,7 +1609,7 @@ function IdentitySection({
               fontSize: 11.5, color: "#6B7280",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
-              {organization.contact_email || <span style={{ color: "#C4B6E0" }}>Aucun email de contact</span>}
+              {organization.contact_email || <span style={{ color: "#C4B6E0" }}>{t.noContactEmail}</span>}
             </span>
           </div>
         </div>
@@ -1278,6 +1656,8 @@ function BrandingSection({
   isOwner: boolean
   onUpdated: () => Promise<void>
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const [open, setOpen] = useState(true) // pliable, ouvert par défaut
   const [orgName, setOrgName] = useState(organization.brand_name ?? organization.name ?? "")
@@ -1355,7 +1735,7 @@ function BrandingSection({
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Erreur lors de la sauvegarde.")
+      setError(j.error ?? t.saveError)
     } else {
       await onUpdated()
     }
@@ -1400,18 +1780,18 @@ function BrandingSection({
   // Résumé visible quand la carte est repliée — pastilles + label
   const summary = (() => {
     const parts: string[] = []
-    if (logoUrl) parts.push("Logo")
-    if (organization.brand_color) parts.push("Couleur")
-    if (organization.brand_color_secondary) parts.push("Bicolore")
-    if (organization.brand_slogan) parts.push("Slogan")
-    if (organization.contact_email) parts.push("Contact")
-    return parts.length > 0 ? parts.join(" · ") : "À configurer"
+    if (logoUrl) parts.push(t.summaryLogo)
+    if (organization.brand_color) parts.push(t.summaryColor)
+    if (organization.brand_color_secondary) parts.push(t.summaryBicolor)
+    if (organization.brand_slogan) parts.push(t.summarySlogan)
+    if (organization.contact_email) parts.push(t.summaryContact)
+    return parts.length > 0 ? parts.join(" · ") : t.summaryToConfigure
   })()
 
   return (
     <Card
-      title="Branding"
-      subtitle="Logo, couleurs, slogan et contact qui apparaissent sur les CV anonymisés."
+      title={t.branding}
+      subtitle={t.brandingSubtitle}
       // Header : bouton 'Modifier vos informations verrouillées' visible
       // uniquement quand l'identité forte est verrouillée + bouton repli.
       headerRight={
@@ -1429,10 +1809,10 @@ function BrandingSection({
                 display: "inline-flex", alignItems: "center", gap: 6,
                 whiteSpace: "nowrap",
               }}
-              title="Demander une modification du nom, du logo ou de l'email de contact"
+              title={t.requestChangeTitle}
             >
               <LockIcon size={11} />
-              Modifier vos informations verrouillées
+              {t.editLockedInfo}
             </button>
           )}
           <button
@@ -1445,7 +1825,7 @@ function BrandingSection({
               display: "inline-flex", alignItems: "center", gap: 4,
             }}
           >
-            {open ? "Replier ▴" : "Déplier ▾"}
+            {open ? t.collapse : t.expand}
           </button>
         </div>
       }
@@ -1461,10 +1841,10 @@ function BrandingSection({
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           {/* Nom de l'organisation */}
           <div>
-            <Label>Nom de l&apos;organisation</Label>
+            <Label>{t.orgNameLabel}</Label>
             {brandingLocked ? (
               <>
-                <LockedField value={orgName || "(non défini)"} />
+                <LockedField value={orgName || t.undefined_} />
                 <RequestStatusInline request={requestsByField.name} />
               </>
             ) : (
@@ -1473,18 +1853,18 @@ function BrandingSection({
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
                   onBlur={saveName}
-                  placeholder="Cabinet Dupont"
+                  placeholder={t.orgNamePlaceholder}
                   disabled={!isOwner || busy === "saving"}
                   style={inputStyle}
                 />
-                <Hint>{busy === "saving" ? "Sauvegarde…" : "Sauvegarde automatique"}</Hint>
+                <Hint>{busy === "saving" ? t.saving : t.autoSave}</Hint>
               </>
             )}
           </div>
 
           {/* Logo */}
           <div>
-            <Label>Logo</Label>
+            <Label>{t.logoLabel}</Label>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{
                 width: 64, height: 64,
@@ -1498,7 +1878,7 @@ function BrandingSection({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
                 ) : (
-                  <span style={{ fontSize: 10, color: "#6B7280" }}>Aucun</span>
+                  <span style={{ fontSize: 10, color: "#6B7280" }}>{t.none}</span>
                 )}
               </div>
               {brandingLocked ? (
@@ -1510,11 +1890,11 @@ function BrandingSection({
                   <button type="button" onClick={() => fileInput.current?.click()}
                     disabled={!isOwner || busy !== "idle"}
                     style={smallBtnPrimary}>
-                    {busy === "uploading" ? "…" : logoUrl ? "Remplacer" : "Téléverser"}
+                    {busy === "uploading" ? "…" : logoUrl ? t.replaceLogo : t.uploadLogo}
                   </button>
                   {logoUrl && isOwner && (
                     <button type="button" onClick={removeLogo} disabled={busy !== "idle"} style={smallBtnGhost}>
-                      Retirer
+                      {t.removeLogo}
                     </button>
                   )}
                 </div>
@@ -1533,10 +1913,9 @@ function BrandingSection({
 
           {/* Couleurs — picker complet avec palette + extraction logo + bicolore */}
           <div>
-            <Label>Couleurs de marque</Label>
+            <Label>{t.brandColorsLabel}</Label>
             <Hint>
-              Non configurée = rendu en noir sur le PDF anonymisé. Choisissez
-              une couleur de votre logo ou de la palette suggérée.
+              {t.brandColorsHint}
             </Hint>
             <div style={{ marginTop: 10 }}>
               <BrandColorPicker
@@ -1552,7 +1931,7 @@ function BrandingSection({
 
           {/* Slogan */}
           <div>
-            <Label>Slogan <span style={{ color: "#6B7280", fontWeight: 400 }}>(optionnel)</span></Label>
+            <Label>{t.sloganLabel} <span style={{ color: "#6B7280", fontWeight: 400 }}>{t.optionalTag}</span></Label>
             <input
               value={slogan}
               onChange={(e) => setSlogan(e.target.value.slice(0, 120))}
@@ -1562,20 +1941,20 @@ function BrandingSection({
                 if ((organization.brand_slogan ?? null) === next) return
                 void patch({ brand_slogan: next })
               }}
-              placeholder="Recruter, c'est notre métier"
+              placeholder={t.sloganPlaceholder}
               disabled={!isOwner || busy === "saving"}
               maxLength={120}
               style={inputStyle}
             />
-            <Hint>{slogan.length}/120 caractères</Hint>
+            <Hint>{t.charsCount(slogan.length)}</Hint>
           </div>
 
           {/* Email de contact */}
           <div>
-            <Label>Email de contact</Label>
+            <Label>{t.contactEmailLabel}</Label>
             {brandingLocked ? (
               <>
-                <LockedField value={email || "(non défini)"} />
+                <LockedField value={email || t.undefined_} />
                 <RequestStatusInline request={requestsByField.contact_email} />
               </>
             ) : (
@@ -1585,7 +1964,7 @@ function BrandingSection({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onBlur={saveEmail}
-                  placeholder="contact@votre-cabinet.com"
+                  placeholder={t.contactEmailPlaceholder}
                   disabled={!isOwner || busy === "saving"}
                   style={{
                     ...inputStyle,
@@ -1594,8 +1973,8 @@ function BrandingSection({
                 />
                 <Hint>
                   {email && !emailValid
-                    ? "Format d'email invalide"
-                    : "Ajouté en pied de page du CV anonymisé. Permet au client final de vous recontacter."}
+                    ? t.invalidEmailFormat
+                    : t.contactEmailHint}
                 </Hint>
               </>
             )}
@@ -1659,11 +2038,13 @@ function LockedField({ value }: { value: string }) {
  * affichées : silence utile.
  */
 function RequestStatusInline({ request }: { request: BrandingRequestRow | null }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   if (!request) return null
   if (request.status === "cancelled") return null
 
   const dateLabel = (iso: string | null) => iso
-    ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+    ? new Date(iso).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "long", year: "numeric" })
     : ""
 
   if (request.status === "pending") {
@@ -1677,9 +2058,8 @@ function RequestStatusInline({ request }: { request: BrandingRequestRow | null }
       }}>
         <DotIndicator color="#B45309" />
         <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
-          <strong>Demande en cours de traitement.</strong>{" "}
-          Soumise le {dateLabel(request.created_at)}. Vous recevrez un email
-          dès qu&apos;elle est validée ou refusée.
+          <strong>{t.requestPending}</strong>{" "}
+          {t.requestPendingBody(dateLabel(request.created_at))}
         </span>
       </div>
     )
@@ -1696,8 +2076,8 @@ function RequestStatusInline({ request }: { request: BrandingRequestRow | null }
       }}>
         <DotIndicator color="#15803D" />
         <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#166534", lineHeight: 1.5 }}>
-          <strong>Modification validée</strong>
-          {request.decided_at ? ` le ${dateLabel(request.decided_at)}` : ""}.
+          <strong>{t.requestApproved}</strong>
+          {request.decided_at ? t.onThe(dateLabel(request.decided_at)) : ""}.
         </span>
       </div>
     )
@@ -1714,8 +2094,8 @@ function RequestStatusInline({ request }: { request: BrandingRequestRow | null }
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: request.decision_note ? 4 : 0 }}>
         <DotIndicator color="#B91C1C" />
         <span style={{ flex: 1, fontSize: 12, color: "#991B1B", lineHeight: 1.5 }}>
-          <strong>Demande refusée</strong>
-          {request.decided_at ? ` le ${dateLabel(request.decided_at)}` : ""}.
+          <strong>{t.requestRejected}</strong>
+          {request.decided_at ? t.onThe(dateLabel(request.decided_at)) : ""}.
         </span>
       </div>
       {request.decision_note && (
@@ -1724,7 +2104,7 @@ function RequestStatusInline({ request }: { request: BrandingRequestRow | null }
           fontSize: 12, color: "#991B1B",
           lineHeight: 1.55, fontStyle: "italic",
         }}>
-          « {request.decision_note} »
+          {lang === "fr" ? `« ${request.decision_note} »` : `"${request.decision_note}"`}
         </p>
       )}
     </div>
@@ -1742,6 +2122,8 @@ function DotIndicator({ color }: { color: string }) {
 }
 
 function LockedBadge() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -1751,7 +2133,7 @@ function LockedBadge() {
       letterSpacing: "0.05em", textTransform: "uppercase",
     }}>
       <LockIcon size={10} />
-      Verrouillé
+      {t.locked}
     </span>
   )
 }
@@ -1806,6 +2188,8 @@ function BrandingChangeRequestModal({
   onSubmitted: () => void
 }) {
   useEscapeKey(onClose)
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   // Cases cochées par l'owner.
   const [editName, setEditName] = useState(false)
@@ -1869,7 +2253,7 @@ function BrandingChangeRequestModal({
       })
       if (!r.ok) {
         const j = await r.json().catch(() => ({} as { error?: string }))
-        throw new Error(j.error ?? `Erreur ${r.status}`)
+        throw new Error(j.error ?? t.errorWithStatus(r.status))
       }
       onSubmitted()
     } catch (err) {
@@ -1907,15 +2291,13 @@ function BrandingChangeRequestModal({
       >
         <header style={{ marginBottom: 16 }}>
           <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase" }}>
-            Demande de modification
+            {t.changeRequestEyebrow}
           </p>
           <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-            Modifier vos informations verrouillées
+            {t.changeRequestTitle}
           </h2>
           <p style={{ margin: "10px 0 0", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
-            Cochez les informations que vous souhaitez modifier, puis indiquez
-            la nouvelle valeur pour chacune. Notre équipe examinera votre
-            demande sous 24 à 48 heures ouvrées et vous répondra par email.
+            {t.changeRequestBody}
           </p>
           <div style={{
             margin: "12px 0 0",
@@ -1927,12 +2309,8 @@ function BrandingChangeRequestModal({
           }}>
             <ShieldIcon />
             <p style={{ margin: 0, fontSize: 11.5, color: "#4B5563", lineHeight: 1.5 }}>
-              <strong style={{ color: "#374151" }}>Pourquoi cette étape ?</strong>{" "}
-              Le nom, le logo et l&apos;email de contact apparaissent sur les
-              CV anonymisés que vous présentez à vos clients. Pour éviter
-              l&apos;usurpation d&apos;identité d&apos;un cabinet, ces
-              informations sont verrouillées 24 heures après la fin de votre
-              onboarding et leur modification passe par une validation manuelle.
+              <strong style={{ color: "#374151" }}>{t.whyThisStep}</strong>{" "}
+              {t.whyThisStepBody}
             </p>
           </div>
         </header>
@@ -1942,13 +2320,13 @@ function BrandingChangeRequestModal({
           <ChangeBlock
             checked={editName}
             onToggle={() => setEditName((v) => !v)}
-            title="Nom de l'organisation"
-            currentSummary={currentName || "(non défini)"}
+            title={t.orgNameLabel}
+            currentSummary={currentName || t.undefined_}
           >
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Cabinet Dupont"
+              placeholder={t.orgNamePlaceholder}
               maxLength={200}
               autoFocus
               style={inputStyle}
@@ -1959,19 +2337,19 @@ function BrandingChangeRequestModal({
           <ChangeBlock
             checked={editLogo}
             onToggle={() => setEditLogo((v) => !v)}
-            title="Logo"
-            currentSummary={currentLogoPath ? "Logo actuel" : "Aucun logo"}
+            title={t.logoField}
+            currentSummary={currentLogoPath ? t.currentLogo : t.noLogo}
           >
             <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
               {/* Logo actuel */}
               <div style={{ flex: 1 }}>
-                <p style={miniLabel}>Actuel</p>
-                <LogoFrame src={currentLogoUrl} placeholder="Aucun" />
+                <p style={miniLabel}>{t.current}</p>
+                <LogoFrame src={currentLogoUrl} placeholder={t.none} />
               </div>
               {/* Logo demandé */}
               <div style={{ flex: 1 }}>
-                <p style={miniLabel}>Nouveau</p>
-                <LogoFrame src={uploadedLogoLocalUrl} placeholder="À choisir" highlight />
+                <p style={miniLabel}>{t.new_}</p>
+                <LogoFrame src={uploadedLogoLocalUrl} placeholder={t.toChoose} highlight />
               </div>
             </div>
             <div style={{ marginTop: 10 }}>
@@ -1981,7 +2359,7 @@ function BrandingChangeRequestModal({
                 disabled={uploading}
                 style={smallBtnPrimary}
               >
-                {uploading ? "Upload…" : uploadedLogoPath ? "Remplacer le fichier" : "Choisir un fichier"}
+                {uploading ? t.uploading : uploadedLogoPath ? t.replaceFile : t.chooseFile}
               </button>
               <input
                 ref={fileInput}
@@ -2000,14 +2378,14 @@ function BrandingChangeRequestModal({
           <ChangeBlock
             checked={editEmail}
             onToggle={() => setEditEmail((v) => !v)}
-            title="Email de contact"
-            currentSummary={currentEmail || "(non défini)"}
+            title={t.contactEmailLabel}
+            currentSummary={currentEmail || t.undefined_}
           >
             <input
               type="email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="contact@votre-cabinet.com"
+              placeholder={t.contactEmailPlaceholder}
               maxLength={200}
               style={{
                 ...inputStyle,
@@ -2016,20 +2394,20 @@ function BrandingChangeRequestModal({
             />
             {newEmail && !emailValid && (
               <p style={{ margin: "5px 0 0", fontSize: 11.5, color: "#EF4444" }}>
-                Format d&apos;email invalide
+                {t.invalidEmailFormat}
               </p>
             )}
           </ChangeBlock>
 
           <div>
             <Label>
-              Raison de la demande{" "}
-              <span style={{ color: "#6B7280", fontWeight: 400 }}>(optionnel)</span>
+              {t.reasonLabel}{" "}
+              <span style={{ color: "#6B7280", fontWeight: 400 }}>{t.optionalTag}</span>
             </Label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Ex : nouveau positionnement de la marque, fusion, faute de frappe lors de l'inscription…"
+              placeholder={t.reasonPlaceholder}
               maxLength={500}
               rows={3}
               style={{
@@ -2045,14 +2423,14 @@ function BrandingChangeRequestModal({
 
           {!editName && !editLogo && !editEmail && (
             <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", fontStyle: "italic" }}>
-              Cochez au moins une information à modifier.
+              {t.checkAtLeastOne}
             </p>
           )}
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
           <button type="button" onClick={onClose} disabled={busy} style={smallBtnGhost}>
-            Annuler
+            {t.cancel}
           </button>
           <button
             type="button"
@@ -2069,7 +2447,7 @@ function BrandingChangeRequestModal({
               fontFamily: "inherit",
             }}
           >
-            {busy ? "Envoi…" : "Envoyer la demande"}
+            {busy ? t.sendingRequest : t.sendRequest}
           </button>
         </div>
       </m.div>
@@ -2090,6 +2468,8 @@ function ChangeBlock({
   currentSummary: string
   children: React.ReactNode
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{
       borderRadius: 12,
@@ -2122,7 +2502,7 @@ function ChangeBlock({
             fontStyle: "italic",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
-            Actuel : {currentSummary}
+            {t.currentPrefix(currentSummary)}
           </p>
         </div>
       </label>
@@ -2167,11 +2547,13 @@ const miniLabel: React.CSSProperties = {
  * ne pas alourdir la page (le contenu n'est qu'un CTA "Configurer").
  */
 function PricingPolicySectionCollapsible() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [open, setOpen] = useState(false)
   return (
     <Card
-      title="Politique pricing"
-      subtitle="Marges cibles + avantages standards de l'organisation."
+      title={t.pricingPolicyTitle}
+      subtitle={t.pricingPolicySubtitle}
       headerRight={
         <button
           type="button"
@@ -2182,13 +2564,13 @@ function PricingPolicySectionCollapsible() {
             padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
           }}
         >
-          {open ? "Replier ▴" : "Déplier ▾"}
+          {open ? t.collapse : t.expand}
         </button>
       }
     >
       {!open ? (
         <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280" }}>
-          Réutilisé sur chaque chiffrage candidat × mission.
+          {t.pricingPolicyReused}
         </p>
       ) : (
         <div style={{
@@ -2199,10 +2581,10 @@ function PricingPolicySectionCollapsible() {
         }}>
           <div>
             <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
-              Marges, avantages, lieux
+              {t.marginsBenefitsLocations}
             </p>
             <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6B7280" }}>
-              Configurez les paramètres détaillés.
+              {t.configureDetails}
             </p>
           </div>
           <a
@@ -2214,7 +2596,7 @@ function PricingPolicySectionCollapsible() {
               textDecoration: "none", whiteSpace: "nowrap",
             }}
           >
-            Configurer →
+            {t.configureArrow}
           </a>
         </div>
       )}
@@ -2340,6 +2722,8 @@ function MembersSection({
   isOwner: boolean
   onChange: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // Index du siège vide actuellement "ouvert" (en mode saisie email).
   // -1 = aucun siège en édition.
   const [editingSlot, setEditingSlot] = useState<number>(-1)
@@ -2362,7 +2746,7 @@ function MembersSection({
   const sendInvite = async () => {
     const trimmed = inviteEmail.trim().toLowerCase()
     if (!trimmed || !trimmed.includes("@")) {
-      setError("Adresse email invalide."); return
+      setError(t.invalidEmail); return
     }
     setBusy(true); setError(null); setOkMessage(null)
     const res = await fetch("/api/cabinet/invite", {
@@ -2372,11 +2756,11 @@ function MembersSection({
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Erreur lors de l'envoi.")
+      setError(j.error ?? t.inviteSendError)
     } else {
       setInviteEmail("")
       setEditingSlot(-1)
-      setOkMessage(`Invitation envoyée à ${trimmed}.`)
+      setOkMessage(t.inviteSentTo(trimmed))
       onChange()
     }
     setBusy(false)
@@ -2387,7 +2771,7 @@ function MembersSection({
     const res = await fetch(`/api/cabinet/invite?id=${encodeURIComponent(id)}`, { method: "DELETE" })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Erreur lors de la révocation.")
+      setError(j.error ?? t.revokeError)
     } else {
       onChange()
     }
@@ -2401,7 +2785,7 @@ function MembersSection({
   // de l'organisation" sur la fiche membre individuelle si on l'ajoute
   // un jour.
   void (async (userId: string, label: string) => {
-    if (!confirm(`Retirer ${label} de l'organisation ?`)) return
+    if (!confirm(t.removeConfirm(label))) return
     await fetch(`/api/cabinet/members/${encodeURIComponent(userId)}`, { method: "DELETE" })
     onChange()
   })
@@ -2443,7 +2827,7 @@ function MembersSection({
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Allocation impossible.")
+      setError(j.error ?? t.allocateError)
     } else {
       onChange()
     }
@@ -2453,7 +2837,7 @@ function MembersSection({
   /** Désalloue un siège (owner peut désallouer n'importe qui ; un member
    *  peut désallouer son propre siège). */
   const deallocateMember = async (userId: string, label: string) => {
-    if (!confirm(`Libérer le siège de ${label} ? L'utilisateur reste dans l'organisation mais perd l'accès au workspace.`)) return
+    if (!confirm(t.deallocateConfirm(label))) return
     setBusy(true); setError(null); setOkMessage(null)
     const res = await fetch("/api/cabinet/seat", {
       method: "POST",
@@ -2462,16 +2846,16 @@ function MembersSection({
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Libération impossible.")
+      setError(j.error ?? t.deallocateError)
     } else {
-      setOkMessage(`Siège de ${label} libéré.`)
+      setOkMessage(t.seatReleased(label))
       onChange()
     }
     setBusy(false)
   }
 
   return (
-    <Card title="Membres" subtitle={`${seatsUsed} sur ${seatsTotal} sièges · vivier partagé`}>
+    <Card title={t.members} subtitle={t.seatsSubtitle(seatsUsed, seatsTotal)}>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflow: "auto" }}>
         {slots.map((slot, idx) => {
           if (slot.kind === "member") {
@@ -2482,9 +2866,9 @@ function MembersSection({
                 <Avatar letter={(m.first_name?.[0] ?? "?").toUpperCase()} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={memberNameStyle}>
-                    {m.first_name ?? "Sans prénom"}
+                    {m.first_name ?? t.noFirstName}
                     {m.user_id === currentUserId && (
-                      <span style={{ color: "#6B7280", fontWeight: 500 }}> · vous</span>
+                      <span style={{ color: "#6B7280", fontWeight: 500 }}>{t.youSuffix}</span>
                     )}
                   </p>
                   {m.user_id === currentUserId && (
@@ -2495,12 +2879,12 @@ function MembersSection({
                 {canDeallocate && (
                   <button
                     type="button"
-                    onClick={() => void deallocateMember(m.user_id, m.first_name ?? "ce membre")}
+                    onClick={() => void deallocateMember(m.user_id, m.first_name ?? t.noFirstName)}
                     disabled={busy}
-                    title="Libérer ce siège"
+                    title={t.releaseThisSeat}
                     style={iconBtnStyle}
                   >
-                    Libérer
+                    {t.releaseAction}
                   </button>
                 )}
               </div>
@@ -2518,11 +2902,11 @@ function MembersSection({
                 <Avatar letter={inv.email[0]?.toUpperCase() ?? "?"} dim />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={memberNameStyle}>{inv.email}</p>
-                  <p style={memberSubStyle}>Invitation envoyée par email · en attente</p>
+                  <p style={memberSubStyle}>{t.invitePending}</p>
                 </div>
                 {isOwner && (
                   <button type="button" onClick={() => void revokeInvite(inv.id)} disabled={busy} style={iconBtnStyle}>
-                    Annuler
+                    {t.cancelAction}
                   </button>
                 )}
               </div>
@@ -2539,7 +2923,7 @@ function MembersSection({
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="email@organisation.com"
+                  placeholder={t.inviteEmailPlaceholder}
                   autoFocus
                   disabled={busy}
                   onKeyDown={(e) => {
@@ -2558,14 +2942,14 @@ function MembersSection({
                     cursor: busy || !inviteEmail.trim() ? "not-allowed" : "pointer",
                   }}
                 >
-                  {busy ? "…" : "Envoyer"}
+                  {busy ? "…" : t.send}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setEditingSlot(-1); setInviteEmail(""); setError(null) }}
                   disabled={busy}
                   style={iconBtnStyle}
-                  title="Annuler"
+                  title={t.cancelAction}
                 >
                   ✕
                 </button>
@@ -2578,7 +2962,7 @@ function MembersSection({
               <Avatar letter="·" dim />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ ...memberNameStyle, color: "#6B7280", fontWeight: 600 }}>
-                  Siège vide
+                  {t.emptySeat}
                 </p>
               </div>
               {isOwner && (
@@ -2602,8 +2986,7 @@ function MembersSection({
         margin: "12px 0 0",
         fontSize: 11.5, color: "#6B7280", lineHeight: 1.55,
       }}>
-        Les invitations sont envoyées par email. Le membre clique sur le lien
-        reçu, choisit son mot de passe, et accède directement au workspace.
+        {t.footerNote}
       </p>
     </Card>
   )
@@ -2635,6 +3018,8 @@ function EmptySeatActions({
   onInviteEmail: () => void
   onAllocate: (userId: string) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
@@ -2655,7 +3040,7 @@ function EmptySeatActions({
         disabled={busy}
         style={addMemberBtnStyle}
       >
-        + Ajouter un membre
+        {t.addMember}
       </button>
     )
   }
@@ -2668,7 +3053,7 @@ function EmptySeatActions({
         disabled={busy}
         style={addMemberBtnStyle}
       >
-        + Allouer un siège ▾
+        {t.allocateSeatDropdown}
       </button>
       {open && (
         <div
@@ -2693,7 +3078,7 @@ function EmptySeatActions({
             onClick={() => { setOpen(false); onInviteEmail() }}
             style={dropdownItemStyle}
           >
-            + Inviter un nouveau membre (email)
+            {t.inviteNewMember}
           </button>
           <div style={{ height: 1, background: "#F0ECF8", margin: "4px 0" }} />
           {unallocated.map((m) => {
@@ -2706,10 +3091,10 @@ function EmptySeatActions({
                 onClick={() => { setOpen(false); onAllocate(m.user_id) }}
                 style={dropdownItemStyle}
               >
-                {isSelf ? "M'allouer un siège" : `Allouer à ${m.first_name ?? "Sans prénom"}`}
+                {isSelf ? t.allocateToSelf : t.allocateTo(m.first_name ?? t.noFirstName)}
                 {m.role === "owner" && !isSelf && (
                   <span style={{ marginLeft: 6, fontSize: 10.5, color: "#6B7280", fontWeight: 500 }}>
-                    (owner)
+                    {t.ownerTag}
                   </span>
                 )}
               </button>
@@ -2792,6 +3177,8 @@ function DangerSection({
   seatsUsed: number
   onDeleted: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [showModal, setShowModal] = useState(false)
   const [confirmText, setConfirmText] = useState("")
   const [busy, setBusy] = useState(false)
@@ -2807,7 +3194,7 @@ function DangerSection({
     const res = await fetch("/api/cabinet", { method: "DELETE" })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? "Erreur lors de la suppression.")
+      setError(j.error ?? t.deleteError)
       setBusy(false)
       return
     }
@@ -2829,13 +3216,13 @@ function DangerSection({
         boxSizing: "border-box",
       }}>
         <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
-          Zone de danger
+          {t.dangerZone}
         </h2>
         <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-          Supprimer définitivement l&apos;organisation et toutes ses données.{" "}
+          {t.deleteOrgBody}{" "}
           {hasOtherMembers
-            ? <>Les autres membres garderont accès 30 jours.</>
-            : <>La suppression est immédiate.</>}
+            ? <>{t.otherMembersKeepAccess}</>
+            : <>{t.deletionImmediate}</>}
         </p>
         <button type="button" onClick={() => setShowModal(true)}
           style={{
@@ -2844,7 +3231,7 @@ function DangerSection({
             background: "white", color: "#B91C1C",
             fontSize: 12.5, fontWeight: 700, cursor: "pointer",
           }}>
-          Supprimer mon organisation
+          {t.deleteMyOrg}
         </button>
 
       {showModal && (
@@ -2864,23 +3251,19 @@ function DangerSection({
             boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
           }}>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#B91C1C" }}>
-              Supprimer {organization.name} ?
+              {t.deleteOrgConfirmTitle(organization.name)}
             </h3>
             <p style={{ margin: "10px 0 18px", fontSize: 13.5, color: "#4B5563", lineHeight: 1.6 }}>
-              {hasOtherMembers ? (
-                <>Vos collègues garderont l&apos;accès au workspace pendant <strong>30 jours</strong>. Passé ce délai, l&apos;organisation et toutes ses données seront supprimées définitivement.</>
-              ) : (
-                <>Toutes vos données (vivier, missions, pipeline, emails, paramètres) seront supprimées <strong>immédiatement et définitivement</strong>. Cette action est irréversible.</>
-              )}
+              {hasOtherMembers ? t.deleteOrgBodyMulti : t.deleteOrgBodySolo}
             </p>
-            <Label>Tapez le nom de l&apos;organisation pour confirmer&nbsp;: <code style={{ background: "#F3F4F6", padding: "1px 6px", borderRadius: 4, color: "#111827" }}>{expectedConfirm}</code></Label>
+            <Label>{t.typeOrgNameToConfirm} <code style={{ background: "#F3F4F6", padding: "1px 6px", borderRadius: 4, color: "#111827" }}>{expectedConfirm}</code></Label>
             <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
               placeholder={expectedConfirm} autoFocus style={inputStyle} />
             {error && <p style={{ margin: "12px 0 0", fontSize: 13, color: "#EF4444" }}>{error}</p>}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 22 }}>
               <button type="button" onClick={() => { setShowModal(false); setConfirmText(""); setError(null) }}
                 disabled={busy} style={smallBtnGhost}>
-                Annuler
+                {t.cancel}
               </button>
               <button type="button" onClick={doDelete} disabled={!canDelete}
                 style={{
@@ -2890,7 +3273,7 @@ function DangerSection({
                   fontSize: 13, fontWeight: 700,
                   cursor: canDelete ? "pointer" : "not-allowed",
                 }}>
-                {busy ? "Suppression…" : "Confirmer"}
+                {busy ? t.deleting : t.confirmAction}
               </button>
             </div>
           </div>
@@ -2906,6 +3289,8 @@ function DangerSection({
 /* ────────────────────────────────────────────────────────────────── */
 
 function ExportDataCard() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -2934,16 +3319,13 @@ function ExportDataCard() {
       boxSizing: "border-box",
     }}>
       <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>
-        Exporter mes données
+        {t.exportMyData}
       </h2>
       <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-        Téléchargez un fichier JSON avec l&apos;intégralité de votre organisation :
-        candidats, missions, matches, mails et paramétrage. Conservez-le
-        comme archive.
+        {t.exportBody}
       </p>
       <p style={{ margin: "0 0 14px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
-        En raison des mises à jour produit, nous ne pouvons pas garantir la
-        restauration complète de ces données dans une future version du service.
+        {t.exportDisclaimer}
       </p>
       <button
         type="button"
@@ -2957,7 +3339,7 @@ function ExportDataCard() {
           cursor: busy ? "wait" : "pointer",
         }}
       >
-        {busy ? "Préparation…" : "Télécharger l'export JSON"}
+        {busy ? t.preparing : t.downloadJson}
       </button>
       {error && <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B91C1C" }}>{error}</p>}
     </section>

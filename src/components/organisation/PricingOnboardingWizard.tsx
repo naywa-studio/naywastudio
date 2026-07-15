@@ -23,8 +23,80 @@ import { useState } from "react"
 import { m, AnimatePresence } from "framer-motion"
 import type { PricingDefaultAvantages } from "@/lib/database.types"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
+const copy = {
+  fr: {
+    later: "Plus tard",
+    step1Title: "Configurons votre ",
+    step1TitleItalic: "politique pricing",
+    step1Body: "Une minute pour régler vos marges et avantages standards. Vos chiffrages futurs s'appuieront sur ces valeurs. Tout reste modifiable plus tard depuis la console.",
+    step1Item1: "Seuils de marge (mini + cible)",
+    step1Item2: "RTT que vous accordez",
+    step1Item3: "Mutuelle, transport, tickets resto",
+    step2Title: "Seuils de marge",
+    step2Body: "Plancher et objectif de rentabilité pour vos chiffrages.",
+    marginMinLabel: "Marge minimum acceptable",
+    marginMinHint: "En dessous, refus du chiffrage",
+    marginTargetLabel: "Marge cible",
+    marginTargetHint: "Objectif visé",
+    marginInvalid: "La marge cible doit être supérieure ou égale à la marge mini.",
+    step3Title: "RTT accordés",
+    step3Body: "Jours rémunérés non facturables. 0 si vous n'accordez pas de RTT.",
+    rttLabel: "RTT par an et par salarié",
+    perYearAbbr: "j/an",
+    step4Title: "Avantages essentiels",
+    step4Body: "Les avantages standards que vous proposez à vos salariés. Vous pourrez ajouter les autres plus tard.",
+    mutuelleLabel: "Mutuelle (part employeur)",
+    transportLabel: "Transport (50 % abonnement)",
+    ticketsRestoLabel: "Tickets resto (part employeur)",
+    perMonth: "€/mois",
+    perDay: "€/jour",
+    back: "← Retour",
+    letsGo: "C'est parti →",
+    next: "Suivant →",
+    saving: "Enregistrement…",
+    validate: "✓ Valider ma politique",
+    saveFailed: "Erreur lors de l'enregistrement",
+    genericError: "Erreur",
+  },
+  en: {
+    later: "Later",
+    step1Title: "Let's set up your ",
+    step1TitleItalic: "pricing policy",
+    step1Body: "One minute to set your standard margins and benefits. Your future pricing will rely on these values. Everything stays editable later from the console.",
+    step1Item1: "Margin thresholds (min + target)",
+    step1Item2: "RTT days you grant",
+    step1Item3: "Health insurance, transport, meal vouchers",
+    step2Title: "Margin thresholds",
+    step2Body: "Profitability floor and target for your pricing.",
+    marginMinLabel: "Minimum acceptable margin",
+    marginMinHint: "Below this, pricing is rejected",
+    marginTargetLabel: "Target margin",
+    marginTargetHint: "Goal to aim for",
+    marginInvalid: "The target margin must be greater than or equal to the minimum margin.",
+    step3Title: "RTT days granted",
+    step3Body: "Paid non-billable days. 0 if you don't grant RTT days.",
+    rttLabel: "RTT days per year and per employee",
+    perYearAbbr: "days/yr",
+    step4Title: "Essential benefits",
+    step4Body: "The standard benefits you offer your employees. You can add others later.",
+    mutuelleLabel: "Health insurance (employer share)",
+    transportLabel: "Transport (50% of pass)",
+    ticketsRestoLabel: "Meal vouchers (employer share)",
+    perMonth: "€/mo",
+    perDay: "€/day",
+    back: "← Back",
+    letsGo: "Let's go →",
+    next: "Next →",
+    saving: "Saving…",
+    validate: "✓ Confirm my policy",
+    saveFailed: "Error while saving",
+    genericError: "Error",
+  },
+}
 
 interface Props {
   open: boolean
@@ -53,6 +125,8 @@ const DEFAULTS = {
 
 export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Props) {
   useEscapeKey(onClose, open)
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [step, setStep] = useState(1)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -93,12 +167,12 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({} as { error?: string }))
-        throw new Error(j.error ?? "Erreur lors de l'enregistrement")
+        throw new Error(j.error ?? t.saveFailed)
       }
       await onDone()
       onClose()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur")
+      setError(err instanceof Error ? err.message : t.genericError)
     } finally {
       setBusy(false)
     }
@@ -160,7 +234,7 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
               fontFamily: "inherit",
             }}
           >
-            Plus tard
+            {t.later}
           </button>
         </div>
 
@@ -170,36 +244,34 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
             {step === 1 && (
               <StepWrapper key="s1">
                 <h2 style={titleStyle}>
-                  Configurons votre <span style={italicStyle}>politique pricing</span>.
+                  {t.step1Title}<span style={italicStyle}>{t.step1TitleItalic}</span>.
                 </h2>
                 <p style={leadStyle}>
-                  Une minute pour régler vos marges et avantages standards.
-                  Vos chiffrages futurs s&apos;appuieront sur ces valeurs.
-                  Tout reste modifiable plus tard depuis la console.
+                  {t.step1Body}
                 </p>
                 <ul style={listStyle}>
-                  <li>Seuils de marge (mini + cible)</li>
-                  <li>RTT que vous accordez</li>
-                  <li>Mutuelle, transport, tickets resto</li>
+                  <li>{t.step1Item1}</li>
+                  <li>{t.step1Item2}</li>
+                  <li>{t.step1Item3}</li>
                 </ul>
               </StepWrapper>
             )}
 
             {step === 2 && (
               <StepWrapper key="s2">
-                <h2 style={titleStyle}>Seuils de marge</h2>
-                <p style={leadStyle}>Plancher et objectif de rentabilité pour vos chiffrages.</p>
+                <h2 style={titleStyle}>{t.step2Title}</h2>
+                <p style={leadStyle}>{t.step2Body}</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 }}>
                   <FieldNum
-                    label="Marge minimum acceptable"
-                    hint="En dessous, refus du chiffrage"
+                    label={t.marginMinLabel}
+                    hint={t.marginMinHint}
                     value={margeMin}
                     onChange={setMargeMin}
                     min={0} max={50} step={0.5} suffix="%"
                   />
                   <FieldNum
-                    label="Marge cible"
-                    hint="Objectif visé"
+                    label={t.marginTargetLabel}
+                    hint={t.marginTargetHint}
                     value={margeTarget}
                     onChange={setMargeTarget}
                     min={0} max={50} step={0.5} suffix="%"
@@ -207,7 +279,7 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
                 </div>
                 {margesInvalid && (
                   <p style={errorBoxStyle}>
-                    La marge cible doit être supérieure ou égale à la marge mini.
+                    {t.marginInvalid}
                   </p>
                 )}
               </StepWrapper>
@@ -215,16 +287,16 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
 
             {step === 3 && (
               <StepWrapper key="s3">
-                <h2 style={titleStyle}>RTT accordés</h2>
+                <h2 style={titleStyle}>{t.step3Title}</h2>
                 <p style={leadStyle}>
-                  Jours rémunérés non facturables. 0 si vous n&apos;accordez pas de RTT.
+                  {t.step3Body}
                 </p>
                 <div style={{ marginTop: 18, maxWidth: 240 }}>
                   <FieldNum
-                    label="RTT par an et par salarié"
+                    label={t.rttLabel}
                     value={rttDays}
                     onChange={setRttDays}
-                    min={0} max={25} step={1} suffix="j/an"
+                    min={0} max={25} step={1} suffix={t.perYearAbbr}
                   />
                 </div>
               </StepWrapper>
@@ -232,29 +304,28 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
 
             {step === 4 && (
               <StepWrapper key="s4">
-                <h2 style={titleStyle}>Avantages essentiels</h2>
+                <h2 style={titleStyle}>{t.step4Title}</h2>
                 <p style={leadStyle}>
-                  Les avantages standards que vous proposez à vos salariés.
-                  Vous pourrez ajouter les autres plus tard.
+                  {t.step4Body}
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
                   <FieldNum
-                    label="Mutuelle (part employeur)"
+                    label={t.mutuelleLabel}
                     value={mutuelle}
                     onChange={setMutuelle}
-                    min={0} max={200} step={5} suffix="€/mois"
+                    min={0} max={200} step={5} suffix={t.perMonth}
                   />
                   <FieldNum
-                    label="Transport (50 % abonnement)"
+                    label={t.transportLabel}
                     value={transport}
                     onChange={setTransport}
-                    min={0} max={200} step={1} suffix="€/mois"
+                    min={0} max={200} step={1} suffix={t.perMonth}
                   />
                   <FieldNum
-                    label="Tickets resto (part employeur)"
+                    label={t.ticketsRestoLabel}
                     value={ticketsResto}
                     onChange={setTicketsResto}
-                    min={0} max={15} step={0.5} suffix="€/jour"
+                    min={0} max={15} step={0.5} suffix={t.perDay}
                   />
                 </div>
               </StepWrapper>
@@ -280,7 +351,7 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
               disabled={busy}
               style={ghostBtnStyle}
             >
-              ← Retour
+              {t.back}
             </button>
           ) : <span />}
 
@@ -295,7 +366,7 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
                 cursor: step === 2 && margesInvalid ? "not-allowed" : "pointer",
               }}
             >
-              {step === 1 ? "C'est parti →" : "Suivant →"}
+              {step === 1 ? t.letsGo : t.next}
             </button>
           ) : (
             <button
@@ -308,7 +379,7 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
                 cursor: busy ? "default" : "pointer",
               }}
             >
-              {busy ? "Enregistrement…" : "✓ Valider ma politique"}
+              {busy ? t.saving : t.validate}
             </button>
           )}
         </div>
