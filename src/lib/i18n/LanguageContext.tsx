@@ -12,30 +12,24 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null)
 
-const STORAGE_KEY = 'naywa-lang'
-
 function isLang(value: unknown): value is Lang {
   return value === 'fr' || value === 'en'
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
+  // Français par défaut pour tout visiteur non connecté — pas de mémoire
+  // via localStorage entre deux visites anonymes. Seul un compte connecté
+  // a une préférence persistée (profiles.preferred_language).
   const [lang, setLangState] = useState<Lang>('fr')
-  // Tracks whether the current value came from the account (vs. localStorage
-  // guess) so setLang knows whether it's safe to persist to the profile.
-  // Kept in sync via onAuthStateChange (not a one-shot getSession() check) :
-  // login/logout usually happen via client-side navigation without a full
-  // page reload, so LanguageProvider (mounted once in the root layout)
-  // would otherwise never learn that a session appeared — setLang would
-  // keep silently skipping the PATCH and the account's saved preference
-  // would never get updated.
+  // Tracks whether the current value came from the account, so setLang
+  // knows whether it's safe to persist to the profile. Kept in sync via
+  // onAuthStateChange (not a one-shot getSession() check) : login/logout
+  // usually happen via client-side navigation without a full page reload,
+  // so LanguageProvider (mounted once in the root layout) would otherwise
+  // never learn that a session appeared or disappeared.
   const isAuthedRef = useRef(false)
 
-  // Fast paint from localStorage, then reconcile with the account's saved
-  // preference once we know whether someone is signed in.
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (isLang(stored)) setLangState(stored)
-
     const sb = getSupabase()
 
     const syncFromAccount = async (userId: string) => {
@@ -47,7 +41,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         .single()
       if (isLang(data?.preferred_language)) {
         setLangState(data.preferred_language)
-        window.localStorage.setItem(STORAGE_KEY, data.preferred_language)
       }
     }
 
@@ -56,6 +49,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         void syncFromAccount(session.user.id)
       } else if (event === 'SIGNED_OUT') {
         isAuthedRef.current = false
+        // Retour au français par défaut dès la déconnexion.
+        setLangState('fr')
       }
     })
 
@@ -68,7 +63,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLang = (next: Lang) => {
     setLangState(next)
-    window.localStorage.setItem(STORAGE_KEY, next)
     if (isAuthedRef.current) {
       fetch('/api/profile', {
         method: 'PATCH',
