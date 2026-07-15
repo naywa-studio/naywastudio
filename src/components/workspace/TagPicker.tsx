@@ -2,6 +2,22 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { normalizeTag } from "@/lib/tags"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    defaultPlaceholder: "Ajouter un tag…",
+    removeTagTitle: "Retirer ce tag",
+    removeTagLabel: (tag: string) => `Retirer le tag ${tag}`,
+    createTag: (tag: string) => `+ Créer le tag « ${tag} »`,
+  },
+  en: {
+    defaultPlaceholder: "Add a tag…",
+    removeTagTitle: "Remove this tag",
+    removeTagLabel: (tag: string) => `Remove tag ${tag}`,
+    createTag: (tag: string) => `+ Create tag "${tag}"`,
+  },
+}
 
 /**
  * Free-form custom-tag editor.
@@ -18,7 +34,7 @@ export default function TagPicker({
   value,
   onChange,
   suggestions = [],
-  placeholder = "Ajouter un tag…",
+  placeholder,
   saving = false,
 }: {
   value: string[]
@@ -27,6 +43,9 @@ export default function TagPicker({
   placeholder?: string
   saving?: boolean
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const effectivePlaceholder = placeholder ?? t.defaultPlaceholder
   const [draft, setDraft] = useState("")
   const [open, setOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -44,7 +63,7 @@ export default function TagPicker({
 
   const matches = useMemo(() => {
     const q = draft.trim().toLowerCase()
-    const taken = new Set(value.map((t) => t.toLowerCase()))
+    const taken = new Set(value.map((tg) => tg.toLowerCase()))
     const pool = suggestions.filter((s) => !taken.has(s.toLowerCase()))
     if (!q) return pool.slice(0, 8)
     return pool.filter((s) => s.toLowerCase().includes(q)).slice(0, 8)
@@ -53,7 +72,7 @@ export default function TagPicker({
   const add = (raw: string) => {
     const tag = normalizeTag(raw)
     if (!tag) return
-    if (value.some((t) => t.toLowerCase() === tag.toLowerCase())) {
+    if (value.some((tg) => tg.toLowerCase() === tag.toLowerCase())) {
       setDraft("")
       return
     }
@@ -64,7 +83,7 @@ export default function TagPicker({
   }
 
   const remove = (tag: string) => {
-    onChange(value.filter((t) => t !== tag))
+    onChange(value.filter((tg) => tg !== tag))
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -88,18 +107,18 @@ export default function TagPicker({
         border: "1px solid #E5E7EB", borderRadius: 10,
         minHeight: 40,
       }}>
-        {value.map((t) => (
-          <span key={t} style={{
+        {value.map((tg) => (
+          <span key={tg} style={{
             display: "inline-flex", alignItems: "center", gap: 5,
             fontSize: 12, fontWeight: 600, color: "#4B5563",
             background: "white", border: "1px solid #E2DAF6",
             borderRadius: 100, padding: "3px 4px 3px 10px",
           }}>
-            {t}
+            {tg}
             <button
-              onClick={() => remove(t)}
-              title="Retirer ce tag"
-              aria-label={`Retirer le tag ${t}`}
+              onClick={() => remove(tg)}
+              title={t.removeTagTitle}
+              aria-label={t.removeTagLabel(tg)}
               style={{
                 width: 16, height: 16, borderRadius: "50%",
                 background: "transparent", border: "none",
@@ -120,7 +139,7 @@ export default function TagPicker({
           onChange={(e) => { setDraft(e.target.value); setOpen(true) }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder={value.length === 0 ? placeholder : ""}
+          placeholder={value.length === 0 ? effectivePlaceholder : ""}
           style={{
             flex: 1, minWidth: 120,
             background: "transparent", border: "none", outline: "none",
@@ -175,7 +194,7 @@ export default function TagPicker({
               onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(124,99,200,0.06)" }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
             >
-              + Créer le tag « {draft.trim()} »
+              {t.createTag(draft.trim())}
             </button>
           )}
         </div>

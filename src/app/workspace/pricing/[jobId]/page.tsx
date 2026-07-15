@@ -24,8 +24,229 @@ import PricingWidget from "@/components/workspace/PricingWidget"
 import Select from "@/components/ui/Select"
 import { computeQuickMargin } from "@/lib/pricing/quick-margin"
 import { candidateRefLabel } from "@/lib/candidate-ref"
+import DatePicker from "@/components/ui/DatePicker"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
+const copy = {
+  fr: {
+    loadingPricing: "Chargement du chiffrage",
+    missionNotFound: "Mission introuvable.",
+    backToPricing: "← Retour au pricing",
+    backToPricingTitle: "Retour au pricing",
+    months: (n: number) => `${n} mois`,
+    orgSettings: "⚙ Paramètres organisation",
+    missionSheet: "Fiche mission →",
+    missionConfigured: "✓ Mission paramétrée",
+    tjmShort: (v: string) => `TJM ${v} €/j`,
+    startLabel: (d: string) => `début ${d}`,
+    targetGross: (v: string) => `brut ciblé ${v} €/an`,
+    grandDeplacement: "Grand déplacement",
+    expatriated: "Expatrié",
+    edit: "⚙ Modifier",
+    missionConfigTitle: "📋 Paramétrage mission",
+    saving: "Enregistrement…",
+    saved: "✓ Enregistré",
+    saveFailed: "Échec",
+    close: "Fermer",
+    wizardIntro: "Les avantages organisation s'appliquent d'office. Les toggles en bas activent les tarifs conditionnels.",
+    tjmTargetLabel: "TJM client cible",
+    tjmTargetHint: "prix journalier négocié — le slider explorera autour",
+    durationLabel: "Durée prévue",
+    durationHint: "en mois calendaires",
+    startDateLabel: "Date de démarrage",
+    startDateHint: "ancre le calendrier de la mission",
+    contractTypeLabel: "Type de contrat",
+    contractTypeHint: "détermine essai (3/5/7 mois) et scénario rupture",
+    missionLocationLabel: "Lieu de mission",
+    missionLocationHint: "impacte le plafond URSSAF grand déplacement",
+    targetGrossLabel: "Brut cible candidat",
+    targetGrossHint: "brut annuel proposé. Si vide, le widget pricing utilise 45 000 €/an",
+    conditionalActivations: "Activations conditionnelles",
+    grandDeplacementLabel: "Mission avec grand déplacement",
+    grandDeplacementHint: "active le tarif URSSAF défini en paramètres",
+    expatriatedLabel: "Mission expatriée",
+    expatriatedHint: "active la prime d'expatriation définie en paramètres",
+    marginOverrides: "Overrides marges",
+    marginOverridesHint: "· défaut = organisation",
+    marginMinLabel: "Marge mini override",
+    marginTargetLabel: "Marge cible override",
+    marginOverrideHint: "vide = défaut organisation",
+    marginOverridePlaceholder: "vide = organisation",
+    marginsInvalidMsg: "⚠ La marge cible doit être ≥ la marge mini.",
+    requiredMissingMsg: "Renseignez le TJM, la durée et la date de démarrage pour valider.",
+    fixMarginsMsg: "Corrige les marges (cible ≥ mini) pour valider.",
+    cancel: "Annuler",
+    validateParams: "✓ Valider les paramètres",
+    active: "Actif",
+    inactive: "Inactif",
+    contractCdi: "CDI",
+    contractCdd: "CDD",
+    lieuLabels: {
+      paris_petite_couronne: "Paris / Petite Couronne",
+      idf_grande_couronne: "Île-de-France (grande couronne)",
+      lyon: "Lyon",
+      province: "Province",
+    } as Record<NonNullable<Job["pricing_lieu"]>, string>,
+    candidatesCount: (n: number) => `Candidats · ${n}`,
+    exitCompare: "✕ Quitter",
+    compare: "⇆ Comparer",
+    compareHint0: "Choisissez deux candidats à comparer.",
+    compareHint1: "Encore un candidat à choisir.",
+    compareHint2: "Comparaison affichée à droite.",
+    noCandidatesToPrice: "Aucun candidat à chiffrer.",
+    noNameCandidate: "Sans nom",
+    missionToConfigure: "Mission à paramétrer",
+    missionToConfigureBody: (
+      <>Renseigne le <strong>TJM</strong>, la <strong>durée</strong>, la <strong>date de démarrage</strong>
+      {" "}et le <strong>lieu</strong> de la mission. Les graphiques et le verdict deviennent pertinents
+      une fois ces paramètres saisis.</>
+    ),
+    configureMission: "⚙ Paramétrer la mission",
+    noCandidatesTitle: "Aucun candidat à chiffrer",
+    noCandidatesBody: (
+      <>Seuls les candidats <strong>ajoutés à la pipeline</strong> apparaissent ici.
+      Depuis la fiche mission, cliquez <strong>« + Ajouter à la pipeline »</strong> sur
+      les profils que vous voulez chiffrer.</>
+    ),
+    comparisonTitle: "Comparaison de candidats",
+    comparisonSubtitle: (n: number) => `${n}/2 sélectionnés · choisis les candidats dans la liste à gauche pour les comparer côte à côte.`,
+    closeX: "✕ Fermer",
+    noraReco: "La reco de Nora",
+    askNoraPrompt: (a: string, b: string) => `Vous voulez un avis rapide sur le meilleur choix entre ${a} et ${b} ?`,
+    askNora: "✦ Demander l'avis de Nora",
+    noraAnalyzing: "Nora analyse les deux candidats…",
+    preference: (name: string) => `✓ Préférence : ${name}`,
+    noraSorry: (msg: string) => `Désolée, je n'ai pas pu donner d'avis (${msg}).`,
+    retry: "Réessayer",
+    candidateA: "Candidat A",
+    candidateB: "Candidat B",
+    pickTwo: "Choisissez 2 candidats à comparer.",
+    pickOneMore: "Encore un candidat à choisir.",
+    clickToAdd: "Cliquez dans la liste à gauche pour les ajouter à la comparaison.",
+    pricingPending: "Pricing en attente",
+    missionProfitable: "Mission rentable",
+    belowTarget: "Sous la cible",
+    belowFloor: "Sous le plancher",
+    missionLoss: "Mission en perte",
+    yearsExpAbbr: (n: number) => `${n} ans XP`,
+    avgMarginSuffix: "% marge moyenne",
+    statTjm: "TJM",
+    statBrut: "Brut",
+    statMonthlyMargin: "Marge / mois",
+    statTotalMargin: "Marge totale",
+    autoComputedNote: "Valeurs auto-calculées (TJM mission + brut par défaut). Ouvre la fiche pricing du candidat pour ajuster.",
+  },
+  en: {
+    loadingPricing: "Loading pricing",
+    missionNotFound: "Mission not found.",
+    backToPricing: "← Back to pricing",
+    backToPricingTitle: "Back to pricing",
+    months: (n: number) => `${n} months`,
+    orgSettings: "⚙ Organization settings",
+    missionSheet: "Mission sheet →",
+    missionConfigured: "✓ Mission configured",
+    tjmShort: (v: string) => `Daily rate ${v} €/day`,
+    startLabel: (d: string) => `starts ${d}`,
+    targetGross: (v: string) => `target gross ${v} €/year`,
+    grandDeplacement: "Extended travel",
+    expatriated: "Expatriate",
+    edit: "⚙ Edit",
+    missionConfigTitle: "📋 Mission configuration",
+    saving: "Saving…",
+    saved: "✓ Saved",
+    saveFailed: "Failed",
+    close: "Close",
+    wizardIntro: "Organization benefits apply automatically. The toggles below enable conditional rates.",
+    tjmTargetLabel: "Target client daily rate",
+    tjmTargetHint: "negotiated daily price — the slider will explore around it",
+    durationLabel: "Expected duration",
+    durationHint: "in calendar months",
+    startDateLabel: "Start date",
+    startDateHint: "anchors the mission's calendar",
+    contractTypeLabel: "Contract type",
+    contractTypeHint: "determines trial period (3/5/7 months) and termination scenario",
+    missionLocationLabel: "Mission location",
+    missionLocationHint: "affects the URSSAF extended-travel cap",
+    targetGrossLabel: "Target candidate gross",
+    targetGrossHint: "proposed annual gross. If empty, the pricing widget uses €45,000/year",
+    conditionalActivations: "Conditional activations",
+    grandDeplacementLabel: "Mission with extended travel",
+    grandDeplacementHint: "enables the URSSAF rate defined in settings",
+    expatriatedLabel: "Expatriate mission",
+    expatriatedHint: "enables the expatriation allowance defined in settings",
+    marginOverrides: "Margin overrides",
+    marginOverridesHint: "· default = organization",
+    marginMinLabel: "Min margin override",
+    marginTargetLabel: "Target margin override",
+    marginOverrideHint: "empty = organization default",
+    marginOverridePlaceholder: "empty = organization",
+    marginsInvalidMsg: "⚠ The target margin must be ≥ the minimum margin.",
+    requiredMissingMsg: "Fill in the daily rate, duration, and start date to confirm.",
+    fixMarginsMsg: "Fix the margins (target ≥ minimum) to confirm.",
+    cancel: "Cancel",
+    validateParams: "✓ Confirm parameters",
+    active: "Active",
+    inactive: "Inactive",
+    contractCdi: "Permanent",
+    contractCdd: "Fixed-term",
+    lieuLabels: {
+      paris_petite_couronne: "Paris / Inner suburbs",
+      idf_grande_couronne: "Greater Paris region",
+      lyon: "Lyon",
+      province: "Other regions",
+    } as Record<NonNullable<Job["pricing_lieu"]>, string>,
+    candidatesCount: (n: number) => `Candidates · ${n}`,
+    exitCompare: "✕ Exit",
+    compare: "⇆ Compare",
+    compareHint0: "Choose two candidates to compare.",
+    compareHint1: "One more candidate to choose.",
+    compareHint2: "Comparison shown on the right.",
+    noCandidatesToPrice: "No candidate to price.",
+    noNameCandidate: "No name",
+    missionToConfigure: "Mission to configure",
+    missionToConfigureBody: (
+      <>Fill in the <strong>daily rate</strong>, the <strong>duration</strong>, the <strong>start date</strong>
+      {" "}and the <strong>location</strong> of the mission. The charts and verdict become relevant
+      once these parameters are entered.</>
+    ),
+    configureMission: "⚙ Configure the mission",
+    noCandidatesTitle: "No candidate to price",
+    noCandidatesBody: (
+      <>Only candidates <strong>added to the pipeline</strong> show up here.
+      From the mission sheet, click <strong>« + Add to pipeline »</strong> on
+      the profiles you want to price.</>
+    ),
+    comparisonTitle: "Candidate comparison",
+    comparisonSubtitle: (n: number) => `${n}/2 selected · pick candidates from the list on the left to compare them side by side.`,
+    closeX: "✕ Close",
+    noraReco: "Nora's recommendation",
+    askNoraPrompt: (a: string, b: string) => `Want a quick take on the best choice between ${a} and ${b}?`,
+    askNora: "✦ Ask Nora's opinion",
+    noraAnalyzing: "Nora is analyzing both candidates…",
+    preference: (name: string) => `✓ Preference: ${name}`,
+    noraSorry: (msg: string) => `Sorry, I couldn't give an opinion (${msg}).`,
+    retry: "Retry",
+    candidateA: "Candidate A",
+    candidateB: "Candidate B",
+    pickTwo: "Choose 2 candidates to compare.",
+    pickOneMore: "One more candidate to choose.",
+    clickToAdd: "Click in the list on the left to add them to the comparison.",
+    pricingPending: "Pricing pending",
+    missionProfitable: "Profitable mission",
+    belowTarget: "Below target",
+    belowFloor: "Below floor",
+    missionLoss: "Mission at a loss",
+    yearsExpAbbr: (n: number) => `${n} years exp.`,
+    avgMarginSuffix: "% average margin",
+    statTjm: "Daily rate",
+    statBrut: "Gross",
+    statMonthlyMargin: "Margin / month",
+    statTotalMargin: "Total margin",
+    autoComputedNote: "Auto-computed values (mission daily rate + default gross). Open the candidate's pricing sheet to adjust.",
+  },
+}
 
 interface PricingCandidate {
   matchId: string
@@ -38,6 +259,8 @@ interface PricingCandidate {
 }
 
 export default function PricingMissionPage() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const { jobId } = useParams<{ jobId: string }>()
   const sb = useMemo(() => getSupabase(), [])
 
@@ -131,14 +354,14 @@ export default function PricingMissionPage() {
     return () => { mounted = false }
   }, [jobId, sb])
 
-  if (loading) return <DetailSkeleton label="Chargement du chiffrage" />
+  if (loading) return <DetailSkeleton label={t.loadingPricing} />
   if (notFound || !job) {
     return (
       <main style={mainStyle}>
         <div style={{ textAlign: "center", padding: "60px 24px", color: "#6B7280" }}>
-          <p style={{ fontSize: 16, fontWeight: 600 }}>Mission introuvable.</p>
+          <p style={{ fontSize: 16, fontWeight: 600 }}>{t.missionNotFound}</p>
           <Link href="/workspace/pricing" style={{ color: "#7C63C8", textDecoration: "none", fontSize: 14 }}>
-            ← Retour au pricing
+            {t.backToPricing}
           </Link>
         </div>
       </main>
@@ -223,8 +446,8 @@ export default function PricingMissionPage() {
                   matchId={selected.matchId}
                   initialTjm={selected.pricingTjm}
                   initialBrut={selected.pricingBrut}
-                  onPricingChange={(mid, t, b) => setCandidates((prev) =>
-                    prev.map((c) => c.matchId === mid ? { ...c, pricingTjm: t, pricingBrut: b } : c)
+                  onPricingChange={(mid, newTjm, newBrut) => setCandidates((prev) =>
+                    prev.map((c) => c.matchId === mid ? { ...c, pricingTjm: newTjm, pricingBrut: newBrut } : c)
                   )}
                 />
               </m.div>
@@ -249,13 +472,15 @@ export default function PricingMissionPage() {
  * ────────────────────────────────────────────────────────────────────────── */
 
 function CompactHeader({ job }: { job: Job }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
       gap: 14, flexWrap: "wrap", marginBottom: 14,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, flex: 1 }}>
-        <Link href="/workspace/pricing" title="Retour au pricing" style={{
+        <Link href="/workspace/pricing" title={t.backToPricingTitle} style={{
           display: "inline-flex", alignItems: "center", justifyContent: "center",
           width: 32, height: 32, borderRadius: 9,
           border: "1px solid rgba(124,99,200,0.20)", background: "white",
@@ -275,8 +500,10 @@ function CompactHeader({ job }: { job: Job }) {
           </h1>
           <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
             {job.location && <Chip>{job.location}</Chip>}
-            {job.contract_type && <Chip>{job.contract_type}</Chip>}
-            {job.duration_months && <Chip>{job.duration_months} mois</Chip>}
+            {job.contract_type && (
+              <Chip>{job.contract_type === "CDD" ? t.contractCdd : job.contract_type === "CDI" ? t.contractCdi : job.contract_type}</Chip>
+            )}
+            {job.duration_months && <Chip>{t.months(job.duration_months)}</Chip>}
           </div>
         </div>
       </div>
@@ -287,7 +514,7 @@ function CompactHeader({ job }: { job: Job }) {
           borderRadius: 9, padding: "8px 14px", textDecoration: "none",
           whiteSpace: "nowrap",
         }}>
-          ⚙ Paramètres organisation
+          {t.orgSettings}
         </Link>
         <Link href={`/workspace/missions/${job.id}`} style={{
           fontSize: 12, fontWeight: 700, color: "#7C63C8",
@@ -295,7 +522,7 @@ function CompactHeader({ job }: { job: Job }) {
           borderRadius: 9, padding: "8px 14px", textDecoration: "none",
           whiteSpace: "nowrap",
         }}>
-          Fiche mission →
+          {t.missionSheet}
         </Link>
       </div>
     </div>
@@ -330,13 +557,6 @@ function isMissionConfigured(job: Job): boolean {
   const hasStart = job.start_date != null
   const hasLieu = job.pricing_lieu != null
   return hasTjm && hasDuration && hasStart && hasLieu
-}
-
-const LIEU_LABELS: Record<NonNullable<Job["pricing_lieu"]>, string> = {
-  paris_petite_couronne: "Paris / Petite Couronne",
-  idf_grande_couronne:   "Île-de-France (grande couronne)",
-  lyon:                  "Lyon",
-  province:              "Province",
 }
 
 function MissionConfigZone({
@@ -383,8 +603,11 @@ function MissionConfigSummary({
   job: Job
   onEdit: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
   const startStr = job.start_date
-    ? new Date(job.start_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
+    ? new Date(job.start_date).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" })
     : "?"
   const tjm = job.client_tjm_min ?? job.client_tjm_max
   return (
@@ -399,15 +622,17 @@ function MissionConfigSummary({
         fontSize: 10.5, fontWeight: 700, color: "#15803d",
         letterSpacing: "0.06em", textTransform: "uppercase",
       }}>
-        ✓ Mission paramétrée
+        {t.missionConfigured}
       </span>
-      <span>· TJM {tjm ?? "?"} €/j</span>
-      <span>· {job.duration_months} mois</span>
-      {job.contract_type && <span>· {job.contract_type}</span>}
-      {job.pricing_lieu && <span>· {LIEU_LABELS[job.pricing_lieu]}</span>}
-      <span>· début {startStr}</span>
+      <span>· {t.tjmShort(String(tjm ?? "?"))}</span>
+      <span>· {t.months(job.duration_months ?? 0)}</span>
+      {job.contract_type && (
+        <span>· {job.contract_type === "CDD" ? t.contractCdd : job.contract_type === "CDI" ? t.contractCdi : job.contract_type}</span>
+      )}
+      {job.pricing_lieu && <span>· {t.lieuLabels[job.pricing_lieu]}</span>}
+      <span>· {t.startLabel(startStr)}</span>
       {job.target_gross_salary != null && (
-        <span>· brut ciblé {Math.round(job.target_gross_salary).toLocaleString("fr-FR")} €/an</span>
+        <span>· {t.targetGross(Math.round(job.target_gross_salary).toLocaleString(locale))}</span>
       )}
       {(job.has_grand_deplacement || job.is_expatriated) && (
         <span style={{
@@ -415,9 +640,9 @@ function MissionConfigSummary({
           background: "rgba(124,99,200,0.10)", border: "1px solid rgba(124,99,200,0.22)",
           borderRadius: 100, padding: "1px 8px",
         }}>
-          {job.has_grand_deplacement && "Grand déplacement"}
+          {job.has_grand_deplacement && t.grandDeplacement}
           {job.has_grand_deplacement && job.is_expatriated && " · "}
-          {job.is_expatriated && "Expatrié"}
+          {job.is_expatriated && t.expatriated}
         </span>
       )}
       <div style={{ flex: 1 }} />
@@ -431,7 +656,7 @@ function MissionConfigSummary({
           fontFamily: "inherit",
         }}
       >
-        ⚙ Modifier
+        {t.edit}
       </button>
     </div>
   )
@@ -445,6 +670,8 @@ function MissionConfigWizard({
   onPatched: (next: Job) => void
   onCancel?: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const numToStr = (n: number | null | undefined): string =>
     n == null ? "" : String(n)
 
@@ -544,11 +771,11 @@ function MissionConfigWizard({
           fontSize: 11, fontWeight: 700, color: "#7C63C8",
           letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
-          📋 Paramétrage mission
+          {t.missionConfigTitle}
         </span>
-        {saveState === "saving" && <SaveBadge tone="muted">Enregistrement…</SaveBadge>}
-        {saveState === "saved"  && <SaveBadge tone="green">✓ Enregistré</SaveBadge>}
-        {saveState === "error"  && <SaveBadge tone="red">⚠ {error ?? "Échec"}</SaveBadge>}
+        {saveState === "saving" && <SaveBadge tone="muted">{t.saving}</SaveBadge>}
+        {saveState === "saved"  && <SaveBadge tone="green">{t.saved}</SaveBadge>}
+        {saveState === "error"  && <SaveBadge tone="red">⚠ {error ?? t.saveFailed}</SaveBadge>}
         {onCancel && (
           <button
             onClick={onCancel}
@@ -559,13 +786,12 @@ function MissionConfigWizard({
               fontFamily: "inherit",
             }}
           >
-            Fermer
+            {t.close}
           </button>
         )}
       </div>
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6B7280", lineHeight: 1.5 }}>
-        Les avantages organisation s&apos;appliquent d&apos;office. Les toggles en bas activent
-        les tarifs conditionnels.
+        {t.wizardIntro}
       </p>
 
       {/* Champs essentiels */}
@@ -575,8 +801,8 @@ function MissionConfigWizard({
         gap: 12,
       }}>
         <WizardField
-          label="TJM client cible"
-          hint="prix journalier négocié — le slider explorera autour"
+          label={t.tjmTargetLabel}
+          hint={t.tjmTargetHint}
           value={tjm}
           onChange={setTjm}
           suffix="€/j"
@@ -584,47 +810,47 @@ function MissionConfigWizard({
           required
         />
         <WizardField
-          label="Durée prévue"
-          hint="en mois calendaires"
+          label={t.durationLabel}
+          hint={t.durationHint}
           value={duration}
           onChange={setDuration}
-          suffix="mois"
+          suffix={lang === "fr" ? "mois" : "months"}
           placeholder="ex : 12"
           required
           max={120}
         />
         <WizardDateField
-          label="Date de démarrage"
-          hint="ancre le calendrier de la mission"
+          label={t.startDateLabel}
+          hint={t.startDateHint}
           value={startDate}
           onChange={setStartDate}
           required
         />
         <WizardSelectField
-          label="Type de contrat"
-          hint="détermine essai (3/5/7 mois) et scénario rupture"
+          label={t.contractTypeLabel}
+          hint={t.contractTypeHint}
           value={contractType}
           onChange={setContractType}
           options={[
-            { value: "CDI", label: "CDI" },
-            { value: "CDD", label: "CDD" },
+            { value: "CDI", label: t.contractCdi },
+            { value: "CDD", label: t.contractCdd },
           ]}
         />
         <WizardSelectField
-          label="Lieu de mission"
-          hint="impacte le plafond URSSAF grand déplacement"
+          label={t.missionLocationLabel}
+          hint={t.missionLocationHint}
           value={lieu}
           onChange={setLieu}
           options={[
-            { value: "paris_petite_couronne", label: "Paris / Petite Couronne" },
-            { value: "idf_grande_couronne",   label: "Île-de-France (grande couronne)" },
-            { value: "lyon",                  label: "Lyon" },
-            { value: "province",              label: "Province" },
+            { value: "paris_petite_couronne", label: t.lieuLabels.paris_petite_couronne },
+            { value: "idf_grande_couronne",   label: t.lieuLabels.idf_grande_couronne },
+            { value: "lyon",                  label: t.lieuLabels.lyon },
+            { value: "province",              label: t.lieuLabels.province },
           ]}
         />
         <WizardField
-          label="Brut cible candidat"
-          hint="brut annuel proposé. Si vide, le widget pricing utilise 45 000 €/an"
+          label={t.targetGrossLabel}
+          hint={t.targetGrossHint}
           value={targetGrossSalary}
           onChange={setTargetGrossSalary}
           suffix="€/an"
@@ -645,18 +871,18 @@ function MissionConfigWizard({
           margin: "0 0 10px", fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
           letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
-          Activations conditionnelles
+          {t.conditionalActivations}
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <WizardToggleRow
-            label="Mission avec grand déplacement"
-            hint="active le tarif URSSAF défini en paramètres"
+            label={t.grandDeplacementLabel}
+            hint={t.grandDeplacementHint}
             enabled={grandDeplacement}
             onToggle={setGrandDeplacement}
           />
           <WizardToggleRow
-            label="Mission expatriée"
-            hint="active la prime d'expatriation définie en paramètres"
+            label={t.expatriatedLabel}
+            hint={t.expatriatedHint}
             enabled={expatriated}
             onToggle={setExpatriated}
           />
@@ -679,7 +905,7 @@ function MissionConfigWizard({
             transform: advancedOpen ? "rotate(90deg)" : "none",
             transition: "transform 140ms",
           }}>›</span>
-          Overrides marges <span style={{ color: "#6B7280", fontWeight: 400 }}>· défaut = organisation</span>
+          {t.marginOverrides} <span style={{ color: "#6B7280", fontWeight: 400 }}>{t.marginOverridesHint}</span>
         </button>
         {advancedOpen && (
           <div style={{
@@ -688,22 +914,22 @@ function MissionConfigWizard({
             display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
           }}>
             <WizardField
-              label="Marge mini override"
-              hint="vide = défaut organisation"
+              label={t.marginMinLabel}
+              hint={t.marginOverrideHint}
               value={marginMin}
               onChange={setMarginMin}
               suffix="%"
-              placeholder="vide = organisation"
+              placeholder={t.marginOverridePlaceholder}
               max={50}
               step={0.5}
             />
             <WizardField
-              label="Marge cible override"
-              hint="vide = défaut organisation"
+              label={t.marginTargetLabel}
+              hint={t.marginOverrideHint}
               value={marginTarget}
               onChange={setMarginTarget}
               suffix="%"
-              placeholder="vide = organisation"
+              placeholder={t.marginOverridePlaceholder}
               max={50}
               step={0.5}
             />
@@ -714,7 +940,7 @@ function MissionConfigWizard({
                 background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
                 borderRadius: 8,
               }}>
-                ⚠ La marge cible doit être ≥ la marge mini.
+                {t.marginsInvalidMsg}
               </p>
             )}
           </div>
@@ -731,9 +957,9 @@ function MissionConfigWizard({
       }}>
         <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
           {requiredMissing
-            ? "Renseignez le TJM, la durée et la date de démarrage pour valider."
+            ? t.requiredMissingMsg
             : marginsInvalid
-              ? "Corrige les marges (cible ≥ mini) pour valider."
+              ? t.fixMarginsMsg
               : ""}
         </p>
         <div style={{ display: "flex", gap: 8 }}>
@@ -746,7 +972,7 @@ function MissionConfigWizard({
                 borderRadius: 9, padding: "9px 16px", cursor: "pointer",
               }}
             >
-              Annuler
+              {t.cancel}
             </button>
           )}
           <button
@@ -763,7 +989,7 @@ function MissionConfigWizard({
               cursor: canSubmit ? "pointer" : "not-allowed",
             }}
           >
-            {saveState === "saving" ? "Enregistrement…" : "✓ Valider les paramètres"}
+            {saveState === "saving" ? t.saving : t.validateParams}
           </button>
         </div>
       </div>
@@ -798,6 +1024,8 @@ function WizardToggleRow({
   enabled: boolean
   onToggle: (on: boolean) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <button
       onClick={() => onToggle(!enabled)}
@@ -826,7 +1054,7 @@ function WizardToggleRow({
         <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{hint}</p>
       </div>
       <span style={{ fontSize: 10.5, color: enabled ? "#7C63C8" : "#6B7280", fontWeight: 700 }}>
-        {enabled ? "Actif" : "Inactif"}
+        {enabled ? t.active : t.inactive}
       </span>
     </button>
   )
@@ -906,23 +1134,13 @@ function WizardDateField({
   required?: boolean
 }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <input
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          padding: "10px 12px",
-          fontSize: 14, fontWeight: 700, color: "#111827",
-          background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
-          outline: "none", fontFamily: "inherit",
-        }}
-      />
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <DatePicker value={value} onChange={onChange} />
       <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
         {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
       </span>
       {hint && <span style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>{hint}</span>}
-    </label>
+    </div>
   )
 }
 
@@ -946,6 +1164,8 @@ function CompactCandidatesList({
   onToggleCompareMode: () => void
   onToggleCompareId: (id: string) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // Tri par marge décroissante : les candidats les plus rentables en haut →
   // décision commerciale plus rapide (qui pousser en priorité au client).
   // Ceux sans marge calculable (mission pas paramétrée, etc.) restent en fin.
@@ -971,7 +1191,7 @@ function CompactCandidatesList({
           margin: 0, fontSize: 10.5, fontWeight: 700, color: "#6B7280",
           letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
-          Candidats · {sorted.length}
+          {t.candidatesCount(sorted.length)}
         </p>
         {sorted.length >= 2 && (
           <button
@@ -989,7 +1209,7 @@ function CompactCandidatesList({
               cursor: "pointer",
             }}
           >
-            {compareMode ? "✕ Quitter" : "⇆ Comparer"}
+            {compareMode ? t.exitCompare : t.compare}
           </button>
         )}
       </div>
@@ -1001,14 +1221,14 @@ function CompactCandidatesList({
           border: "1px solid rgba(124,99,200,0.18)",
           borderRadius: 8,
         }}>
-          {compareIds.length === 0 && "Choisissez deux candidats à comparer."}
-          {compareIds.length === 1 && "Encore un candidat à choisir."}
-          {compareIds.length === 2 && "Comparaison affichée à droite."}
+          {compareIds.length === 0 && t.compareHint0}
+          {compareIds.length === 1 && t.compareHint1}
+          {compareIds.length === 2 && t.compareHint2}
         </p>
       )}
       {sorted.length === 0 && (
         <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
-          Aucun candidat à chiffrer.
+          {t.noCandidatesToPrice}
         </p>
       )}
       {sorted.map((c, i) => {
@@ -1083,7 +1303,7 @@ function CompactCandidatesList({
                 flex: 1, minWidth: 0,
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
-                {c.candidate.full_name ?? "Sans nom"}
+                {c.candidate.full_name ?? t.noNameCandidate}
               </span>
               {c.score != null && (
                 <span style={{
@@ -1133,6 +1353,8 @@ function CompactCandidatesList({
 /** Affiché à la place du widget quand la mission n'est pas (encore) paramétrée :
  *  inutile d'afficher un chiffrage avec des charts faux — on guide vers le wizard. */
 function MissionNotConfiguredCta({ onEdit }: { onEdit: () => void }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <m.div
       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
@@ -1144,15 +1366,13 @@ function MissionNotConfiguredCta({ onEdit }: { onEdit: () => void }) {
     >
       <div style={{ fontSize: 40, marginBottom: 14 }}>📋</div>
       <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "#111827" }}>
-        Mission à paramétrer
+        {t.missionToConfigure}
       </h3>
       <p style={{
         margin: "0 auto 16px", maxWidth: 460, fontSize: 13, color: "#6B7280",
         lineHeight: 1.6,
       }}>
-        Renseigne le <strong>TJM</strong>, la <strong>durée</strong>, la <strong>date de démarrage</strong>
-        {" "}et le <strong>lieu</strong> de la mission. Les graphiques et le verdict deviennent pertinents
-        une fois ces paramètres saisis.
+        {t.missionToConfigureBody}
       </p>
       <button
         onClick={onEdit}
@@ -1164,13 +1384,15 @@ function MissionNotConfiguredCta({ onEdit }: { onEdit: () => void }) {
           cursor: "pointer", fontFamily: "inherit",
         }}
       >
-        ⚙ Paramétrer la mission
+        {t.configureMission}
       </button>
     </m.div>
   )
 }
 
 function NoCandidatesState({ jobId }: { jobId: string }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <m.div
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -1189,15 +1411,13 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
       <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "#111827" }}>
-        Aucun candidat à chiffrer
+        {t.noCandidatesTitle}
       </h3>
       <p style={{
         margin: "0 auto 16px", maxWidth: 460, fontSize: 13, color: "#6B7280",
         lineHeight: 1.6,
       }}>
-        Seuls les candidats <strong>ajoutés à la pipeline</strong> apparaissent ici.
-        Depuis la fiche mission, cliquez <strong>« + Ajouter à la pipeline »</strong> sur
-        les profils que vous voulez chiffrer.
+        {t.noCandidatesBody}
       </p>
       <Link href={`/workspace/missions/${jobId}`} style={{
         display: "inline-block",
@@ -1205,7 +1425,7 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
         background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
         borderRadius: 10, padding: "9px 16px", textDecoration: "none",
       }}>
-        Fiche mission →
+        {t.missionSheet}
       </Link>
     </m.div>
   )
@@ -1238,6 +1458,8 @@ function ComparisonPanel({
   > | null
   onExit: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const picked = compareIds
     .map((id) => candidates.find((c) => c.matchId === id))
     .filter((x): x is PricingCandidate => !!x)
@@ -1256,12 +1478,12 @@ function ComparisonPanel({
           <h3 style={{
             margin: 0, fontSize: 14, fontWeight: 800, color: "#111827",
           }}>
-            Comparaison de candidats
+            {t.comparisonTitle}
           </h3>
           <p style={{
             margin: "3px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4,
           }}>
-            {picked.length}/2 sélectionnés · choisis les candidats dans la liste à gauche pour les comparer côte à côte.
+            {t.comparisonSubtitle(picked.length)}
           </p>
         </div>
         <button onClick={onExit} style={{
@@ -1270,7 +1492,7 @@ function ComparisonPanel({
           border: "1px solid rgba(124,99,200,0.20)",
           borderRadius: 8, padding: "5px 10px", cursor: "pointer",
         }}>
-          ✕ Fermer
+          {t.closeX}
         </button>
       </header>
 
@@ -1288,8 +1510,8 @@ function ComparisonPanel({
           <NoraVerdictBubble
             matchAId={picked[0].matchId}
             matchBId={picked[1].matchId}
-            candidateAName={picked[0].candidate.full_name ?? "Candidat A"}
-            candidateBName={picked[1].candidate.full_name ?? "Candidat B"}
+            candidateAName={picked[0].candidate.full_name ?? t.candidateA}
+            candidateBName={picked[1].candidate.full_name ?? t.candidateB}
           />
         </>
       )}
@@ -1313,6 +1535,8 @@ function NoraVerdictBubble({
   candidateAName: string
   candidateBName: string
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   type State =
     | { kind: "idle" }
     | { kind: "loading" }
@@ -1374,12 +1598,12 @@ function NoraVerdictBubble({
           fontSize: 11, fontWeight: 700, color: "#7C63C8",
           marginBottom: 4,
         }}>
-          La reco de Nora
+          {t.noraReco}
         </div>
         {state.kind === "idle" && (
           <>
             <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
-              Vous voulez un avis rapide sur le meilleur choix entre {candidateAName} et {candidateBName} ?
+              {t.askNoraPrompt(candidateAName, candidateBName)}
             </p>
             <button onClick={ask} style={{
               fontFamily: "inherit", fontSize: 11.5, fontWeight: 700,
@@ -1389,13 +1613,13 @@ function NoraVerdictBubble({
               border: "1px solid rgba(124,99,200,0.40)",
               cursor: "pointer",
             }}>
-              ✦ Demander l&apos;avis de Nora
+              {t.askNora}
             </button>
           </>
         )}
         {state.kind === "loading" && (
           <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", lineHeight: 1.55, fontStyle: "italic" }}>
-            Nora analyse les deux candidats…
+            {t.noraAnalyzing}
           </p>
         )}
         {state.kind === "ok" && (
@@ -1409,7 +1633,7 @@ function NoraVerdictBubble({
                 borderRadius: 100, padding: "2px 8px", marginBottom: 6,
                 letterSpacing: "0.05em", textTransform: "uppercase",
               }}>
-                ✓ Préférence : {state.winner === "A" ? candidateAName : candidateBName}
+                {t.preference(state.winner === "A" ? candidateAName : candidateBName)}
               </div>
             )}
             <p style={{ margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
@@ -1420,7 +1644,7 @@ function NoraVerdictBubble({
         {state.kind === "error" && (
           <>
             <p style={{ margin: "0 0 6px", fontSize: 12.5, color: "#B91C1C", lineHeight: 1.55 }}>
-              Désolée, je n&apos;ai pas pu donner d&apos;avis ({state.message}).
+              {t.noraSorry(state.message)}
             </p>
             <button onClick={ask} style={{
               fontFamily: "inherit", fontSize: 11, fontWeight: 700,
@@ -1428,7 +1652,7 @@ function NoraVerdictBubble({
               border: "1px solid rgba(124,99,200,0.25)",
               borderRadius: 7, padding: "4px 10px", cursor: "pointer",
             }}>
-              Réessayer
+              {t.retry}
             </button>
           </>
         )}
@@ -1438,6 +1662,8 @@ function NoraVerdictBubble({
 }
 
 function ComparisonEmptyState({ picked }: { picked: number }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{
       padding: "36px 18px", textAlign: "center",
@@ -1445,10 +1671,10 @@ function ComparisonEmptyState({ picked }: { picked: number }) {
     }}>
       <div style={{ fontSize: 28, marginBottom: 6 }}>⇆</div>
       <p style={{ margin: 0, fontSize: 13, color: "#374151", fontWeight: 600 }}>
-        {picked === 0 ? "Choisissez 2 candidats à comparer." : "Encore un candidat à choisir."}
+        {picked === 0 ? t.pickTwo : t.pickOneMore}
       </p>
       <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
-        Cliquez dans la liste à gauche pour les ajouter à la comparaison.
+        {t.clickToAdd}
       </p>
     </div>
   )
@@ -1464,6 +1690,9 @@ function ComparisonCard({
     | "pricing_billable_days_per_month" | "pricing_rtt_days_per_year" | "pricing_default_lieu" | "pricing_default_avantages"
   > | null
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
   const quick = computeQuickMargin({
     candidate: pc.candidate, job, profile,
     persistedTjm: pc.pricingTjm, persistedBrut: pc.pricingBrut,
@@ -1471,14 +1700,14 @@ function ComparisonCard({
   const targetPct = job.margin_target_pct ?? 22
   const minPct = job.margin_min_pct ?? 15
   const status: { fg: string; bg: string; bd: string; label: string } =
-    quick == null            ? { fg: "#6B7280", bg: "#FAFAFA",                bd: "#E5E7EB",                label: "Pricing en attente" }
-    : quick.margePct >= targetPct ? { fg: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)",  label: "Mission rentable" }
-    : quick.margePct >= minPct    ? { fg: "#B45309", bg: "rgba(217,119,6,0.06)",  bd: "rgba(217,119,6,0.25)",  label: "Sous la cible" }
-    : quick.margePct >= 0         ? { fg: "#B91C1C", bg: "#FEF2F2",               bd: "#FECACA",                label: "Sous le plancher" }
-                                  : { fg: "#B91C1C", bg: "#FEF2F2",               bd: "#FECACA",                label: "Mission en perte" }
+    quick == null            ? { fg: "#6B7280", bg: "#FAFAFA",                bd: "#E5E7EB",                label: t.pricingPending }
+    : quick.margePct >= targetPct ? { fg: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)",  label: t.missionProfitable }
+    : quick.margePct >= minPct    ? { fg: "#B45309", bg: "rgba(217,119,6,0.06)",  bd: "rgba(217,119,6,0.25)",  label: t.belowTarget }
+    : quick.margePct >= 0         ? { fg: "#B91C1C", bg: "#FEF2F2",               bd: "#FECACA",                label: t.belowFloor }
+                                  : { fg: "#B91C1C", bg: "#FEF2F2",               bd: "#FECACA",                label: t.missionLoss }
   const margeMonth = quick ? quick.margeMensuelleEur : null
   const margeTotal = quick ? Math.round(quick.margeMensuelleEur * 12) : null
-  const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR")
+  const fmt = (n: number) => Math.round(n).toLocaleString(locale)
 
   return (
     <div style={{
@@ -1502,11 +1731,11 @@ function ComparisonCard({
             fontSize: 13, fontWeight: 800, color: "#111827",
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           }}>
-            {pc.candidate.full_name ?? "Sans nom"}
+            {pc.candidate.full_name ?? t.noNameCandidate}
           </div>
           <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 1 }}>
             {pc.candidate.current_title ?? "—"}
-            {pc.candidate.years_experience != null ? ` · ${pc.candidate.years_experience} ans XP` : ""}
+            {pc.candidate.years_experience != null ? ` · ${t.yearsExpAbbr(pc.candidate.years_experience)}` : ""}
           </div>
         </div>
       </div>
@@ -1530,7 +1759,7 @@ function ComparisonCard({
           {quick == null ? "—" : `${quick.margePct.toFixed(1)}`}
         </span>
         <span style={{ fontSize: 14, color: status.fg, fontWeight: 700 }}>
-          {quick == null ? "" : "% marge moyenne"}
+          {quick == null ? "" : t.avgMarginSuffix}
         </span>
       </div>
 
@@ -1539,10 +1768,10 @@ function ComparisonCard({
         display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
         paddingTop: 10, borderTop: "1px solid rgba(0,0,0,0.06)",
       }}>
-        <CompareStat label="TJM" value={quick ? `${quick.tjm} €/j` : "—"} />
-        <CompareStat label="Brut" value={quick ? `${fmt(quick.brut)} €/an` : "—"} />
-        <CompareStat label="Marge / mois" value={margeMonth != null ? `${fmt(margeMonth)} €` : "—"} />
-        <CompareStat label="Marge totale" value={margeTotal != null ? `${fmt(margeTotal)} €` : "—"} />
+        <CompareStat label={t.statTjm} value={quick ? `${quick.tjm} €/j` : "—"} />
+        <CompareStat label={t.statBrut} value={quick ? `${fmt(quick.brut)} €/an` : "—"} />
+        <CompareStat label={t.statMonthlyMargin} value={margeMonth != null ? `${fmt(margeMonth)} €` : "—"} />
+        <CompareStat label={t.statTotalMargin} value={margeTotal != null ? `${fmt(margeTotal)} €` : "—"} />
       </div>
 
       {/* Précision : si pas de pricing persisté, on prévient. */}
@@ -1551,8 +1780,7 @@ function ComparisonCard({
           margin: 0, fontSize: 10.5, color: "#6B7280", lineHeight: 1.4,
           fontStyle: "italic",
         }}>
-          Valeurs auto-calculées (TJM mission + brut par défaut). Ouvre la
-          fiche pricing du candidat pour ajuster.
+          {t.autoComputedNote}
         </p>
       )}
     </div>

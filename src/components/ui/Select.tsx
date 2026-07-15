@@ -1,6 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: { placeholder: "Sélectionner…", noOptions: "Aucune option" },
+  en: { placeholder: "Select…", noOptions: "No option" },
+}
 
 /**
  * Naywa-styled select — full replacement for native <select> so we control
@@ -49,13 +55,16 @@ interface SelectProps {
 
 export default function Select({
   value, onChange, options,
-  placeholder = "Sélectionner…",
+  placeholder,
   disabled = false,
   style,
   panelMinWidth,
   border = "default",
   ariaLabel,
 }: SelectProps) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const effectivePlaceholder = placeholder ?? t.placeholder
   const borderColor = border in BORDER_COLORS
     ? BORDER_COLORS[border as SelectBorderKind]
     : border
@@ -168,7 +177,7 @@ export default function Select({
           flex: 1, minWidth: 0, fontWeight: selected ? 600 : 400,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
-          {selected ? selected.label : placeholder}
+          {selected ? selected.label : effectivePlaceholder}
         </span>
         <svg
           width="11" height="7" viewBox="0 0 12 8"
@@ -200,7 +209,7 @@ export default function Select({
         >
           {options.length === 0 && (
             <div style={{ padding: "10px 12px", fontSize: 12.5, color: "#6B7280" }}>
-              Aucune option
+              {t.noOptions}
             </div>
           )}
           {options.map((opt, i) => {

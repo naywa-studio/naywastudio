@@ -24,8 +24,17 @@ const LANG_NAMES: Record<Lang, Record<string, string>> = {
 }
 
 const displayCopy = {
-  fr: { license: "Permis" },
-  en: { license: "License" },
+  fr: { license: "Permis", years: "ans", yearsXp: "ans XP", team: "Équipe", notice: "Préavis", weeksAbbrev: "sem." },
+  en: { license: "License", years: "years", yearsXp: "years exp.", team: "Team", notice: "Notice", weeksAbbrev: "wks" },
+}
+
+/** Le libellé persisté (`c.label`) est soit le défaut FR du catalogue
+ *  (créé sans personnalisation), soit un texte spécifique rédigé par le
+ *  LLM ou le sourceur. On ne peut fiablement traduire que le premier cas
+ *  — le second reste affiché tel quel (impossible de traduire du texte
+ *  libre sans appel LLM, hors scope ici). */
+function resolvedFallbackLabel(c: Criterion, lang: Lang): string {
+  return c.label === CRITERION_CATALOG[c.type].defaultLabel ? typeLabel(c.type, lang) : c.label
 }
 
 /** Libellé court mais explicite pour un critère configuré sur une mission.
@@ -33,37 +42,39 @@ const displayCopy = {
  *  Le `label` LLM est prioritaire s'il est plus précis que le défaut. */
 export function shortCriterionLabel(c: Criterion, lang: Lang = "fr"): string {
   const p = c.params as Record<string, unknown>
+  const dc = displayCopy[lang]
+  const fallback = resolvedFallbackLabel(c, lang)
   switch (c.type) {
     case "language": {
       const code = String(p.code ?? "").toLowerCase()
       const lvl = p.level_min ? ` ${String(p.level_min).toUpperCase()}` : ""
-      const name = LANG_NAMES[lang][code] || code.toUpperCase() || c.label
+      const name = LANG_NAMES[lang][code] || code.toUpperCase() || fallback
       return `${name}${lvl}`
     }
     case "license":
-      return p.code ? `${displayCopy[lang].license} ${String(p.code).toUpperCase()}` : c.label
+      return p.code ? `${dc.license} ${String(p.code).toUpperCase()}` : fallback
     case "certification": {
       const min = p.min_score ? ` ≥ ${p.min_score}` : ""
-      return p.name ? `${p.name}${min}` : c.label
+      return p.name ? `${p.name}${min}` : fallback
     }
     case "diploma": {
       const lvl = p.level ? String(p.level).toUpperCase() : ""
       const school = p.school ? ` ${p.school}` : ""
-      return lvl || school ? `${lvl}${school}`.trim() : c.label
+      return lvl || school ? `${lvl}${school}`.trim() : fallback
     }
     case "experience_years":
-      return p.min ? `≥ ${p.min} ans XP` : c.label
+      return p.min ? `≥ ${p.min} ${dc.yearsXp}` : fallback
     case "industry_experience_years":
-      return p.domain ? `${p.domain} ≥ ${p.min ?? "?"} ans` : c.label
+      return p.domain ? `${p.domain} ≥ ${p.min ?? "?"} ${dc.years}` : fallback
     case "team_size":
-      return p.min ? `Équipe ≥ ${p.min}` : c.label
+      return p.min ? `${dc.team} ≥ ${p.min}` : fallback
     case "notice_period_weeks":
-      return p.max ? `Préavis ≤ ${p.max} sem.` : c.label
+      return p.max ? `${dc.notice} ≤ ${p.max} ${dc.weeksAbbrev}` : fallback
     case "skills":
       // Le label LLM est souvent plus parlant ("Compétences Spark / Airflow").
-      return c.label
+      return fallback
     default:
-      return c.label
+      return fallback
   }
 }
 
@@ -71,8 +82,9 @@ export function shortCriterionLabel(c: Criterion, lang: Lang = "fr"): string {
  *  ("Anglais" + "C1" → "Anglais C1", "TOEIC" + "≥ 800", "Diplôme" + "BAC+5",
  *  "Expérience" + "≥ 3 ans"). null si le type n'a pas de seuil parlant ou
  *  si le seuil est déjà dans le nom (permis, contrat). */
-export function criterionLevelHint(c: Criterion): string | null {
+export function criterionLevelHint(c: Criterion, lang: Lang = "fr"): string | null {
   const p = c.params as Record<string, unknown>
+  const dc = displayCopy[lang]
   switch (c.type) {
     case "language":
       return p.level_min ? String(p.level_min).toUpperCase() : null
@@ -83,17 +95,17 @@ export function criterionLevelHint(c: Criterion): string | null {
       return lvl || (p.school ? String(p.school) : null) || null
     }
     case "experience_years":
-      return p.min ? `≥ ${p.min} ans` : (p.target ? `~ ${p.target} ans` : null)
+      return p.min ? `≥ ${p.min} ${dc.years}` : (p.target ? `~ ${p.target} ${dc.years}` : null)
     case "industry_experience_years":
-      return p.min ? `≥ ${p.min} ans` : null
+      return p.min ? `≥ ${p.min} ${dc.years}` : null
     case "seniority_fit":
       return p.target ? String(p.target) : null
     case "team_size":
       return p.min ? `≥ ${p.min}` : null
     case "management_experience_years":
-      return p.min ? `≥ ${p.min} ans` : null
+      return p.min ? `≥ ${p.min} ${dc.years}` : null
     case "notice_period_weeks":
-      return p.max ? `≤ ${p.max} sem.` : null
+      return p.max ? `≤ ${p.max} ${dc.weeksAbbrev}` : null
     default:
       return null
   }
@@ -103,7 +115,7 @@ export function criterionLevelHint(c: Criterion): string | null {
  *  cartes/fiche match ("Anglais C1", "TOEIC ≥ 800", "Compétences"). */
 export function criterionHeaderLabel(c: Criterion, lang: Lang = "fr"): string {
   const name = shortCriterionName(c, lang)
-  const hint = criterionLevelHint(c)
+  const hint = criterionLevelHint(c, lang)
   return hint ? `${name} ${hint}` : name
 }
 

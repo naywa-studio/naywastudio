@@ -58,6 +58,7 @@ const copy = {
     duplicateBadge: "Doublon",
     deleteFromVivier: "Supprimer du vivier",
     openLink: "Ouvrir →",
+    deletedToast: (label: string) => `${label} supprimé`,
     // ParsingCard
     veryStalled: "Le PDF est peut-être trop complexe — réessayez.",
     stalling: "Plus long que d'habitude — Nora finalise.",
@@ -141,6 +142,7 @@ const copy = {
     duplicateBadge: "Duplicate",
     deleteFromVivier: "Remove from talent pool",
     openLink: "Open →",
+    deletedToast: (label: string) => `${label} deleted`,
     // ParsingCard
     veryStalled: "This PDF might be too complex — try again.",
     stalling: "Taking longer than usual — Nora is finishing up.",
@@ -557,8 +559,8 @@ export default function VivierPage() {
     const removed = candidates.find((c) => c.id === id)
     if (!removed) return
     setCandidates((prev) => prev.filter((c) => c.id !== id))
-    const label = removed.full_name?.trim() || "Candidat"
-    const { cancelled } = await showUndoToast(`${label} supprimé`)
+    const label = removed.full_name?.trim() || t.noName
+    const { cancelled } = await showUndoToast(t.deletedToast(label))
     if (cancelled) {
       // Realtime resync would also bring it back, but instant local restore
       // feels less janky.

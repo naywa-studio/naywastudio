@@ -201,3 +201,8 @@ export const MONTH_ABBR_FR = [
   'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
   'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc',
 ]
+
+export const MONTH_ABBR_EN = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+]

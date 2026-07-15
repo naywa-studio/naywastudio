@@ -25,7 +25,47 @@ import {
   cpRttRevenueHaircutMonthly,
   type PricingInputs,
 } from "@/lib/pricing/syntec"
-import { missionMonthProfile, MONTH_ABBR_FR } from "@/lib/pricing/calendar"
+import { missionMonthProfile, MONTH_ABBR_FR, MONTH_ABBR_EN } from "@/lib/pricing/calendar"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    needsDates: (
+      <>Renseigne <strong>la date de démarrage</strong> et <strong>la durée</strong> de
+      la mission pour afficher l&apos;évolution de la marge mensuelle.</>
+    ),
+    monthlyMargin: "Marge mensuelle",
+    chartAriaLabel: (n: number) => `Évolution marge mensuelle sur ${n} mois`,
+    margin: "Marge",
+    employerCost: "Coût emp.",
+    workingDaysAbbr: (n: number) => `${n} j ouvrés`,
+    revenue: (v: string) => `${v} revenu`,
+    daysAbbr: (n: number) => `${n}j`,
+    legendOk: "OK",
+    legendWatch: "à surveiller",
+    legendBelow: "sous seuil",
+    legendMinThreshold: (p: number) => `seuil mini ${p} %`,
+    legendRuptureCost: "coût rupture (survol)",
+  },
+  en: {
+    needsDates: (
+      <>Enter <strong>the start date</strong> and <strong>the duration</strong> of
+      the mission to display the monthly margin evolution.</>
+    ),
+    monthlyMargin: "Monthly margin",
+    chartAriaLabel: (n: number) => `Monthly margin evolution over ${n} months`,
+    margin: "Margin",
+    employerCost: "Employer cost",
+    workingDaysAbbr: (n: number) => `${n} working days`,
+    revenue: (v: string) => `${v} revenue`,
+    daysAbbr: (n: number) => `${n}d`,
+    legendOk: "OK",
+    legendWatch: "to watch",
+    legendBelow: "below threshold",
+    legendMinThreshold: (p: number) => `min. threshold ${p}%`,
+    legendRuptureCost: "termination cost (hover)",
+  },
+}
 
 interface Props {
   inputs: PricingInputs
@@ -52,6 +92,10 @@ const PLOT_H = H - PAD_T - PAD_B
 export default function MonthlyMarginChart({
   inputs, startDate, durationMonths, tjm, margeMinPct,
 }: Props) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
+  const monthAbbr = lang === "fr" ? MONTH_ABBR_FR : MONTH_ABBR_EN
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   // Parse start date robustly (string ISO ou Date)
   const start = useMemo(() => {
@@ -105,8 +149,7 @@ export default function MonthlyMarginChart({
         background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
         padding: 20, color: "#6B7280", fontSize: 13, textAlign: "center",
       }}>
-        Renseigne <strong>la date de démarrage</strong> et <strong>la durée</strong> de
-        la mission pour afficher l&apos;évolution de la marge mensuelle.
+        {t.needsDates}
       </div>
     )
   }
@@ -157,7 +200,7 @@ export default function MonthlyMarginChart({
         flexWrap: "wrap", gap: 10, marginBottom: 10,
       }}>
         <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
-          Marge mensuelle
+          {t.monthlyMargin}
         </h4>
         {margeMinPct !== undefined && (
           <ChartLegend margeMinPct={margeMinPct} />
@@ -167,7 +210,7 @@ export default function MonthlyMarginChart({
       <svg
         viewBox={`0 0 ${W} ${H}`}
         width="100%" height="auto" role="img"
-        aria-label={`Évolution marge mensuelle sur ${points.length} mois`}
+        aria-label={t.chartAriaLabel(points.length)}
         style={{ display: "block", overflow: "visible" }}
         onMouseLeave={() => setHoveredIdx(null)}
       >
@@ -299,25 +342,25 @@ export default function MonthlyMarginChart({
                 <div style={{
                   display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
                 }}>
-                  <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600 }}>Marge</span>
+                  <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600 }}>{t.margin}</span>
                   <span style={{ fontSize: 13, fontWeight: 800, color: margeColor }}>
-                    {formatEur(p.marge)}
+                    {formatEur(p.marge, locale)}
                   </span>
                 </div>
                 <div style={{
                   display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
                 }}>
-                  <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600 }}>Coût emp.</span>
+                  <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600 }}>{t.employerCost}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#7C63C8" }}>
-                    {formatEur(p.coutTotal)}
+                    {formatEur(p.coutTotal, locale)}
                   </span>
                 </div>
                 <div style={{
                   display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
                   marginTop: 1,
                 }}>
-                  <span style={{ fontSize: 10, color: "#6B7280" }}>{p.workingDays} j ouvrés</span>
-                  <span style={{ fontSize: 10, color: "#6B7280" }}>{formatEur(p.revenu)} revenu</span>
+                  <span style={{ fontSize: 10, color: "#6B7280" }}>{t.workingDaysAbbr(p.workingDays)}</span>
+                  <span style={{ fontSize: 10, color: "#6B7280" }}>{t.revenue(formatEur(p.revenu, locale))}</span>
                 </div>
               </div>
             </foreignObject>
@@ -335,7 +378,7 @@ export default function MonthlyMarginChart({
                 fontSize={10} fill="#6B7280" textAnchor="middle"
                 fontWeight={p.isPartial ? 400 : 600}
               >
-                {MONTH_ABBR_FR[p.calendarMonth]}
+                {monthAbbr[p.calendarMonth]}
               </text>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 30}
@@ -348,7 +391,7 @@ export default function MonthlyMarginChart({
                 fontSize={9.5} fill="#7C63C8" textAnchor="middle" fontWeight={700}
                 style={{ fontVariantNumeric: "tabular-nums" }}
               >
-                {p.workingDays}j
+                {t.daysAbbr(p.workingDays)}
               </text>
             </g>
           )
@@ -370,9 +413,9 @@ export default function MonthlyMarginChart({
 
 /* ──────────────────────────────────────────────────────────────────────── */
 
-function formatEur(v: number): string {
+function formatEur(v: number, locale = "fr-FR"): string {
   const sign = v < 0 ? "−" : ""
-  return `${sign}${Math.abs(Math.round(v)).toLocaleString("fr-FR")} €`
+  return `${sign}${Math.abs(Math.round(v)).toLocaleString(locale)} €`
 }
 
 /** Légende partagée par MonthlyMarginChart et RuptureRiskChart : explique
@@ -381,15 +424,17 @@ function formatEur(v: number): string {
 export function ChartLegend({
   margeMinPct, showRuptureSwatch = false,
 }: { margeMinPct: number; showRuptureSwatch?: boolean }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{
       display: "inline-flex", alignItems: "center", gap: 12, flexWrap: "wrap",
       fontFamily: "var(--font-inter), sans-serif",
       fontSize: 10.5, color: "#6B7280",
     }}>
-      <LegendItem color="#16A34A" label="OK" />
-      <LegendItem color="#F59E0B" label="à surveiller" />
-      <LegendItem color="#DC2626" label="sous seuil" />
+      <LegendItem color="#16A34A" label={t.legendOk} />
+      <LegendItem color="#F59E0B" label={t.legendWatch} />
+      <LegendItem color="#DC2626" label={t.legendBelow} />
       <span style={{
         display: "inline-flex", alignItems: "center", gap: 5,
       }}>
@@ -397,9 +442,9 @@ export function ChartLegend({
           width: 14, height: 0, borderTop: "1.5px dashed #D97706",
           display: "inline-block",
         }} />
-        <span>seuil mini {margeMinPct} %</span>
+        <span>{t.legendMinThreshold(margeMinPct)}</span>
       </span>
-      {showRuptureSwatch && <LegendItem color="rgba(124,99,200,0.55)" label="coût rupture (survol)" />}
+      {showRuptureSwatch && <LegendItem color="rgba(124,99,200,0.55)" label={t.legendRuptureCost} />}
     </div>
   )
 }

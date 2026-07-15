@@ -24,6 +24,7 @@
  */
 
 import bareme from './syntec-bareme-2026.json'
+import type { Lang } from '@/lib/i18n/LanguageContext'
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Public types
@@ -1276,14 +1277,16 @@ export function computeRiskIndicators(
  * for the candidate's (statut, position, coefficient, modalité). Modalités
  * 2 and 3 require an uplift of 15% / 20% respectively on the grid minimum.
  */
-export function validateAgainstMinimum(input: PricingInputs): MinimumCheck {
+export function validateAgainstMinimum(input: PricingInputs, lang: Lang = 'fr'): MinimumCheck {
   const minBrut = lookupMinimumGrid(input.statut, input.position, input.coefficient)
   if (minBrut === null) {
     return {
       ok: true,
       minimumMensuel: 0,
       brutMensuelPropose: input.brutAnnuel / 12,
-      message: `Position ${input.position} (coef ${input.coefficient}) introuvable dans la grille — vérifier la saisie.`,
+      message: lang === 'fr'
+        ? `Position ${input.position} (coef ${input.coefficient}) introuvable dans la grille — vérifier la saisie.`
+        : `Position ${input.position} (coef ${input.coefficient}) not found in the grid — check the input.`,
     }
   }
 
@@ -1297,9 +1300,13 @@ export function validateAgainstMinimum(input: PricingInputs): MinimumCheck {
       ok: false,
       minimumMensuel,
       brutMensuelPropose,
-      message: `Brut proposé ${formatEur(brutMensuelPropose)} sous le minimum conventionnel ${formatEur(
-        minimumMensuel,
-      )} (manque ${formatEur(ecart)}).`,
+      message: lang === 'fr'
+        ? `Brut proposé ${formatEur(brutMensuelPropose)} sous le minimum conventionnel ${formatEur(
+            minimumMensuel,
+          )} (manque ${formatEur(ecart)}).`
+        : `Proposed gross ${formatEur(brutMensuelPropose)} is below the contractual minimum ${formatEur(
+            minimumMensuel,
+          )} (short by ${formatEur(ecart)}).`,
     }
   }
 

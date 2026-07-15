@@ -8,6 +8,7 @@ import { getSupabase } from "@/lib/supabase"
 import type { Candidate, Job } from "@/lib/database.types"
 import { MissionsSkeleton } from "@/components/workspace/PageSkeletons"
 import Select from "@/components/ui/Select"
+import DatePicker from "@/components/ui/DatePicker"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
 import { useWorkspace } from "../layout"
@@ -1578,9 +1579,8 @@ function FormFieldGrid(p: FormFieldGridProps) {
             placeholder="6" style={ringStyle(durState.border)} />
         </Field>
         <Field label={t.startDateLabel} hint={t.startDateHint} status={startState.statusPill}>
-          <input type="date" value={p.startDate}
-            onChange={(e) => p.setStartDate(e.target.value)}
-            style={ringStyle(startState.border)} />
+          <DatePicker value={p.startDate} onChange={p.setStartDate}
+            borderColor={startState.border} />
         </Field>
       </div>
 

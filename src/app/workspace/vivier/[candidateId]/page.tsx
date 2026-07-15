@@ -12,6 +12,7 @@ import TagPicker from "@/components/workspace/TagPicker"
 import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { showUndoToast } from "@/components/ui/UndoToast"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+import { tierMeta as sharedTierMeta } from "@/lib/criterion-display"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -655,7 +656,7 @@ export default function CandidatePage() {
                           border: `1px solid ${tier?.bd ?? "rgba(124,99,200,0.22)"}`,
                           padding: "2px 7px", borderRadius: 100, flexShrink: 0,
                         }}>
-                          {isManual ? t.manual : `${m.score} · ${m.match_tier}`}
+                          {isManual ? t.manual : `${m.score} · ${sharedTierMeta(m.match_tier, lang).label}`}
                         </span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>

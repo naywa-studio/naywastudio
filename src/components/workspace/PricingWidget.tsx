@@ -31,9 +31,10 @@ import RuptureRiskChart from "@/components/workspace/RuptureRiskChart"
 import type { Candidate, Job } from "@/lib/database.types"
 import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabinet-config"
 import { PRESETS, detectSeniority, type SenioritePreset } from "@/lib/pricing/preset"
-import { missionMonthProfile, MONTH_ABBR_FR } from "@/lib/pricing/calendar"
+import { missionMonthProfile, MONTH_ABBR_FR, MONTH_ABBR_EN } from "@/lib/pricing/calendar"
 import { getSupabase } from "@/lib/supabase"
 import { candidateRefLabel } from "@/lib/candidate-ref"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Preset séniorité — extraits dans @/lib/pricing/preset pour partage avec
@@ -56,26 +57,275 @@ const FALLBACK_AVANTAGES: Avantages = {
   autresMensuels: 0,
 }
 
-const LIEU_LABELS: Record<Lieu, string> = {
-  paris_petite_couronne: "Paris + PC",
-  idf_grande_couronne: "IDF grande couronne",
-  lyon: "Lyon",
-  province: "Province",
+const LIEU_LABELS: Record<Lang, Record<Lieu, string>> = {
+  fr: {
+    paris_petite_couronne: "Paris + PC",
+    idf_grande_couronne: "IDF grande couronne",
+    lyon: "Lyon",
+    province: "Province",
+  },
+  en: {
+    paris_petite_couronne: "Paris + inner suburbs",
+    idf_grande_couronne: "Greater Paris region",
+    lyon: "Lyon",
+    province: "Other regions",
+  },
 }
 
 /* Grille cadres Syntec 2026 — utilisée pour le sélecteur position/coef
  * dans la context bar (override manuel du preset séniorité). */
-const SYNTEC_CADRE_ROWS: { position: string; coefficient: number; label: string }[] = [
-  { position: "1.1", coefficient: 95,  label: "1.1 · coef 95 — Jeune diplômé Bac+5" },
-  { position: "1.2", coefficient: 100, label: "1.2 · coef 100 — Ingénieur débutant 1-2 ans" },
-  { position: "2.1", coefficient: 105, label: "2.1 · coef 105 — Junior <26 ans" },
-  { position: "2.1", coefficient: 115, label: "2.1 · coef 115 — Confirmé ≥26 ans" },
-  { position: "2.2", coefficient: 130, label: "2.2 · coef 130 — Senior / lead" },
-  { position: "2.3", coefficient: 150, label: "2.3 · coef 150 — Senior confirmé" },
-  { position: "3.1", coefficient: 170, label: "3.1 · coef 170 — Manager / chef de projet" },
-  { position: "3.2", coefficient: 210, label: "3.2 · coef 210 — Senior manager / expert" },
-  { position: "3.3", coefficient: 270, label: "3.3 · coef 270 — Director / partner" },
-]
+const SYNTEC_CADRE_ROWS: Record<Lang, { position: string; coefficient: number; label: string }[]> = {
+  fr: [
+    { position: "1.1", coefficient: 95,  label: "1.1 · coef 95 — Jeune diplômé Bac+5" },
+    { position: "1.2", coefficient: 100, label: "1.2 · coef 100 — Ingénieur débutant 1-2 ans" },
+    { position: "2.1", coefficient: 105, label: "2.1 · coef 105 — Junior <26 ans" },
+    { position: "2.1", coefficient: 115, label: "2.1 · coef 115 — Confirmé ≥26 ans" },
+    { position: "2.2", coefficient: 130, label: "2.2 · coef 130 — Senior / lead" },
+    { position: "2.3", coefficient: 150, label: "2.3 · coef 150 — Senior confirmé" },
+    { position: "3.1", coefficient: 170, label: "3.1 · coef 170 — Manager / chef de projet" },
+    { position: "3.2", coefficient: 210, label: "3.2 · coef 210 — Senior manager / expert" },
+    { position: "3.3", coefficient: 270, label: "3.3 · coef 270 — Director / partner" },
+  ],
+  en: [
+    { position: "1.1", coefficient: 95,  label: "1.1 · coef 95 — Fresh graduate (Master's)" },
+    { position: "1.2", coefficient: 100, label: "1.2 · coef 100 — Junior engineer, 1-2 years" },
+    { position: "2.1", coefficient: 105, label: "2.1 · coef 105 — Junior <26 y/o" },
+    { position: "2.1", coefficient: 115, label: "2.1 · coef 115 — Mid-level ≥26 y/o" },
+    { position: "2.2", coefficient: 130, label: "2.2 · coef 130 — Senior / lead" },
+    { position: "2.3", coefficient: 150, label: "2.3 · coef 150 — Senior, confirmed" },
+    { position: "3.1", coefficient: 170, label: "3.1 · coef 170 — Manager / project lead" },
+    { position: "3.2", coefficient: 210, label: "3.2 · coef 210 — Senior manager / expert" },
+    { position: "3.3", coefficient: 270, label: "3.3 · coef 270 — Director / partner" },
+  ],
+}
+
+const PRESET_LABELS: Record<Lang, Record<SenioritePreset, { label: string; short: string }>> = {
+  fr: {
+    junior:      { label: "Junior (0-3 ans XP)",        short: "Junior" },
+    confirme:    { label: "Confirmé (4-7 ans XP)",      short: "Confirmé" },
+    senior:      { label: "Senior (8-11 ans XP)",       short: "Senior" },
+    lead_expert: { label: "Lead / Expert (12+ ans XP)", short: "Lead/Expert" },
+  },
+  en: {
+    junior:      { label: "Junior (0-3 years exp.)",        short: "Junior" },
+    confirme:    { label: "Mid-level (4-7 years exp.)",     short: "Mid-level" },
+    senior:      { label: "Senior (8-11 years exp.)",       short: "Senior" },
+    lead_expert: { label: "Lead / Expert (12+ years exp.)", short: "Lead/Expert" },
+  },
+}
+
+const copy = {
+  fr: {
+    loadingPricing: "Chargement du chiffrage…",
+    noNameCandidate: "Sans nom",
+    yearsExpAbbr: (n: number) => `${n} ans XP`,
+    tjmLabel: "TJM client (€/j HT)",
+    brutLabel: "Salaire brut annuel",
+    floorPct: (p: number) => `plancher ${p}%`,
+    targetPct: (p: number) => `cible ${p}%`,
+    missionTarget: "cible mission",
+    syntecMin: "min Syntec",
+    bestMonth: "Meilleur mois",
+    worstMonth: "Mois le plus faible",
+    worstRuptureMoment: "Pire moment pour rompre",
+    marginSub: (v: string) => `Marge ${v} %`,
+    tabMonthly: "📈 Marge mensuelle",
+    tabRupture: "⚠ Risque rupture",
+    tabDetail: "📋 Détail coût",
+    resetConfirm: "Réinitialiser ce chiffrage aux valeurs par défaut de la mission ?",
+    reset: "Réinitialiser",
+    downloadPdf: "Télécharger PDF",
+    anonymizedVersion: "Version anonymisée",
+    anonymizedTitle: "Le candidat sera identifié par sa référence courte (C-XXXXXXXX) — version partageable au client",
+    statusProfitable: "Mission rentable",
+    statusBelowTarget: "Marge sous la cible",
+    statusBelowFloor: "Marge sous le plancher",
+    statusLoss: "Mission en perte",
+    kpiAvgMargin: "Marge moyenne",
+    kpiMonthlyMargin: "Marge mensuelle",
+    kpiTotalMargin: "Marge totale mission",
+    kpiAvgMarginSub: (target: number, floor: number) => `cible ${target}% · plancher ${floor}%`,
+    kpiMonthlyMarginSub: (n: number) => `moyenne sur ${n} mois`,
+    kpiTotalMarginSub: (n: number) => `sur ${n} mois`,
+    detected: (short: string) => `↺ détecté : ${short}`,
+    noraReco: "La reco de Nora",
+    recoSuccess: (v: string) => `Marge confortable. Brut max à ce TJM : ${v}.`,
+    recoWarnBelowTarget: (target: number, v: string) => `Sous la cible ${target} %. Descendre le brut à ${v} ou remonter le TJM.`,
+    recoAlertBelowFloor: (floor: number, v: string) => `Sous le plancher ${floor} %. Brut max à ce TJM : ${v}.`,
+    recoLoss: "Mission en perte. Revoir TJM ou brut avant d'engager.",
+    perYear: (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €/an`,
+    appliedBenefits: "Avantages appliqués",
+    benefitMutuelle: "Mutuelle",
+    benefitMedecine: "Médecine",
+    benefitTransport: "Transport",
+    benefitTicketsResto: "Tickets resto",
+    benefitMobilite: "Mobilité durable",
+    benefitKm: "Indemnité km",
+    benefit13th: "13ᵉ mois",
+    active: "actif",
+    benefitGrandDeplacement: "Grand déplacement",
+    benefitExpatriation: "Expatriation",
+    benefitAutres: "Autres",
+    cadrePosCoef: (pos: string, coef: number) => `Cadre · Pos. ${pos} · coef ${coef}`,
+    resetLower: "réinitialiser",
+    choosePosition: "Choisir une position Syntec",
+    decreaseBy: (n: number) => `Diminuer de ${n}`,
+    increaseBy: (n: number) => `Augmenter de ${n}`,
+    setTo: (v: string, suffix: string) => `Mettre à ${v} ${suffix}`,
+    fixedCostTitle: "Coût fixe mensuel (constant chaque mois)",
+    rowGrossMonthly: "Brut mensuel",
+    rowVacationBonus: "Prime de vacances (Art. 31)",
+    rowVacationBonusHint: "1 % du brut, mensualisée",
+    row13th: "13ᵉ mois mensualisé",
+    row13thHint: "brut ÷ 12, si activé",
+    rowEmployerCharges: (pct: string) => `Charges patronales (${pct} %)`,
+    rowEmployerChargesHint: (v: string) => `assiette = brut + prime + 13e = ${v}`,
+    rowMutuelle: "Mutuelle (part employeur)",
+    rowTransport: "Transport / Navigo (50 %)",
+    rowForfaitMobilite: "Forfait mobilité durable",
+    rowMedecine: "Médecine du travail",
+    rowMedecineHint: (v: number) => `${v} €/an ÷ 12`,
+    rowKm: "Indemnité kilométrique",
+    rowKmHint: (v: number) => `${v} €/an ÷ 12`,
+    rowExpatriation: "Indemnité expatriation",
+    rowAutres: "Autres avantages mensuels",
+    fixedSubtotal: "Sous-total fixe mensuel",
+    perMonth: "/ mois",
+    cpImpact: (hasRtt: boolean) => `Impact CP${hasRtt ? " + RTT" : ""} non facturés`,
+    cpImpactHint: (rtt: number) => `· 25 CP${rtt > 0 ? ` + ${rtt} RTT` : ""}/an payés non facturables au client`,
+    variableCostTitle: "Coût variable par jour travaillé",
+    rowUrssaf: "Indemnité URSSAF grand déplacement",
+    rowUrssafHint: "exonérée",
+    perDay: "€ / jour",
+    rowTicketsRestoRow: "Tickets restaurant (part employeur)",
+    rowTicketsRestoHint: "URSSAF strict",
+    variableSubtotal: "Sous-total variable / jour",
+    totalCostEstimate: "Coût total estimé",
+    avgMonth21d: "· mois moyen 21 j",
+    footnote: "Le chart « Marge mensuelle » applique le vrai nombre de jours travaillés de chaque mois calendaire (19 j en novembre, 23 j en octobre…) — le coût total réel varie donc légèrement chaque mois.",
+    trialRenewalTitle: "Renouvellement de la période d'essai",
+    trialRenewalOn: "Activé — durée totale (initiale + renouvellement) appliquée au chart.",
+    trialRenewalOff: "Désactivé — seule la durée initiale est prise en compte (par défaut, conforme à l'art. 3.4 Syntec).",
+    saveFailed: "Sauvegarde impossible",
+    genericError: "Erreur",
+    cddDurations: { short: "2 semaines", long: "1 mois" },
+    cddTitle: "Mission en CDD — règles CDD appliquées",
+    cddBody: (essai: string | null) => (
+      <>Période d&apos;essai{" "}
+      <strong>{essai ? `≈ ${essai}` : "1 jour par semaine de contrat"}</strong>{" "}
+      (L1242-10). Hors essai, la rupture employeur coûte les{" "}
+      <strong>salaires restants jusqu&apos;au terme</strong> + indemnité
+      précarité 10 % (L1243-4). Au terme, prime de précarité 10 % de la
+      rémunération versée. Le toggle « renouvellement essai » ne
+      s&apos;applique qu&apos;au CDI.</>
+    ),
+  },
+  en: {
+    loadingPricing: "Loading pricing…",
+    noNameCandidate: "No name",
+    yearsExpAbbr: (n: number) => `${n} years exp.`,
+    tjmLabel: "Client daily rate (€/day excl. VAT)",
+    brutLabel: "Annual gross salary",
+    floorPct: (p: number) => `floor ${p}%`,
+    targetPct: (p: number) => `target ${p}%`,
+    missionTarget: "mission target",
+    syntecMin: "Syntec min",
+    bestMonth: "Best month",
+    worstMonth: "Weakest month",
+    worstRuptureMoment: "Worst time to terminate",
+    marginSub: (v: string) => `Margin ${v}%`,
+    tabMonthly: "📈 Monthly margin",
+    tabRupture: "⚠ Termination risk",
+    tabDetail: "📋 Cost detail",
+    resetConfirm: "Reset this pricing to the mission's default values?",
+    reset: "Reset",
+    downloadPdf: "Download PDF",
+    anonymizedVersion: "Anonymized version",
+    anonymizedTitle: "The candidate will be identified by their short reference (C-XXXXXXXX) — shareable version for the client",
+    statusProfitable: "Profitable mission",
+    statusBelowTarget: "Margin below target",
+    statusBelowFloor: "Margin below floor",
+    statusLoss: "Mission at a loss",
+    kpiAvgMargin: "Average margin",
+    kpiMonthlyMargin: "Monthly margin",
+    kpiTotalMargin: "Total mission margin",
+    kpiAvgMarginSub: (target: number, floor: number) => `target ${target}% · floor ${floor}%`,
+    kpiMonthlyMarginSub: (n: number) => `average over ${n} months`,
+    kpiTotalMarginSub: (n: number) => `over ${n} months`,
+    detected: (short: string) => `↺ detected: ${short}`,
+    noraReco: "Nora's recommendation",
+    recoSuccess: (v: string) => `Comfortable margin. Max gross at this daily rate: ${v}.`,
+    recoWarnBelowTarget: (target: number, v: string) => `Below the ${target}% target. Lower the gross to ${v} or raise the daily rate.`,
+    recoAlertBelowFloor: (floor: number, v: string) => `Below the ${floor}% floor. Max gross at this daily rate: ${v}.`,
+    recoLoss: "Mission at a loss. Revisit the daily rate or gross salary before committing.",
+    perYear: (n: number) => `${Math.round(n).toLocaleString("en-US")} €/year`,
+    appliedBenefits: "Applied benefits",
+    benefitMutuelle: "Health insurance",
+    benefitMedecine: "Occupational health",
+    benefitTransport: "Transport",
+    benefitTicketsResto: "Meal vouchers",
+    benefitMobilite: "Sustainable mobility",
+    benefitKm: "Mileage allowance",
+    benefit13th: "13th month",
+    active: "active",
+    benefitGrandDeplacement: "Extended travel",
+    benefitExpatriation: "Expatriation",
+    benefitAutres: "Other",
+    cadrePosCoef: (pos: string, coef: number) => `Manager (Cadre) · Pos. ${pos} · coef ${coef}`,
+    resetLower: "reset",
+    choosePosition: "Choose a Syntec position",
+    decreaseBy: (n: number) => `Decrease by ${n}`,
+    increaseBy: (n: number) => `Increase by ${n}`,
+    setTo: (v: string, suffix: string) => `Set to ${v} ${suffix}`,
+    fixedCostTitle: "Monthly fixed cost (constant every month)",
+    rowGrossMonthly: "Monthly gross",
+    rowVacationBonus: "Vacation bonus (Art. 31)",
+    rowVacationBonusHint: "1% of gross, spread monthly",
+    row13th: "13th month (spread monthly)",
+    row13thHint: "gross ÷ 12, if enabled",
+    rowEmployerCharges: (pct: string) => `Employer payroll taxes (${pct}%)`,
+    rowEmployerChargesHint: (v: string) => `base = gross + bonus + 13th = ${v}`,
+    rowMutuelle: "Health insurance (employer share)",
+    rowTransport: "Transport / commuter pass (50%)",
+    rowForfaitMobilite: "Sustainable mobility package",
+    rowMedecine: "Occupational health",
+    rowMedecineHint: (v: number) => `€${v}/year ÷ 12`,
+    rowKm: "Mileage allowance",
+    rowKmHint: (v: number) => `€${v}/year ÷ 12`,
+    rowExpatriation: "Expatriation allowance",
+    rowAutres: "Other monthly benefits",
+    fixedSubtotal: "Fixed monthly subtotal",
+    perMonth: "/ month",
+    cpImpact: (hasRtt: boolean) => `Unbilled paid-leave${hasRtt ? " + RTT" : ""} impact`,
+    cpImpactHint: (rtt: number) => `· 25 paid-leave days${rtt > 0 ? ` + ${rtt} RTT days` : ""}/year, paid but not billable to the client`,
+    variableCostTitle: "Variable cost per day worked",
+    rowUrssaf: "URSSAF extended-travel allowance",
+    rowUrssafHint: "tax-exempt",
+    perDay: "€ / day",
+    rowTicketsRestoRow: "Meal vouchers (employer share)",
+    rowTicketsRestoHint: "strict URSSAF cap",
+    variableSubtotal: "Variable subtotal / day",
+    totalCostEstimate: "Estimated total cost",
+    avgMonth21d: "· average 21-day month",
+    footnote: "The « Monthly margin » chart applies the real number of working days for each calendar month (19 days in November, 23 in October…) — so the real total cost varies slightly each month.",
+    trialRenewalTitle: "Trial period renewal",
+    trialRenewalOn: "Enabled — total duration (initial + renewal) applied to the chart.",
+    trialRenewalOff: "Disabled — only the initial duration is taken into account (default, per Syntec art. 3.4).",
+    saveFailed: "Couldn't save",
+    genericError: "Error",
+    cddDurations: { short: "2 weeks", long: "1 month" },
+    cddTitle: "Fixed-term mission — fixed-term rules applied",
+    cddBody: (essai: string | null) => (
+      <>Trial period{" "}
+      <strong>{essai ? `≈ ${essai}` : "1 working day per week of contract"}</strong>{" "}
+      (L1242-10). Outside the trial, employer termination costs the{" "}
+      <strong>remaining salary until the contract's term</strong> + a 10%
+      end-of-contract bonus (L1243-4). At term, a 10% end-of-contract bonus
+      on the pay received. The « trial renewal » toggle only applies to
+      permanent contracts.</>
+    ),
+  },
+}
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Outer wrapper — loads profile defaults
@@ -109,6 +359,8 @@ export default function PricingWidget({
    *  derniers réglages en revenant sur ce candidat. */
   onPricingChange?: (matchId: string, tjm: number, brut: number) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
   const [profile, setProfile] = useState<PricingProfile | undefined>(undefined)
 
@@ -130,7 +382,7 @@ export default function PricingWidget({
         padding: 18, minHeight: 200, display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 12, color: "#6B7280",
       }}>
-        Chargement du chiffrage…
+        {t.loadingPricing}
       </section>
     )
   }
@@ -163,6 +415,8 @@ function PricingWidgetInner({
   persistedBrut: number | null
   onPricingChange?: (matchId: string, tjm: number, brut: number) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const detectedPreset = useMemo(
     () => detectSeniority(candidate.parsed_cv, candidate.current_title),
     [candidate.parsed_cv, candidate.current_title],
@@ -299,7 +553,7 @@ function PricingWidgetInner({
   }, [tjm, brutAnnuel, buildInputs])
 
   const cost = useMemo(() => computeEmployerCost(buildInputs(brutAnnuel)), [brutAnnuel, buildInputs])
-  const minimumCheck = useMemo(() => validateAgainstMinimum(buildInputs(brutAnnuel)), [brutAnnuel, buildInputs])
+  const minimumCheck = useMemo(() => validateAgainstMinimum(buildInputs(brutAnnuel), lang), [brutAnnuel, buildInputs, lang])
 
   // Priorité aux overrides de la mission (saisis dans le wizard mission),
   // sinon valeurs par défaut cabinet (paramétrage).
@@ -432,7 +686,7 @@ function PricingWidgetInner({
     }}>
       {/* ═══ VERDICT HERO ═══ */}
       <VerdictHero
-        candidateName={candidate.full_name ?? "Sans nom"}
+        candidateName={candidate.full_name ?? t.noNameCandidate}
         candidateRef={candidateRefLabel(candidate.id)}
         candidateTitle={candidate.current_title ?? ""}
         candidateYears={candidate.years_experience ?? null}
@@ -468,11 +722,11 @@ function PricingWidgetInner({
               le coefficient sont ajustables manuellement si le preset auto ne
               correspond pas au profil exact du candidat. */}
           <SyntecContextBar
-            seniorityLabel={preset.short}
+            seniorityLabel={PRESET_LABELS[lang][seniority].short}
             position={effectivePosition}
             coefficient={effectiveCoef}
             isOverridden={syntecOverride != null}
-            lieuLabel={LIEU_LABELS[lieu]}
+            lieuLabel={LIEU_LABELS[lang][lieu]}
             onChange={(p, c) => setSyntecOverride({ position: p, coefficient: c })}
             onReset={() => setSyntecOverride(null)}
           />
@@ -482,7 +736,7 @@ function PricingWidgetInner({
 
           {/* Leviers — steppers TJM / Brut (empilés en colonne unique) */}
           <StepperField
-            label="TJM client (€/j HT)"
+            label={t.tjmLabel}
             value={tjm}
             /* Step adaptatif : ±10 € sous 800 €/j (granularité fine sur les
              *  juniors / confirmés), ±25 € au-dessus (les TJM seniors+
@@ -493,25 +747,25 @@ function PricingWidgetInner({
             onChange={setTjm}
             markers={[
               ...(limits ? [
-                { value: Math.round(limits.tjmMin),   label: `plancher ${margeMinPct}%`, color: "#D97706" },
-                { value: Math.round(limits.tjmIdeal), label: `cible ${margeTargetPct}%`, color: "#15803d" },
+                { value: Math.round(limits.tjmMin),   label: t.floorPct(margeMinPct), color: "#D97706" },
+                { value: Math.round(limits.tjmIdeal), label: t.targetPct(margeTargetPct), color: "#15803d" },
               ] : []),
               ...(job?.client_tjm_min != null ? [
-                { value: job.client_tjm_min, label: "cible mission", color: "#7C63C8" },
+                { value: job.client_tjm_min, label: t.missionTarget, color: "#7C63C8" },
               ] : []),
             ]}
           />
           <StepperField
-            label="Salaire brut annuel"
+            label={t.brutLabel}
             value={brutAnnuel}
             step={500}
             max={150000}
             suffix="€/an"
             onChange={setBrutAnnuel}
             markers={limits ? [
-              { value: Math.round(limits.brutMin),   label: "min Syntec",                 color: "#B91C1C" },
-              { value: Math.round(limits.brutIdeal), label: `cible ${margeTargetPct}%`,   color: "#15803d" },
-              { value: Math.round(limits.brutMax),   label: `plancher ${margeMinPct}%`,   color: "#D97706" },
+              { value: Math.round(limits.brutMin),   label: t.syntecMin,                 color: "#B91C1C" },
+              { value: Math.round(limits.brutIdeal), label: t.targetPct(margeTargetPct),   color: "#15803d" },
+              { value: Math.round(limits.brutMax),   label: t.floorPct(margeMinPct),   color: "#D97706" },
             ] : []}
           />
 
@@ -524,12 +778,12 @@ function PricingWidgetInner({
                   display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
                 }}>
                   <ExtremeMonthCard
-                    label="Meilleur mois"
+                    label={t.bestMonth}
                     month={extremeMonths.best}
                     tone="good"
                   />
                   <ExtremeMonthCard
-                    label="Mois le plus faible"
+                    label={t.worstMonth}
                     month={extremeMonths.worst}
                     tone={extremeMonths.worst.marge < 0 ? "bad" : "warn"}
                   />
@@ -537,7 +791,7 @@ function PricingWidgetInner({
               )}
               {worstRuptureMonth && (
                 <ExtremeMonthCard
-                  label="Pire moment pour rompre"
+                  label={t.worstRuptureMoment}
                   month={{
                     calendarMonth: worstRuptureMonth.calendarMonth,
                     year: worstRuptureMonth.year,
@@ -551,7 +805,7 @@ function PricingWidgetInner({
                         ? "warn"
                         : "good"
                   }
-                  subValue={`Marge ${worstRuptureMonth.margePct.toFixed(1)} %`}
+                  subValue={t.marginSub(worstRuptureMonth.margePct.toFixed(1))}
                 />
               )}
             </div>
@@ -576,13 +830,13 @@ function PricingWidgetInner({
             flexWrap: "wrap",
           }}>
             <TabButton active={tab === "monthly"} onClick={() => setTab("monthly")}>
-              📈 Marge mensuelle
+              {t.tabMonthly}
             </TabButton>
             <TabButton active={tab === "rupture"} onClick={() => setTab("rupture")}>
-              ⚠ Risque rupture
+              {t.tabRupture}
             </TabButton>
             <TabButton active={tab === "detail"} onClick={() => setTab("detail")}>
-              📋 Détail coût
+              {t.tabDetail}
             </TabButton>
           </div>
 
@@ -695,6 +949,8 @@ function PricingWidgetInner({
  * ────────────────────────────────────────────────────────────────────────── */
 
 function PricingToolbar({ matchId, onReset }: { matchId: string; onReset: () => void }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{
       marginTop: 14, paddingTop: 14,
@@ -704,11 +960,11 @@ function PricingToolbar({ matchId, onReset }: { matchId: string; onReset: () => 
       <button
         type="button"
         onClick={() => {
-          if (confirm("Réinitialiser ce chiffrage aux valeurs par défaut de la mission ?")) onReset()
+          if (confirm(t.resetConfirm)) onReset()
         }}
         style={toolbarBtnGhost}
       >
-        Réinitialiser
+        {t.reset}
       </button>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -717,15 +973,15 @@ function PricingToolbar({ matchId, onReset }: { matchId: string; onReset: () => 
           target="_blank" rel="noopener noreferrer"
           style={toolbarBtnPrimary}
         >
-          Télécharger PDF
+          {t.downloadPdf}
         </a>
         <a
           href={`/api/match/${matchId}/pricing-pdf?anonymize=1`}
           target="_blank" rel="noopener noreferrer"
           style={toolbarBtnGhost}
-          title="Le candidat sera identifié par sa référence courte (C-XXXXXXXX) — version partageable au client"
+          title={t.anonymizedTitle}
         >
-          Version anonymisée
+          {t.anonymizedVersion}
         </a>
       </div>
     </div>
@@ -772,14 +1028,16 @@ function VerdictHero({
   detectedPreset: SenioritePreset
   onSenioritySelect: (s: SenioritePreset) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const status: { color: string; bg: string; bd: string; label: string; icon: string } =
     margePct >= margeTargetPct
-      ? { color: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)",  label: "Mission rentable", icon: "✓" }
+      ? { color: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)",  label: t.statusProfitable, icon: "✓" }
       : margePct >= margeMinPct
-        ? { color: "#B45309", bg: "rgba(217,119,6,0.07)", bd: "rgba(217,119,6,0.25)",  label: "Marge sous la cible", icon: "⚠" }
+        ? { color: "#B45309", bg: "rgba(217,119,6,0.07)", bd: "rgba(217,119,6,0.25)",  label: t.statusBelowTarget, icon: "⚠" }
         : margePct >= 0
-          ? { color: "#B91C1C", bg: "#FEF2F2",            bd: "#FECACA",                label: "Marge sous le plancher", icon: "🚨" }
-          : { color: "#B91C1C", bg: "#FEF2F2",            bd: "#FECACA",                label: "Mission en perte",       icon: "🚨" }
+          ? { color: "#B91C1C", bg: "#FEF2F2",            bd: "#FECACA",                label: t.statusBelowFloor, icon: "🚨" }
+          : { color: "#B91C1C", bg: "#FEF2F2",            bd: "#FECACA",                label: t.statusLoss,       icon: "🚨" }
 
   return (
     <div style={{
@@ -803,7 +1061,7 @@ function VerdictHero({
           {candidateName}
         </div>
         <div style={{ fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
-          {candidateTitle && <>{candidateTitle}{candidateYears != null && ` · ${candidateYears} ans XP`}</>}
+          {candidateTitle && <>{candidateTitle}{candidateYears != null && ` · ${t.yearsExpAbbr(candidateYears)}`}</>}
         </div>
         <div style={{
           fontSize: 10, fontWeight: 700, color: "#6B7280",
@@ -818,7 +1076,7 @@ function VerdictHero({
             <button
               key={k}
               onClick={() => onSenioritySelect(k)}
-              title={PRESETS[k].label}
+              title={PRESET_LABELS[lang][k].label}
               style={{
                 fontSize: 10.5, fontWeight: 600,
                 padding: "3px 8px", borderRadius: 100, cursor: "pointer",
@@ -830,7 +1088,7 @@ function VerdictHero({
                 fontFamily: "inherit",
               }}
             >
-              {PRESETS[k].short}
+              {PRESET_LABELS[lang][k].short}
             </button>
           ))}
           {detectedPreset !== seniority && (
@@ -842,7 +1100,7 @@ function VerdictHero({
                 textDecoration: "underline", padding: 0,
               }}
             >
-              ↺ détecté : {PRESETS[detectedPreset].short}
+              {t.detected(PRESET_LABELS[lang][detectedPreset].short)}
             </button>
           )}
         </div>
@@ -850,25 +1108,25 @@ function VerdictHero({
 
       {/* KPI 1 — Marge moyenne % */}
       <HeroKpi
-        label="Marge moyenne"
+        label={t.kpiAvgMargin}
         value={`${margePct.toFixed(1)} %`}
-        sub={`cible ${margeTargetPct}% · plancher ${margeMinPct}%`}
+        sub={t.kpiAvgMarginSub(margeTargetPct, margeMinPct)}
         color={status.color}
       />
 
       {/* KPI 2 — Marge mensuelle */}
       <HeroKpi
-        label="Marge mensuelle"
-        value={`${formatEurInt(margeMensuelleEur)} €`}
-        sub={`moyenne sur ${monthCount} mois`}
+        label={t.kpiMonthlyMargin}
+        value={`${formatEurInt(margeMensuelleEur, lang === "fr" ? "fr-FR" : "en-US")} €`}
+        sub={t.kpiMonthlyMarginSub(monthCount)}
         color="#111827"
       />
 
       {/* KPI 3 — Marge totale mission */}
       <HeroKpi
-        label="Marge totale mission"
-        value={`${formatEurInt(margeTotaleEur)} €`}
-        sub={`sur ${monthCount} mois`}
+        label={t.kpiTotalMargin}
+        value={`${formatEurInt(margeTotaleEur, lang === "fr" ? "fr-FR" : "en-US")} €`}
+        sub={t.kpiTotalMarginSub(monthCount)}
         color="#111827"
       />
     </div>
@@ -933,10 +1191,12 @@ function RecommendationBanner({
   brutMax: number
   tjm: number
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // Phrases courtes : le sourceur sait ce qu'il fait, on lui donne juste
   // la valeur clé à viser et l'angle. Pas de redite des seuils, ils sont
   // déjà sur les markers des steppers.
-  const fmt = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €/an`
+  const fmt = t.perYear
   // Variables hors-scope du tone gardées pour rendu / debug. Évite le
   // warning eslint sur les paramètres non utilisés sans toucher l'API.
   void brutAnnuel; void brutMin; void tjm
@@ -944,24 +1204,24 @@ function RecommendationBanner({
     if (margePct >= margeTargetPct) {
       return {
         tone: "success" as const,
-        text: `Marge confortable. Brut max à ce TJM : ${fmt(brutMax)}.`,
+        text: t.recoSuccess(fmt(brutMax)),
       }
     }
     if (margePct >= margeMinPct) {
       return {
         tone: "warn" as const,
-        text: `Sous la cible ${margeTargetPct} %. Descendre le brut à ${fmt(brutIdeal)} ou remonter le TJM.`,
+        text: t.recoWarnBelowTarget(margeTargetPct, fmt(brutIdeal)),
       }
     }
     if (margePct >= 0) {
       return {
         tone: "alert" as const,
-        text: `Sous le plancher ${margeMinPct} %. Brut max à ce TJM : ${fmt(brutMax)}.`,
+        text: t.recoAlertBelowFloor(margeMinPct, fmt(brutMax)),
       }
     }
     return {
       tone: "alert" as const,
-      text: "Mission en perte. Revoir TJM ou brut avant d'engager.",
+      text: t.recoLoss,
     }
   })()
 
@@ -1004,7 +1264,7 @@ function RecommendationBanner({
           fontSize: 11, fontWeight: 700, color: palette.fg,
           marginBottom: 4, letterSpacing: "0.01em",
         }}>
-          La reco de Nora
+          {t.noraReco}
         </div>
         <p style={{
           margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55,
@@ -1029,22 +1289,24 @@ function ActiveAvantagesStrip({ avantages, job }: {
   avantages: Avantages
   job: Job | null
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   type Chip = { label: string; value: string }
   const chips: Chip[] = []
-  if ((avantages.mutuellePremium ?? 0) > 0)        chips.push({ label: "Mutuelle",        value: `${avantages.mutuellePremium} €/mois` })
-  if ((avantages.medecineDuTravailAnnuel ?? 0) > 0) chips.push({ label: "Médecine",        value: `${avantages.medecineDuTravailAnnuel} €/an` })
-  if ((avantages.transport ?? 0) > 0)              chips.push({ label: "Transport",       value: `${avantages.transport} €/mois` })
-  if ((avantages.ticketsResto ?? 0) > 0)           chips.push({ label: "Tickets resto",   value: `${avantages.ticketsResto} €/j` })
-  if ((avantages.forfaitMobilite ?? 0) > 0)        chips.push({ label: "Mobilité durable", value: `${avantages.forfaitMobilite} €/mois` })
-  if ((avantages.indemniteKilometriqueAnnuelle ?? 0) > 0) chips.push({ label: "Indemnité km", value: `${avantages.indemniteKilometriqueAnnuelle} €/an` })
-  if (avantages.treiziemeMois) chips.push({ label: "13ᵉ mois", value: "actif" })
+  if ((avantages.mutuellePremium ?? 0) > 0)        chips.push({ label: t.benefitMutuelle,        value: `${avantages.mutuellePremium} €/mois` })
+  if ((avantages.medecineDuTravailAnnuel ?? 0) > 0) chips.push({ label: t.benefitMedecine,        value: `${avantages.medecineDuTravailAnnuel} €/an` })
+  if ((avantages.transport ?? 0) > 0)              chips.push({ label: t.benefitTransport,       value: `${avantages.transport} €/mois` })
+  if ((avantages.ticketsResto ?? 0) > 0)           chips.push({ label: t.benefitTicketsResto,   value: `${avantages.ticketsResto} €/j` })
+  if ((avantages.forfaitMobilite ?? 0) > 0)        chips.push({ label: t.benefitMobilite, value: `${avantages.forfaitMobilite} €/mois` })
+  if ((avantages.indemniteKilometriqueAnnuelle ?? 0) > 0) chips.push({ label: t.benefitKm, value: `${avantages.indemniteKilometriqueAnnuelle} €/an` })
+  if (avantages.treiziemeMois) chips.push({ label: t.benefit13th, value: t.active })
   if (job?.has_grand_deplacement && (avantages.urssafIndemniteJour ?? 0) > 0) {
-    chips.push({ label: "Grand déplacement", value: `${avantages.urssafIndemniteJour} €/j` })
+    chips.push({ label: t.benefitGrandDeplacement, value: `${avantages.urssafIndemniteJour} €/j` })
   }
   if (job?.is_expatriated && (avantages.expatriationMensuelle ?? 0) > 0) {
-    chips.push({ label: "Expatriation", value: `${avantages.expatriationMensuelle} €/mois` })
+    chips.push({ label: t.benefitExpatriation, value: `${avantages.expatriationMensuelle} €/mois` })
   }
-  if ((avantages.autresMensuels ?? 0) > 0) chips.push({ label: "Autres", value: `${avantages.autresMensuels} €/mois` })
+  if ((avantages.autresMensuels ?? 0) > 0) chips.push({ label: t.benefitAutres, value: `${avantages.autresMensuels} €/mois` })
 
   if (chips.length === 0) return null
 
@@ -1058,7 +1320,7 @@ function ActiveAvantagesStrip({ avantages, job }: {
         fontSize: 10, fontWeight: 700, color: "#6B7280",
         letterSpacing: "0.05em", textTransform: "uppercase", marginRight: 4,
       }}>
-        Avantages appliqués
+        {t.appliedBenefits}
       </span>
       {chips.map((c) => (
         <span key={c.label} style={{
@@ -1095,6 +1357,8 @@ function SyntecContextBar({
   onChange: (position: string, coefficient: number) => void
   onReset: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [open, setOpen] = useState(false)
 
   return (
@@ -1116,7 +1380,7 @@ function SyntecContextBar({
           display: "inline-flex", alignItems: "center", gap: 5,
         }}
       >
-        Cadre · Pos. {position} · coef {coefficient}
+        {t.cadrePosCoef(position, coefficient)}
         <span style={{ color: "#7C63C8", fontSize: 10 }}>▾</span>
       </button>
       {isOverridden && (
@@ -1128,7 +1392,7 @@ function SyntecContextBar({
             textDecoration: "underline", padding: 0,
           }}
         >
-          réinitialiser
+          {t.resetLower}
         </button>
       )}
       <span>·</span>
@@ -1154,9 +1418,9 @@ function SyntecContextBar({
               letterSpacing: "0.05em", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
-              Choisir une position Syntec
+              {t.choosePosition}
             </div>
-            {SYNTEC_CADRE_ROWS.map((row) => {
+            {SYNTEC_CADRE_ROWS[lang].map((row) => {
               const isActive = row.position === position && row.coefficient === coefficient
               return (
                 <button
@@ -1197,6 +1461,10 @@ function ExtremeMonthCard({
    *  (ex. marge % pour la carte rupture). */
   subValue?: string
 }) {
+  const { lang } = useLanguage()
+  const monthAbbr = lang === "fr" ? MONTH_ABBR_FR : MONTH_ABBR_EN
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
+  const dayAbbr = lang === "fr" ? "j" : "d"
   const palette = {
     good: { fg: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)" },
     warn: { fg: "#B45309", bg: "rgba(217,119,6,0.06)",  bd: "rgba(217,119,6,0.25)" },
@@ -1217,10 +1485,10 @@ function ExtremeMonthCard({
       <div style={{
         fontSize: 14, fontWeight: 800, color: "#111827", marginTop: 2,
       }}>
-        {MONTH_ABBR_FR[month.calendarMonth]} {month.year}
+        {monthAbbr[month.calendarMonth]} {month.year}
       </div>
       <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>
-        {subValue ?? `${sign}${Math.abs(Math.round(month.marge)).toLocaleString("fr-FR")} € · ${month.workingDays} j`}
+        {subValue ?? `${sign}${Math.abs(Math.round(month.marge)).toLocaleString(locale)} € · ${month.workingDays} ${dayAbbr}`}
       </div>
     </div>
   )
@@ -1262,15 +1530,15 @@ function TabButton({
  * Lever / format helpers
  * ────────────────────────────────────────────────────────────────────────── */
 
-function formatEurInt(v: number): string {
+function formatEurInt(v: number, locale = "fr-FR"): string {
   const sign = v < 0 ? "−" : ""
-  return `${sign}${Math.abs(Math.round(v)).toLocaleString("fr-FR")}`
+  return `${sign}${Math.abs(Math.round(v)).toLocaleString(locale)}`
 }
 
-function formatEurSmart(v: number): string {
+function formatEurSmart(v: number, locale = "fr-FR"): string {
   const rounded = Math.round(v * 10) / 10
   const hasDecimal = Math.abs(rounded - Math.round(rounded)) >= 0.05
-  return `${rounded.toLocaleString("fr-FR", {
+  return `${rounded.toLocaleString(locale, {
     minimumFractionDigits: hasDecimal ? 1 : 0,
     maximumFractionDigits: 1,
   })} €`
@@ -1303,6 +1571,9 @@ function StepperField({
   onChange: (v: number) => void
   markers?: { value: number; label: string; color: string }[]
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
   const display = Math.round(value)
   const nudge = (delta: number) => {
     const raw = value + delta
@@ -1326,7 +1597,7 @@ function StepperField({
         <div style={{ display: "inline-flex", alignItems: "stretch", gap: 6 }}>
           <button
             onClick={() => nudge(-step)}
-            aria-label={`Diminuer de ${step}`}
+            aria-label={t.decreaseBy(step)}
             style={stepperBtnStyle}
           >−</button>
           <div style={{
@@ -1356,7 +1627,7 @@ function StepperField({
           </div>
           <button
             onClick={() => nudge(step)}
-            aria-label={`Augmenter de ${step}`}
+            aria-label={t.increaseBy(step)}
             style={stepperBtnStyle}
           >+</button>
         </div>
@@ -1370,7 +1641,7 @@ function StepperField({
               <button
                 key={m.label}
                 onClick={() => onChange(Math.round(m.value / step) * step)}
-                title={`Mettre à ${m.value.toLocaleString("fr-FR")} ${suffix}`}
+                title={t.setTo(m.value.toLocaleString(locale), suffix)}
                 style={{
                   fontSize: 10.5, fontWeight: 700,
                   color: isActive ? "white" : m.color,
@@ -1383,7 +1654,7 @@ function StepperField({
               >
                 <span>{m.label}</span>
                 <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>
-                  {m.value.toLocaleString("fr-FR")}
+                  {m.value.toLocaleString(locale)}
                 </span>
               </button>
             )
@@ -1407,22 +1678,26 @@ function CostBreakdown({
   cpRttHaircutMensuel: number
   rttDaysPerYear: number
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
+  const fmt = (v: number) => formatEurSmart(v, locale)
   const medecineMens = (avantages.medecineDuTravailAnnuel ?? 0) / 12
   const kmMens = (avantages.indemniteKilometriqueAnnuelle ?? 0) / 12
   const assiette = cost.brutMensuel + cost.treiziemeMoisMensualise + cost.primeVacancesMensualisee
 
   const fixedRows: { label: string; value: number; hint?: string }[] = [
-    { label: "Brut mensuel", value: cost.brutMensuel },
-    { label: "Prime de vacances (Art. 31)", value: cost.primeVacancesMensualisee, hint: "1 % du brut, mensualisée" },
-    { label: "13ᵉ mois mensualisé", value: cost.treiziemeMoisMensualise, hint: "brut ÷ 12, si activé" },
-    { label: `Charges patronales (${(cost.tauxCharges * 100).toFixed(1)} %)`, value: cost.chargesPatronales, hint: `assiette = brut + prime + 13e = ${formatEurSmart(assiette)}` },
-    { label: "Mutuelle (part employeur)", value: avantages.mutuellePremium ?? 0 },
-    { label: "Transport / Navigo (50 %)", value: avantages.transport ?? 0 },
-    { label: "Forfait mobilité durable", value: avantages.forfaitMobilite ?? 0 },
-    { label: "Médecine du travail", value: medecineMens, hint: `${avantages.medecineDuTravailAnnuel ?? 0} €/an ÷ 12` },
-    { label: "Indemnité kilométrique", value: kmMens, hint: `${avantages.indemniteKilometriqueAnnuelle ?? 0} €/an ÷ 12` },
-    { label: "Indemnité expatriation", value: avantages.expatriationMensuelle ?? 0 },
-    { label: "Autres avantages mensuels", value: avantages.autresMensuels ?? 0 },
+    { label: t.rowGrossMonthly, value: cost.brutMensuel },
+    { label: t.rowVacationBonus, value: cost.primeVacancesMensualisee, hint: t.rowVacationBonusHint },
+    { label: t.row13th, value: cost.treiziemeMoisMensualise, hint: t.row13thHint },
+    { label: t.rowEmployerCharges((cost.tauxCharges * 100).toFixed(1)), value: cost.chargesPatronales, hint: t.rowEmployerChargesHint(fmt(assiette)) },
+    { label: t.rowMutuelle, value: avantages.mutuellePremium ?? 0 },
+    { label: t.rowTransport, value: avantages.transport ?? 0 },
+    { label: t.rowForfaitMobilite, value: avantages.forfaitMobilite ?? 0 },
+    { label: t.rowMedecine, value: medecineMens, hint: t.rowMedecineHint(avantages.medecineDuTravailAnnuel ?? 0) },
+    { label: t.rowKm, value: kmMens, hint: t.rowKmHint(avantages.indemniteKilometriqueAnnuelle ?? 0) },
+    { label: t.rowExpatriation, value: avantages.expatriationMensuelle ?? 0 },
+    { label: t.rowAutres, value: avantages.autresMensuels ?? 0 },
   ]
 
   return (
@@ -1435,7 +1710,7 @@ function CostBreakdown({
         fontSize: 10.5, fontWeight: 700, color: "#6B7280",
         letterSpacing: "0.05em", textTransform: "uppercase",
       }}>
-        Coût fixe mensuel (constant chaque mois)
+        {t.fixedCostTitle}
       </div>
       {fixedRows.filter((r) => r.value !== 0).map((r) => (
         <div key={r.label} style={{
@@ -1447,7 +1722,7 @@ function CostBreakdown({
             {r.hint && <span style={{ color: "#6B7280", marginLeft: 6 }}>· {r.hint}</span>}
           </span>
           <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
-            {formatEurSmart(r.value)}
+            {fmt(r.value)}
           </span>
         </div>
       ))}
@@ -1456,9 +1731,9 @@ function CostBreakdown({
         display: "flex", justifyContent: "space-between",
         fontSize: 12.5, fontWeight: 700, color: "#374151",
       }}>
-        <span>Sous-total fixe mensuel</span>
+        <span>{t.fixedSubtotal}</span>
         <span style={{ fontVariantNumeric: "tabular-nums" }}>
-          {formatEurSmart(cost.coutFixeMensuel)} / mois
+          {fmt(cost.coutFixeMensuel)} {t.perMonth}
         </span>
       </div>
 
@@ -1469,13 +1744,13 @@ function CostBreakdown({
           fontSize: 12.5, color: "#B45309",
         }}>
           <span>
-            Impact CP{rttDaysPerYear > 0 ? " + RTT" : ""} non facturés
+            {t.cpImpact(rttDaysPerYear > 0)}
             <span style={{ color: "#6B7280", marginLeft: 6 }}>
-              · 25 CP{rttDaysPerYear > 0 ? ` + ${rttDaysPerYear} RTT` : ""}/an payés non facturables au client
+              {t.cpImpactHint(rttDaysPerYear)}
             </span>
           </span>
           <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-            − {formatEurSmart(cpRttHaircutMensuel)} / mois
+            − {fmt(cpRttHaircutMensuel)} {t.perMonth}
           </span>
         </div>
       )}
@@ -1487,21 +1762,21 @@ function CostBreakdown({
             letterSpacing: "0.05em", textTransform: "uppercase",
             marginTop: 10,
           }}>
-            Coût variable par jour travaillé
+            {t.variableCostTitle}
           </div>
           {(avantages.urssafIndemniteJour ?? 0) > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#4B5563" }}>
-              <span>Indemnité URSSAF grand déplacement <span style={{ color: "#6B7280" }}>· exonérée</span></span>
+              <span>{t.rowUrssaf} <span style={{ color: "#6B7280" }}>· {t.rowUrssafHint}</span></span>
               <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
-                {(avantages.urssafIndemniteJour ?? 0).toFixed(2)} € / jour
+                {(avantages.urssafIndemniteJour ?? 0).toFixed(2)} {t.perDay}
               </span>
             </div>
           )}
           {(avantages.ticketsResto ?? 0) > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#4B5563" }}>
-              <span>Tickets restaurant (part employeur) <span style={{ color: "#6B7280" }}>· URSSAF strict</span></span>
+              <span>{t.rowTicketsRestoRow} <span style={{ color: "#6B7280" }}>· {t.rowTicketsRestoHint}</span></span>
               <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
-                {(avantages.ticketsResto ?? 0).toFixed(2)} € / jour
+                {(avantages.ticketsResto ?? 0).toFixed(2)} {t.perDay}
               </span>
             </div>
           )}
@@ -1510,9 +1785,9 @@ function CostBreakdown({
             display: "flex", justifyContent: "space-between",
             fontSize: 12.5, fontWeight: 700, color: "#374151",
           }}>
-            <span>Sous-total variable / jour</span>
+            <span>{t.variableSubtotal}</span>
             <span style={{ fontVariantNumeric: "tabular-nums" }}>
-              {cost.coutVariableJournalier.toFixed(2)} € / jour
+              {cost.coutVariableJournalier.toFixed(2)} {t.perDay}
             </span>
           </div>
         </>
@@ -1524,22 +1799,20 @@ function CostBreakdown({
         fontSize: 13, fontWeight: 800, color: "#7C63C8",
       }}>
         <span>
-          Coût total estimé
+          {t.totalCostEstimate}
           <span style={{ fontSize: 11, fontWeight: 500, color: "#6B7280", marginLeft: 6 }}>
-            · mois moyen 21 j
+            {t.avgMonth21d}
           </span>
         </span>
         <span style={{ fontVariantNumeric: "tabular-nums" }}>
-          {formatEurSmart(cost.coutFixeMensuel + cost.coutVariableJournalier * 21)} / mois
+          {fmt(cost.coutFixeMensuel + cost.coutVariableJournalier * 21)} {t.perMonth}
         </span>
       </div>
       <p style={{
         margin: "4px 0 0", fontSize: 11, color: "#6B7280",
         fontStyle: "italic", lineHeight: 1.4,
       }}>
-        Le chart « Marge mensuelle » applique le vrai nombre de jours travaillés de chaque
-        mois calendaire (19 j en novembre, 23 j en octobre…) — le coût total réel varie
-        donc légèrement chaque mois.
+        {t.footnote}
       </p>
     </div>
   )
@@ -1556,6 +1829,8 @@ function EssaiRenouveleToggle({
   value: boolean
   onChange: (next: boolean) => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1580,11 +1855,11 @@ function EssaiRenouveleToggle({
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? "Sauvegarde impossible")
+        throw new Error(body.error ?? t.saveFailed)
       }
     } catch (err) {
       onChange(value)  // revert
-      setError(err instanceof Error ? err.message : "Erreur")
+      setError(err instanceof Error ? err.message : t.genericError)
     } finally {
       setSaving(false)
     }
@@ -1610,14 +1885,12 @@ function EssaiRenouveleToggle({
           margin: 0, fontSize: 12.5, fontWeight: 700, color: "#111827",
           letterSpacing: "-0.005em",
         }}>
-          Renouvellement de la période d&apos;essai
+          {t.trialRenewalTitle}
         </p>
         <p style={{
           margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55,
         }}>
-          {value
-            ? "Activé — durée totale (initiale + renouvellement) appliquée au chart."
-            : "Désactivé — seule la durée initiale est prise en compte (par défaut, conforme à l'art. 3.4 Syntec)."}
+          {value ? t.trialRenewalOn : t.trialRenewalOff}
         </p>
         {error && (
           <p style={{
@@ -1667,9 +1940,11 @@ function EssaiRenouveleToggle({
 }
 
 function CddBanner({ durationMonths }: { durationMonths: number | null }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const essaiDays = durationMonths == null
     ? null
-    : durationMonths <= 6 ? "2 semaines" : "1 mois"
+    : durationMonths <= 6 ? t.cddDurations.short : t.cddDurations.long
   return (
     <div
       style={{
@@ -1684,20 +1959,10 @@ function CddBanner({ durationMonths }: { durationMonths: number | null }) {
       }}
     >
       <p style={{ margin: 0, fontWeight: 700, color: "#7C2D12" }}>
-        Mission en CDD — règles CDD appliquées
+        {t.cddTitle}
       </p>
       <p style={{ margin: "3px 0 0", color: "#92400E" }}>
-        Période d&apos;essai{" "}
-        <strong>
-          {essaiDays
-            ? `≈ ${essaiDays}`
-            : "1 jour par semaine de contrat"}
-        </strong>{" "}
-        (L1242-10). Hors essai, la rupture employeur coûte les{" "}
-        <strong>salaires restants jusqu&apos;au terme</strong> + indemnité
-        précarité 10 % (L1243-4). Au terme, prime de précarité 10 % de la
-        rémunération versée. Le toggle « renouvellement essai » ne
-        s&apos;applique qu&apos;au CDI.
+        {t.cddBody(essaiDays)}
       </p>
     </div>
   )

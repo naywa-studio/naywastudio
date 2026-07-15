@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from "react"
 import { m, AnimatePresence } from "framer-motion"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: { cancel: "Annuler" },
+  en: { cancel: "Cancel" },
+}
 
 /**
  * Undoable-action toast.
@@ -42,14 +48,16 @@ export function showUndoToast(label: string, ms = 5000): Promise<{ cancelled: bo
 
 /** Mount once at the layout level. */
 export default function UndoToastHost() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [toasts, setToasts] = useState<PendingToast[]>([])
   const idRef = useRef(0)
 
   useEffect(() => {
     _showImpl = (label: string, ms = 5000) => new Promise<{ cancelled: boolean }>((resolve) => {
       const id = ++idRef.current
-      const t: PendingToast = { id, label, resolve, deadline: Date.now() + ms }
-      setToasts((prev) => [...prev, t])
+      const toast: PendingToast = { id, label, resolve, deadline: Date.now() + ms }
+      setToasts((prev) => [...prev, toast])
       setTimeout(() => {
         // If still present, auto-resolve as confirmed.
         setToasts((prev) => {
@@ -80,9 +88,9 @@ export default function UndoToastHost() {
       }}
     >
       <AnimatePresence>
-        {toasts.map((t) => (
+        {toasts.map((toast) => (
           <m.div
-            key={t.id}
+            key={toast.id}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
@@ -97,9 +105,9 @@ export default function UndoToastHost() {
               minWidth: 280,
             }}
           >
-            <span style={{ flex: 1 }}>{t.label}</span>
+            <span style={{ flex: 1 }}>{toast.label}</span>
             <button
-              onClick={() => cancel(t.id)}
+              onClick={() => cancel(toast.id)}
               style={{
                 background: "rgba(255,255,255,0.12)",
                 color: "white", border: "none",
@@ -110,7 +118,7 @@ export default function UndoToastHost() {
               onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.22)" }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)" }}
             >
-              Annuler
+              {t.cancel}
             </button>
           </m.div>
         ))}

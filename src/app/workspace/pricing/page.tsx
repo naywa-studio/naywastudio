@@ -24,8 +24,70 @@ import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabine
 import { PricingSkeleton } from "@/components/workspace/PageSkeletons"
 import { useWorkspace } from "../layout"
 import PricingIcon from "@/components/workspace/PricingIcon"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
+
+const copy = {
+  fr: {
+    noFirstName: "Sans prénom",
+    loadFailedTitle: "Impossible de charger les missions.",
+    retry: "Réessayer",
+    pricingBadge: "Pricing",
+    title: "Vos missions à chiffrer",
+    subtitleEmpty: "Aucune mission ouverte pour l'instant. Créez-en une depuis l'onglet Missions.",
+    subtitleCount: (n: number) => `${n} mission${n > 1 ? "s" : ""} ouverte${n > 1 ? "s" : ""}. Cliquez pour ouvrir le chiffrage candidat.`,
+    orgPricingPolicy: "Politique pricing organisation",
+    syntecReference: "Référence Syntec",
+    notConfiguredOwner: "Politique pricing pas encore configurée",
+    notConfiguredMember: "Le cabinet n'a pas encore configuré sa politique pricing",
+    notConfiguredOwnerBody: "Réglez vos marges et avantages dans la console organisation.",
+    notConfiguredMemberBody: "L'owner n'a pas réglé les marges et avantages — valeurs par défaut en attendant.",
+    configure: "Configurer →",
+    emptyTitle: "Aucune mission ouverte",
+    emptyBody: "Créez une mission depuis l'onglet Missions.",
+    goToMissions: "Aller aux Missions →",
+    myMissions: "Mes missions",
+    missionsOf: (name: string) => `Missions de ${name}`,
+    member: "Membre",
+    missionCount: (n: number) => `${n} mission${n > 1 ? "s" : ""}`,
+    inPipeline: (n: number) => `${n} en pipeline`,
+    months: (n: number) => `${n} mois`,
+    open: "Ouvrir →",
+    readyToPrice: "Prêt à chiffrer",
+    tjmLabel: (v: string) => `TJM ${v}`,
+    toComplete: "⚠ À compléter · TJM, durée, date",
+  },
+  en: {
+    noFirstName: "No first name",
+    loadFailedTitle: "Couldn't load the missions.",
+    retry: "Retry",
+    pricingBadge: "Pricing",
+    title: "Your missions to price",
+    subtitleEmpty: "No open mission yet. Create one from the Missions tab.",
+    subtitleCount: (n: number) => `${n} open mission${n > 1 ? "s" : ""}. Click to open the candidate pricing.`,
+    orgPricingPolicy: "Organization pricing policy",
+    syntecReference: "Syntec reference",
+    notConfiguredOwner: "Pricing policy not configured yet",
+    notConfiguredMember: "The organization hasn't configured its pricing policy yet",
+    notConfiguredOwnerBody: "Set your margins and benefits in the organization console.",
+    notConfiguredMemberBody: "The owner hasn't set the margins and benefits yet — default values in the meantime.",
+    configure: "Configure →",
+    emptyTitle: "No open mission",
+    emptyBody: "Create a mission from the Missions tab.",
+    goToMissions: "Go to Missions →",
+    myMissions: "My missions",
+    missionsOf: (name: string) => `${name}'s missions`,
+    member: "Member",
+    missionCount: (n: number) => `${n} mission${n > 1 ? "s" : ""}`,
+    inPipeline: (n: number) => `${n} in pipeline`,
+    months: (n: number) => `${n} months`,
+    open: "Open →",
+    readyToPrice: "Ready to price",
+    tjmLabel: (v: string) => `Daily rate ${v}`,
+    toComplete: "⚠ To complete · daily rate, duration, date",
+  },
+}
 
 interface MissionRow {
   job: Pick<Job,
@@ -44,6 +106,8 @@ type ProfilePricing = Pick<CabinetPricingConfig,
 > | null
 
 export default function PricingPage() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const { profile: workspaceProfile } = useWorkspace()
   const isOwner = workspaceProfile?.role === "owner"
   const sb = useMemo(() => getSupabase(), [])
@@ -75,7 +139,7 @@ export default function PricingPage() {
     ])
     const m = new Map<string, string>()
     for (const p of (profilesData ?? []) as Array<{ user_id: string; first_name: string | null }>) {
-      m.set(p.user_id, (p.first_name?.trim() || "Sans prénom"))
+      m.set(p.user_id, (p.first_name?.trim() || t.noFirstName))
     }
     setMembers(m)
     const prof = cabinetCfg ? {
@@ -96,7 +160,7 @@ export default function PricingPage() {
     }))
     setMissions(rows)
     setProfile(prof ?? null)
-  }, [sb])
+  }, [sb, t])
 
   useEffect(() => {
     let mounted = true
@@ -107,7 +171,7 @@ export default function PricingPage() {
         if (!mounted) return
         // Filet de sécurité : si Supabase timeout (cold start, panne, réseau client),
         // on affiche une carte d'erreur avec retry plutôt qu'une page blanche.
-        setLoadError(err instanceof Error ? err.message : "Erreur de chargement")
+        setLoadError(err instanceof Error ? err.message : t.loadFailedTitle)
         setMissions([])     // sort du loading state
         setProfile(null)
       }
@@ -128,7 +192,7 @@ export default function PricingPage() {
           fontFamily: "var(--font-inter), sans-serif",
         }}>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
-            Impossible de charger les missions.
+            {t.loadFailedTitle}
           </p>
           <p style={{ margin: "6px 0 14px", fontSize: 12.5, color: "#7F1D1D" }}>
             {loadError}
@@ -146,7 +210,7 @@ export default function PricingPage() {
               fontFamily: "inherit",
             }}
           >
-            Réessayer
+            {t.retry}
           </button>
         </div>
       </main>
@@ -186,7 +250,7 @@ export default function PricingPage() {
           .filter(([uid]) => uid !== currentUserId)
           .map(([uid, rows]) => ({
             userId: uid,
-            firstName: members.get(uid) ?? "Membre",
+            firstName: members.get(uid) ?? t.member,
             rows,
           }))
           .sort((a, b) => a.firstName.localeCompare(b.firstName))
@@ -202,12 +266,12 @@ export default function PricingPage() {
         return (
           <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 22 }}>
             {mine.length > 0 && (
-              <PricingGroup title="Mes missions" rows={mine} isMine />
+              <PricingGroup title={t.myMissions} rows={mine} isMine />
             )}
             {others.map((g) => (
               <PricingGroup
                 key={g.userId}
-                title={`Missions de ${g.firstName}`}
+                title={t.missionsOf(g.firstName)}
                 rows={g.rows}
               />
             ))}
@@ -230,6 +294,8 @@ function PricingGroup({ title, rows, isMine }: {
   rows: MissionRow[]
   isMine?: boolean
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const accent = isMine ? "#7C63C8" : "#6B7280"
   return (
     <section>
@@ -249,7 +315,7 @@ function PricingGroup({ title, rows, isMine }: {
           {title}
         </h2>
         <span style={{ fontSize: 11.5, fontWeight: 600, color: "#6B7280" }}>
-          · {rows.length} mission{rows.length > 1 ? "s" : ""}
+          · {t.missionCount(rows.length)}
         </span>
       </header>
       <div style={{
@@ -270,6 +336,8 @@ function PricingGroup({ title, rows, isMine }: {
  * ────────────────────────────────────────────────────────────────────────── */
 
 function Header({ missionCount }: { missionCount: number }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div>
       <span style={{
@@ -279,7 +347,7 @@ function Header({ missionCount }: { missionCount: number }) {
         padding: "4px 11px", borderRadius: 100,
         letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
       }}>
-        <PricingIcon size={11} style={{ marginRight: 5 }} /> Pricing
+        <PricingIcon size={11} style={{ marginRight: 5 }} /> {t.pricingBadge}
       </span>
       <div style={{
         display: "flex", justifyContent: "space-between", alignItems: "flex-end",
@@ -290,20 +358,18 @@ function Header({ missionCount }: { missionCount: number }) {
             margin: 0, fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 800,
             color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15,
           }}>
-            Vos missions à chiffrer
+            {t.title}
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6, maxWidth: 640 }}>
-            {missionCount === 0
-              ? "Aucune mission ouverte pour l'instant. Créez-en une depuis l'onglet Missions."
-              : `${missionCount} mission${missionCount > 1 ? "s" : ""} ouverte${missionCount > 1 ? "s" : ""}. Cliquez pour ouvrir le chiffrage candidat.`}
+            {missionCount === 0 ? t.subtitleEmpty : t.subtitleCount(missionCount)}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/organisation/parametrage" style={linkBtnStyle}>
-            Politique pricing organisation
+            {t.orgPricingPolicy}
           </Link>
           <Link href="/workspace/pricing/reference" style={linkBtnStyle}>
-            Référence Syntec
+            {t.syntecReference}
           </Link>
         </div>
       </div>
@@ -325,6 +391,8 @@ const linkBtnStyle: React.CSSProperties = {
  * ────────────────────────────────────────────────────────────────────────── */
 
 function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{
       marginTop: 18,
@@ -340,14 +408,10 @@ function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
     }}>
       <div style={{ minWidth: 0, flex: "1 1 280px" }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#92400E" }}>
-          {isOwner
-            ? "Politique pricing pas encore configurée"
-            : "Le cabinet n'a pas encore configuré sa politique pricing"}
+          {isOwner ? t.notConfiguredOwner : t.notConfiguredMember}
         </p>
         <p style={{ margin: "2px 0 0", fontSize: 12, color: "#7C2D12", lineHeight: 1.5 }}>
-          {isOwner
-            ? "Réglez vos marges et avantages dans la console organisation."
-            : "L'owner n'a pas réglé les marges et avantages — valeurs par défaut en attendant."}
+          {isOwner ? t.notConfiguredOwnerBody : t.notConfiguredMemberBody}
         </p>
       </div>
       {isOwner ? (
@@ -361,7 +425,7 @@ function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
             textDecoration: "none", whiteSpace: "nowrap",
           }}
         >
-          Configurer →
+          {t.configure}
         </Link>
       ) : null}
     </div>
@@ -373,6 +437,8 @@ function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
  * ────────────────────────────────────────────────────────────────────────── */
 
 function EmptyState() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <m.div
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -389,13 +455,13 @@ function EmptyState() {
         margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827",
         letterSpacing: "-0.015em",
       }}>
-        Aucune mission ouverte
+        {t.emptyTitle}
       </h2>
       <p style={{
         margin: "0 auto 18px", maxWidth: 540, fontSize: 14, color: "#6B7280",
         lineHeight: 1.6,
       }}>
-        Créez une mission depuis l&apos;onglet Missions.
+        {t.emptyBody}
       </p>
       <Link href="/workspace/missions" style={{
         display: "inline-block",
@@ -404,7 +470,7 @@ function EmptyState() {
         color: "white", fontWeight: 700, fontSize: 14, textDecoration: "none",
         boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
-        Aller aux Missions →
+        {t.goToMissions}
       </Link>
     </m.div>
   )
@@ -415,6 +481,8 @@ function EmptyState() {
  * ────────────────────────────────────────────────────────────────────────── */
 
 function MissionCard({ row, index }: { row: MissionRow; index: number }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const { job, pricingCandidatesCount } = row
 
   const hasTjm = job.client_tjm_min != null || job.client_tjm_max != null
@@ -425,12 +493,13 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
   // target_gross_salary is optional (peut être déduit).
   const allRequiredFilled = filledCount === 3
 
+  const perDay = lang === "fr" ? "€/j" : "€/d"
   const tjmLabel = job.client_tjm_min != null && job.client_tjm_max != null
-    ? `${job.client_tjm_min}–${job.client_tjm_max} €/j`
+    ? `${job.client_tjm_min}–${job.client_tjm_max} ${perDay}`
     : job.client_tjm_min != null
-      ? `≥ ${job.client_tjm_min} €/j`
+      ? `≥ ${job.client_tjm_min} ${perDay}`
       : job.client_tjm_max != null
-        ? `≤ ${job.client_tjm_max} €/j`
+        ? `≤ ${job.client_tjm_max} ${perDay}`
         : null
 
   return (
@@ -466,7 +535,7 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
               border: "1px solid rgba(124,99,200,0.25)",
               borderRadius: 100, padding: "3px 9px",
             }}>
-              {pricingCandidatesCount} en pipeline
+              {t.inPipeline(pricingCandidatesCount)}
             </span>
           )}
         </div>
@@ -477,7 +546,7 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
         }}>
           {job.location && <Tag>{job.location}</Tag>}
           {job.contract_type && <Tag>{job.contract_type}</Tag>}
-          {job.duration_months && <Tag>{job.duration_months} mois</Tag>}
+          {job.duration_months && <Tag>{t.months(job.duration_months)}</Tag>}
         </div>
 
         <div style={{
@@ -493,7 +562,7 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
             fontSize: 12, fontWeight: 700, color: "#7C63C8",
             display: "inline-flex", alignItems: "center", gap: 4,
           }}>
-            Ouvrir →
+            {t.open}
           </span>
         </div>
       </Link>
@@ -519,13 +588,15 @@ function PricingStatus({
   filledCount: number
   tjmLabel: string | null
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   if (allRequiredFilled) {
     return (
       <span style={{
         fontSize: 11, fontWeight: 700, color: "#15803d",
         display: "inline-flex", alignItems: "center", gap: 5,
       }}>
-        ✓ {tjmLabel ? `TJM ${tjmLabel}` : "Prêt à chiffrer"}
+        ✓ {tjmLabel ? t.tjmLabel(tjmLabel) : t.readyToPrice}
       </span>
     )
   }
@@ -534,7 +605,7 @@ function PricingStatus({
       fontSize: 11, fontWeight: 600, color: "#B45309",
       display: "inline-flex", alignItems: "center", gap: 5,
     }}>
-      ⚠ À compléter · TJM, durée, date
+      {t.toComplete}
     </span>
   )
 }

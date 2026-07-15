@@ -32,8 +32,50 @@ import {
   computeRuptureRiskProfile,
   type PricingInputs,
 } from "@/lib/pricing/syntec"
-import { MONTH_ABBR_FR } from "@/lib/pricing/calendar"
+import { MONTH_ABBR_FR, MONTH_ABBR_EN } from "@/lib/pricing/calendar"
 import { ChartLegend } from "./MonthlyMarginChart"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    needsMission: "Renseigne la mission pour afficher l'analyse de risque rupture.",
+    chartTitle: "Coût de rupture conventionnelle",
+    chartSubtitle: "Marge restante si l'employeur négocie une RC à chaque mois T",
+    chartAriaLabel: (n: number) => `Coût rupture conventionnelle sur ${n} mois`,
+    trialPeriod: "Période d'essai",
+    noCostRupture: "rupture sans coût",
+    trialEnd: "fin essai",
+    cumulMargin: "Marge cumulée",
+    rcCost: "Coût RC",
+    rcAllowance: "Indemnité RC",
+    unusedLeave: "CP non pris",
+    netIfRc: "Net si RC",
+    ifDismissal: "Si licenciement",
+    ruptureCost: "Coût rupture",
+    inTrialPeriod: "En période d'essai — rupture sans coût",
+    legendRc: "marge si rupture conventionnelle",
+    legendDismissal: "marge si licenciement (worst case)",
+  },
+  en: {
+    needsMission: "Fill in the mission to display the termination risk analysis.",
+    chartTitle: "Mutual termination cost (RC)",
+    chartSubtitle: "Remaining margin if the employer negotiates a mutual termination (RC) at month T",
+    chartAriaLabel: (n: number) => `Mutual termination cost over ${n} months`,
+    trialPeriod: "Trial period",
+    noCostRupture: "no-cost termination",
+    trialEnd: "trial end",
+    cumulMargin: "Cumulative margin",
+    rcCost: "RC cost",
+    rcAllowance: "RC allowance",
+    unusedLeave: "Unused paid leave",
+    netIfRc: "Net if RC",
+    ifDismissal: "If dismissal",
+    ruptureCost: "Termination cost",
+    inTrialPeriod: "In trial period — no-cost termination",
+    legendRc: "margin if mutual termination",
+    legendDismissal: "margin if dismissal (worst case)",
+  },
+}
 
 interface Props {
   inputs: PricingInputs
@@ -59,6 +101,10 @@ const PLOT_H = H - PAD_T - PAD_B
 export default function RuptureRiskChart({
   inputs, startDate, durationMonths, tjm, margeMinPct, typeContrat = 'cdi',
 }: Props) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
+  const monthAbbr = lang === "fr" ? MONTH_ABBR_FR : MONTH_ABBR_EN
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const start = useMemo(() => {
     if (!startDate) return new Date()
@@ -89,7 +135,7 @@ export default function RuptureRiskChart({
         background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
         padding: 20, color: "#6B7280", fontSize: 13, textAlign: "center",
       }}>
-        Renseigne la mission pour afficher l&apos;analyse de risque rupture.
+        {t.needsMission}
       </div>
     )
   }
@@ -155,10 +201,10 @@ export default function RuptureRiskChart({
       }}>
         <div>
           <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
-            Coût de rupture conventionnelle
+            {t.chartTitle}
           </h4>
           <p style={{ margin: "3px 0 0", fontSize: 10.5, color: "#6B7280" }}>
-            Marge restante si l&apos;employeur négocie une RC à chaque mois T
+            {t.chartSubtitle}
           </p>
         </div>
         {margeMinPct !== undefined && (
@@ -169,7 +215,7 @@ export default function RuptureRiskChart({
       <svg
         viewBox={`0 0 ${W} ${H}`}
         width="100%" height="auto" role="img"
-        aria-label={`Coût rupture conventionnelle sur ${rows.length} mois`}
+        aria-label={t.chartAriaLabel(rows.length)}
         style={{ display: "block", overflow: "visible" }}
         onMouseLeave={() => setHoveredIdx(null)}
       >
@@ -191,7 +237,7 @@ export default function RuptureRiskChart({
               letterSpacing="0.04em"
               style={{ textTransform: "uppercase" }}
             >
-              Période d&apos;essai
+              {t.trialPeriod}
             </text>
             <text
               x={PAD_L + (finEssaiX - PAD_L) / 2}
@@ -201,7 +247,7 @@ export default function RuptureRiskChart({
               textAnchor="middle"
               opacity={0.75}
             >
-              rupture sans coût
+              {t.noCostRupture}
             </text>
             <line
               x1={finEssaiX} y1={PAD_T} x2={finEssaiX} y2={PAD_T + PLOT_H}
@@ -211,7 +257,7 @@ export default function RuptureRiskChart({
               x={finEssaiX + 4} y={PAD_T + PLOT_H - 4}
               fontSize={9} fill="#B91C1C" opacity={0.8}
             >
-              fin essai
+              {t.trialEnd}
             </text>
           </>
         )}
@@ -230,7 +276,7 @@ export default function RuptureRiskChart({
               fontSize={10} fill="#6B7280" textAnchor="end"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
-              {compactEur(v)}
+              {compactEur(v, locale)}
             </text>
           </g>
         ))}
@@ -304,7 +350,7 @@ export default function RuptureRiskChart({
                   fontSize={9.5} fill="#374151" textAnchor="middle" fontWeight={700}
                   style={{ pointerEvents: "none" }}
                 >
-                  {compactEur(r.margeCumulNominaleEur)}
+                  {compactEur(r.margeCumulNominaleEur, locale)}
                 </text>
               )}
             </g>
@@ -362,7 +408,7 @@ export default function RuptureRiskChart({
                 x={xOf(i)} y={PAD_T + PLOT_H + 16}
                 fontSize={10} fill="#6B7280" textAnchor="middle" fontWeight={600}
               >
-                {MONTH_ABBR_FR[r.calendarMonth]}
+                {monthAbbr[r.calendarMonth]}
               </text>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 30}
@@ -413,24 +459,24 @@ export default function RuptureRiskChart({
               fontSize: 10, color: "#6B7280", fontWeight: 700,
               letterSpacing: "0.05em", textTransform: "uppercase",
             }}>
-              {MONTH_ABBR_FR[r.calendarMonth]} {r.year} · m{r.monthIndex}
+              {monthAbbr[r.calendarMonth]} {r.year} · m{r.monthIndex}
             </div>
-            <Row label="Marge cumulée" value={formatEur(r.margeCumulNominaleEur)} color="#374151" />
+            <Row label={t.cumulMargin} value={formatEur(r.margeCumulNominaleEur, locale)} color="#374151" />
             {r.coutRupture > 0 ? (
               <>
                 <div style={{ borderTop: "1px solid #F0ECF8", margin: "3px 0" }} />
-                <Row label="Coût RC" value={`− ${formatEur(r.coutRupture)}`} color="#7C63C8" />
-                <RowSmall label="Indemnité RC" value={formatEur(r.breakdown.indemniteRC)} swatch="rgba(184,174,222,0.85)" />
-                <RowSmall label="CP non pris" value={formatEur(r.breakdown.indemniteCp)} swatch="rgba(124,99,200,0.85)" />
+                <Row label={t.rcCost} value={`− ${formatEur(r.coutRupture, locale)}`} color="#7C63C8" />
+                <RowSmall label={t.rcAllowance} value={formatEur(r.breakdown.indemniteRC, locale)} swatch="rgba(184,174,222,0.85)" />
+                <RowSmall label={t.unusedLeave} value={formatEur(r.breakdown.indemniteCp, locale)} swatch="rgba(124,99,200,0.85)" />
                 <div style={{ borderTop: "1px solid #F0ECF8", margin: "3px 0" }} />
-                <Row label="Net si RC" value={`${formatEur(r.margeNetteEur)} · ${r.margePct.toFixed(0)}%`} color={margeColor} bold />
-                <RowSmall label="Si licenciement" value={formatEur(r.margeNetteLicenciementEur)} swatch="#6B7280" dashed />
+                <Row label={t.netIfRc} value={`${formatEur(r.margeNetteEur, locale)} · ${r.margePct.toFixed(0)}%`} color={margeColor} bold />
+                <RowSmall label={t.ifDismissal} value={formatEur(r.margeNetteLicenciementEur, locale)} swatch="#6B7280" dashed />
               </>
             ) : (
               <>
-                <Row label="Coût rupture" value="—" color="#6B7280" />
+                <Row label={t.ruptureCost} value="—" color="#6B7280" />
                 <div style={{ fontSize: 10, color: "#6B7280", fontStyle: "italic", marginTop: 2 }}>
-                  En période d&apos;essai — rupture sans coût
+                  {t.inTrialPeriod}
                 </div>
               </>
             )}
@@ -445,14 +491,14 @@ export default function RuptureRiskChart({
       }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           <span style={{ width: 16, height: 2.5, background: "#7C63C8", borderRadius: 2 }} />
-          marge si rupture conventionnelle
+          {t.legendRc}
         </span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           <span style={{
             width: 16, height: 2,
             background: "repeating-linear-gradient(to right, #6B7280 0 5px, transparent 5px 9px)",
           }} />
-          marge si licenciement (worst case)
+          {t.legendDismissal}
         </span>
       </div>
 
@@ -510,18 +556,18 @@ function RowSmall({
   )
 }
 
-function formatEur(v: number): string {
+function formatEur(v: number, locale = "fr-FR"): string {
   const sign = v < 0 ? "−" : ""
-  return `${sign}${Math.abs(Math.round(v)).toLocaleString("fr-FR")} €`
+  return `${sign}${Math.abs(Math.round(v)).toLocaleString(locale)} €`
 }
 
-function compactEur(v: number): string {
+function compactEur(v: number, locale = "fr-FR"): string {
   const sign = v < 0 ? "−" : ""
   const abs = Math.abs(v)
   if (abs < 1000) return `${sign}${Math.round(abs)} €`
   const kEur = abs / 1000
   const digits = kEur >= 10 ? 0 : 1
-  return `${sign}${kEur.toFixed(digits)} k€`
+  return `${sign}${kEur.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits })} k€`
 }
 
 function niceStep(roughStep: number): number {
