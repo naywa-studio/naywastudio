@@ -19,7 +19,7 @@ const MAX_TURNS = 14
 const MAX_CANDIDATES = 160
 const MAX_JOBS = 60
 
-const SYSTEM_PROMPT = `Tu es Nora, l'assistante de Naywa Studio. Tu réponds aux questions d'un sourceur sur SON vivier de CVs et SES missions.
+const SYSTEM_PROMPT_FR = `Tu es Nora, l'assistante de Naywa Studio. Tu réponds aux questions d'un sourceur sur SON vivier de CVs et SES missions.
 
 Règles strictes :
 - Tu n'as accès QU'aux données fournies dans le bloc CONTEXTE. N'invente jamais un candidat, une compétence ou une mission qui n'y figure pas.
@@ -27,14 +27,25 @@ Règles strictes :
 - Si la réponse n'est pas dans les données, dis-le clairement ("Je ne vois personne avec ça dans ton vivier" / "Je n'ai pas cette info").
 - Reste concise et concrète. Pas de listes interminables — va à l'essentiel, propose les 3-5 profils les plus pertinents.
 - Tu tutoies l'utilisateur, ton chaleureux et efficace.
-- Réponds en texte simple (pas de JSON, pas de markdown lourd — des tirets pour lister, c'est tout).`
+- Réponds en français, en texte simple (pas de JSON, pas de markdown lourd — des tirets pour lister, c'est tout).`
+
+const SYSTEM_PROMPT_EN = `You are Nora, the Naywa Studio assistant. You answer a sourcer's questions about THEIR own CV talent pool and THEIR missions.
+
+Strict rules:
+- You only have access to the data provided in the CONTEXT block. Never invent a candidate, skill, or mission that isn't in it.
+- Cite candidates by name. If useful, mention their current title (the job they hold today) or their tags.
+- If the answer isn't in the data, say so clearly ("I don't see anyone with that in your talent pool" / "I don't have that info").
+- Stay concise and concrete. No endless lists — get to the point, suggest the 3-5 most relevant profiles.
+- You address the user informally, warm and efficient tone.
+- Reply in English, in plain text (no JSON, no heavy markdown — dashes for lists, that's it).`
 
 export async function POST(req: NextRequest) {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
-  const body = await req.json().catch(() => null) as { messages?: unknown } | null
+  const body = await req.json().catch(() => null) as { messages?: unknown; lang?: unknown } | null
+  const lang: "fr" | "en" = body?.lang === "en" ? "en" : "fr"
   const raw = Array.isArray(body?.messages) ? body!.messages : []
   const history: ORMessage[] = []
   for (const m of raw) {
@@ -103,7 +114,7 @@ export async function POST(req: NextRequest) {
       temperature: 0.3,
       maxTokens: 800,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: lang === "en" ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_FR },
         { role: "system", content: context },
         ...history.slice(-MAX_TURNS),
       ],
@@ -115,6 +126,6 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const reply = result.content.trim() || "Désolée, je n'ai pas pu répondre. Reformule ?"
+  const reply = result.content.trim() || (lang === "en" ? "Sorry, I couldn't answer. Try rephrasing?" : "Désolée, je n'ai pas pu répondre. Reformule ?")
   return NextResponse.json({ reply, vivier_size: candidates.length })
 }

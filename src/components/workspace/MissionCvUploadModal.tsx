@@ -200,7 +200,7 @@ export function MissionCvUploadModal({
       const scoreRes = await fetch("/api/match/score-one", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidate_id: candId, job_id: jobId }),
+        body: JSON.stringify({ candidate_id: candId, job_id: jobId, lang }),
       })
       const scoreData = await scoreRes.json().catch(() => ({} as Record<string, unknown>))
       if (!scoreRes.ok || scoreData?.error) {

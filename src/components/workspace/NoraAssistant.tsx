@@ -2,17 +2,39 @@
 
 import { useEffect, useRef, useState } from "react"
 import { m, AnimatePresence } from "framer-motion"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
-interface Msg { role: "user" | "assistant"; content: string }
+interface Msg { role: "user" | "assistant"; content: string; isGreeting?: boolean }
 
-const GREETING: Msg = {
-  role: "assistant",
-  content: "Salut ! Pose-moi une question sur ton vivier — par exemple « qui maîtrise React et a plus de 5 ans d'expérience ? » ou « résume-moi les profils data ».",
+const copy = {
+  fr: {
+    greeting: "Salut ! Pose-moi une question sur ton vivier — par exemple « qui maîtrise React et a plus de 5 ans d'expérience ? » ou « résume-moi les profils data ».",
+    triggerAria: "Assistant Nora",
+    subtitle: "Assistante vivier",
+    thinking: "Nora cherche…",
+    placeholder: "Demande quelque chose…",
+    couldNotAnswer: "Nora n'a pas pu répondre.",
+    networkError: "Erreur réseau.",
+    fallbackReply: "…",
+  },
+  en: {
+    greeting: "Hi! Ask me anything about your talent pool — e.g. \"who knows React and has 5+ years of experience?\" or \"summarize the data profiles\".",
+    triggerAria: "Nora assistant",
+    subtitle: "Talent pool assistant",
+    thinking: "Nora is searching…",
+    placeholder: "Ask something…",
+    couldNotAnswer: "Nora couldn't answer.",
+    networkError: "Network error.",
+    fallbackReply: "…",
+  },
 }
 
 export function NoraAssistant() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const GREETING: Msg = { role: "assistant", content: t.greeting, isGreeting: true }
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Msg[]>([GREETING])
   const [input, setInput] = useState("")
@@ -41,17 +63,17 @@ export function NoraAssistant() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // Drop the static greeting before sending — it's not real context.
-        body: JSON.stringify({ messages: next.filter((m) => m !== GREETING) }),
+        body: JSON.stringify({ messages: next.filter((m) => !m.isGreeting).map(({ role, content }) => ({ role, content })), lang }),
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data?.detail ?? data?.error ?? "Nora n'a pas pu répondre.")
+        setError(data?.detail ?? data?.error ?? t.couldNotAnswer)
         setThinking(false)
         return
       }
-      setMessages((prev) => [...prev, { role: "assistant", content: String(data.reply ?? "…") }])
+      setMessages((prev) => [...prev, { role: "assistant", content: String(data.reply ?? t.fallbackReply) }])
     } catch (err) {
-      setError((err as Error).message ?? "Erreur réseau.")
+      setError((err as Error).message ?? t.networkError)
     } finally {
       setThinking(false)
     }
@@ -62,7 +84,7 @@ export function NoraAssistant() {
       {/* Floating trigger */}
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label="Assistant Nora"
+        aria-label={t.triggerAria}
         style={{
           position: "fixed", right: 22, bottom: 22, zIndex: 60,
           width: 54, height: 54, borderRadius: "50%",
@@ -111,7 +133,7 @@ export function NoraAssistant() {
               }}>✦</span>
               <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#111827" }}>Nora</p>
-                <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>Assistante vivier</p>
+                <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>{t.subtitle}</p>
               </div>
             </div>
 
@@ -141,7 +163,7 @@ export function NoraAssistant() {
                   alignSelf: "flex-start", fontSize: 13, color: "#6B7280",
                   padding: "8px 12px", background: "#F4F1FB", borderRadius: "13px 13px 13px 4px",
                 }}>
-                  Nora cherche…
+                  {t.thinking}
                 </div>
               )}
               {error && (
@@ -159,7 +181,7 @@ export function NoraAssistant() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send() } }}
-                placeholder="Demande quelque chose…"
+                placeholder={t.placeholder}
                 disabled={thinking}
                 style={{
                   flex: 1, fontSize: 13, color: "#111827",

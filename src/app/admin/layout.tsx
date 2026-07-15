@@ -17,6 +17,7 @@ import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import { getSupabase } from "@/lib/supabase"
 import type { Profile } from "@/lib/database.types"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 interface AdminCtx {
   profile: Profile
@@ -31,16 +32,42 @@ export function useAdmin() {
   return ctx
 }
 
-const TABS: { href: string; label: string }[] = [
-  { href: "/admin",          label: "Tableau de bord" },
-  { href: "/admin/maj",      label: "Nouveautés" },
-  { href: "/admin/recherche", label: "Recherche" },
-  { href: "/admin/demandes", label: "Demandes" },
-]
+const TABS: Record<Lang, { href: string; label: string }[]> = {
+  fr: [
+    { href: "/admin",          label: "Tableau de bord" },
+    { href: "/admin/maj",      label: "Nouveautés" },
+    { href: "/admin/recherche", label: "Recherche" },
+    { href: "/admin/demandes", label: "Demandes" },
+  ],
+  en: [
+    { href: "/admin",          label: "Dashboard" },
+    { href: "/admin/maj",      label: "Updates" },
+    { href: "/admin/recherche", label: "Search" },
+    { href: "/admin/demandes", label: "Requests" },
+  ],
+}
+
+const copy = {
+  fr: {
+    loading: "Chargement…",
+    homeTitle: "Accueil naywastudio.com",
+    workspace: "Workspace →",
+    loggedInAs: (email: string) => `Connecté en tant que ${email}. Déconnexion`,
+  },
+  en: {
+    loading: "Loading…",
+    homeTitle: "naywastudio.com home",
+    workspace: "Workspace →",
+    loggedInAs: (email: string) => `Signed in as ${email}. Sign out`,
+  },
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const tabs = TABS[lang]
   const [ctx, setCtx] = useState<AdminCtx | null>(null)
   const [ready, setReady] = useState(false)
 
@@ -75,7 +102,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA" }}>
         <span style={{ color: "#6B7280", fontSize: 14, fontFamily: "var(--font-inter), sans-serif" }}>
-          Chargement…
+          {t.loading}
         </span>
       </div>
     )
@@ -101,7 +128,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           padding: "0 20px",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <Link href="/" style={{ textDecoration: "none" }} title="Accueil naywastudio.com">
+            <Link href="/" style={{ textDecoration: "none" }} title={t.homeTitle}>
               <Logo size="md" />
             </Link>
             <span style={{
@@ -114,12 +141,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               Admin
             </span>
             <nav style={{ display: "flex", alignItems: "center", gap: 2, marginLeft: 16 }}>
-              {TABS.map((t) => {
-                const active = isActive(t.href)
+              {tabs.map((tab) => {
+                const active = isActive(tab.href)
                 return (
                   <Link
-                    key={t.href}
-                    href={t.href}
+                    key={tab.href}
+                    href={tab.href}
                     style={{
                       position: "relative",
                       fontSize: 13,
@@ -133,7 +160,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       transition: "background 150ms, color 150ms",
                     }}
                   >
-                    {t.label}
+                    {tab.label}
                   </Link>
                 )
               })}
@@ -145,12 +172,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               textDecoration: "none", padding: "6px 10px",
               border: "1px solid #E5E7EB", borderRadius: 8, background: "white",
             }}>
-              Workspace →
+              {t.workspace}
             </Link>
             <button
               type="button"
               onClick={handleLogout}
-              aria-label={`Connecté en tant que ${ctx.userEmail}. Déconnexion`}
+              aria-label={t.loggedInAs(ctx.userEmail)}
               title={ctx.userEmail}
               style={{
                 width: 34, height: 34, borderRadius: "50%",

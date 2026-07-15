@@ -34,12 +34,13 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
   const body = await req.json().catch(() => null) as
-    { candidate_id?: unknown; job_id?: unknown; source?: unknown } | null
+    { candidate_id?: unknown; job_id?: unknown; source?: unknown; lang?: unknown } | null
   const candidateId = typeof body?.candidate_id === "string" ? body.candidate_id : null
   const jobId = typeof body?.job_id === "string" ? body.job_id : null
   if (!candidateId || !jobId) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 })
   }
+  const lang: "fr" | "en" = body?.lang === "en" ? "en" : "fr"
   // E1 (modale upload mission) envoie source="uploaded". E2 (formulaire
   // public, à venir) enverra source="applied". Défaut "uploaded" puisque
   // cette route n'est aujourd'hui appelée que par E1.
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
 
   let results
   try {
-    results = await scoreBatchCriteria(job, criteria, [candidate])
+    results = await scoreBatchCriteria(job, criteria, [candidate], lang)
   } catch (err) {
     return NextResponse.json(
       { error: "scoring_failed", detail: (err as Error).message },

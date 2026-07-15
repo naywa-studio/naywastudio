@@ -13,6 +13,7 @@ import { renderMarkdown } from "@/lib/markdown"
 import { AFFECTED_PATH_OPTIONS } from "@/lib/affected-paths"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import type { AppUpdateCategory } from "@/lib/database.types"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 interface Row {
   id: string
@@ -25,16 +26,118 @@ interface Row {
   updated_at: string
 }
 
-const CATEGORIES: { value: AppUpdateCategory; label: string; color: string }[] = [
-  { value: "feature",   label: "Nouveauté", color: "#15803D" },
-  { value: "fix",       label: "Correctif", color: "#0369A1" },
-  { value: "important", label: "Important", color: "#B45309" },
-  { value: "announce",  label: "Annonce",   color: "#7C63C8" },
-]
+const CATEGORIES: Record<Lang, { value: AppUpdateCategory; label: string; color: string }[]> = {
+  fr: [
+    { value: "feature",   label: "Nouveauté", color: "#15803D" },
+    { value: "fix",       label: "Correctif", color: "#0369A1" },
+    { value: "important", label: "Important", color: "#B45309" },
+    { value: "announce",  label: "Annonce",   color: "#7C63C8" },
+  ],
+  en: [
+    { value: "feature",   label: "Feature",     color: "#15803D" },
+    { value: "fix",       label: "Fix",         color: "#0369A1" },
+    { value: "important", label: "Important",   color: "#B45309" },
+    { value: "announce",  label: "Announcement", color: "#7C63C8" },
+  ],
+}
+
+const copy = {
+  fr: {
+    badge: "Console admin · Nouveautés",
+    title: "Publier les nouveautés",
+    newUpdate: "+ Publier une nouveauté",
+    loading: "Chargement…",
+    noUpdatesYet: "Aucune nouveauté pour le moment.",
+    clickToStart: "Cliquez sur “Publier une nouveauté” pour commencer.",
+    draft: "Brouillon",
+    published: "Publié",
+    edit: "Éditer",
+    publish: "Publier",
+    unpublish: "Dépublier",
+    delete: "Supprimer",
+    deleteConfirm: (title: string) => `Supprimer définitivement "${title}" ?`,
+    errorWithStatus: (status: number) => `Erreur ${status}`,
+    editEyebrow: "Éditer",
+    newEyebrow: "Nouvelle",
+    editTitle: "Éditer la nouveauté",
+    newTitle: "Publier une nouveauté",
+    titleLabel: "Titre",
+    titlePlaceholder: "Templates de CV anonymisé : 4 styles disponibles",
+    categoryLabel: "Catégorie",
+    contentLabel: "Contenu (markdown)",
+    contentPlaceholder: "Vous pouvez désormais choisir parmi 4 templates pour vos CV anonymisés :\n\n- **Classique** : sobre, mono-colonne\n- **Compact 2 colonnes** : sidebar + parcours\n- **Exécutif** : aéré, gros titre\n- **Bento** : grille moderne\n\nDisponible sur chaque fiche match.",
+    syntaxHelp: "Syntaxe disponible (cliquez pour déplier)",
+    syntaxText: "Texte",
+    syntaxList: "Liste",
+    syntaxListDesc: (code: React.ReactNode) => <>ligne commençant par {code}</>,
+    syntaxHeading: "Titre",
+    syntaxHeadingDesc: "(barre violette + sparkle)",
+    syntaxPills: "Pastilles inline",
+    syntaxCta: "CTA bouton",
+    syntaxCallouts: "Callouts (boîtes colorées, sur plusieurs lignes) :",
+    affectedZonesLabel: "Zones impactées (optionnel)",
+    affectedZonesHint: "Une pastille violette apparaîtra sur chaque item de menu coché jusqu'à ce que l'utilisateur ouvre « Nouveautés ». Laisser vide = pastille globale uniquement.",
+    publishNowLabel: "Publier maintenant (visible immédiatement par les utilisateurs)",
+    previewLabel: "Aperçu",
+    previewPlaceholder: "L'aperçu apparaîtra ici…",
+    noTitle: "(sans titre)",
+    cancel: "Annuler",
+    saving: "Enregistrement…",
+    save: "Enregistrer",
+    create: "Créer",
+  },
+  en: {
+    badge: "Admin console · Updates",
+    title: "Publish updates",
+    newUpdate: "+ Publish an update",
+    loading: "Loading…",
+    noUpdatesYet: "No updates yet.",
+    clickToStart: "Click “Publish an update” to get started.",
+    draft: "Draft",
+    published: "Published",
+    edit: "Edit",
+    publish: "Publish",
+    unpublish: "Unpublish",
+    delete: "Delete",
+    deleteConfirm: (title: string) => `Permanently delete "${title}"?`,
+    errorWithStatus: (status: number) => `Error ${status}`,
+    editEyebrow: "Edit",
+    newEyebrow: "New",
+    editTitle: "Edit update",
+    newTitle: "Publish an update",
+    titleLabel: "Title",
+    titlePlaceholder: "Anonymized CV templates: 4 styles available",
+    categoryLabel: "Category",
+    contentLabel: "Content (markdown)",
+    contentPlaceholder: "You can now choose from 4 templates for your anonymized CVs:\n\n- **Classic**: sober, single-column\n- **Compact 2-column**: sidebar + timeline\n- **Executive**: airy, large title\n- **Bento**: modern grid\n\nAvailable on every match sheet.",
+    syntaxHelp: "Available syntax (click to expand)",
+    syntaxText: "Text",
+    syntaxList: "List",
+    syntaxListDesc: (code: React.ReactNode) => <>line starting with {code}</>,
+    syntaxHeading: "Heading",
+    syntaxHeadingDesc: "(purple bar + sparkle)",
+    syntaxPills: "Inline badges",
+    syntaxCta: "CTA button",
+    syntaxCallouts: "Callouts (colored boxes, multi-line):",
+    affectedZonesLabel: "Affected zones (optional)",
+    affectedZonesHint: "A purple dot will appear on each checked menu item until the user opens “Updates”. Leave empty = global dot only.",
+    publishNowLabel: "Publish now (immediately visible to users)",
+    previewLabel: "Preview",
+    previewPlaceholder: "The preview will appear here…",
+    noTitle: "(untitled)",
+    cancel: "Cancel",
+    saving: "Saving…",
+    save: "Save",
+    create: "Create",
+  },
+}
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 export default function AdminMajPage() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const categories = CATEGORIES[lang]
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Row | "new" | null>(null)
@@ -62,7 +165,7 @@ export default function AdminMajPage() {
   }
 
   const remove = async (row: Row) => {
-    if (!confirm(`Supprimer définitivement "${row.title}" ?`)) return
+    if (!confirm(t.deleteConfirm(row.title))) return
     await fetch(`/api/admin/maj/${row.id}`, { method: "DELETE" })
     void fetchAll()
   }
@@ -82,13 +185,13 @@ export default function AdminMajPage() {
               margin: "0 0 6px", fontSize: 11, fontWeight: 700,
               color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase",
             }}>
-              Console admin · Nouveautés
+              {t.badge}
             </p>
             <h1 style={{
               margin: 0, fontSize: 28, fontWeight: 800, color: "#111827",
               letterSpacing: "-0.02em",
             }}>
-              Publier les nouveautés
+              {t.title}
             </h1>
           </div>
           <button
@@ -103,28 +206,28 @@ export default function AdminMajPage() {
               boxShadow: "0 6px 18px -8px rgba(124,99,200,0.55)",
             }}
           >
-            + Publier une nouveauté
+            {t.newUpdate}
           </button>
         </header>
 
         {loading ? (
-          <p style={{ fontSize: 13, color: "#6B7280" }}>Chargement…</p>
+          <p style={{ fontSize: 13, color: "#6B7280" }}>{t.loading}</p>
         ) : rows.length === 0 ? (
           <div style={{
             padding: 32, textAlign: "center",
             border: "1px dashed #E5E7EB", borderRadius: 14, background: "#FAFAFA",
           }}>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#374151" }}>
-              Aucune nouveauté pour le moment.
+              {t.noUpdatesYet}
             </p>
             <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "#6B7280" }}>
-              Cliquez sur &ldquo;Publier une nouveauté&rdquo; pour commencer.
+              {t.clickToStart}
             </p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {rows.map((row) => {
-              const cat = CATEGORIES.find((c) => c.value === row.category)!
+              const cat = categories.find((c) => c.value === row.category)!
               const isDraft = !row.published_at
               return (
                 <m.article
@@ -157,7 +260,7 @@ export default function AdminMajPage() {
                         padding: "2px 7px", borderRadius: 100,
                         letterSpacing: "0.05em", textTransform: "uppercase",
                       }}>
-                        {isDraft ? "Brouillon" : "Publié"}
+                        {isDraft ? t.draft : t.published}
                       </span>
                     </div>
                     <p style={{
@@ -169,13 +272,13 @@ export default function AdminMajPage() {
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <button type="button" onClick={() => setEditing(row)} style={smallBtnGhost}>
-                      Éditer
+                      {t.edit}
                     </button>
                     <button type="button" onClick={() => void togglePublish(row)} style={smallBtnGhost}>
-                      {isDraft ? "Publier" : "Dépublier"}
+                      {isDraft ? t.publish : t.unpublish}
                     </button>
                     <button type="button" onClick={() => void remove(row)} style={{ ...smallBtnGhost, color: "#B91C1C" }}>
-                      Supprimer
+                      {t.delete}
                     </button>
                   </div>
                 </m.article>
@@ -204,6 +307,9 @@ function EditModal({
   onSaved: () => void
 }) {
   useEscapeKey(onClose)
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const categories = CATEGORIES[lang]
   const [title, setTitle] = useState(initial?.title ?? "")
   const [body, setBody] = useState(initial?.body ?? "")
   const [category, setCategory] = useState<AppUpdateCategory>(initial?.category ?? "feature")
@@ -243,7 +349,7 @@ function EditModal({
         })
         if (!r.ok) {
           const j = await r.json().catch(() => ({} as { error?: string }))
-          throw new Error(j.error ?? `Erreur ${r.status}`)
+          throw new Error(j.error ?? t.errorWithStatus(r.status))
         }
       } else {
         const r = await fetch("/api/admin/maj", {
@@ -253,7 +359,7 @@ function EditModal({
         })
         if (!r.ok) {
           const j = await r.json().catch(() => ({} as { error?: string }))
-          throw new Error(j.error ?? `Erreur ${r.status}`)
+          throw new Error(j.error ?? t.errorWithStatus(r.status))
         }
       }
       onSaved()
@@ -285,10 +391,10 @@ function EditModal({
       }}>
         <header style={{ marginBottom: 18 }}>
           <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase" }}>
-            {initial ? "Éditer" : "Nouvelle"}
+            {initial ? t.editEyebrow : t.newEyebrow}
           </p>
           <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-            {initial ? "Éditer la nouveauté" : "Publier une nouveauté"}
+            {initial ? t.editTitle : t.newTitle}
           </h2>
         </header>
 
@@ -296,33 +402,33 @@ function EditModal({
           {/* Form */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <Label>Titre</Label>
+              <Label>{t.titleLabel}</Label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Templates de CV anonymisé : 4 styles disponibles"
+                placeholder={t.titlePlaceholder}
                 maxLength={200}
                 style={inputStyle}
               />
             </div>
             <div>
-              <Label>Catégorie</Label>
+              <Label>{t.categoryLabel}</Label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as AppUpdateCategory)}
                 style={inputStyle}
               >
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <Label>Contenu (markdown)</Label>
+              <Label>{t.contentLabel}</Label>
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                placeholder={"Vous pouvez désormais choisir parmi 4 templates pour vos CV anonymisés :\n\n- **Classique** : sobre, mono-colonne\n- **Compact 2 colonnes** : sidebar + parcours\n- **Exécutif** : aéré, gros titre\n- **Bento** : grille moderne\n\nDisponible sur chaque fiche match."}
+                placeholder={t.contentPlaceholder}
                 maxLength={8000}
                 rows={14}
                 style={{
@@ -338,7 +444,7 @@ function EditModal({
                   cursor: "pointer", fontSize: 11.5, fontWeight: 600,
                   color: "#7C63C8", userSelect: "none",
                 }}>
-                  Syntaxe disponible (cliquez pour déplier)
+                  {t.syntaxHelp}
                 </summary>
                 <div style={{
                   marginTop: 8, padding: "10px 12px", borderRadius: 8,
@@ -346,12 +452,12 @@ function EditModal({
                   fontSize: 11.5, color: "#4B5563", lineHeight: 1.7,
                   fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
                 }}>
-                  <div><b>Texte</b> : <code>**gras**</code>, <code>*italique*</code>, <code>`code`</code>, <code>[texte](https://…)</code></div>
-                  <div><b>Liste</b> : ligne commençant par <code>- </code></div>
-                  <div><b>Titre</b> : <code>## Mon titre</code> (barre violette + sparkle)</div>
-                  <div style={{ marginTop: 6 }}><b>Pastilles inline</b> : <code>[NOUVEAU]</code>, <code>[FIX]</code>, <code>[AMÉLIORATION]</code>, <code>[ATTENTION]</code>, <code>[BETA]</code></div>
-                  <div style={{ marginTop: 6 }}><b>CTA bouton</b> : <code>:::cta /workspace/vivier|Ouvrir le vivier:::</code></div>
-                  <div style={{ marginTop: 6 }}><b>Callouts</b> (boîtes colorées, sur plusieurs lignes) :</div>
+                  <div><b>{t.syntaxText}</b> : <code>**gras**</code>, <code>*italique*</code>, <code>`code`</code>, <code>[texte](https://…)</code></div>
+                  <div><b>{t.syntaxList}</b> : {t.syntaxListDesc(<code>- </code>)}</div>
+                  <div><b>{t.syntaxHeading}</b> : <code>## Mon titre</code> {t.syntaxHeadingDesc}</div>
+                  <div style={{ marginTop: 6 }}><b>{t.syntaxPills}</b> : <code>[NOUVEAU]</code>, <code>[FIX]</code>, <code>[AMÉLIORATION]</code>, <code>[ATTENTION]</code>, <code>[BETA]</code></div>
+                  <div style={{ marginTop: 6 }}><b>{t.syntaxCta}</b> : <code>:::cta /workspace/vivier|Ouvrir le vivier:::</code></div>
+                  <div style={{ marginTop: 6 }}><b>{t.syntaxCallouts}</b></div>
                   <pre style={{ margin: "4px 0 0", fontSize: 11, whiteSpace: "pre-wrap" }}>{`:::tip
 Astuce pour mieux utiliser cette feature.
 :::
@@ -371,11 +477,9 @@ Confirmation positive.
               </details>
             </div>
             <div>
-              <Label>Zones impactées (optionnel)</Label>
+              <Label>{t.affectedZonesLabel}</Label>
               <p style={{ margin: "0 0 8px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
-                Une pastille violette apparaîtra sur chaque item de menu coché jusqu&apos;à
-                ce que l&apos;utilisateur ouvre &laquo;&nbsp;Nouveautés&nbsp;&raquo;. Laisser vide = pastille
-                globale uniquement.
+                {t.affectedZonesHint}
               </p>
               <div style={{
                 display: "flex", flexDirection: "column", gap: 8,
@@ -426,7 +530,7 @@ Confirmation positive.
                 style={{ accentColor: "#7C63C8" }}
               />
               <span style={{ fontSize: 13, color: "#374151" }}>
-                Publier maintenant (visible immédiatement par les utilisateurs)
+                {t.publishNowLabel}
               </span>
             </label>
             {error && <p style={{ margin: 0, fontSize: 12, color: "#B91C1C" }}>{error}</p>}
@@ -434,7 +538,7 @@ Confirmation positive.
 
           {/* Preview */}
           <div>
-            <Label>Aperçu</Label>
+            <Label>{t.previewLabel}</Label>
             <div style={{
               padding: 18, background: "#FAFAFA",
               border: "1px solid #F0ECF8", borderRadius: 12,
@@ -442,7 +546,7 @@ Confirmation positive.
             }}>
               {title.trim() === "" && body.trim() === "" ? (
                 <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", fontStyle: "italic" }}>
-                  L&apos;aperçu apparaîtra ici…
+                  {t.previewPlaceholder}
                 </p>
               ) : (
                 <>
@@ -450,7 +554,7 @@ Confirmation positive.
                     margin: "0 0 10px", fontSize: 17, fontWeight: 700,
                     color: "#111827", letterSpacing: "-0.01em", lineHeight: 1.3,
                   }}>
-                    {title || "(sans titre)"}
+                    {title || t.noTitle}
                   </h3>
                   <div
                     style={{ fontSize: 13.5, color: "#374151" }}
@@ -464,7 +568,7 @@ Confirmation positive.
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
           <button type="button" onClick={onClose} disabled={busy} style={smallBtnGhost}>
-            Annuler
+            {t.cancel}
           </button>
           <button
             type="button"
@@ -481,7 +585,7 @@ Confirmation positive.
               opacity: title.trim() === "" || body.trim() === "" ? 0.5 : 1,
             }}
           >
-            {busy ? "Enregistrement…" : initial ? "Enregistrer" : "Créer"}
+            {busy ? t.saving : initial ? t.save : t.create}
           </button>
         </div>
       </div>

@@ -1734,7 +1734,7 @@ function CreateSectorModal({
     try {
       const res = await fetch("/api/sectors/define", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: n }),
+        body: JSON.stringify({ name: n, lang }),
       })
       const data = await res.json().catch(() => null) as { description?: string; duplicate_of?: string | null } | null
       if (data) {

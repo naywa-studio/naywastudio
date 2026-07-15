@@ -30,6 +30,10 @@ const copy = {
   fr: {
     badge: "Mon compte",
     title: "Mon profil.",
+    languageTitle: "Langue",
+    languageSubtitle: "Langue d'affichage du produit, sur tous vos appareils.",
+    french: "Français",
+    english: "English",
     personalInfoTitle: "Informations personnelles",
     personalInfoSubtitle: "Visible par vos collègues de l'organisation.",
     firstName: "Prénom",
@@ -69,6 +73,10 @@ const copy = {
   en: {
     badge: "My account",
     title: "My profile.",
+    languageTitle: "Language",
+    languageSubtitle: "Display language for the product, across all your devices.",
+    french: "Français",
+    english: "English",
     personalInfoTitle: "Personal information",
     personalInfoSubtitle: "Visible to your colleagues in the organization.",
     firstName: "First name",
@@ -109,7 +117,7 @@ const copy = {
 
 export default function ProfilPage() {
   const router = useRouter()
-  const { lang } = useLanguage()
+  const { lang, setLang } = useLanguage()
   const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
 
@@ -220,6 +228,33 @@ export default function ProfilPage() {
             <Skeleton />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* ── Langue ─── */}
+              <Card title={t.languageTitle} subtitle={t.languageSubtitle}>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {(["fr", "en"] as const).map((option) => {
+                    const active = lang === option
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setLang(option)}
+                        style={{
+                          padding: "9px 18px", borderRadius: 10,
+                          border: active ? "1.5px solid #7C63C8" : "1px solid #E2DAF6",
+                          background: active ? "rgba(124,99,200,0.08)" : "white",
+                          color: active ? "#7C63C8" : "#374151",
+                          fontSize: 13.5, fontWeight: active ? 700 : 500,
+                          cursor: "pointer",
+                          fontFamily: "var(--font-inter), sans-serif",
+                        }}
+                      >
+                        {option === "fr" ? t.french : t.english}
+                      </button>
+                    )
+                  })}
+                </div>
+              </Card>
+
               {/* ── Informations personnelles ─── */}
               <Card title={t.personalInfoTitle} subtitle={t.personalInfoSubtitle}>
                 <Field label={t.firstName}>

@@ -18,21 +18,30 @@ import { openrouterChat, safeJsonParse } from "@/lib/openrouter"
 export const runtime = "nodejs"
 export const maxDuration = 20
 
-const SYSTEM_PROMPT = `Tu aides un cabinet de recrutement à définir un SECTEUR (domaine métier) pour ranger ses candidats.
+const SYSTEM_PROMPT_FR = `Tu aides un cabinet de recrutement à définir un SECTEUR (domaine métier) pour ranger ses candidats.
 
 À partir d'un NOM de secteur proposé et de la liste des secteurs existants, tu :
-1. Écris une DÉFINITION courte (1 phrase, ≤ 160 caractères) : "Regroupe les profils qui…" — claire, orientée profils/métiers.
+1. Écris une DÉFINITION courte (1 phrase, ≤ 160 caractères) en français : "Regroupe les profils qui…" — claire, orientée profils/métiers.
 2. Repères un éventuel DOUBLON : si le nom recouvre clairement un secteur existant (même domaine), renvoie son nom exact dans "duplicate_of". Sinon "duplicate_of": null.
 
 RÉPONDS UNIQUEMENT EN JSON : { "description": "...", "duplicate_of": "Nom exact" | null }`
+
+const SYSTEM_PROMPT_EN = `You help a recruitment firm define a SECTOR (business domain) to organize its candidates.
+
+Given a proposed sector NAME and the list of existing sectors, you:
+1. Write a short DEFINITION (1 sentence, ≤ 160 characters) in English: "Covers profiles who…" — clear, profile/role-oriented.
+2. Spot a potential DUPLICATE: if the name clearly overlaps an existing sector (same domain), return its exact name in "duplicate_of". Otherwise "duplicate_of": null.
+
+REPLY ONLY IN JSON: { "description": "...", "duplicate_of": "Exact name" | null }`
 
 export async function POST(req: NextRequest) {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
-  const body = await req.json().catch(() => null) as { name?: unknown } | null
+  const body = await req.json().catch(() => null) as { name?: unknown; lang?: unknown } | null
   const name = typeof body?.name === "string" ? body.name.trim() : ""
+  const lang: "fr" | "en" = body?.lang === "en" ? "en" : "fr"
   if (!name || name.length > 60) {
     return NextResponse.json({ error: "invalid_name" }, { status: 400 })
   }
@@ -57,7 +66,7 @@ export async function POST(req: NextRequest) {
       maxTokens: 160,
       timeoutMs: 15_000,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: lang === "en" ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_FR },
         { role: "user", content: `SECTEUR PROPOSÉ : ${name}\n\nSECTEURS EXISTANTS : ${existing.length ? existing.join(", ") : "(aucun)"}` },
       ],
     })

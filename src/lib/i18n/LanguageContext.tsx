@@ -22,6 +22,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>('fr')
   // Tracks whether the current value came from the account (vs. localStorage
   // guess) so setLang knows whether it's safe to persist to the profile.
+  // Kept in sync via onAuthStateChange (not a one-shot getSession() check) :
+  // login/logout usually happen via client-side navigation without a full
+  // page reload, so LanguageProvider (mounted once in the root layout)
+  // would otherwise never learn that a session appeared — setLang would
+  // keep silently skipping the PATCH and the account's saved preference
+  // would never get updated.
   const isAuthedRef = useRef(false)
 
   // Fast paint from localStorage, then reconcile with the account's saved
@@ -31,19 +37,29 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (isLang(stored)) setLangState(stored)
 
     const sb = getSupabase()
-    sb.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session?.user) return
+
+    const syncFromAccount = async (userId: string) => {
       isAuthedRef.current = true
       const { data } = await sb
         .from('profiles')
         .select('preferred_language')
-        .eq('user_id', session.user.id)
+        .eq('user_id', userId)
         .single()
       if (isLang(data?.preferred_language)) {
         setLangState(data.preferred_language)
         window.localStorage.setItem(STORAGE_KEY, data.preferred_language)
       }
+    }
+
+    const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        void syncFromAccount(session.user.id)
+      } else if (event === 'SIGNED_OUT') {
+        isAuthedRef.current = false
+      }
     })
+
+    return () => sub.subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
@@ -58,9 +74,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ preferred_language: next }),
+      }).then((res) => {
+        if (!res.ok) {
+          // eslint-disable-next-line no-console
+          console.error('[LanguageContext] preferred_language save failed', res.status)
+        }
       }).catch(() => {
-        // Best-effort : le localStorage reste la source de vérité immédiate,
-        // un échec réseau ici ne bloque pas le changement de langue affiché.
+        // eslint-disable-next-line no-console
+        console.error('[LanguageContext] preferred_language save failed (network)')
       })
     }
   }

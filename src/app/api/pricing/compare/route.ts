@@ -22,7 +22,23 @@ import { getCabinetPricingConfig } from "@/lib/cabinet-config"
 export const runtime = "nodejs"
 export const maxDuration = 30
 
-const SYSTEM_PROMPT = `Tu es Nora, l'assistante pricing du sourceur. On te montre deux candidats positionnés sur la même mission. Tu produis un vrai avis raisonné — qui est le meilleur choix, pourquoi, et ce qu'il faut surveiller.
+function buildSystemPrompt(lang: "fr" | "en"): string {
+  if (lang === "en") {
+    return `You are Nora, the sourcer's pricing assistant. You're shown two candidates positioned on the same mission. You produce a genuine reasoned opinion — who's the better pick, why, and what to watch out for.
+
+Rules:
+- Reply in strict JSON: { "winner": "A" | "B" | "tie", "commentary": string }.
+- The commentary is 4-5 sentences, written in English.
+- Expected structure:
+  1. Opening sentence announcing the preference (or the tie) with the chosen candidate's name.
+  2. The commercial WHY: compare average margin and monthly margin, quantify the gap in points or euros if relevant.
+  3. The HR WHY: compare seniority, experience, and gross cost. If one is pricier but more experienced, explain the trade-off.
+  4. A concrete point of attention: termination risk if gross is below the Syntec minimum, margin below the firm's floor, or a strong gap between displayed daily rate and proposed gross salary.
+  5. (Optional) An action suggestion: "You could adjust X to…".
+- If the gap is minor (< 1 margin pt AND equivalent gross), reply winner = "tie" and explain why both profiles are commercially equivalent, suggesting the human criterion that could break the tie.
+- Don't re-list every raw number from the snapshot — extract the signals that matter for the decision and connect them.`
+  }
+  return `Tu es Nora, l'assistante pricing du sourceur. On te montre deux candidats positionnés sur la même mission. Tu produis un vrai avis raisonné — qui est le meilleur choix, pourquoi, et ce qu'il faut surveiller.
 
 Règles :
 - Réponds en JSON strict : { "winner": "A" | "B" | "tie", "commentary": string }.
@@ -35,10 +51,12 @@ Règles :
   5. (Optionnel) Une suggestion d'action : "Vous pourriez ajuster X pour…".
 - Si l'écart est minime (< 1 pt de marge ET brut équivalent), réponds winner = "tie" et expliquez pourquoi les deux profils se valent commercialement, en suggérant le critère humain qui pourrait départager.
 - Ne ré-énumérez pas tous les chiffres bruts du snapshot — extrayez les signaux qui pèsent dans la décision et reliez-les entre eux.`
+}
 
 interface Body {
   matchAId?: string
   matchBId?: string
+  lang?: string
 }
 
 export async function POST(req: NextRequest) {
@@ -50,6 +68,7 @@ export async function POST(req: NextRequest) {
   const a = body?.matchAId?.trim()
   const b = body?.matchBId?.trim()
   if (!a || !b || a === b) return NextResponse.json({ error: "bad_body" }, { status: 400 })
+  const lang: "fr" | "en" = body?.lang === "en" ? "en" : "fr"
 
   // RLS-scoped load — 404 si un des matchs n'appartient pas au user
   const { data: rows, error: fetchErr } = await sb
@@ -156,7 +175,7 @@ export async function POST(req: NextRequest) {
       responseFormat: "json_object",
       timeoutMs: 25_000,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: buildSystemPrompt(lang) },
         { role: "user", content: `Compare ces deux candidats :\n\n${JSON.stringify(snapshot, null, 2)}` },
       ],
     })

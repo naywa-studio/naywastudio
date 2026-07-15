@@ -285,7 +285,13 @@ export interface CriteriaMatchResult {
   criteria_eval: CriterionEval[]
 }
 
-const CRITERIA_SCORE_SYSTEM_PROMPT = `Tu es l'expert de matching recrutement Naywa. Pour chaque candidat fourni, tu évalues UNIQUEMENT les critères de la mission.
+function criteriaScoreSystemPrompt(lang: "fr" | "en" = "fr"): string {
+  return CRITERIA_SCORE_SYSTEM_PROMPT_BASE + (lang === "en"
+    ? "\n\nLANGUAGE\nWrite the `evidence` fields in English, even though the job/candidate data below may be in French."
+    : "\n\nLANGUE\nRédige les champs `evidence` en français.")
+}
+
+const CRITERIA_SCORE_SYSTEM_PROMPT_BASE = `Tu es l'expert de matching recrutement Naywa. Pour chaque candidat fourni, tu évalues UNIQUEMENT les critères de la mission.
 
 CONTEXTE
 - POSTE : titre, séniorité, contrat, description, briefing.
@@ -387,6 +393,7 @@ async function scoreBatchCriteriaOnce(
   job: Job,
   criteria: Criterion[],
   candidates: Candidate[],
+  lang: "fr" | "en" = "fr",
 ): Promise<CriteriaMatchResult[]> {
   const jobPayload = {
     role: job.role_name?.trim() || job.title,
@@ -415,7 +422,7 @@ async function scoreBatchCriteriaOnce(
     // manquants → retry coûteux. gpt-4o-mini accepte jusqu'à 16k output.
     maxTokens: Math.min(8000, 400 + candidates.length * criteria.length * 45),
     messages: [
-      { role: "system", content: CRITERIA_SCORE_SYSTEM_PROMPT },
+      { role: "system", content: criteriaScoreSystemPrompt(lang) },
       { role: "user", content: `POSTE :\n${JSON.stringify(jobPayload)}\n\nCANDIDATS :\n${JSON.stringify(candPayload)}` },
     ],
   })
@@ -469,17 +476,18 @@ export async function scoreBatchCriteria(
   job: Job,
   criteria: Criterion[],
   candidates: Candidate[],
+  lang: "fr" | "en" = "fr",
 ): Promise<CriteriaMatchResult[]> {
   if (candidates.length === 0 || criteria.length === 0) return []
 
-  const first = await scoreBatchCriteriaOnce(job, criteria, candidates)
+  const first = await scoreBatchCriteriaOnce(job, criteria, candidates, lang)
   const scoredIds = new Set(first.map((r) => r.candidate_id))
   const missing = candidates.filter((c) => !scoredIds.has(c.id))
   if (missing.length === 0) return first
 
   let second: CriteriaMatchResult[] = []
   try {
-    second = await scoreBatchCriteriaOnce(job, criteria, missing)
+    second = await scoreBatchCriteriaOnce(job, criteria, missing, lang)
   } catch (err) {
     console.error("[match v3] retry failed:", (err as Error).message)
   }

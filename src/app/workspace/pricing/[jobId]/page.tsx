@@ -1557,7 +1557,7 @@ function NoraVerdictBubble({
       const res = await fetch(`/api/pricing/compare`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchAId, matchBId }),
+        body: JSON.stringify({ matchAId, matchBId, lang }),
       })
       const data = await res.json().catch(() => null) as { winner?: string; commentary?: string; error?: string; message?: string } | null
       if (!res.ok || !data?.commentary) {

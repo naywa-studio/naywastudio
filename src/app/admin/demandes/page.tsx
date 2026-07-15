@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react"
+import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 type Field = "name" | "brand_logo_path" | "contact_email"
 type Status = "pending" | "approved" | "rejected" | "cancelled"
@@ -37,13 +38,107 @@ interface Batch {
   changes: ChangeRow[]
 }
 
-const FIELD_LABEL: Record<Field, string> = {
-  name: "Nom de l'organisation",
-  brand_logo_path: "Logo",
-  contact_email: "Email de contact",
+const FIELD_LABEL: Record<Lang, Record<Field, string>> = {
+  fr: {
+    name: "Nom de l'organisation",
+    brand_logo_path: "Logo",
+    contact_email: "Email de contact",
+  },
+  en: {
+    name: "Organization name",
+    brand_logo_path: "Logo",
+    contact_email: "Contact email",
+  },
+}
+
+const copy = {
+  fr: {
+    badge: "Console admin · Demandes",
+    title: "Demandes de modification branding",
+    subtitle: "Chaque demande peut concerner plusieurs champs (nom, logo, email). Vous décidez champ par champ.",
+    filterPending: "En attente",
+    filterDecided: "Décidées",
+    filterAll: "Toutes",
+    loading: "Chargement…",
+    noRequestsPending: "Aucune demande en attente.",
+    noRequestsAll: "Aucune demande à afficher.",
+    unknown: "Inconnu",
+    requestedBy: "Demandée par",
+    reasonLabel: "Raison :",
+    currentValue: "Valeur actuelle",
+    requestedValue: "Valeur demandée",
+    noLogo: "Aucun logo",
+    logoUploading: "Logo en cours d'upload",
+    empty: "(vide)",
+    decisionNoteLabel: "Note de décision :",
+    approve: "Approuver",
+    reject: "Refuser",
+    approveTitle: "Approuver ce changement ?",
+    rejectTitle: "Refuser ce changement ?",
+    fieldConcerned: "Champ concerné :",
+    approveBody: " La modification sera appliquée et un mail enverra le client.",
+    rejectBody: " Un mail expliquant le refus sera envoyé. Indiquez la raison (visible dans le mail).",
+    rejectReasonLabel: "Raison du refus",
+    rejectReasonPlaceholder: "Ex : le nom proposé est trop similaire à une autre organisation. Merci de proposer une variante.",
+    cancel: "Annuler",
+    confirmApprove: "Confirmer l'approbation",
+    confirmReject: "Confirmer le refus",
+    errorWithStatus: (status: number) => `Erreur ${status}`,
+    statusPending: "En attente",
+    statusApproved: "Approuvé",
+    statusRejected: "Refusé",
+    statusCancelled: "Annulé",
+    batchToHandle: "À traiter",
+    batchAllApproved: "Tout approuvé",
+    batchAllRejected: "Tout refusé",
+    batchDecided: "Décidé",
+  },
+  en: {
+    badge: "Admin console · Requests",
+    title: "Branding change requests",
+    subtitle: "Each request can involve several fields (name, logo, email). You decide field by field.",
+    filterPending: "Pending",
+    filterDecided: "Decided",
+    filterAll: "All",
+    loading: "Loading…",
+    noRequestsPending: "No pending requests.",
+    noRequestsAll: "No requests to show.",
+    unknown: "Unknown",
+    requestedBy: "Requested by",
+    reasonLabel: "Reason:",
+    currentValue: "Current value",
+    requestedValue: "Requested value",
+    noLogo: "No logo",
+    logoUploading: "Logo being uploaded",
+    empty: "(empty)",
+    decisionNoteLabel: "Decision note:",
+    approve: "Approve",
+    reject: "Reject",
+    approveTitle: "Approve this change?",
+    rejectTitle: "Reject this change?",
+    fieldConcerned: "Field concerned:",
+    approveBody: " The change will be applied and an email sent to the client.",
+    rejectBody: " An email explaining the rejection will be sent. Provide the reason (visible in the email).",
+    rejectReasonLabel: "Reason for rejection",
+    rejectReasonPlaceholder: "E.g.: the proposed name is too similar to another organization. Please suggest a variant.",
+    cancel: "Cancel",
+    confirmApprove: "Confirm approval",
+    confirmReject: "Confirm rejection",
+    errorWithStatus: (status: number) => `Error ${status}`,
+    statusPending: "Pending",
+    statusApproved: "Approved",
+    statusRejected: "Rejected",
+    statusCancelled: "Cancelled",
+    batchToHandle: "To handle",
+    batchAllApproved: "All approved",
+    batchAllRejected: "All rejected",
+    batchDecided: "Decided",
+  },
 }
 
 export default function AdminDemandesPage() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [filter, setFilter] = useState<"pending" | "decided" | "all">("pending")
   const [batches, setBatches] = useState<Batch[]>([])
   const [loading, setLoading] = useState(true)
@@ -58,7 +153,7 @@ export default function AdminDemandesPage() {
       const r = await fetch(`/api/admin/branding-requests?status=${filter}`, { cache: "no-store" })
       if (!r.ok) {
         const j = await r.json().catch(() => ({} as { error?: string }))
-        throw new Error(j.error ?? `Erreur ${r.status}`)
+        throw new Error(j.error ?? t.errorWithStatus(r.status))
       }
       const j = await r.json() as { batches: Batch[] }
       setBatches(j.batches ?? [])
@@ -67,7 +162,7 @@ export default function AdminDemandesPage() {
     } finally {
       setLoading(false)
     }
-  }, [filter])
+  }, [filter, t])
   useEffect(() => { void fetchAll() }, [fetchAll])
 
   // Récupère les signed URLs pour les logos (current + requested) afin
@@ -107,7 +202,7 @@ export default function AdminDemandesPage() {
     })
     if (!r.ok) {
       const j = await r.json().catch(() => ({} as { error?: string }))
-      setError(j.error ?? `Erreur ${r.status}`)
+      setError(j.error ?? t.errorWithStatus(r.status))
       return
     }
     setConfirming(null); setDecisionNote("")
@@ -125,17 +220,16 @@ export default function AdminDemandesPage() {
           margin: "0 0 6px", fontSize: 11, fontWeight: 700,
           color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase",
         }}>
-          Console admin · Demandes
+          {t.badge}
         </p>
         <h1 style={{
           margin: 0, fontSize: 28, fontWeight: 800, color: "#111827",
           letterSpacing: "-0.02em",
         }}>
-          Demandes de modification branding
+          {t.title}
         </h1>
         <p style={{ margin: "8px 0 0", fontSize: 13.5, color: "#6B7280", lineHeight: 1.6 }}>
-          Chaque demande peut concerner plusieurs champs (nom, logo, email).
-          Vous décidez champ par champ.
+          {t.subtitle}
         </p>
       </header>
 
@@ -154,7 +248,7 @@ export default function AdminDemandesPage() {
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
-            {f === "pending" ? "En attente" : f === "decided" ? "Décidées" : "Toutes"}
+            {f === "pending" ? t.filterPending : f === "decided" ? t.filterDecided : t.filterAll}
           </button>
         ))}
       </div>
@@ -170,21 +264,21 @@ export default function AdminDemandesPage() {
       )}
 
       {loading ? (
-        <p style={{ fontSize: 13, color: "#6B7280" }}>Chargement…</p>
+        <p style={{ fontSize: 13, color: "#6B7280" }}>{t.loading}</p>
       ) : batches.length === 0 ? (
         <div style={{
           padding: 32, textAlign: "center",
           border: "1px dashed #E5E7EB", borderRadius: 14, background: "#FAFAFA",
         }}>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#374151" }}>
-            Aucune demande {filter === "pending" ? "en attente" : "à afficher"}.
+            {filter === "pending" ? t.noRequestsPending : t.noRequestsAll}
           </p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {batches.map((batch) => {
             const orgLabel = batch.organization?.name ?? "—"
-            const requesterLabel = batch.requester?.first_name ?? "Inconnu"
+            const requesterLabel = batch.requester?.first_name ?? t.unknown
             const requesterEmail = batch.requester?.email ?? null
             return (
               <article key={batch.batch_id} style={{
@@ -195,7 +289,7 @@ export default function AdminDemandesPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
                     <BatchStatusPill changes={batch.changes} />
                     <span style={{ fontSize: 11.5, color: "#6B7280" }}>
-                      {new Date(batch.created_at).toLocaleString("fr-FR", {
+                      {new Date(batch.created_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US", {
                         day: "numeric", month: "short", year: "numeric",
                         hour: "2-digit", minute: "2-digit",
                       })}
@@ -208,7 +302,7 @@ export default function AdminDemandesPage() {
                     {orgLabel}
                   </h2>
                   <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280" }}>
-                    Demandée par <strong style={{ color: "#374151" }}>{requesterLabel}</strong>
+                    {t.requestedBy} <strong style={{ color: "#374151" }}>{requesterLabel}</strong>
                     {requesterEmail && (
                       <> · <a href={`mailto:${requesterEmail}`} style={{ color: "#7C63C8" }}>{requesterEmail}</a></>
                     )}
@@ -220,7 +314,7 @@ export default function AdminDemandesPage() {
                       background: "#FAFAFA", borderRadius: 8,
                       borderLeft: "3px solid #7C63C8",
                     }}>
-                      <strong style={{ color: "#6B7280", fontSize: 11.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Raison :</strong>{" "}
+                      <strong style={{ color: "#6B7280", fontSize: 11.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>{t.reasonLabel}</strong>{" "}
                       {batch.reason}
                     </p>
                   )}
@@ -265,6 +359,8 @@ function ChangeCard({
   onApprove: () => void
   onReject: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const isLogo = change.field === "brand_logo_path"
   const currentLogoUrl = isLogo && change.current_value ? signedLogos[change.current_value] : null
   const requestedLogoUrl = isLogo ? signedLogos[change.requested_value] : null
@@ -286,7 +382,7 @@ function ChangeCard({
           padding: "3px 8px", borderRadius: 100,
           letterSpacing: "0.05em", textTransform: "uppercase",
         }}>
-          {FIELD_LABEL[change.field]}
+          {FIELD_LABEL[lang][change.field]}
         </span>
         <ChangeStatusPill status={change.status} />
       </div>
@@ -295,17 +391,17 @@ function ChangeCard({
         display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
       }}>
         <div>
-          <FieldHeader>Valeur actuelle</FieldHeader>
+          <FieldHeader>{t.currentValue}</FieldHeader>
           {isLogo ? (
-            <LogoPreview src={currentLogoUrl} placeholder="Aucun logo" />
+            <LogoPreview src={currentLogoUrl} placeholder={t.noLogo} />
           ) : (
             <ValueBlock value={change.current_value} dim />
           )}
         </div>
         <div>
-          <FieldHeader>Valeur demandée</FieldHeader>
+          <FieldHeader>{t.requestedValue}</FieldHeader>
           {isLogo ? (
-            <LogoPreview src={requestedLogoUrl} placeholder="Logo en cours d'upload" highlight />
+            <LogoPreview src={requestedLogoUrl} placeholder={t.logoUploading} highlight />
           ) : (
             <ValueBlock value={change.requested_value} highlight />
           )}
@@ -318,7 +414,7 @@ function ChangeCard({
           fontSize: 12.5, color: "#B91C1C", lineHeight: 1.5,
           background: "rgba(220,38,38,0.06)", borderRadius: 8,
         }}>
-          <strong>Note de décision :</strong> {change.decision_note}
+          <strong>{t.decisionNoteLabel}</strong> {change.decision_note}
         </p>
       )}
 
@@ -333,7 +429,7 @@ function ChangeCard({
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
-            Approuver
+            {t.approve}
           </button>
           <button
             type="button" onClick={onReject}
@@ -344,7 +440,7 @@ function ChangeCard({
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
-            Refuser
+            {t.reject}
           </button>
         </div>
       )}
@@ -362,6 +458,8 @@ function ConfirmationModal({
   onCancel: () => void
   onConfirm: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div
       role="dialog" aria-modal="true"
@@ -379,13 +477,11 @@ function ConfirmationModal({
         boxShadow: "0 24px 64px -24px rgba(17,24,39,0.30)",
       }}>
         <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827" }}>
-          {action === "approve" ? "Approuver ce changement ?" : "Refuser ce changement ?"}
+          {action === "approve" ? t.approveTitle : t.rejectTitle}
         </h3>
         <p style={{ margin: "8px 0 14px", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
-          Champ concerné : <strong>{FIELD_LABEL[change.field]}</strong>.
-          {action === "approve"
-            ? " La modification sera appliquée et un mail enverra le client."
-            : " Un mail expliquant le refus sera envoyé. Indiquez la raison (visible dans le mail)."}
+          {t.fieldConcerned} <strong>{FIELD_LABEL[lang][change.field]}</strong>.
+          {action === "approve" ? t.approveBody : t.rejectBody}
         </p>
         {action === "reject" && (
           <>
@@ -394,12 +490,12 @@ function ConfirmationModal({
               fontSize: 11, fontWeight: 700, color: "#6B7280",
               letterSpacing: "0.05em", textTransform: "uppercase",
             }}>
-              Raison du refus
+              {t.rejectReasonLabel}
             </label>
             <textarea
               value={note}
               onChange={(e) => onNoteChange(e.target.value)}
-              placeholder="Ex : le nom proposé est trop similaire à une autre organisation. Merci de proposer une variante."
+              placeholder={t.rejectReasonPlaceholder}
               rows={4}
               style={{
                 width: "100%", padding: "10px 12px",
@@ -417,7 +513,7 @@ function ConfirmationModal({
             color: "#374151", fontSize: 12.5, fontWeight: 600,
             cursor: "pointer", fontFamily: "inherit",
           }}>
-            Annuler
+            {t.cancel}
           </button>
           <button type="button" onClick={onConfirm} style={{
             padding: "8px 16px", borderRadius: 8, border: "none",
@@ -427,7 +523,7 @@ function ConfirmationModal({
             color: "white", fontSize: 12.5, fontWeight: 700,
             cursor: "pointer", fontFamily: "inherit",
           }}>
-            {action === "approve" ? "Confirmer l'approbation" : "Confirmer le refus"}
+            {action === "approve" ? t.confirmApprove : t.confirmReject}
           </button>
         </div>
       </div>
@@ -447,6 +543,8 @@ function FieldHeader({ children }: { children: React.ReactNode }) {
 }
 
 function ValueBlock({ value, dim, highlight }: { value: string | null; dim?: boolean; highlight?: boolean }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   return (
     <div style={{
       padding: "8px 10px", borderRadius: 8,
@@ -456,7 +554,7 @@ function ValueBlock({ value, dim, highlight }: { value: string | null; dim?: boo
       fontSize: 12.5, color: dim ? "#6B7280" : "#111827",
       wordBreak: "break-all", minHeight: 28,
     }}>
-      {value || <em style={{ color: "#6B7280" }}>(vide)</em>}
+      {value || <em style={{ color: "#6B7280" }}>{t.empty}</em>}
     </div>
   )
 }
@@ -482,11 +580,13 @@ function LogoPreview({ src, placeholder, highlight }: { src: string | null | und
 }
 
 function ChangeStatusPill({ status }: { status: Status }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const map: Record<Status, { label: string; color: string; bg: string }> = {
-    pending:   { label: "En attente", color: "#B45309", bg: "rgba(245,158,11,0.10)" },
-    approved:  { label: "Approuvé",   color: "#15803D", bg: "rgba(34,197,94,0.10)" },
-    rejected:  { label: "Refusé",     color: "#B91C1C", bg: "rgba(220,38,38,0.10)" },
-    cancelled: { label: "Annulé",     color: "#6B7280", bg: "#F3F4F6" },
+    pending:   { label: t.statusPending,   color: "#B45309", bg: "rgba(245,158,11,0.10)" },
+    approved:  { label: t.statusApproved,  color: "#15803D", bg: "rgba(34,197,94,0.10)" },
+    rejected:  { label: t.statusRejected,  color: "#B91C1C", bg: "rgba(220,38,38,0.10)" },
+    cancelled: { label: t.statusCancelled, color: "#6B7280", bg: "#F3F4F6" },
   }
   const s = map[status]
   return (
@@ -501,13 +601,15 @@ function ChangeStatusPill({ status }: { status: Status }) {
 }
 
 function BatchStatusPill({ changes }: { changes: ChangeRow[] }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const hasPending = changes.some((c) => c.status === "pending")
   const allApproved = changes.every((c) => c.status === "approved")
   const allRejected = changes.every((c) => c.status === "rejected")
-  if (hasPending) return <Pill label="À traiter" color="#B45309" bg="rgba(245,158,11,0.10)" />
-  if (allApproved) return <Pill label="Tout approuvé" color="#15803D" bg="rgba(34,197,94,0.10)" />
-  if (allRejected) return <Pill label="Tout refusé" color="#B91C1C" bg="rgba(220,38,38,0.10)" />
-  return <Pill label="Décidé" color="#6B7280" bg="#F3F4F6" />
+  if (hasPending) return <Pill label={t.batchToHandle} color="#B45309" bg="rgba(245,158,11,0.10)" />
+  if (allApproved) return <Pill label={t.batchAllApproved} color="#15803D" bg="rgba(34,197,94,0.10)" />
+  if (allRejected) return <Pill label={t.batchAllRejected} color="#B91C1C" bg="rgba(220,38,38,0.10)" />
+  return <Pill label={t.batchDecided} color="#6B7280" bg="#F3F4F6" />
 }
 
 function Pill({ label, color, bg }: { label: string; color: string; bg: string }) {

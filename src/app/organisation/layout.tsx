@@ -11,7 +11,6 @@ import { SupportButton } from "@/components/support/SupportButton"
 import { getSupabase } from "@/lib/supabase"
 import type { Organization, Profile } from "@/lib/database.types"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
-import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher"
 
 const copy = {
   fr: {
@@ -205,7 +204,6 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <LanguageSwitcher />
             <SupportButton variant="compact" />
             <div ref={menuRef} style={{ position: "relative" }}>
               <button

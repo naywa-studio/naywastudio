@@ -12,6 +12,130 @@
 
 import { useEffect, useState } from "react"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+const copy = {
+  fr: {
+    badge: "Console admin · Recherche",
+    title: "Recherche support",
+    subtitle: "Lecture seule. Toute consultation est journalisée dans le registre d'audit (conformité RGPD / DPA).",
+    searchPlaceholder: "Email ou prénom",
+    searching: "Recherche…",
+    search: "Rechercher",
+    minChars: "Saisissez au moins 2 caractères pour lancer la recherche.",
+    noResults: "Aucun résultat.",
+    colUser: "Utilisateur",
+    colOrg: "Organisation",
+    colRole: "Rôle",
+    colSeat: "Siège",
+    colSubStatus: "Statut abo",
+    colDueDate: "Échéance",
+    colLastLogin: "Dernière connexion",
+    colActions: "Actions",
+    noName: "Sans prénom",
+    deletion: "Suppression",
+    allocated: "alloué",
+    seatSuffix: (n: number) => `siège${n > 1 ? "s" : ""}`,
+    overdueBy: (n: number) => `Échue depuis ${n} j`,
+    today: "Aujourd'hui",
+    inDays: (n: number) => `Dans ${n} j`,
+    trialExpired: "Essai expiré",
+    trialDaysLeft: (n: number) => `Essai · ${n} j restant${n > 1 ? "s" : ""}`,
+    statusActive: "Active",
+    statusTrialStripe: "Trial Stripe",
+    statusCanceled: "Annulée",
+    statusTrialApp: "Essai app",
+    trialButton: "Essai",
+    invalidDaysNumber: "Nombre de jours invalide.",
+    errorWithStatus: (status: number) => `Erreur ${status}`,
+    trialModalTitle: "Période d'essai gratuite",
+    organizationLabel: "Organisation :",
+    trialUpdated: "Essai mis à jour.",
+    newEnd: (date: string) => `Nouvelle fin : ${date}`,
+    currentEnd: (date: string) => `Fin actuelle : ${date}`,
+    extendTrial: "Prolonger la période d'essai",
+    addDays: (n: string) => `Ajouter ${n} j`,
+    extendHint: "Maximum 90 jours par opération. Si l'essai est déjà expiré, on prolonge à partir d'aujourd'hui.",
+    resetTrial: "Réinitialiser la période d'essai",
+    resetTrialHint: "Remet la fin à J+15 (essai gratuit standard) à partir d'aujourd'hui.",
+    resetToJ15: "Réinitialiser à J+15",
+    close: "Fermer",
+    customButton: "Custom",
+    quotaCustomTitle: "Quota custom",
+    quotaOverrideUpdated: "Override mis à jour.",
+    quotaHint: "Laissez un champ vide pour ne pas le surcharger. Toute valeur saisie remplace le quota du plan pour ce client (extras facturés manuellement hors-Stripe).",
+    cvCapLabel: "Capacité vivier (CV) — plafond principal",
+    cvCapPlaceholder: "ex: 50000",
+    storageLabel: "Stockage (GB) — filet interne, optionnel",
+    llmLabel: "Actions IA / mois — filet interne, optionnel",
+    auto: "auto",
+    removeOverride: "Supprimer override",
+    cancel: "Annuler",
+    saving: "Enregistrement…",
+    save: "Enregistrer",
+    clearConfirm: (orgName: string) => `Supprimer le quota custom de ${orgName} ? L'org revient aux quotas du plan.`,
+  },
+  en: {
+    badge: "Admin console · Search",
+    title: "Support search",
+    subtitle: "Read-only. Every lookup is logged in the audit trail (GDPR / DPA compliance).",
+    searchPlaceholder: "Email or first name",
+    searching: "Searching…",
+    search: "Search",
+    minChars: "Enter at least 2 characters to search.",
+    noResults: "No results.",
+    colUser: "User",
+    colOrg: "Organization",
+    colRole: "Role",
+    colSeat: "Seat",
+    colSubStatus: "Sub status",
+    colDueDate: "Due date",
+    colLastLogin: "Last sign-in",
+    colActions: "Actions",
+    noName: "No name",
+    deletion: "Deletion",
+    allocated: "allocated",
+    seatSuffix: (n: number) => `seat${n > 1 ? "s" : ""}`,
+    overdueBy: (n: number) => `Overdue by ${n}d`,
+    today: "Today",
+    inDays: (n: number) => `In ${n}d`,
+    trialExpired: "Trial expired",
+    trialDaysLeft: (n: number) => `Trial · ${n} day${n > 1 ? "s" : ""} left`,
+    statusActive: "Active",
+    statusTrialStripe: "Stripe trial",
+    statusCanceled: "Canceled",
+    statusTrialApp: "App trial",
+    trialButton: "Trial",
+    invalidDaysNumber: "Invalid number of days.",
+    errorWithStatus: (status: number) => `Error ${status}`,
+    trialModalTitle: "Free trial period",
+    organizationLabel: "Organization:",
+    trialUpdated: "Trial updated.",
+    newEnd: (date: string) => `New end: ${date}`,
+    currentEnd: (date: string) => `Current end: ${date}`,
+    extendTrial: "Extend the trial period",
+    addDays: (n: string) => `Add ${n}d`,
+    extendHint: "Maximum 90 days per operation. If the trial has already expired, it's extended starting today.",
+    resetTrial: "Reset the trial period",
+    resetTrialHint: "Resets the end to Day+15 (standard free trial) starting today.",
+    resetToJ15: "Reset to Day+15",
+    close: "Close",
+    customButton: "Custom",
+    quotaCustomTitle: "Custom quota",
+    quotaOverrideUpdated: "Override updated.",
+    quotaHint: "Leave a field empty to not override it. Any value entered replaces the plan quota for this client (extras billed manually outside Stripe).",
+    cvCapLabel: "Talent pool capacity (CVs) — main cap",
+    cvCapPlaceholder: "e.g. 50000",
+    storageLabel: "Storage (GB) — internal safety net, optional",
+    llmLabel: "AI actions / month — internal safety net, optional",
+    auto: "auto",
+    removeOverride: "Remove override",
+    cancel: "Cancel",
+    saving: "Saving…",
+    save: "Save",
+    clearConfirm: (orgName: string) => `Remove ${orgName}'s custom quota? The org reverts to plan quotas.`,
+  },
+}
 
 interface Result {
   user_id: string
@@ -33,6 +157,9 @@ interface Result {
 }
 
 export default function AdminRecherchePage() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
   const [q, setQ] = useState("")
   const [results, setResults] = useState<Result[]>([])
   const [loading, setLoading] = useState(false)
@@ -71,7 +198,7 @@ export default function AdminRecherchePage() {
   }
 
   const formatDate = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—"
+    iso ? new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : "—"
 
   return (
     <main style={{
@@ -84,17 +211,16 @@ export default function AdminRecherchePage() {
           margin: "0 0 6px", fontSize: 11, fontWeight: 700,
           color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase",
         }}>
-          Console admin · Recherche
+          {t.badge}
         </p>
         <h1 style={{
           margin: 0, fontSize: 28, fontWeight: 800, color: "#111827",
           letterSpacing: "-0.02em",
         }}>
-          Recherche support
+          {t.title}
         </h1>
         <p style={{ margin: "8px 0 0", fontSize: 13.5, color: "#6B7280", lineHeight: 1.6 }}>
-          Lecture seule. Toute consultation est journalisée dans le registre d&apos;audit
-          (conformité RGPD / DPA).
+          {t.subtitle}
         </p>
       </header>
 
@@ -102,7 +228,7 @@ export default function AdminRecherchePage() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Email ou prénom"
+          placeholder={t.searchPlaceholder}
           autoFocus
           style={{
             flex: 1, padding: "12px 14px",
@@ -125,7 +251,7 @@ export default function AdminRecherchePage() {
             fontFamily: "inherit",
           }}
         >
-          {loading ? "Recherche…" : "Rechercher"}
+          {loading ? t.searching : t.search}
         </button>
       </form>
 
@@ -142,7 +268,7 @@ export default function AdminRecherchePage() {
 
       {!searched && (
         <p style={{ fontSize: 13, color: "#6B7280" }}>
-          Saisissez au moins 2 caractères pour lancer la recherche.
+          {t.minChars}
         </p>
       )}
 
@@ -152,7 +278,7 @@ export default function AdminRecherchePage() {
           border: "1px dashed #E5E7EB", borderRadius: 14, background: "#FAFAFA",
         }}>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#374151" }}>
-            Aucun résultat.
+            {t.noResults}
           </p>
         </div>
       )}
@@ -165,14 +291,14 @@ export default function AdminRecherchePage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
             <thead>
               <tr style={{ background: "#FAFAFA", textAlign: "left" }}>
-                <Th>Utilisateur</Th>
-                <Th>Organisation</Th>
-                <Th>Rôle</Th>
-                <Th>Siège</Th>
-                <Th>Statut abo</Th>
-                <Th>Échéance</Th>
-                <Th>Dernière connexion</Th>
-                <Th>Actions</Th>
+                <Th>{t.colUser}</Th>
+                <Th>{t.colOrg}</Th>
+                <Th>{t.colRole}</Th>
+                <Th>{t.colSeat}</Th>
+                <Th>{t.colSubStatus}</Th>
+                <Th>{t.colDueDate}</Th>
+                <Th>{t.colLastLogin}</Th>
+                <Th>{t.colActions}</Th>
               </tr>
             </thead>
             <tbody>
@@ -180,7 +306,7 @@ export default function AdminRecherchePage() {
                 <tr key={r.user_id} style={{ borderTop: "1px solid #F0ECF8" }}>
                   <Td>
                     <div style={{ fontWeight: 600, color: "#111827" }}>
-                      {r.first_name ?? <em style={{ color: "#6B7280" }}>Sans prénom</em>}
+                      {r.first_name ?? <em style={{ color: "#6B7280" }}>{t.noName}</em>}
                     </div>
                     <div style={{ fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
                       {r.email ?? "—"}
@@ -191,7 +317,7 @@ export default function AdminRecherchePage() {
                       <>
                         <span style={{ color: "#374151" }}>{r.organization.name}</span>
                         {r.organization.pending_deletion_at && (
-                          <span style={pillWarn}>Suppression</span>
+                          <span style={pillWarn}>{t.deletion}</span>
                         )}
                       </>
                     ) : "—"}
@@ -203,7 +329,7 @@ export default function AdminRecherchePage() {
                   </Td>
                   <Td>
                     <span style={r.has_sourcing_seat ? pillSeatOn : pillSeatOff}>
-                      {r.has_sourcing_seat ? "alloué" : "—"}
+                      {r.has_sourcing_seat ? t.allocated : "—"}
                     </span>
                   </Td>
                   <Td>
@@ -214,7 +340,7 @@ export default function AdminRecherchePage() {
                     {r.organization?.subscription_price_lookup && (
                       <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 3 }}>
                         {r.organization.subscription_price_lookup}
-                        {r.organization.subscription_seats != null && ` · ${r.organization.subscription_seats} siège${(r.organization.subscription_seats ?? 0) > 1 ? "s" : ""}`}
+                        {r.organization.subscription_seats != null && ` · ${r.organization.subscription_seats} ${t.seatSuffix(r.organization.subscription_seats ?? 0)}`}
                       </div>
                     )}
                   </Td>
@@ -280,6 +406,8 @@ function DueDateCell({
   currentPeriodEnd: string | null
   trialEndsAt: string | null
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // Date.now() = source impure : on capte côté effect, jamais dans le render.
   const [now, setNow] = useState<number | null>(null)
   useEffect(() => {
@@ -289,7 +417,7 @@ function DueDateCell({
   if (now == null) return <span style={{ color: "#6B7280" }}>—</span>
 
   const fmt = (iso: string) =>
-    new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+    new Date(iso).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short", year: "numeric" })
 
   if (status === "active" || status === "trialing" || status === "past_due") {
     if (currentPeriodEnd) {
@@ -306,9 +434,9 @@ function DueDateCell({
             color: days < 0 ? "#B91C1C" : isSoon ? "#B45309" : "#6B7280",
           }}>
             {days < 0
-              ? `Échue depuis ${Math.abs(days)} j`
-              : days === 0 ? "Aujourd'hui"
-              : `Dans ${days} j`}
+              ? t.overdueBy(Math.abs(days))
+              : days === 0 ? t.today
+              : t.inDays(days)}
           </div>
         </div>
       )
@@ -322,7 +450,7 @@ function DueDateCell({
     if (days <= 0) {
       return (
         <div>
-          <div style={{ color: "#B91C1C", fontWeight: 600 }}>Essai expiré</div>
+          <div style={{ color: "#B91C1C", fontWeight: 600 }}>{t.trialExpired}</div>
           <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
         </div>
       )
@@ -330,7 +458,7 @@ function DueDateCell({
     return (
       <div>
         <div style={{ color: days <= 3 ? "#B91C1C" : "#374151", fontWeight: 600 }}>
-          Essai · {days} j restant{days > 1 ? "s" : ""}
+          {t.trialDaysLeft(days)}
         </div>
         <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
       </div>
@@ -340,6 +468,8 @@ function DueDateCell({
 }
 
 function SubStatusPill({ status, trialEndsAt }: { status: string | null; trialEndsAt: string | null }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   // useState + useEffect pour la comparaison à Date.now() (impure et
   // interdite pendant le render en React 19 / Next 16).
   const [trialActive, setTrialActive] = useState(false)
@@ -350,11 +480,11 @@ function SubStatusPill({ status, trialEndsAt }: { status: string | null; trialEn
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTrialActive(active)
   }, [trialEndsAt])
-  if (status === "active") return <span style={pillOk}>Active</span>
-  if (status === "trialing") return <span style={pillTrial}>Trial Stripe</span>
+  if (status === "active") return <span style={pillOk}>{t.statusActive}</span>
+  if (status === "trialing") return <span style={pillTrial}>{t.statusTrialStripe}</span>
   if (status === "past_due" || status === "unpaid") return <span style={pillWarn}>{status}</span>
-  if (status === "canceled") return <span style={pillMember}>Annulée</span>
-  if (trialActive) return <span style={pillTrial}>Essai app</span>
+  if (status === "canceled") return <span style={pillMember}>{t.statusCanceled}</span>
+  if (trialActive) return <span style={pillTrial}>{t.statusTrialApp}</span>
   return <span style={pillMember}>—</span>
 }
 
@@ -376,6 +506,8 @@ function TrialButton({
   trialEndsAt: string | null
   onUpdated: () => void
 }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -390,7 +522,7 @@ function TrialButton({
           whiteSpace: "nowrap",
         }}
       >
-        Essai
+        {t.trialButton}
       </button>
       {open && (
         <TrialModal
@@ -415,6 +547,8 @@ function TrialModal({
   onUpdated: () => void
 }) {
   useEscapeKey(onClose)
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [days, setDays] = useState("7")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -426,7 +560,7 @@ function TrialModal({
       const body: Record<string, unknown> = { organization_id: orgId, action }
       if (action === "extend") {
         const n = Number(days)
-        if (!Number.isFinite(n) || n <= 0) throw new Error("Nombre de jours invalide.")
+        if (!Number.isFinite(n) || n <= 0) throw new Error(t.invalidDaysNumber)
         body.days = n
       }
       const r = await fetch("/api/admin/trial", {
@@ -435,7 +569,7 @@ function TrialModal({
         body: JSON.stringify(body),
       })
       const j = await r.json() as { trial_ends_at?: string; error?: string; message?: string }
-      if (!r.ok) throw new Error(j.message ?? j.error ?? `Erreur ${r.status}`)
+      if (!r.ok) throw new Error(j.message ?? j.error ?? t.errorWithStatus(r.status))
       setDone({ next: j.trial_ends_at ?? "" })
       onUpdated()
       setTimeout(onClose, 1400)
@@ -447,7 +581,7 @@ function TrialModal({
   }
 
   const fmt = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "—"
+    iso ? new Date(iso).toLocaleString(lang === "fr" ? "fr-FR" : "en-US", { dateStyle: "long", timeStyle: "short" }) : "—"
 
   return (
     <div
@@ -470,10 +604,10 @@ function TrialModal({
           margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#111827",
           letterSpacing: "-0.01em",
         }}>
-          Période d&apos;essai gratuite
+          {t.trialModalTitle}
         </h2>
         <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6B7280" }}>
-          Organisation : <strong>{orgName}</strong>
+          {t.organizationLabel} <strong>{orgName}</strong>
         </p>
 
         {done ? (
@@ -483,8 +617,8 @@ function TrialModal({
             border: "1px solid rgba(34,197,94,0.25)",
             color: "#166534", fontSize: 13, textAlign: "center",
           }}>
-            <strong>Essai mis à jour.</strong>
-            <div style={{ marginTop: 4, fontSize: 12 }}>Nouvelle fin : {fmt(done.next)}</div>
+            <strong>{t.trialUpdated}</strong>
+            <div style={{ marginTop: 4, fontSize: 12 }}>{t.newEnd(fmt(done.next))}</div>
           </div>
         ) : (
           <>
@@ -492,7 +626,7 @@ function TrialModal({
               padding: "12px 14px", borderRadius: 10, background: "#F8F6FF",
               marginBottom: 14, fontSize: 12.5, color: "#5C46A0", lineHeight: 1.55,
             }}>
-              <div>Fin actuelle : <strong>{fmt(trialEndsAt)}</strong></div>
+              <div>{t.currentEnd(fmt(trialEndsAt))}</div>
             </div>
 
             <div style={{
@@ -500,7 +634,7 @@ function TrialModal({
               border: "1px solid #F0ECF8", marginBottom: 12,
             }}>
               <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "#111827" }}>
-                Prolonger la période d&apos;essai
+                {t.extendTrial}
               </p>
               <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
                 <input
@@ -524,12 +658,11 @@ function TrialModal({
                     fontFamily: "inherit", whiteSpace: "nowrap",
                   }}
                 >
-                  Ajouter {days} j
+                  {t.addDays(days)}
                 </button>
               </div>
               <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "#6B7280" }}>
-                Maximum 90 jours par opération. Si l&apos;essai est déjà expiré,
-                on prolonge à partir d&apos;aujourd&apos;hui.
+                {t.extendHint}
               </p>
             </div>
 
@@ -538,10 +671,10 @@ function TrialModal({
               border: "1px solid #F0ECF8", marginBottom: 14,
             }}>
               <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "#111827" }}>
-                Réinitialiser la période d&apos;essai
+                {t.resetTrial}
               </p>
               <p style={{ margin: "0 0 10px", fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
-                Remet la fin à J+15 (essai gratuit standard) à partir d&apos;aujourd&apos;hui.
+                {t.resetTrialHint}
               </p>
               <button
                 type="button"
@@ -554,7 +687,7 @@ function TrialModal({
                   cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
                 }}
               >
-                Réinitialiser à J+15
+                {t.resetToJ15}
               </button>
             </div>
 
@@ -576,7 +709,7 @@ function TrialModal({
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >
-                Fermer
+                {t.close}
               </button>
             </div>
           </>
@@ -589,6 +722,8 @@ function TrialModal({
 // ─── Quota override (admin) ────────────────────────────────────────────
 
 function QuotaOverrideButton({ orgId, orgName }: { orgId: string; orgName: string }) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -603,7 +738,7 @@ function QuotaOverrideButton({ orgId, orgName }: { orgId: string; orgName: strin
           whiteSpace: "nowrap",
         }}
       >
-        Custom
+        {t.customButton}
       </button>
       {open && <QuotaOverrideModal orgId={orgId} orgName={orgName} onClose={() => setOpen(false)} />}
     </>
@@ -614,6 +749,8 @@ function QuotaOverrideModal({
   orgId, orgName, onClose,
 }: { orgId: string; orgName: string; onClose: () => void }) {
   useEscapeKey(onClose)
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [cv, setCv] = useState("")
   const [storageGb, setStorageGb] = useState("")
   const [llmMonthly, setLlmMonthly] = useState("")
@@ -637,7 +774,7 @@ function QuotaOverrideModal({
         body: JSON.stringify(body),
       })
       const j = await r.json()
-      if (!r.ok) throw new Error(j.error ?? `Erreur ${r.status}`)
+      if (!r.ok) throw new Error(j.error ?? t.errorWithStatus(r.status))
       setDone(true)
       setTimeout(onClose, 1200)
     } catch (err) {
@@ -648,7 +785,7 @@ function QuotaOverrideModal({
   }
 
   const clear = async () => {
-    if (!confirm(`Supprimer le quota custom de ${orgName} ? L'org revient aux quotas du plan.`)) return
+    if (!confirm(t.clearConfirm(orgName))) return
     setBusy(true); setError(null)
     try {
       const r = await fetch("/api/admin/quota-override", {
@@ -658,7 +795,7 @@ function QuotaOverrideModal({
       })
       if (!r.ok) {
         const j = await r.json()
-        throw new Error(j.error ?? `Erreur ${r.status}`)
+        throw new Error(j.error ?? t.errorWithStatus(r.status))
       }
       setDone(true)
       setTimeout(onClose, 1200)
@@ -690,10 +827,10 @@ function QuotaOverrideModal({
           margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#111827",
           letterSpacing: "-0.01em",
         }}>
-          Quota custom
+          {t.quotaCustomTitle}
         </h2>
         <p style={{ margin: "0 0 18px", fontSize: 13, color: "#6B7280" }}>
-          Organisation : <strong>{orgName}</strong>
+          {t.organizationLabel} <strong>{orgName}</strong>
         </p>
 
         {done ? (
@@ -703,7 +840,7 @@ function QuotaOverrideModal({
             border: "1px solid rgba(34,197,94,0.25)",
             color: "#166534", fontSize: 13, textAlign: "center",
           }}>
-            <strong>Override mis à jour.</strong>
+            <strong>{t.quotaOverrideUpdated}</strong>
           </div>
         ) : (
           <>
@@ -711,15 +848,13 @@ function QuotaOverrideModal({
               padding: "12px 14px", borderRadius: 10, background: "#F8F6FF",
               marginBottom: 16, fontSize: 12, color: "#5C46A0", lineHeight: 1.55,
             }}>
-              Laissez un champ vide pour ne pas le surcharger. Toute valeur saisie
-              remplace le quota du plan pour ce client (extras facturés
-              manuellement hors-Stripe).
+              {t.quotaHint}
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
               <div>
                 <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 700, color: "#374151" }}>
-                  Capacité vivier (CV) — plafond principal
+                  {t.cvCapLabel}
                 </label>
                 <input
                   type="number"
@@ -727,13 +862,13 @@ function QuotaOverrideModal({
                   max={5_000_000}
                   value={cv}
                   onChange={(e) => setCv(e.target.value)}
-                  placeholder="ex: 50000"
+                  placeholder={t.cvCapPlaceholder}
                   style={inputStyle}
                 />
               </div>
               <div>
                 <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#6B7280" }}>
-                  Stockage (GB) — filet interne, optionnel
+                  {t.storageLabel}
                 </label>
                 <input
                   type="number"
@@ -741,13 +876,13 @@ function QuotaOverrideModal({
                   max={10000}
                   value={storageGb}
                   onChange={(e) => setStorageGb(e.target.value)}
-                  placeholder="auto"
+                  placeholder={t.auto}
                   style={inputStyle}
                 />
               </div>
               <div>
                 <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#6B7280" }}>
-                  Actions IA / mois — filet interne, optionnel
+                  {t.llmLabel}
                 </label>
                 <input
                   type="number"
@@ -755,7 +890,7 @@ function QuotaOverrideModal({
                   max={10_000_000}
                   value={llmMonthly}
                   onChange={(e) => setLlmMonthly(e.target.value)}
-                  placeholder="auto"
+                  placeholder={t.auto}
                   style={inputStyle}
                 />
               </div>
@@ -775,7 +910,7 @@ function QuotaOverrideModal({
                   color: "#B91C1C", fontSize: 12.5, fontWeight: 600,
                   cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
                 }}>
-                Supprimer override
+                {t.removeOverride}
               </button>
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={onClose} disabled={busy}
@@ -785,7 +920,7 @@ function QuotaOverrideModal({
                     color: "#374151", fontSize: 13, fontWeight: 600,
                     cursor: "pointer", fontFamily: "inherit",
                   }}>
-                  Annuler
+                  {t.cancel}
                 </button>
                 <button type="button" onClick={save}
                   disabled={busy || (!cv && !storageGb && !llmMonthly)}
@@ -798,7 +933,7 @@ function QuotaOverrideModal({
                     fontFamily: "inherit",
                     opacity: (!cv && !storageGb && !llmMonthly) ? 0.5 : 1,
                   }}>
-                  {busy ? "Enregistrement…" : "Enregistrer"}
+                  {busy ? t.saving : t.save}
                 </button>
               </div>
             </div>

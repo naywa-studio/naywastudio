@@ -188,9 +188,10 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* RIGHT: langue + CTAs de connexion */}
+        {/* RIGHT: langue (visiteurs non connectés uniquement — les users
+            connectés règlent leur langue dans /profil) + CTAs de connexion */}
         <div className="nv-desktop-cta" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <LanguageSwitcher />
+          {!isAuthed && <LanguageSwitcher />}
           {auth.loading ? (
             // Skeleton placeholder while session loads (avoids flash)
             <div style={{ width: 220, height: 38 }} />
@@ -427,10 +428,14 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <div style={{ height: 1, background: "rgba(240,236,248,0.8)", margin: "6px 4px" }} />
-            <div style={{ padding: "2px 4px 4px" }}>
-              <LanguageSwitcher />
-            </div>
+            {!isAuthed && (
+              <>
+                <div style={{ height: 1, background: "rgba(240,236,248,0.8)", margin: "6px 4px" }} />
+                <div style={{ padding: "2px 4px 4px" }}>
+                  <LanguageSwitcher />
+                </div>
+              </>
+            )}
             <div style={{ height: 1, background: "rgba(240,236,248,0.8)", margin: "6px 4px" }} />
 
             {isAuthed ? (

@@ -13,6 +13,7 @@
 
 import { useEffect, useState } from "react"
 import { LazyMotion, domAnimation, m } from "framer-motion"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 interface Kpis {
   cabinets_active: number
@@ -25,7 +26,52 @@ interface Kpis {
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
+const copy = {
+  fr: {
+    badge: "Console admin",
+    title: "Tableau de bord",
+    refreshing: "Actualisation…",
+    refresh: "Actualiser",
+    errorWithStatus: (status: number) => `Erreur ${status}`,
+    kpiCabinets: "Cabinets actifs",
+    kpiCabinetsHint: "hors suppression en attente",
+    kpiUsers: "Utilisateurs",
+    kpiUsersHint: "tous comptes confondus",
+    kpiSeats: "Sièges occupés",
+    kpiSeatsHint: "profiles avec un siège alloué",
+    kpiCandidates: "Candidats parsés",
+    kpiCandidatesHint: "CV uploadés et analysés par Nora",
+    kpiTrials: "Essais actifs",
+    kpiTrialsHint: "trial_ends_at > maintenant",
+    kpiMrr: "MRR estimé",
+    kpiMrrHint: "sub Stripe active + trialing",
+    footnote: "Chaque KPI vient d'une requête unique côté API. Aucun ratio composé. Le MRR estimé compte les sub Stripe actives ou en essai natif, multipliées par le prix du tier × sièges souscrits.",
+  },
+  en: {
+    badge: "Admin console",
+    title: "Dashboard",
+    refreshing: "Refreshing…",
+    refresh: "Refresh",
+    errorWithStatus: (status: number) => `Error ${status}`,
+    kpiCabinets: "Active firms",
+    kpiCabinetsHint: "excludes pending deletion",
+    kpiUsers: "Users",
+    kpiUsersHint: "all accounts combined",
+    kpiSeats: "Occupied seats",
+    kpiSeatsHint: "profiles with an allocated seat",
+    kpiCandidates: "Parsed candidates",
+    kpiCandidatesHint: "CVs uploaded and analyzed by Nora",
+    kpiTrials: "Active trials",
+    kpiTrialsHint: "trial_ends_at > now",
+    kpiMrr: "Estimated MRR",
+    kpiMrrHint: "active or trialing Stripe sub",
+    footnote: "Each KPI comes from a single API query. No composite ratio. Estimated MRR counts active or native-trial Stripe subs, multiplied by tier price × subscribed seats.",
+  },
+}
+
 export default function AdminDashboardPage() {
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [kpis, setKpis] = useState<Kpis | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -36,7 +82,7 @@ export default function AdminDashboardPage() {
       const res = await fetch("/api/admin/kpis", { cache: "no-store" })
       if (!res.ok) {
         const j = await res.json().catch(() => ({} as { error?: string }))
-        throw new Error(j.error ?? `Erreur ${res.status}`)
+        throw new Error(j.error ?? t.errorWithStatus(res.status))
       }
       const j = await res.json() as Kpis
       setKpis(j)
@@ -64,13 +110,13 @@ export default function AdminDashboardPage() {
               margin: "0 0 6px", fontSize: 11, fontWeight: 700,
               color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase",
             }}>
-              Console admin
+              {t.badge}
             </p>
             <h1 style={{
               margin: 0, fontSize: 28, fontWeight: 800, color: "#111827",
               letterSpacing: "-0.02em",
             }}>
-              Tableau de bord
+              {t.title}
             </h1>
           </div>
           <button
@@ -84,7 +130,7 @@ export default function AdminDashboardPage() {
               cursor: loading ? "wait" : "pointer", fontFamily: "inherit",
             }}
           >
-            {loading ? "Actualisation…" : "Actualiser"}
+            {loading ? t.refreshing : t.refresh}
           </button>
         </header>
 
@@ -105,45 +151,45 @@ export default function AdminDashboardPage() {
           gap: 14,
         }}>
           <KpiCard
-            label="Cabinets actifs"
+            label={t.kpiCabinets}
             value={kpis?.cabinets_active}
             icon={<BuildingIcon />}
-            hint="hors suppression en attente"
+            hint={t.kpiCabinetsHint}
             delay={0}
           />
           <KpiCard
-            label="Utilisateurs"
+            label={t.kpiUsers}
             value={kpis?.users_total}
             icon={<UsersIcon />}
-            hint="tous comptes confondus"
+            hint={t.kpiUsersHint}
             delay={0.04}
           />
           <KpiCard
-            label="Sièges occupés"
+            label={t.kpiSeats}
             value={kpis?.seats_occupied}
             icon={<SeatIcon />}
-            hint="profiles avec un siège alloué"
+            hint={t.kpiSeatsHint}
             delay={0.08}
           />
           <KpiCard
-            label="Candidats parsés"
+            label={t.kpiCandidates}
             value={kpis?.candidates_parsed}
             icon={<FileIcon />}
-            hint="CV uploadés et analysés par Nora"
+            hint={t.kpiCandidatesHint}
             delay={0.12}
           />
           <KpiCard
-            label="Essais actifs"
+            label={t.kpiTrials}
             value={kpis?.trials_active}
             icon={<HourglassIcon />}
-            hint="trial_ends_at > maintenant"
+            hint={t.kpiTrialsHint}
             delay={0.16}
           />
           <KpiCard
-            label="MRR estimé"
-            value={kpis ? formatEuros(kpis.mrr_estimated_eur) : undefined}
+            label={t.kpiMrr}
+            value={kpis ? formatEuros(kpis.mrr_estimated_eur, lang) : undefined}
             icon={<EuroIcon />}
-            hint="sub Stripe active + trialing"
+            hint={t.kpiMrrHint}
             delay={0.20}
             wide
           />
@@ -152,10 +198,7 @@ export default function AdminDashboardPage() {
         <p style={{
           marginTop: 28, fontSize: 11.5, color: "#6B7280", lineHeight: 1.55,
         }}>
-          Chaque KPI vient d&apos;une requête unique côté API. Aucun ratio
-          composé. Le MRR estimé compte les sub Stripe actives ou en
-          essai natif, multipliées par le prix du tier × sièges
-          souscrits.
+          {t.footnote}
         </p>
       </main>
     </LazyMotion>
@@ -173,9 +216,10 @@ function KpiCard({
     delay?: number
     wide?: boolean
   }) {
+    const { lang } = useLanguage()
     const display = value === undefined
       ? "—"
-      : typeof value === "number" ? value.toLocaleString("fr-FR") : value
+      : typeof value === "number" ? value.toLocaleString(lang === "fr" ? "fr-FR" : "en-US") : value
     return (
       <m.div
         initial={{ opacity: 0, y: 8 }}
@@ -215,8 +259,8 @@ function KpiCard({
     )
 }
 
-function formatEuros(n: number): string {
-  return new Intl.NumberFormat("fr-FR", {
+function formatEuros(n: number, lang: "fr" | "en"): string {
+  return new Intl.NumberFormat(lang === "fr" ? "fr-FR" : "en-US", {
     style: "currency", currency: "EUR", maximumFractionDigits: 0,
   }).format(n)
 }

@@ -258,15 +258,13 @@ export default function JobDetailPage() {
     setCanaryHits(0)
     setJob({ ...job, match_status: "matching", updated_at: new Date().toISOString() })
     const qs = opts?.force ? "?force=1" : ""
-    const hasModeBody = !!opts?.mode
     const res = await fetch(`/api/jobs/${job.id}/match${qs}`, {
       method: "POST",
-      ...(hasModeBody
-        ? {
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ mode: opts!.mode, target_sectors: opts!.sectors ?? [] }),
-          }
-        : {}),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...(opts?.mode ? { mode: opts.mode, target_sectors: opts.sectors ?? [] } : {}),
+        lang,
+      }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -279,7 +277,7 @@ export default function JobDetailPage() {
       setCanaryHits(data.canary_hits)
     }
     await loadAll()
-  }, [job, loadAll, t])
+  }, [job, loadAll, t, lang])
 
   const handleDelete = async () => {
     if (!job) return

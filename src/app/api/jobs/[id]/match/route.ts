@@ -92,9 +92,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // Défaut "complet" quand le body est absent (ancien appelant / bouton
   // "Forcer la relance") → on ne casse rien : tout le vivier est scoré.
   const body = await req.json().catch(() => null) as
-    { mode?: unknown; target_sectors?: unknown } | null
+    { mode?: unknown; target_sectors?: unknown; lang?: unknown } | null
   const mode: MatchMode =
     body?.mode === "intelligent" || body?.mode === "personnalise" ? body.mode : "complet"
+  const lang: "fr" | "en" = body?.lang === "en" ? "en" : "fr"
   const bodySectors = Array.isArray(body?.target_sectors)
     ? (body!.target_sectors as unknown[]).map((s) => String(s).trim()).filter(Boolean)
     : null
@@ -291,7 +292,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const processOne = async (batch: Candidate[]) => {
       let scored: CriteriaMatchResult[]
       try {
-        scored = await scoreBatchCriteria(job as Job, criteria, batch)
+        scored = await scoreBatchCriteria(job as Job, criteria, batch, lang)
       } catch (err) {
         console.error("[match] batch failed:", (err as Error).message)
         return

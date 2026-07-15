@@ -17,7 +17,6 @@ import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
-import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher"
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 type Organization = Database["public"]["Tables"]["organizations"]["Row"]
@@ -346,7 +345,6 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                 {t.organization}
               </Link>
             )}
-            <LanguageSwitcher />
             <SupportButton variant="compact" />
 
             <div ref={menuRef} style={{ position: "relative" }}>
