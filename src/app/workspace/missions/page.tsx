@@ -46,6 +46,7 @@ const MONTH_START_ISO = (() => {
 
 export default function MissionsPage() {
   const router = useRouter()
+  const { isReadOnly } = useWorkspace()
   const sb = useMemo(() => getSupabase(), [])
   const [jobs, setJobs] = useState<Job[]>([])
   const [visuals, setVisuals] = useState<Record<string, MissionVisual>>({})
@@ -234,11 +235,14 @@ export default function MissionsPage() {
         </div>
         <button
           onClick={() => router.push("/workspace/missions/new")}
+          disabled={isReadOnly}
+          title={isReadOnly ? "Lecture seule — souscrivez pour créer une mission" : undefined}
           style={{
             fontSize: 13, fontWeight: 700, color: "white",
-            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            border: "none", borderRadius: 10, padding: "10px 18px", cursor: "pointer",
-            boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)", fontFamily: "inherit",
+            background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            border: "none", borderRadius: 10, padding: "10px 18px",
+            cursor: isReadOnly ? "not-allowed" : "pointer",
+            boxShadow: isReadOnly ? "none" : "0 6px 20px -8px rgba(124,99,200,0.55)", fontFamily: "inherit",
           }}
         >
           + Créer une mission
@@ -301,11 +305,13 @@ export default function MissionsPage() {
                   <button
                     type="button"
                     onClick={() => router.push("/workspace/missions/new")}
+                    disabled={isReadOnly}
+                    title={isReadOnly ? "Lecture seule" : undefined}
                     style={{
                       padding: "9px 16px", borderRadius: 9,
                       border: "none", color: "white",
-                      background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                      fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                      background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                      fontSize: 13, fontWeight: 700, cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit",
                     }}
                   >
                     + Créer une mission

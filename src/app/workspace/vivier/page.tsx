@@ -98,6 +98,7 @@ export default function VivierPage() {
 
   // "Classer le vivier" — Nora range les candidats "à classer".
   const runClassifyVivier = useCallback(async () => {
+    if (isReadOnly) return
     setClassifying(true)
     try {
       const res = await fetch("/api/sectors/classify-vivier", { method: "POST" })
@@ -113,7 +114,7 @@ export default function VivierPage() {
     } finally {
       setClassifying(false)
     }
-  }, [sb, refetchSectors])
+  }, [sb, refetchSectors, isReadOnly])
 
   // Vue Liste uniquement — toggle Carte/Liste retiré le temps de
   // retravailler la taxonomie (Sprint B' juin 2026).
@@ -389,6 +390,7 @@ export default function VivierPage() {
   // 5. Deletion — optimistic UI + undo toast (5 sec). The actual API
   // call only fires if the sourcer doesn't click "Annuler" in the toast.
   const handleDelete = async (id: string) => {
+    if (isReadOnly) return
     const removed = candidates.find((c) => c.id === id)
     if (!removed) return
     setCandidates((prev) => prev.filter((c) => c.id !== id))
@@ -414,6 +416,7 @@ export default function VivierPage() {
   )
   const [dedupRunning, setDedupRunning] = useState(false)
   const runDedup = useCallback(async () => {
+    if (isReadOnly) return
     setDedupRunning(true)
     try {
       const res = await fetch("/api/candidates/dedup", { method: "POST" })
@@ -430,7 +433,7 @@ export default function VivierPage() {
     } finally {
       setDedupRunning(false)
     }
-  }, [sb])
+  }, [sb, isReadOnly])
 
   if (!userId && loading) {
     return <VivierSkeleton />
@@ -600,7 +603,7 @@ export default function VivierPage() {
       )}
 
       {/* Doublon banner — Nora a trouvé X doublons, "Lancer le tri" */}
-      {doublonCount > 0 && (
+      {doublonCount > 0 && !isReadOnly && (
         <div style={{
           marginBottom: 20, padding: "12px 16px",
           background: "rgba(245,158,11,0.07)",
@@ -694,6 +697,7 @@ export default function VivierPage() {
               allSectors={allSectors}
               onSectorCreated={registerSector}
               onSectorChange={(sectors, status) => applyCandidateSectors(c.id, sectors, status)}
+              readOnly={isReadOnly}
             />
           ))}
           {parsedOrErrored.length === 0 && (
@@ -711,6 +715,7 @@ export default function VivierPage() {
               allSectors={allSectors}
               onSectorCreated={registerSector}
               onSectorChange={applyCandidateSectors}
+              readOnly={isReadOnly}
             />
           )}
           <SectorOverview
@@ -720,6 +725,7 @@ export default function VivierPage() {
             onCreate={() => setCreateOpen(true)}
             onClassify={runClassifyVivier}
             classifying={classifying}
+            readOnly={isReadOnly}
           />
         </>
       ) : (
@@ -749,10 +755,11 @@ export default function VivierPage() {
               sectors: (c.sectors ?? []).filter((s) => s !== name),
             })))
           }}
+          readOnly={isReadOnly}
         />
       )}
 
-      {createOpen && (
+      {createOpen && !isReadOnly && (
         <CreateSectorModal
           onClose={() => setCreateOpen(false)}
           onCreated={() => { setCreateOpen(false); void refetchSectors() }}
@@ -786,7 +793,7 @@ function JobIcon({ status }: { status: UploadJob["status"] }) {
 }
 
 function CandidateCard({
-  c, delay, onDelete, allSectors, onSectorCreated, onSectorChange,
+  c, delay, onDelete, allSectors, onSectorCreated, onSectorChange, readOnly = false,
 }: {
   c: Candidate
   delay: number
@@ -794,6 +801,7 @@ function CandidateCard({
   allSectors: string[]
   onSectorCreated: (name: string) => void
   onSectorChange: (sectors: string[], status: SectorStatus) => void
+  readOnly?: boolean
 }) {
   const initials = (c.full_name ?? c.cv_file_name ?? "?")
     .split(/\s+/).slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase() || "?"
@@ -947,26 +955,29 @@ function CandidateCard({
               allSectors={allSectors}
               onSectorCreated={onSectorCreated}
               onChange={onSectorChange}
+              disabled={readOnly}
             />
           ) : <span />}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
-            <button
-              onClick={onDelete}
-              title="Supprimer du vivier"
-              style={{
-                height: 24, width: 24, boxSizing: "border-box",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                background: "transparent", border: "1px solid #E5E7EB",
-                borderRadius: 7, padding: 0, cursor: "pointer",
-                color: "#6B7280",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "#6B7280"; e.currentTarget.style.borderColor = "#E5E7EB" }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
+            {!readOnly && (
+              <button
+                onClick={onDelete}
+                title="Supprimer du vivier"
+                style={{
+                  height: 24, width: 24, boxSizing: "border-box",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  background: "transparent", border: "1px solid #E5E7EB",
+                  borderRadius: 7, padding: 0, cursor: "pointer",
+                  color: "#6B7280",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#6B7280"; e.currentTarget.style.borderColor = "#E5E7EB" }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            )}
             <Link
               href={`/workspace/vivier/${c.id}`}
               style={{
@@ -1210,13 +1221,14 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
 /* ─── Récemment importés (bande scrollable) ───────────────────────── */
 
 function RecentUploadsStrip({
-  candidates, onDelete, allSectors, onSectorCreated, onSectorChange,
+  candidates, onDelete, allSectors, onSectorCreated, onSectorChange, readOnly = false,
 }: {
   candidates: Candidate[]
   onDelete: (id: string) => void
   allSectors: string[]
   onSectorCreated: (name: string) => void
   onSectorChange: (candId: string, sectors: string[], status: SectorStatus) => void
+  readOnly?: boolean
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const scrollerRef = useRef<HTMLDivElement>(null)
@@ -1289,6 +1301,7 @@ function RecentUploadsStrip({
                   allSectors={allSectors}
                   onSectorCreated={onSectorCreated}
                   onSectorChange={(sectors, status) => onSectorChange(c.id, sectors, status)}
+                  readOnly={readOnly}
                 />
               </div>
             </div>
@@ -1302,7 +1315,7 @@ function RecentUploadsStrip({
 /* ─── Vivier par secteurs ─────────────────────────────────────────── */
 
 function SectorOverview({
-  sectors, unclassifiedCount, onOpen, onCreate, onClassify, classifying,
+  sectors, unclassifiedCount, onOpen, onCreate, onClassify, classifying, readOnly = false,
 }: {
   sectors: SectorInfo[]
   unclassifiedCount: number
@@ -1310,6 +1323,7 @@ function SectorOverview({
   onCreate: () => void
   onClassify: () => void
   classifying: boolean
+  readOnly?: boolean
 }) {
   // On masque les secteurs seed VIDES (BTP… que le cabinet n'utilise pas) mais
   // on garde ceux que l'user a créés explicitement (intention), même à 0 CV.
@@ -1322,34 +1336,37 @@ function SectorOverview({
         <span style={{ fontSize: 11.5, color: "#6B7280" }}>
           · un profil hybride peut appartenir à plusieurs secteurs
         </span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          {unclassifiedCount > 0 && (
+        {/* Actions de mutation masquées en lecture seule. */}
+        {!readOnly && (
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            {unclassifiedCount > 0 && (
+              <button
+                onClick={onClassify}
+                disabled={classifying}
+                style={{
+                  fontSize: 12.5, fontWeight: 700,
+                  color: classifying ? "#6B7280" : "#7C63C8",
+                  background: "white", border: "1px solid rgba(124,99,200,0.30)",
+                  borderRadius: 9, padding: "8px 13px",
+                  cursor: classifying ? "default" : "pointer", fontFamily: "inherit",
+                }}
+              >
+                {classifying ? "Nora range…" : "Classer le vivier"}
+              </button>
+            )}
             <button
-              onClick={onClassify}
-              disabled={classifying}
+              onClick={onCreate}
               style={{
-                fontSize: 12.5, fontWeight: 700,
-                color: classifying ? "#6B7280" : "#7C63C8",
-                background: "white", border: "1px solid rgba(124,99,200,0.30)",
-                borderRadius: 9, padding: "8px 13px",
-                cursor: classifying ? "default" : "pointer", fontFamily: "inherit",
+                fontSize: 12.5, fontWeight: 700, color: "white",
+                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                border: "none", borderRadius: 9, padding: "8px 14px",
+                cursor: "pointer", fontFamily: "inherit",
               }}
             >
-              {classifying ? "Nora range…" : "Classer le vivier"}
+              + Créer un secteur
             </button>
-          )}
-          <button
-            onClick={onCreate}
-            style={{
-              fontSize: 12.5, fontWeight: 700, color: "white",
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              border: "none", borderRadius: 9, padding: "8px 14px",
-              cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            + Créer un secteur
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Zone 1 — À classer (seule action requise, en tête). */}
@@ -1435,7 +1452,7 @@ function SectorOverview({
 }
 
 function SectorDetail({
-  view, sector, candidates, onBack, onDelete, allSectors, onSectorCreated, onSectorChange, onRenamed, onDeletedSector,
+  view, sector, candidates, onBack, onDelete, allSectors, onSectorCreated, onSectorChange, onRenamed, onDeletedSector, readOnly = false,
 }: {
   view: string
   sector: SectorInfo | null
@@ -1447,6 +1464,7 @@ function SectorDetail({
   onSectorChange: (candId: string, sectors: string[], status: SectorStatus) => void
   onRenamed: (oldName: string, newName: string) => void
   onDeletedSector: (name: string) => void
+  readOnly?: boolean
 }) {
   const isUnclassified = view === UNCLASSIFIED
   const title = isUnclassified ? "À classer" : view
@@ -1455,6 +1473,7 @@ function SectorDetail({
   const [busy, setBusy] = useState(false)
 
   const doRename = async () => {
+    if (readOnly) return
     const n = newName.trim()
     if (!sector || !n || n === view) { setRenaming(false); return }
     setBusy(true)
@@ -1469,7 +1488,7 @@ function SectorDetail({
   }
 
   const doDelete = async () => {
-    if (!sector) return
+    if (readOnly || !sector) return
     if (!confirm(`Supprimer le secteur "${view}" ? Les candidats ne seront pas supprimés, seulement retirés de ce secteur.`)) return
     setBusy(true)
     try {
@@ -1501,7 +1520,7 @@ function SectorDetail({
             <span style={{ fontSize: 13, fontWeight: 700, color: "#6B7280", marginLeft: 8 }}>{candidates.length}</span>
           </h2>
         )}
-        {!isUnclassified && sector && !renaming && (
+        {!isUnclassified && sector && !renaming && !readOnly && (
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button onClick={() => { setNewName(view); setRenaming(true) }} style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", background: "white", border: "1px solid #E5E7EB", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>Renommer</button>
             <button onClick={doDelete} disabled={busy} style={{ fontSize: 12, fontWeight: 600, color: "#DC2626", background: "white", border: "1px solid #FCA5A5", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>Supprimer</button>
@@ -1528,6 +1547,7 @@ function SectorDetail({
               allSectors={allSectors}
               onSectorCreated={onSectorCreated}
               onSectorChange={(sectors, status) => onSectorChange(c.id, sectors, status)}
+              readOnly={readOnly}
             />
           ))}
         </div>

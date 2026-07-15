@@ -27,6 +27,7 @@ const MATCH_MODE_LABEL: Record<MatchMode, string> = {
 }
 import { MatchCard } from "@/components/workspace/MatchCard"
 import { JobForm } from "../page"
+import { useWorkspace } from "../../layout"
 
 type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
 
@@ -45,6 +46,9 @@ export default function JobDetailPage() {
   const router = useRouter()
   const { jobId } = useParams<{ jobId: string }>()
   const sb = useMemo(() => getSupabase(), [])
+  // Lecture seule (lockdown / accès suspendu) : toute mutation est bloquée côté
+  // serveur (requireActiveAccess). On grise l'UI pour éviter les 403 déroutants.
+  const { isReadOnly } = useWorkspace()
 
   const [job, setJob] = useState<Job | null>(null)
   const [rows, setRows] = useState<AssessmentRow[]>([])
@@ -122,7 +126,7 @@ export default function JobDetailPage() {
   }, [isMatching, job?.updated_at])
 
   const runMatch = useCallback(async (opts?: { force?: boolean; mode?: MatchMode; sectors?: string[] }) => {
-    if (!job) return
+    if (!job || isReadOnly) return
     setMatchError(null)
     setCanaryHits(0)
     setJob({ ...job, match_status: "matching", updated_at: new Date().toISOString() })
@@ -148,7 +152,7 @@ export default function JobDetailPage() {
       setCanaryHits(data.canary_hits)
     }
     await loadAll()
-  }, [job, loadAll])
+  }, [job, loadAll, isReadOnly])
 
   const handleDelete = async () => {
     if (!job) return
@@ -158,6 +162,7 @@ export default function JobDetailPage() {
   }
 
   const togglePipeline = async (rowId: string, next: boolean) => {
+    if (isReadOnly) return
     setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, in_pipeline: next } : r))
     const res = await fetch(`/api/match/${rowId}/pipeline`, {
       method: "PATCH",
@@ -270,18 +275,21 @@ export default function JobDetailPage() {
           display: "inline-flex", alignItems: "center", gap: 6,
           fontSize: 13, color: "#7C63C8", textDecoration: "none",
         }}>← Retour aux missions</Link>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setShowEdit(true)} title="Modifier la mission" style={{
-            fontSize: 12, fontWeight: 600, color: "#7C63C8",
-            background: "white", border: "1px solid rgba(124,99,200,0.30)",
-            borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
-          }}>Modifier la mission</button>
-          <button onClick={handleDelete} title="Supprimer la mission" style={{
-            fontSize: 12, fontWeight: 600, color: "#DC2626",
-            background: "transparent", border: "1px solid #FCA5A5",
-            borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
-          }}>Supprimer</button>
-        </div>
+        {/* Actions de mutation masquées en lecture seule (consultation only). */}
+        {!isReadOnly && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setShowEdit(true)} title="Modifier la mission" style={{
+              fontSize: 12, fontWeight: 600, color: "#7C63C8",
+              background: "white", border: "1px solid rgba(124,99,200,0.30)",
+              borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
+            }}>Modifier la mission</button>
+            <button onClick={handleDelete} title="Supprimer la mission" style={{
+              fontSize: 12, fontWeight: 600, color: "#DC2626",
+              background: "transparent", border: "1px solid #FCA5A5",
+              borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
+            }}>Supprimer</button>
+          </div>
+        )}
       </div>
 
       {/* Bandeau résumé (visible une fois critères configurés). */}
@@ -295,6 +303,7 @@ export default function JobDetailPage() {
           onAssignFromVivier={() => setAssignOpen(true)}
           onCreateForm={undefined}
           matching={matching}
+          readOnly={isReadOnly}
         />
       )}
 
@@ -320,10 +329,10 @@ export default function JobDetailPage() {
             de matching pour une analyse enrichie — la position pipeline de vos{" "}
             {rows.length} candidat{rows.length > 1 ? "s" : ""} sera conservée.
           </span>
-          <button onClick={() => setEditCriteriaMode(true)} style={{
+          <button onClick={() => setEditCriteriaMode(true)} disabled={isReadOnly} title={isReadOnly ? "Lecture seule" : undefined} style={{
             fontSize: 12.5, fontWeight: 700, color: "white", fontFamily: "inherit",
-            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            border: "none", borderRadius: 9, padding: "8px 14px", cursor: "pointer",
+            background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            border: "none", borderRadius: 9, padding: "8px 14px", cursor: isReadOnly ? "not-allowed" : "pointer",
             whiteSpace: "nowrap",
           }}>Configurer les critères</button>
         </div>
@@ -358,10 +367,10 @@ export default function JobDetailPage() {
           <span style={{ flex: 1, minWidth: 220 }}>
             <strong style={{ color: "#B45309" }}>{canaryHits} profil{canaryHits > 1 ? "s" : ""} hors périmètre</strong> {canaryHits > 1 ? "sont ressortis" : "est ressorti"} pertinent{canaryHits > 1 ? "s" : ""}. Élargissez peut-être la recherche.
           </span>
-          <button onClick={() => { setCanaryHits(0); setMatchPanelOpen(true) }} style={{
-            fontSize: 12, fontWeight: 700, color: "#B45309",
-            background: "white", border: "1px solid rgba(217,119,6,0.35)",
-            borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+          <button onClick={() => { setCanaryHits(0); setMatchPanelOpen(true) }} disabled={isReadOnly} title={isReadOnly ? "Lecture seule" : undefined} style={{
+            fontSize: 12, fontWeight: 700, color: isReadOnly ? "#B8AEDE" : "#B45309",
+            background: isReadOnly ? "#F3F0FA" : "white", border: isReadOnly ? "1px solid #E5E0F0" : "1px solid rgba(217,119,6,0.35)",
+            borderRadius: 8, padding: "6px 12px", cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
           }}>
             Élargir
           </button>
@@ -443,11 +452,11 @@ export default function JobDetailPage() {
               <span style={{ flex: 1, minWidth: 200 }}>
                 <strong style={{ color: "#B45309" }}>Critères modifiés</strong> depuis le dernier matching — les scores affichés datent de l&apos;évaluation précédente.
               </span>
-              <button onClick={() => setMatchPanelOpen(true)} style={{
+              <button onClick={() => setMatchPanelOpen(true)} disabled={isReadOnly} title={isReadOnly ? "Lecture seule" : undefined} style={{
                 fontSize: 12, fontWeight: 700, color: "white",
                 padding: "7px 14px", borderRadius: 9, border: "none",
-                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+                background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
               }}>
                 Relancer le matching
               </button>
@@ -502,6 +511,7 @@ export default function JobDetailPage() {
                   row={r}
                   mainCriteria={mainCriteria}
                   onTogglePipeline={togglePipeline}
+                  readOnly={isReadOnly}
                 />
               ))}
 
@@ -539,6 +549,7 @@ export default function JobDetailPage() {
                           row={r}
                           mainCriteria={mainCriteria}
                           onTogglePipeline={togglePipeline}
+                          readOnly={isReadOnly}
                         />
                       ))}
                     </div>

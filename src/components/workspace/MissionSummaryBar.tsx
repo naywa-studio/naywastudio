@@ -24,10 +24,12 @@ interface Props {
   onAssignFromVivier: () => void
   onCreateForm?: () => void
   matching: boolean
+  /** Lecture seule (lockdown / accès suspendu) : actions de mutation grisées. */
+  readOnly?: boolean
 }
 
 export function MissionSummaryBar({
-  job, criteria, onEditCriteria, onImportCvs, onMatchVivier, onAssignFromVivier, onCreateForm, matching,
+  job, criteria, onEditCriteria, onImportCvs, onMatchVivier, onAssignFromVivier, onCreateForm, matching, readOnly = false,
 }: Props) {
   const [open, setOpen] = useState(false)
 
@@ -74,18 +76,18 @@ export function MissionSummaryBar({
         </div>
         {!matching && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={onImportCvs} style={btnGhost}>+ Importer des CVs</button>
-            <button onClick={onMatchVivier} style={btnGhost}>↻ Matcher le vivier</button>
-            <button onClick={onAssignFromVivier} style={btnGhost}>+ Assigner depuis le vivier</button>
+            <button onClick={onImportCvs} disabled={readOnly} title={readOnly ? RO_TITLE : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>+ Importer des CVs</button>
+            <button onClick={onMatchVivier} disabled={readOnly} title={readOnly ? RO_TITLE : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>↻ Matcher le vivier</button>
+            <button onClick={onAssignFromVivier} disabled={readOnly} title={readOnly ? RO_TITLE : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>+ Assigner depuis le vivier</button>
             {/* Formulaire public (E2) : masqué tant que la feature n'est pas
                 livrée — un bouton grisé "bientôt" fait produit inachevé. Il
                 réapparaîtra dès que le parent passera onCreateForm. */}
             {onCreateForm && (
-              <button onClick={onCreateForm} style={btnGhost}>
+              <button onClick={onCreateForm} disabled={readOnly} title={readOnly ? RO_TITLE : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>
                 + Créer un formulaire
               </button>
             )}
-            <button onClick={onEditCriteria} style={btnPrimary}>
+            <button onClick={onEditCriteria} disabled={readOnly} title={readOnly ? RO_TITLE : undefined} style={readOnly ? btnPrimaryDisabled : btnPrimary}>
               Modifier les critères
             </button>
           </div>
@@ -179,6 +181,8 @@ function CriterionPill({ c, kind }: { c: Criterion; kind: "main" | "bonus" }) {
   )
 }
 
+const RO_TITLE = "Lecture seule — souscrivez pour reprendre la main"
+
 const btnGhost: React.CSSProperties = {
   padding: "8px 12px", borderRadius: 9,
   background: "white", border: "1px solid rgba(124,99,200,0.30)",
@@ -191,4 +195,13 @@ const btnPrimary: React.CSSProperties = {
   border: "none", color: "white",
   fontSize: 12, fontWeight: 700,
   cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+}
+const btnGhostDisabled: React.CSSProperties = {
+  ...btnGhost,
+  background: "#F3F0FA", border: "1px solid #E5E0F0",
+  color: "#B8AEDE", cursor: "not-allowed",
+}
+const btnPrimaryDisabled: React.CSSProperties = {
+  ...btnPrimary,
+  background: "#C4B6E0", cursor: "not-allowed",
 }
