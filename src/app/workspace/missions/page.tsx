@@ -252,7 +252,7 @@ export default function MissionsPage() {
       {loading ? (
         <MissionsSkeleton />
       ) : jobs.length === 0 ? (
-        <EmptyState onCreate={() => router.push("/workspace/missions/new")} />
+        <EmptyState onCreate={() => router.push("/workspace/missions/new")} readOnly={isReadOnly} />
       ) : (
         <div style={{
           display: "grid",
@@ -655,7 +655,7 @@ function StatusChip({ status }: { status: Job["status"] }) {
   )
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState({ onCreate, readOnly = false }: { onCreate: () => void; readOnly?: boolean }) {
   return (
     <m.div
       initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
@@ -674,11 +674,12 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         Décrivez le besoin (titre, séniorité, compétences). Nora compare la mission
         à tout votre vivier et vous sort les candidats pertinents, classés et justifiés.
       </p>
-      <button onClick={onCreate} style={{
-        padding: "11px 22px", borderRadius: 12, border: "none", cursor: "pointer",
-        background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+      <button onClick={onCreate} disabled={readOnly} title={readOnly ? "Lecture seule — souscrivez pour créer une mission" : undefined} style={{
+        padding: "11px 22px", borderRadius: 12, border: "none",
+        cursor: readOnly ? "not-allowed" : "pointer",
+        background: readOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
         color: "white", fontWeight: 700, fontSize: 14, fontFamily: "inherit",
-        boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
+        boxShadow: readOnly ? "none" : "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
         Créer une mission
       </button>

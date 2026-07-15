@@ -682,7 +682,7 @@ export default function VivierPage() {
       {/* Contenu principal : recherche → liste plate ; sinon navigation par
           secteurs (overview cartes → liste des CV). */}
       {empty ? (
-        <EmptyDropZone onPick={() => inputRef.current?.click()} />
+        <EmptyDropZone onPick={() => inputRef.current?.click()} readOnly={isReadOnly} />
       ) : query.trim() ? (
         // Recherche active → résultats à plat, on ignore la navigation secteur.
         <div style={{
@@ -1171,14 +1171,14 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
   )
 }
 
-function EmptyDropZone({ onPick }: { onPick: () => void }) {
+function EmptyDropZone({ onPick, readOnly = false }: { onPick: () => void; readOnly?: boolean }) {
   return (
     <m.div
       initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: EASE }}
-      onClick={onPick}
+      onClick={readOnly ? undefined : onPick}
       style={{
-        cursor: "pointer",
+        cursor: readOnly ? "default" : "pointer",
         marginTop: 40,
         padding: "72px 36px",
         background: "white",
@@ -1187,8 +1187,8 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
         textAlign: "center",
         transition: "border-color 200ms, background 200ms",
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.background = "#FBFAFE" }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2DAF6"; e.currentTarget.style.background = "white" }}
+      onMouseEnter={readOnly ? undefined : (e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.background = "#FBFAFE" }}
+      onMouseLeave={readOnly ? undefined : (e) => { e.currentTarget.style.borderColor = "#E2DAF6"; e.currentTarget.style.background = "white" }}
     >
       <div style={{ fontSize: 56, marginBottom: 16 }}>📄</div>
       <h2 style={{
@@ -1205,11 +1205,11 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
       <span style={{
         display: "inline-block",
         padding: "11px 22px", borderRadius: 12,
-        background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+        background: readOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
         color: "white", fontWeight: 700, fontSize: 14,
-        boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
+        boxShadow: readOnly ? "none" : "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
-        Choisir des PDFs
+        {readOnly ? "Lecture seule" : "Choisir des PDFs"}
       </span>
       <p style={{ margin: "18px 0 0", fontSize: 11, color: "#6B7280" }}>
         PDF uniquement · 10 Mo max · 500 fichiers max par lot
