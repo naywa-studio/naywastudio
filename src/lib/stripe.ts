@@ -52,6 +52,61 @@ export function getStripeWebhookSecret(): string | undefined {
     : process.env.STRIPE_WEBHOOK_SECRET
 }
 
+/**
+ * URL de base pour les retours Stripe (success / cancel / portail).
+ *
+ * `NEXT_PUBLIC_APP_URL` pointe sur la prod : en preview on renverrait donc le
+ * testeur sur naywastudio.com après un checkout de test. Hors production on
+ * privilégie l'URL du déploiement courant (injectée par Vercel).
+ */
+export function getAppUrl(): string {
+  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production") {
+    const host = process.env.VERCEL_BRANCH_URL ?? process.env.VERCEL_URL
+    if (host) return `https://${host}`
+  }
+  return process.env.NEXT_PUBLIC_APP_URL ?? "https://naywastudio.com"
+}
+
+/**
+ * Résout le Stripe Customer d'une org pour le MODE COURANT (test|live).
+ *
+ * Un customer Stripe appartient à UN SEUL mode, alors que la base est partagée
+ * entre la prod (live) et les previews (test) : un `cus_` live est introuvable
+ * via l'API test (« No such customer ») — le checkout tombait alors en 502.
+ * On valide donc l'id stocké dans le mode courant et on en recrée un sinon.
+ *
+ * Ce filet sert aussi en PROD : si un customer est supprimé au dashboard,
+ * l'org n'est plus coincée sur un 502 définitif, on repart sur un customer neuf.
+ *
+ * Renvoie `created: true` quand un nouveau customer a été créé — c'est à
+ * l'appelant de le persister sur `organizations.stripe_customer_id`.
+ */
+export async function ensureStripeCustomer(params: {
+  storedId: string | null | undefined
+  organizationId: string
+  name: string
+  email?: string
+}): Promise<{ customerId: string; created: boolean }> {
+  const stripe = getStripe()
+  const { storedId, organizationId, name, email } = params
+
+  if (storedId) {
+    try {
+      const existing = await stripe.customers.retrieve(storedId)
+      if (!existing.deleted) return { customerId: storedId, created: false }
+    } catch {
+      // Inconnu dans ce mode (ou supprimé) → on repart sur un customer neuf.
+    }
+  }
+
+  const customer = await stripe.customers.create({
+    email,
+    name,
+    metadata: { organization_id: organizationId },
+  })
+  return { customerId: customer.id, created: true }
+}
+
 // ── Plan catalogue ────────────────────────────────────────────────────
 
 export type PlanTier = "sourcing" | "sourcing_pro"

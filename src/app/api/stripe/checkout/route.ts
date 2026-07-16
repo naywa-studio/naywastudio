@@ -25,6 +25,8 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
   getStripe,
+  getAppUrl,
+  ensureStripeCustomer,
   getPriceIdByLookupKey,
   lookupKey,
   type PlanTier,
@@ -88,16 +90,18 @@ export async function POST(req: Request) {
   try {
   const stripe = getStripe()
 
-  // Reuse or create the Stripe Customer. Email is taken from auth ;
-  // metadata holds the org_id so the webhook can match it back.
-  let customerId = org.stripe_customer_id
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email ?? undefined,
-      name: org.name,
-      metadata: { organization_id: org.id },
-    })
-    customerId = customer.id
+  // Réutilise le Stripe Customer de l'org, ou en crée un. `ensureStripeCustomer`
+  // valide que l'id stocké existe bien dans le MODE COURANT : un customer créé
+  // en live est inconnu de l'API test (previews) et inversement, ce qui faisait
+  // planter le checkout. Email pris sur l'auth ; metadata porte l'org_id pour
+  // que le webhook puisse recoller.
+  const { customerId, created } = await ensureStripeCustomer({
+    storedId: org.stripe_customer_id,
+    organizationId: org.id,
+    name: org.name,
+    email: user.email ?? undefined,
+  })
+  if (created) {
     const { error: updateErr } = await admin
       .from("organizations")
       .update({ stripe_customer_id: customerId })
@@ -112,7 +116,7 @@ export async function POST(req: Request) {
     lookupKey(tier as PlanTier, seats as PlanSeats),
   )
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://naywastudio.com"
+  const appUrl = getAppUrl()
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
