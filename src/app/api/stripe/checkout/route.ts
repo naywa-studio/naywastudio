@@ -4,7 +4,11 @@
  * Owner-only. Crée une Stripe Checkout Session pour souscrire à un plan
  * PAYANT et retourne son URL hostée.
  *
- * Body : { tier: 'sourcing' | 'sourcing_pro', seats: 1|2|3|4 }
+ * Body : { seats: number (1..MAX_SELF_SERVE_SEATS), withPricing?: boolean }
+ *
+ * L'abonnement porte jusqu'à deux lignes : le socle « sièges » (quantité =
+ * seats, barème dégressif appliqué par Stripe) et, en option, l'add-on Suite
+ * Pricing à prix plat. Plus de `tier` : il n'y a qu'un seul plan.
  *
  * Important :
  *   - **Pas de `trial_period_days`** : on garde l'essai 15 jours côté

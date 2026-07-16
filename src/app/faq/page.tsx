@@ -121,7 +121,7 @@ const CATEGORIES = [
       },
       {
         q: "Comment fonctionne la tarification ?",
-        a: "Au siège, dégressive selon le nombre de sièges occupés. Facturation mensuelle via Stripe (CB ou SEPA), sans engagement de durée. La grille complète est disponible sur la page Tarifs.",
+        a: "Par personne, avec un tarif dégressif : plus vous êtes nombreux, moins la personne coûte. La Suite Pricing Syntec est une option à part, à prix unique quel que soit l'effectif. Facturation mensuelle via Stripe, sans engagement de durée. La grille complète est sur la page Tarifs.",
       },
       {
         q: "Comment créer un compte ?",

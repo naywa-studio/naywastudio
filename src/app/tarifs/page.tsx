@@ -30,7 +30,7 @@ const SOURCING_INCLUDED = [
   "Support fondateurs (vous parlez à Elyas et Hussein)",
 ]
 
-const PRO_EXTRA = [
+const PRICING_EXTRA = [
   "Tout le plan Sourcing",
   "Pricing Syntec automatisé — marge, charges, calendrier réel",
   "Chart risque rupture employeur (RC + licenciement)",
@@ -103,10 +103,10 @@ export default function TarifsPage() {
                 maxWidth: "55ch",
               }}
             >
-              15 jours offerts, jusqu&apos;à 2 sièges, sans carte bancaire.
-              Pour aller au-delà ou prolonger l&apos;accès, vous choisissez
-              une formule ci-dessous — la souscription ne démarre qu&apos;une
-              fois validée.
+              15 jours offerts pour 2 personnes, Suite Pricing comprise, sans
+              carte bancaire. Ensuite, vous composez votre abonnement : vous
+              choisissez le nombre de personnes, et l&apos;option Pricing si
+              elle vous sert.
             </p>
           </div>
         </section>
@@ -197,7 +197,7 @@ export default function TarifsPage() {
               priceMonthly={monthlyTotalEur(seats, true)}
               perSeat={monthlyTotalEur(seats, true) / seats}
               recommended={false}
-              features={PRO_EXTRA}
+              features={PRICING_EXTRA}
               quota={{ cvLimit: cvIncludedForSeats(seats) }}
               cta="Démarrer mes 15 jours →"
               accentSoft
@@ -416,7 +416,7 @@ function PriceCard({
             fontFamily: "var(--font-inter), sans-serif",
           }}
         >
-          soit {formatEur(perSeat)}/siège/mois — dégressif
+          soit {formatEur(perSeat)}/personne/mois — dégressif
         </p>
         {quota && (
           <div
@@ -541,19 +541,19 @@ function PriceCard({
 const FAQ = [
   {
     q: "Comment se passe la période d'essai ?",
-    a: "Vous créez votre compte, votre structure dispose immédiatement de 15 jours d'accès complet au workspace, jusqu'à 2 sièges (vous + 1 collègue). Aucune carte bancaire n'est demandée. Pour ajouter plus de membres ou prolonger après les 15 jours, vous choisissez une formule et activez l'abonnement.",
+    a: "Vous créez votre compte, votre structure dispose immédiatement de 15 jours d'accès complet au workspace — Suite Pricing comprise — pour 2 personnes (vous + 1 collègue). Aucune carte bancaire n'est demandée. Pour ajouter des collègues ou continuer après les 15 jours, vous composez votre abonnement et l'activez.",
   },
   {
     q: "Quels moyens de paiement sont acceptés ?",
     a: "Carte bancaire et prélèvement SEPA, via Stripe. Facturation mensuelle, sans engagement de durée. La résiliation est faite depuis votre console organisation, l'abonnement s'arrête à la fin de la période en cours.",
   },
   {
-    q: "Que se passe-t-il si je dépasse mon nombre de sièges ?",
-    a: "Vous pouvez ajouter ou retirer des sièges à tout moment depuis votre console organisation. La facturation est ajustée au prorata sur votre prochaine facture. Au-delà de 4 sièges, contactez-nous pour une offre adaptée.",
+    q: "Puis-je ajouter ou retirer des personnes en cours de route ?",
+    a: "Oui, à tout moment depuis votre console organisation. La facturation est ajustée au prorata sur votre prochaine facture, et le tarif dégressif s'applique automatiquement au nouveau nombre. Au-delà de 5 personnes, prenez rendez-vous avec nous : on construit une offre adaptée à votre structure.",
   },
   {
-    q: "Quelle différence entre Sourcing et Sourcing Pro ?",
-    a: "Sourcing donne accès à tout le workspace candidat : vivier vivant, missions, matching scoré, anonymisation et pipeline partagé. Sourcing Pro ajoute le moteur Pricing Syntec — calcul de marge automatisé, charges et plafonds URSSAF, calendrier réel, chart de risque rupture employeur, export PDF des chiffrages. C'est l'offre adaptée aux structures qui chiffrent leurs missions au TJM.",
+    q: "Qu'est-ce que la Suite Pricing, et dois-je la prendre ?",
+    a: "C'est notre moteur de chiffrage à la convention Syntec : marge réelle, charges par statut, plafonds URSSAF, calendrier des jours facturables et fiche PDF à envoyer au client. C'est une option à 9,99 € par mois, prix unique quel que soit le nombre de personnes. Elle n'a de sens que si vous placez en régie et chiffrez au TJM — si vous faites du recrutement en direct, ne la prenez pas. Vous pouvez l'activer ou la retirer quand vous voulez.",
   },
   {
     q: "Mes données sont-elles isolées des autres structures ?",

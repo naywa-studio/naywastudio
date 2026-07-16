@@ -55,7 +55,7 @@ const SECTIONS: LegalSection[] = [
   {
     title: "6. Abonnement, résiliation et rétention des données",
     content: [
-      "Le service Package Sourcing est commercialisé par siège. La grille tarifaire en vigueur est publiée sur la page Tarifs.",
+      "Le service est commercialisé **par personne autorisée** (siège), selon un tarif dégressif au nombre de personnes. La **Suite Pricing Syntec** est une **option** facturée séparément, à prix unique quel que soit le nombre de personnes ; elle peut être activée ou retirée à tout moment et n'est pas requise pour utiliser le service. La grille tarifaire en vigueur est publiée sur la page Tarifs.",
       "**Résiliation de l'abonnement** : l'Owner peut résilier à tout moment depuis l'espace de gestion d'abonnement (portail sécurisé de notre prestataire de paiement). La résiliation prend effet à la fin de la période déjà payée : le Client conserve un accès complet jusqu'à cette date, aucun remboursement au prorata n'est dû.",
       "**Période de grâce (lecture seule)** : à l'issue de la période payée sans reconduction — ou à l'expiration de l'essai gratuit sans souscription — l'organisation bascule en **lecture seule pendant 30 jours**. Pendant cette période, le Client peut consulter et **exporter** ses données (RGPD), et **réactiver** son abonnement pour retrouver un accès complet. Aucune donnée n'est créée, modifiée ou générée en lecture seule.",
       "**Suppression des données après la grâce** : passé le délai de 30 jours sans réactivation, les données métier de l'organisation (vivier, missions, pipeline, messages) sont supprimées. Le compte et l'organisation sont conservés vides afin de permettre une éventuelle ré-souscription ultérieure.",

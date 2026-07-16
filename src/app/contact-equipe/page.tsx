@@ -95,10 +95,14 @@ export default function ContactEquipePage() {
               boxShadow: "0 12px 40px -16px rgba(124,99,200,0.28)",
             }}
           >
+            {/* 626px (la valeur par défaut de l'embed Lark) coupait le
+                calendrier : le widget rendait sa propre barre de défilement
+                interne, et il fallait scroller DANS le scroll de la page pour
+                voir les créneaux. On lui donne la hauteur de son contenu. */}
             <div
               className="scheduler-inline-widget"
               data-url={LARK_SCHEDULER_URL}
-              style={{ width: "100%", height: 626 }}
+              style={{ width: "100%", height: 900 }}
             />
             <noscript>
               <p style={{ padding: 24, textAlign: "center", fontSize: 14, color: "#4B5563" }}>
