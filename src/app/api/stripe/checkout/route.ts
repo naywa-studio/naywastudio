@@ -116,7 +116,7 @@ export async function POST(req: Request) {
     lookupKey(tier as PlanTier, seats as PlanSeats),
   )
 
-  const appUrl = getAppUrl()
+  const appUrl = getAppUrl(req)
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,

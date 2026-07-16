@@ -18,7 +18,7 @@ import { getStripe, getAppUrl, ensureStripeCustomer } from "@/lib/stripe"
 
 export const runtime = "nodejs"
 
-export async function POST() {
+export async function POST(req: Request) {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) {
@@ -67,7 +67,7 @@ export async function POST() {
       .eq("id", org.id)
   }
 
-  const appUrl = getAppUrl()
+  const appUrl = getAppUrl(req)
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
     customer: customerId,

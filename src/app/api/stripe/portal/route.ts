@@ -15,7 +15,7 @@ import { getStripe, getAppUrl, ensureStripeCustomer } from "@/lib/stripe"
 
 export const runtime = "nodejs"
 
-export async function POST() {
+export async function POST(req: Request) {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) {
@@ -70,7 +70,7 @@ export async function POST() {
 
     const session = await getStripe().billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${getAppUrl()}/organisation`,
+      return_url: `${getAppUrl(req)}/organisation`,
     })
     return NextResponse.json({ url: session.url })
   } catch (err) {

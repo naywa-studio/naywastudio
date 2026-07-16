@@ -52,18 +52,39 @@ export function getStripeWebhookSecret(): string | undefined {
     : process.env.STRIPE_WEBHOOK_SECRET
 }
 
+/** N'accepte comme origine de retour qu'un hôte de preview Vercel (ou le dev
+ *  local) : on ne suit jamais un header arbitraire (host-header injection). */
+function isTrustedPreviewOrigin(origin: string): boolean {
+  try {
+    const u = new URL(origin)
+    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return true
+    return u.protocol === "https:" && u.hostname.endsWith(".vercel.app")
+  } catch {
+    return false
+  }
+}
+
 /**
  * URL de base pour les retours Stripe (success / cancel / portail).
  *
- * `NEXT_PUBLIC_APP_URL` pointe sur la prod : en preview on renverrait donc le
- * testeur sur naywastudio.com après un checkout de test. Hors production on
- * privilégie l'URL du déploiement courant (injectée par Vercel).
+ * En PROD : toujours l'URL canonique — jamais un header fourni par le client
+ * (anti host-header injection / open redirect).
+ *
+ * Hors prod : on renvoie l'utilisateur sur l'hôte EXACT d'où vient sa requête.
+ * Une preview Vercel a plusieurs hôtes (URL par déploiement + alias de branche)
+ * et les cookies de session Supabase sont liés à l'hôte : retomber sur un autre
+ * hôte = plus de cookie = bounce vers /login après le paiement.
+ * `NEXT_PUBLIC_APP_URL` (= la prod) reste le dernier recours.
  */
-export function getAppUrl(): string {
-  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production") {
-    const host = process.env.VERCEL_BRANCH_URL ?? process.env.VERCEL_URL
-    if (host) return `https://${host}`
+export function getAppUrl(req?: Request): string {
+  if (process.env.VERCEL_ENV === "production") {
+    return process.env.NEXT_PUBLIC_APP_URL ?? "https://naywastudio.com"
   }
+  const origin = req?.headers.get("origin")
+  if (origin && isTrustedPreviewOrigin(origin)) return origin
+
+  const host = process.env.VERCEL_BRANCH_URL ?? process.env.VERCEL_URL
+  if (host) return `https://${host}`
   return process.env.NEXT_PUBLIC_APP_URL ?? "https://naywastudio.com"
 }
 
