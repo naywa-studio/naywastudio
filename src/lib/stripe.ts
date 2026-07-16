@@ -115,8 +115,16 @@ export async function ensureStripeCustomer(params: {
     try {
       const existing = await stripe.customers.retrieve(storedId)
       if (!existing.deleted) return { customerId: storedId, created: false }
-    } catch {
-      // Inconnu dans ce mode (ou supprimé) → on repart sur un customer neuf.
+    } catch (err) {
+      // On ne repart sur un customer neuf QUE si Stripe dit explicitement que
+      // la ressource n'existe pas (mode mismatch, customer supprimé). Une
+      // panne réseau / un 500 / un rate-limit ne doit JAMAIS aboutir à créer
+      // un doublon : on écraserait stripe_customer_id et on orphelinerait
+      // l'abonnement d'un client qui paie. Dans ce cas on relaie l'erreur —
+      // l'appelant rend un 502 « réessayez », ce qui est récupérable, alors
+      // qu'un lien de facturation cassé ne l'est pas.
+      const e = err as { code?: string; statusCode?: number }
+      if (e?.code !== "resource_missing" && e?.statusCode !== 404) throw err
     }
   }
 
