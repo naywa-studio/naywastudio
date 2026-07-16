@@ -21,6 +21,7 @@ import { m } from "framer-motion"
 import { getSupabase } from "@/lib/supabase"
 import type { Job } from "@/lib/database.types"
 import { getCabinetPricingConfig, type CabinetPricingConfig } from "@/lib/cabinet-config"
+import { hasPricingAccess } from "@/lib/subscription"
 import { PricingSkeleton } from "@/components/workspace/PageSkeletons"
 import { useWorkspace } from "../layout"
 import PricingIcon from "@/components/workspace/PricingIcon"
@@ -44,8 +45,14 @@ type ProfilePricing = Pick<CabinetPricingConfig,
 > | null
 
 export default function PricingPage() {
-  const { profile: workspaceProfile } = useWorkspace()
+  const { profile: workspaceProfile, organization } = useWorkspace()
   const isOwner = workspaceProfile?.role === "owner"
+  // La Suite Pricing est une OPTION payante : l'onglet de nav est masqué sans
+  // elle, mais masquer un lien n'empêche personne de taper l'URL — d'où ce
+  // garde ici aussi. Le vrai périmètre reste serveur (requirePricingAccess).
+  const canPricing = hasPricingAccess(organization, {
+    isAdmin: workspaceProfile?.is_admin === true,
+  })
   const sb = useMemo(() => getSupabase(), [])
   const [missions, setMissions] = useState<MissionRow[] | null>(null)
   const [profile, setProfile] = useState<ProfilePricing | undefined>(undefined)
@@ -114,6 +121,60 @@ export default function PricingPage() {
     })()
     return () => { mounted = false }
   }, [loadAll])
+
+  // Option non souscrite → écran d'activation, pas la Suite.
+  if (!canPricing) {
+    return (
+      <main style={mainStyle}>
+        <div style={{
+          margin: "24px 0", padding: "32px 28px", borderRadius: 16,
+          background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
+          border: "1px solid #E2DAF6",
+          textAlign: "center",
+          fontFamily: "var(--font-inter), sans-serif",
+        }}>
+          <p style={{
+            margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8",
+            letterSpacing: "0.10em", textTransform: "uppercase",
+          }}>
+            Option non activée
+          </p>
+          <h1 style={{
+            margin: "8px 0 0", fontSize: 24, fontWeight: 800, color: "#111827",
+            letterSpacing: "-0.02em",
+            fontFamily: "var(--font-space-grotesk), sans-serif",
+          }}>
+            La Suite Pricing Syntec
+          </h1>
+          <p style={{
+            margin: "12px auto 0", maxWidth: 460, fontSize: 14, lineHeight: 1.65, color: "#4B5563",
+          }}>
+            Chiffrez vos missions en régie sans vous tromper : TJM, marge réelle,
+            charges par statut, calendrier des jours facturables, et la fiche PDF
+            à envoyer au client. Le tout à votre convention.
+          </p>
+          <Link
+            href="/organisation?tab=abonnement"
+            style={{
+              display: "inline-block", marginTop: 20,
+              padding: "11px 20px", borderRadius: 12,
+              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              color: "white", fontSize: 13.5, fontWeight: 700,
+              textDecoration: "none",
+              boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
+            }}
+          >
+            {isOwner ? "Activer l'option →" : "Voir mon organisation →"}
+          </Link>
+          {!isOwner && (
+            <p style={{ margin: "12px 0 0", fontSize: 11.5, color: "#6B7280" }}>
+              Seul le propriétaire de l&apos;organisation peut activer une option.
+            </p>
+          )}
+        </div>
+      </main>
+    )
+  }
 
   // Error state — fetch a échoué.
   if (loadError) {

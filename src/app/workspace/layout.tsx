@@ -12,7 +12,7 @@ import { TrialBanner } from "@/components/trial/TrialBanner"
 import { QuotaWarningBanner } from "@/components/quota/QuotaWarningBanner"
 import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
 import { SupportButton } from "@/components/support/SupportButton"
-import { isWorkspaceReadOnly, hasActiveAccess, graceInfo } from "@/lib/subscription"
+import { isWorkspaceReadOnly, hasActiveAccess, graceInfo, hasPricingAccess } from "@/lib/subscription"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -40,14 +40,23 @@ export function useWorkspace() {
   return ctx
 }
 
-const TABS: { href: string; label: string; showUnreadBadge?: boolean }[] = [
+const TABS: {
+  href: string
+  label: string
+  showUnreadBadge?: boolean
+  /** N'apparaît que si l'org a la Suite Pricing (add-on, essai ou admin). */
+  requiresPricing?: boolean
+}[] = [
   { href: "/workspace",          label: "Accueil" },
   // Missions en 2e (E1, juin 2026) : c'est l'entrée principale du
   // sourceur — d'abord ouvrir une mission, puis y rattacher des CVs
   // (upload direct ou matcher le vivier).
   { href: "/workspace/missions", label: "Missions" },
   { href: "/workspace/vivier",   label: "Vivier" },
-  { href: "/workspace/pricing",  label: "Pricing" },
+  // Onglet gaté : la Suite Pricing est une option payante. Il était codé en
+  // dur, donc visible par tous les clients Sourcing — la porte d'entrée de la
+  // fuite de monétisation.
+  { href: "/workspace/pricing",  label: "Pricing", requiresPricing: true },
   { href: "/workspace/pipeline", label: "Pipeline" },
   { href: "/nouveautes",         label: "Nouveautés", showUnreadBadge: true },
 ]
@@ -184,7 +193,12 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const isActive = (href: string) =>
     href === "/workspace" ? pathname === "/workspace" : pathname.startsWith(href)
 
-  const tabLinks = TABS.map((t) => {
+  // L'onglet Pricing ne s'affiche que si l'option est acquise. Le vrai
+  // périmètre de sécurité reste serveur (requirePricingAccess) : masquer un
+  // lien n'empêche personne de taper l'URL.
+  const canPricing = hasPricingAccess(organization, { isAdmin: profile?.is_admin === true })
+
+  const tabLinks = TABS.filter((t) => !t.requiresPricing || canPricing).map((t) => {
     const active = isActive(t.href)
     return (
       <Link

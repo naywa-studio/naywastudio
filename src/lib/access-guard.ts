@@ -22,7 +22,7 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { isAdmin } from "@/lib/admin"
-import { hasActiveAccess } from "@/lib/subscription"
+import { hasActiveAccess, hasPricingAccess } from "@/lib/subscription"
 
 export type ActiveAccessResult =
   | { ok: true; userId: string; orgId: string; isAdmin: boolean }
@@ -103,4 +103,51 @@ export async function requireActiveAccess(): Promise<ActiveAccessResult> {
   }
 
   return { ok: true, userId: user.id, orgId: profile.organization_id, isAdmin: false }
+}
+
+/**
+ * Garde-fou d'ENTITLEMENT pour la Suite Pricing Syntec.
+ *
+ * La Suite Pricing est une OPTION payante (add-on `pricing_addon`, cf.
+ * lib/pricing-plan.ts) : y accéder sans l'avoir prise revient à utiliser
+ * gratuitement ce qu'on facture. Or `hasPricingAccess()` existait déjà et était
+ * correct, mais n'était appelé que par le formulaire mission et /organisation :
+ * la page /workspace/pricing, l'onglet de nav et TOUTES les routes API pricing
+ * étaient ouverts à n'importe quel client Sourcing. `requireActiveAccess` ne
+ * comblait pas le trou — il ne teste que l'accès et le siège, pas l'option.
+ *
+ * Contrairement à `requireActiveAccess`, ce garde s'applique aussi aux
+ * LECTURES : générer une fiche pricing PDF ou comparer deux scénarios EST la
+ * fonctionnalité vendue, même si c'est un GET.
+ *
+ * Autorisé si : admin Naywa · essai gratuit actif · abonnement avec l'option.
+ */
+export async function requirePricingAccess(): Promise<ActiveAccessResult> {
+  const base = await requireActiveAccess()
+  if (!base.ok) return base
+  // Admin Naywa : requireActiveAccess a déjà tranché.
+  if (base.isAdmin) return base
+
+  const admin = getAdminSupabase()
+  const { data: org } = await admin
+    .from("organizations")
+    .select("trial_ends_at, subscription_status, current_period_end, subscription_has_pricing")
+    .eq("id", base.orgId)
+    .maybeSingle()
+
+  if (!hasPricingAccess(org)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          error: "pricing_not_included",
+          message:
+            "La Suite Pricing n'est pas incluse dans votre abonnement. Activez-la depuis votre organisation.",
+        },
+        { status: 403 },
+      ),
+    }
+  }
+
+  return base
 }

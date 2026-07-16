@@ -15,7 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
-import { requireActiveAccess } from "@/lib/access-guard"
+import { requirePricingAccess } from "@/lib/access-guard"
 import type { Database } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
-  const gate = await requireActiveAccess()
+  const gate = await requirePricingAccess()
   if (!gate.ok) return gate.response
 
   const body = await req.json().catch(() => null) as Record<string, unknown> | null
