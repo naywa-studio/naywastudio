@@ -122,6 +122,13 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
   const seats = parseSeatsFromLookup(lookup)
   const hasPricing = lookup?.startsWith("sourcing_pro_") ?? false
 
+  // Résiliation programmée : Stripe garde status = "active" jusqu'à la fin de
+  // la période payée et pose seulement ce flag. Sans le mémoriser, la base ne
+  // distingue pas « actif » de « actif mais qui se termine » et la console
+  // annonce un prélèvement qui n'aura jamais lieu. Réécrit à chaque update →
+  // reprendre son abonnement au portail le repasse à false tout seul.
+  const cancelAtPeriodEnd = sub.cancel_at_period_end ?? false
+
   const customerId =
     typeof sub.customer === "string" ? sub.customer : sub.customer.id
 
@@ -172,6 +179,7 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
       subscription_price_lookup: lookup,
       subscription_seats: seats,
       subscription_has_pricing: hasPricing,
+      subscription_cancel_at_period_end: cancelAtPeriodEnd,
       current_period_end: periodEndSec
         ? new Date(periodEndSec * 1000).toISOString()
         : null,
@@ -219,6 +227,10 @@ async function onSubscriptionDeleted(sub: Stripe.Subscription) {
       subscription_status: "canceled",
       stripe_subscription_id: null,
       current_period_end: null,
+      // La résiliation n'est plus "programmée" : elle a eu lieu. Sans ce reset
+      // le flag resterait true et la console afficherait une résiliation à
+      // venir alors que la grâce a déjà commencé.
+      subscription_cancel_at_period_end: false,
       lockdown_started_at: new Date().toISOString(),
     })
     .eq("id", orgId)

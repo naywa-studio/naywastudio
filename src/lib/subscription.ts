@@ -108,6 +108,31 @@ export function hasPricingAccess(
   return subscriptionAccess(org, opts).state === "trial"
 }
 
+/** Résiliation programmée : le client a résilié au portail mais l'abonnement
+ *  court jusqu'à la fin de la période payée. L'accès reste COMPLET jusque-là —
+ *  ce n'est pas encore une grâce (cf. graceInfo), juste un état à afficher :
+ *  « prend fin le X » et non « prochain prélèvement le X ».
+ *
+ *  À `endsAt`, Stripe supprime l'abonnement → le webhook pose
+ *  `lockdown_started_at` → la grâce de 30 j démarre.
+ *
+ *  Renvoie null si aucune résiliation n'est programmée. */
+export function scheduledCancellation(
+  org: Pick<
+    Organization,
+    "subscription_cancel_at_period_end" | "current_period_end" | "subscription_status"
+  > | null | undefined,
+): { endsAt: Date } | null {
+  if (!org?.subscription_cancel_at_period_end) return null
+  if (!org.current_period_end) return null
+  // past_due/unpaid ont leur propre traitement (lockdown) : ne pas parler de
+  // résiliation programmée quand le vrai sujet est un impayé.
+  if (org.subscription_status !== "active" && org.subscription_status !== "trialing") {
+    return null
+  }
+  return { endsAt: new Date(org.current_period_end) }
+}
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 /** Durée de la fenêtre de grâce (lecture seule) avant wipe, en jours.

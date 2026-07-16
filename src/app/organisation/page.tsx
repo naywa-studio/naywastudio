@@ -7,7 +7,13 @@ import { m } from "framer-motion"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
 import { trialStatus, TRIAL_DURATION_DAYS, TRIAL_SEAT_CAP } from "@/lib/trial"
-import { subscriptionAccess, hasActiveAccess } from "@/lib/subscription"
+import {
+  subscriptionAccess,
+  hasActiveAccess,
+  hasPricingAccess,
+  scheduledCancellation,
+  GRACE_DAYS,
+} from "@/lib/subscription"
 import { PLAN_PRICES_EUR, lookupKey, type PlanTier, type PlanSeats } from "@/lib/stripe"
 import { QUOTAS_BY_PLAN } from "@/lib/quota-tiers"
 import type { Organization } from "@/lib/database.types"
@@ -133,17 +139,11 @@ export default function CabinetPage() {
   // Un owner sans siège alloué ne compte pas. Le toggle siège est piloté
   // par la MembersSection (allocation explicite).
   const seatsUsed = members.filter((m) => m.has_sourcing_seat).length + invites.length
-  const trial = trialStatus(organization)
-  // La politique pricing est visible dès qu'on a un accès actif :
-  //   - trial app-side actif (legacy, avant migration Stripe natif)
-  //   - sub Stripe active OR trialing
-  // Avant on bloquait à trial.state !== "pending", ce qui cachait la
-  // carte aux comptes qui souscrivent direct sans utiliser le trial.
-  const hasAnyAccess =
-    trial.state === "active" ||
-    organization.subscription_status === "active" ||
-    organization.subscription_status === "trialing"
-  void hasAnyAccess // legacy : pricing policy est désormais inline dans Branding
+  // La politique pricing appartient à la Suite Pricing (option payante) : elle
+  // n'a de sens que pour qui y a droit. Le garde-fou existait mais était calculé
+  // puis jeté (`void`) depuis un refactor → un client Sourcing seul voyait la
+  // carte ET le wizard. On s'appuie désormais sur la règle produit unique.
+  const canUsePricing = hasPricingAccess(organization, { isAdmin: profile.is_admin === true })
 
   // La visite guidée 6 étapes Package Sourcing est désormais déclenchée
   // sur /workspace (premier accès après souscription), pas ici --
@@ -240,7 +240,7 @@ export default function CabinetPage() {
                 isAdmin={profile.is_admin === true}
                 autoOpenPicker={action === "subscribe"}
               />
-              <PricingPolicySectionCollapsible />
+              {canUsePricing && <PricingPolicySectionCollapsible />}
             </div>
             {/* Colonne droite : utilisation (sticky pour rester visible
                 pendant le scroll des cartes de gauche) */}
@@ -268,7 +268,9 @@ export default function CabinetPage() {
         )}
       </div>
 
-      <PricingOnboardingGate organization={organization} onDone={refetch} />
+      {canUsePricing && (
+        <PricingOnboardingGate organization={organization} onDone={refetch} />
+      )}
     </main>
   )
 }
@@ -679,6 +681,10 @@ function SubscriptionCard({
     autoOpenPicker && isOwner ? "paid" : "closed",
   )
 
+  // Résiliation demandée au portail : l'abo court jusqu'à la fin de la période
+  // payée. On l'annonce comme une FIN, pas comme un prochain prélèvement.
+  const scheduledCancel = scheduledCancellation(organization)
+
   // Activation directe du trial app-side. Aucun appel Stripe — la
   // structure reçoit 15 jours d'accès complet plafonnés à 2 sièges.
   // Au-delà, l'owner doit cliquer "Souscrire" pour passer au paid.
@@ -758,26 +764,37 @@ function SubscriptionCard({
       <Card title="Abonnement" subtitle="Package Sourcing : votre essai et votre formule.">
         {/* Stripe sub — affichage prioritaire si présente */}
         {hasStripeSub && (
-          <Panel tone={access.state === "paid" ? "success" : access.state === "trialing" ? "brand" : "warn"}>
-            <p style={panelTitle(access.state === "paid" ? "#15803D" : access.state === "trialing" ? "#7C63C8" : "#B91C1C")}>
-              {planLabel(organization)}
+          <Panel tone={scheduledCancel ? "warn" : access.state === "paid" ? "success" : access.state === "trialing" ? "brand" : "warn"}>
+            <p style={panelTitle(scheduledCancel ? "#B45309" : access.state === "paid" ? "#15803D" : access.state === "trialing" ? "#7C63C8" : "#B91C1C")}>
+              {scheduledCancel ? "Résiliation programmée" : planLabel(organization)}
             </p>
             <p style={panelBody("#374151")}>
               {organization.subscription_status === "past_due"
                 ? "Échec du dernier paiement. Mettez à jour votre moyen de paiement."
-                : access.state === "trialing" && "until" in access
-                  ? <>Période d&apos;essai jusqu&apos;au <strong>{access.until?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</strong>.</>
-                  : access.state === "paid" && "until" in access
-                    ? <>Prochain prélèvement le <strong>{access.until?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</strong>.</>
-                    : null}
+                : scheduledCancel
+                  // Résilié au portail : accès complet jusqu'à la fin de la
+                  // période DÉJÀ payée — surtout pas « prochain prélèvement ».
+                  ? <>
+                      {planLabel(organization)} — votre accès reste complet jusqu&apos;au{" "}
+                      <strong>{scheduledCancel.endsAt.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</strong>.
+                      {" "}Aucun nouveau prélèvement. Ensuite vous disposerez de {GRACE_DAYS} jours
+                      en lecture seule pour exporter vos données ou réactiver.
+                    </>
+                  : access.state === "trialing" && "until" in access
+                    ? <>Période d&apos;essai jusqu&apos;au <strong>{access.until?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</strong>.</>
+                    : access.state === "paid" && "until" in access
+                      ? <>Prochain prélèvement le <strong>{access.until?.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</strong>.</>
+                      : null}
             </p>
             <button
               type="button"
               onClick={openPortal}
               disabled={busy || !isOwner}
-              style={ctaSecondaryBtn(busy)}
+              style={scheduledCancel ? ctaPrimaryBtn(busy) : ctaSecondaryBtn(busy)}
             >
-              {busy ? "Ouverture du portail…" : "Gérer mon abonnement"}
+              {busy
+                ? "Ouverture du portail…"
+                : scheduledCancel ? "Reprendre mon abonnement →" : "Gérer mon abonnement"}
             </button>
           </Panel>
         )}
