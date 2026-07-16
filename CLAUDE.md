@@ -668,8 +668,15 @@ Ensuite checkout/portail/résiliation testables sans paiement réel (carte `4242
 
 **File d'attente post-compact** :
 1. Elyas valide la résiliation en preview (Stripe test) → **merger `cancellation-flow`**.
-2. **Grille tarifaire B** — Elyas veut la CHANGER (revoir le modèle) + « 5+ sièges → nous
-   consulter » avec **embed Lark inline** (Elyas fournit l'embed). Discussion modèle ouverte.
+2. **Grille tarifaire — nouveau modèle VALIDÉ (2026-07-16)** : **1 seul plan « Sourcing »
+   par siège (1-4) + la Suite Pricing en ADD-ON activable (+X€)**, au lieu des 2 tiers
+   Sourcing/Sourcing Pro (÷2 le catalogue). Garder « 5+ sièges → nous consulter » (page
+   contact équipe + **embed Lark inline**, Elyas fournit l'embed). Impacts à coder :
+   catalogue Stripe (prix add-on Pricing, ou delta), `lib/stripe.ts` (PLAN_PRICES_EUR +
+   lookupKey → notion d'add-on), `lib/quota-tiers.ts` (Pro = même cvLimit, l'add-on ne
+   débloque QUE la Suite Pricing), `subscription_has_pricing` (déjà en DB — dérivé du
+   line item add-on au webhook), `PlanPickerModal` (toggle add-on au lieu de switch tier),
+   `/tarifs`. Probablement sans migration. **NON commencé** (build post-compact).
 3. **Quiz onboarding** (3 Q au « Souscrire » : sièges/régie-TJM/volume + type-structure étape
    1, skippable, stocke les tranches → petite migration). Codable dès validation.
 4. Supprimer vieux buckets R2 (North America) + retirer route `migrate-r2-eu`.
