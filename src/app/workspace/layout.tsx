@@ -12,7 +12,7 @@ import { TrialBanner } from "@/components/trial/TrialBanner"
 import { QuotaWarningBanner } from "@/components/quota/QuotaWarningBanner"
 import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
 import { SupportButton } from "@/components/support/SupportButton"
-import { isWorkspaceReadOnly } from "@/lib/subscription"
+import { isWorkspaceReadOnly, hasActiveAccess, graceInfo } from "@/lib/subscription"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -127,11 +127,16 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       return
     }
 
-    // Owner avec siège mais sans accès actif (résiliation / impayé / essai
-    // expiré) OU suppression programmée : on ne le bounce PLUS vers
-    // /organisation. Il reste dans le workspace en LECTURE SEULE (cf.
-    // isWorkspaceReadOnly ci-dessous) pour consulter ses données, les
-    // exporter et réactiver / annuler depuis les bannières.
+    // Owner avec siège mais sans accès actif : on ne le bounce vers
+    // /organisation QUE s'il n'y a AUCUNE fenêtre de grâce en cours. En grâce
+    // (résiliation / impayé / essai expiré / suppression programmée) il reste
+    // dans le workspace en LECTURE SEULE pour consulter, exporter et réactiver
+    // / annuler depuis les bannières. Le cas "aucun accès + aucune grâce" =
+    // essai jamais activé (mid-onboarding) → retour /organisation.
+    if (isOwner && org && !hasActiveAccess(org) && !graceInfo(org).cause) {
+      router.replace("/organisation")
+      return
+    }
 
     setProfile(prof ?? null)
     setOrganization(org)

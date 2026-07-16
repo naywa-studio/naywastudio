@@ -211,7 +211,8 @@ async function onSubscriptionDeleted(sub: Stripe.Subscription) {
   const orgId = await resolveOrgId(sub)
   if (!orgId) return
 
-  // Annulation = bascule immédiate en lockdown (15 j read-only puis wipe).
+  // Annulation = bascule en lockdown (30 j de lecture seule puis wipe des
+  // données business ; le compte est conservé pour une ré-souscription).
   await admin
     .from("organizations")
     .update({

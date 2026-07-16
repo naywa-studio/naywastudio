@@ -54,9 +54,26 @@ export async function requireActiveAccess(): Promise<ActiveAccessResult> {
 
   const { data: org } = await admin
     .from("organizations")
-    .select("trial_ends_at, subscription_status, current_period_end")
+    .select("trial_ends_at, subscription_status, current_period_end, pending_deletion_at")
     .eq("id", profile.organization_id)
     .maybeSingle()
+
+  // Suppression programmée : lecture seule pour tout le monde, même si l'abo
+  // est encore actif (on a demandé à supprimer → plus de mutations). Cohérent
+  // avec isWorkspaceReadOnly côté UI. Annulable via /api/cabinet/cancel-deletion.
+  if (org?.pending_deletion_at) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          error: "deletion_scheduled",
+          message:
+            "La suppression de l'organisation est programmée — l'accès est en lecture seule. Annulez la suppression pour reprendre.",
+        },
+        { status: 403 },
+      ),
+    }
+  }
 
   if (!hasActiveAccess(org)) {
     return {

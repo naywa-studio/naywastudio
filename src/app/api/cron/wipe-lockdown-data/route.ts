@@ -3,6 +3,7 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import { r2DeleteByPrefix } from "@/lib/r2-storage"
 
 export const runtime = "nodejs"
+export const maxDuration = 60
 
 /**
  * GET /api/cron/wipe-lockdown-data
@@ -102,6 +103,21 @@ export async function GET(req: NextRequest) {
     }
 
     const counts: Record<string, number> = {}
+
+    // Purge des CV candidats sur R2 AVANT de supprimer les lignes candidates.
+    // RGPD : on ne "vide" la base que si les PDF sont bien partis. Si la purge
+    // R2 échoue, on SAUTE l'org (candidats toujours > 0 → le skip-gate ne
+    // s'activera pas → re-tenté au prochain run). On GARDE les logos (Supabase)
+    // car le compte + le branding survivent au wipe business. Purge idempotente,
+    // scope garanti mono-org (préfixe = UUID de l'org + "/").
+    try {
+      counts.r2_cvs = await r2DeleteByPrefix("cv", `${org.id}/`)
+    } catch (r2Err) {
+      console.error(`[cron/wipe-lockdown] R2 cv purge ${org.id} — data NON wipée, retry:`, r2Err)
+      errors.push({ org_id: org.id, step: "delete_r2_cv", message: (r2Err as Error).message })
+      continue
+    }
+
     for (const table of BUSINESS_TABLES as ReadonlyArray<BusinessTable>) {
       const { error: delErr, count } = await admin
         .from(table)
@@ -113,17 +129,6 @@ export async function GET(req: NextRequest) {
       } else {
         counts[table] = count ?? 0
       }
-    }
-
-    // Purge des CV candidats sur R2 (les lignes candidates viennent d'être
-    // supprimées → leurs PDF ne doivent pas rester). On GARDE les logos
-    // (Supabase Storage) car le compte + le branding survivent au wipe
-    // business. Best-effort.
-    try {
-      counts.r2_cvs = await r2DeleteByPrefix("cv", `${org.id}/`)
-    } catch (r2Err) {
-      console.warn(`[cron/wipe-lockdown] R2 cv purge ${org.id}:`, r2Err)
-      errors.push({ org_id: org.id, step: "delete_r2_cv", message: (r2Err as Error).message })
     }
 
     // Reset l'UI côté sièges. On ne touche PAS trial_ends_at (garde la trace)
