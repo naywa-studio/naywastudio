@@ -123,11 +123,22 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
   const hasPricing = lookup?.startsWith("sourcing_pro_") ?? false
 
   // Résiliation programmée : Stripe garde status = "active" jusqu'à la fin de
-  // la période payée et pose seulement ce flag. Sans le mémoriser, la base ne
-  // distingue pas « actif » de « actif mais qui se termine » et la console
-  // annonce un prélèvement qui n'aura jamais lieu. Réécrit à chaque update →
-  // reprendre son abonnement au portail le repasse à false tout seul.
-  const cancelAtPeriodEnd = sub.cancel_at_period_end ?? false
+  // la période payée et signale seulement que l'abo s'arrêtera. Sans le
+  // mémoriser, la base ne distingue pas « actif » de « actif mais qui se
+  // termine » et la console annonce un prélèvement qui n'aura jamais lieu.
+  //
+  // Selon la version d'API du webhook, l'info se lit sur `cancel_at_period_end`
+  // (booléen, versions anciennes) OU sur `cancel_at` (timestamp, versions
+  // récentes — c'est le cas de notre endpoint en 2026-06-24.dahlia, où le
+  // booléen restait à false et faisait échouer la détection). On accepte les
+  // deux : Stripe restructure ces champs régulièrement (cf. current_period_end
+  // passé au niveau item juste au-dessus).
+  //
+  // Réécrit à CHAQUE update → reprendre son abonnement au portail remet
+  // le flag à false tout seul.
+  const cancelAtSec =
+    (sub as unknown as { cancel_at?: number | null }).cancel_at ?? null
+  const cancelAtPeriodEnd = sub.cancel_at_period_end === true || cancelAtSec != null
 
   const customerId =
     typeof sub.customer === "string" ? sub.customer : sub.customer.id
