@@ -628,8 +628,16 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 serveur **et** UI.
 
 **BRANCHE `claude/cancellation-flow`** (poussée, **PAS mergée**, attend validation
-preview Elyas). Dernier commit `132152d`. **Aucune migration DB** (réutilise
-`pending_deletion_at` / `lockdown_started_at` / `trial_ends_at`). Contenu :
+preview Elyas). Dernier commit `bc5ccd3`. **Migration 061** (`organizations.
+subscription_cancel_at_period_end`, appliquée + vérifiée via MCP) ; le reste
+réutilise `pending_deletion_at` / `lockdown_started_at` / `trial_ends_at`.
+
+**Testé en LIVE par Elyas en mode Stripe test (16/07) — chaîne prouvée** :
+checkout test → webhook signé → DB syncée (`subscription_status=active`,
+`lockdown_started_at` effacé = réactivation OK). Le bypass SSO laisse bien
+passer Stripe. 4 bugs trouvés et corrigés au passage (voir plus bas).
+
+Contenu :
 - **`lib/subscription.ts`** : `graceInfo(org)` = fenêtre de grâce unifiée (lecture
   seule 30j avant wipe), 3 causes priorisées **deletion > subscription > trial**.
   `isWorkspaceReadOnly(org)` = pending_deletion OU !accès actif. `GRACE_DAYS=30`.
@@ -666,7 +674,44 @@ idempotente) recrée les 2 produits × 4 prix (lookup_keys) dans le compte de te
 (3) redéployer preview ; (4) appeler `POST /api/admin/stripe-seed-test` une fois (admin).
 Ensuite checkout/portail/résiliation testables sans paiement réel (carte `4242…`).
 
+**Bugs trouvés en testant (16/07, tous corrigés sur la branche)** :
+- `b3f018c` **Checkout 502** : un Stripe Customer appartient à UN SEUL mode, or la
+  base est **partagée prod (live) / previews (test)** → un `cus_` live est inconnu
+  de l'API test. `ensureStripeCustomer()` valide l'id dans le mode courant et
+  recrée sinon (checkout + portal + setup-intent). Sert aussi en PROD (customer
+  supprimé au dashboard = plus de 502 définitif). Portal : try/catch + 502 JSON.
+- `b3f018c` **URLs de retour** : les 3 routes utilisaient `NEXT_PUBLIC_APP_URL`
+  (= la prod) → depuis une preview, Stripe renvoyait sur naywastudio.com.
+  `getAppUrl(req)`.
+- `bb22142` **Bounce /login après paiement** : une preview a PLUSIEURS hôtes (URL
+  par déploiement + alias de branche) et le cookie Supabase est lié à l'hôte.
+  `getAppUrl(req)` renvoie l'origine EXACTE de la requête hors prod (allowlist
+  `*.vercel.app`) ; la prod garde son URL canonique en dur (anti host-header
+  injection).
+- `bc5ccd3` **« Prochain prélèvement » sur un abo résilié** : Stripe garde
+  `status=active` + pose `cancel_at_period_end` jusqu'à la fin de période ; on ne
+  stockait pas ce flag. Migration 061 + miroir au webhook + `scheduledCancellation()`
+  + carte « Résiliation programmée · accès complet jusqu'au X ».
+
+**⚠️ RÈGLE — base partagée prod/preview** : le webhook test écrit dans les MÊMES
+colonnes (`stripe_customer_id`, `subscription_status`…) que la prod lit. **Ne
+JAMAIS faire un checkout de test connecté sur l'org d'un vrai client (GMH)** —
+ça écraserait son lien vers son abonnement live. Tester uniquement sur `TEST`
+(`e53056801@gmail.com`) ou une org jetable. Isoler proprement = colonnes par mode
+(migration), à faire si ça devient gênant.
+
 **File d'attente post-compact** :
+0. **🔴 FUITE MONÉTISATION (déjà en PROD)** : la Suite Pricing est **offerte à tout
+   client Sourcing**. `hasPricingAccess()` existe et est correct mais **presque
+   personne ne l'appelle** : onglet nav « Pricing » **codé en dur**
+   (`workspace/layout.tsx` TABS), **`/workspace/pricing` sans AUCUN garde-fou**, et
+   **aucune route API** (`pricing/compare`, `match/[id]/pricing-pdf`,
+   `pricing-params`) ne vérifie l'entitlement (`requireActiveAccess` ne teste que
+   l'accès + le siège). Seul le formulaire mission le gatait. `bc5ccd3` a colmaté
+   `/organisation` (carte Politique pricing + wizard — le garde-fou y était calculé
+   puis **jeté** via `void hasAnyAccess`, résidu de refactor). **Reste : nav + page
+   + serveur + `/organisation/parametrage`.** → à faire DANS la branche du modèle
+   tarifaire : le gating d'entitlement EST le mécanisme de l'add-on Pricing.
 1. Elyas valide la résiliation en preview (Stripe test) → **merger `cancellation-flow`**.
 2. **Grille tarifaire — nouveau modèle VALIDÉ (2026-07-16)** : **1 seul plan « Sourcing »
    par siège (1-4) + la Suite Pricing en ADD-ON activable (+X€)**, au lieu des 2 tiers
