@@ -5,22 +5,22 @@ import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
-import { QUOTAS_BY_PLAN } from "@/lib/quota-tiers"
+import {
+  priceForSeats,
+  monthlyTotalEur,
+  cvIncludedForSeats,
+  MAX_SELF_SERVE_SEATS,
+} from "@/lib/pricing-plan"
 
-type SeatCount = 1 | 2 | 3 | 4
+type SeatCount = 1 | 2 | 3 | 4 | 5
 
-const SOURCING: Record<SeatCount, number> = {
-  1: 38.99,
-  2: 69.99,
-  3: 94.99,
-  4: 119.99,
-}
-const SOURCING_PRO: Record<SeatCount, number> = {
-  1: 46.99,
-  2: 85.99,
-  3: 118.99,
-  4: 151.99,
-}
+/**
+ * Les prix ne sont plus recopiés ici : cette page dupliquait la grille (et
+ * aurait dérivé du catalogue Stripe au premier changement). Tout vient
+ * désormais de `lib/pricing-plan.ts`, la même source que le configurateur,
+ * le checkout et le catalogue Stripe lui-même.
+ */
+const SEAT_CHOICES: SeatCount[] = [1, 2, 3, 4, 5]
 
 const SOURCING_INCLUDED = [
   "Vivier organisé par secteurs (Nora classe chaque CV automatiquement)",
@@ -31,7 +31,7 @@ const SOURCING_INCLUDED = [
 ]
 
 const PRO_EXTRA = [
-  "Tout Package Sourcing",
+  "Tout le plan Sourcing",
   "Pricing Syntec automatisé — marge, charges, calendrier réel",
   "Chart risque rupture employeur (RC + licenciement)",
   "Export PDF des chiffrages, nominatif ou anonymisé",
@@ -125,7 +125,7 @@ export default function TarifsPage() {
                 fontFamily: "var(--font-inter), sans-serif",
               }}
             >
-              {([1, 2, 3, 4] as SeatCount[]).map((n) => (
+              {SEAT_CHOICES.map((n) => (
                 <button
                   key={n}
                   onClick={() => setSeats(n)}
@@ -143,7 +143,7 @@ export default function TarifsPage() {
                     minWidth: 84,
                   }}
                 >
-                  {n} {n === 1 ? "siège" : "sièges"}
+                  {n} {n === 1 ? "personne" : "personnes"}
                 </button>
               ))}
             </div>
@@ -157,9 +157,10 @@ export default function TarifsPage() {
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
-            Au-delà de 4 sièges,{" "}
-            <Link href="/contact" style={{ color: "#7C63C8", fontWeight: 600 }}>
-              contactez-nous
+            Tarif dégressif : plus vous êtes nombreux, moins la personne coûte.
+            Au-delà de {MAX_SELF_SERVE_SEATS} personnes,{" "}
+            <Link href="/contact-equipe" style={{ color: "#7C63C8", fontWeight: 600 }}>
+              parlons-en
             </Link>
             .
           </p>
@@ -178,26 +179,26 @@ export default function TarifsPage() {
             }}
           >
             <PriceCard
-              tag="Le package"
-              title="Package Sourcing"
+              tag="Le plan"
+              title="Sourcing"
               subtitle="Tout le workspace Nora, partagé entre vos collègues."
-              priceMonthly={SOURCING[seats]}
-              perSeat={SOURCING[seats] / seats}
+              priceMonthly={priceForSeats(seats)}
+              perSeat={priceForSeats(seats) / seats}
               recommended={seats === 3}
               features={SOURCING_INCLUDED}
-              quota={QUOTAS_BY_PLAN[`sourcing_${seats}`]}
+              quota={{ cvLimit: cvIncludedForSeats(seats) }}
               cta="Démarrer mes 15 jours →"
               accentSoft={false}
             />
             <PriceCard
-              tag="Premium"
-              title="Package Sourcing Pro"
-              subtitle="Pour les structures qui veulent un accompagnement renforcé."
-              priceMonthly={SOURCING_PRO[seats]}
-              perSeat={SOURCING_PRO[seats] / seats}
+              tag="Avec l'option"
+              title="Sourcing + Suite Pricing"
+              subtitle="Pour les structures en régie qui chiffrent au TJM."
+              priceMonthly={monthlyTotalEur(seats, true)}
+              perSeat={monthlyTotalEur(seats, true) / seats}
               recommended={false}
               features={PRO_EXTRA}
-              quota={QUOTAS_BY_PLAN[`sourcing_pro_${seats}`]}
+              quota={{ cvLimit: cvIncludedForSeats(seats) }}
               cta="Démarrer mes 15 jours →"
               accentSoft
             />
@@ -292,7 +293,7 @@ function PriceCard({
   perSeat: number
   recommended: boolean
   features: readonly string[]
-  quota?: { cvLimit: number; storageBytes: number; llmMonthly: number }
+  quota?: { cvLimit: number }
   cta: string
   accentSoft: boolean
 }) {

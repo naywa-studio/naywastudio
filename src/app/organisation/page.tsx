@@ -14,8 +14,15 @@ import {
   scheduledCancellation,
   GRACE_DAYS,
 } from "@/lib/subscription"
-import { PLAN_PRICES_EUR, lookupKey, type PlanTier, type PlanSeats } from "@/lib/stripe"
-import { QUOTAS_BY_PLAN } from "@/lib/quota-tiers"
+import {
+  priceForSeats,
+  monthlyTotalEur,
+  cvIncludedForSeats,
+  isSelfServeSeats,
+  PRICING_ADDON_EUR,
+  MAX_SELF_SERVE_SEATS,
+  formatEur,
+} from "@/lib/pricing-plan"
 import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
@@ -893,8 +900,8 @@ function SubscriptionCard({
 
       {pickerMode === "paid" && (
         <PlanPickerModal
-          initialTier={organization.subscription_has_pricing ? "sourcing_pro" : "sourcing"}
-          initialSeats={(organization.subscription_seats as PlanSeats) ?? 1}
+          initialSeats={organization.subscription_seats ?? Math.max(organization.seats_total, 1)}
+          initialPricing={organization.subscription_has_pricing === true}
           onClose={() => setPickerMode("closed")}
         />
       )}
@@ -903,9 +910,9 @@ function SubscriptionCard({
 }
 
 function planLabel(org: Organization): string {
-  const tier = org.subscription_has_pricing ? "Package Sourcing Pro" : "Package Sourcing"
   const seats = org.subscription_seats ?? 1
-  return `${tier} · ${seats} siège${seats > 1 ? "s" : ""}`
+  const base = `Sourcing · ${seats} personne${seats > 1 ? "s" : ""}`
+  return org.subscription_has_pricing ? `${base} · Suite Pricing` : base
 }
 
 const ctaPrimaryBtn = (busy: boolean): React.CSSProperties => ({
@@ -943,19 +950,22 @@ const ctaSecondaryBtn = (busy: boolean): React.CSSProperties => ({
 /* ────────────────────────────────────────────────────────────────── */
 
 function PlanPickerModal({
-  initialTier, initialSeats, onClose,
+  initialSeats, initialPricing, onClose,
 }: {
-  initialTier: PlanTier
-  initialSeats: PlanSeats
+  initialSeats: number
+  initialPricing: boolean
   onClose: () => void
 }) {
   useEscapeKey(onClose)
-  const [tier, setTier] = useState<PlanTier>(initialTier)
-  const [seats, setSeats] = useState<PlanSeats>(initialSeats)
+  const [seats, setSeats] = useState<number>(Math.max(1, initialSeats))
+  const [withPricing, setWithPricing] = useState<boolean>(initialPricing)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const price = PLAN_PRICES_EUR[tier][seats]
+  // Au-delà du plafond self-service, on ne vend plus en ligne : le CTA bascule
+  // sur la prise de RDV. Le serveur applique la même règle (cf. checkout).
+  const selfServe = isSelfServeSeats(seats)
+  const total = monthlyTotalEur(seats, withPricing)
 
   const subscribe = async () => {
     setBusy(true); setError(null)
@@ -963,7 +973,7 @@ function PlanPickerModal({
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier, seats }),
+        body: JSON.stringify({ seats, withPricing }),
       })
       const j = await res.json().catch(() => ({} as { url?: string; error?: string }))
       if (!res.ok || !j.url) throw new Error(j.error ?? "Checkout indisponible")
@@ -1010,143 +1020,173 @@ function PlanPickerModal({
           </h2>
         </header>
 
-        {/* Tier toggle */}
-        <div style={{
-          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18,
-        }}>
-          {(["sourcing", "sourcing_pro"] as const).map((t) => {
-            const active = tier === t
-            return (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTier(t)}
-                style={{
-                  padding: "14px 12px",
-                  borderRadius: 14,
-                  border: active ? "2px solid #7C63C8" : "1px solid #E2DAF6",
-                  background: active ? "rgba(124,99,200,0.08)" : "white",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  fontFamily: "inherit",
-                }}
-              >
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
-                  {t === "sourcing" ? "Package Sourcing" : "Package Sourcing Pro"}
-                </p>
-                <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.45 }}>
-                  {t === "sourcing"
-                    ? "Vivier, matching, anonymisation."
-                    : "+ Suite Pricing Syntec (engine + chart + PDF)."}
-                </p>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Seats picker */}
+        {/* Nombre de personnes — saisie libre, plus un palier à choisir */}
         <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "#374151", letterSpacing: "0.01em" }}>
-          Nombre de sièges
+          Combien de personnes utiliseront Naywa ?
         </p>
         <div style={{
-          display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18,
+          display: "flex", alignItems: "center", gap: 12, marginBottom: 6,
         }}>
-          {([1, 2, 3, 4] as const).map((s) => {
-            const active = seats === s
-            const featured = s === 3
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSeats(s)}
-                style={{
-                  position: "relative",
-                  padding: "12px 6px",
-                  borderRadius: 12,
-                  border: active ? "2px solid #7C63C8" : "1px solid #E2DAF6",
-                  background: active ? "rgba(124,99,200,0.08)" : "white",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  textAlign: "center",
-                }}
-              >
-                {featured && (
-                  <span style={{
-                    position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)",
-                    background: "#7C63C8", color: "white",
-                    fontSize: 8.5, fontWeight: 800, padding: "2px 6px",
-                    borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase",
-                  }}>
-                    Reco
-                  </span>
-                )}
-                <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827" }}>{s}</p>
-                <p style={{ margin: 0, fontSize: 10.5, color: "#6B7280" }}>
-                  siège{s > 1 ? "s" : ""}
-                </p>
-                <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "#7C63C8", fontWeight: 700 }}>
-                  {PLAN_PRICES_EUR[tier][s].toFixed(2)} €
-                </p>
-              </button>
-            )
-          })}
+          <div style={{
+            display: "flex", alignItems: "center",
+            border: "1px solid #E2DAF6", borderRadius: 12, overflow: "hidden",
+          }}>
+            <button
+              type="button"
+              onClick={() => setSeats((n) => Math.max(1, n - 1))}
+              disabled={seats <= 1}
+              aria-label="Retirer une personne"
+              style={stepperBtn(seats <= 1)}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={1}
+              value={seats}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10)
+                setSeats(Number.isNaN(n) ? 1 : Math.max(1, Math.min(99, n)))
+              }}
+              aria-label="Nombre de personnes"
+              style={{
+                width: 58, border: "none", outline: "none", textAlign: "center",
+                fontSize: 18, fontWeight: 800, color: "#111827",
+                fontFamily: "inherit", fontVariantNumeric: "tabular-nums",
+                padding: "10px 0", background: "white",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setSeats((n) => Math.min(99, n + 1))}
+              aria-label="Ajouter une personne"
+              style={stepperBtn(false)}
+            >
+              +
+            </button>
+          </div>
+          {selfServe && (
+            <span style={{ fontSize: 12, color: "#6B7280" }}>
+              soit <strong style={{ color: "#111827" }}>{formatEur(priceForSeats(seats))}</strong>
+              {seats > 1 && ` · ${formatEur(priceForSeats(seats) / seats)} par personne`}
+            </span>
+          )}
         </div>
-
-        {/* Price + quotas inclus summary */}
-        {(() => {
-          const q = QUOTAS_BY_PLAN[lookupKey(tier, seats)]
-          return (
-            <div style={{
-              background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
-              border: "1px solid #E2DAF6",
-              borderRadius: 14,
-              padding: "14px 16px",
-              marginBottom: 16,
-            }}>
-              <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "baseline",
-              }}>
-                <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
-                  Total mensuel HT
-                </span>
-                <span style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                  {price.toFixed(2)} €
-                </span>
-              </div>
-              {q && (
-                <div style={{
-                  marginTop: 10, paddingTop: 10,
-                  borderTop: "1px solid rgba(124,99,200,0.18)",
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  fontSize: 11.5, color: "#5C46A0", fontWeight: 600,
-                  flexWrap: "wrap", gap: 6,
-                }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7"/>
-                      <path d="M3 7l9 6 9-6"/>
-                      <rect x="3" y="5" width="18" height="2"/>
-                    </svg>
-                    {q.cvLimit.toLocaleString("fr-FR")} CV
-                  </span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M20 6 9 17l-5-5"/>
-                    </svg>
-                    Matchings illimités
-                  </span>
-                </div>
-              )}
-            </div>
-          )
-        })()}
-
-        <p style={{ margin: "0 0 16px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
-          Pas de TVA appliquée (micro-entreprise). Annulation à tout moment depuis votre portail Stripe.
-          {seats >= 4 && " Au-delà de 4 sièges, contactez-nous pour un devis."}
+        <p style={{ margin: "0 0 18px", fontSize: 11, color: "#6B7280" }}>
+          Tarif dégressif : plus vous êtes nombreux, moins la personne coûte.
         </p>
+
+        {/* Option Suite Pricing — un interrupteur, pas un plan à part */}
+        <button
+          type="button"
+          onClick={() => setWithPricing((v) => !v)}
+          aria-pressed={withPricing}
+          style={{
+            width: "100%", display: "flex", alignItems: "flex-start", gap: 11,
+            padding: "13px 14px", marginBottom: 18,
+            borderRadius: 14,
+            border: withPricing ? "2px solid #7C63C8" : "1px solid #E2DAF6",
+            background: withPricing ? "rgba(124,99,200,0.08)" : "white",
+            cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              flexShrink: 0, marginTop: 1,
+              width: 18, height: 18, borderRadius: 5,
+              border: withPricing ? "none" : "1.5px solid #C9BEE8",
+              background: withPricing ? "#7C63C8" : "white",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            {withPricing && (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white"
+                strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            )}
+          </span>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>
+                Suite Pricing Syntec
+              </span>
+              <span style={{ fontSize: 12.5, fontWeight: 800, color: "#7C63C8", whiteSpace: "nowrap" }}>
+                + {formatEur(PRICING_ADDON_EUR)}
+              </span>
+            </span>
+            <span style={{ display: "block", marginTop: 3, fontSize: 11.5, color: "#6B7280", lineHeight: 1.45 }}>
+              TJM, marges, simulation et fiche PDF. Prix unique, quel que soit le nombre de personnes.
+            </span>
+          </span>
+        </button>
+
+        {/* Récap */}
+        {selfServe ? (
+          <div style={{
+            background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
+            border: "1px solid #E2DAF6",
+            borderRadius: 14,
+            padding: "14px 16px",
+            marginBottom: 16,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+                Total mensuel HT
+              </span>
+              <span style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+                {formatEur(total)}
+              </span>
+            </div>
+            <div style={{
+              marginTop: 10, paddingTop: 10,
+              borderTop: "1px solid rgba(124,99,200,0.18)",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              fontSize: 11.5, color: "#5C46A0", fontWeight: 600,
+              flexWrap: "wrap", gap: 6,
+            }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7"/>
+                  <path d="M3 7l9 6 9-6"/>
+                  <rect x="3" y="5" width="18" height="2"/>
+                </svg>
+                {cvIncludedForSeats(seats).toLocaleString("fr-FR")} CV inclus
+              </span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M20 6 9 17l-5-5"/>
+                </svg>
+                Matchings illimités
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            background: "#FFFBEB",
+            border: "1px solid #FDE68A",
+            borderRadius: 14,
+            padding: "14px 16px",
+            marginBottom: 16,
+          }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#92400E" }}>
+              À {seats} personnes, parlons-en
+            </p>
+            <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#92400E", lineHeight: 1.5 }}>
+              Au-delà de {MAX_SELF_SERVE_SEATS} personnes, on construit une offre avec vous
+              plutôt que de vous laisser deviner. Prenez 20 minutes avec l&apos;équipe.
+            </p>
+          </div>
+        )}
+
+        {selfServe && (
+          <p style={{ margin: "0 0 16px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
+            Pas de TVA appliquée (micro-entreprise). Annulation à tout moment depuis votre portail Stripe.
+          </p>
+        )}
 
         {error && (
           <p style={{ margin: "0 0 12px", fontSize: 12, color: "#B91C1C" }}>{error}</p>
@@ -1172,32 +1212,54 @@ function PlanPickerModal({
           >
             Annuler
           </button>
-          <button
-            type="button"
-            onClick={subscribe}
-            disabled={busy}
-            style={{
-              flex: 2,
-              padding: "12px 16px",
-              borderRadius: 12,
-              border: "none",
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              color: "white",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: busy ? "wait" : "pointer",
-              opacity: busy ? 0.7 : 1,
-              boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
-              fontFamily: "inherit",
-            }}
-          >
-            {busy ? "Redirection…" : "Continuer vers le paiement →"}
-          </button>
+          {selfServe ? (
+            <button
+              type="button"
+              onClick={subscribe}
+              disabled={busy}
+              style={ctaModalBtn(busy)}
+            >
+              {busy ? "Redirection…" : `Continuer — ${formatEur(total)}/mois →`}
+            </button>
+          ) : (
+            <a href="/contact-equipe" style={{ ...ctaModalBtn(false), textDecoration: "none", textAlign: "center" }}>
+              Prendre rendez-vous →
+            </a>
+          )}
         </div>
       </m.div>
     </div>
   )
 }
+
+const ctaModalBtn = (busy: boolean): React.CSSProperties => ({
+  flex: 2,
+  padding: "12px 16px",
+  borderRadius: 12,
+  border: "none",
+  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+  color: "white",
+  fontSize: 14,
+  fontWeight: 700,
+  cursor: busy ? "wait" : "pointer",
+  opacity: busy ? 0.7 : 1,
+  boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
+  fontFamily: "inherit",
+})
+
+/** Boutons − / + du sélecteur de personnes. */
+const stepperBtn = (disabled: boolean): React.CSSProperties => ({
+  width: 38,
+  padding: "10px 0",
+  border: "none",
+  background: "white",
+  color: disabled ? "#D1D5DB" : "#7C63C8",
+  fontSize: 18,
+  fontWeight: 700,
+  lineHeight: 1,
+  cursor: disabled ? "not-allowed" : "pointer",
+  fontFamily: "inherit",
+})
 
 function Panel({ tone, children }: { tone: "brand" | "success" | "warn"; children: React.ReactNode }) {
   const styles: Record<typeof tone, { bg: string; border: string }> = {
