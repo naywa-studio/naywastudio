@@ -35,7 +35,7 @@ export async function GET() {
 
   const { data: org } = await admin
     .from("organizations")
-    .select("subscription_status, subscription_price_lookup, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json, storage_used_bytes, llm_actions_this_month, llm_period_start")
+    .select("subscription_status, subscription_seats, subscription_has_pricing, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json, storage_used_bytes, llm_actions_this_month, llm_period_start")
     .eq("id", profile.organization_id)
     .maybeSingle()
   if (!org) {

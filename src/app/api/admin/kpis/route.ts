@@ -12,10 +12,9 @@
  *  - seats_occupied      : profiles WHERE has_sourcing_seat = true
  *  - candidates_parsed   : candidates WHERE parse_status = 'parsed'
  *  - trials_active       : organizations WHERE trial_ends_at > now()
- *  - mrr_estimated_eur   : sum( PLAN_PRICES_EUR[tier][seats] )
- *                          for orgs avec subscription_status IN
- *                          ('active','trialing') et subscription_price_lookup
- *                          parsable.
+ *  - mrr_estimated_eur   : somme de monthlyTotalEur(seats, has_pricing) pour
+ *                          les orgs avec subscription_status IN
+ *                          ('active','trialing') et un nombre de sièges connu.
  *
  * Tout passe par le client admin (bypass RLS) parce qu'on veut des
  * agrégats globaux, pas org-scoped.
@@ -24,7 +23,7 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { parseLookupKey, PLAN_PRICES_EUR } from "@/lib/stripe"
+import { monthlyTotalEur } from "@/lib/stripe"
 
 export const runtime = "nodejs"
 
@@ -52,18 +51,21 @@ export async function GET() {
       .eq("parse_status", "parsed"),
     admin.from("organizations").select("id", { count: "exact", head: true })
       .gt("trial_ends_at", new Date().toISOString()),
-    // MRR : on tire les lignes pour faire la somme côté code (PLAN_PRICES
-    // étant en TS, c'est plus fiable que SQL CASE WHEN).
+    // MRR : on tire les lignes pour faire la somme côté code (le barème
+    // dégressif vit en TS, c'est plus fiable qu'un CASE WHEN SQL).
     admin.from("organizations")
-      .select("subscription_price_lookup, subscription_status")
+      .select("subscription_seats, subscription_has_pricing, subscription_status")
       .in("subscription_status", ["active", "trialing"]),
   ])
 
+  // Le montant se recalcule depuis le barème (sièges + option), au lieu d'être
+  // lu dans une table figée par palier : un abonnement à 7 sièges se valorise
+  // désormais correctement, alors que l'ancien parsing du lookup_key ne
+  // connaissait que 1..4 et le laissait tomber silencieusement du MRR.
   let mrrEur = 0
   for (const row of subActive.data ?? []) {
-    const plan = parseLookupKey(row.subscription_price_lookup)
-    if (!plan) continue
-    mrrEur += PLAN_PRICES_EUR[plan.tier][plan.seats]
+    if (row.subscription_seats == null) continue
+    mrrEur += monthlyTotalEur(row.subscription_seats, row.subscription_has_pricing === true)
   }
 
   return NextResponse.json({

@@ -18,7 +18,12 @@
 
 import { NextResponse } from "next/server"
 import type Stripe from "stripe"
-import { getStripe, getStripeWebhookSecret } from "@/lib/stripe"
+import {
+  getStripe,
+  getStripeWebhookSecret,
+  LOOKUP_SEAT,
+  LOOKUP_PRICING_ADDON,
+} from "@/lib/stripe"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
   sendSubscriptionWelcome,
@@ -117,10 +122,29 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
     return
   }
 
-  const item = sub.items.data[0]
-  const lookup = item?.price?.lookup_key ?? null
-  const seats = parseSeatsFromLookup(lookup)
-  const hasPricing = lookup?.startsWith("sourcing_pro_") ?? false
+  // Un abonnement porte désormais JUSQU'À DEUX lignes — le socle « sièges »
+  // (quantité = nb de sièges, barème dégressif appliqué par Stripe) et l'add-on
+  // Suite Pricing (quantité 1). Stripe ne garantit AUCUN ordre : lire
+  // `items.data[0]` en aveugle donnerait tantôt l'un tantôt l'autre. On les
+  // identifie donc par leur lookup_key.
+  const seatItem = sub.items.data.find((i) => i.price?.lookup_key === LOOKUP_SEAT)
+  const addonItem = sub.items.data.find(
+    (i) => i.price?.lookup_key === LOOKUP_PRICING_ADDON,
+  )
+  // Fallback : un abonnement créé avant ce modèle (lookup sourcing_1..4 /
+  // sourcing_pro_1..4) n'a qu'une ligne et ne matche aucune des deux clés. On
+  // retombe sur la première pour ne pas écraser sa période avec du null.
+  const primaryItem = seatItem ?? sub.items.data[0]
+
+  const lookup = primaryItem?.price?.lookup_key ?? null
+  // Sièges = quantité de la ligne socle. Plus de parsing du lookup_key : le
+  // nombre de sièges est désormais une vraie quantité, libre, pas un palier
+  // encodé dans un nom de prix.
+  const seats = seatItem?.quantity ?? parseSeatsFromLookup(lookup)
+  // La Suite Pricing est acquise si et SEULEMENT si la ligne add-on est
+  // présente. Se désabonner de l'option au portail supprime la ligne → repasse
+  // à false tout seul au prochain `subscription.updated`.
+  const hasPricing = addonItem != null || (lookup?.startsWith("sourcing_pro_") ?? false)
 
   // Résiliation programmée : Stripe garde status = "active" jusqu'à la fin de
   // la période payée et signale seulement que l'abo s'arrêtera. Sans le
@@ -146,7 +170,7 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
   // Period end : prefer item-level (per the recent Stripe API change),
   // fall back to subscription-level for older payload shapes.
   const periodEndSec =
-    (item as unknown as { current_period_end?: number })?.current_period_end ??
+    (primaryItem as unknown as { current_period_end?: number })?.current_period_end ??
     (sub as unknown as { current_period_end?: number }).current_period_end ??
     null
 

@@ -137,31 +137,31 @@ export async function ensureStripeCustomer(params: {
 }
 
 // ── Plan catalogue ────────────────────────────────────────────────────
+//
+// Le catalogue commercial (barème des sièges, add-on Pricing, CV inclus) vit
+// dans `lib/pricing-plan.ts` : il est PUR, sans dépendance au SDK Stripe, donc
+// importable par les composants client (/tarifs, configurateur, jauges). Ce
+// fichier-ci importe le SDK et ne doit jamais atterrir dans le bundle
+// navigateur — d'où le sens de la dépendance : stripe.ts → pricing-plan.ts,
+// jamais l'inverse.
+//
+// Ré-exporté ici pour que les appelants serveur n'aient qu'un seul import.
 
-export type PlanTier = "sourcing" | "sourcing_pro"
-export type PlanSeats = 1 | 2 | 3 | 4
-
-/** Lookup keys used in the Stripe dashboard. */
-export function lookupKey(tier: PlanTier, seats: PlanSeats): string {
-  return tier === "sourcing_pro"
-    ? `sourcing_pro_${seats}`
-    : `sourcing_${seats}`
-}
-
-/** Parse a lookup_key back into the structured plan. Returns null if
- *  the key shape doesn't match — defensive against stale DB rows or
- *  manually-injected values. */
-export function parseLookupKey(
-  key: string | null | undefined,
-): { tier: PlanTier; seats: PlanSeats } | null {
-  if (!key) return null
-  const m = key.match(/^(sourcing(?:_pro)?)_(\d+)$/)
-  if (!m) return null
-  const tier = m[1] === "sourcing_pro" ? "sourcing_pro" : "sourcing"
-  const seats = Number(m[2])
-  if (![1, 2, 3, 4].includes(seats)) return null
-  return { tier: tier as PlanTier, seats: seats as PlanSeats }
-}
+export {
+  LOOKUP_SEAT,
+  LOOKUP_PRICING_ADDON,
+  SEAT_TIERS,
+  PRICING_ADDON_EUR,
+  MAX_SELF_SERVE_SEATS,
+  CV_PER_SEAT,
+  priceForSeats,
+  monthlyTotalEur,
+  cvIncludedForSeats,
+  isSelfServeSeats,
+  stripeSeatTiers,
+  planLabel,
+  formatEur,
+} from "@/lib/pricing-plan"
 
 /** Resolve a Stripe Price ID from a lookup_key. Cached for the lifetime
  *  of the lambda. Throws if no price matches — that's a deployment
@@ -184,28 +184,3 @@ export async function getPriceIdByLookupKey(key: string): Promise<string> {
   return price.id
 }
 
-// ── Plan pricing display ──────────────────────────────────────────────
-//
-// Mirror of the prices entered in the dashboard. Used for client-side
-// rendering of the upgrade picker without hitting Stripe each time.
-// Source of truth remains Stripe — this table only needs to stay in
-// sync for display ; the actual billing always uses the Stripe price.
-
-export const PLAN_PRICES_EUR: Record<PlanTier, Record<PlanSeats, number>> = {
-  sourcing: {
-    1: 38.99,
-    2: 69.99,
-    3: 94.99,
-    4: 119.99,
-  },
-  sourcing_pro: {
-    1: 46.99,
-    2: 85.99,
-    3: 118.99,
-    4: 151.99,
-  },
-}
-
-export function priceForPlan(tier: PlanTier, seats: PlanSeats): number {
-  return PLAN_PRICES_EUR[tier][seats]
-}

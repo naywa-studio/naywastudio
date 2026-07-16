@@ -133,7 +133,7 @@ export async function consumeOrgLlmAction(
 ): Promise<OrgLlmQuotaResult> {
   const { data: org, error } = await admin
     .from("organizations")
-    .select("subscription_status, subscription_price_lookup, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json, llm_actions_this_month, llm_period_start")
+    .select("subscription_status, subscription_seats, subscription_has_pricing, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json, llm_actions_this_month, llm_period_start")
     .eq("id", orgId)
     .maybeSingle()
 
@@ -273,7 +273,7 @@ export async function checkCvQuota(
 ): Promise<CvQuotaResult> {
   const { data: org, error } = await admin
     .from("organizations")
-    .select("subscription_status, subscription_price_lookup, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json")
+    .select("subscription_status, subscription_seats, subscription_has_pricing, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json")
     .eq("id", orgId)
     .maybeSingle()
 
@@ -324,7 +324,7 @@ export async function checkStorageQuota(
 ): Promise<StorageQuotaResult> {
   const { data: org, error } = await admin
     .from("organizations")
-    .select("subscription_status, subscription_price_lookup, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json, storage_used_bytes")
+    .select("subscription_status, subscription_seats, subscription_has_pricing, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json, storage_used_bytes")
     .eq("id", orgId)
     .maybeSingle()
 
