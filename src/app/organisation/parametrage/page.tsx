@@ -19,6 +19,7 @@ import { m } from "framer-motion"
 import { useCabinet } from "../layout"
 import { getSupabase } from "@/lib/supabase"
 import type { PricingDefaultAvantages } from "@/lib/database.types"
+import { hasPricingAccess } from "@/lib/subscription"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import {
   AVANTAGES_CONFIG,
@@ -57,7 +58,11 @@ const DEFAULT_FORM: Form = {
 }
 
 export default function ParametragePage() {
-  const { isOwner, organization, refetch } = useCabinet()
+  const { isOwner, organization, refetch, profile } = useCabinet()
+  // Dernière porte d'entrée de la Suite Pricing : cette page configure la
+  // politique de marges/avantages du cabinet, qui n'a de sens QUE si l'option
+  // est acquise. Elle était atteignable sans, via son URL.
+  const canPricing = hasPricingAccess(organization, { isAdmin: profile?.is_admin === true })
   const sb = useMemo(() => getSupabase(), [])
   const [form, setForm] = useState<Form | null>(null)
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
@@ -188,6 +193,57 @@ export default function ParametragePage() {
     },
     [scheduleSave],
   )
+
+  // Option non souscrite → écran d'activation, pas les réglages. Placé AVANT
+  // le loader : sans l'option, on n'a aucune raison d'attendre un fetch.
+  if (!canPricing) {
+    return (
+      <main style={{
+        minHeight: "calc(100vh - 60px)",
+        padding: "32px 28px 72px",
+        maxWidth: 720, margin: "0 auto",
+        fontFamily: "var(--font-inter), sans-serif",
+      }}>
+        <div style={{
+          padding: "32px 28px", borderRadius: 16, textAlign: "center",
+          background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
+          border: "1px solid #E2DAF6",
+        }}>
+          <p style={{
+            margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8",
+            letterSpacing: "0.10em", textTransform: "uppercase",
+          }}>
+            Option non activée
+          </p>
+          <h1 style={{
+            margin: "8px 0 0", fontSize: 22, fontWeight: 800, color: "#111827",
+            letterSpacing: "-0.02em",
+            fontFamily: "var(--font-space-grotesk), sans-serif",
+          }}>
+            Politique de chiffrage
+          </h1>
+          <p style={{ margin: "12px auto 0", maxWidth: 440, fontSize: 14, lineHeight: 1.65, color: "#4B5563" }}>
+            Ces réglages — marges minimale et cible, RTT, avantages standards —
+            servent au moteur Syntec. Ils n&apos;ont d&apos;effet qu&apos;avec la
+            Suite Pricing.
+          </p>
+          <Link
+            href="/organisation?tab=abonnement"
+            style={{
+              display: "inline-block", marginTop: 20,
+              padding: "11px 20px", borderRadius: 12,
+              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              color: "white", fontSize: 13.5, fontWeight: 700,
+              textDecoration: "none",
+              boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
+            }}
+          >
+            {isOwner ? "Activer l'option →" : "Voir mon organisation →"}
+          </Link>
+        </div>
+      </main>
+    )
+  }
 
   if (!form) return <NoraLoader />
 
