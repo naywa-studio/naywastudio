@@ -620,7 +620,78 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
-#### Flow de résiliation + Stripe test mode — 2026-07-16 (compact-safety)
+#### Modèle tarifaire add-on + fuite Pricing fermée — 2026-07-17 (compact-safety)
+
+**MERGÉ EN PROD** : `claude/cancellation-flow` (flow de résiliation) est **mergée
+sur main** (`52a82cf`, prod READY). Détail dans la section suivante — elle décrit
+la branche comme « pas mergée », c'est **périmé**.
+
+**BRANCHE `claude/pricing-addon-model`** (poussée, **PAS mergée**, dernier commit
+`df37156`). **AUCUNE MIGRATION** : `subscription_seats` et
+`subscription_has_pricing` existaient déjà.
+
+**Modèle validé + implémenté (remplace les 2 tiers × 4 paliers)** :
+- **1 seul plan « Sourcing »**, sièges en **quantité libre** sur un prix Stripe à
+  **paliers dégressifs** (`graduated`) : 1ᵉʳ siège **38,99** · 2ᵉ **+31** · 3ᵉ et
+  au-delà **+25**. Reproduit l'ancienne grille au centime (2→69,99 · 3→94,99 ·
+  4→119,99) et se prolonge (5→144,99). **4 SKU → 1.**
+- **Suite Pricing = add-on PLAT à 9,99 €** (ligne d'abo séparée, qty 1), pas par
+  siège : sa valeur est org-level, pas par utilisateur. **Remplace `sourcing_pro`.**
+- **10 000 CV inclus par personne** (linéaire). Extra CV **reporté** (Elyas : « on
+  est déjà généreux »).
+- **Self-service ≤ 5 personnes**, au-delà → `/contact-equipe` (embed Lark).
+- Prix socle **inchangés** (38,99 gardé, `,99` voulu par Elyas). Argument décisif :
+  **zéro client payant** aujourd'hui → grille théorique, liberté totale.
+
+**Catalogue Stripe LIVE créé + vérifié via MCP** (tiers relus avec `expand[]=tiers`) :
+`sourcing_seat` = `price_1TtwHfD0dQXebFvJf7qOjbWC` · `pricing_addon` =
+`price_1TtwHhD0dQXebFvJeOtGW21r`. Les **8 anciens prix live restent ACTIFS** — voulu :
+la prod tourne dessus jusqu'au merge. **À archiver APRÈS le merge seulement.**
+Catalogue TEST seedé par Elyas via le nouveau bouton `/admin`.
+
+**Code** :
+- **`lib/pricing-plan.ts` (NOUVEAU)** = source unique, **PUR (sans SDK Stripe)** donc
+  importable client. `lib/stripe.ts` le ré-exporte. Raison : `organisation/page.tsx`
+  importait `lib/stripe` → le SDK Stripe partait dans le bundle navigateur.
+  `stripeSeatTiers()` génère le catalogue Stripe depuis CETTE source.
+- `quota-tiers.ts` : quotas dérivés de `subscription_seats` (+ `hasActiveAccess`).
+- **webhook** : lit les 2 lignes **par lookup_key** (Stripe ne garantit pas l'ordre de
+  `items.data` — `data[0]` donnait tantôt l'un tantôt l'autre). `has_pricing` =
+  présence de la ligne add-on. **Fallback legacy** `sourcing_1..4` conservé (TEST
+  tourne encore dessus et résout correctement).
+- **`POST /api/stripe/pricing-addon` { enable }** : active/retire l'option **sur l'abo
+  en cours**, proratisé, idempotent, **n'écrit pas la base** (le webhook dérive).
+  Trou signalé par Elyas : les CGU §6 + FAQ promettent « activable à tout moment ».
+- Bouton **« Créer les prix de test »** sur `/admin` (le seed était un POST sans UI).
+
+**Fuite Pricing FERMÉE (5 entrées)** — `hasPricingAccess()` existait mais sur 4
+fichiers le mentionnant, **2 étaient la lib** : seulement 2 vrais appelants.
+- **Serveur (le seul vrai périmètre)** : `requirePricingAccess()` dans
+  `lib/access-guard.ts` sur `pricing/compare`, `pricing-params`, **`pricing-pdf`**
+  (qui n'avait **aucun** garde-fou). S'applique **aussi aux GET**.
+- **UI** : onglet nav, `/workspace/pricing`, **les 3 raccourcis de l'accueil**
+  (« Chiffrer une mission », « Candidats en pricing », « Missions à chiffrer » —
+  trouvés en testant, pas en relisant), `/organisation/parametrage`.
+
+**VÉRIFIÉ EN VRAI** (navigateur, compte non-admin `e53056801@gmail.com`, déploiement
+`4c7cf52`) : nav sans Pricing ✅ · `/workspace/pricing` → écran d'activation ✅ ·
+**`POST /api/pricing/compare` → 403 `pricing_not_included`** ✅ (la preuve qui compte).
+
+**⚠️ GMH — essais EXPIRÉS depuis le 07/07 et 10/07, aucun abonnement.** Le cron
+`wipe-lockdown-data` (mergé) supprimera leurs données le **06/08** et **09/08**.
+Elyas informé : « ils vont sûrement souscrire, on a encore le temps ». Si ça traîne :
+prolonger l'essai via `/admin/recherche` → bouton « Essai ».
+
+**RESTE** : tester le checkout complet + l'interrupteur add-on (bloqué le 16/07 au soir
+par une **panne GitHub** — REST API dégradée → Vercel ne buildait plus ; rien de cassé
+chez nous, `git push` marchait) · **quiz 2 questions** (sièges + régie/TJM → pré-remplit
+le configurateur ; le volume est retiré, les CV suivent les sièges) · erreur
+d'hydratation React #418 sur `/admin` (probablement une extension navigateur, à
+confirmer) · **décision Elyas : « Package Sourcing » vs « Sourcing »** sur la vitrine
+(le produit dit encore « Package Sourcing », le configurateur et /tarifs disent
+« Sourcing »).
+
+#### Flow de résiliation + Stripe test mode — 2026-07-16 (⚠️ MERGÉ depuis, cf. section ci-dessus)
 
 **EN PROD (main)** : **B1 lecture seule COMPLET** mergé (`a0ce06f`) — garde serveur
 `requireActiveAccess` sur ~33 routes + grisage UI de TOUTES les mutations
