@@ -803,6 +803,11 @@ function SubscriptionCard({
                 ? "Ouverture du portail…"
                 : scheduledCancel ? "Reprendre mon abonnement →" : "Gérer mon abonnement"}
             </button>
+            <PricingAddonToggle
+              organization={organization}
+              isOwner={isOwner}
+              onChanged={onActivated}
+            />
           </Panel>
         )}
 
@@ -944,6 +949,96 @@ const ctaSecondaryBtn = (busy: boolean): React.CSSProperties => ({
   fontFamily: "inherit",
   width: "100%",
 })
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Suite Pricing — activation/retrait sur l'abonnement en cours        */
+/* ────────────────────────────────────────────────────────────────── */
+
+/**
+ * L'option n'était réglable qu'au checkout : un client qui démarrait sans, puis
+ * se mettait à faire de la régie, aurait dû résilier et re-souscrire. On la
+ * vend pourtant comme activable à tout moment (CGU §6, FAQ tarifs) — c'était
+ * donc une promesse non tenue. Ici, un clic ajoute ou retire la ligne d'abo,
+ * proratisée par Stripe.
+ */
+function PricingAddonToggle({
+  organization, isOwner, onChanged,
+}: {
+  organization: Organization
+  isOwner: boolean
+  onChanged: () => Promise<void>
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const active = organization.subscription_has_pricing === true
+
+  const toggle = async () => {
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch("/api/stripe/pricing-addon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enable: !active }),
+      })
+      const j = await res.json().catch(() => ({} as { message?: string }))
+      if (!res.ok) throw new Error(j.message ?? "Modification impossible")
+      // Stripe a déclenché subscription.updated ; le webhook écrit la base.
+      // Court délai avant relecture, sinon on réaffiche l'ancien état.
+      await new Promise((r) => setTimeout(r, 1500))
+      await onChanged()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{
+      marginTop: 12, paddingTop: 12,
+      borderTop: "1px solid rgba(124,99,200,0.18)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: "#111827" }}>
+            Suite Pricing Syntec
+          </p>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280" }}>
+            {active
+              ? `Incluse · ${formatEur(PRICING_ADDON_EUR)}/mois`
+              : `Option · ${formatEur(PRICING_ADDON_EUR)}/mois, résiliable à tout moment`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={toggle}
+          disabled={busy || !isOwner}
+          style={{
+            flexShrink: 0,
+            padding: "7px 13px", borderRadius: 9,
+            border: active ? "1px solid #E2DAF6" : "none",
+            background: active ? "white" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            color: active ? "#6B7280" : "white",
+            fontSize: 12, fontWeight: 700,
+            cursor: busy || !isOwner ? "not-allowed" : "pointer",
+            opacity: busy || !isOwner ? 0.6 : 1,
+            fontFamily: "inherit",
+          }}
+        >
+          {busy ? "…" : active ? "Retirer" : "Activer"}
+        </button>
+      </div>
+      {!isOwner && (
+        <p style={{ margin: "6px 0 0", fontSize: 10.5, color: "#6B7280" }}>
+          Seul le propriétaire peut modifier l&apos;abonnement.
+        </p>
+      )}
+      {error && (
+        <p style={{ margin: "6px 0 0", fontSize: 11, color: "#B91C1C" }}>{error}</p>
+      )}
+    </div>
+  )
+}
 
 /* ────────────────────────────────────────────────────────────────── */
 /* Plan Picker Modal — Stripe Checkout entry point                     */
