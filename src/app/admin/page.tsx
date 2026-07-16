@@ -153,12 +153,85 @@ export default function AdminDashboardPage() {
           marginTop: 28, fontSize: 11.5, color: "#6B7280", lineHeight: 1.55,
         }}>
           Chaque KPI vient d&apos;une requête unique côté API. Aucun ratio
-          composé. Le MRR estimé compte les sub Stripe actives ou en
-          essai natif, multipliées par le prix du tier × sièges
-          souscrits.
+          composé. Le MRR estimé compte les sub Stripe actives ou en essai
+          natif, valorisées via le barème dégressif (sièges + option Pricing).
         </p>
+
+        <StripeSeedCard />
       </main>
     </LazyMotion>
+  )
+}
+
+/**
+ * Seed du catalogue Stripe de TEST, en un clic.
+ *
+ * La route refuse de tourner ailleurs qu'en mode test, donc ce bouton est
+ * inoffensif en prod (il répondra « pas en mode test »). On l'expose ici parce
+ * que la route est un POST admin : sans bouton, il faudrait la déclencher à la
+ * main depuis une console navigateur, ce qui est une instruction qui rate.
+ */
+function StripeSeedCard() {
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  const seed = async () => {
+    setBusy(true); setResult(null); setFailed(false)
+    try {
+      const res = await fetch("/api/admin/stripe-seed-test", { method: "POST" })
+      const j = await res.json().catch(() => ({} as Record<string, unknown>))
+      if (!res.ok) {
+        setFailed(true)
+        setResult(typeof j.message === "string" ? j.message : `Erreur ${res.status}`)
+      } else {
+        setResult(typeof j.hint === "string" ? j.hint : "Catalogue de test à jour.")
+      }
+    } catch {
+      setFailed(true)
+      setResult("Requête impossible (réseau).")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{
+      marginTop: 32, padding: "16px 18px",
+      background: "#F8F6FF", border: "1px solid #E2DAF6", borderRadius: 14,
+    }}>
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#111827" }}>
+        Catalogue Stripe — mode test
+      </p>
+      <p style={{ margin: "5px 0 12px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
+        Crée les deux prix du plan (<code>sourcing_seat</code> dégressif +{" "}
+        <code>pricing_addon</code>) dans le compte de <strong>test</strong>, pour pouvoir
+        tester le checkout sur les previews sans paiement réel. Idempotent : sans effet si
+        déjà en place. Refuse catégoriquement de toucher au catalogue live.
+      </p>
+      <button
+        type="button"
+        onClick={seed}
+        disabled={busy}
+        style={{
+          padding: "9px 15px", borderRadius: 10, border: "none",
+          background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          color: "white", fontSize: 12.5, fontWeight: 700,
+          cursor: busy ? "wait" : "pointer", opacity: busy ? 0.7 : 1,
+          fontFamily: "inherit",
+        }}
+      >
+        {busy ? "Création…" : "Créer les prix de test"}
+      </button>
+      {result && (
+        <p style={{
+          margin: "10px 0 0", fontSize: 11.5, lineHeight: 1.5,
+          color: failed ? "#B91C1C" : "#15803D",
+        }}>
+          {result}
+        </p>
+      )}
+    </div>
   )
 }
 
