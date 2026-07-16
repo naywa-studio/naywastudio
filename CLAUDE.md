@@ -620,6 +620,60 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
+#### Flow de résiliation + Stripe test mode — 2026-07-16 (compact-safety)
+
+**EN PROD (main)** : **B1 lecture seule COMPLET** mergé (`a0ce06f`) — garde serveur
+`requireActiveAccess` sur ~33 routes + grisage UI de TOUTES les mutations
+(vivier/missions/pipeline/fiche match/secteurs/empty states). Anti-fraude fermé
+serveur **et** UI.
+
+**BRANCHE `claude/cancellation-flow`** (poussée, **PAS mergée**, attend validation
+preview Elyas). Dernier commit `132152d`. **Aucune migration DB** (réutilise
+`pending_deletion_at` / `lockdown_started_at` / `trial_ends_at`). Contenu :
+- **`lib/subscription.ts`** : `graceInfo(org)` = fenêtre de grâce unifiée (lecture
+  seule 30j avant wipe), 3 causes priorisées **deletion > subscription > trial**.
+  `isWorkspaceReadOnly(org)` = pending_deletion OU !accès actif. `GRACE_DAYS=30`.
+  `isInLockdown` aligné 15→30j (gardé pour bannières/quotas).
+- **`DELETE /api/cabinet`** : ne détruit PLUS l'owner (solo ni multi), stamp
+  `pending_deletion_at=+30j` recouvrable, idempotent. `POST /api/cabinet/cancel-deletion`
+  + `POST /api/cabinet/transfer-ownership {user_id}` (owner↔member + owner_user_id).
+- **Workspace layout** : bounce owner uniquement si `!hasActiveAccess && !graceInfo.cause`
+  (essai jamais activé) ; sinon **lecture seule** dans le workspace (fini le bounce
+  de l'essai expiré). `isReadOnly` = `isWorkspaceReadOnly`.
+- **`access-guard.ts`** : 403 `deletion_scheduled` aussi si `pending_deletion_at`
+  (une org qui paie mais a programmé la suppression ne peut plus muter via API).
+- **Crons** : `wipe-lockdown-data` 15→30j + wipe aussi les essais expirés (>30j, jamais
+  souscrit, skip si vide). **Purge R2 des CV** dans les 2 crons **AVANT** le wipe DB
+  (si R2 échoue → skip l'org, retry ; jamais d'orphelin). Scope prouvé mono-org
+  (préfixe = UUID org + "/"). Full-wipe **annule aussi l'abo Stripe** (plus de
+  facturation d'un compte supprimé). `r2DeleteByPrefix()` dans `lib/r2-storage.ts`
+  (garde-fou anti-préfixe-vide). `maxDuration=60` sur les 2 crons.
+- **UI /organisation** : carte Abonnement + Sécurité « Suppression programmée · Annuler »,
+  suppression = 30j recouvrable, **carte Transférer la propriété**, export RGPD toujours
+  visible, owner reste connecté après avoir programmé la suppression.
+- **Bannières** : `LockdownBanner` couvre les 3 causes (countdown + CTA Annuler/Réactiver/
+  Souscrire + Exporter). TrialBanner + MemberWaitingBanner se masquent en grâce (plus de
+  doublon).
+- **CGU §6** réécrite (résiliation portail, grâce 30j, rétention, réactivation, transfert).
+
+**Stripe MODE TEST sur previews** (même branche) : `lib/stripe.ts` `isStripeTestMode()`
+(true hors prod si `STRIPE_SECRET_KEY_TEST` posée). `getStripe()` + `getStripeWebhookSecret()`
+choisissent test/live auto. Route `POST /api/admin/stripe-seed-test` (admin, test-mode only,
+idempotente) recrée les 2 produits × 4 prix (lookup_keys) dans le compte de test.
+**À FAIRE PAR ELYAS pour activer** : (1) copier la clé secrète TEST → env Vercel
+`STRIPE_SECRET_KEY_TEST` (scope Preview) ; (2) créer un webhook test → `.../api/stripe/webhook`
+(7 events) → copier son secret → env `STRIPE_WEBHOOK_SECRET_TEST` (scope Preview) ;
+(3) redéployer preview ; (4) appeler `POST /api/admin/stripe-seed-test` une fois (admin).
+Ensuite checkout/portail/résiliation testables sans paiement réel (carte `4242…`).
+
+**File d'attente post-compact** :
+1. Elyas valide la résiliation en preview (Stripe test) → **merger `cancellation-flow`**.
+2. **Grille tarifaire B** — Elyas veut la CHANGER (revoir le modèle) + « 5+ sièges → nous
+   consulter » avec **embed Lark inline** (Elyas fournit l'embed). Discussion modèle ouverte.
+3. **Quiz onboarding** (3 Q au « Souscrire » : sièges/régie-TJM/volume + type-structure étape
+   1, skippable, stocke les tranches → petite migration). Codable dès validation.
+4. Supprimer vieux buckets R2 (North America) + retirer route `migrate-r2-eu`.
+
 #### Session RGPD/UE + audit bugs + garde read-only — 2026-07-13
 
 **Contexte** : passe post-cohérence. Audit flow/légal (doc `AUDIT-flow-legal.md` au
