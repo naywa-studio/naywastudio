@@ -18,7 +18,7 @@
 
 import { NextResponse } from "next/server"
 import type Stripe from "stripe"
-import { getStripe } from "@/lib/stripe"
+import { getStripe, getStripeWebhookSecret } from "@/lib/stripe"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
   sendSubscriptionWelcome,
@@ -31,7 +31,7 @@ export const runtime = "nodejs"
 
 export async function POST(req: Request) {
   const sig = req.headers.get("stripe-signature")
-  const secret = process.env.STRIPE_WEBHOOK_SECRET
+  const secret = getStripeWebhookSecret()
   if (!sig || !secret) {
     return NextResponse.json(
       { error: "Missing signature or webhook secret" },

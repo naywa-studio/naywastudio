@@ -17,9 +17,22 @@ import Stripe from "stripe"
 
 let cached: Stripe | null = null
 
+/**
+ * Vrai hors production : on privilégie le mode TEST Stripe si des clés de test
+ * sont fournies. Permet de tester tout le cycle (checkout, portail, webhook,
+ * résiliation) sur les previews Vercel SANS paiement réel. La prod
+ * (`VERCEL_ENV === "production"`) reste toujours en LIVE.
+ */
+export function isStripeTestMode(): boolean {
+  return process.env.VERCEL_ENV !== "production" && !!process.env.STRIPE_SECRET_KEY_TEST
+}
+
 export function getStripe(): Stripe {
   if (cached) return cached
-  const key = process.env.STRIPE_SECRET_KEY
+  // Preview / dev → clé TEST si dispo ; sinon (et prod) → clé LIVE.
+  const key = isStripeTestMode()
+    ? process.env.STRIPE_SECRET_KEY_TEST!
+    : process.env.STRIPE_SECRET_KEY
   if (!key) throw new Error("STRIPE_SECRET_KEY is missing")
   cached = new Stripe(key, {
     apiVersion: "2026-05-27.dahlia",
@@ -27,6 +40,16 @@ export function getStripe(): Stripe {
     appInfo: { name: "naywa-studio", url: "https://naywastudio.com" },
   })
   return cached
+}
+
+/**
+ * Secret de signature du webhook, aligné sur le mode (test en preview, live en
+ * prod). Le webhook de test a son propre secret (`STRIPE_WEBHOOK_SECRET_TEST`).
+ */
+export function getStripeWebhookSecret(): string | undefined {
+  return isStripeTestMode()
+    ? process.env.STRIPE_WEBHOOK_SECRET_TEST
+    : process.env.STRIPE_WEBHOOK_SECRET
 }
 
 // ── Plan catalogue ────────────────────────────────────────────────────
