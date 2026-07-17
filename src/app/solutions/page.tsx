@@ -68,7 +68,7 @@ export default function SolutionsPage() {
         {/* ── 4 étapes pour démarrer ─────────────────────────── */}
         <section
           style={{
-            background: brand.surface,
+            background: "transparent",
             padding: "96px 24px",
             borderTop: `1px solid ${brand.border}`,
             borderBottom: `1px solid ${brand.border}`,
@@ -96,7 +96,7 @@ export default function SolutionsPage() {
                 <li
                   key={s.n}
                   style={{
-                    background: brand.surface2,
+                    background: brand.surface,
                     border: `1px solid ${brand.border}`,
                     borderRadius: brand.radiusXl,
                     padding: "22px 22px 24px",
@@ -228,7 +228,7 @@ export default function SolutionsPage() {
         {/* ── Roadmap : nouveaux packages ───────────────────── */}
         <section
           style={{
-            background: brand.surface,
+            background: "transparent",
             padding: "96px 24px",
             borderTop: `1px solid ${brand.border}`,
             textAlign: "center",

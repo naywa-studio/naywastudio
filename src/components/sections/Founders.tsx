@@ -56,9 +56,9 @@ export function Founders() {
     <section
       id="fondateurs"
       style={{
-        background: "rgba(248,246,255,0.4)",
+        background: "transparent",
         padding: "112px 24px",
-        borderTop: "1px solid rgba(240,236,248,0.6)",
+        borderTop: "1px solid #E9E1CB",
         position: "relative",
       }}
     >
@@ -141,8 +141,8 @@ export function Founders() {
               key={founder.name}
               {...fu(0.10 + i * 0.08)}
               style={{
-                background: "white",
-                border: "1px solid #F0ECF8",
+                background: "#FAF7F0",
+                border: "1px solid #E9E1CB",
                 borderRadius: 20,
                 padding: "32px 28px",
                 display: "flex",
