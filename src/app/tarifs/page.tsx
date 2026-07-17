@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
-import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { BrandBands } from "@/components/ui/BrandBands"
 import {
   priceForSeats,
   monthlyTotalEur,
@@ -50,7 +50,7 @@ export default function TarifsPage() {
 
   return (
     <>
-      <ShaderBackground />
+      <BrandBands />
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>

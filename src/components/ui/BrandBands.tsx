@@ -6,73 +6,66 @@ import { brand } from '@/lib/brand'
 /**
  * Naywa Studio — Bandes signature (charte v2.0, §03 « Motif de marque »).
  *
- * Deux flux diagonaux qui glissent lentement, bas-gauche → haut-droite
- * (« le process qui coule d'une étape à l'autre »). Toujours ascendants,
- * jamais inversés. Cadence 11s + 15s, ease 0.45 0 0.55 1. Opacité faible :
- * le motif reste en arrière-plan, le contenu toujours lisible par-dessus.
+ * Géométrie reprise À L'IDENTIQUE du handoff Claude Design : deux rubans FINS
+ * (viewBox 900×500, ~60px d'épaisseur) qui traversent en diagonale ascendante,
+ * bas-gauche → haut-droite. Dégradé horizontal très léger, la majorité de
+ * l'écran reste du papier sable. « Lente, presque immobile, on la remarque à
+ * peine. » Cadence 11s + 15s.
  *
- * Remplace `ShaderBackground` (WebGL) sur la vitrine : le shader plein écran
- * qui redessinait en continu + recalculait à chaque scroll faisait ramer le
- * défilement sur PC. Ici, tout est en SVG/SMIL : pas de canvas, pas de
- * `requestAnimationFrame`, pas de listener scroll. Sur un fond papier sable.
- *
- * `prefers-reduced-motion` : on rend les bandes en position figée (état
- * médian), sans balise `<animate>`.
+ * Remplace `ShaderBackground` (WebGL plein écran qui redessinait en continu +
+ * recalculait à chaque scroll → saccades sur PC). Ici : pur SVG, animation
+ * `d` en SMIL, pas de canvas ni de listener scroll. `prefers-reduced-motion`
+ * → rubans figés (état A), sans balise `<animate>`.
  */
 
-// Géométrie des bandes en coordonnées objectBoundingBox (0..1). Trois clés
-// d'animation (départ · milieu · retour) pour une ondulation imperceptible.
-const B1_FILL =
-  'M0,0.50 C0.15,0.62 0.85,0.16 1,0.20 L1,0.33 C0.85,0.29 0.15,0.75 0,0.63 Z;' +
-  'M0,0.51 C0.15,0.60 0.85,0.18 1,0.21 L1,0.34 C0.85,0.31 0.15,0.73 0,0.64 Z;' +
-  'M0,0.50 C0.15,0.62 0.85,0.16 1,0.20 L1,0.33 C0.85,0.29 0.15,0.75 0,0.63 Z'
-const B1_TOP =
-  'M0,0.50 C0.15,0.62 0.85,0.16 1,0.20;M0,0.51 C0.15,0.60 0.85,0.18 1,0.21;M0,0.50 C0.15,0.62 0.85,0.16 1,0.20'
-const B1_BOTTOM =
-  'M0,0.63 C0.15,0.75 0.85,0.29 1,0.33;M0,0.64 C0.15,0.73 0.85,0.31 1,0.34;M0,0.63 C0.15,0.75 0.85,0.29 1,0.33'
+// Deux clés d'animation (A ↔ B), reproduites du handoff (bandDrift1/2).
+const B1_FILL_A = 'M-40 220 C 240 140, 620 340, 940 200 L 940 260 C 620 400, 240 200, -40 280 Z'
+const B1_FILL_B = 'M-40 240 C 240 160, 620 320, 940 180 L 940 240 C 620 380, 240 220, -40 300 Z'
+const B2_FILL_A = 'M-40 300 C 240 220, 620 420, 940 280 L 940 340 C 620 480, 240 280, -40 360 Z'
+const B2_FILL_B = 'M-40 320 C 240 240, 620 400, 940 260 L 940 320 C 620 460, 240 300, -40 380 Z'
+const B1_LINE_A = 'M-40 220 C 240 140, 620 340, 940 200'
+const B1_LINE_B = 'M-40 240 C 240 160, 620 320, 940 180'
+const B2_LINE_A = 'M-40 300 C 240 220, 620 420, 940 280'
+const B2_LINE_B = 'M-40 320 C 240 240, 620 400, 940 260'
 
-const B2_FILL =
-  'M0,0.67 C0.15,0.79 0.85,0.33 1,0.37 L1,0.50 C0.85,0.46 0.15,0.92 0,0.80 Z;' +
-  'M0,0.68 C0.15,0.77 0.85,0.35 1,0.38 L1,0.51 C0.85,0.48 0.15,0.90 0,0.81 Z;' +
-  'M0,0.67 C0.15,0.79 0.85,0.33 1,0.37 L1,0.50 C0.85,0.46 0.15,0.92 0,0.80 Z'
-const B2_TOP =
-  'M0,0.67 C0.15,0.79 0.85,0.33 1,0.37;M0,0.68 C0.15,0.77 0.85,0.35 1,0.38;M0,0.67 C0.15,0.79 0.85,0.33 1,0.37'
-const B2_BOTTOM =
-  'M0,0.80 C0.15,0.92 0.85,0.46 1,0.50;M0,0.81 C0.15,0.90 0.85,0.48 1,0.51;M0,0.80 C0.15,0.92 0.85,0.46 1,0.50'
-
-const SPLINE = '0.45 0 0.55 1;0.45 0 0.55 1'
 const KTIMES = '0;0.5;1'
+const SPLINE = '0.45 0 0.55 1;0.45 0 0.55 1'
 
-// État figé (1ʳᵉ clé) pour le fallback sans animation.
-const still = (values: string) => values.split(';')[0]
+/** valeurs SMIL « A;B;A » (aller-retour fluide). */
+const cycle = (a: string, b: string) => `${a};${b};${a}`
 
-function Animate({
-  values,
+function Band({
+  a,
+  b,
   dur,
   animate,
+  ...rest
 }: {
-  values: string
+  a: string
+  b: string
   dur: string
   animate: boolean
-}) {
-  if (!animate) return null
+} & React.SVGProps<SVGPathElement>) {
   return (
-    <animate
-      attributeName="d"
-      dur={dur}
-      repeatCount="indefinite"
-      calcMode="spline"
-      keyTimes={KTIMES}
-      keySplines={SPLINE}
-      values={values}
-    />
+    <path d={a} {...rest}>
+      {animate && (
+        <animate
+          attributeName="d"
+          dur={dur}
+          repeatCount="indefinite"
+          calcMode="spline"
+          keyTimes={KTIMES}
+          keySplines={SPLINE}
+          values={cycle(a, b)}
+        />
+      )}
+    </path>
   )
 }
 
 export function BrandBands() {
-  // Rendu identique serveur/client au 1er paint (animate = true), puis on
-  // coupe l'animation si l'utilisateur préfère la sobriété. Évite tout
-  // mismatch d'hydratation (React 19 / Next 16).
+  // 1er paint identique serveur/client (animate = true), puis on coupe si
+  // l'utilisateur préfère la sobriété. Pas de mismatch d'hydratation.
   const [animate, setAnimate] = useState(true)
 
   useEffect(() => {
@@ -95,48 +88,43 @@ export function BrandBands() {
       }}
     >
       <svg
-        viewBox="0 0 1 1"
+        viewBox="0 0 900 500"
         preserveAspectRatio="none"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.9 }}
       >
         <defs>
-          {/* Dégradé de remplissage : violet très léger, ascendant. */}
-          <linearGradient id="nawa-band-fill" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0" stopColor={brand.violet} stopOpacity="0.05" />
-            <stop offset="0.5" stopColor={brand.violet} stopOpacity="0.14" />
-            <stop offset="1" stopColor={brand.violetSoft} stopOpacity="0.06" />
+          <linearGradient id="nawa-band-1" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={brand.violet} stopOpacity="0.20" />
+            <stop offset="100%" stopColor={brand.violetSoft} stopOpacity="0.05" />
           </linearGradient>
-          <linearGradient id="nawa-band-fill-2" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0" stopColor={brand.violetSoft} stopOpacity="0.05" />
-            <stop offset="0.5" stopColor={brand.violet} stopOpacity="0.10" />
-            <stop offset="1" stopColor={brand.violet} stopOpacity="0.05" />
+          <linearGradient id="nawa-band-2" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={brand.violetDeep} stopOpacity="0.15" />
+            <stop offset="100%" stopColor={brand.violet} stopOpacity="0.05" />
           </linearGradient>
         </defs>
 
-        {/* Bande 1 — remplissage */}
-        <path fill="url(#nawa-band-fill)" d={still(B1_FILL)}>
-          <Animate values={B1_FILL} dur="11s" animate={animate} />
-        </path>
-        {/* Bande 2 — remplissage */}
-        <path fill="url(#nawa-band-fill-2)" d={still(B2_FILL)}>
-          <Animate values={B2_FILL} dur="15s" animate={animate} />
-        </path>
-
-        {/* Traits (bords) — stroke fin non-scaling, opacité 0.5 */}
-        <g fill="none" stroke={brand.violetSoft} vectorEffect="non-scaling-stroke">
-          <path strokeWidth="1.5" strokeOpacity="0.5" d={still(B1_TOP)}>
-            <Animate values={B1_TOP} dur="11s" animate={animate} />
-          </path>
-          <path strokeWidth="1.5" strokeOpacity="0.5" d={still(B1_BOTTOM)}>
-            <Animate values={B1_BOTTOM} dur="11s" animate={animate} />
-          </path>
-          <path strokeWidth="1.2" strokeOpacity="0.38" d={still(B2_TOP)}>
-            <Animate values={B2_TOP} dur="15s" animate={animate} />
-          </path>
-          <path strokeWidth="1.2" strokeOpacity="0.38" d={still(B2_BOTTOM)}>
-            <Animate values={B2_BOTTOM} dur="15s" animate={animate} />
-          </path>
-        </g>
+        <Band a={B1_FILL_A} b={B1_FILL_B} dur="11s" animate={animate} fill="url(#nawa-band-1)" />
+        <Band a={B2_FILL_A} b={B2_FILL_B} dur="15s" animate={animate} fill="url(#nawa-band-2)" />
+        <Band
+          a={B1_LINE_A}
+          b={B1_LINE_B}
+          dur="11s"
+          animate={animate}
+          fill="none"
+          stroke={brand.violetSoft}
+          strokeWidth="1"
+          opacity="0.6"
+        />
+        <Band
+          a={B2_LINE_A}
+          b={B2_LINE_B}
+          dur="15s"
+          animate={animate}
+          fill="none"
+          stroke={brand.violetSoft}
+          strokeWidth="1"
+          opacity="0.5"
+        />
       </svg>
     </div>
   )

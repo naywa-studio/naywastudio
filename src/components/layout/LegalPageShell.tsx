@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
-import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { BrandBands } from "@/components/ui/BrandBands"
 
 /**
  * Shared chrome for the static legal pages :
@@ -29,7 +29,7 @@ interface Props {
 export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, sections }: Props) {
   return (
     <div style={{ background: "transparent", minHeight: "100vh", position: "relative" }}>
-      <ShaderBackground />
+      <BrandBands />
       <div style={{ position: "relative", zIndex: 2 }}>
       {/* Header */}
       <header

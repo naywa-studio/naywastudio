@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
-import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { BrandBands } from "@/components/ui/BrandBands"
 
 export const metadata: Metadata = {
   title: "FAQ",
@@ -134,7 +134,7 @@ const CATEGORIES = [
 export default function FAQPage() {
   return (
     <div style={{ background: "transparent", minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
-      <ShaderBackground />
+      <BrandBands />
       <Navbar />
 
       <main style={{ flex: 1, padding: "120px 24px 80px", position: "relative", zIndex: 2 }}>
