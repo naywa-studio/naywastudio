@@ -1,5 +1,6 @@
 "use client"
 import { m } from "framer-motion"
+import { Eyebrow } from "@/components/brand/Eyebrow"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -52,25 +53,7 @@ export function WhyNawa() {
             gap: 16,
           }}
         >
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              background: "rgba(124,99,200,0.07)",
-              border: "1px solid rgba(124,99,200,0.18)",
-              borderRadius: 100,
-              padding: "5px 14px",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#7C63C8",
-              letterSpacing: "0.09em",
-              textTransform: "uppercase" as const,
-              fontFamily: "var(--font-inter), sans-serif",
-            }}
-          >
-            Notre proposition de valeur
-          </span>
+          <Eyebrow n="01" align="center">Notre proposition de valeur</Eyebrow>
 
           <h2
             style={{
