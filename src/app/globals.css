@@ -95,6 +95,41 @@ select:focus, input:focus, textarea:focus {
 option { color: #111827; background: white; padding: 8px; }
 option:checked { background: rgba(124, 99, 200, 0.10); color: #7C63C8; }
 
+/* ── Boutons charte v2.0 (vitrine) — hover en CSS pour rester server-safe ── */
+.nw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 14px 28px;
+  font-family: var(--font-inter), sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 180ms cubic-bezier(0.22,1,0.36,1), background 180ms ease, box-shadow 180ms ease, color 180ms ease;
+}
+.nw-btn:hover { transform: translateY(-2px); }
+.nw-btn-primary {
+  background: #7B63C8;
+  color: #FFFFFF;
+  box-shadow: 0 24px 48px -20px rgba(123,99,200,0.30);
+}
+.nw-btn-primary:hover { background: #4B3A8F; }
+.nw-btn-ink {
+  background: #1A1B2E;
+  color: #F5F1E8;
+}
+.nw-btn-ink:hover { background: #2E2A5A; }
+.nw-btn-outline {
+  background: transparent;
+  color: #1A1B2E;
+  border: 1px solid #1A1B2E;
+  font-weight: 600;
+}
+.nw-btn-outline:hover { background: #1A1B2E; color: #F5F1E8; }
+
 /* ── Hero background blob animations ── */
 @keyframes heroBlob1 {
   0%,  100% { transform: translate(0, 0)    scale(1);    }

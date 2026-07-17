@@ -76,3 +76,89 @@ export const brand = {
 
 /** Dégradé de marque (accent titre / N du logo). */
 export const brandGradient = `linear-gradient(120deg, ${brand.violet} 0%, ${brand.violetSoft} 100%)`
+
+/**
+ * Échelle typographique de la charte (§06 « Hiérarchie »). Presets prêts à
+ * étaler dans un `style={{}}`. Les grands niveaux sont en clamp responsive.
+ *
+ *   Display  Fraunces 96 / 0.92 / -0.035em / 500
+ *   H1       Fraunces 56 / 1.02 / -0.025em / 500
+ *   H2       Fraunces 36 / 1.15 / -0.02em  / 500
+ *   H3       Inter    22 / 1.3  / -0.015em / 600
+ *   Lead     Inter    18 / 1.6  / 400
+ *   Body     Inter    15 / 1.65 / 400
+ *   Caption  Inter    13 / 1.5  / 500
+ *   Meta     JetBrains Mono 11 / 0.14em uppercase / 500
+ */
+export const type = {
+  display: {
+    fontFamily: brand.fontDisplay,
+    fontWeight: 500,
+    fontSize: 'clamp(44px, 6vw, 88px)',
+    lineHeight: 0.98,
+    letterSpacing: '-0.03em',
+    color: brand.ink,
+  },
+  h1: {
+    fontFamily: brand.fontDisplay,
+    fontWeight: 500,
+    fontSize: 'clamp(34px, 5vw, 56px)',
+    lineHeight: 1.02,
+    letterSpacing: '-0.025em',
+    color: brand.ink,
+  },
+  h2: {
+    fontFamily: brand.fontDisplay,
+    fontWeight: 500,
+    fontSize: 'clamp(28px, 3.8vw, 40px)',
+    lineHeight: 1.12,
+    letterSpacing: '-0.02em',
+    color: brand.ink,
+  },
+  h3: {
+    fontFamily: brand.fontBody,
+    fontWeight: 600,
+    fontSize: 22,
+    lineHeight: 1.3,
+    letterSpacing: '-0.015em',
+    color: brand.ink,
+  },
+  lead: {
+    fontFamily: brand.fontBody,
+    fontWeight: 400,
+    fontSize: 18,
+    lineHeight: 1.6,
+    color: brand.textSecondary,
+  },
+  body: {
+    fontFamily: brand.fontBody,
+    fontWeight: 400,
+    fontSize: 15,
+    lineHeight: 1.65,
+    color: brand.textSecondary,
+  },
+  caption: {
+    fontFamily: brand.fontBody,
+    fontWeight: 500,
+    fontSize: 13,
+    lineHeight: 1.5,
+    color: brand.textMuted,
+  },
+  /** Eyebrow / label technique. Se combine avec un préfixe « § NN ». */
+  meta: {
+    fontFamily: brand.fontMono,
+    fontWeight: 500,
+    fontSize: 11,
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase' as const,
+    color: brand.textMuted,
+  },
+} as const
+
+/** Accent italique (Instrument Serif) pour un mot dans un titre. */
+export const accentItalic = {
+  fontFamily: brand.fontSerifAccent,
+  fontStyle: 'italic' as const,
+  fontWeight: 400,
+  color: brand.violet,
+}
