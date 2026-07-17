@@ -31,7 +31,7 @@ const SOURCING_INCLUDED = [
 ]
 
 const PRICING_EXTRA = [
-  "Tout le plan Sourcing",
+  "Tout le Package Sourcing",
   "Pricing Syntec automatisé — marge, charges, calendrier réel",
   "Chart risque rupture employeur (RC + licenciement)",
   "Export PDF des chiffrages, nominatif ou anonymisé",
@@ -180,7 +180,7 @@ export default function TarifsPage() {
           >
             <PriceCard
               tag="Le plan"
-              title="Sourcing"
+              title="Package Sourcing"
               subtitle="Tout le workspace Nora, partagé entre vos collègues."
               priceMonthly={priceForSeats(seats)}
               perSeat={priceForSeats(seats) / seats}
@@ -192,7 +192,7 @@ export default function TarifsPage() {
             />
             <PriceCard
               tag="Avec l'option"
-              title="Sourcing + Suite Pricing"
+              title="Package Sourcing + Suite Pricing"
               subtitle="Pour les structures en régie qui chiffrent au TJM."
               priceMonthly={monthlyTotalEur(seats, true)}
               perSeat={monthlyTotalEur(seats, true) / seats}

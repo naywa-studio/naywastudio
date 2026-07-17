@@ -113,7 +113,7 @@ export function stripeSeatTiers(): Array<{ up_to: number | "inf"; unit_amount: n
  */
 export function planLabel(seats: number | null, hasPricing: boolean): string {
   const n = seats ?? 1
-  const base = `Sourcing — ${n} ${n > 1 ? "personnes" : "personne"}`
+  const base = `Package Sourcing — ${n} ${n > 1 ? "personnes" : "personne"}`
   return hasPricing ? `${base} + Suite Pricing` : base
 }
 

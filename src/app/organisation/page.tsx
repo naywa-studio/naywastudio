@@ -916,7 +916,7 @@ function SubscriptionCard({
 
 function planLabel(org: Organization): string {
   const seats = org.subscription_seats ?? 1
-  const base = `Sourcing · ${seats} personne${seats > 1 ? "s" : ""}`
+  const base = `Package Sourcing · ${seats} personne${seats > 1 ? "s" : ""}`
   return org.subscription_has_pricing ? `${base} · Suite Pricing` : base
 }
 

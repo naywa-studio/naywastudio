@@ -63,7 +63,7 @@ export async function POST() {
     skipped.push(LOOKUP_SEAT)
   } else {
     const seatProduct = await stripe.products.create({
-      name: "Naywa — Sourcing",
+      name: "Naywa — Package Sourcing",
       description: "Accès au workspace Naywa, par personne. Tarif dégressif.",
     })
     await stripe.prices.create({
