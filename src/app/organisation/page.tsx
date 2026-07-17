@@ -970,22 +970,31 @@ function PricingAddonToggle({
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const active = organization.subscription_has_pricing === true
+  // État optimiste : après un POST réussi, la ligne Stripe existe (ou n'existe
+  // plus) — c'est un fait, pas une supposition. On le reflète tout de suite au
+  // lieu d'attendre le webhook, dont la latence (surtout en test) ferait
+  // clignoter le bouton sur l'ancien état. `null` = on suit la base.
+  const [optimistic, setOptimistic] = useState<boolean | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const active = optimistic ?? organization.subscription_has_pricing === true
 
   const toggle = async () => {
+    const target = !active
     setBusy(true); setError(null)
     try {
       const res = await fetch("/api/stripe/pricing-addon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enable: !active }),
+        body: JSON.stringify({ enable: target }),
       })
       const j = await res.json().catch(() => ({} as { message?: string }))
       if (!res.ok) throw new Error(j.message ?? "Modification impossible")
-      // Stripe a déclenché subscription.updated ; le webhook écrit la base.
-      // Court délai avant relecture, sinon on réaffiche l'ancien état.
-      await new Promise((r) => setTimeout(r, 1500))
-      await onChanged()
+      // Succès Stripe confirmé → on affiche le nouvel état immédiatement.
+      setOptimistic(target)
+      // Le webhook écrit la base en arrière-plan ; on rafraîchit sans bloquer
+      // l'UI. Quand la base rattrape, `optimistic` et la base coïncident.
+      setSyncing(true)
+      onChanged().finally(() => setSyncing(false))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erreur")
     } finally {
@@ -1004,9 +1013,11 @@ function PricingAddonToggle({
             Suite Pricing Syntec
           </p>
           <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280" }}>
-            {active
-              ? `Incluse · ${formatEur(PRICING_ADDON_EUR)}/mois`
-              : `Option · ${formatEur(PRICING_ADDON_EUR)}/mois, résiliable à tout moment`}
+            {syncing
+              ? "Synchronisation…"
+              : active
+                ? `Incluse · ${formatEur(PRICING_ADDON_EUR)}/mois`
+                : `Option · ${formatEur(PRICING_ADDON_EUR)}/mois, résiliable à tout moment`}
           </p>
         </div>
         <button
