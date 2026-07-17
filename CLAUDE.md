@@ -694,6 +694,27 @@ prolonger l'essai via `/admin/recherche` → bouton « Essai ».
 **Décision vocab TRANCHÉE** : « Package Sourcing » partout (Elyas), « Suite Pricing »
 = l'option. Sweep fait (code + produit Stripe).
 
+**i18n FR/EN (branche `traduction_fr_en`, Amine) — PROMPT DONNÉ, PAS ENCORE MERGÉE.**
+Elle a divergé de main AVANT toute la refonte tarifaire (base = `3274328` ; 13
+commits Amine vs 41 sur main). Son archi i18n : `LanguageContext` + split
+`page.tsx`/`XxxContent.tsx` + dict `{ fr, en }` lu via `useLanguage()`, défaut FR,
+persisté par compte (migration 060 déjà en prod). **29 fichiers en collision.**
+Sa traduction de `/tarifs` est PÉRIMÉE (ancien modèle 2 tiers `SOURCING_PRO` /
+« sièges »). Un prompt court lui a été fourni (merger main→sa branche ; main =
+vérité contenu/logique, sa branche = vérité mécanisme i18n ; re-traduire /tarifs,
+CGU §6, FAQ, mentions/politique ; traduire le neuf : /contact-equipe, le
+configurateur + interrupteur add-on de /organisation, les écrans « Option non
+activée » de workspace/pricing + parametrage, planLabel() de pricing-plan.ts).
+**⚠️ AVANT de merger sa branche sur main : Elyas doit demander une RELECTURE de
+son diff** (surtout /tarifs, /organisation, prix, gating) — risque qu'un merge de
+29 fichiers réintroduise l'ancien modèle.
+
+**#418 (hydratation React sur `/admin`) — DIAGNOSTIQUÉ : extension navigateur, PAS
+notre code.** Aucun `Date.now()`/`random` dans le render admin, KPIs chargés
+client-side (pas de mismatch), pastille gestionnaire de mdp visible sur la capture.
+Non critique (React se re-rend). Correctif défensif optionnel = `suppressHydration
+Warning` sur `<body>` de layout.tsx (non appliqué — cosmétique, attend go Elyas).
+
 **RESTE (post-merge)** : **quiz 2 questions** (sièges + régie/TJM → pré-remplit le
 configurateur ; volume retiré, les CV suivent les sièges) · erreur d'hydratation
 React #418 sur `/admin` (probablement une extension navigateur, à confirmer) ·
