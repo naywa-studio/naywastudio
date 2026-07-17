@@ -620,15 +620,27 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
-#### Modèle tarifaire add-on + fuite Pricing fermée — 2026-07-17 (compact-safety)
+#### Modèle tarifaire add-on + fuite Pricing fermée — 2026-07-17 (MERGÉ EN PROD)
 
-**MERGÉ EN PROD** : `claude/cancellation-flow` (flow de résiliation) est **mergée
-sur main** (`52a82cf`, prod READY). Détail dans la section suivante — elle décrit
-la branche comme « pas mergée », c'est **périmé**.
+**MERGÉ EN PROD** : `claude/cancellation-flow` (`52a82cf`) **ET**
+`claude/pricing-addon-model` (`398324b`) sont **mergées sur main**, prod
+déployée + vérifiée (naywastudio.com/tarifs affiche le nouveau modèle).
+**AUCUNE MIGRATION** : `subscription_seats` et `subscription_has_pricing`
+existaient déjà.
 
-**BRANCHE `claude/pricing-addon-model`** (poussée, **PAS mergée**, dernier commit
-`df37156`). **AUCUNE MIGRATION** : `subscription_seats` et
-`subscription_has_pricing` existaient déjà.
+**Catalogue Stripe LIVE = état final** : seuls `sourcing_seat`
+(`price_1TtwHfD0dQXebFvJf7qOjbWC`, graduated) + `pricing_addon`
+(`price_1TtwHhD0dQXebFvJeOtGW21r`, 9,99 €) sont **actifs**. Les 8 anciens prix
+(`sourcing_1..4`, `sourcing_pro_1..4`) sont **archivés** (active=false, faits
+via MCP après le merge — réversibles). Produit renommé « Naywa — Package
+Sourcing ».
+
+**TESTÉ EN VRAI (compte `e53056801`, preview)** : configurateur /tarifs juste au
+centime 1→5 · interrupteur add-on Activer/Retirer 200 dans les 2 sens (ligne
+Stripe ajoutée/retirée, confirmé par logs) · gating 403→déblocage complet quand
+`has_pricing=true` · checkout 200 + URL Stripe (plafond 6→400). Le SEUL flux non
+exécuté = paiement carte réel : webhook **de test** non câblé sur la preview
+(0 log) — artefact d'env, le webhook PROD est prouvé (events 200). TEST restauré.
 
 **Modèle validé + implémenté (remplace les 2 tiers × 4 paliers)** :
 - **1 seul plan « Sourcing »**, sièges en **quantité libre** sur un prix Stripe à
@@ -643,11 +655,8 @@ la branche comme « pas mergée », c'est **périmé**.
 - Prix socle **inchangés** (38,99 gardé, `,99` voulu par Elyas). Argument décisif :
   **zéro client payant** aujourd'hui → grille théorique, liberté totale.
 
-**Catalogue Stripe LIVE créé + vérifié via MCP** (tiers relus avec `expand[]=tiers`) :
-`sourcing_seat` = `price_1TtwHfD0dQXebFvJf7qOjbWC` · `pricing_addon` =
-`price_1TtwHhD0dQXebFvJeOtGW21r`. Les **8 anciens prix live restent ACTIFS** — voulu :
-la prod tourne dessus jusqu'au merge. **À archiver APRÈS le merge seulement.**
-Catalogue TEST seedé par Elyas via le nouveau bouton `/admin`.
+**Catalogue TEST** seedé par Elyas via le bouton `/admin` (« Créer les prix de
+test »). Catalogue LIVE : cf. encadré ci-dessus (8 anciens prix archivés post-merge).
 
 **Code** :
 - **`lib/pricing-plan.ts` (NOUVEAU)** = source unique, **PUR (sans SDK Stripe)** donc
@@ -682,14 +691,15 @@ fichiers le mentionnant, **2 étaient la lib** : seulement 2 vrais appelants.
 Elyas informé : « ils vont sûrement souscrire, on a encore le temps ». Si ça traîne :
 prolonger l'essai via `/admin/recherche` → bouton « Essai ».
 
-**RESTE** : tester le checkout complet + l'interrupteur add-on (bloqué le 16/07 au soir
-par une **panne GitHub** — REST API dégradée → Vercel ne buildait plus ; rien de cassé
-chez nous, `git push` marchait) · **quiz 2 questions** (sièges + régie/TJM → pré-remplit
-le configurateur ; le volume est retiré, les CV suivent les sièges) · erreur
-d'hydratation React #418 sur `/admin` (probablement une extension navigateur, à
-confirmer) · **décision Elyas : « Package Sourcing » vs « Sourcing »** sur la vitrine
-(le produit dit encore « Package Sourcing », le configurateur et /tarifs disent
-« Sourcing »).
+**Décision vocab TRANCHÉE** : « Package Sourcing » partout (Elyas), « Suite Pricing »
+= l'option. Sweep fait (code + produit Stripe).
+
+**RESTE (post-merge)** : **quiz 2 questions** (sièges + régie/TJM → pré-remplit le
+configurateur ; volume retiré, les CV suivent les sièges) · erreur d'hydratation
+React #418 sur `/admin` (probablement une extension navigateur, à confirmer) ·
+**⚠️ webhook TEST à recâbler** vers la preview `pricing-addon` si on veut retester
+le cycle add-on en test (actuellement 0 delivery — pointe ailleurs) · **GMH** : essais
+expirés, wipe cron **06/08** et **09/08** si pas de souscription.
 
 #### Flow de résiliation + Stripe test mode — 2026-07-16 (⚠️ MERGÉ depuis, cf. section ci-dessus)
 
