@@ -53,3 +53,6 @@ public/agents/.next/
 
 tests/.pw-profile/
 tests/e2e/.cache/
+
+# Brand kit extraction (local, non versionné)
+scratchpad-brand/

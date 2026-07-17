@@ -74,7 +74,7 @@ export function WhyNawa() {
 
           <h2
             style={{
-              fontFamily: "var(--font-space-grotesk), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
               fontWeight: 800,
               color: "#111827",
@@ -142,7 +142,7 @@ export function WhyNawa() {
               {/* Big metric */}
               <div
                 style={{
-                  fontFamily: "var(--font-space-grotesk), sans-serif",
+                  fontFamily: "var(--font-fraunces), serif",
                   fontSize: "clamp(56px, 6.5vw, 80px)",
                   fontWeight: 800,
                   color: "#7C63C8",
@@ -157,7 +157,7 @@ export function WhyNawa() {
               <p
                 style={{
                   margin: 0,
-                  fontFamily: "var(--font-space-grotesk), sans-serif",
+                  fontFamily: "var(--font-fraunces), serif",
                   fontSize: 17,
                   fontWeight: 700,
                   color: "#111827",

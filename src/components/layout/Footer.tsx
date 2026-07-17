@@ -33,8 +33,8 @@ export function Footer() {
   return (
     <footer
       style={{
-        background: '#F8F6FF',
-        borderTop: '1px solid #E2DAF6',
+        background: '#FAF7F0',
+        borderTop: '1px solid #E9E1CB',
         position: 'relative',
         zIndex: 2,
       }}
@@ -131,7 +131,7 @@ export function Footer() {
           maxWidth: 1040,
           margin: '0 auto',
           padding: '20px 24px',
-          borderTop: '1px solid #E2DAF6',
+          borderTop: '1px solid #E9E1CB',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',

@@ -5,14 +5,14 @@ import { AgentsPreview } from "@/components/sections/AgentsPreview"
 import { HowItWorks } from "@/components/sections/HowItWorks"
 import { Founders } from "@/components/sections/Founders"
 import { Footer } from "@/components/layout/Footer"
-import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { BrandBands } from "@/components/ui/BrandBands"
 import AuthErrorRedirect from "@/components/layout/AuthErrorRedirect"
 
 export default function Home() {
   return (
     <>
       <AuthErrorRedirect />
-      <ShaderBackground />
+      <BrandBands />
       <Navbar />
       <main style={{ position: "relative", zIndex: 1 }}>
         <Hero />

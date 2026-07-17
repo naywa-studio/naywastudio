@@ -66,7 +66,7 @@ export function AgentsPreview() {
 
           <h2
             style={{
-              fontFamily: "var(--font-space-grotesk), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
               fontWeight: 800,
               color: "#111827",
@@ -117,13 +117,13 @@ export function AgentsPreview() {
                 border: "1px solid rgba(124,99,200,0.25)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 18, fontWeight: 800, color: "#7C63C8",
-                fontFamily: "var(--font-space-grotesk), sans-serif",
+                fontFamily: "var(--font-fraunces), serif",
               }}>
                 N
               </div>
               <div>
                 <p style={{
-                  margin: 0, fontFamily: "var(--font-space-grotesk), sans-serif",
+                  margin: 0, fontFamily: "var(--font-fraunces), serif",
                   fontSize: 24, fontWeight: 700, color: "#111827", letterSpacing: "-0.02em",
                 }}>
                   Nora

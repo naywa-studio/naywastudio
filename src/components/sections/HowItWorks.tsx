@@ -92,7 +92,7 @@ export function HowItWorks() {
 
           <h2
             style={{
-              fontFamily: "var(--font-space-grotesk), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
               fontWeight: 800,
               color: "#111827",
@@ -177,7 +177,7 @@ export function HowItWorks() {
                   <p
                     style={{
                       margin: 0,
-                      fontFamily: "var(--font-space-grotesk), sans-serif",
+                      fontFamily: "var(--font-fraunces), serif",
                       fontSize: 11,
                       fontWeight: 600,
                       color: "#6B7280",
@@ -217,7 +217,7 @@ export function HowItWorks() {
                 <h3
                   style={{
                     margin: 0,
-                    fontFamily: "var(--font-space-grotesk), sans-serif",
+                    fontFamily: "var(--font-fraunces), serif",
                     fontSize: 19,
                     fontWeight: 700,
                     color: "#111827",
