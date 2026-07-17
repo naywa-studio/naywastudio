@@ -705,9 +705,10 @@ vérité contenu/logique, sa branche = vérité mécanisme i18n ; re-traduire /t
 CGU §6, FAQ, mentions/politique ; traduire le neuf : /contact-equipe, le
 configurateur + interrupteur add-on de /organisation, les écrans « Option non
 activée » de workspace/pricing + parametrage, planLabel() de pricing-plan.ts).
-**⚠️ AVANT de merger sa branche sur main : Elyas doit demander une RELECTURE de
-son diff** (surtout /tarifs, /organisation, prix, gating) — risque qu'un merge de
-29 fichiers réintroduise l'ancien modèle.
+**⚠️ WORKFLOW : Amine NE MERGE PAS.** Il pousse sa branche ; **le merge se fait
+ICI** (session Claude Elyas) après RELECTURE de son diff (surtout /tarifs,
+/organisation, prix, gating) — risque qu'un merge de 29 fichiers réintroduise
+l'ancien modèle. Quand Amine a fini → relire sa branche, puis merger sur main.
 
 **#418 (hydratation React sur `/admin`) — DIAGNOSTIQUÉ : extension navigateur, PAS
 notre code.** Aucun `Date.now()`/`random` dans le render admin, KPIs chargés
