@@ -5,6 +5,8 @@ import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { BrandBands } from "@/components/ui/BrandBands"
+import { Eyebrow } from "@/components/brand/Eyebrow"
+import { brand, type as t, accentItalic } from "@/lib/brand"
 import {
   priceForSeats,
   monthlyTotalEur,
@@ -57,47 +59,15 @@ export default function TarifsPage() {
         {/* Hero */}
         <section style={{ padding: "0 24px 40px", textAlign: "center" }}>
           <div style={{ maxWidth: 740, margin: "0 auto" }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#7C63C8",
-                letterSpacing: "0.10em",
-                textTransform: "uppercase",
-                fontFamily: "var(--font-inter), sans-serif",
-              }}
-            >
-              Tarifs
-            </span>
-            <h1
-              style={{
-                fontFamily: "var(--font-inter), sans-serif",
-                fontSize: "clamp(34px, 5vw, 56px)",
-                fontWeight: 800,
-                color: "#111827",
-                margin: "14px 0 18px",
-                lineHeight: 1.05,
-                letterSpacing: "-0.025em",
-              }}
-            >
-              Essayez{" "}
-              <span
-                style={{
-                  fontFamily: "var(--font-instrument-serif), serif",
-                  fontWeight: 400,
-                  fontStyle: "italic",
-                  color: "#7C63C8",
-                }}
-              >
-                gratuitement
-              </span>{" "}
-              pendant 15 jours.
+            <Eyebrow align="center">Tarifs</Eyebrow>
+            <h1 style={{ ...t.h1, margin: "18px 0 18px" }}>
+              Essayez <span style={accentItalic}>gratuitement</span> pendant
+              15&nbsp;jours.
             </h1>
             <p
               style={{
-                fontFamily: "var(--font-inter), sans-serif",
+                ...t.lead,
                 fontSize: 16,
-                color: "#4B5563",
                 lineHeight: 1.7,
                 margin: "0 auto",
                 maxWidth: "55ch",
@@ -117,12 +87,12 @@ export default function TarifsPage() {
             <div
               style={{
                 display: "inline-flex",
-                background: "white",
-                border: "1px solid #E2DAF6",
+                background: brand.surface,
+                border: `1px solid ${brand.border}`,
                 borderRadius: 14,
                 padding: 4,
-                boxShadow: "0 4px 16px rgba(124,99,200,0.08)",
-                fontFamily: "var(--font-inter), sans-serif",
+                boxShadow: brand.shadowSm,
+                fontFamily: brand.fontBody,
               }}
             >
               {SEAT_CHOICES.map((n) => (
@@ -133,8 +103,8 @@ export default function TarifsPage() {
                     padding: "10px 18px",
                     borderRadius: 10,
                     border: "none",
-                    background: seats === n ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)" : "transparent",
-                    color: seats === n ? "white" : "#4B5563",
+                    background: seats === n ? brand.violet : "transparent",
+                    color: seats === n ? brand.white : brand.textSecondary,
                     fontSize: 14,
                     fontWeight: 700,
                     cursor: "pointer",
@@ -210,12 +180,9 @@ export default function TarifsPage() {
           <div style={{ maxWidth: 720, margin: "0 auto" }}>
             <h3
               style={{
-                fontFamily: "var(--font-inter), sans-serif",
-                fontSize: 18,
-                fontWeight: 700,
-                color: "#111827",
+                ...t.h2,
+                fontSize: 26,
                 margin: "0 0 18px",
-                letterSpacing: "-0.01em",
               }}
             >
               Questions fréquentes
@@ -225,18 +192,18 @@ export default function TarifsPage() {
                 <details
                   key={q.q}
                   style={{
-                    background: "white",
-                    border: "1px solid #F0ECF8",
-                    borderRadius: 12,
+                    background: brand.surface,
+                    border: `1px solid ${brand.border}`,
+                    borderRadius: brand.radiusMd,
                     padding: "14px 18px",
-                    fontFamily: "var(--font-inter), sans-serif",
+                    fontFamily: brand.fontBody,
                   }}
                 >
                   <summary
                     style={{
                       fontSize: 14,
                       fontWeight: 600,
-                      color: "#111827",
+                      color: brand.text,
                       cursor: "pointer",
                       listStyle: "none",
                     }}
@@ -245,9 +212,9 @@ export default function TarifsPage() {
                   </summary>
                   <p
                     style={{
+                      ...t.body,
                       margin: "10px 0 0",
                       fontSize: 13.5,
-                      color: "#4B5563",
                       lineHeight: 1.65,
                     }}
                   >
@@ -301,13 +268,11 @@ function PriceCard({
     <article
       style={{
         position: "relative",
-        background: "white",
+        background: brand.surface,
         borderRadius: 24,
-        border: recommended ? "1.5px solid rgba(124,99,200,0.40)" : "1.5px solid rgba(124,99,200,0.18)",
+        border: recommended ? `1.5px solid ${brand.violetSoft}` : `1px solid ${brand.border}`,
         padding: "44px 32px 32px",
-        boxShadow: recommended
-          ? "0 24px 56px -18px rgba(124,99,200,0.28)"
-          : "0 12px 32px -16px rgba(124,99,200,0.14)",
+        boxShadow: recommended ? brand.shadowViolet : brand.shadowMd,
         display: "flex",
         flexDirection: "column",
       }}
@@ -319,16 +284,16 @@ function PriceCard({
             top: -14,
             left: "50%",
             transform: "translateX(-50%)",
-            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            color: "white",
-            fontFamily: "var(--font-inter), sans-serif",
+            background: brand.violet,
+            color: brand.white,
+            fontFamily: brand.fontBody,
             fontSize: 11,
             fontWeight: 700,
             padding: "5px 16px",
-            borderRadius: 999,
+            borderRadius: brand.radiusPill,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            boxShadow: "0 8px 20px -6px rgba(124,99,200,0.55)",
+            boxShadow: brand.shadowViolet,
           }}
         >
           Recommandé
@@ -338,25 +303,18 @@ function PriceCard({
       <header style={{ marginBottom: 20 }}>
         <p
           style={{
-            fontFamily: "var(--font-inter), sans-serif",
-            margin: "0 0 6px",
-            fontSize: 11.5,
-            fontWeight: 700,
-            color: "#7C63C8",
-            letterSpacing: "0.10em",
-            textTransform: "uppercase",
+            ...t.meta,
+            color: brand.violet,
+            margin: "0 0 8px",
           }}
         >
           {tag}
         </p>
         <h2
           style={{
-            fontFamily: "var(--font-inter), sans-serif",
+            ...t.h2,
             margin: 0,
-            fontSize: 24,
-            fontWeight: 800,
-            color: "#111827",
-            letterSpacing: "-0.02em",
+            fontSize: 26,
             lineHeight: 1.15,
           }}
         >
@@ -503,20 +461,16 @@ function PriceCard({
           justifyContent: "center",
           alignItems: "center",
           gap: 6,
-          background: accentSoft
-            ? "white"
-            : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-          color: accentSoft ? "#7C63C8" : "white",
-          border: accentSoft ? "1.5px solid #7C63C8" : "none",
-          fontFamily: "var(--font-inter), sans-serif",
+          background: accentSoft ? "transparent" : brand.violet,
+          color: accentSoft ? brand.ink : brand.white,
+          border: accentSoft ? `1px solid ${brand.ink}` : "none",
+          fontFamily: brand.fontBody,
           fontSize: 14.5,
           fontWeight: 700,
           padding: "12px 22px",
-          borderRadius: 12,
+          borderRadius: brand.radiusMd,
           textDecoration: "none",
-          boxShadow: accentSoft
-            ? "none"
-            : "0 8px 24px -6px rgba(124,99,200,0.55)",
+          boxShadow: accentSoft ? "none" : brand.shadowViolet,
           width: "100%",
           boxSizing: "border-box",
         }}
