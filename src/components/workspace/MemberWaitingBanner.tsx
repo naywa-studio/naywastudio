@@ -1,7 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import type { Organization } from "@/lib/database.types"
-import { hasActiveAccess } from "@/lib/subscription"
+import { hasActiveAccess, graceInfo } from "@/lib/subscription"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const copy = {
@@ -43,9 +44,14 @@ interface Props {
 export function MemberWaitingBanner({ organization, role }: Props) {
   const { lang } = useLanguage()
   const t = copy[lang]
+  // Date.now() capturé au mount (pattern react-hooks/purity).
+  const [nowMs] = useState(() => Date.now())
   if (!organization) return null
   if (role !== "member") return null
   if (hasActiveAccess(organization)) return null
+  // En fenêtre de grâce (essai expiré / résiliation / suppression), c'est la
+  // LockdownBanner qui prend le relais (countdown + export). On ne double pas.
+  if (graceInfo(organization, nowMs).cause) return null
 
   const orgName = organization.brand_name ?? organization.name
 

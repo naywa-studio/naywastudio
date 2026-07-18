@@ -18,6 +18,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { requirePricingAccess } from "@/lib/access-guard"
 import { computeMissionMargin, type Avantages, type Lieu } from "@/lib/pricing/syntec"
 import { PRESETS, detectSeniority } from "@/lib/pricing/preset"
 import { candidateRefLabel } from "@/lib/candidate-ref"
@@ -41,6 +42,13 @@ const FALLBACK_AVANTAGES: Avantages = {
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
+
+  // Entitlement Suite Pricing : cette route n'avait qu'un contrôle « connecté ».
+  // Générer une fiche pricing EST la fonctionnalité vendue — un GET ne la rend
+  // pas gratuite. Couvre aussi l'accès actif + le siège (cf. access-guard).
+  const gate = await requirePricingAccess()
+  if (!gate.ok) return gate.response
+
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })

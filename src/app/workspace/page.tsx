@@ -8,6 +8,7 @@ import NoraLoader from "@/components/workspace/NoraLoader"
 import { StarterChecklist } from "@/components/workspace/StarterChecklist"
 import { getSupabase } from "@/lib/supabase"
 import { trialStatus } from "@/lib/trial"
+import { hasPricingAccess } from "@/lib/subscription"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
 import type { MatchTier, Organization } from "@/lib/database.types"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
@@ -152,6 +153,11 @@ export default function WorkspaceHome() {
   const { profile, organization, hasSubscription, isReadOnly, refetchProfile } = useWorkspace()
   const { lang } = useLanguage()
   const t = copy[lang]
+  // L'accueil est une deuxième porte d'entrée vers la Suite Pricing (raccourci,
+  // indicateur, panneau « Missions à chiffrer ») — indépendante de l'onglet de
+  // nav. Sans ça, un client sans l'option voyait encore des liens qui mènent à
+  // un écran d'activation : on lui propose une porte fermée.
+  const canPricing = hasPricingAccess(organization, { isAdmin: profile?.is_admin === true })
   const sb = useMemo(() => getSupabase(), [])
   const granted = useRef(false)
 
@@ -360,7 +366,9 @@ export default function WorkspaceHome() {
             <ActionTile href="/workspace/vivier" label={t.addCv}  icon={<IconUpload />} />
             <ActionTile href="/workspace/missions" label={t.createMission} icon={<IconPlus />} />
             <ActionTile href="/workspace/missions" label={t.launchMatching} icon={<IconTarget />} />
-            <ActionTile href="/workspace/pricing" label={t.priceMission} icon={<IconEuro />} />
+            {canPricing && (
+              <ActionTile href="/workspace/pricing" label={t.priceMission} icon={<IconEuro />} />
+            )}
           </>
         )}
         <ActionTile href="/workspace/pipeline" label={t.trackPipeline} icon={<IconKanban />} />
@@ -393,13 +401,15 @@ export default function WorkspaceHome() {
           loading={loading}
           deltaLabel={t.deltaThisWeek}
         />
-        <StatTile href="/workspace/pricing"
-          label={t.pricingPool}
-          value={stats?.pricingPool ?? null}
-          delta={null}
-          loading={loading}
-          deltaLabel={t.deltaThisWeek}
-        />
+        {canPricing && (
+          <StatTile href="/workspace/pricing"
+            label={t.pricingPool}
+            value={stats?.pricingPool ?? null}
+            delta={null}
+            loading={loading}
+            deltaLabel={t.deltaThisWeek}
+          />
+        )}
       </div>
 
       {/* ── Activité récente ──────────────────────────────────── */}
@@ -461,6 +471,7 @@ export default function WorkspaceHome() {
           })}
         </RecentPanel>
 
+        {canPricing && (
         <RecentPanel
           title={t.missionsToPrice}
           loading={loading}
@@ -486,6 +497,7 @@ export default function WorkspaceHome() {
             </Link>
           ))}
         </RecentPanel>
+        )}
       </div>
 
     </main>

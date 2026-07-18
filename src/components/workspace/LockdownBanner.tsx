@@ -3,49 +3,62 @@
 import { useState } from "react"
 import Link from "next/link"
 import type { Organization } from "@/lib/database.types"
-import { isInLockdown } from "@/lib/subscription"
+import { graceInfo } from "@/lib/subscription"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const copy = {
   fr: {
-    readOnly: "Workspace en lecture seule. ",
+    leadDeletion: "Suppression programmée.",
+    leadSubscription: "Abonnement résilié — workspace en lecture seule.",
+    leadTrial: "Essai terminé — workspace en lecture seule.",
     daysLeft: (n: number) => (
       <>Plus que <strong>{n} jour{n > 1 ? "s" : ""}</strong> avant la suppression des données. </>
     ),
     soon: "Suppression des données dans les prochaines heures. ",
-    resubscribe: "Souscrire à nouveau",
+    cancelDeletion: "Annuler la suppression",
+    reactivateSub: "Réactiver l'abonnement",
+    subscribe: "Souscrire",
     exportData: "Exporter mes données",
-    askOwner: "Demandez à l'owner de régulariser l'abonnement.",
+    askOwnerDeletion: "L'organisation va être supprimée par son propriétaire. ",
+    askOwnerSub: "Demandez à l'owner de régulariser l'abonnement. ",
   },
   en: {
-    readOnly: "Workspace in read-only mode. ",
+    leadDeletion: "Deletion scheduled.",
+    leadSubscription: "Subscription canceled — workspace in read-only mode.",
+    leadTrial: "Trial ended — workspace in read-only mode.",
     daysLeft: (n: number) => (
       <>Only <strong>{n} day{n > 1 ? "s" : ""}</strong> left before your data is deleted. </>
     ),
     soon: "Data will be deleted within the next few hours. ",
-    resubscribe: "Subscribe again",
+    cancelDeletion: "Cancel the deletion",
+    reactivateSub: "Reactivate my subscription",
+    subscribe: "Subscribe",
     exportData: "Export my data",
-    askOwner: "Ask the owner to settle the subscription.",
+    askOwnerDeletion: "The organization is about to be deleted by its owner. ",
+    askOwnerSub: "Ask the owner to settle the subscription. ",
   },
 }
 
 /**
- * Bannière rouge persistante affichée en haut du workspace quand l'org
- * est en lockdown (sub past_due / unpaid / canceled, dans la fenêtre
- * de 15 j avant le wipe data). Non-dismissable — l'owner doit voir le
- * problème à chaque navigation.
+ * Bannière rouge persistante en haut du workspace quand l'org est en
+ * fenêtre de grâce (lecture seule avant wipe). Couvre les 3 causes
+ * (cf. lib/subscription.ts `graceInfo`) :
+ *   - "deletion"     : suppression programmée par l'owner → CTA "Annuler".
+ *   - "subscription" : abonnement résilié / impayé → CTA "Réactiver".
+ *   - "trial"        : essai gratuit expiré → CTA "Souscrire".
  *
- * Le workspace reste accessible en lecture seule pendant cette période
- * pour permettre l'export RGPD.
+ * Non-dismissable. Le workspace reste en lecture seule pendant toute la
+ * période pour permettre l'export RGPD. Les CTA d'action (souscrire /
+ * réactiver / annuler) ne sont rendus que pour l'owner ; un member voit
+ * le countdown + le lien d'export.
  */
 
 interface Props {
   organization: Organization | null | undefined
-  /** True = owner du cabinet. Les CTAs "Souscrire à nouveau" /
-   *  "Régulariser" ne sont rendus que pour l'owner ; un member voit
-   *  juste le countdown et le lien export RGPD. */
   isOwner?: boolean
 }
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 export function LockdownBanner({ organization, isOwner = true }: Props) {
   const { lang } = useLanguage()
@@ -54,11 +67,28 @@ export function LockdownBanner({ organization, isOwner = true }: Props) {
   const [nowMs] = useState(() => Date.now())
 
   if (!organization) return null
-  if (!isInLockdown(organization, nowMs)) return null
+  const grace = graceInfo(organization, nowMs)
+  // On affiche la bannière tant qu'il y a une cause de grâce, même si la
+  // fenêtre est techniquement écoulée (le wipe n'a pas encore tourné) — dans
+  // ce cas daysLeft tombe à 0 et le message bascule sur "imminent".
+  if (!grace.cause || !grace.endsAt) return null
 
-  const startMs = new Date(organization.lockdown_started_at!).getTime()
-  const elapsedMs = nowMs - startMs
-  const daysLeft = Math.max(0, 15 - Math.floor(elapsedMs / (24 * 60 * 60 * 1000)))
+  const daysLeft = Math.max(0, Math.ceil((grace.endsAt.getTime() - nowMs) / MS_PER_DAY))
+
+  const lead =
+    grace.cause === "deletion"
+      ? t.leadDeletion
+      : grace.cause === "subscription"
+        ? t.leadSubscription
+        : t.leadTrial
+
+  const countdown = daysLeft > 0 ? t.daysLeft(daysLeft) : t.soon
+
+  // CTA principal selon la cause.
+  const primary =
+    grace.cause === "deletion"
+      ? { href: "/organisation?tab=securite", label: t.cancelDeletion }
+      : { href: "/organisation?action=subscribe", label: grace.cause === "subscription" ? t.reactivateSub : t.subscribe }
 
   return (
     <div
@@ -81,38 +111,29 @@ export function LockdownBanner({ organization, isOwner = true }: Props) {
         background: "#DC2626", flexShrink: 0,
       }} />
       <span style={{ flex: "0 1 auto" }}>
-        {t.readOnly}{daysLeft > 0 ? t.daysLeft(daysLeft) : t.soon}
+        {lead} {countdown}
         {isOwner ? (
           <>
             <Link
-              href="/organisation?action=subscribe"
-              style={{
-                color: "#DC2626", fontWeight: 700,
-                textDecoration: "underline", textUnderlineOffset: 2,
-              }}
+              href={primary.href}
+              style={{ color: "#DC2626", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
             >
-              {t.resubscribe}
+              {primary.label}
             </Link>
             {" "}·{" "}
             <Link
               href="/organisation?tab=securite"
-              style={{
-                color: "#DC2626", fontWeight: 700,
-                textDecoration: "underline", textUnderlineOffset: 2,
-              }}
+              style={{ color: "#DC2626", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
             >
               {t.exportData}
             </Link>
           </>
         ) : (
           <>
-            {t.askOwner}{" "}
+            {grace.cause === "deletion" ? t.askOwnerDeletion : t.askOwnerSub}
             <Link
               href="/organisation?tab=securite"
-              style={{
-                color: "#DC2626", fontWeight: 700,
-                textDecoration: "underline", textUnderlineOffset: 2,
-              }}
+              style={{ color: "#DC2626", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
             >
               {t.exportData}
             </Link>

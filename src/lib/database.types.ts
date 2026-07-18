@@ -246,6 +246,7 @@ export type Database = {
           subscription_seats: number | null
           /** True if the active plan is the Pro variant (Suite Pricing Syntec). */
           subscription_has_pricing: boolean
+          subscription_cancel_at_period_end: boolean
           /** End of the currently paid Stripe billing period. */
           current_period_end: string | null
           /** When the org entered read-only mode (past_due / unpaid /

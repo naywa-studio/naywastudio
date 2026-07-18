@@ -50,6 +50,7 @@ const copy = {
     addToPipeline: "+ Ajouter à la pipeline",
     profile: "Fiche",
     open: "Ouvrir",
+    readOnlyPipeline: "Lecture seule — souscrivez pour gérer la pipeline",
   },
   en: {
     candidateFallback: "Candidate",
@@ -60,6 +61,7 @@ const copy = {
     addToPipeline: "+ Add to pipeline",
     profile: "Profile",
     open: "Open",
+    readOnlyPipeline: "Read-only — subscribe to manage the pipeline",
   },
 }
 
@@ -68,9 +70,11 @@ interface Props {
   /** Critères main de la mission, dans l'ordre choisi par le sourceur. */
   mainCriteria: Criterion[]
   onTogglePipeline: (id: string, next: boolean) => void
+  /** Lecture seule : le toggle pipeline est grisé (mutation bloquée serveur). */
+  readOnly?: boolean
 }
 
-export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
+export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = false }: Props) {
   const { lang } = useLanguage()
   const t = copy[lang]
   const c = row.candidate
@@ -156,13 +160,15 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline }: Props) {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
         <button
           onClick={() => onTogglePipeline(row.id, !row.in_pipeline)}
-          title={row.in_pipeline ? t.removeFromPipeline : t.trackInPipeline}
+          disabled={readOnly}
+          title={readOnly ? t.readOnlyPipeline : (row.in_pipeline ? t.removeFromPipeline : t.trackInPipeline)}
           style={{
-            fontSize: 11.5, fontWeight: 700, fontFamily: "inherit", cursor: "pointer",
+            fontSize: 11.5, fontWeight: 700, fontFamily: "inherit",
+            cursor: readOnly ? "not-allowed" : "pointer",
             padding: "6px 11px", borderRadius: 8,
-            color: row.in_pipeline ? "#15803d" : "#7C63C8",
-            background: row.in_pipeline ? "rgba(34,197,94,0.08)" : "white",
-            border: `1px solid ${row.in_pipeline ? "rgba(34,197,94,0.3)" : "rgba(124,99,200,0.3)"}`,
+            color: readOnly ? "#B8AEDE" : (row.in_pipeline ? "#15803d" : "#7C63C8"),
+            background: readOnly ? "#F3F0FA" : (row.in_pipeline ? "rgba(34,197,94,0.08)" : "white"),
+            border: `1px solid ${readOnly ? "#E5E0F0" : (row.in_pipeline ? "rgba(34,197,94,0.3)" : "rgba(124,99,200,0.3)")}`,
             whiteSpace: "nowrap",
           }}
         >

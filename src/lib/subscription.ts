@@ -108,15 +108,119 @@ export function hasPricingAccess(
   return subscriptionAccess(org, opts).state === "trial"
 }
 
-/** Lockdown actif = sub past_due/unpaid/canceled mais avant le wipe à
- *  J+15. Le workspace doit rester accessible en LECTURE SEULE pour
- *  permettre l'export RGPD et donner une dernière chance de régulariser.
+/** Résiliation programmée : le client a résilié au portail mais l'abonnement
+ *  court jusqu'à la fin de la période payée. L'accès reste COMPLET jusque-là —
+ *  ce n'est pas encore une grâce (cf. graceInfo), juste un état à afficher :
+ *  « prend fin le X » et non « prochain prélèvement le X ».
  *
- *  Pas de lockdown si :
- *    - lockdown_started_at n'est pas posé
- *    - le cron de wipe a déjà passé (lockdown_started_at + 15 j)
- *    - l'org a une access active (trial/paid/trialing) — le webhook
- *      aurait dû clear le lockdown_started_at mais on est défensif. */
+ *  À `endsAt`, Stripe supprime l'abonnement → le webhook pose
+ *  `lockdown_started_at` → la grâce de 30 j démarre.
+ *
+ *  Renvoie null si aucune résiliation n'est programmée. */
+export function scheduledCancellation(
+  org: Pick<
+    Organization,
+    "subscription_cancel_at_period_end" | "current_period_end" | "subscription_status"
+  > | null | undefined,
+): { endsAt: Date } | null {
+  if (!org?.subscription_cancel_at_period_end) return null
+  if (!org.current_period_end) return null
+  // past_due/unpaid ont leur propre traitement (lockdown) : ne pas parler de
+  // résiliation programmée quand le vrai sujet est un impayé.
+  if (org.subscription_status !== "active" && org.subscription_status !== "trialing") {
+    return null
+  }
+  return { endsAt: new Date(org.current_period_end) }
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+/** Durée de la fenêtre de grâce (lecture seule) avant wipe, en jours.
+ *  Unifiée : résiliation Stripe, impayé, essai expiré, suppression explicite.
+ *  Passé ce délai un cron wipe (données business pour un lapse d'abonnement /
+ *  d'essai, compte entier pour une suppression explicite). */
+export const GRACE_DAYS = 30
+
+/** Cause de la mise en lecture seule d'une org.
+ *   - "deletion"     : l'owner a demandé la suppression (recouvrable 30 j).
+ *   - "subscription" : abonnement résilié / impayé (Stripe).
+ *   - "trial"        : essai gratuit expiré sans abonnement pris. */
+export type GraceCause = "deletion" | "subscription" | "trial"
+
+export interface GraceInfo {
+  /** Vrai tant qu'on est DANS la fenêtre (endsAt dans le futur). */
+  inGrace: boolean
+  /** Date de fin de grâce (= date de wipe prévue). */
+  endsAt: Date | null
+  cause: GraceCause | null
+}
+
+/** Fenêtre de grâce unifiée. Une org "suspendue" (résiliation, impayé, essai
+ *  expiré) OU en cours de suppression explicite reste accessible en LECTURE
+ *  SEULE le temps d'exporter ses données (RGPD) et de réactiver / annuler.
+ *  Priorité : suppression explicite > abonnement > essai. */
+export function graceInfo(
+  org: Pick<
+    Organization,
+    "trial_ends_at" | "subscription_status" | "current_period_end" | "lockdown_started_at" | "pending_deletion_at"
+  > | null | undefined,
+  nowMs: number = Date.now(),
+  opts?: { isAdmin?: boolean },
+): GraceInfo {
+  const none: GraceInfo = { inGrace: false, endsAt: null, cause: null }
+  if (opts?.isAdmin || !org) return none
+
+  // 1) Suppression explicite demandée par l'owner — prioritaire et
+  //    recouvrable (bouton "Annuler la suppression"), même si l'abo est
+  //    encore actif : on a demandé à supprimer, plus de mutations.
+  if (org.pending_deletion_at) {
+    const endsAt = new Date(org.pending_deletion_at)
+    return { inGrace: nowMs < endsAt.getTime(), endsAt, cause: "deletion" }
+  }
+
+  // 2) Accès actif (essai en cours / abo payé) → pas de grâce.
+  if (hasActiveAccess(org)) return none
+
+  // 3) Abonnement résilié / impayé — grâce à partir du stamp lockdown posé
+  //    par le webhook Stripe.
+  if (org.lockdown_started_at) {
+    const endsAt = new Date(new Date(org.lockdown_started_at).getTime() + GRACE_DAYS * MS_PER_DAY)
+    return { inGrace: nowMs < endsAt.getTime(), endsAt, cause: "subscription" }
+  }
+
+  // 4) Essai gratuit expiré sans abonnement — grâce à partir de trial_ends_at.
+  if (org.trial_ends_at) {
+    const trialEndMs = new Date(org.trial_ends_at).getTime()
+    if (nowMs >= trialEndMs) {
+      const endsAt = new Date(trialEndMs + GRACE_DAYS * MS_PER_DAY)
+      return { inGrace: nowMs < endsAt.getTime(), endsAt, cause: "trial" }
+    }
+  }
+
+  return none
+}
+
+/** Le workspace doit-il être en LECTURE SEULE pour ce user ? Vrai dès qu'une
+ *  suppression est programmée OU que l'org n'a plus d'accès actif (résiliation,
+ *  impayé, essai expiré) — indépendamment de la fenêtre de grâce (reste read-only
+ *  jusqu'au wipe). Les mutations serveur sont de toute façon bloquées
+ *  (requireActiveAccess) ; ceci grise l'UI en cohérence. */
+export function isWorkspaceReadOnly(
+  org: Pick<
+    Organization,
+    "trial_ends_at" | "subscription_status" | "current_period_end" | "pending_deletion_at"
+  > | null | undefined,
+  opts?: { isAdmin?: boolean },
+): boolean {
+  if (opts?.isAdmin || !org) return false
+  if (org.pending_deletion_at) return true
+  return !hasActiveAccess(org)
+}
+
+/** Lockdown actif = sub past_due/unpaid/canceled dans la fenêtre de grâce.
+ *  Conservé pour les bannières + la résolution de quotas. Aligné sur
+ *  GRACE_DAYS (30 j). Pour la logique unifiée (lecture seule, essai expiré,
+ *  suppression), préférer `graceInfo` / `isWorkspaceReadOnly`. */
 export function isInLockdown(
   org: Pick<
     Organization,
@@ -130,6 +234,6 @@ export function isInLockdown(
   if (!org?.lockdown_started_at) return false
   if (hasActiveAccess(org)) return false
   const startMs = new Date(org.lockdown_started_at).getTime()
-  const elapsedDays = (nowMs - startMs) / (24 * 60 * 60 * 1000)
-  return elapsedDays >= 0 && elapsedDays <= 15
+  const elapsedDays = (nowMs - startMs) / MS_PER_DAY
+  return elapsedDays >= 0 && elapsedDays <= GRACE_DAYS
 }

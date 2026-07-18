@@ -22,6 +22,7 @@ import Select from "@/components/ui/Select"
 import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+import { useWorkspace } from "../../layout"
 
 const copy = {
   fr: {
@@ -49,6 +50,8 @@ const copy = {
     manual: "manuel",
     removeFromPipeline: "Retirer de la pipeline",
     followInPipeline: "Suivre ce candidat dans la pipeline",
+    readOnlyPipeline: "Lecture seule — souscrivez pour gérer la pipeline",
+    readOnlyLabel: "Lecture seule",
     inPipeline: "✓ Dans le pipeline",
     addToPipeline: "+ Ajouter à la pipeline",
     manuallyAssigned: "Assigné manuellement",
@@ -106,6 +109,8 @@ const copy = {
     manual: "manual",
     removeFromPipeline: "Remove from pipeline",
     followInPipeline: "Track this candidate in the pipeline",
+    readOnlyPipeline: "Read-only — subscribe to manage the pipeline",
+    readOnlyLabel: "Read-only",
     inPipeline: "✓ In the pipeline",
     addToPipeline: "+ Add to pipeline",
     manuallyAssigned: "Manually assigned",
@@ -120,7 +125,7 @@ const copy = {
     grossPerYear: (saving: boolean) => `€ gross / year${saving ? " · saving…" : ""}`,
     fillTargetSalary: "Fill in the position's target salary (in the mission) to enable the comparison.",
     targetSalaryOnly: (target: string) => (
-      <>Position's target salary: <strong>{target} €</strong></>
+      <>Position&apos;s target salary: <strong>{target} €</strong></>
     ),
     targetSalaryLabel: "Position target: ",
     aboveBudget: "Above budget",
@@ -255,6 +260,9 @@ export default function MatchPage() {
   const { matchId } = useParams<{ matchId: string }>()
   const router = useRouter()
   const sb = useMemo(() => getSupabase(), [])
+  // Lecture seule : anonymisation, compose/envoi, pipeline et prétention
+  // salariale sont bloqués côté serveur (requireActiveAccess). On grise l'UI.
+  const { isReadOnly } = useWorkspace()
 
   const [match, setMatch] = useState<LoadedMatch | null>(null)
   const [candidate, setCandidate] = useState<Candidate | null>(null)
@@ -333,7 +341,7 @@ export default function MatchPage() {
   }, [candidate])
 
   const generateAnonymized = async () => {
-    if (!candidate || anonymizeStatus.state === "working") return
+    if (!candidate || anonymizeStatus.state === "working" || isReadOnly) return
     setAnonymizeStatus((prev) => ({ ...prev, state: "working", error: null }))
     try {
       const res = await fetch(`/api/cv/${candidate.id}/anonymize`, {
@@ -426,6 +434,7 @@ export default function MatchPage() {
 
   // Ajoute / retire ce candidat de la pipeline (liste curatée). Optimiste.
   const togglePipeline = async () => {
+    if (isReadOnly) return
     const next = !match.in_pipeline
     setPipelineSaving(true)
     setMatch((prev) => prev ? { ...prev, in_pipeline: next } : prev)
@@ -441,6 +450,7 @@ export default function MatchPage() {
   // Sauvegarde la prétention salariale du candidat (universel). No-op si
   // inchangé. Persisté sur match_assessments, comparé au salaire cible du poste.
   const saveSalaryExpectation = async () => {
+    if (isReadOnly) return
     const raw = salaryExp.trim()
     const val: number | null = raw === "" ? null : Math.round(Number(raw))
     if (raw !== "" && (val == null || !Number.isFinite(val) || val < 0)) return
@@ -536,13 +546,15 @@ export default function MatchPage() {
           {/* Action principale : suivre dans la pipeline */}
           <button
             onClick={togglePipeline}
-            disabled={pipelineSaving}
-            title={match.in_pipeline ? t.removeFromPipeline : t.followInPipeline}
+            disabled={pipelineSaving || isReadOnly}
+            title={isReadOnly ? t.readOnlyPipeline : (match.in_pipeline ? t.removeFromPipeline : t.followInPipeline)}
             style={{
               fontSize: 13, fontWeight: 700, fontFamily: "inherit",
-              cursor: pipelineSaving ? "default" : "pointer",
+              cursor: (pipelineSaving || isReadOnly) ? "not-allowed" : "pointer",
               borderRadius: 10, padding: "9px 16px",
-              ...(match.in_pipeline
+              ...(isReadOnly
+                ? { color: "#B8AEDE", background: "#F3F0FA", border: "1px solid #E5E0F0" }
+                : match.in_pipeline
                 ? { color: "#15803d", background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.35)" }
                 : { color: "white", background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)", border: "none", boxShadow: "0 6px 18px -8px rgba(124,99,200,0.6)" }),
             }}
@@ -603,6 +615,7 @@ export default function MatchPage() {
         onOptionsChange={setAnonymizeOptions}
         onGenerate={generateAnonymized}
         onScrollToPreview={scrollToPreview}
+        readOnly={isReadOnly}
       />
 
       {/* Three-column layout:
@@ -708,8 +721,11 @@ export default function MatchPage() {
                 type="number" min={0} value={salaryExp}
                 onChange={(e) => setSalaryExp(e.target.value)}
                 onBlur={saveSalaryExpectation}
+                readOnly={isReadOnly}
+                disabled={isReadOnly}
                 placeholder={t.salaryPlaceholder}
-                style={{ width: 150, padding: "9px 12px", fontSize: 13.5, borderRadius: 9, border: "1px solid #E2DAF6", outline: "none", fontFamily: "inherit" }}
+                title={isReadOnly ? t.readOnlyLabel : undefined}
+                style={{ width: 150, padding: "9px 12px", fontSize: 13.5, borderRadius: 9, border: "1px solid #E2DAF6", outline: "none", fontFamily: "inherit", background: isReadOnly ? "#F3F0FA" : "white", cursor: isReadOnly ? "not-allowed" : "text" }}
               />
               <span style={{ fontSize: 12, color: "#6B7280" }}>{t.grossPerYear(salarySaving)}</span>
             </div>
@@ -815,7 +831,11 @@ export default function MatchPage() {
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               {t.approachMessageTitle}
             </h3>
-            {candidate.parse_status === "parsed" ? (
+            {isReadOnly ? (
+              <p style={{ margin: 0, fontSize: 13, color: "#6B7280" }}>
+                Lecture seule — la rédaction de messages est indisponible. Souscrivez pour reprendre la main.
+              </p>
+            ) : candidate.parse_status === "parsed" ? (
               <ComposeBox
                 candidate={candidate}
                 selectedJobId={job?.id ?? ""}
@@ -842,6 +862,7 @@ export default function MatchPage() {
             highlightMatchId={match.id}
             layout="vertical"
             onlyMatchId={match.id}
+            readOnly={isReadOnly}
           />
         </aside>
 

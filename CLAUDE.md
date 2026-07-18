@@ -620,6 +620,310 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
+#### Modèle tarifaire add-on + fuite Pricing fermée — 2026-07-17 (MERGÉ EN PROD)
+
+**MERGÉ EN PROD** : `claude/cancellation-flow` (`52a82cf`) **ET**
+`claude/pricing-addon-model` (`398324b`) sont **mergées sur main**, prod
+déployée + vérifiée (naywastudio.com/tarifs affiche le nouveau modèle).
+**AUCUNE MIGRATION** : `subscription_seats` et `subscription_has_pricing`
+existaient déjà.
+
+**Catalogue Stripe LIVE = état final** : seuls `sourcing_seat`
+(`price_1TtwHfD0dQXebFvJf7qOjbWC`, graduated) + `pricing_addon`
+(`price_1TtwHhD0dQXebFvJeOtGW21r`, 9,99 €) sont **actifs**. Les 8 anciens prix
+(`sourcing_1..4`, `sourcing_pro_1..4`) sont **archivés** (active=false, faits
+via MCP après le merge — réversibles). Produit renommé « Naywa — Package
+Sourcing ».
+
+**TESTÉ EN VRAI (compte `e53056801`, preview)** : configurateur /tarifs juste au
+centime 1→5 · interrupteur add-on Activer/Retirer 200 dans les 2 sens (ligne
+Stripe ajoutée/retirée, confirmé par logs) · gating 403→déblocage complet quand
+`has_pricing=true` · checkout 200 + URL Stripe (plafond 6→400). Le SEUL flux non
+exécuté = paiement carte réel : webhook **de test** non câblé sur la preview
+(0 log) — artefact d'env, le webhook PROD est prouvé (events 200). TEST restauré.
+
+**Modèle validé + implémenté (remplace les 2 tiers × 4 paliers)** :
+- **1 seul plan « Sourcing »**, sièges en **quantité libre** sur un prix Stripe à
+  **paliers dégressifs** (`graduated`) : 1ᵉʳ siège **38,99** · 2ᵉ **+31** · 3ᵉ et
+  au-delà **+25**. Reproduit l'ancienne grille au centime (2→69,99 · 3→94,99 ·
+  4→119,99) et se prolonge (5→144,99). **4 SKU → 1.**
+- **Suite Pricing = add-on PLAT à 9,99 €** (ligne d'abo séparée, qty 1), pas par
+  siège : sa valeur est org-level, pas par utilisateur. **Remplace `sourcing_pro`.**
+- **10 000 CV inclus par personne** (linéaire). Extra CV **reporté** (Elyas : « on
+  est déjà généreux »).
+- **Self-service ≤ 5 personnes**, au-delà → `/contact-equipe` (embed Lark).
+- Prix socle **inchangés** (38,99 gardé, `,99` voulu par Elyas). Argument décisif :
+  **zéro client payant** aujourd'hui → grille théorique, liberté totale.
+
+**Catalogue TEST** seedé par Elyas via le bouton `/admin` (« Créer les prix de
+test »). Catalogue LIVE : cf. encadré ci-dessus (8 anciens prix archivés post-merge).
+
+**Code** :
+- **`lib/pricing-plan.ts` (NOUVEAU)** = source unique, **PUR (sans SDK Stripe)** donc
+  importable client. `lib/stripe.ts` le ré-exporte. Raison : `organisation/page.tsx`
+  importait `lib/stripe` → le SDK Stripe partait dans le bundle navigateur.
+  `stripeSeatTiers()` génère le catalogue Stripe depuis CETTE source.
+- `quota-tiers.ts` : quotas dérivés de `subscription_seats` (+ `hasActiveAccess`).
+- **webhook** : lit les 2 lignes **par lookup_key** (Stripe ne garantit pas l'ordre de
+  `items.data` — `data[0]` donnait tantôt l'un tantôt l'autre). `has_pricing` =
+  présence de la ligne add-on. **Fallback legacy** `sourcing_1..4` conservé (TEST
+  tourne encore dessus et résout correctement).
+- **`POST /api/stripe/pricing-addon` { enable }** : active/retire l'option **sur l'abo
+  en cours**, proratisé, idempotent, **n'écrit pas la base** (le webhook dérive).
+  Trou signalé par Elyas : les CGU §6 + FAQ promettent « activable à tout moment ».
+- Bouton **« Créer les prix de test »** sur `/admin` (le seed était un POST sans UI).
+
+**Fuite Pricing FERMÉE (5 entrées)** — `hasPricingAccess()` existait mais sur 4
+fichiers le mentionnant, **2 étaient la lib** : seulement 2 vrais appelants.
+- **Serveur (le seul vrai périmètre)** : `requirePricingAccess()` dans
+  `lib/access-guard.ts` sur `pricing/compare`, `pricing-params`, **`pricing-pdf`**
+  (qui n'avait **aucun** garde-fou). S'applique **aussi aux GET**.
+- **UI** : onglet nav, `/workspace/pricing`, **les 3 raccourcis de l'accueil**
+  (« Chiffrer une mission », « Candidats en pricing », « Missions à chiffrer » —
+  trouvés en testant, pas en relisant), `/organisation/parametrage`.
+
+**VÉRIFIÉ EN VRAI** (navigateur, compte non-admin `e53056801@gmail.com`, déploiement
+`4c7cf52`) : nav sans Pricing ✅ · `/workspace/pricing` → écran d'activation ✅ ·
+**`POST /api/pricing/compare` → 403 `pricing_not_included`** ✅ (la preuve qui compte).
+
+**⚠️ GMH — essais EXPIRÉS depuis le 07/07 et 10/07, aucun abonnement.** Le cron
+`wipe-lockdown-data` (mergé) supprimera leurs données le **06/08** et **09/08**.
+Elyas informé : « ils vont sûrement souscrire, on a encore le temps ». Si ça traîne :
+prolonger l'essai via `/admin/recherche` → bouton « Essai ».
+
+**Décision vocab TRANCHÉE** : « Package Sourcing » partout (Elyas), « Suite Pricing »
+= l'option. Sweep fait (code + produit Stripe).
+
+**i18n FR/EN (branche `traduction_fr_en`, Amine) — PROMPT DONNÉ, PAS ENCORE MERGÉE.**
+Elle a divergé de main AVANT toute la refonte tarifaire (base = `3274328` ; 13
+commits Amine vs 41 sur main). Son archi i18n : `LanguageContext` + split
+`page.tsx`/`XxxContent.tsx` + dict `{ fr, en }` lu via `useLanguage()`, défaut FR,
+persisté par compte (migration 060 déjà en prod). **29 fichiers en collision.**
+Sa traduction de `/tarifs` est PÉRIMÉE (ancien modèle 2 tiers `SOURCING_PRO` /
+« sièges »). Un prompt court lui a été fourni (merger main→sa branche ; main =
+vérité contenu/logique, sa branche = vérité mécanisme i18n ; re-traduire /tarifs,
+CGU §6, FAQ, mentions/politique ; traduire le neuf : /contact-equipe, le
+configurateur + interrupteur add-on de /organisation, les écrans « Option non
+activée » de workspace/pricing + parametrage, planLabel() de pricing-plan.ts).
+**⚠️ WORKFLOW : Amine NE MERGE PAS.** Il pousse sa branche ; **le merge se fait
+ICI** (session Claude Elyas) après RELECTURE de son diff (surtout /tarifs,
+/organisation, prix, gating) — risque qu'un merge de 29 fichiers réintroduise
+l'ancien modèle. Quand Amine a fini → relire sa branche, puis merger sur main.
+
+**#418 (hydratation React sur `/admin`) — DIAGNOSTIQUÉ : extension navigateur, PAS
+notre code.** Aucun `Date.now()`/`random` dans le render admin, KPIs chargés
+client-side (pas de mismatch), pastille gestionnaire de mdp visible sur la capture.
+Non critique (React se re-rend). Correctif défensif optionnel = `suppressHydration
+Warning` sur `<body>` de layout.tsx (non appliqué — cosmétique, attend go Elyas).
+
+**RESTE (post-merge)** : **quiz 2 questions** (sièges + régie/TJM → pré-remplit le
+configurateur ; volume retiré, les CV suivent les sièges) · erreur d'hydratation
+React #418 sur `/admin` (probablement une extension navigateur, à confirmer) ·
+**⚠️ webhook TEST à recâbler** vers la preview `pricing-addon` si on veut retester
+le cycle add-on en test (actuellement 0 delivery — pointe ailleurs) · **GMH** : essais
+expirés, wipe cron **06/08** et **09/08** si pas de souscription.
+
+#### Flow de résiliation + Stripe test mode — 2026-07-16 (⚠️ MERGÉ depuis, cf. section ci-dessus)
+
+**EN PROD (main)** : **B1 lecture seule COMPLET** mergé (`a0ce06f`) — garde serveur
+`requireActiveAccess` sur ~33 routes + grisage UI de TOUTES les mutations
+(vivier/missions/pipeline/fiche match/secteurs/empty states). Anti-fraude fermé
+serveur **et** UI.
+
+**BRANCHE `claude/cancellation-flow`** (poussée, **PAS mergée**, attend validation
+preview Elyas). Dernier commit `bc5ccd3`. **Migration 061** (`organizations.
+subscription_cancel_at_period_end`, appliquée + vérifiée via MCP) ; le reste
+réutilise `pending_deletion_at` / `lockdown_started_at` / `trial_ends_at`.
+
+**Testé en LIVE par Elyas en mode Stripe test (16/07) — chaîne prouvée** :
+checkout test → webhook signé → DB syncée (`subscription_status=active`,
+`lockdown_started_at` effacé = réactivation OK). Le bypass SSO laisse bien
+passer Stripe. 4 bugs trouvés et corrigés au passage (voir plus bas).
+
+Contenu :
+- **`lib/subscription.ts`** : `graceInfo(org)` = fenêtre de grâce unifiée (lecture
+  seule 30j avant wipe), 3 causes priorisées **deletion > subscription > trial**.
+  `isWorkspaceReadOnly(org)` = pending_deletion OU !accès actif. `GRACE_DAYS=30`.
+  `isInLockdown` aligné 15→30j (gardé pour bannières/quotas).
+- **`DELETE /api/cabinet`** : ne détruit PLUS l'owner (solo ni multi), stamp
+  `pending_deletion_at=+30j` recouvrable, idempotent. `POST /api/cabinet/cancel-deletion`
+  + `POST /api/cabinet/transfer-ownership {user_id}` (owner↔member + owner_user_id).
+- **Workspace layout** : bounce owner uniquement si `!hasActiveAccess && !graceInfo.cause`
+  (essai jamais activé) ; sinon **lecture seule** dans le workspace (fini le bounce
+  de l'essai expiré). `isReadOnly` = `isWorkspaceReadOnly`.
+- **`access-guard.ts`** : 403 `deletion_scheduled` aussi si `pending_deletion_at`
+  (une org qui paie mais a programmé la suppression ne peut plus muter via API).
+- **Crons** : `wipe-lockdown-data` 15→30j + wipe aussi les essais expirés (>30j, jamais
+  souscrit, skip si vide). **Purge R2 des CV** dans les 2 crons **AVANT** le wipe DB
+  (si R2 échoue → skip l'org, retry ; jamais d'orphelin). Scope prouvé mono-org
+  (préfixe = UUID org + "/"). Full-wipe **annule aussi l'abo Stripe** (plus de
+  facturation d'un compte supprimé). `r2DeleteByPrefix()` dans `lib/r2-storage.ts`
+  (garde-fou anti-préfixe-vide). `maxDuration=60` sur les 2 crons.
+- **UI /organisation** : carte Abonnement + Sécurité « Suppression programmée · Annuler »,
+  suppression = 30j recouvrable, **carte Transférer la propriété**, export RGPD toujours
+  visible, owner reste connecté après avoir programmé la suppression.
+- **Bannières** : `LockdownBanner` couvre les 3 causes (countdown + CTA Annuler/Réactiver/
+  Souscrire + Exporter). TrialBanner + MemberWaitingBanner se masquent en grâce (plus de
+  doublon).
+- **CGU §6** réécrite (résiliation portail, grâce 30j, rétention, réactivation, transfert).
+
+**Stripe MODE TEST sur previews** (même branche) : `lib/stripe.ts` `isStripeTestMode()`
+(true hors prod si `STRIPE_SECRET_KEY_TEST` posée). `getStripe()` + `getStripeWebhookSecret()`
+choisissent test/live auto. Route `POST /api/admin/stripe-seed-test` (admin, test-mode only,
+idempotente) recrée les 2 produits × 4 prix (lookup_keys) dans le compte de test.
+**À FAIRE PAR ELYAS pour activer** : (1) copier la clé secrète TEST → env Vercel
+`STRIPE_SECRET_KEY_TEST` (scope Preview) ; (2) créer un webhook test → `.../api/stripe/webhook`
+(7 events) → copier son secret → env `STRIPE_WEBHOOK_SECRET_TEST` (scope Preview) ;
+(3) redéployer preview ; (4) appeler `POST /api/admin/stripe-seed-test` une fois (admin).
+Ensuite checkout/portail/résiliation testables sans paiement réel (carte `4242…`).
+
+**Bugs trouvés en testant (16/07, tous corrigés sur la branche)** :
+- `b3f018c` **Checkout 502** : un Stripe Customer appartient à UN SEUL mode, or la
+  base est **partagée prod (live) / previews (test)** → un `cus_` live est inconnu
+  de l'API test. `ensureStripeCustomer()` valide l'id dans le mode courant et
+  recrée sinon (checkout + portal + setup-intent). Sert aussi en PROD (customer
+  supprimé au dashboard = plus de 502 définitif). Portal : try/catch + 502 JSON.
+- `b3f018c` **URLs de retour** : les 3 routes utilisaient `NEXT_PUBLIC_APP_URL`
+  (= la prod) → depuis une preview, Stripe renvoyait sur naywastudio.com.
+  `getAppUrl(req)`.
+- `bb22142` **Bounce /login après paiement** : une preview a PLUSIEURS hôtes (URL
+  par déploiement + alias de branche) et le cookie Supabase est lié à l'hôte.
+  `getAppUrl(req)` renvoie l'origine EXACTE de la requête hors prod (allowlist
+  `*.vercel.app`) ; la prod garde son URL canonique en dur (anti host-header
+  injection).
+- `bc5ccd3` **« Prochain prélèvement » sur un abo résilié** : Stripe garde
+  `status=active` + pose `cancel_at_period_end` jusqu'à la fin de période ; on ne
+  stockait pas ce flag. Migration 061 + miroir au webhook + `scheduledCancellation()`
+  + carte « Résiliation programmée · accès complet jusqu'au X ».
+
+**⚠️ RÈGLE — base partagée prod/preview** : le webhook test écrit dans les MÊMES
+colonnes (`stripe_customer_id`, `subscription_status`…) que la prod lit. **Ne
+JAMAIS faire un checkout de test connecté sur l'org d'un vrai client (GMH)** —
+ça écraserait son lien vers son abonnement live. Tester uniquement sur `TEST`
+(`e53056801@gmail.com`) ou une org jetable. Isoler proprement = colonnes par mode
+(migration), à faire si ça devient gênant.
+
+**File d'attente post-compact** :
+0. **🔴 FUITE MONÉTISATION (déjà en PROD)** : la Suite Pricing est **offerte à tout
+   client Sourcing**. `hasPricingAccess()` existe et est correct mais **presque
+   personne ne l'appelle** : onglet nav « Pricing » **codé en dur**
+   (`workspace/layout.tsx` TABS), **`/workspace/pricing` sans AUCUN garde-fou**, et
+   **aucune route API** (`pricing/compare`, `match/[id]/pricing-pdf`,
+   `pricing-params`) ne vérifie l'entitlement (`requireActiveAccess` ne teste que
+   l'accès + le siège). Seul le formulaire mission le gatait. `bc5ccd3` a colmaté
+   `/organisation` (carte Politique pricing + wizard — le garde-fou y était calculé
+   puis **jeté** via `void hasAnyAccess`, résidu de refactor). **Reste : nav + page
+   + serveur + `/organisation/parametrage`.** → à faire DANS la branche du modèle
+   tarifaire : le gating d'entitlement EST le mécanisme de l'add-on Pricing.
+1. Elyas valide la résiliation en preview (Stripe test) → **merger `cancellation-flow`**.
+2. **Grille tarifaire — nouveau modèle VALIDÉ (2026-07-16)** : **1 seul plan « Sourcing »
+   par siège (1-4) + la Suite Pricing en ADD-ON activable (+X€)**, au lieu des 2 tiers
+   Sourcing/Sourcing Pro (÷2 le catalogue). Garder « 5+ sièges → nous consulter » (page
+   contact équipe + **embed Lark inline**, Elyas fournit l'embed). Impacts à coder :
+   catalogue Stripe (prix add-on Pricing, ou delta), `lib/stripe.ts` (PLAN_PRICES_EUR +
+   lookupKey → notion d'add-on), `lib/quota-tiers.ts` (Pro = même cvLimit, l'add-on ne
+   débloque QUE la Suite Pricing), `subscription_has_pricing` (déjà en DB — dérivé du
+   line item add-on au webhook), `PlanPickerModal` (toggle add-on au lieu de switch tier),
+   `/tarifs`. Probablement sans migration. **NON commencé** (build post-compact).
+3. **Quiz onboarding** (3 Q au « Souscrire » : sièges/régie-TJM/volume + type-structure étape
+   1, skippable, stocke les tranches → petite migration). Codable dès validation.
+4. Supprimer vieux buckets R2 (North America) + retirer route `migrate-r2-eu`.
+
+#### Session RGPD/UE + audit bugs + garde read-only — 2026-07-13
+
+**Contexte** : passe post-cohérence. Audit flow/légal (doc `AUDIT-flow-legal.md` au
+scratchpad session), puis exécution. **4 branches créées ce jour.**
+
+**MERGÉ EN PROD (main = `882274b`)** :
+- **Legal/RGPD** (`claude/rgpd-legal-fixes` → merge `304f575`) : Cloudflare R2 **+**
+  Stripe déclarés sous-traitants (mentions légales + politique), retrait des mentions
+  « quand Stripe sera branché » (Stripe LIVE), vocab « cabinet » → « organisation » dans
+  le legal (garde « cabinet de recrutement » = cible). **R2 décrit en jurisdiction UE**
+  (après migration) → « données stockées dans l'UE » + note « Localisation des données :
+  base + fichiers CV en UE ; sous-traitants US pour données techniques, SCC/DPF ». Le
+  « (États-Unis) » sur chaque société = **normal/voulu** (nationalité de la société ≠
+  localisation des données).
+- **UI bugs B2/B4/B5** (`claude/ui-access-bugs` → merge `882274b`) :
+  - **B2** `MySeatBanner` (/organisation Mes packages) reçoit `hasActiveAccess(org,{isAdmin})` :
+    siège occupé mais accès suspendu → bandeau ambré « souscrivez ci-dessous » au lieu de
+    « Accès complet / Ouvrir le workspace » (qui rebondissait en boucle).
+  - **B4** dropdown « Allouer un siège » (`EmptySeatActions`) en `createPortal` (position
+    fixed sur le bouton) → plus clippé par l'overflow de la carte Membres.
+  - **B5** code mort « Bientôt » retiré de la nav workspace (+ champ `live` des TABS).
+  - **B3** = faux positif (SubscriptionCard reçoit déjà isAdmin, QuotaGauges lit /api/quota admin-aware).
+
+**EN ATTENTE DE VALIDATION — B1 garde read-only** (`claude/readonly-server-guard`,
+dernier commit `c21d8c1`, **pas mergée**, à merger « quand ce sera bien fait » — Elyas) :
+- `lib/access-guard.ts` `requireActiveAccess()` (admin bypass OU accès actif ET siège ;
+  sinon 403). Appliqué en 1ʳᵉ ligne de **~33 routes** = **toutes les mutations + toutes les
+  créations/IA** : match stage/pipeline/pricing-params/[id] · jobs POST/[id] PATCH+DELETE/
+  assign/criteria/match/extract/chat/propose-criteria/propose-sectors · sectors POST/[id]
+  PATCH+DELETE/define/classify-vivier · candidates/[id]/sectors+match-all/dedup · cv
+  upload/[id] DELETE/parse/anonymize (POST **+ GET** = bloque aussi le download anonymisé)/
+  docx/critique/compose/send · match/score-one · assistant · pricing/compare.
+  → En lecture seule un user ne peut plus RIEN créer/uploader/générer/matcher/modifier ni
+  télécharger un anonymisé. GET de **consultation** (signed-url CV originaux, listes) OK.
+- **UI read-only** : passe DÉMARRÉE. Fait = **vivier** (bouton « + Importer des CVs » grisé/
+  disabled + onFilesPicked/onDrop court-circuités). **RESTE à griser** : créer mission,
+  matcher, pipeline (add/drag/stage), fiche match (anonymiser/compose/envoyer/pricing),
+  secteurs (créer/reclasser), `MissionCvUploadModal`. `isReadOnly` vient de `useWorkspace()`.
+- **Pour tester** : org **TEST** (`e53056801@gmail.com`) mise en **lockdown** via SQL
+  (`subscription_status='canceled'` + `lockdown_started_at=now()`) → workspace lecture seule.
+  (Un essai simplement expiré sans sub = **bounce total** `/organisation`, normal ≠ lecture
+  seule ; cf. workspace layout ligne 130 : bounce owner si `!hasActiveAccess && !isInLockdown`.)
+- **Rétention données post-essai** (question Elyas) : aujourd'hui un essai expiré sans sub
+  n'est wipé par AUCUN cron → **données conservées** (pas de perte). Le bon design (à intégrer
+  au flow résiliation) : unifier essai-expiré + résilié → lecture seule + grâce 30 j (export
+  RGPD + réactivation) → wipe si toujours pas d'abo.
+
+**Migration 060** (`profiles.preferred_language` fr/en, défaut fr + CHECK) **appliquée via MCP
++ vérifiée** — débloque la branche **`traduction_fr_en`** (Amine, ACTIVE, i18n) mergeable.
+**`ent-mac-front` supprimée** (track abandonné).
+
+**R2 → UE : FAIT ET PROUVÉ EN PROD.**
+- Buckets EU créés (dashboard) : `naywa-cv-eu` + `naywa-logos-eu` (jurisdiction EU,
+  endpoint `https://01cb35864ea60853989e788cc377749b.eu.r2.cloudflarestorage.com`).
+- Noms de buckets pilotés par env `R2_BUCKET_CV`/`R2_BUCKET_LOGOS` (fallback anciens noms) ;
+  `R2_ENDPOINT` mis en `.eu` sur Vercel par Elyas ; token R2 recréé « Object R/W all buckets ».
+- Route one-off `GET /api/admin/migrate-r2-eu` (admin, idempotent, copie pure) : a copié
+  les **8 objets GMH** (6 CV + 2 PDF anonymisés) vers `naywa-cv-eu`. `?verify=1` (HEAD, sans
+  lire le contenu — respect vie privée) confirme `readsFromEu:true`.
+- **Données de test purgées** avant migration (516 CV : KYPE 267 + Naywa 169 + Elyas 80) ;
+  seul **GMH** (2 orgs, 6 CV) conservé + migré.
+- **RESTE** : les **anciens buckets `naywa-cv`/`naywa-logos` (North America) sont GARDÉS**
+  quelques jours comme filet (Elyas). À supprimer (vider puis delete au dashboard — le
+  garde-fou auto-mode refuse le mass-delete sans nommage explicite du bucket) + retirer la
+  route `migrate-r2-eu` ensuite.
+
+**Fixes base ce jour** :
+- Org admin `Naywa` (`elyas.malki@naywastudio.com`, `4e39ce0f`) avait `pending_deletion_at`
+  = 4 août (résidu) → **allait être wipée par le cron** → nullifié + `owner_user_id` restauré.
+- `amine.errabih@naywastudio.com` (dev branche `traduction_fr_en`) passé **is_admin=true**
+  (prod+preview, DB partagée).
+
+**Branches abandonnées / stale (repérées, à nettoyer)** :
+- `ent-mac-front` = track Mac front **abandonné** (Elyas a arrêté ce couloir).
+- `traduction_fr_en` (Amine954) = **ACTIVE** (i18n FR/EN en cours) — NE PAS toucher.
+- ~25 vieilles `claude/*` (storage-r2-quota, stability-fixes, coherence-pass, vivier-sectors,
+  quota-cv-model, mission-flow-visual-refonte, pr-z…, sprint-*, upload-*, matching-*…) =
+  **déjà mergées sur main**, supprimables sans risque (proposé à Elyas, pas encore fait).
+
+**File d'attente (post-compact)** :
+1. Valider B1 en preview/lockdown → merger `claude/readonly-server-guard`.
+2. **Gros flow résiliation** (go explicite requis) : résilier → accès complet fin de période
+   → lecture seule 30 j → réactiver ; **owner détruit en grâce à corriger** (le garder en
+   lecture seule pour pouvoir annuler) ; **transfert d'ownership** (inexistant, cul-de-sac
+   409) ; export RGPD caché pendant grâce à garder ; aligner lockdown wipe 15 j → 30 j ;
+   réécrire CGU §6. Bouton « Annuler la suppression / Réactiver » **côté orga**.
+3. **Grille tarifaire = option B** (validée) : 1-4 sièges self-serve inchangés + **« 5+
+   sièges → nous consulter »** (page contact + **embed Lark inline** — Elyas fournira le
+   code embed de l'équipe). Paliers Stripe dégressifs (graduated tiers reproduisant les prix
+   actuels : Std +25€/siège au-delà de 4, Pro +33€) = V2 quand demande réelle.
+4. **Quiz onboarding** (validé) : 3 Q au clic « Souscrire » (sièges / régie-TJM / volume) +
+   Q type-structure light à l'étape 1 ; wording « Trouver ma formule idéale » / « Voir toutes
+   les formules » ; skippable ; stocker les tranches ; RGPD OK (données org, pas perso).
+5. Supprimer vieux buckets R2 + retirer route migrate-r2-eu.
+
 ### ✅ Livré récent (cette session, juin 26 2026)
 
 Tout mergé sur main, par ordre chronologique :

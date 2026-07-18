@@ -11,11 +11,11 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { getStripe } from "@/lib/stripe"
+import { getStripe, getAppUrl, ensureStripeCustomer } from "@/lib/stripe"
 
 export const runtime = "nodejs"
 
-export async function POST() {
+export async function POST(req: Request) {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) {
@@ -40,23 +40,48 @@ export async function POST() {
   const admin = getAdminSupabase()
   const { data: org } = await admin
     .from("organizations")
-    .select("stripe_customer_id")
+    .select("id, name, stripe_customer_id")
     .eq("id", profile.organization_id)
     .single()
 
   if (!org?.stripe_customer_id) {
     return NextResponse.json(
-      { error: "Aucun abonnement Stripe associé à ce cabinet" },
+      { error: "Aucun abonnement Stripe associé à cette organisation" },
       { status: 409 },
     )
   }
 
-  const stripe = getStripe()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://naywastudio.com"
-  const session = await stripe.billingPortal.sessions.create({
-    customer: org.stripe_customer_id,
-    return_url: `${appUrl}/organisation`,
-  })
+  // Même filet que le checkout : l'id stocké peut appartenir à l'autre mode
+  // (base partagée prod/preview) ou avoir été supprimé au dashboard. Sans ça,
+  // billingPortal.sessions.create jetait et la route rendait un 500 sans corps.
+  try {
+    const { customerId, created } = await ensureStripeCustomer({
+      storedId: org.stripe_customer_id,
+      organizationId: org.id,
+      name: org.name,
+      email: user.email ?? undefined,
+    })
+    if (created) {
+      await admin
+        .from("organizations")
+        .update({ stripe_customer_id: customerId })
+        .eq("id", org.id)
+    }
 
-  return NextResponse.json({ url: session.url })
+    const session = await getStripe().billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${getAppUrl(req)}/organisation`,
+    })
+    return NextResponse.json({ url: session.url })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Stripe inconnue"
+    console.error("[stripe/portal] failed:", message)
+    return NextResponse.json(
+      {
+        error: "portal_failed",
+        message: "Le portail de facturation est momentanément indisponible. Réessayez ou contactez le support.",
+      },
+      { status: 502 },
+    )
+  }
 }

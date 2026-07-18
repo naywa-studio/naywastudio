@@ -18,7 +18,12 @@
 
 import { NextResponse } from "next/server"
 import type Stripe from "stripe"
-import { getStripe } from "@/lib/stripe"
+import {
+  getStripe,
+  getStripeWebhookSecret,
+  LOOKUP_SEAT,
+  LOOKUP_PRICING_ADDON,
+} from "@/lib/stripe"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
   sendSubscriptionWelcome,
@@ -31,7 +36,7 @@ export const runtime = "nodejs"
 
 export async function POST(req: Request) {
   const sig = req.headers.get("stripe-signature")
-  const secret = process.env.STRIPE_WEBHOOK_SECRET
+  const secret = getStripeWebhookSecret()
   if (!sig || !secret) {
     return NextResponse.json(
       { error: "Missing signature or webhook secret" },
@@ -117,10 +122,47 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
     return
   }
 
-  const item = sub.items.data[0]
-  const lookup = item?.price?.lookup_key ?? null
-  const seats = parseSeatsFromLookup(lookup)
-  const hasPricing = lookup?.startsWith("sourcing_pro_") ?? false
+  // Un abonnement porte désormais JUSQU'À DEUX lignes — le socle « sièges »
+  // (quantité = nb de sièges, barème dégressif appliqué par Stripe) et l'add-on
+  // Suite Pricing (quantité 1). Stripe ne garantit AUCUN ordre : lire
+  // `items.data[0]` en aveugle donnerait tantôt l'un tantôt l'autre. On les
+  // identifie donc par leur lookup_key.
+  const seatItem = sub.items.data.find((i) => i.price?.lookup_key === LOOKUP_SEAT)
+  const addonItem = sub.items.data.find(
+    (i) => i.price?.lookup_key === LOOKUP_PRICING_ADDON,
+  )
+  // Fallback : un abonnement créé avant ce modèle (lookup sourcing_1..4 /
+  // sourcing_pro_1..4) n'a qu'une ligne et ne matche aucune des deux clés. On
+  // retombe sur la première pour ne pas écraser sa période avec du null.
+  const primaryItem = seatItem ?? sub.items.data[0]
+
+  const lookup = primaryItem?.price?.lookup_key ?? null
+  // Sièges = quantité de la ligne socle. Plus de parsing du lookup_key : le
+  // nombre de sièges est désormais une vraie quantité, libre, pas un palier
+  // encodé dans un nom de prix.
+  const seats = seatItem?.quantity ?? parseSeatsFromLookup(lookup)
+  // La Suite Pricing est acquise si et SEULEMENT si la ligne add-on est
+  // présente. Se désabonner de l'option au portail supprime la ligne → repasse
+  // à false tout seul au prochain `subscription.updated`.
+  const hasPricing = addonItem != null || (lookup?.startsWith("sourcing_pro_") ?? false)
+
+  // Résiliation programmée : Stripe garde status = "active" jusqu'à la fin de
+  // la période payée et signale seulement que l'abo s'arrêtera. Sans le
+  // mémoriser, la base ne distingue pas « actif » de « actif mais qui se
+  // termine » et la console annonce un prélèvement qui n'aura jamais lieu.
+  //
+  // Selon la version d'API du webhook, l'info se lit sur `cancel_at_period_end`
+  // (booléen, versions anciennes) OU sur `cancel_at` (timestamp, versions
+  // récentes — c'est le cas de notre endpoint en 2026-06-24.dahlia, où le
+  // booléen restait à false et faisait échouer la détection). On accepte les
+  // deux : Stripe restructure ces champs régulièrement (cf. current_period_end
+  // passé au niveau item juste au-dessus).
+  //
+  // Réécrit à CHAQUE update → reprendre son abonnement au portail remet
+  // le flag à false tout seul.
+  const cancelAtSec =
+    (sub as unknown as { cancel_at?: number | null }).cancel_at ?? null
+  const cancelAtPeriodEnd = sub.cancel_at_period_end === true || cancelAtSec != null
 
   const customerId =
     typeof sub.customer === "string" ? sub.customer : sub.customer.id
@@ -128,7 +170,7 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
   // Period end : prefer item-level (per the recent Stripe API change),
   // fall back to subscription-level for older payload shapes.
   const periodEndSec =
-    (item as unknown as { current_period_end?: number })?.current_period_end ??
+    (primaryItem as unknown as { current_period_end?: number })?.current_period_end ??
     (sub as unknown as { current_period_end?: number }).current_period_end ??
     null
 
@@ -172,6 +214,7 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
       subscription_price_lookup: lookup,
       subscription_seats: seats,
       subscription_has_pricing: hasPricing,
+      subscription_cancel_at_period_end: cancelAtPeriodEnd,
       current_period_end: periodEndSec
         ? new Date(periodEndSec * 1000).toISOString()
         : null,
@@ -211,13 +254,18 @@ async function onSubscriptionDeleted(sub: Stripe.Subscription) {
   const orgId = await resolveOrgId(sub)
   if (!orgId) return
 
-  // Annulation = bascule immédiate en lockdown (15 j read-only puis wipe).
+  // Annulation = bascule en lockdown (30 j de lecture seule puis wipe des
+  // données business ; le compte est conservé pour une ré-souscription).
   await admin
     .from("organizations")
     .update({
       subscription_status: "canceled",
       stripe_subscription_id: null,
       current_period_end: null,
+      // La résiliation n'est plus "programmée" : elle a eu lieu. Sans ce reset
+      // le flag resterait true et la console afficherait une résiliation à
+      // venir alors que la grâce a déjà commencé.
+      subscription_cancel_at_period_end: false,
       lockdown_started_at: new Date().toISOString(),
     })
     .eq("id", orgId)

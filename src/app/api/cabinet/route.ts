@@ -12,13 +12,15 @@ export const runtime = "nodejs"
  *           brand_slogan?, contact_email?, pricing_* }
  *
  * DELETE /api/cabinet
- *   Owner-only. Triggers cabinet deletion.
- *     - If the owner is alone in the org → wipe everything immediately
- *       (org cascade + auth.users + storage logo).
- *     - If other members exist → set pending_deletion_at = now() + 30 d,
- *       wipe the owner's auth.users + profile immediately. Members keep
- *       access during the grace period; the daily cron (built in a
- *       follow-up step) does the final wipe.
+ *   Owner-only. Programme la suppression de l'organisation avec une fenêtre
+ *   de grâce de 30 jours, RECOUVRABLE (bouton "Annuler la suppression"). On
+ *   ne détruit JAMAIS l'owner ni les membres tout de suite :
+ *     - set `pending_deletion_at = now() + 30 j` (solo ET avec membres) ;
+ *     - l'org passe en LECTURE SEULE pour tout le monde (cf. graceInfo) ;
+ *     - l'export RGPD reste disponible ;
+ *     - le cron `wipe-expired-orgs` finalise le wipe (org + auth.users +
+ *       logo) à l'échéance si personne n'a annulé.
+ *   Annulation : POST /api/cabinet/cancel-deletion (clear pending_deletion_at).
  */
 
 const GRACE_DAYS = 30
@@ -170,67 +172,33 @@ export async function DELETE() {
 
   const admin = getAdminSupabase()
 
-  // Count other members in the org (excluding the owner herself).
-  const { count: otherMembers } = await admin
-    .from("profiles")
-    .select("user_id", { count: "exact", head: true })
-    .eq("organization_id", profile.organization_id)
-    .neq("user_id", user.id)
-
-  // Fetch logo path so we can clean up storage too.
-  const { data: org } = await admin
+  // Idempotence : si une suppression est déjà programmée, on renvoie la date
+  // existante sans re-stamper (évite de repousser l'échéance à chaque clic).
+  const { data: existing } = await admin
     .from("organizations")
-    .select("brand_logo_path")
+    .select("pending_deletion_at")
     .eq("id", profile.organization_id)
     .single()
-
-  if ((otherMembers ?? 0) === 0) {
-    // ─ Alone in the org → wipe immediately. Cascading FK ON DELETE on
-    //   organizations removes every candidate, job, match, email, invite,
-    //   daily_usage row and the owner's profile.
-    if (org?.brand_logo_path) {
-      await admin.storage.from("brand-logos").remove([org.brand_logo_path])
-    }
-
-    const { error: orgErr } = await admin
-      .from("organizations")
-      .delete()
-      .eq("id", profile.organization_id)
-    if (orgErr) {
-      console.error("[/api/cabinet DELETE solo] org delete", orgErr)
-      return NextResponse.json({ error: "DB error" }, { status: 500 })
-    }
-
-    const { error: userErr } = await admin.auth.admin.deleteUser(user.id)
-    if (userErr) {
-      console.error("[/api/cabinet DELETE solo] auth delete", userErr)
-      return NextResponse.json({ error: "Auth error" }, { status: 500 })
-    }
-
-    return NextResponse.json({ ok: true, mode: "immediate" })
+  if (existing?.pending_deletion_at) {
+    return NextResponse.json({
+      ok: true, mode: "grace", pending_deletion_at: existing.pending_deletion_at,
+    })
   }
 
-  // ─ Members exist → enter 30-day grace mode. The owner is removed now,
-  //   the org keeps running for the others, cron wipes everything at the
-  //   deadline. owner_user_id is cleared so nothing dangles.
+  // ─ Grâce 30 j, recouvrable. On NE détruit personne : ni l'owner, ni les
+  //   membres, ni les données. L'org passe en lecture seule (graceInfo),
+  //   l'owner peut annuler (cancel-deletion) ou transférer la propriété. Le
+  //   cron wipe-expired-orgs finalise à l'échéance si rien n'a changé.
+  //   owner_user_id est CONSERVÉ (l'owner doit pouvoir annuler / réactiver).
   const deletionDate = new Date(Date.now() + GRACE_DAYS * 24 * 60 * 60 * 1000)
 
   const { error: orgErr } = await admin
     .from("organizations")
-    .update({
-      pending_deletion_at: deletionDate.toISOString(),
-      owner_user_id: null,
-    })
+    .update({ pending_deletion_at: deletionDate.toISOString() })
     .eq("id", profile.organization_id)
   if (orgErr) {
-    console.error("[/api/cabinet DELETE grace] org update", orgErr)
+    console.error("[/api/cabinet DELETE] org update", orgErr)
     return NextResponse.json({ error: "DB error" }, { status: 500 })
-  }
-
-  const { error: userErr } = await admin.auth.admin.deleteUser(user.id)
-  if (userErr) {
-    console.error("[/api/cabinet DELETE grace] auth delete", userErr)
-    return NextResponse.json({ error: "Auth error" }, { status: 500 })
   }
 
   return NextResponse.json({

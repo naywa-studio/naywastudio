@@ -12,7 +12,7 @@ import { TrialBanner } from "@/components/trial/TrialBanner"
 import { QuotaWarningBanner } from "@/components/quota/QuotaWarningBanner"
 import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
 import { SupportButton } from "@/components/support/SupportButton"
-import { hasActiveAccess, isInLockdown } from "@/lib/subscription"
+import { isWorkspaceReadOnly, hasActiveAccess, graceInfo, hasPricingAccess } from "@/lib/subscription"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -41,31 +41,33 @@ export function useWorkspace() {
   return ctx
 }
 
-const TABS: Record<Lang, { href: string; label: string; live: boolean; showUnreadBadge?: boolean }[]> = {
+const TABS: Record<Lang, { href: string; label: string; showUnreadBadge?: boolean; requiresPricing?: boolean }[]> = {
   fr: [
-    { href: "/workspace",          label: "Accueil",  live: true },
+    { href: "/workspace",          label: "Accueil" },
     // Missions en 2e (E1, juin 2026) : c'est l'entrée principale du
     // sourceur — d'abord ouvrir une mission, puis y rattacher des CVs
     // (upload direct ou matcher le vivier).
-    { href: "/workspace/missions", label: "Missions", live: true },
-    { href: "/workspace/vivier",   label: "Vivier",   live: true },
-    { href: "/workspace/pricing",  label: "Pricing",  live: true },
-    { href: "/workspace/pipeline", label: "Pipeline", live: true },
-    { href: "/nouveautes",         label: "Nouveautés", live: true, showUnreadBadge: true },
+    { href: "/workspace/missions", label: "Missions" },
+    { href: "/workspace/vivier",   label: "Vivier" },
+    // Onglet gaté : la Suite Pricing est une option payante. Il était codé en
+    // dur, donc visible par tous les clients Sourcing — la porte d'entrée de la
+    // fuite de monétisation.
+    { href: "/workspace/pricing",  label: "Pricing", requiresPricing: true },
+    { href: "/workspace/pipeline", label: "Pipeline" },
+    { href: "/nouveautes",         label: "Nouveautés", showUnreadBadge: true },
   ],
   en: [
-    { href: "/workspace",          label: "Home",     live: true },
-    { href: "/workspace/missions", label: "Missions", live: true },
-    { href: "/workspace/vivier",   label: "Talent pool", live: true },
-    { href: "/workspace/pricing",  label: "Pricing",  live: true },
-    { href: "/workspace/pipeline", label: "Pipeline", live: true },
-    { href: "/nouveautes",         label: "Updates",  live: true, showUnreadBadge: true },
+    { href: "/workspace",          label: "Home" },
+    { href: "/workspace/missions", label: "Missions" },
+    { href: "/workspace/vivier",   label: "Talent pool" },
+    { href: "/workspace/pricing",  label: "Pricing", requiresPricing: true },
+    { href: "/workspace/pipeline", label: "Pipeline" },
+    { href: "/nouveautes",         label: "Updates", showUnreadBadge: true },
   ],
 }
 
 const copy = {
   fr: {
-    soon: "Bientôt",
     backToSite: "Retour au site",
     homeTitle: "Accueil naywastudio.com",
     orgConsole: "Console organisation",
@@ -78,7 +80,6 @@ const copy = {
     logout: "Se déconnecter",
   },
   en: {
-    soon: "Soon",
     backToSite: "Back to site",
     homeTitle: "naywastudio.com home",
     orgConsole: "Organization console",
@@ -169,7 +170,13 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       return
     }
 
-    if (isOwner && org && !hasActiveAccess(org) && !isInLockdown(org)) {
+    // Owner avec siège mais sans accès actif : on ne le bounce vers
+    // /organisation QUE s'il n'y a AUCUNE fenêtre de grâce en cours. En grâce
+    // (résiliation / impayé / essai expiré / suppression programmée) il reste
+    // dans le workspace en LECTURE SEULE pour consulter, exporter et réactiver
+    // / annuler depuis les bannières. Le cas "aucun accès + aucune grâce" =
+    // essai jamais activé (mid-onboarding) → retour /organisation.
+    if (isOwner && org && !hasActiveAccess(org) && !graceInfo(org).cause) {
       router.replace("/organisation")
       return
     }
@@ -220,26 +227,28 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const isActive = (href: string) =>
     href === "/workspace" ? pathname === "/workspace" : pathname.startsWith(href)
 
-  const tabLinks = TABS[lang].map((tab) => {
+  // L'onglet Pricing ne s'affiche que si l'option est acquise. Le vrai
+  // périmètre de sécurité reste serveur (requirePricingAccess) : masquer un
+  // lien n'empêche personne de taper l'URL.
+  const canPricing = hasPricingAccess(organization, { isAdmin: profile?.is_admin === true })
+
+  const tabLinks = TABS[lang].filter((tab) => !tab.requiresPricing || canPricing).map((tab) => {
     const active = isActive(tab.href)
-    const disabled = !tab.live
     return (
       <Link
         key={tab.href}
-        href={tab.live ? tab.href : "#"}
-        onClick={(e) => { if (disabled) e.preventDefault() }}
-        aria-disabled={disabled}
+        href={tab.href}
         data-active={active || undefined}
         style={{
           position: "relative",
           fontSize: 13,
           fontWeight: active ? 700 : 500,
-          color: disabled ? "#C4B6E0" : active ? "#7C63C8" : "#4B5563",
+          color: active ? "#7C63C8" : "#4B5563",
           textDecoration: "none",
           padding: "8px 12px",
           borderRadius: 8,
           background: active ? "rgba(124,99,200,0.08)" : "transparent",
-          cursor: disabled ? "not-allowed" : "pointer",
+          cursor: "pointer",
           display: "inline-flex", alignItems: "center", gap: 6,
           whiteSpace: "nowrap",
           transition: "background 150ms, color 150ms",
@@ -248,16 +257,6 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         {tab.label}
         {tab.showUnreadBadge && <UpdatesNavBadge />}
         {!tab.showUnreadBadge && <NavUnreadDot href={tab.href} />}
-        {disabled && (
-          <span style={{
-            fontSize: 9, fontWeight: 700, color: "#6B7280",
-            background: "#F3F4F6", border: "1px solid #E5E7EB",
-            padding: "2px 6px", borderRadius: 100,
-            letterSpacing: "0.04em", textTransform: "uppercase",
-          }}>
-            {t.soon}
-          </span>
-        )}
       </Link>
     )
   })
@@ -265,16 +264,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   return (
     <WorkspaceContext.Provider value={{
       profile, organization, userEmail, hasSubscription,
-      // Read-only si :
-      //   - lockdown actif (sub past_due / canceled, 15 j grace)
-      //   - OU member dont l'org n'a pas d'accès actif (l'owner n'a pas
-      //     encore souscrit) -> le member peut explorer mais rien créer.
-      isReadOnly:
-        // Les admins n'ont jamais de mode lecture seule (bypass paywall).
-        !profile?.is_admin && (
-          isInLockdown(organization) ||
-          (profile?.role === "member" && !!organization && !hasActiveAccess(organization))
-        ),
+      // Lecture seule dès qu'une suppression est programmée OU que l'org n'a
+      // plus d'accès actif (résiliation, impayé, essai expiré). Couvre l'owner
+      // (qui n'est plus bounce) comme les members. Admin Naywa = jamais.
+      isReadOnly: isWorkspaceReadOnly(organization, { isAdmin: profile?.is_admin === true }),
       refetchProfile: fetchProfile,
     }}>
       {/* Fond calme sur l'app connectée (dense) : on réserve le shader animé

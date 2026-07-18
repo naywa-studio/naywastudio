@@ -24,7 +24,7 @@ import {
   MAX_BONUS_CRITERIA,
 } from "@/lib/job-criteria-catalog"
 import { shortCriterionLabel, typeLabel } from "@/lib/criterion-display"
-import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const copy = {
   fr: {
@@ -69,7 +69,7 @@ const copy = {
     stepBadge: "Single step · Matching criteria",
     title: "Nora suggests, you confirm",
     intro: (
-      <>Choose the criteria that matter for this mission. <strong style={{ color: "#15803d" }}>Main</strong> criteria weigh into the score, <strong style={{ color: "#7C63C8" }}>bonus</strong> ones are shown but don't penalize.</>
+      <>Choose the criteria that matter for this mission. <strong style={{ color: "#15803d" }}>Main</strong> criteria weigh into the score, <strong style={{ color: "#7C63C8" }}>bonus</strong> ones are shown but don&apos;t penalize.</>
     ),
     relaunchNora: "↻ Re-run Nora",
     analyzing: "Nora is analyzing the mission…",

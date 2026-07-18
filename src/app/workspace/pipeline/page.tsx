@@ -10,6 +10,7 @@ import { PipelineSkeleton } from "@/components/workspace/PageSkeletons"
 import RejectReasonPicker from "@/components/workspace/RejectReasonPicker"
 import type { RejectReason } from "@/lib/reject-reasons"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+import { useWorkspace } from "../layout"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -63,6 +64,7 @@ const copy = {
     candidateFallback: "Candidat",
     thisCandidate: "ce candidat",
     backToPipeline: "↩ Remettre dans le pipeline",
+    readOnlyLabel: "Lecture seule",
     open: "Ouvrir ▶",
     relanceTitle: "À relancer, stagne dans cette étape",
     relanceBadge: "⏰ à relancer",
@@ -96,7 +98,7 @@ const copy = {
     relanceBody: ": some candidates are stalled in a stage (⏰ badge on the cards).",
     emptyLanesTitle: "No candidates in the pipeline",
     emptyLanesBody: (
-      <>From a mission, click <strong>+ Pipeline</strong> on the candidates to track — they'll
+      <>From a mission, click <strong>+ Pipeline</strong> on the candidates to track — they&apos;ll
       show up here, by mission.</>
     ),
     missionColumn: "Mission",
@@ -105,6 +107,7 @@ const copy = {
     candidateFallback: "Candidate",
     thisCandidate: "this candidate",
     backToPipeline: "↩ Back to pipeline",
+    readOnlyLabel: "Read-only",
     open: "Open ▶",
     relanceTitle: "Needs a follow-up, stalled in this stage",
     relanceBadge: "⏰ follow up",
@@ -167,6 +170,9 @@ export default function PipelinePage() {
   const { lang } = useLanguage()
   const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
+  // Lecture seule : drag & drop, changement de stage et réactivation bloqués
+  // (mutations refusées côté serveur par requireActiveAccess).
+  const { isReadOnly } = useWorkspace()
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -243,6 +249,7 @@ export default function PipelinePage() {
   }
 
   const moveCard = async (rowId: string, stage: PipelineStage) => {
+    if (isReadOnly) return
     const row = rows.find((r) => r.id === rowId)
     if (!row || row.pipeline_stage === stage) return
     // Passage à 'rejected' : on diffère le commit jusqu'à ce que le sourceur
@@ -439,6 +446,7 @@ export default function PipelinePage() {
             stage={TERMINAL_STAGES.find((s) => s.key === terminalView)!}
             rows={terminalRows}
             onReactivate={(id) => moveCard(id, "identified")}
+            readOnly={isReadOnly}
           />
         ) : lanes.length === 0 ? (
           <div style={{
@@ -548,6 +556,7 @@ export default function PipelinePage() {
                                   onDragStart={() => setDragId(row.id)}
                                   onDragEnd={() => { setDragId(null); setOverCell(null) }}
                                   hideJobBadge
+                                  readOnly={isReadOnly}
                                 />
                               ))
                             ) : (
@@ -594,11 +603,12 @@ export default function PipelinePage() {
 /* ─── Terminal list view (Recruté / Écarté) ─────────────────────── */
 
 function TerminalListView({
-  stage, rows, onReactivate,
+  stage, rows, onReactivate, readOnly = false,
 }: {
   stage: StageMeta
   rows: Row[]
   onReactivate: (id: string) => void
+  readOnly?: boolean
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -652,16 +662,20 @@ function TerminalListView({
                   }}>{row.job.title}</span>
                 )}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 2 }}>
-                  <button
-                    onClick={() => onReactivate(row.id)}
-                    style={{
-                      fontSize: 11, fontWeight: 600, color: "#7C63C8",
-                      background: "transparent", border: "none", cursor: "pointer",
-                      fontFamily: "inherit", padding: 0,
-                    }}
-                  >
-                    {t.backToPipeline}
-                  </button>
+                  {readOnly ? (
+                    <span style={{ fontSize: 11, color: "#B8AEDE", fontStyle: "italic" }}>{t.readOnlyLabel}</span>
+                  ) : (
+                    <button
+                      onClick={() => onReactivate(row.id)}
+                      style={{
+                        fontSize: 11, fontWeight: 600, color: "#7C63C8",
+                        background: "transparent", border: "none", cursor: "pointer",
+                        fontFamily: "inherit", padding: 0,
+                      }}
+                    >
+                      {t.backToPipeline}
+                    </button>
+                  )}
                   <Link href={`/workspace/match/${row.id}`} style={{
                     fontSize: 11, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
                   }}>{t.open}</Link>
@@ -678,13 +692,14 @@ function TerminalListView({
 /* ─── Card ─────────────────────────────────────────────────────── */
 
 function Card({
-  row, dragging, onDragStart, onDragEnd, hideJobBadge = false,
+  row, dragging, onDragStart, onDragEnd, hideJobBadge = false, readOnly = false,
 }: {
   row: Row
   dragging: boolean
   onDragStart: () => void
   onDragEnd: () => void
   hideJobBadge?: boolean
+  readOnly?: boolean
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -695,15 +710,15 @@ function Card({
 
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      draggable={!readOnly}
+      onDragStart={readOnly ? undefined : onDragStart}
+      onDragEnd={readOnly ? undefined : onDragEnd}
       style={{
         background: "white",
         border: relance ? "1px solid rgba(245,158,11,0.4)" : "1px solid #F0ECF8",
         borderRadius: 11,
         padding: "10px 11px",
-        cursor: "grab",
+        cursor: readOnly ? "default" : "grab",
         opacity: dragging ? 0.4 : 1,
         boxShadow: dragging ? "none" : "0 1px 2px rgba(17,24,39,0.04)",
         display: "flex", flexDirection: "column", gap: 6,

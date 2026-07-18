@@ -55,6 +55,7 @@ const copy = {
     emptyTitle: "Créez votre première mission",
     emptyDesc: "Décrivez le besoin (titre, séniorité, compétences). Nora compare la mission à tout votre vivier et vous sort les candidats pertinents, classés et justifiés.",
     emptyCta: "Créer une mission",
+    readOnlyCreateMission: "Lecture seule — souscrivez pour créer une mission",
     contractLabels: {
       cdi: "CDI", cdd: "CDD", freelance: "Freelance",
       portage: "Portage salarial", alternance: "Alternance",
@@ -180,6 +181,7 @@ const copy = {
     emptyTitle: "Create your first mission",
     emptyDesc: "Describe the need (title, seniority, skills). Nora compares the mission against your entire talent pool and surfaces relevant candidates, ranked and justified.",
     emptyCta: "Create a mission",
+    readOnlyCreateMission: "Read-only — subscribe to create a mission",
     contractLabels: {
       cdi: "Permanent contract", cdd: "Fixed-term contract", freelance: "Freelance",
       portage: "Umbrella contract", alternance: "Apprenticeship",
@@ -303,6 +305,7 @@ export default function MissionsPage() {
   const router = useRouter()
   const { lang } = useLanguage()
   const t = copy[lang]
+  const { isReadOnly } = useWorkspace()
   const sb = useMemo(() => getSupabase(), [])
   const [jobs, setJobs] = useState<Job[]>([])
   const [visuals, setVisuals] = useState<Record<string, MissionVisual>>({})
@@ -421,6 +424,7 @@ export default function MissionsPage() {
         .subscribe()
     })()
     return () => { mounted = false; if (channel) sb.removeChannel(channel) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sb])
 
   const filteredJobs = useMemo(() => {
@@ -459,7 +463,7 @@ export default function MissionsPage() {
       }))
       .sort((a, b) => a.firstName.localeCompare(b.firstName))
     return { mine, others, hasOthers: others.length > 0 }
-  }, [filteredJobs, currentUserId, members])
+  }, [filteredJobs, currentUserId, members, t.member])
 
   return (
     <main style={{
@@ -491,11 +495,14 @@ export default function MissionsPage() {
         </div>
         <button
           onClick={() => router.push("/workspace/missions/new")}
+          disabled={isReadOnly}
+          title={isReadOnly ? "Lecture seule — souscrivez pour créer une mission" : undefined}
           style={{
             fontSize: 13, fontWeight: 700, color: "white",
-            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            border: "none", borderRadius: 10, padding: "10px 18px", cursor: "pointer",
-            boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)", fontFamily: "inherit",
+            background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            border: "none", borderRadius: 10, padding: "10px 18px",
+            cursor: isReadOnly ? "not-allowed" : "pointer",
+            boxShadow: isReadOnly ? "none" : "0 6px 20px -8px rgba(124,99,200,0.55)", fontFamily: "inherit",
           }}
         >
           {t.createMission}
@@ -505,7 +512,7 @@ export default function MissionsPage() {
       {loading ? (
         <MissionsSkeleton />
       ) : jobs.length === 0 ? (
-        <EmptyState onCreate={() => router.push("/workspace/missions/new")} />
+        <EmptyState onCreate={() => router.push("/workspace/missions/new")} readOnly={isReadOnly} />
       ) : (
         <div style={{
           display: "grid",
@@ -558,11 +565,13 @@ export default function MissionsPage() {
                   <button
                     type="button"
                     onClick={() => router.push("/workspace/missions/new")}
+                    disabled={isReadOnly}
+                    title={isReadOnly ? "Lecture seule" : undefined}
                     style={{
                       padding: "9px 16px", borderRadius: 9,
                       border: "none", color: "white",
-                      background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                      fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                      background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                      fontSize: 13, fontWeight: 700, cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit",
                     }}
                   >
                     {t.createMission}
@@ -914,7 +923,7 @@ function StatusChip({ status }: { status: Job["status"] }) {
   )
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState({ onCreate, readOnly = false }: { onCreate: () => void; readOnly?: boolean }) {
   const { lang } = useLanguage()
   const t = copy[lang]
   return (
@@ -934,11 +943,12 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <p style={{ margin: "0 auto 18px", maxWidth: 460, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
         {t.emptyDesc}
       </p>
-      <button onClick={onCreate} style={{
-        padding: "11px 22px", borderRadius: 12, border: "none", cursor: "pointer",
-        background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+      <button onClick={onCreate} disabled={readOnly} title={readOnly ? t.readOnlyCreateMission : undefined} style={{
+        padding: "11px 22px", borderRadius: 12, border: "none",
+        cursor: readOnly ? "not-allowed" : "pointer",
+        background: readOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
         color: "white", fontWeight: 700, fontSize: 14, fontFamily: "inherit",
-        boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
+        boxShadow: readOnly ? "none" : "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
         {t.emptyCta}
       </button>

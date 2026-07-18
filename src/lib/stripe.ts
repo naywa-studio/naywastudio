@@ -17,9 +17,22 @@ import Stripe from "stripe"
 
 let cached: Stripe | null = null
 
+/**
+ * Vrai hors production : on privilégie le mode TEST Stripe si des clés de test
+ * sont fournies. Permet de tester tout le cycle (checkout, portail, webhook,
+ * résiliation) sur les previews Vercel SANS paiement réel. La prod
+ * (`VERCEL_ENV === "production"`) reste toujours en LIVE.
+ */
+export function isStripeTestMode(): boolean {
+  return process.env.VERCEL_ENV !== "production" && !!process.env.STRIPE_SECRET_KEY_TEST
+}
+
 export function getStripe(): Stripe {
   if (cached) return cached
-  const key = process.env.STRIPE_SECRET_KEY
+  // Preview / dev → clé TEST si dispo ; sinon (et prod) → clé LIVE.
+  const key = isStripeTestMode()
+    ? process.env.STRIPE_SECRET_KEY_TEST!
+    : process.env.STRIPE_SECRET_KEY
   if (!key) throw new Error("STRIPE_SECRET_KEY is missing")
   cached = new Stripe(key, {
     apiVersion: "2026-05-27.dahlia",
@@ -29,32 +42,126 @@ export function getStripe(): Stripe {
   return cached
 }
 
+/**
+ * Secret de signature du webhook, aligné sur le mode (test en preview, live en
+ * prod). Le webhook de test a son propre secret (`STRIPE_WEBHOOK_SECRET_TEST`).
+ */
+export function getStripeWebhookSecret(): string | undefined {
+  return isStripeTestMode()
+    ? process.env.STRIPE_WEBHOOK_SECRET_TEST
+    : process.env.STRIPE_WEBHOOK_SECRET
+}
+
+/** N'accepte comme origine de retour qu'un hôte de preview Vercel (ou le dev
+ *  local) : on ne suit jamais un header arbitraire (host-header injection). */
+function isTrustedPreviewOrigin(origin: string): boolean {
+  try {
+    const u = new URL(origin)
+    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return true
+    return u.protocol === "https:" && u.hostname.endsWith(".vercel.app")
+  } catch {
+    return false
+  }
+}
+
+/**
+ * URL de base pour les retours Stripe (success / cancel / portail).
+ *
+ * En PROD : toujours l'URL canonique — jamais un header fourni par le client
+ * (anti host-header injection / open redirect).
+ *
+ * Hors prod : on renvoie l'utilisateur sur l'hôte EXACT d'où vient sa requête.
+ * Une preview Vercel a plusieurs hôtes (URL par déploiement + alias de branche)
+ * et les cookies de session Supabase sont liés à l'hôte : retomber sur un autre
+ * hôte = plus de cookie = bounce vers /login après le paiement.
+ * `NEXT_PUBLIC_APP_URL` (= la prod) reste le dernier recours.
+ */
+export function getAppUrl(req?: Request): string {
+  if (process.env.VERCEL_ENV === "production") {
+    return process.env.NEXT_PUBLIC_APP_URL ?? "https://naywastudio.com"
+  }
+  const origin = req?.headers.get("origin")
+  if (origin && isTrustedPreviewOrigin(origin)) return origin
+
+  const host = process.env.VERCEL_BRANCH_URL ?? process.env.VERCEL_URL
+  if (host) return `https://${host}`
+  return process.env.NEXT_PUBLIC_APP_URL ?? "https://naywastudio.com"
+}
+
+/**
+ * Résout le Stripe Customer d'une org pour le MODE COURANT (test|live).
+ *
+ * Un customer Stripe appartient à UN SEUL mode, alors que la base est partagée
+ * entre la prod (live) et les previews (test) : un `cus_` live est introuvable
+ * via l'API test (« No such customer ») — le checkout tombait alors en 502.
+ * On valide donc l'id stocké dans le mode courant et on en recrée un sinon.
+ *
+ * Ce filet sert aussi en PROD : si un customer est supprimé au dashboard,
+ * l'org n'est plus coincée sur un 502 définitif, on repart sur un customer neuf.
+ *
+ * Renvoie `created: true` quand un nouveau customer a été créé — c'est à
+ * l'appelant de le persister sur `organizations.stripe_customer_id`.
+ */
+export async function ensureStripeCustomer(params: {
+  storedId: string | null | undefined
+  organizationId: string
+  name: string
+  email?: string
+}): Promise<{ customerId: string; created: boolean }> {
+  const stripe = getStripe()
+  const { storedId, organizationId, name, email } = params
+
+  if (storedId) {
+    try {
+      const existing = await stripe.customers.retrieve(storedId)
+      if (!existing.deleted) return { customerId: storedId, created: false }
+    } catch (err) {
+      // On ne repart sur un customer neuf QUE si Stripe dit explicitement que
+      // la ressource n'existe pas (mode mismatch, customer supprimé). Une
+      // panne réseau / un 500 / un rate-limit ne doit JAMAIS aboutir à créer
+      // un doublon : on écraserait stripe_customer_id et on orphelinerait
+      // l'abonnement d'un client qui paie. Dans ce cas on relaie l'erreur —
+      // l'appelant rend un 502 « réessayez », ce qui est récupérable, alors
+      // qu'un lien de facturation cassé ne l'est pas.
+      const e = err as { code?: string; statusCode?: number }
+      if (e?.code !== "resource_missing" && e?.statusCode !== 404) throw err
+    }
+  }
+
+  const customer = await stripe.customers.create({
+    email,
+    name,
+    metadata: { organization_id: organizationId },
+  })
+  return { customerId: customer.id, created: true }
+}
+
 // ── Plan catalogue ────────────────────────────────────────────────────
+//
+// Le catalogue commercial (barème des sièges, add-on Pricing, CV inclus) vit
+// dans `lib/pricing-plan.ts` : il est PUR, sans dépendance au SDK Stripe, donc
+// importable par les composants client (/tarifs, configurateur, jauges). Ce
+// fichier-ci importe le SDK et ne doit jamais atterrir dans le bundle
+// navigateur — d'où le sens de la dépendance : stripe.ts → pricing-plan.ts,
+// jamais l'inverse.
+//
+// Ré-exporté ici pour que les appelants serveur n'aient qu'un seul import.
 
-export type PlanTier = "sourcing" | "sourcing_pro"
-export type PlanSeats = 1 | 2 | 3 | 4
-
-/** Lookup keys used in the Stripe dashboard. */
-export function lookupKey(tier: PlanTier, seats: PlanSeats): string {
-  return tier === "sourcing_pro"
-    ? `sourcing_pro_${seats}`
-    : `sourcing_${seats}`
-}
-
-/** Parse a lookup_key back into the structured plan. Returns null if
- *  the key shape doesn't match — defensive against stale DB rows or
- *  manually-injected values. */
-export function parseLookupKey(
-  key: string | null | undefined,
-): { tier: PlanTier; seats: PlanSeats } | null {
-  if (!key) return null
-  const m = key.match(/^(sourcing(?:_pro)?)_(\d+)$/)
-  if (!m) return null
-  const tier = m[1] === "sourcing_pro" ? "sourcing_pro" : "sourcing"
-  const seats = Number(m[2])
-  if (![1, 2, 3, 4].includes(seats)) return null
-  return { tier: tier as PlanTier, seats: seats as PlanSeats }
-}
+export {
+  LOOKUP_SEAT,
+  LOOKUP_PRICING_ADDON,
+  SEAT_TIERS,
+  PRICING_ADDON_EUR,
+  MAX_SELF_SERVE_SEATS,
+  CV_PER_SEAT,
+  priceForSeats,
+  monthlyTotalEur,
+  cvIncludedForSeats,
+  isSelfServeSeats,
+  stripeSeatTiers,
+  planLabel,
+  formatEur,
+} from "@/lib/pricing-plan"
 
 /** Resolve a Stripe Price ID from a lookup_key. Cached for the lifetime
  *  of the lambda. Throws if no price matches — that's a deployment
@@ -77,28 +184,3 @@ export async function getPriceIdByLookupKey(key: string): Promise<string> {
   return price.id
 }
 
-// ── Plan pricing display ──────────────────────────────────────────────
-//
-// Mirror of the prices entered in the dashboard. Used for client-side
-// rendering of the upgrade picker without hitting Stripe each time.
-// Source of truth remains Stripe — this table only needs to stay in
-// sync for display ; the actual billing always uses the Stripe price.
-
-export const PLAN_PRICES_EUR: Record<PlanTier, Record<PlanSeats, number>> = {
-  sourcing: {
-    1: 38.99,
-    2: 69.99,
-    3: 94.99,
-    4: 119.99,
-  },
-  sourcing_pro: {
-    1: 46.99,
-    2: 85.99,
-    3: 118.99,
-    4: 151.99,
-  },
-}
-
-export function priceForPlan(tier: PlanTier, seats: PlanSeats): number {
-  return PLAN_PRICES_EUR[tier][seats]
-}

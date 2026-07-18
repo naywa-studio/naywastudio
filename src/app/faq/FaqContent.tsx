@@ -115,7 +115,7 @@ const CATEGORIES = {
         },
         {
           q: "Comment fonctionne la tarification ?",
-          a: "Au siège, dégressive selon le nombre de sièges occupés. Facturation mensuelle via Stripe (CB ou SEPA), sans engagement de durée. La grille complète est disponible sur la page Tarifs.",
+          a: "Par personne, avec un tarif dégressif : plus vous êtes nombreux, moins la personne coûte. La Suite Pricing Syntec est une option à part, à prix unique quel que soit l'effectif. Facturation mensuelle via Stripe, sans engagement de durée. La grille complète est sur la page Tarifs.",
         },
         {
           q: "Comment créer un compte ?",
@@ -235,7 +235,7 @@ const CATEGORIES = {
         },
         {
           q: "How does pricing work?",
-          a: "Per seat, with a volume discount as you add more seats. Monthly billing via Stripe (card or SEPA direct debit), no fixed-term commitment. The full pricing grid is available on the Pricing page.",
+          a: "Per person, with a volume discount: the more people you have, the less each one costs. Suite Pricing Syntec is a separate option, at a flat price regardless of headcount. Monthly billing via Stripe, no fixed-term commitment. The full pricing grid is on the Pricing page.",
         },
         {
           q: "How do I create an account?",

@@ -69,9 +69,15 @@ export default function DatePicker({
   const [cursor, setCursor] = useState<Date>(() => selected ?? new Date())
   const wrapRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  // Recale le mois affiché quand `value` change depuis l'extérieur (pas un
+  // clic dans le calendrier lui-même) — pattern "adjust state on prop
+  // change" recommandé par React, calculé pendant le rendu plutôt que dans
+  // un effet pour éviter un second passage de rendu.
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
     if (selected) setCursor(selected)
-  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   useEffect(() => {
     if (!open) return

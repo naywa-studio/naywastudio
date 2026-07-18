@@ -5,38 +5,40 @@ import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
-import { QUOTAS_BY_PLAN } from "@/lib/quota-tiers"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+import {
+  priceForSeats,
+  monthlyTotalEur,
+  cvIncludedForSeats,
+  MAX_SELF_SERVE_SEATS,
+} from "@/lib/pricing-plan"
 
-type SeatCount = 1 | 2 | 3 | 4
+type SeatCount = 1 | 2 | 3 | 4 | 5
 
-const SOURCING: Record<SeatCount, number> = {
-  1: 38.99,
-  2: 69.99,
-  3: 94.99,
-  4: 119.99,
-}
-const SOURCING_PRO: Record<SeatCount, number> = {
-  1: 46.99,
-  2: 85.99,
-  3: 118.99,
-  4: 151.99,
-}
+/**
+ * Les prix ne sont plus recopiés ici : cette page dupliquait la grille (et
+ * aurait dérivé du catalogue Stripe au premier changement). Tout vient
+ * désormais de `lib/pricing-plan.ts`, la même source que le configurateur,
+ * le checkout et le catalogue Stripe lui-même.
+ */
+const SEAT_CHOICES: SeatCount[] = [1, 2, 3, 4, 5]
 
-const content = {
+const copy = {
   fr: {
     badge: "Tarifs",
-    titlePre: "Essayez ",
-    titleItalic: "gratuitement",
-    titleSuffix: " pendant 15 jours.",
-    heroDesc:
-      "15 jours offerts, jusqu'à 2 sièges, sans carte bancaire. Pour aller au-delà ou prolonger l'accès, vous choisissez une formule ci-dessous — la souscription ne démarre qu'une fois validée.",
-    seatLabel: (n: number) => `${n} ${n === 1 ? "siège" : "sièges"}`,
-    beyondPre: "Au-delà de 4 sièges, ",
-    beyondLink: "contactez-nous",
-    sourcingTag: "Le package",
+    heroTitlePrefix: "Essayez ",
+    heroTitleItalic: "gratuitement",
+    heroTitleSuffix: " pendant 15 jours.",
+    heroBody: "15 jours offerts pour 2 personnes, Suite Pricing comprise, sans carte bancaire. Ensuite, vous composez votre abonnement : vous choisissez le nombre de personnes, et l'option Pricing si elle vous sert.",
+    seatLabel: (n: number): string => n === 1 ? "personne" : "personnes",
+    seatHint: (max: number) => `Tarif dégressif : plus vous êtes nombreux, moins la personne coûte. Au-delà de ${max} personnes, `,
+    talkAboutIt: "parlons-en",
+    sourcingTag: "Le plan",
     sourcingTitle: "Package Sourcing",
     sourcingSubtitle: "Tout le workspace Nora, partagé entre vos collègues.",
+    pricingTag: "Avec l'option",
+    pricingTitle: "Package Sourcing + Suite Pricing",
+    pricingSubtitle: "Pour les structures en régie qui chiffrent au TJM.",
     sourcingIncluded: [
       "Vivier organisé par secteurs (Nora classe chaque CV automatiquement)",
       "Missions créées via brief LLM + matching scoré et justifié",
@@ -44,44 +46,41 @@ const content = {
       "Pipeline candidat partagé entre vos collègues",
       "Support fondateurs (vous parlez à Elyas et Hussein)",
     ],
-    proTag: "Premium",
-    proTitle: "Package Sourcing Pro",
-    proSubtitle: "Pour les structures qui veulent un accompagnement renforcé.",
-    proExtra: [
-      "Tout Package Sourcing",
+    pricingExtra: [
+      "Tout le Package Sourcing",
       "Pricing Syntec automatisé — marge, charges, calendrier réel",
       "Chart risque rupture employeur (RC + licenciement)",
       "Export PDF des chiffrages, nominatif ou anonymisé",
     ],
     cta: "Démarrer mes 15 jours →",
-    recommended: "Recommandé",
-    perMonth: "/mois HT",
-    perSeat: (price: string) => `soit ${price}/siège/mois — dégressif`,
+    perMonthExcl: "/mois HT",
+    perSeatLine: (v: string) => `soit ${v}/personne/mois — dégressif`,
     included: "Inclus",
     cvCapacity: "Capacité vivier",
-    cvUnit: "CV",
-    matchingLabel: "Matchings & anonymisations",
+    cvUnit: (n: string) => `${n} CV`,
+    matchingsAndAnonymize: "Matchings & anonymisations",
     unlimited: "Illimités",
-    trialNote: "15 jours offerts — aucun prélèvement, résiliable à tout moment.",
+    recommended: "Recommandé",
+    cardFootnote: "15 jours offerts — aucun prélèvement, résiliable à tout moment.",
     faqTitle: "Questions fréquentes",
-    faqOtherPre: "Une autre question ? ",
-    faqOtherLink: "Écrivez-nous",
+    otherQuestion: "Une autre question ? ",
+    writeToUs: "Écrivez-nous",
     faq: [
       {
         q: "Comment se passe la période d'essai ?",
-        a: "Vous créez votre compte, votre structure dispose immédiatement de 15 jours d'accès complet au workspace, jusqu'à 2 sièges (vous + 1 collègue). Aucune carte bancaire n'est demandée. Pour ajouter plus de membres ou prolonger après les 15 jours, vous choisissez une formule et activez l'abonnement.",
+        a: "Vous créez votre compte, votre structure dispose immédiatement de 15 jours d'accès complet au workspace — Suite Pricing comprise — pour 2 personnes (vous + 1 collègue). Aucune carte bancaire n'est demandée. Pour ajouter des collègues ou continuer après les 15 jours, vous composez votre abonnement et l'activez.",
       },
       {
         q: "Quels moyens de paiement sont acceptés ?",
         a: "Carte bancaire et prélèvement SEPA, via Stripe. Facturation mensuelle, sans engagement de durée. La résiliation est faite depuis votre console organisation, l'abonnement s'arrête à la fin de la période en cours.",
       },
       {
-        q: "Que se passe-t-il si je dépasse mon nombre de sièges ?",
-        a: "Vous pouvez ajouter ou retirer des sièges à tout moment depuis votre console organisation. La facturation est ajustée au prorata sur votre prochaine facture. Au-delà de 4 sièges, contactez-nous pour une offre adaptée.",
+        q: "Puis-je ajouter ou retirer des personnes en cours de route ?",
+        a: "Oui, à tout moment depuis votre console organisation. La facturation est ajustée au prorata sur votre prochaine facture, et le tarif dégressif s'applique automatiquement au nouveau nombre. Au-delà de 5 personnes, prenez rendez-vous avec nous : on construit une offre adaptée à votre structure.",
       },
       {
-        q: "Quelle différence entre Sourcing et Sourcing Pro ?",
-        a: "Sourcing donne accès à tout le workspace candidat : vivier vivant, missions, matching scoré, anonymisation et pipeline partagé. Sourcing Pro ajoute le moteur Pricing Syntec — calcul de marge automatisé, charges et plafonds URSSAF, calendrier réel, chart de risque rupture employeur, export PDF des chiffrages. C'est l'offre adaptée aux structures qui chiffrent leurs missions au TJM.",
+        q: "Qu'est-ce que la Suite Pricing, et dois-je la prendre ?",
+        a: "C'est notre moteur de chiffrage à la convention Syntec : marge réelle, charges par statut, plafonds URSSAF, calendrier des jours facturables et fiche PDF à envoyer au client. C'est une option à 9,99 € par mois, prix unique quel que soit le nombre de personnes. Elle n'a de sens que si vous placez en régie et chiffrez au TJM — si vous faites du recrutement en direct, ne la prenez pas. Vous pouvez l'activer ou la retirer quand vous voulez.",
       },
       {
         q: "Mes données sont-elles isolées des autres structures ?",
@@ -91,73 +90,72 @@ const content = {
   },
   en: {
     badge: "Pricing",
-    titlePre: "Try it ",
-    titleItalic: "free",
-    titleSuffix: " for 15 days.",
-    heroDesc:
-      "15 days free, up to 2 seats, no credit card required. To go further or extend access, choose a plan below — your subscription only starts once confirmed.",
-    seatLabel: (n: number) => `${n} ${n === 1 ? "seat" : "seats"}`,
-    beyondPre: "More than 4 seats? ",
-    beyondLink: "Contact us",
-    sourcingTag: "The package",
-    sourcingTitle: "Package Sourcing",
-    sourcingSubtitle: "The full Nora workspace, shared with your team.",
+    heroTitlePrefix: "Try it ",
+    heroTitleItalic: "free",
+    heroTitleSuffix: " for 15 days.",
+    heroBody: "15 days on us for 2 people, Suite Pricing included, no credit card required. After that, you build your own subscription: pick the number of people, and the Pricing option if it's useful to you.",
+    seatLabel: (n: number): string => n === 1 ? "person" : "people",
+    seatHint: (max: number) => `Volume discount: the more people you have, the less each one costs. Beyond ${max} people, `,
+    talkAboutIt: "let's talk",
+    sourcingTag: "The plan",
+    sourcingTitle: "Sourcing Package",
+    sourcingSubtitle: "The entire Nora workspace, shared with your colleagues.",
+    pricingTag: "With the option",
+    pricingTitle: "Sourcing Package + Suite Pricing",
+    pricingSubtitle: "For staffing firms that quote in daily rates.",
     sourcingIncluded: [
-      "Talent pool organized by sector (Nora sorts every CV automatically)",
-      "Job openings created via AI brief + scored, justified matching",
-      "One-click anonymization — PDF branded to your team",
-      "Shared candidate pipeline across your team",
+      "Talent pool organized by sector (Nora classifies every CV automatically)",
+      "Missions created from an LLM brief + scored, justified matching",
+      "One-click anonymization — PDF branded to your firm",
+      "Candidate pipeline shared with your colleagues",
       "Founder support (you talk directly to Elyas and Hussein)",
     ],
-    proTag: "Premium",
-    proTitle: "Package Sourcing Pro",
-    proSubtitle: "For teams that want extra support.",
-    proExtra: [
-      "Everything in Package Sourcing",
-      "Automated consulting-rate pricing — margin, payroll taxes, real calendar",
-      "Termination risk chart (mutual agreement + dismissal)",
+    pricingExtra: [
+      "Everything in the Sourcing Package",
+      "Automated Syntec pricing — margin, charges, real calendar",
+      "Termination risk chart (mutual termination + dismissal)",
       "PDF export of quotes, named or anonymized",
     ],
-    cta: "Start my 15 days →",
-    recommended: "Recommended",
-    perMonth: "/month excl. VAT",
-    perSeat: (price: string) => `i.e. ${price}/seat/month — volume discount`,
+    cta: "Start my 15 free days →",
+    perMonthExcl: "/mo excl. VAT",
+    perSeatLine: (v: string) => `i.e. ${v}/person/month — volume discount`,
     included: "Included",
     cvCapacity: "Talent pool capacity",
-    cvUnit: "CVs",
-    matchingLabel: "Matching & anonymization",
+    cvUnit: (n: string) => `${n} CVs`,
+    matchingsAndAnonymize: "Matchings & anonymizations",
     unlimited: "Unlimited",
-    trialNote: "15 days free — no charge, cancel anytime.",
+    recommended: "Recommended",
+    cardFootnote: "15 days on us — no charge, cancel anytime.",
     faqTitle: "Frequently asked questions",
-    faqOtherPre: "Another question? ",
-    faqOtherLink: "Write to us",
+    otherQuestion: "Another question? ",
+    writeToUs: "Write to us",
     faq: [
       {
         q: "How does the trial period work?",
-        a: "You create your account and your team gets immediate 15-day access to the full workspace, up to 2 seats (you + 1 colleague). No credit card required. To add more members or extend access after the 15 days, you choose a plan and activate the subscription.",
+        a: "You create your account, and your firm immediately gets 15 days of full workspace access — Suite Pricing included — for 2 people (you + 1 colleague). No credit card required. To add colleagues or continue after the 15 days, you build your subscription and activate it.",
       },
       {
         q: "What payment methods are accepted?",
         a: "Credit card and SEPA direct debit, via Stripe. Monthly billing, no fixed-term commitment. Cancellation is done from your organization console; the subscription ends at the end of the current period.",
       },
       {
-        q: "What happens if I exceed my seat count?",
-        a: "You can add or remove seats at any time from your organization console. Billing is prorated on your next invoice. Beyond 4 seats, contact us for a tailored offer.",
+        q: "Can I add or remove people along the way?",
+        a: "Yes, at any time from your organization console. Billing is prorated on your next invoice, and the volume discount automatically applies to the new headcount. Beyond 5 people, book a call with us: we'll build an offer tailored to your firm.",
       },
       {
-        q: "What's the difference between Sourcing and Sourcing Pro?",
-        a: "Sourcing gives you the full candidate workspace: a living talent pool, job openings, scored matching, anonymization, and a shared pipeline. Sourcing Pro adds the consulting-rate pricing engine — automated margin calculation, payroll taxes and social security caps, a real calendar, a termination risk chart, and PDF export of quotes. It's the right offer for teams that price their engagements by daily rate.",
+        q: "What is Suite Pricing, and should I get it?",
+        a: "It's our Syntec-agreement pricing engine: real margin, charges by status, URSSAF caps, billable-days calendar, and a PDF sheet to send your client. It's a €9.99/month option, flat price regardless of headcount. It only makes sense if you staff on assignment and quote in daily rates — if you do direct recruitment, skip it. You can activate or remove it whenever you want.",
       },
       {
-        q: "Is my data isolated from other organizations?",
-        a: "Yes. Each organization has its own scope, isolated via Row Level Security at the database level. No candidate, job opening, or quote ever leaks between organizations, even in the event of an application error.",
+        q: "Is my data isolated from other firms?",
+        a: "Yes. Each firm has its own scope, isolated via Row Level Security at the database level. No candidate, mission, or quote ever leaks between firms, even in the event of an application error.",
       },
     ],
   },
 }
 
-function formatEur(n: number, lang: Lang): string {
-  return new Intl.NumberFormat(lang === "fr" ? "fr-FR" : "en-IE", {
+function formatEur(n: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "EUR",
     minimumFractionDigits: 2,
@@ -166,7 +164,7 @@ function formatEur(n: number, lang: Lang): string {
 
 export default function TarifsPage() {
   const { lang } = useLanguage()
-  const c = content[lang]
+  const t = copy[lang]
   const [seats, setSeats] = useState<SeatCount>(3)
 
   return (
@@ -188,7 +186,7 @@ export default function TarifsPage() {
                 fontFamily: "var(--font-inter), sans-serif",
               }}
             >
-              {c.badge}
+              {t.badge}
             </span>
             <h1
               style={{
@@ -201,7 +199,7 @@ export default function TarifsPage() {
                 letterSpacing: "-0.025em",
               }}
             >
-              {c.titlePre}
+              {t.heroTitlePrefix}
               <span
                 style={{
                   fontFamily: "var(--font-instrument-serif), serif",
@@ -210,9 +208,9 @@ export default function TarifsPage() {
                   color: "#7C63C8",
                 }}
               >
-                {c.titleItalic}
+                {t.heroTitleItalic}
               </span>
-              {c.titleSuffix}
+              {t.heroTitleSuffix}
             </h1>
             <p
               style={{
@@ -224,7 +222,7 @@ export default function TarifsPage() {
                 maxWidth: "55ch",
               }}
             >
-              {c.heroDesc}
+              {t.heroBody}
             </p>
           </div>
         </section>
@@ -243,7 +241,7 @@ export default function TarifsPage() {
                 fontFamily: "var(--font-inter), sans-serif",
               }}
             >
-              {([1, 2, 3, 4] as SeatCount[]).map((n) => (
+              {SEAT_CHOICES.map((n) => (
                 <button
                   key={n}
                   onClick={() => setSeats(n)}
@@ -261,7 +259,7 @@ export default function TarifsPage() {
                     minWidth: 84,
                   }}
                 >
-                  {c.seatLabel(n)}
+                  {n} {t.seatLabel(n)}
                 </button>
               ))}
             </div>
@@ -275,9 +273,9 @@ export default function TarifsPage() {
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
-            {c.beyondPre}
-            <Link href="/contact" style={{ color: "#7C63C8", fontWeight: 600 }}>
-              {c.beyondLink}
+            {t.seatHint(MAX_SELF_SERVE_SEATS)}
+            <Link href="/contact-equipe" style={{ color: "#7C63C8", fontWeight: 600 }}>
+              {t.talkAboutIt}
             </Link>
             .
           </p>
@@ -296,32 +294,32 @@ export default function TarifsPage() {
             }}
           >
             <PriceCard
-              tag={c.sourcingTag}
-              title={c.sourcingTitle}
-              subtitle={c.sourcingSubtitle}
-              priceMonthly={SOURCING[seats]}
-              perSeat={SOURCING[seats] / seats}
+              tag={t.sourcingTag}
+              title={t.sourcingTitle}
+              subtitle={t.sourcingSubtitle}
+              priceMonthly={priceForSeats(seats)}
+              perSeat={priceForSeats(seats) / seats}
               recommended={seats === 3}
-              features={c.sourcingIncluded}
-              quota={QUOTAS_BY_PLAN[`sourcing_${seats}`]}
-              cta={c.cta}
+              features={t.sourcingIncluded}
+              quota={{ cvLimit: cvIncludedForSeats(seats) }}
+              cta={t.cta}
               accentSoft={false}
               lang={lang}
-              t={c}
+              t={t}
             />
             <PriceCard
-              tag={c.proTag}
-              title={c.proTitle}
-              subtitle={c.proSubtitle}
-              priceMonthly={SOURCING_PRO[seats]}
-              perSeat={SOURCING_PRO[seats] / seats}
+              tag={t.pricingTag}
+              title={t.pricingTitle}
+              subtitle={t.pricingSubtitle}
+              priceMonthly={monthlyTotalEur(seats, true)}
+              perSeat={monthlyTotalEur(seats, true) / seats}
               recommended={false}
-              features={c.proExtra}
-              quota={QUOTAS_BY_PLAN[`sourcing_pro_${seats}`]}
-              cta={c.cta}
+              features={t.pricingExtra}
+              quota={{ cvLimit: cvIncludedForSeats(seats) }}
+              cta={t.cta}
               accentSoft
               lang={lang}
-              t={c}
+              t={t}
             />
           </div>
         </section>
@@ -339,10 +337,10 @@ export default function TarifsPage() {
                 letterSpacing: "-0.01em",
               }}
             >
-              {c.faqTitle}
+              {t.faqTitle}
             </h3>
             <div style={{ display: "grid", gap: 12 }}>
-              {c.faq.map((q) => (
+              {t.faq.map((q) => (
                 <details
                   key={q.q}
                   style={{
@@ -386,12 +384,12 @@ export default function TarifsPage() {
                 textAlign: "center",
               }}
             >
-              {c.faqOtherPre}
+              {t.otherQuestion}
               <Link
                 href="/contact"
                 style={{ color: "#7C63C8", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
               >
-                {c.faqOtherLink}
+                {t.writeToUs}
               </Link>
               .
             </p>
@@ -414,12 +412,13 @@ function PriceCard({
   perSeat: number
   recommended: boolean
   features: readonly string[]
-  quota?: { cvLimit: number; storageBytes: number; llmMonthly: number }
+  quota?: { cvLimit: number }
   cta: string
   accentSoft: boolean
   lang: Lang
-  t: (typeof content)["fr"]
+  t: (typeof copy)["fr"]
 }) {
+  const locale = lang === "fr" ? "fr-FR" : "en-US"
   return (
     <article
       style={{
@@ -517,7 +516,7 @@ function PriceCard({
               letterSpacing: "-0.025em",
             }}
           >
-            {formatEur(priceMonthly, lang)}
+            {formatEur(priceMonthly, locale)}
           </span>
           <span
             style={{
@@ -528,7 +527,7 @@ function PriceCard({
               fontWeight: 500,
             }}
           >
-            {t.perMonth}
+            {t.perMonthExcl}
           </span>
         </div>
         <p
@@ -539,7 +538,7 @@ function PriceCard({
             fontFamily: "var(--font-inter), sans-serif",
           }}
         >
-          {t.perSeat(formatEur(perSeat, lang))}
+          {t.perSeatLine(formatEur(perSeat, locale))}
         </p>
         {quota && (
           <div
@@ -562,10 +561,10 @@ function PriceCard({
             </span>
             <span style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
               <span>{t.cvCapacity}</span>
-              <strong>{quota.cvLimit.toLocaleString(lang === "fr" ? "fr-FR" : "en-US")} {t.cvUnit}</strong>
+              <strong>{t.cvUnit(quota.cvLimit.toLocaleString(locale))}</strong>
             </span>
             <span style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <span>{t.matchingLabel}</span>
+              <span>{t.matchingsAndAnonymize}</span>
               <strong>{t.unlimited}</strong>
             </span>
           </div>
@@ -655,7 +654,7 @@ function PriceCard({
           textAlign: "center",
         }}
       >
-        {t.trialNote}
+        {t.cardFootnote}
       </p>
     </article>
   )

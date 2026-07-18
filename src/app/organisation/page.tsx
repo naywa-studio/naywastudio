@@ -1,14 +1,28 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useRouter, useSearchParams } from "next/navigation"
 import { m } from "framer-motion"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
 import { trialStatus, TRIAL_DURATION_DAYS, TRIAL_SEAT_CAP } from "@/lib/trial"
-import { subscriptionAccess, hasActiveAccess } from "@/lib/subscription"
-import { PLAN_PRICES_EUR, lookupKey, type PlanTier, type PlanSeats } from "@/lib/stripe"
-import { QUOTAS_BY_PLAN } from "@/lib/quota-tiers"
+import {
+  subscriptionAccess,
+  hasActiveAccess,
+  hasPricingAccess,
+  scheduledCancellation,
+  GRACE_DAYS,
+} from "@/lib/subscription"
+import {
+  priceForSeats,
+  monthlyTotalEur,
+  cvIncludedForSeats,
+  isSelfServeSeats,
+  PRICING_ADDON_EUR,
+  MAX_SELF_SERVE_SEATS,
+  formatEur,
+} from "@/lib/pricing-plan"
 import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
@@ -47,15 +61,24 @@ const copy = {
     // SubscriptionCard
     subscription: "Abonnement",
     subStatusSubtitle: "Statut du Package Sourcing.",
-    cancellationInProgress: "Résiliation en cours",
-    orgWillBeDeleted: (date: string) => <>L&apos;organisation et toutes ses données seront supprimées le <strong>{date}</strong>.</>,
+    deletionScheduled: "Suppression programmée",
+    orgWillBeDeletedReadOnly: (date: string) => <>L&apos;organisation et toutes ses données seront supprimées le <strong>{date}</strong>. Le workspace est en lecture seule d&apos;ici là. Vous pouvez encore tout annuler.</>,
+    cancelDeletionFailed: "Annulation impossible",
+    cancelling: "Annulation…",
+    cancelDeletion: "Annuler la suppression",
+    ownerOnlyCancelDeletion: "Seul le propriétaire de l'organisation peut annuler.",
     portalUnavailable: "Portail indisponible",
     subSubtitle: "Package Sourcing : votre essai et votre formule.",
     paymentFailed: "Échec du dernier paiement. Mettez à jour votre moyen de paiement.",
+    cancellationScheduled: "Résiliation programmée",
+    scheduledCancelBody: (plan: string, endsAt: string, graceDays: number) => (
+      <>{plan} — votre accès reste complet jusqu&apos;au <strong>{endsAt}</strong>. Aucun nouveau prélèvement. Ensuite vous disposerez de {graceDays} jours en lecture seule pour exporter vos données ou réactiver.</>
+    ),
     trialUntil: (date: string) => <>Période d&apos;essai jusqu&apos;au <strong>{date}</strong>.</>,
     nextCharge: (date: string) => <>Prochain prélèvement le <strong>{date}</strong>.</>,
     openingPortal: "Ouverture du portail…",
     manageSubscription: "Gérer mon abonnement",
+    resumeSubscription: "Reprendre mon abonnement →",
     noActiveSubscription: "Aucun abonnement actif",
     startTrialBody: (days: number, seats: number) => `Démarrez votre essai gratuit ${days} jours (jusqu'à ${seats} sièges, sans carte bancaire) ou souscrivez directement pour aller plus loin.`,
     activating: "Activation…",
@@ -83,6 +106,7 @@ const copy = {
     seatsCount: "Nombre de sièges",
     recommended: "Reco",
     seatSuffix: (n: number) => `siège${n > 1 ? "s" : ""}`,
+    personLabel: (n: number) => `personne${n > 1 ? "s" : ""}`,
     monthlyTotalExclTax: "Total mensuel HT",
     cvUnit: (n: string) => `${n} CV`,
     unlimitedMatchings: "Matchings illimités",
@@ -91,6 +115,27 @@ const copy = {
     cancel: "Annuler",
     redirecting: "Redirection…",
     continueToPayment: "Continuer vers le paiement →",
+    howManyPeople: "Combien de personnes utiliseront Naywa ?",
+    removePerson: "Retirer une personne",
+    numberOfPeople: "Nombre de personnes",
+    addPerson: "Ajouter une personne",
+    thatIs: (v: string) => `soit ${v}`,
+    perPersonSuffix: (v: string) => ` · ${v} par personne`,
+    seatDiscountHint: "Tarif dégressif : plus vous êtes nombreux, moins la personne coûte.",
+    pricingAddonExtra: "TJM, marges, simulation et fiche PDF. Prix unique, quel que soit le nombre de personnes.",
+    cvIncluded: (n: string) => `${n} CV inclus`,
+    talkAboutItTitle: (n: number) => `À ${n} personnes, parlons-en`,
+    talkAboutItBody: (max: number) => `Au-delà de ${max} personnes, on construit une offre avec vous plutôt que de vous laisser deviner. Prenez 20 minutes avec l'équipe.`,
+    continueWithPrice: (v: string) => `Continuer — ${v}/mois →`,
+    bookAppointment: "Prendre rendez-vous →",
+    // PricingAddonToggle
+    addonToggleFailed: "Modification impossible",
+    addonSyncing: "Synchronisation…",
+    addonIncluded: (v: string) => `Incluse · ${v}/mois`,
+    addonOptional: (v: string) => `Option · ${v}/mois, résiliable à tout moment`,
+    removeAddon: "Retirer",
+    activateAddon: "Activer",
+    ownerOnlySubscription: "Seul le propriétaire peut modifier l'abonnement.",
     // IdentitySection
     orgIdentityTitle: "Identité de l'organisation",
     orgIdentitySubtitle: "Vitrine telle qu'elle apparaîtra sur les CV anonymisés. Modifiable dans Branding.",
@@ -194,17 +239,15 @@ const copy = {
     ownerTag: "(owner)",
     // DangerSection
     deleteError: "Erreur lors de la suppression.",
+    cancelDeletionError: "Annulation impossible.",
     dangerZone: "Zone de danger",
-    deleteOrgBody: "Supprimer définitivement l'organisation et toutes ses données.",
-    otherMembersKeepAccess: "Les autres membres garderont accès 30 jours.",
-    deletionImmediate: "La suppression est immédiate.",
+    deleteOrgBodyFull: <>Programmer la suppression de l&apos;organisation et de toutes ses données. Le workspace passe en lecture seule pendant <strong>30 jours</strong> (le temps d&apos;exporter vos données), puis tout est supprimé définitivement. Vous pouvez annuler à tout moment avant l&apos;échéance.</>,
     deleteMyOrg: "Supprimer mon organisation",
     deleteOrgConfirmTitle: (name: string) => `Supprimer ${name} ?`,
-    deleteOrgBodyMulti: <>Vos collègues garderont l&apos;accès au workspace pendant <strong>30 jours</strong>. Passé ce délai, l&apos;organisation et toutes ses données seront supprimées définitivement.</>,
-    deleteOrgBodySolo: <>Toutes vos données (vivier, missions, pipeline, emails, paramètres) seront supprimées <strong>immédiatement et définitivement</strong>. Cette action est irréversible.</>,
+    deleteOrgConfirmBody: <>L&apos;organisation passe en <strong>lecture seule</strong> et sera supprimée définitivement, avec toutes ses données, dans <strong>30 jours</strong>. Vous (et vos collègues) pourrez exporter les données et <strong>annuler</strong> la suppression à tout moment avant l&apos;échéance.</>,
     typeOrgNameToConfirm: <>Tapez le nom de l&apos;organisation pour confirmer&nbsp;:</>,
-    deleting: "Suppression…",
-    confirmAction: "Confirmer",
+    scheduleDeletion: "Programmer la suppression",
+    scheduling: "Programmation…",
     // ExportDataCard
     exportMyData: "Exporter mes données",
     exportBody: "Téléchargez un fichier JSON avec l'intégralité de votre organisation : candidats, missions, matches, mails et paramétrage. Conservez-le comme archive.",
@@ -235,15 +278,24 @@ const copy = {
     allocateSelf: "Allocate myself a seat",
     subscription: "Subscription",
     subStatusSubtitle: "Sourcing Package status.",
-    cancellationInProgress: "Cancellation in progress",
-    orgWillBeDeleted: (date: string) => <>The organization and all its data will be deleted on <strong>{date}</strong>.</>,
+    deletionScheduled: "Deletion scheduled",
+    orgWillBeDeletedReadOnly: (date: string) => <>The organization and all its data will be deleted on <strong>{date}</strong>. The workspace is read-only until then. You can still cancel.</>,
+    cancelDeletionFailed: "Cancellation failed",
+    cancelling: "Cancelling…",
+    cancelDeletion: "Cancel the deletion",
+    ownerOnlyCancelDeletion: "Only the organization owner can cancel.",
     portalUnavailable: "Portal unavailable",
     subSubtitle: "Sourcing Package: your trial and your plan.",
     paymentFailed: "Last payment failed. Update your payment method.",
+    cancellationScheduled: "Cancellation scheduled",
+    scheduledCancelBody: (plan: string, endsAt: string, graceDays: number) => (
+      <>{plan} — your access remains full until <strong>{endsAt}</strong>. No new charge. After that, you&apos;ll have {graceDays} days in read-only mode to export your data or reactivate.</>
+    ),
     trialUntil: (date: string) => <>Trial until <strong>{date}</strong>.</>,
     nextCharge: (date: string) => <>Next charge on <strong>{date}</strong>.</>,
     openingPortal: "Opening portal…",
     manageSubscription: "Manage my subscription",
+    resumeSubscription: "Resume my subscription →",
     noActiveSubscription: "No active subscription",
     startTrialBody: (days: number, seats: number) => `Start your ${days}-day free trial (up to ${seats} seats, no credit card) or subscribe directly to go further.`,
     activating: "Activating…",
@@ -269,6 +321,7 @@ const copy = {
     seatsCount: "Number of seats",
     recommended: "Reco",
     seatSuffix: (n: number) => `seat${n > 1 ? "s" : ""}`,
+    personLabel: (n: number) => `person${n > 1 ? "s" : ""}`,
     monthlyTotalExclTax: "Monthly total excl. VAT",
     cvUnit: (n: string) => `${n} CVs`,
     unlimitedMatchings: "Unlimited matchings",
@@ -277,6 +330,27 @@ const copy = {
     cancel: "Cancel",
     redirecting: "Redirecting…",
     continueToPayment: "Continue to payment →",
+    howManyPeople: "How many people will use Naywa?",
+    removePerson: "Remove a person",
+    numberOfPeople: "Number of people",
+    addPerson: "Add a person",
+    thatIs: (v: string) => `i.e. ${v}`,
+    perPersonSuffix: (v: string) => ` · ${v} per person`,
+    seatDiscountHint: "Volume discount: the more people you have, the less each one costs.",
+    pricingAddonExtra: "Daily rate, margins, simulation and PDF sheet. Flat price, regardless of headcount.",
+    cvIncluded: (n: string) => `${n} CVs included`,
+    talkAboutItTitle: (n: number) => `At ${n} people, let's talk`,
+    talkAboutItBody: (max: number) => `Beyond ${max} people, we build an offer with you instead of leaving you guessing. Take 20 minutes with the team.`,
+    continueWithPrice: (v: string) => `Continue — ${v}/mo →`,
+    bookAppointment: "Book an appointment →",
+    // PricingAddonToggle
+    addonToggleFailed: "Change failed",
+    addonSyncing: "Syncing…",
+    addonIncluded: (v: string) => `Included · ${v}/mo`,
+    addonOptional: (v: string) => `Option · ${v}/mo, cancel anytime`,
+    removeAddon: "Remove",
+    activateAddon: "Activate",
+    ownerOnlySubscription: "Only the owner can change the subscription.",
     orgIdentityTitle: "Organization identity",
     orgIdentitySubtitle: "Showcase as it will appear on anonymized CVs. Editable in Branding.",
     noSlogan: "No slogan",
@@ -370,17 +444,15 @@ const copy = {
     allocateTo: (name: string) => `Allocate to ${name}`,
     ownerTag: "(owner)",
     deleteError: "Error while deleting.",
+    cancelDeletionError: "Cancellation failed.",
     dangerZone: "Danger zone",
-    deleteOrgBody: "Permanently delete the organization and all its data.",
-    otherMembersKeepAccess: "Other members will keep access for 30 days.",
-    deletionImmediate: "Deletion is immediate.",
+    deleteOrgBodyFull: <>Schedule the deletion of the organization and all its data. The workspace becomes read-only for <strong>30 days</strong> (time to export your data), then everything is permanently deleted. You can cancel anytime before the deadline.</>,
     deleteMyOrg: "Delete my organization",
     deleteOrgConfirmTitle: (name: string) => `Delete ${name}?`,
-    deleteOrgBodyMulti: <>Your colleagues will keep workspace access for <strong>30 days</strong>. After that, the organization and all its data will be permanently deleted.</>,
-    deleteOrgBodySolo: <>All your data (talent pool, missions, pipeline, emails, settings) will be <strong>deleted immediately and permanently</strong>. This action is irreversible.</>,
+    deleteOrgConfirmBody: <>The organization becomes <strong>read-only</strong> and will be permanently deleted, along with all its data, in <strong>30 days</strong>. You (and your colleagues) can export the data and <strong>cancel</strong> the deletion anytime before the deadline.</>,
     typeOrgNameToConfirm: <>Type the organization name to confirm:</>,
-    deleting: "Deleting…",
-    confirmAction: "Confirm",
+    scheduleDeletion: "Schedule the deletion",
+    scheduling: "Scheduling…",
     exportMyData: "Export my data",
     exportBody: "Download a JSON file with your entire organization: candidates, missions, matches, emails and settings. Keep it as an archive.",
     exportDisclaimer: "Due to product updates, we cannot guarantee full restoration of this data in a future version of the service.",
@@ -503,17 +575,11 @@ export default function CabinetPage() {
   // Un owner sans siège alloué ne compte pas. Le toggle siège est piloté
   // par la MembersSection (allocation explicite).
   const seatsUsed = members.filter((m) => m.has_sourcing_seat).length + invites.length
-  const trial = trialStatus(organization)
-  // La politique pricing est visible dès qu'on a un accès actif :
-  //   - trial app-side actif (legacy, avant migration Stripe natif)
-  //   - sub Stripe active OR trialing
-  // Avant on bloquait à trial.state !== "pending", ce qui cachait la
-  // carte aux comptes qui souscrivent direct sans utiliser le trial.
-  const hasAnyAccess =
-    trial.state === "active" ||
-    organization.subscription_status === "active" ||
-    organization.subscription_status === "trialing"
-  void hasAnyAccess // legacy : pricing policy est désormais inline dans Branding
+  // La politique pricing appartient à la Suite Pricing (option payante) : elle
+  // n'a de sens que pour qui y a droit. Le garde-fou existait mais était calculé
+  // puis jeté (`void`) depuis un refactor → un client Sourcing seul voyait la
+  // carte ET le wizard. On s'appuie désormais sur la règle produit unique.
+  const canUsePricing = hasPricingAccess(organization, { isAdmin: profile.is_admin === true })
 
   // La visite guidée 6 étapes Package Sourcing est désormais déclenchée
   // sur /workspace (premier accès après souscription), pas ici --
@@ -599,6 +665,7 @@ export default function CabinetPage() {
             <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
               <MySeatBanner
                 hasSeat={profile.has_sourcing_seat}
+                hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
                 onToggle={refetch}
                 isOwner={isOwner}
               />
@@ -609,7 +676,7 @@ export default function CabinetPage() {
                 isAdmin={profile.is_admin === true}
                 autoOpenPicker={action === "subscribe"}
               />
-              <PricingPolicySectionCollapsible />
+              {canUsePricing && <PricingPolicySectionCollapsible />}
             </div>
             {/* Colonne droite : utilisation (sticky pour rester visible
                 pendant le scroll des cartes de gauche) */}
@@ -620,17 +687,26 @@ export default function CabinetPage() {
         )}
 
         {activeTab === "securite" && (
-          <div style={{ maxWidth: 720 }}>
+          <div style={{ maxWidth: 720, display: "grid", gap: 16 }}>
+            <ExportDataCard />
+            {isOwner && (
+              <TransferOwnershipCard
+                currentUserId={profile.user_id}
+                onTransferred={refetch}
+              />
+            )}
             <DangerSection
               organization={organization}
-              seatsUsed={seatsUsed}
-              onDeleted={() => router.replace("/")}
+              isOwner={isOwner}
+              onChanged={refetch}
             />
           </div>
         )}
       </div>
 
-      <PricingOnboardingGate organization={organization} onDone={refetch} />
+      {canUsePricing && (
+        <PricingOnboardingGate organization={organization} onDone={refetch} />
+      )}
     </main>
   )
 }
@@ -863,8 +939,12 @@ function EmailConfirmationBanner({ email }: { email: string }) {
 /* Mon siège                                                            */
 /* ────────────────────────────────────────────────────────────────── */
 
-function MySeatBanner({ hasSeat, onToggle, isOwner }: {
+function MySeatBanner({ hasSeat, hasAccess, onToggle, isOwner }: {
   hasSeat: boolean
+  /** Accès réel au workspace (trial actif / sub active / admin). Un siège
+   *  n'ouvre l'accès que si l'org a un accès actif — sinon le workspace
+   *  rebondit sur /organisation. */
+  hasAccess: boolean
   onToggle: () => Promise<void>
   isOwner: boolean
 }) {
@@ -906,6 +986,40 @@ function MySeatBanner({ hasSeat, onToggle, isOwner }: {
       await onToggle()
     }
     setBusy(false)
+  }
+
+  // Siège occupé MAIS accès suspendu (essai terminé / abonnement inactif) :
+  // ne pas promettre "Accès complet" ni "Ouvrir le workspace" (qui rebondit
+  // vers /organisation). On renvoie vers la souscription, juste en dessous.
+  if (hasSeat && !hasAccess) {
+    return (
+      <section style={{
+        padding: "12px 18px",
+        background: "rgba(245,158,11,0.08)",
+        border: "1px solid rgba(245,158,11,0.30)",
+        borderRadius: 12,
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+        flexWrap: "wrap",
+      }}>
+        <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#F59E0B", flexShrink: 0 }} />
+          <div>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#92400E" }}>
+              Vous occupez un siège, mais votre accès est suspendu.
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#92400E" }}>
+              Souscrivez ci-dessous pour rouvrir l&apos;accès au workspace.
+            </p>
+          </div>
+        </div>
+        {isOwner && (
+          <button type="button" onClick={release} disabled={busy} style={smallBtnGhost}>
+            {busy ? "…" : "Libérer le siège"}
+          </button>
+        )}
+        {error && <p style={{ width: "100%", margin: 0, fontSize: 12, color: "#EF4444" }}>{error}</p>}
+      </section>
+    )
   }
 
   if (hasSeat) {
@@ -1011,6 +1125,10 @@ function SubscriptionCard({
     autoOpenPicker && isOwner ? "paid" : "closed",
   )
 
+  // Résiliation demandée au portail : l'abo court jusqu'à la fin de la période
+  // payée. On l'annonce comme une FIN, pas comme un prochain prélèvement.
+  const scheduledCancel = scheduledCancellation(organization)
+
   // Activation directe du trial app-side. Aucun appel Stripe — la
   // structure reçoit 15 jours d'accès complet plafonnés à 2 sièges.
   // Au-delà, l'owner doit cliquer "Souscrire" pour passer au paid.
@@ -1038,13 +1156,34 @@ function SubscriptionCard({
 
   if (organization.pending_deletion_at) {
     const date = new Date(organization.pending_deletion_at).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })
+    const cancelDeletion = async () => {
+      setBusy(true); setError(null)
+      try {
+        const r = await fetch("/api/cabinet/cancel-deletion", { method: "POST" })
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({} as { error?: string }))
+          throw new Error(j.error ?? t.cancelDeletionFailed)
+        }
+        await onActivated()
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : t.genericError)
+      } finally {
+        setBusy(false)
+      }
+    }
     return (
       <Card title={t.subscription} subtitle={t.subStatusSubtitle}>
         <Panel tone="warn">
-          <p style={panelTitle("#D97706")}>{t.cancellationInProgress}</p>
+          <p style={panelTitle("#D97706")}>{t.deletionScheduled}</p>
           <p style={panelBody("#92400E")}>
-            {t.orgWillBeDeleted(date)}
+            {t.orgWillBeDeletedReadOnly(date)}
           </p>
+          {isOwner && (
+            <button type="button" onClick={cancelDeletion} disabled={busy} style={{ ...ctaSecondaryBtn(busy), marginTop: 12 }}>
+              {busy ? t.cancelling : t.cancelDeletion}
+            </button>
+          )}
+          {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>}
         </Panel>
       </Card>
     )
@@ -1068,27 +1207,42 @@ function SubscriptionCard({
       <Card title={t.subscription} subtitle={t.subSubtitle}>
         {/* Stripe sub — affichage prioritaire si présente */}
         {hasStripeSub && (
-          <Panel tone={access.state === "paid" ? "success" : access.state === "trialing" ? "brand" : "warn"}>
-            <p style={panelTitle(access.state === "paid" ? "#15803D" : access.state === "trialing" ? "#7C63C8" : "#B91C1C")}>
-              {planLabel(organization, lang)}
+          <Panel tone={scheduledCancel ? "warn" : access.state === "paid" ? "success" : access.state === "trialing" ? "brand" : "warn"}>
+            <p style={panelTitle(scheduledCancel ? "#B45309" : access.state === "paid" ? "#15803D" : access.state === "trialing" ? "#7C63C8" : "#B91C1C")}>
+              {scheduledCancel ? t.cancellationScheduled : planLabel(organization, lang)}
             </p>
             <p style={panelBody("#374151")}>
               {organization.subscription_status === "past_due"
                 ? t.paymentFailed
-                : access.state === "trialing" && "until" in access
-                  ? t.trialUntil(access.until?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "")
-                  : access.state === "paid" && "until" in access
-                    ? t.nextCharge(access.until?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "")
-                    : null}
+                : scheduledCancel
+                  // Résilié au portail : accès complet jusqu'à la fin de la
+                  // période DÉJÀ payée — surtout pas « prochain prélèvement ».
+                  ? t.scheduledCancelBody(
+                      planLabel(organization, lang),
+                      scheduledCancel.endsAt.toLocaleDateString(locale, { day: "numeric", month: "long" }),
+                      GRACE_DAYS,
+                    )
+                  : access.state === "trialing" && "until" in access
+                    ? t.trialUntil(access.until?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "")
+                    : access.state === "paid" && "until" in access
+                      ? t.nextCharge(access.until?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "")
+                      : null}
             </p>
             <button
               type="button"
               onClick={openPortal}
               disabled={busy || !isOwner}
-              style={ctaSecondaryBtn(busy)}
+              style={scheduledCancel ? ctaPrimaryBtn(busy) : ctaSecondaryBtn(busy)}
             >
-              {busy ? t.openingPortal : t.manageSubscription}
+              {busy
+                ? t.openingPortal
+                : scheduledCancel ? t.resumeSubscription : t.manageSubscription}
             </button>
+            <PricingAddonToggle
+              organization={organization}
+              isOwner={isOwner}
+              onChanged={onActivated}
+            />
           </Panel>
         )}
 
@@ -1180,8 +1334,8 @@ function SubscriptionCard({
 
       {pickerMode === "paid" && (
         <PlanPickerModal
-          initialTier={organization.subscription_has_pricing ? "sourcing_pro" : "sourcing"}
-          initialSeats={(organization.subscription_seats as PlanSeats) ?? 1}
+          initialSeats={organization.subscription_seats ?? Math.max(organization.seats_total, 1)}
+          initialPricing={organization.subscription_has_pricing === true}
           onClose={() => setPickerMode("closed")}
         />
       )}
@@ -1191,9 +1345,9 @@ function SubscriptionCard({
 
 function planLabel(org: Organization, lang: Lang): string {
   const t = copy[lang]
-  const tier = org.subscription_has_pricing ? t.planPro : t.planStandard
   const seats = org.subscription_seats ?? 1
-  return `${tier} · ${seats} ${t.seatSuffix(seats)}`
+  const base = `Package Sourcing · ${seats} ${t.personLabel(seats)}`
+  return org.subscription_has_pricing ? `${base} · Suite Pricing` : base
 }
 
 const ctaPrimaryBtn = (busy: boolean): React.CSSProperties => ({
@@ -1227,25 +1381,131 @@ const ctaSecondaryBtn = (busy: boolean): React.CSSProperties => ({
 })
 
 /* ────────────────────────────────────────────────────────────────── */
+/* Suite Pricing — activation/retrait sur l'abonnement en cours        */
+/* ────────────────────────────────────────────────────────────────── */
+
+/**
+ * L'option n'était réglable qu'au checkout : un client qui démarrait sans, puis
+ * se mettait à faire de la régie, aurait dû résilier et re-souscrire. On la
+ * vend pourtant comme activable à tout moment (CGU §6, FAQ tarifs) — c'était
+ * donc une promesse non tenue. Ici, un clic ajoute ou retire la ligne d'abo,
+ * proratisée par Stripe.
+ */
+function PricingAddonToggle({
+  organization, isOwner, onChanged,
+}: {
+  organization: Organization
+  isOwner: boolean
+  onChanged: () => Promise<void>
+}) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // État optimiste : après un POST réussi, la ligne Stripe existe (ou n'existe
+  // plus) — c'est un fait, pas une supposition. On le reflète tout de suite au
+  // lieu d'attendre le webhook, dont la latence (surtout en test) ferait
+  // clignoter le bouton sur l'ancien état. `null` = on suit la base.
+  const [optimistic, setOptimistic] = useState<boolean | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const active = optimistic ?? organization.subscription_has_pricing === true
+
+  const toggle = async () => {
+    const target = !active
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch("/api/stripe/pricing-addon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enable: target }),
+      })
+      const j = await res.json().catch(() => ({} as { message?: string }))
+      if (!res.ok) throw new Error(j.message ?? t.addonToggleFailed)
+      // Succès Stripe confirmé → on affiche le nouvel état immédiatement.
+      setOptimistic(target)
+      // Le webhook écrit la base en arrière-plan ; on rafraîchit sans bloquer
+      // l'UI. Quand la base rattrape, `optimistic` et la base coïncident.
+      setSyncing(true)
+      onChanged().finally(() => setSyncing(false))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t.genericError)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{
+      marginTop: 12, paddingTop: 12,
+      borderTop: "1px solid rgba(124,99,200,0.18)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: "#111827" }}>
+            Suite Pricing Syntec
+          </p>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280" }}>
+            {syncing
+              ? t.addonSyncing
+              : active
+                ? t.addonIncluded(formatEur(PRICING_ADDON_EUR))
+                : t.addonOptional(formatEur(PRICING_ADDON_EUR))}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={toggle}
+          disabled={busy || !isOwner}
+          style={{
+            flexShrink: 0,
+            padding: "7px 13px", borderRadius: 9,
+            border: active ? "1px solid #E2DAF6" : "none",
+            background: active ? "white" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            color: active ? "#6B7280" : "white",
+            fontSize: 12, fontWeight: 700,
+            cursor: busy || !isOwner ? "not-allowed" : "pointer",
+            opacity: busy || !isOwner ? 0.6 : 1,
+            fontFamily: "inherit",
+          }}
+        >
+          {busy ? "…" : active ? t.removeAddon : t.activateAddon}
+        </button>
+      </div>
+      {!isOwner && (
+        <p style={{ margin: "6px 0 0", fontSize: 10.5, color: "#6B7280" }}>
+          {t.ownerOnlySubscription}
+        </p>
+      )}
+      {error && (
+        <p style={{ margin: "6px 0 0", fontSize: 11, color: "#B91C1C" }}>{error}</p>
+      )}
+    </div>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
 /* Plan Picker Modal — Stripe Checkout entry point                     */
 /* ────────────────────────────────────────────────────────────────── */
 
 function PlanPickerModal({
-  initialTier, initialSeats, onClose,
+  initialSeats, initialPricing, onClose,
 }: {
-  initialTier: PlanTier
-  initialSeats: PlanSeats
+  initialSeats: number
+  initialPricing: boolean
   onClose: () => void
 }) {
   useEscapeKey(onClose)
   const { lang } = useLanguage()
   const t = copy[lang]
-  const [tier, setTier] = useState<PlanTier>(initialTier)
-  const [seats, setSeats] = useState<PlanSeats>(initialSeats)
+  const [seats, setSeats] = useState<number>(Math.max(1, initialSeats))
+  const [withPricing, setWithPricing] = useState<boolean>(initialPricing)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const price = PLAN_PRICES_EUR[tier][seats]
+  // Au-delà du plafond self-service, on ne vend plus en ligne : le CTA bascule
+  // sur la prise de RDV. Le serveur applique la même règle (cf. checkout).
+  const selfServe = isSelfServeSeats(seats)
+  const total = monthlyTotalEur(seats, withPricing)
 
   const subscribe = async () => {
     setBusy(true); setError(null)
@@ -1253,7 +1513,7 @@ function PlanPickerModal({
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier, seats }),
+        body: JSON.stringify({ seats, withPricing }),
       })
       const j = await res.json().catch(() => ({} as { url?: string; error?: string }))
       if (!res.ok || !j.url) throw new Error(j.error ?? t.checkoutUnavailable)
@@ -1300,143 +1560,172 @@ function PlanPickerModal({
           </h2>
         </header>
 
-        {/* Tier toggle */}
-        <div style={{
-          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18,
-        }}>
-          {(["sourcing", "sourcing_pro"] as const).map((tierOption) => {
-            const active = tier === tierOption
-            return (
-              <button
-                key={tierOption}
-                type="button"
-                onClick={() => setTier(tierOption)}
-                style={{
-                  padding: "14px 12px",
-                  borderRadius: 14,
-                  border: active ? "2px solid #7C63C8" : "1px solid #E2DAF6",
-                  background: active ? "rgba(124,99,200,0.08)" : "white",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  fontFamily: "inherit",
-                }}
-              >
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
-                  {tierOption === "sourcing" ? t.planStandard : t.planPro}
-                </p>
-                <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.45 }}>
-                  {tierOption === "sourcing"
-                    ? t.tierStandardDesc
-                    : t.tierProDesc}
-                </p>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Seats picker */}
+        {/* Nombre de personnes — saisie libre, plus un palier à choisir */}
         <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "#374151", letterSpacing: "0.01em" }}>
-          {t.seatsCount}
+          {t.howManyPeople}
         </p>
         <div style={{
-          display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18,
+          display: "flex", alignItems: "center", gap: 12, marginBottom: 6,
         }}>
-          {([1, 2, 3, 4] as const).map((s) => {
-            const active = seats === s
-            const featured = s === 3
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSeats(s)}
-                style={{
-                  position: "relative",
-                  padding: "12px 6px",
-                  borderRadius: 12,
-                  border: active ? "2px solid #7C63C8" : "1px solid #E2DAF6",
-                  background: active ? "rgba(124,99,200,0.08)" : "white",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  textAlign: "center",
-                }}
-              >
-                {featured && (
-                  <span style={{
-                    position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)",
-                    background: "#7C63C8", color: "white",
-                    fontSize: 8.5, fontWeight: 800, padding: "2px 6px",
-                    borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase",
-                  }}>
-                    {t.recommended}
-                  </span>
-                )}
-                <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827" }}>{s}</p>
-                <p style={{ margin: 0, fontSize: 10.5, color: "#6B7280" }}>
-                  {t.seatSuffix(s)}
-                </p>
-                <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "#7C63C8", fontWeight: 700 }}>
-                  {PLAN_PRICES_EUR[tier][s].toFixed(2)} €
-                </p>
-              </button>
-            )
-          })}
+          <div style={{
+            display: "flex", alignItems: "center",
+            border: "1px solid #E2DAF6", borderRadius: 12, overflow: "hidden",
+          }}>
+            <button
+              type="button"
+              onClick={() => setSeats((n) => Math.max(1, n - 1))}
+              disabled={seats <= 1}
+              aria-label={t.removePerson}
+              style={stepperBtn(seats <= 1)}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={1}
+              value={seats}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10)
+                setSeats(Number.isNaN(n) ? 1 : Math.max(1, Math.min(99, n)))
+              }}
+              aria-label={t.numberOfPeople}
+              style={{
+                width: 58, border: "none", outline: "none", textAlign: "center",
+                fontSize: 18, fontWeight: 800, color: "#111827",
+                fontFamily: "inherit", fontVariantNumeric: "tabular-nums",
+                padding: "10px 0", background: "white",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setSeats((n) => Math.min(99, n + 1))}
+              aria-label={t.addPerson}
+              style={stepperBtn(false)}
+            >
+              +
+            </button>
+          </div>
+          {selfServe && (
+            <span style={{ fontSize: 12, color: "#6B7280" }}>
+              {t.thatIs("")}<strong style={{ color: "#111827" }}>{formatEur(priceForSeats(seats))}</strong>
+              {seats > 1 && t.perPersonSuffix(formatEur(priceForSeats(seats) / seats))}
+            </span>
+          )}
         </div>
-
-        {/* Price + quotas inclus summary */}
-        {(() => {
-          const q = QUOTAS_BY_PLAN[lookupKey(tier, seats)]
-          return (
-            <div style={{
-              background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
-              border: "1px solid #E2DAF6",
-              borderRadius: 14,
-              padding: "14px 16px",
-              marginBottom: 16,
-            }}>
-              <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "baseline",
-              }}>
-                <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
-                  {t.monthlyTotalExclTax}
-                </span>
-                <span style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                  {price.toFixed(2)} €
-                </span>
-              </div>
-              {q && (
-                <div style={{
-                  marginTop: 10, paddingTop: 10,
-                  borderTop: "1px solid rgba(124,99,200,0.18)",
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  fontSize: 11.5, color: "#5C46A0", fontWeight: 600,
-                  flexWrap: "wrap", gap: 6,
-                }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7"/>
-                      <path d="M3 7l9 6 9-6"/>
-                      <rect x="3" y="5" width="18" height="2"/>
-                    </svg>
-                    {t.cvUnit(q.cvLimit.toLocaleString(lang === "fr" ? "fr-FR" : "en-US"))}
-                  </span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M20 6 9 17l-5-5"/>
-                    </svg>
-                    {t.unlimitedMatchings}
-                  </span>
-                </div>
-              )}
-            </div>
-          )
-        })()}
-
-        <p style={{ margin: "0 0 16px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
-          {t.noVatNote}
-          {seats >= 4 && t.beyond4Seats}
+        <p style={{ margin: "0 0 18px", fontSize: 11, color: "#6B7280" }}>
+          {t.seatDiscountHint}
         </p>
+
+        {/* Option Suite Pricing — un interrupteur, pas un plan à part */}
+        <button
+          type="button"
+          onClick={() => setWithPricing((v) => !v)}
+          aria-pressed={withPricing}
+          style={{
+            width: "100%", display: "flex", alignItems: "flex-start", gap: 11,
+            padding: "13px 14px", marginBottom: 18,
+            borderRadius: 14,
+            border: withPricing ? "2px solid #7C63C8" : "1px solid #E2DAF6",
+            background: withPricing ? "rgba(124,99,200,0.08)" : "white",
+            cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              flexShrink: 0, marginTop: 1,
+              width: 18, height: 18, borderRadius: 5,
+              border: withPricing ? "none" : "1.5px solid #C9BEE8",
+              background: withPricing ? "#7C63C8" : "white",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            {withPricing && (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white"
+                strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            )}
+          </span>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>
+                Suite Pricing Syntec
+              </span>
+              <span style={{ fontSize: 12.5, fontWeight: 800, color: "#7C63C8", whiteSpace: "nowrap" }}>
+                + {formatEur(PRICING_ADDON_EUR)}
+              </span>
+            </span>
+            <span style={{ display: "block", marginTop: 3, fontSize: 11.5, color: "#6B7280", lineHeight: 1.45 }}>
+              {t.pricingAddonExtra}
+            </span>
+          </span>
+        </button>
+
+        {/* Récap */}
+        {selfServe ? (
+          <div style={{
+            background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
+            border: "1px solid #E2DAF6",
+            borderRadius: 14,
+            padding: "14px 16px",
+            marginBottom: 16,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+                {t.monthlyTotalExclTax}
+              </span>
+              <span style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+                {formatEur(total)}
+              </span>
+            </div>
+            <div style={{
+              marginTop: 10, paddingTop: 10,
+              borderTop: "1px solid rgba(124,99,200,0.18)",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              fontSize: 11.5, color: "#5C46A0", fontWeight: 600,
+              flexWrap: "wrap", gap: 6,
+            }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7"/>
+                  <path d="M3 7l9 6 9-6"/>
+                  <rect x="3" y="5" width="18" height="2"/>
+                </svg>
+                {t.cvIncluded(cvIncludedForSeats(seats).toLocaleString(lang === "fr" ? "fr-FR" : "en-US"))}
+              </span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M20 6 9 17l-5-5"/>
+                </svg>
+                {t.unlimitedMatchings}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            background: "#FFFBEB",
+            border: "1px solid #FDE68A",
+            borderRadius: 14,
+            padding: "14px 16px",
+            marginBottom: 16,
+          }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#92400E" }}>
+              {t.talkAboutItTitle(seats)}
+            </p>
+            <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#92400E", lineHeight: 1.5 }}>
+              {t.talkAboutItBody(MAX_SELF_SERVE_SEATS)}
+            </p>
+          </div>
+        )}
+
+        {selfServe && (
+          <p style={{ margin: "0 0 16px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
+            {t.noVatNote}
+          </p>
+        )}
 
         {error && (
           <p style={{ margin: "0 0 12px", fontSize: 12, color: "#B91C1C" }}>{error}</p>
@@ -1462,32 +1751,54 @@ function PlanPickerModal({
           >
             {t.cancel}
           </button>
-          <button
-            type="button"
-            onClick={subscribe}
-            disabled={busy}
-            style={{
-              flex: 2,
-              padding: "12px 16px",
-              borderRadius: 12,
-              border: "none",
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              color: "white",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: busy ? "wait" : "pointer",
-              opacity: busy ? 0.7 : 1,
-              boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
-              fontFamily: "inherit",
-            }}
-          >
-            {busy ? t.redirecting : t.continueToPayment}
-          </button>
+          {selfServe ? (
+            <button
+              type="button"
+              onClick={subscribe}
+              disabled={busy}
+              style={ctaModalBtn(busy)}
+            >
+              {busy ? t.redirecting : t.continueWithPrice(formatEur(total))}
+            </button>
+          ) : (
+            <a href="/contact-equipe" style={{ ...ctaModalBtn(false), textDecoration: "none", textAlign: "center" }}>
+              {t.bookAppointment}
+            </a>
+          )}
         </div>
       </m.div>
     </div>
   )
 }
+
+const ctaModalBtn = (busy: boolean): React.CSSProperties => ({
+  flex: 2,
+  padding: "12px 16px",
+  borderRadius: 12,
+  border: "none",
+  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+  color: "white",
+  fontSize: 14,
+  fontWeight: 700,
+  cursor: busy ? "wait" : "pointer",
+  opacity: busy ? 0.7 : 1,
+  boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
+  fontFamily: "inherit",
+})
+
+/** Boutons − / + du sélecteur de personnes. */
+const stepperBtn = (disabled: boolean): React.CSSProperties => ({
+  width: 38,
+  padding: "10px 0",
+  border: "none",
+  background: "white",
+  color: disabled ? "#D1D5DB" : "#7C63C8",
+  fontSize: 18,
+  fontWeight: 700,
+  lineHeight: 1,
+  cursor: disabled ? "not-allowed" : "pointer",
+  fontFamily: "inherit",
+})
 
 function Panel({ tone, children }: { tone: "brand" | "success" | "warn"; children: React.ReactNode }) {
   const styles: Record<typeof tone, { bg: string; border: string }> = {
@@ -3021,14 +3332,36 @@ function EmptySeatActions({
   const { lang } = useLanguage()
   const t = copy[lang]
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement | null>(null)
+  // Position fixe calculée sur le bouton : le menu est rendu via createPortal
+  // dans <body> pour échapper à l'overflow:hidden de la carte Membres (sinon
+  // le dropdown est coupé).
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect()
+    if (r) setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) })
+    setOpen(true)
+  }
+
   useEffect(() => {
     if (!open) return
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return
+      setOpen(false)
     }
-    document.addEventListener("mousedown", onClick)
-    return () => document.removeEventListener("mousedown", onClick)
+    const close = () => setOpen(false)
+    document.addEventListener("mousedown", onDown)
+    window.addEventListener("resize", close)
+    // capture=true : suit aussi le scroll d'un conteneur interne.
+    window.addEventListener("scroll", close, true)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      window.removeEventListener("resize", close)
+      window.removeEventListener("scroll", close, true)
+    }
   }, [open])
 
   // Aucun membre disponible -> bouton simple, pas de dropdown.
@@ -3046,29 +3379,31 @@ function EmptySeatActions({
   }
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         disabled={busy}
         style={addMemberBtnStyle}
       >
         {t.allocateSeatDropdown}
       </button>
-      {open && (
+      {open && pos && createPortal(
         <div
+          ref={menuRef}
           role="menu"
           style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            right: 0,
+            position: "fixed",
+            top: pos.top,
+            right: pos.right,
             minWidth: 240,
             background: "white",
             border: "1px solid #E5E7EB",
             borderRadius: 10,
             boxShadow: "0 12px 32px -8px rgba(17,24,39,0.20)",
             padding: 5,
-            zIndex: 10,
+            zIndex: 1000,
             fontFamily: "var(--font-inter), sans-serif",
           }}
         >
@@ -3100,9 +3435,10 @@ function EmptySeatActions({
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   )
 }
 
@@ -3171,11 +3507,11 @@ function RolePill({ role }: { role: "owner" | "member" }) {
 /* ────────────────────────────────────────────────────────────────── */
 
 function DangerSection({
-  organization, seatsUsed, onDeleted,
+  organization, isOwner, onChanged,
 }: {
   organization: { id: string; name: string; pending_deletion_at: string | null }
-  seatsUsed: number
-  onDeleted: () => void
+  isOwner: boolean
+  onChanged: () => void | Promise<void>
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -3186,7 +3522,6 @@ function DangerSection({
 
   const expectedConfirm = (organization.name || "").trim()
   const canDelete = confirmText.trim() === expectedConfirm && !busy
-  const hasOtherMembers = seatsUsed > 1
 
   const doDelete = async () => {
     if (!canDelete) return
@@ -3198,41 +3533,80 @@ function DangerSection({
       setBusy(false)
       return
     }
-    await getSupabase().auth.signOut()
-    onDeleted()
+    // Pas de déconnexion : l'owner reste connecté pour pouvoir ANNULER pendant
+    // la grâce. L'org passe en lecture seule, l'UI se rafraîchit et bascule sur
+    // l'état "Suppression programmée · Annuler".
+    setShowModal(false); setConfirmText(""); setBusy(false)
+    await onChanged()
   }
 
-  if (organization.pending_deletion_at) return null
+  const cancelDeletion = async () => {
+    setBusy(true); setError(null)
+    const res = await fetch("/api/cabinet/cancel-deletion", { method: "POST" })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? t.cancelDeletionError)
+      setBusy(false)
+      return
+    }
+    setBusy(false)
+    await onChanged()
+  }
+
+  // ─ Suppression déjà programmée → carte de rappel + annulation.
+  if (organization.pending_deletion_at) {
+    const date = new Date(organization.pending_deletion_at).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "long", year: "numeric" })
+    return (
+      <section style={{
+        padding: "16px 18px", background: "white",
+        border: "1px solid rgba(239,68,68,0.30)", borderRadius: 14, boxSizing: "border-box",
+      }}>
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>{t.deletionScheduled}</h2>
+        <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+          {t.orgWillBeDeletedReadOnly(date)}
+        </p>
+        {isOwner ? (
+          <button type="button" onClick={cancelDeletion} disabled={busy}
+            style={{
+              padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(124,99,200,0.35)",
+              background: "white", color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+              cursor: busy ? "default" : "pointer",
+            }}>
+            {busy ? t.cancelling : t.cancelDeletion}
+          </button>
+        ) : (
+          <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontStyle: "italic" }}>
+            {t.ownerOnlyCancelDeletion}
+          </p>
+        )}
+        {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>}
+      </section>
+    )
+  }
+
+  // ─ Suppression réservée à l'owner.
+  if (!isOwner) return null
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <ExportDataCard />
-
-      <section style={{
-        padding: "16px 18px",
-        background: "white",
-        border: "1px solid rgba(239,68,68,0.30)",
-        borderRadius: 14,
-        boxSizing: "border-box",
-      }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
-          {t.dangerZone}
-        </h2>
-        <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-          {t.deleteOrgBody}{" "}
-          {hasOtherMembers
-            ? <>{t.otherMembersKeepAccess}</>
-            : <>{t.deletionImmediate}</>}
-        </p>
-        <button type="button" onClick={() => setShowModal(true)}
-          style={{
-            padding: "8px 14px", borderRadius: 9,
-            border: "1px solid rgba(239,68,68,0.35)",
-            background: "white", color: "#B91C1C",
-            fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-          }}>
-          {t.deleteMyOrg}
-        </button>
+    <section style={{
+      padding: "16px 18px", background: "white",
+      border: "1px solid rgba(239,68,68,0.30)", borderRadius: 14, boxSizing: "border-box",
+    }}>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
+        {t.dangerZone}
+      </h2>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+        {t.deleteOrgBodyFull}
+      </p>
+      <button type="button" onClick={() => setShowModal(true)}
+        style={{
+          padding: "8px 14px", borderRadius: 9,
+          border: "1px solid rgba(239,68,68,0.35)",
+          background: "white", color: "#B91C1C",
+          fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+        }}>
+        {t.deleteMyOrg}
+      </button>
 
       {showModal && (
         <div role="dialog" aria-modal="true"
@@ -3254,7 +3628,7 @@ function DangerSection({
               {t.deleteOrgConfirmTitle(organization.name)}
             </h3>
             <p style={{ margin: "10px 0 18px", fontSize: 13.5, color: "#4B5563", lineHeight: 1.6 }}>
-              {hasOtherMembers ? t.deleteOrgBodyMulti : t.deleteOrgBodySolo}
+              {t.deleteOrgConfirmBody}
             </p>
             <Label>{t.typeOrgNameToConfirm} <code style={{ background: "#F3F4F6", padding: "1px 6px", borderRadius: 4, color: "#111827" }}>{expectedConfirm}</code></Label>
             <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
@@ -3273,14 +3647,114 @@ function DangerSection({
                   fontSize: 13, fontWeight: 700,
                   cursor: canDelete ? "pointer" : "not-allowed",
                 }}>
-                {busy ? t.deleting : t.confirmAction}
+                {busy ? t.scheduling : t.scheduleDeletion}
               </button>
             </div>
           </div>
         </div>
       )}
-      </section>
-    </div>
+    </section>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Transfert de propriété                                              */
+/* ────────────────────────────────────────────────────────────────── */
+
+function TransferOwnershipCard({
+  currentUserId, onTransferred,
+}: {
+  currentUserId: string
+  onTransferred: () => void | Promise<void>
+}) {
+  const [members, setMembers] = useState<Array<{ user_id: string; first_name: string | null; role: string }>>([])
+  const [loading, setLoading] = useState(true)
+  const [target, setTarget] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      const { data } = await getSupabase()
+        .from("profiles")
+        .select("user_id, first_name, role")
+        .neq("user_id", currentUserId)
+      if (!mounted) return
+      setMembers((data ?? []) as Array<{ user_id: string; first_name: string | null; role: string }>)
+      setLoading(false)
+    })()
+    return () => { mounted = false }
+  }, [currentUserId])
+
+  if (loading) return null
+  // Rien à transférer si l'owner est seul.
+  if (members.length === 0) return null
+
+  const label = (m: { first_name: string | null; user_id: string }) =>
+    m.first_name?.trim() || `Membre ${m.user_id.slice(0, 6)}`
+
+  const doTransfer = async () => {
+    if (!target) return
+    setBusy(true); setError(null)
+    const res = await fetch("/api/cabinet/transfer-ownership", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: target }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { error?: string }))
+      setError(j.error ?? "Transfert impossible.")
+      setBusy(false)
+      return
+    }
+    setBusy(false); setConfirming(false)
+    await onTransferred()
+  }
+
+  return (
+    <section style={{
+      padding: "16px 18px", background: "white",
+      border: "1px solid #F0ECF8", borderRadius: 14, boxSizing: "border-box",
+    }}>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>
+        Transférer la propriété
+      </h2>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+        Passez la main à un autre membre. Vous deviendrez membre de l&apos;organisation ;
+        le nouveau propriétaire gérera l&apos;abonnement, les sièges et le branding.
+      </p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <select value={target} onChange={(e) => { setTarget(e.target.value); setConfirming(false) }}
+          style={{ ...inputStyle, maxWidth: 260 }}>
+          <option value="">Choisir un membre…</option>
+          {members.map((m) => (
+            <option key={m.user_id} value={m.user_id}>{label(m)}</option>
+          ))}
+        </select>
+        {!confirming ? (
+          <button type="button" onClick={() => target && setConfirming(true)} disabled={!target}
+            style={{
+              padding: "9px 14px", borderRadius: 9, border: "1px solid rgba(124,99,200,0.35)",
+              background: "white", color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+              cursor: target ? "pointer" : "not-allowed",
+            }}>
+            Transférer
+          </button>
+        ) : (
+          <button type="button" onClick={doTransfer} disabled={busy}
+            style={{
+              padding: "9px 14px", borderRadius: 9, border: "none",
+              background: "#7C63C8", color: "white", fontSize: 12.5, fontWeight: 700,
+              cursor: busy ? "default" : "pointer",
+            }}>
+            {busy ? "Transfert…" : "Confirmer le transfert"}
+          </button>
+        )}
+      </div>
+      {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>}
+    </section>
   )
 }
 

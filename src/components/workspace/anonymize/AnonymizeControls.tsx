@@ -34,6 +34,8 @@ const copy = {
     noJobSelected: "Aucune mission sélectionnée — le PDF sera générique.",
     customize: "Personnaliser",
     noJobTitle: "Aucune mission sélectionnée",
+    readOnlyGenerate: "Lecture seule — souscrivez pour générer un anonymisé",
+    readOnly: "Lecture seule",
     generating: "Génération…",
     regenerate: "Régénérer pour cette mission",
     generate: "Anonymiser pour cette mission",
@@ -63,6 +65,8 @@ const copy = {
     noJobSelected: "No mission selected — the PDF will be generic.",
     customize: "Customize",
     noJobTitle: "No mission selected",
+    readOnlyGenerate: "Read-only — subscribe to generate an anonymized CV",
+    readOnly: "Read-only",
     generating: "Generating…",
     regenerate: "Regenerate for this mission",
     generate: "Anonymize for this mission",
@@ -203,6 +207,7 @@ export function AnonymizeControls({
   onOptionsChange,
   onGenerate,
   onScrollToPreview,
+  readOnly = false,
 }: {
   candidateId: string
   jobId: string | null
@@ -214,6 +219,8 @@ export function AnonymizeControls({
   onGenerate: () => Promise<void> | void
   /** Scroll vers la section AnonymizePreview en bas de la fiche match. */
   onScrollToPreview: () => void
+  /** Lecture seule : génération + export .docx bloqués (anti-extraction). */
+  readOnly?: boolean
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -228,7 +235,7 @@ export function AnonymizeControls({
    * unique en flux serveur.
    */
   const downloadDocx = async () => {
-    if (docxBusy || !candidateParsed) return
+    if (docxBusy || !candidateParsed || readOnly) return
     setDocxBusy(true); setDocxError(null)
     try {
       const res = await fetch(`/api/cv/${candidateId}/anonymize/docx`, {
@@ -278,7 +285,7 @@ export function AnonymizeControls({
     options.customText.trim().length > 0 ||
     options.watermark
   const hasJob = !!jobId
-  const disabled = !candidateParsed || !hasJob || status.state === "working"
+  const disabled = !candidateParsed || !hasJob || status.state === "working" || readOnly
 
   return (
     <section style={{
@@ -342,7 +349,7 @@ export function AnonymizeControls({
             type="button"
             onClick={() => void onGenerate()}
             disabled={disabled}
-            title={!hasJob ? t.noJobTitle : undefined}
+            title={readOnly ? t.readOnlyGenerate : !hasJob ? t.noJobTitle : undefined}
             style={{
               fontSize: 13, fontWeight: 700,
               color: disabled ? "#6B7280" : "white",
@@ -404,12 +411,12 @@ export function AnonymizeControls({
           <button
             type="button"
             onClick={() => void downloadDocx()}
-            disabled={!candidateParsed || docxBusy}
-            title={t.docxTitle}
+            disabled={!candidateParsed || docxBusy || readOnly}
+            title={readOnly ? t.readOnly : t.docxTitle}
             style={{
               fontSize: 12, fontWeight: 600, color: "#6B7280",
               background: "transparent", border: "none",
-              padding: "10px 4px", cursor: !candidateParsed || docxBusy ? "default" : "pointer",
+              padding: "10px 4px", cursor: !candidateParsed || docxBusy || readOnly ? "default" : "pointer",
               textDecoration: "underline", textDecorationStyle: "dotted",
               textUnderlineOffset: 3, fontFamily: "inherit",
               whiteSpace: "nowrap",

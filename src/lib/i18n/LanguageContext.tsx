@@ -70,11 +70,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ preferred_language: next }),
       }).then((res) => {
         if (!res.ok) {
-          // eslint-disable-next-line no-console
           console.error('[LanguageContext] preferred_language save failed', res.status)
         }
       }).catch(() => {
-        // eslint-disable-next-line no-console
         console.error('[LanguageContext] preferred_language save failed (network)')
       })
     }

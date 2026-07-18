@@ -4,7 +4,11 @@
  * Owner-only. Crée une Stripe Checkout Session pour souscrire à un plan
  * PAYANT et retourne son URL hostée.
  *
- * Body : { tier: 'sourcing' | 'sourcing_pro', seats: 1|2|3|4 }
+ * Body : { seats: number (1..MAX_SELF_SERVE_SEATS), withPricing?: boolean }
+ *
+ * L'abonnement porte jusqu'à deux lignes : le socle « sièges » (quantité =
+ * seats, barème dégressif appliqué par Stripe) et, en option, l'add-on Suite
+ * Pricing à prix plat. Plus de `tier` : il n'y a qu'un seul plan.
  *
  * Important :
  *   - **Pas de `trial_period_days`** : on garde l'essai 15 jours côté
@@ -25,17 +29,21 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
   getStripe,
+  getAppUrl,
+  ensureStripeCustomer,
   getPriceIdByLookupKey,
-  lookupKey,
-  type PlanTier,
-  type PlanSeats,
+  LOOKUP_SEAT,
+  LOOKUP_PRICING_ADDON,
+  MAX_SELF_SERVE_SEATS,
 } from "@/lib/stripe"
 
 export const runtime = "nodejs"
 
 interface CheckoutBody {
-  tier?: PlanTier
-  seats?: PlanSeats
+  /** Nombre de sièges — quantité libre, plus un palier. */
+  seats?: number
+  /** Suite Pricing Syntec en option (ligne d'abonnement distincte). */
+  withPricing?: boolean
 }
 
 export async function POST(req: Request) {
@@ -46,14 +54,21 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json().catch(() => ({}))) as CheckoutBody
-  const tier = body.tier
-  const seats = body.seats
+  const seats = Number(body.seats)
+  const withPricing = body.withPricing === true
 
-  if (tier !== "sourcing" && tier !== "sourcing_pro") {
-    return NextResponse.json({ error: "Tier invalide" }, { status: 400 })
-  }
-  if (![1, 2, 3, 4].includes(seats as number)) {
-    return NextResponse.json({ error: "Nombre de sièges invalide" }, { status: 400 })
+  // Le plafond self-service est une règle COMMERCIALE, pas seulement une UI :
+  // au-delà on veut une conversation (négociation, facturation). Le
+  // configurateur bascule déjà sur la prise de RDV, mais rien n'empêcherait
+  // de poster 50 sièges à la main — d'où la validation ici aussi.
+  if (!Number.isInteger(seats) || seats < 1 || seats > MAX_SELF_SERVE_SEATS) {
+    return NextResponse.json(
+      {
+        error: "seats_out_of_range",
+        message: `Au-delà de ${MAX_SELF_SERVE_SEATS} personnes, contactez-nous pour un devis.`,
+      },
+      { status: 400 },
+    )
   }
 
   // RLS-scoped read : confirms the caller's org and role.
@@ -88,16 +103,18 @@ export async function POST(req: Request) {
   try {
   const stripe = getStripe()
 
-  // Reuse or create the Stripe Customer. Email is taken from auth ;
-  // metadata holds the org_id so the webhook can match it back.
-  let customerId = org.stripe_customer_id
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email ?? undefined,
-      name: org.name,
-      metadata: { organization_id: org.id },
-    })
-    customerId = customer.id
+  // Réutilise le Stripe Customer de l'org, ou en crée un. `ensureStripeCustomer`
+  // valide que l'id stocké existe bien dans le MODE COURANT : un customer créé
+  // en live est inconnu de l'API test (previews) et inversement, ce qui faisait
+  // planter le checkout. Email pris sur l'auth ; metadata porte l'org_id pour
+  // que le webhook puisse recoller.
+  const { customerId, created } = await ensureStripeCustomer({
+    storedId: org.stripe_customer_id,
+    organizationId: org.id,
+    name: org.name,
+    email: user.email ?? undefined,
+  })
+  if (created) {
     const { error: updateErr } = await admin
       .from("organizations")
       .update({ stripe_customer_id: customerId })
@@ -108,15 +125,24 @@ export async function POST(req: Request) {
     }
   }
 
-  const priceId = await getPriceIdByLookupKey(
-    lookupKey(tier as PlanTier, seats as PlanSeats),
-  )
+  // Deux lignes distinctes : le socle « sièges » — quantité = nb de sièges,
+  // c'est Stripe qui applique le barème dégressif — et, si l'option est prise,
+  // l'add-on Suite Pricing à prix plat (quantité 1). Les garder séparées est ce
+  // qui permet au client d'ajouter/retirer l'option au portail sans changer de
+  // plan, et au webhook de dériver `subscription_has_pricing` de sa présence.
+  const seatPriceId = await getPriceIdByLookupKey(LOOKUP_SEAT)
+  const addonPriceId = withPricing
+    ? await getPriceIdByLookupKey(LOOKUP_PRICING_ADDON)
+    : null
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://naywastudio.com"
+  const appUrl = getAppUrl(req)
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: [
+      { price: seatPriceId, quantity: seats },
+      ...(addonPriceId ? [{ price: addonPriceId, quantity: 1 }] : []),
+    ],
     // Pas de payment_method_types hardcodé : Stripe utilise les moyens de
     // paiement ACTIVÉS au dashboard (dynamic payment methods). L'ancien
     // hardcode ["card", "sepa_debit"] faisait un 500 quand SEPA n'était pas
@@ -141,8 +167,8 @@ export async function POST(req: Request) {
       // le trial est géré séparément côté DB (trial_ends_at).
       metadata: {
         organization_id: org.id,
-        tier,
         seats: String(seats),
+        with_pricing: String(withPricing),
       },
     },
     success_url: `${appUrl}/organisation?checkout=success`,
@@ -150,8 +176,8 @@ export async function POST(req: Request) {
     client_reference_id: org.id,
     metadata: {
       organization_id: org.id,
-      tier,
       seats: String(seats),
+      with_pricing: String(withPricing),
     },
   })
 

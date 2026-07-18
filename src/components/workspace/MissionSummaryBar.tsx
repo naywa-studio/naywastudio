@@ -30,6 +30,7 @@ const copy = {
     mainCriteria: "Critères principaux",
     bonus: "Bonus",
     pricingLink: "Chiffrer dans le pricing →",
+    roTitle: "Lecture seule — souscrivez pour reprendre la main",
   },
   en: {
     collapse: "Collapse mission",
@@ -44,6 +45,7 @@ const copy = {
     mainCriteria: "Main criteria",
     bonus: "Bonus",
     pricingLink: "Price it in pricing →",
+    roTitle: "Read-only — subscribe to regain control",
   },
 }
 
@@ -56,10 +58,12 @@ interface Props {
   onAssignFromVivier: () => void
   onCreateForm?: () => void
   matching: boolean
+  /** Lecture seule (lockdown / accès suspendu) : actions de mutation grisées. */
+  readOnly?: boolean
 }
 
 export function MissionSummaryBar({
-  job, criteria, onEditCriteria, onImportCvs, onMatchVivier, onAssignFromVivier, onCreateForm, matching,
+  job, criteria, onEditCriteria, onImportCvs, onMatchVivier, onAssignFromVivier, onCreateForm, matching, readOnly = false,
 }: Props) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -108,18 +112,18 @@ export function MissionSummaryBar({
         </div>
         {!matching && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={onImportCvs} style={btnGhost}>{t.importCvs}</button>
-            <button onClick={onMatchVivier} style={btnGhost}>{t.matchVivier}</button>
-            <button onClick={onAssignFromVivier} style={btnGhost}>{t.assignFromVivier}</button>
+            <button onClick={onImportCvs} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>{t.importCvs}</button>
+            <button onClick={onMatchVivier} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>{t.matchVivier}</button>
+            <button onClick={onAssignFromVivier} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>{t.assignFromVivier}</button>
             {/* Formulaire public (E2) : masqué tant que la feature n'est pas
                 livrée — un bouton grisé "bientôt" fait produit inachevé. Il
                 réapparaîtra dès que le parent passera onCreateForm. */}
             {onCreateForm && (
-              <button onClick={onCreateForm} style={btnGhost}>
+              <button onClick={onCreateForm} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>
                 {t.createForm}
               </button>
             )}
-            <button onClick={onEditCriteria} style={btnPrimary}>
+            <button onClick={onEditCriteria} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnPrimaryDisabled : btnPrimary}>
               {t.editCriteria}
             </button>
           </div>
@@ -226,4 +230,13 @@ const btnPrimary: React.CSSProperties = {
   border: "none", color: "white",
   fontSize: 12, fontWeight: 700,
   cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+}
+const btnGhostDisabled: React.CSSProperties = {
+  ...btnGhost,
+  background: "#F3F0FA", border: "1px solid #E5E0F0",
+  color: "#B8AEDE", cursor: "not-allowed",
+}
+const btnPrimaryDisabled: React.CSSProperties = {
+  ...btnPrimary,
+  background: "#C4B6E0", cursor: "not-allowed",
 }

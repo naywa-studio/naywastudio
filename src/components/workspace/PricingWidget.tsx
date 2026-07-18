@@ -319,7 +319,7 @@ const copy = {
       <>Trial period{" "}
       <strong>{essai ? `≈ ${essai}` : "1 working day per week of contract"}</strong>{" "}
       (L1242-10). Outside the trial, employer termination costs the{" "}
-      <strong>remaining salary until the contract's term</strong> + a 10%
+      <strong>remaining salary until the contract&apos;s term</strong> + a 10%
       end-of-contract bonus (L1243-4). At term, a 10% end-of-contract bonus
       on the pay received. The « trial renewal » toggle only applies to
       permanent contracts.</>

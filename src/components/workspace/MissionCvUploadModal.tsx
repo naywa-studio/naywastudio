@@ -216,7 +216,7 @@ export function MissionCvUploadModal({
     } catch (err) {
       patch(id, { stage: "error", error: (err as Error).message })
     }
-  }, [jobId, onAnyScored, patch, registerSector, t])
+  }, [jobId, onAnyScored, patch, registerSector, t, lang])
 
   const enqueue = useCallback(async (files: File[]) => {
     const pending: Array<{ id: string; file: File }> = []

@@ -14,6 +14,7 @@
 
 import type { Organization } from "@/lib/database.types"
 import { hasActiveAccess, isInLockdown } from "@/lib/subscription"
+import { CV_PER_SEAT, planLabel } from "@/lib/pricing-plan"
 
 const GB = 1024 * 1024 * 1024
 
@@ -45,33 +46,39 @@ export interface Quotas {
 }
 
 /**
- * Grille par lookup_key Stripe. Les clés correspondent à
- * sourcing_1..4 et sourcing_pro_1..4 (cf. lib/stripe.ts).
+ * Quotas d'un plan payant — DÉRIVÉS DU NOMBRE DE SIÈGES.
  *
- * MODÈLE CLIENT : un seul plafond visible = `cvLimit` (capacité du vivier
- * en nombre de CV). Matchings + anonymisations illimités. `storageBytes` et
+ * Depuis le passage au modèle « sièges en quantité libre + add-on Pricing »
+ * (cf. lib/stripe.ts), il n'existe plus de lookup_key par palier : la table
+ * figée sourcing_1..4 / sourcing_pro_1..4 n'avait plus de sens, et surtout
+ * elle ne savait pas répondre pour 5 sièges ou plus. On calcule.
+ *
+ * MODÈLE CLIENT : un seul plafond visible = `cvLimit` (capacité du vivier en
+ * nombre de CV). Matchings + anonymisations illimités. `storageBytes` et
  * `llmMonthly` restent en FILET INTERNE (anti-abus, jamais montrés) et sont
  * volontairement larges pour ne JAMAIS mordre avant la limite de CV.
  *
  * Dimensionnement :
- *   - cvLimit : 5k / 10k / 20k / 30k selon sièges (généreux — nos coûts sont
- *     dérisoires : ~1 Mo/CV sur R2 à $0.015/GB, ~$0.001/action gpt-4o-mini).
+ *   - cvLimit : 10 000 CV par siège. Généreux et assumé — nos coûts sont
+ *     dérisoires (~1 Mo/CV sur R2 à $0.015/GB, ~$0.001/action gpt-4o-mini),
+ *     et un plafond lisible « 10 000 par personne » vaut mieux qu'un barème.
  *   - storageBytes : ~2 Mo/CV de marge (original + PDF anonymisé + docx) →
  *     toujours au-dessus du besoin réel, ne bloque jamais avant cvLimit.
  *   - llmMonthly : plafond anti-abus très haut, invisible côté client.
  *
- * Pro = mêmes plafonds vivier que Std (le premium porte sur la Suite Pricing
- * Syntec, pas sur des quotas gonflés).
+ * L'add-on Suite Pricing ne débloque QUE la Suite Pricing : il n'ouvre aucun
+ * quota supplémentaire (cf. hasPricingAccess dans lib/subscription.ts).
  */
-export const QUOTAS_BY_PLAN: Record<string, { cvLimit: number; storageBytes: number; llmMonthly: number }> = {
-  sourcing_1:     { cvLimit:  5_000, storageBytes: 10 * GB, llmMonthly: 1_000_000 },
-  sourcing_2:     { cvLimit: 10_000, storageBytes: 20 * GB, llmMonthly: 1_000_000 },
-  sourcing_3:     { cvLimit: 20_000, storageBytes: 40 * GB, llmMonthly: 1_000_000 },
-  sourcing_4:     { cvLimit: 30_000, storageBytes: 60 * GB, llmMonthly: 1_000_000 },
-  sourcing_pro_1: { cvLimit:  5_000, storageBytes: 10 * GB, llmMonthly: 1_000_000 },
-  sourcing_pro_2: { cvLimit: 10_000, storageBytes: 20 * GB, llmMonthly: 1_000_000 },
-  sourcing_pro_3: { cvLimit: 20_000, storageBytes: 40 * GB, llmMonthly: 1_000_000 },
-  sourcing_pro_4: { cvLimit: 30_000, storageBytes: 60 * GB, llmMonthly: 1_000_000 },
+const STORAGE_PER_SEAT = 20 * GB
+const LLM_CAP = 1_000_000
+
+function quotasForSeats(seats: number | null | undefined) {
+  const n = Math.max(1, Math.floor(seats ?? 1))
+  return {
+    cvLimit: CV_PER_SEAT * n,
+    storageBytes: STORAGE_PER_SEAT * n,
+    llmMonthly: LLM_CAP,
+  }
 }
 
 /**
@@ -102,26 +109,37 @@ const ADMIN_QUOTAS = { cvLimit: 9_999_999, storageBytes: 1024 * GB, llmMonthly: 
  * car isInLockdown/hasActiveAccess en dépendent.
  */
 type OrgForQuotas = Pick<Organization,
-  | "subscription_status" | "subscription_price_lookup"
+  | "subscription_status" | "subscription_seats" | "subscription_has_pricing"
   | "trial_ends_at" | "lockdown_started_at" | "quota_override_json"
   | "current_period_end"
 >
 
+const QUOTA_LABELS = {
+  admin: { fr: "Admin Naywa — quotas illimités", en: "Naywa admin — unlimited quotas" },
+  noOrg: { fr: "Aucune organisation", en: "No organization" },
+  override: { fr: "Quota personnalisé", en: "Custom quota" },
+  suspended: { fr: "Abonnement suspendu", en: "Subscription suspended" },
+  trial: { fr: "Essai gratuit (15 jours)", en: "Free trial (15 days)" },
+  noAccess: { fr: "Aucun accès actif", en: "No active access" },
+} as const
+
 export function getQuotas(
   org: OrgForQuotas | null,
-  opts?: { isAdmin?: boolean },
+  opts?: { isAdmin?: boolean; lang?: "fr" | "en" },
 ): Quotas {
+  const lang = opts?.lang ?? "fr"
+
   if (opts?.isAdmin) {
     return {
       ...ADMIN_QUOTAS, period: "month",
-      source: "admin", label: "Admin Naywa — quotas illimités",
+      source: "admin", label: QUOTA_LABELS.admin[lang],
     }
   }
 
   if (!org) {
     return {
       cvLimit: 0, storageBytes: 0, llmMonthly: 0, period: "month",
-      source: "lockdown", label: "Aucune organisation",
+      source: "lockdown", label: QUOTA_LABELS.noOrg[lang],
     }
   }
 
@@ -135,7 +153,7 @@ export function getQuotas(
       llmMonthly: override.llm_monthly ?? 1_000_000,
       period: "month",
       source: "override",
-      label: "Quota personnalisé",
+      label: QUOTA_LABELS.override[lang],
     }
   }
 
@@ -144,18 +162,21 @@ export function getQuotas(
     return {
       cvLimit: 0, storageBytes: 0, llmMonthly: 0, period: "month",
       source: "lockdown",
-      label: "Abonnement suspendu",
+      label: QUOTA_LABELS.suspended[lang],
     }
   }
 
-  // 3. Plan actif Stripe.
-  const lookup = org.subscription_price_lookup
-  if (lookup && QUOTAS_BY_PLAN[lookup]) {
-    const q = QUOTAS_BY_PLAN[lookup]
+  // 3. Plan actif Stripe — quotas DÉRIVÉS du nombre de sièges facturés.
+  //    On exige aussi un accès actif : sans ça, une org dont l'abo a été
+  //    résilié mais dont le lockdown a été effacé garderait ses quotas de
+  //    plan via un `subscription_seats` devenu obsolète. Sans accès actif,
+  //    on tombe volontairement sur les branches suivantes (essai / aucun).
+  if (org.subscription_seats != null && hasActiveAccess(org)) {
     return {
-      ...q, period: "month",
+      ...quotasForSeats(org.subscription_seats),
+      period: "month",
       source: "plan",
-      label: planLabel(lookup),
+      label: planLabel(org.subscription_seats, org.subscription_has_pricing ?? false, lang),
     }
   }
 
@@ -165,23 +186,15 @@ export function getQuotas(
   if (hasActiveAccess(org)) {
     return {
       ...TRIAL_QUOTAS, period: "fixed",
-      source: "trial", label: "Essai gratuit (15 jours)",
+      source: "trial", label: QUOTA_LABELS.trial[lang],
     }
   }
 
   // 5. Aucun accès — l'org n'a ni trial actif ni abonnement.
   return {
     cvLimit: 0, storageBytes: 0, llmMonthly: 0, period: "month",
-    source: "lockdown", label: "Aucun accès actif",
+    source: "lockdown", label: QUOTA_LABELS.noAccess[lang],
   }
-}
-
-function planLabel(lookup: string): string {
-  const m = /^sourcing(?:_pro)?_(\d)$/.exec(lookup)
-  if (!m) return lookup
-  const pro = lookup.startsWith("sourcing_pro")
-  const seats = m[1]
-  return `Plan ${pro ? "Sourcing Pro" : "Sourcing"} — ${seats} siège${Number(seats) > 1 ? "s" : ""}`
 }
 
 // ─── Formatage humain ──────────────────────────────────────────────────

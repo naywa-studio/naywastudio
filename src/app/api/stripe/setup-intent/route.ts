@@ -14,11 +14,11 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { getStripe } from "@/lib/stripe"
+import { getStripe, getAppUrl, ensureStripeCustomer } from "@/lib/stripe"
 
 export const runtime = "nodejs"
 
-export async function POST() {
+export async function POST(req: Request) {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) {
@@ -47,27 +47,27 @@ export async function POST() {
     .eq("id", profile.organization_id)
     .single()
   if (orgErr || !org) {
-    return NextResponse.json({ error: "Cabinet introuvable" }, { status: 404 })
+    return NextResponse.json({ error: "Organisation introuvable" }, { status: 404 })
   }
 
   const stripe = getStripe()
 
-  // Réutilise ou crée le Stripe Customer comme dans /checkout.
-  let customerId = org.stripe_customer_id
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email ?? undefined,
-      name: org.name,
-      metadata: { organization_id: org.id },
-    })
-    customerId = customer.id
+  // Réutilise ou crée le Stripe Customer comme dans /checkout (l'id stocké peut
+  // appartenir à l'autre mode Stripe — base partagée prod/preview).
+  const { customerId, created } = await ensureStripeCustomer({
+    storedId: org.stripe_customer_id,
+    organizationId: org.id,
+    name: org.name,
+    email: user.email ?? undefined,
+  })
+  if (created) {
     await admin
       .from("organizations")
       .update({ stripe_customer_id: customerId })
       .eq("id", org.id)
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://naywastudio.com"
+  const appUrl = getAppUrl(req)
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
     customer: customerId,

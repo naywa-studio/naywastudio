@@ -19,7 +19,8 @@ import { QuotaGauges } from "@/components/quota/QuotaGauges"
 // quand on retravaillera la taxonomie. Pour l'instant : vue Liste pure,
 // pas de clustering automatique, pas de zones, juste les CVs uploadés.
 import { showUndoToast } from "@/components/ui/UndoToast"
-import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useWorkspace } from "../layout"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 const MAX_BYTES = 10 * 1024 * 1024
@@ -31,6 +32,7 @@ const copy = {
     badge: "Vivier",
     title: "Votre base de CVs",
     subtitleEmpty: "Glissez vos PDFs ici — Nora extrait nom, expérience, compétences.",
+    readOnlyImport: "Lecture seule — souscrivez pour importer des CVs",
     subtitleCount: (n: number) => `${n} candidat${n > 1 ? "s" : ""} dans votre vivier.`,
     importCta: "+ Importer des CVs",
     jobUploading: "Upload…",
@@ -72,6 +74,7 @@ const copy = {
     emptyTitle: "Commencez votre vivier",
     emptyDesc: "Glissez vos CVs PDF ici (ou cliquez). Nora extrait nom, expérience, compétences et coordonnées. Une fois votre vivier en place, vous pourrez créer des missions et obtenir vos shortlists automatiques.",
     emptyCta: "Choisir des PDFs",
+    readOnlyLabel: "Lecture seule",
     emptyHint: "PDF uniquement · 10 Mo max · 500 fichiers max par lot",
     // RecentUploadsStrip
     recentTitle: "Récemment importés",
@@ -115,6 +118,7 @@ const copy = {
     badge: "Talent pool",
     title: "Your CV database",
     subtitleEmpty: "Drop your PDFs here — Nora extracts name, experience, skills.",
+    readOnlyImport: "Read-only — subscribe to import CVs",
     subtitleCount: (n: number) => `${n} candidate${n > 1 ? "s" : ""} in your talent pool.`,
     importCta: "+ Import CVs",
     jobUploading: "Uploading…",
@@ -156,6 +160,7 @@ const copy = {
     emptyTitle: "Start your talent pool",
     emptyDesc: "Drop your PDF CVs here (or click). Nora extracts name, experience, skills, and contact details. Once your talent pool is set up, you'll be able to create job openings and get automatic shortlists.",
     emptyCta: "Choose PDFs",
+    readOnlyLabel: "Read-only",
     emptyHint: "PDF only · 10 MB max · 500 files max per batch",
     // RecentUploadsStrip
     recentTitle: "Recently imported",
@@ -187,7 +192,7 @@ const copy = {
     sectorNamePlaceholder: "E.g.: Insurance, Luxury, Aerospace…",
     askNora: "Ask Nora",
     duplicateHint: (name: string) => (
-      <>Close to the existing sector <strong>{name}</strong>. You can still create this one if it's truly different.</>
+      <>Close to the existing sector <strong>{name}</strong>. You can still create this one if it&apos;s truly different.</>
     ),
     definitionLabel: "Definition (editable)",
     createSector: "Create sector",
@@ -223,6 +228,10 @@ const UNCLASSIFIED = "__unclassified__"
 export default function VivierPage() {
   const { lang } = useLanguage()
   const t = copy[lang]
+  // Lecture seule (lockdown / essai expiré / sans siège) : tout upload est
+  // interdit côté serveur (requireActiveAccess). On grise aussi l'UI pour
+  // éviter les 403 déroutants.
+  const { isReadOnly } = useWorkspace()
   const sb = useMemo(() => getSupabase(), [])
   const [userId, setUserId] = useState<string | null>(null)
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -267,6 +276,7 @@ export default function VivierPage() {
 
   // "Classer le vivier" — Nora range les candidats "à classer".
   const runClassifyVivier = useCallback(async () => {
+    if (isReadOnly) return
     setClassifying(true)
     try {
       const res = await fetch("/api/sectors/classify-vivier", { method: "POST" })
@@ -282,7 +292,7 @@ export default function VivierPage() {
     } finally {
       setClassifying(false)
     }
-  }, [sb, refetchSectors])
+  }, [sb, refetchSectors, isReadOnly])
 
   // Vue Liste uniquement — toggle Carte/Liste retiré le temps de
   // retravailler la taxonomie (Sprint B' juin 2026).
@@ -484,6 +494,7 @@ export default function VivierPage() {
   }, [t])
 
   const onFilesPicked = (files: FileList | null) => {
+    if (isReadOnly) return
     if (!files || files.length === 0) return
     enqueue(Array.from(files))
   }
@@ -492,9 +503,10 @@ export default function VivierPage() {
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
+    if (isReadOnly) return
     const files = Array.from(e.dataTransfer?.files ?? [])
     if (files.length) enqueue(files)
-  }, [enqueue])
+  }, [enqueue, isReadOnly])
 
   const onDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -556,6 +568,7 @@ export default function VivierPage() {
   // 5. Deletion — optimistic UI + undo toast (5 sec). The actual API
   // call only fires if the sourcer doesn't click "Annuler" in the toast.
   const handleDelete = async (id: string) => {
+    if (isReadOnly) return
     const removed = candidates.find((c) => c.id === id)
     if (!removed) return
     setCandidates((prev) => prev.filter((c) => c.id !== id))
@@ -581,6 +594,7 @@ export default function VivierPage() {
   )
   const [dedupRunning, setDedupRunning] = useState(false)
   const runDedup = useCallback(async () => {
+    if (isReadOnly) return
     setDedupRunning(true)
     try {
       const res = await fetch("/api/candidates/dedup", { method: "POST" })
@@ -597,7 +611,7 @@ export default function VivierPage() {
     } finally {
       setDedupRunning(false)
     }
-  }, [sb])
+  }, [sb, isReadOnly])
 
   if (!userId && loading) {
     return <VivierSkeleton />
@@ -681,12 +695,14 @@ export default function VivierPage() {
           <QuotaGauges variant="inline" />
           <button
             onClick={() => inputRef.current?.click()}
+            disabled={isReadOnly}
+            title={isReadOnly ? t.readOnlyImport : undefined}
             style={{
               fontSize: 13, fontWeight: 700, color: "white",
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
               border: "none", borderRadius: 10, padding: "10px 18px",
-              cursor: "pointer",
-              boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
+              cursor: isReadOnly ? "not-allowed" : "pointer",
+              boxShadow: isReadOnly ? "none" : "0 6px 20px -8px rgba(124,99,200,0.55)",
               fontFamily: "inherit",
             }}
           >
@@ -765,7 +781,7 @@ export default function VivierPage() {
       )}
 
       {/* Doublon banner — Nora a trouvé X doublons, "Lancer le tri" */}
-      {doublonCount > 0 && (
+      {doublonCount > 0 && !isReadOnly && (
         <div style={{
           marginBottom: 20, padding: "12px 16px",
           background: "rgba(245,158,11,0.07)",
@@ -844,7 +860,7 @@ export default function VivierPage() {
       {/* Contenu principal : recherche → liste plate ; sinon navigation par
           secteurs (overview cartes → liste des CV). */}
       {empty ? (
-        <EmptyDropZone onPick={() => inputRef.current?.click()} />
+        <EmptyDropZone onPick={() => inputRef.current?.click()} readOnly={isReadOnly} />
       ) : query.trim() ? (
         // Recherche active → résultats à plat, on ignore la navigation secteur.
         <div style={{
@@ -859,6 +875,7 @@ export default function VivierPage() {
               allSectors={allSectors}
               onSectorCreated={registerSector}
               onSectorChange={(sectors, status) => applyCandidateSectors(c.id, sectors, status)}
+              readOnly={isReadOnly}
             />
           ))}
           {parsedOrErrored.length === 0 && (
@@ -876,6 +893,7 @@ export default function VivierPage() {
               allSectors={allSectors}
               onSectorCreated={registerSector}
               onSectorChange={applyCandidateSectors}
+              readOnly={isReadOnly}
             />
           )}
           <SectorOverview
@@ -885,6 +903,7 @@ export default function VivierPage() {
             onCreate={() => setCreateOpen(true)}
             onClassify={runClassifyVivier}
             classifying={classifying}
+            readOnly={isReadOnly}
           />
         </>
       ) : (
@@ -914,10 +933,11 @@ export default function VivierPage() {
               sectors: (c.sectors ?? []).filter((s) => s !== name),
             })))
           }}
+          readOnly={isReadOnly}
         />
       )}
 
-      {createOpen && (
+      {createOpen && !isReadOnly && (
         <CreateSectorModal
           onClose={() => setCreateOpen(false)}
           onCreated={() => { setCreateOpen(false); void refetchSectors() }}
@@ -951,7 +971,7 @@ function JobIcon({ status }: { status: UploadJob["status"] }) {
 }
 
 function CandidateCard({
-  c, delay, onDelete, allSectors, onSectorCreated, onSectorChange,
+  c, delay, onDelete, allSectors, onSectorCreated, onSectorChange, readOnly = false,
 }: {
   c: Candidate
   delay: number
@@ -959,6 +979,7 @@ function CandidateCard({
   allSectors: string[]
   onSectorCreated: (name: string) => void
   onSectorChange: (sectors: string[], status: SectorStatus) => void
+  readOnly?: boolean
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -1114,26 +1135,29 @@ function CandidateCard({
               allSectors={allSectors}
               onSectorCreated={onSectorCreated}
               onChange={onSectorChange}
+              disabled={readOnly}
             />
           ) : <span />}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
-            <button
-              onClick={onDelete}
-              title={t.deleteFromVivier}
-              style={{
-                height: 24, width: 24, boxSizing: "border-box",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                background: "transparent", border: "1px solid #E5E7EB",
-                borderRadius: 7, padding: 0, cursor: "pointer",
-                color: "#6B7280",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "#6B7280"; e.currentTarget.style.borderColor = "#E5E7EB" }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
+            {!readOnly && (
+              <button
+                onClick={onDelete}
+                title={t.deleteFromVivier}
+                style={{
+                  height: 24, width: 24, boxSizing: "border-box",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  background: "transparent", border: "1px solid #E5E7EB",
+                  borderRadius: 7, padding: 0, cursor: "pointer",
+                  color: "#6B7280",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#6B7280"; e.currentTarget.style.borderColor = "#E5E7EB" }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            )}
             <Link
               href={`/workspace/vivier/${c.id}`}
               style={{
@@ -1329,16 +1353,16 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
   )
 }
 
-function EmptyDropZone({ onPick }: { onPick: () => void }) {
+function EmptyDropZone({ onPick, readOnly = false }: { onPick: () => void; readOnly?: boolean }) {
   const { lang } = useLanguage()
   const t = copy[lang]
   return (
     <m.div
       initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: EASE }}
-      onClick={onPick}
+      onClick={readOnly ? undefined : onPick}
       style={{
-        cursor: "pointer",
+        cursor: readOnly ? "default" : "pointer",
         marginTop: 40,
         padding: "72px 36px",
         background: "white",
@@ -1347,8 +1371,8 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
         textAlign: "center",
         transition: "border-color 200ms, background 200ms",
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.background = "#FBFAFE" }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2DAF6"; e.currentTarget.style.background = "white" }}
+      onMouseEnter={readOnly ? undefined : (e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.background = "#FBFAFE" }}
+      onMouseLeave={readOnly ? undefined : (e) => { e.currentTarget.style.borderColor = "#E2DAF6"; e.currentTarget.style.background = "white" }}
     >
       <div style={{ fontSize: 56, marginBottom: 16 }}>📄</div>
       <h2 style={{
@@ -1363,11 +1387,11 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
       <span style={{
         display: "inline-block",
         padding: "11px 22px", borderRadius: 12,
-        background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+        background: readOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
         color: "white", fontWeight: 700, fontSize: 14,
-        boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
+        boxShadow: readOnly ? "none" : "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
-        {t.emptyCta}
+        {readOnly ? t.readOnlyLabel : t.emptyCta}
       </span>
       <p style={{ margin: "18px 0 0", fontSize: 11, color: "#6B7280" }}>
         {t.emptyHint}
@@ -1379,13 +1403,14 @@ function EmptyDropZone({ onPick }: { onPick: () => void }) {
 /* ─── Récemment importés (bande scrollable) ───────────────────────── */
 
 function RecentUploadsStrip({
-  candidates, onDelete, allSectors, onSectorCreated, onSectorChange,
+  candidates, onDelete, allSectors, onSectorCreated, onSectorChange, readOnly = false,
 }: {
   candidates: Candidate[]
   onDelete: (id: string) => void
   allSectors: string[]
   onSectorCreated: (name: string) => void
   onSectorChange: (candId: string, sectors: string[], status: SectorStatus) => void
+  readOnly?: boolean
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -1460,6 +1485,7 @@ function RecentUploadsStrip({
                   allSectors={allSectors}
                   onSectorCreated={onSectorCreated}
                   onSectorChange={(sectors, status) => onSectorChange(c.id, sectors, status)}
+                  readOnly={readOnly}
                 />
               </div>
             </div>
@@ -1473,7 +1499,7 @@ function RecentUploadsStrip({
 /* ─── Vivier par secteurs ─────────────────────────────────────────── */
 
 function SectorOverview({
-  sectors, unclassifiedCount, onOpen, onCreate, onClassify, classifying,
+  sectors, unclassifiedCount, onOpen, onCreate, onClassify, classifying, readOnly = false,
 }: {
   sectors: SectorInfo[]
   unclassifiedCount: number
@@ -1481,6 +1507,7 @@ function SectorOverview({
   onCreate: () => void
   onClassify: () => void
   classifying: boolean
+  readOnly?: boolean
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -1495,34 +1522,37 @@ function SectorOverview({
         <span style={{ fontSize: 11.5, color: "#6B7280" }}>
           {t.hybridHint}
         </span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          {unclassifiedCount > 0 && (
+        {/* Actions de mutation masquées en lecture seule. */}
+        {!readOnly && (
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            {unclassifiedCount > 0 && (
+              <button
+                onClick={onClassify}
+                disabled={classifying}
+                style={{
+                  fontSize: 12.5, fontWeight: 700,
+                  color: classifying ? "#6B7280" : "#7C63C8",
+                  background: "white", border: "1px solid rgba(124,99,200,0.30)",
+                  borderRadius: 9, padding: "8px 13px",
+                  cursor: classifying ? "default" : "pointer", fontFamily: "inherit",
+                }}
+              >
+                {classifying ? t.classifying : t.classifyCta}
+              </button>
+            )}
             <button
-              onClick={onClassify}
-              disabled={classifying}
+              onClick={onCreate}
               style={{
-                fontSize: 12.5, fontWeight: 700,
-                color: classifying ? "#6B7280" : "#7C63C8",
-                background: "white", border: "1px solid rgba(124,99,200,0.30)",
-                borderRadius: 9, padding: "8px 13px",
-                cursor: classifying ? "default" : "pointer", fontFamily: "inherit",
+                fontSize: 12.5, fontWeight: 700, color: "white",
+                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                border: "none", borderRadius: 9, padding: "8px 14px",
+                cursor: "pointer", fontFamily: "inherit",
               }}
             >
-              {classifying ? t.classifying : t.classifyCta}
+              {t.createSectorCta}
             </button>
-          )}
-          <button
-            onClick={onCreate}
-            style={{
-              fontSize: 12.5, fontWeight: 700, color: "white",
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-              border: "none", borderRadius: 9, padding: "8px 14px",
-              cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            {t.createSectorCta}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Zone 1 — À classer (seule action requise, en tête). */}
@@ -1608,7 +1638,7 @@ function SectorOverview({
 }
 
 function SectorDetail({
-  view, sector, candidates, onBack, onDelete, allSectors, onSectorCreated, onSectorChange, onRenamed, onDeletedSector,
+  view, sector, candidates, onBack, onDelete, allSectors, onSectorCreated, onSectorChange, onRenamed, onDeletedSector, readOnly = false,
 }: {
   view: string
   sector: SectorInfo | null
@@ -1620,6 +1650,7 @@ function SectorDetail({
   onSectorChange: (candId: string, sectors: string[], status: SectorStatus) => void
   onRenamed: (oldName: string, newName: string) => void
   onDeletedSector: (name: string) => void
+  readOnly?: boolean
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -1630,6 +1661,7 @@ function SectorDetail({
   const [busy, setBusy] = useState(false)
 
   const doRename = async () => {
+    if (readOnly) return
     const n = newName.trim()
     if (!sector || !n || n === view) { setRenaming(false); return }
     setBusy(true)
@@ -1644,7 +1676,7 @@ function SectorDetail({
   }
 
   const doDelete = async () => {
-    if (!sector) return
+    if (readOnly || !sector) return
     if (!confirm(t.confirmDeleteSector(view))) return
     setBusy(true)
     try {
@@ -1676,7 +1708,7 @@ function SectorDetail({
             <span style={{ fontSize: 13, fontWeight: 700, color: "#6B7280", marginLeft: 8 }}>{candidates.length}</span>
           </h2>
         )}
-        {!isUnclassified && sector && !renaming && (
+        {!isUnclassified && sector && !renaming && !readOnly && (
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button onClick={() => { setNewName(view); setRenaming(true) }} style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", background: "white", border: "1px solid #E5E7EB", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.rename}</button>
             <button onClick={doDelete} disabled={busy} style={{ fontSize: 12, fontWeight: 600, color: "#DC2626", background: "white", border: "1px solid #FCA5A5", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.delete}</button>
@@ -1703,6 +1735,7 @@ function SectorDetail({
               allSectors={allSectors}
               onSectorCreated={onSectorCreated}
               onSectorChange={(sectors, status) => onSectorChange(c.id, sectors, status)}
+              readOnly={readOnly}
             />
           ))}
         </div>

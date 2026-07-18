@@ -29,8 +29,10 @@ const SECTIONS: Record<"fr" | "en", LegalSection[]> = {
       content: [
         "L'application web est hébergée par :",
         "**Vercel Inc.**, 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis. Site : vercel.com",
-        "La base de données et les fichiers (CVs, logos) sont hébergés par :",
-        "**Supabase Inc.**, 970 Toa Payoh North, Singapour. Site : supabase.com. Région de stockage : eu-central-1 (Francfort).",
+        "La base de données, l'authentification et les logos sont hébergés par :",
+        "**Supabase Inc.**, 970 Toa Payoh North, Singapour. Site : supabase.com. Région de stockage de la base : eu-central-1 (Francfort).",
+        "Les CVs et les documents anonymisés générés sont stockés par :",
+        "**Cloudflare, Inc.**, 101 Townsend Street, San Francisco, CA 94107, États-Unis — stockage objet R2 en **jurisdiction Union européenne** (données stockées dans l'UE). Site : cloudflare.com.",
       ],
     },
     {
@@ -41,6 +43,8 @@ const SECTIONS: Record<"fr" | "en", LegalSection[]> = {
         "• **Vercel** : hébergement de l'application web.",
         "• **Resend** : envoi et réception des emails (mail.naywastudio.com).",
         "• **OpenRouter** : passerelle d'accès aux modèles d'IA (gpt-4o-mini pour le parsing, le scoring et la génération de messages).",
+        "• **Cloudflare R2** : stockage des CVs et des documents anonymisés générés.",
+        "• **Stripe** : traitement des paiements et de la facturation des abonnements.",
         "La liste détaillée et les engagements de chaque prestataire sont décrits dans la politique de confidentialité.",
       ],
     },
@@ -107,8 +111,10 @@ const SECTIONS: Record<"fr" | "en", LegalSection[]> = {
       content: [
         "The web application is hosted by:",
         "**Vercel Inc.**, 440 N Barranca Ave #4133, Covina, CA 91723, USA. Website: vercel.com",
-        "The database and files (CVs, logos) are hosted by:",
-        "**Supabase Inc.**, 970 Toa Payoh North, Singapore. Website: supabase.com. Storage region: eu-central-1 (Frankfurt).",
+        "The database, authentication, and logos are hosted by:",
+        "**Supabase Inc.**, 970 Toa Payoh North, Singapore. Website: supabase.com. Database storage region: eu-central-1 (Frankfurt).",
+        "CVs and generated anonymized documents are stored by:",
+        "**Cloudflare, Inc.**, 101 Townsend Street, San Francisco, CA 94107, USA — R2 object storage in the **European Union jurisdiction** (data stored within the EU). Website: cloudflare.com.",
       ],
     },
     {
@@ -119,6 +125,8 @@ const SECTIONS: Record<"fr" | "en", LegalSection[]> = {
         "• **Vercel**: web application hosting.",
         "• **Resend**: sending and receiving emails (mail.naywastudio.com).",
         "• **OpenRouter**: gateway to AI models (gpt-4o-mini for parsing, scoring, and message generation).",
+        "• **Cloudflare R2**: storage of CVs and generated anonymized documents.",
+        "• **Stripe**: payment processing and subscription billing.",
         "The detailed list and each provider's commitments are described in the privacy policy.",
       ],
     },
@@ -163,8 +171,8 @@ const SECTIONS: Record<"fr" | "en", LegalSection[]> = {
 }
 
 const copy = {
-  fr: { badge: "Légal", title: "Mentions légales", lastUpdated: "juin 2026" },
-  en: { badge: "Legal", title: "Legal Notice", lastUpdated: "June 2026" },
+  fr: { badge: "Légal", title: "Mentions légales", lastUpdated: "juillet 2026" },
+  en: { badge: "Legal", title: "Legal Notice", lastUpdated: "July 2026" },
 }
 
 export function MentionsLegalesContent() {

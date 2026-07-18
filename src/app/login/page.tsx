@@ -81,15 +81,8 @@ function LoginInner() {
   const [password, setPassword] = useState("")
   const [firstName, setFirstName] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(() => (expired ? t.expired : null))
   const [success, setSuccess] = useState<string | null>(null)
-
-  // Set (and keep in sync with the current language) the "expired link"
-  // banner. Runs after mount since `lang` starts as a guess and can shift
-  // once the saved preference (localStorage or account) resolves.
-  useEffect(() => {
-    if (expired) setError(t.expired)
-  }, [expired, t.expired])
 
   // Redirect if already logged in : on résout la destination via le
   // helper pour ne pas envoyer un owner sans siège vers /workspace

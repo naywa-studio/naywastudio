@@ -49,6 +49,7 @@ const copy = {
     inPipeline: (n: number) => `Dans le pipeline · ${n} poste${n > 1 ? "s" : ""}`,
     dragVertical: "Glissez pour avancer",
     dragHorizontal: "Glissez une carte pour avancer / reculer",
+    readOnly: "Lecture seule",
     noJob: "Sans poste",
     manual: "manuel",
     here: "● ICI",
@@ -64,6 +65,7 @@ const copy = {
     inPipeline: (n: number) => `In the pipeline · ${n} position${n > 1 ? "s" : ""}`,
     dragVertical: "Drag to advance",
     dragHorizontal: "Drag a card to advance / rewind",
+    readOnly: "Read-only",
     noJob: "No position",
     manual: "manual",
     here: "● HERE",
@@ -82,6 +84,7 @@ export default function CandidateMiniKanban({
   highlightMatchId,
   layout = "horizontal",
   onlyMatchId,
+  readOnly = false,
 }: {
   candidateId: string
   /** Nom du candidat — utilisé dans la modale "raison du rejet" pour
@@ -96,6 +99,8 @@ export default function CandidateMiniKanban({
    *  matches the candidate has are hidden so the rail mirrors the job
    *  picker upstream. */
   onlyMatchId?: string
+  /** Lecture seule : le drag & drop est désactivé (mutation bloquée serveur). */
+  readOnly?: boolean
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -145,6 +150,7 @@ export default function CandidateMiniKanban({
   }
 
   const moveCard = async (rowId: string, stage: PipelineStage) => {
+    if (readOnly) return
     const row = rows.find((r) => r.id === rowId)
     if (!row || row.pipeline_stage === stage) return
     // Passage vers 'rejected' : on diffère le commit, on ouvre la modale
@@ -199,7 +205,7 @@ export default function CandidateMiniKanban({
             : t.inPipeline(rows.length)}
         </h3>
         <span style={{ fontSize: 10.5, color: "#6B7280", fontStyle: "italic" }}>
-          {vertical ? t.dragVertical : t.dragHorizontal}
+          {readOnly ? t.readOnly : vertical ? t.dragVertical : t.dragHorizontal}
         </span>
       </div>
       <div style={{
@@ -246,15 +252,15 @@ export default function CandidateMiniKanban({
                 return (
                   <div
                     key={r.id}
-                    draggable
-                    onDragStart={() => setDragId(r.id)}
-                    onDragEnd={() => { setDragId(null); setOverStage(null) }}
+                    draggable={!readOnly}
+                    onDragStart={readOnly ? undefined : () => setDragId(r.id)}
+                    onDragEnd={readOnly ? undefined : () => { setDragId(null); setOverStage(null) }}
                     style={{
                       background: isCurrent ? "rgba(124,99,200,0.10)" : "white",
                       border: isCurrent ? "1px solid #7C63C8" : "1px solid #F0ECF8",
                       borderRadius: 7,
                       padding: "7px 9px",
-                      cursor: "grab",
+                      cursor: readOnly ? "default" : "grab",
                       opacity: dragId === r.id ? 0.5 : 1,
                       boxShadow: isCurrent ? "0 2px 8px -2px rgba(124,99,200,0.25)" : "none",
                     }}

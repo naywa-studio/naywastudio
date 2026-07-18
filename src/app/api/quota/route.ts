@@ -26,16 +26,17 @@ export async function GET() {
   const admin = getAdminSupabase()
   const { data: profile } = await admin
     .from("profiles")
-    .select("organization_id")
+    .select("organization_id, preferred_language")
     .eq("user_id", user.id)
     .maybeSingle()
   if (!profile?.organization_id) {
     return NextResponse.json({ error: "no_organization" }, { status: 400 })
   }
+  const lang = profile.preferred_language === "en" ? "en" : "fr"
 
   const { data: org } = await admin
     .from("organizations")
-    .select("subscription_status, subscription_price_lookup, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json, storage_used_bytes, llm_actions_this_month, llm_period_start")
+    .select("subscription_status, subscription_seats, subscription_has_pricing, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json, storage_used_bytes, llm_actions_this_month, llm_period_start")
     .eq("id", profile.organization_id)
     .maybeSingle()
   if (!org) {
@@ -43,7 +44,7 @@ export async function GET() {
   }
 
   const adminFlag = await isAdmin(user.id)
-  const quotas = getQuotas(org, { isAdmin: adminFlag })
+  const quotas = getQuotas(org, { isAdmin: adminFlag, lang })
 
   // Capacité vivier — SEUL plafond montré au client. On compte les CV ACTIFS
   // (hors doublons archivés "ancien") pour matcher exactement le nombre affiché
