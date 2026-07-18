@@ -1130,3 +1130,134 @@ Wipe : org `elyas.malki@naywastudio.com` (4e39ce0f) + org `elyas.malki@icloud.co
 - **DPA PDF v1.1** à régénérer via Python le jour où un client signe
 - **Régénération PDF DPA** : `python legal/build_dpa_pdf.py` (lit `legal/dpa-content.md`)
 - **Mailing domain perso** par cabinet : champ `mailing_domain` déjà en DB, UI masquée jusqu'à câblage Resend per-cabinet
+
+#### Refonte vitrine charte v2.0 — EN COURS (branche `claude/brand-v2-vitrine`) — 2026-07-18
+
+**Branche `claude/brand-v2-vitrine`** (dernier commit `dfb4fe1`), **PAS mergée**,
+attend validation preview. Seul le correctif perf a été cherry-pické sur main
+(`ac4c99d`) — la refonte visuelle reste isolée.
+
+**FAIT (7 pages vitrine à la charte)** : accueil · solutions · faq · a-propos ·
+contact · les 3 pages légales (via `LegalPageShell`) · tarifs.
+
+**Fondations posées** :
+- `lib/brand.ts` = tokens charte + échelle typo §06 (`type.h1/h2/h3/lead/body/
+  caption/meta`) + `accentItalic`. **Séparé de `lib/ui-tokens.ts`** (app connectée,
+  pas encore harmonisée).
+- `components/brand/` : `Eyebrow` (« § NN · Libellé » mono), `Card` (§07 : padding
+  32, bordure lin, rayon 20, surface craie), `Badge` (états §07, corail = urgent).
+- `globals.css` : boutons `.nw-btn` (primary / ink / outline), hover CSS pour
+  rester server-safe.
+- `components/ui/BrandBands.tsx` remplace `ShaderBackground` sur la vitrine
+  (WebGL → SVG/SMIL, corrige le bug de scroll PC). Géométrie = celle du handoff.
+- `SimulatedDemo.tsx` + `HomeBands.tsx` (TrustBar + PricingTeaser) — **à refondre**,
+  cf. specs ci-dessous.
+
+**⚠️ DÉCISION PALETTE (Elyas, contre la charte brute)** : le sable en fond PLEIN
+faisait « bizarre » depuis un écran blanc. Donc **fond = `brand.paper` #FDFCF9**
+(blanc chaud imperceptible), **sable #F5F1E8 = bande d'accent ponctuelle**, **cartes
+= craie #FAF7F0**, bandes encre pour le rythme. Violet + encre portent l'identité.
+Cf. [[project_brand_kit_v2]].
+
+**Charte validée par Elyas** : typo · logo/symboles · échelles · composants UI ·
+cartes · badges/états · voix & ton. Les COULEURS restent sous notre arbitrage.
+
+**NAV réduite 5 → 3** : Produit (URL `/solutions` conservée pour le SEO) · Tarifs ·
+FAQ. À propos + Contact descendus en footer.
+
+---
+
+**RETOURS ELYAS DU 18/07 — À TRAITER (rien n'est encore fait) :**
+
+**1. Responsive cassé (PRIORITÉ 1)** — « les dimensions ne sont pas dynamiques ».
+Grilles fixes à reprendre (`260px 1fr` dans SimulatedDemo, `repeat(3,...)` dans
+a-propos, padding gauche 56px du Hero…). Fort impact conversion.
+
+**2. Jargon technique à bannir du user-facing** — plus de « Vercel Paris »,
+« Supabase Francfort », « RLS Postgres ». Sur `/solutions` § Sécurité, dire :
+données **100 % en Europe** · politique de protection des données · **aucun
+entraînement de modèle** · **le client garde le contrôle**.
+⚠️ Elyas veut « une certif ici » : **NE RIEN INVENTER**. On ne peut pas afficher
+ISO 27001 / SOC 2 / HDS sans les détenir (publicité mensongère + suicide commercial
+en B2B). Tant qu'il n'y en a pas : engagements factuels seulement (RGPD, DPA
+disponible, hébergement UE, liste des sous-traitants).
+
+**3. Pas de ciblage sur l'accueil** — on s'adresse à **toutes les équipes de
+recrutement**, la segmentation (ESN/consulting/recrutement) n'a sa place que dans
+le cadre du Package Sourcing (donc `/solutions`). → **retirer les chips d'audience
+de `TrustBar`**, garder les garanties.
+
+**4. Nora mal introduite** — ERREUR ASSUMÉE : en retirant `AgentsPreview` de
+l'accueil j'ai supprimé la seule introduction de Nora. Il faut qu'on comprenne
+immédiatement que **Nora = l'assistante IA du Package Sourcing**.
+
+**5. Fautes / incohérences mineures** — à chasser sur l'ensemble de la vitrine.
+
+---
+
+**DÉMO SIMULÉE — SPEC ELYAS (remplace mes 6 étapes)**
+
+Principe : **la démo complète va sur `/solutions`** et doit être calée sur le
+« process en 6 étapes » (à réajuster en conséquence). **L'accueil reçoit une
+version allégée** dérivée de celle-là.
+
+Ordre corrigé — **mission AVANT vivier** (c'est le vrai job-to-be-done) :
+
+1. **Mission** — « Créez votre mission avec un brief ou une fiche de poste, Nora
+   analyse et vous validez les critères ». Séquence : carte input où l'user tape
+   « Je cherche un chef de projet senior sur Paris » → **souris simulée** clique
+   « Analyser avec Nora » → résultats (simulés, pas d'appel IA) → souris montre
+   que l'user **modifie/valide** l'analyse (fidèle à l'outil réel, on ne ment pas).
+2. **CV** — « Importez des CV dans vos missions ou laissez Nora piocher dans le
+   vivier ». Séquence : sélection de fichiers (noms de CV **fictifs**) → mise dans
+   la mission avec loader → clic « Matcher le vivier ». **Badges « vivier » /
+   « importés » visibles**, en reprenant les noms de fichiers pour les importés.
+   C'est ici qu'on voit le travail de matching.
+3. **Shortlist + approche** — clic « Ajouter » → fiche match → message d'approche
+   généré par Nora. Être précis.
+4. **Pipeline** — drag & drop simulé d'un candidat entre colonnes depuis la fiche
+   match → transition fluide vers la pipeline Kanban → autres candidats de la
+   mission → autres missions dépliées.
+5. **Pricing** — « le rendez-vous entre la politique du cabinet et les prétentions
+   du candidat ». Garder l'essentiel : config rapide → reco/décision. **Préciser
+   que c'est une option, que ça ne concerne pas tout le monde, et que c'est basé
+   sur Syntec.**
+
+**Mon avis à donner//rappeler à Elyas (déjà formulé)** :
+- Ordre mission→vivier = **meilleur que le mien**, il a raison.
+- **À élaguer** : « déployer d'autres missions » à l'étape 4 (allonge sans
+  convaincre).
+- **Push-back** : simuler une **fenêtre de fichiers de l'OS** fait faux et dépend
+  de l'OS → préférer la **zone de drag & drop** (c'est aussi le vrai geste produit).
+- Noms de CV **fictifs** = OK RGPD, jamais de vrai candidat.
+- Souris simulée = oui mais **sobre** (curseur discret, pas d'effets cartoon).
+
+**Garde-fous non négociables** : données affichées explicitement illustratives ·
+aucun faux logo client · aucun faux témoignage · aucune métrique inventée ·
+`prefers-reduced-motion` respecté.
+
+---
+
+**VERCEL — surveillance**
+Compte **Hobby**, limite 4 h Fluid Active CPU/mois, Elyas était à ~3h49m. Cause
+identifiée et corrigée (`ac4c99d`, en prod) : `useUnreadUpdates` lançait ~10
+pollers de 60 s par page (un par `NavUnreadDot`) → ~600 appels/h/onglet. Passé à
+un store partagé (`useSyncExternalStore`), 5 min, pause onglet masqué. Crons
+`recompute-storage` + `migrate-cv-to-r2` passés en hebdo (les wipes restent
+QUOTIDIENS — délais RGPD 30 j).
+**À faire : vérifier que la courbe Fluid CPU s'effondre sur 2-3 jours.** Sinon il
+existe un 2e consommateur non identifié.
+Position sur le plan : ne pas re-plateformer sur la base d'un bug. Hobby est
+contractuellement **non commercial** (ToS Vercel, PAS une loi — Elyas a corrigé à
+juste titre ma formulation). Au 1er client payant, Pro (20 $) est couvert par un
+seul siège à 38,99 €. Si le coût mord un jour : sortir seulement les routes
+lourdes (PDF/DOCX/parsing) vers un worker, pas migrer tout Next.
+
+**Workflow de vérif imposé par la contrainte Vercel** : valider en **maquettes
+statiques** dans le navigateur intégré (coût nul) + `tsc`/`lint`/`build` en local,
+et **grouper les pushes**. Ne jamais lancer d'opérations produit lourdes (upload,
+parsing, matching, PDF) sur prod/preview pour tester.
+
+**Reste après la démo** : harmonisation workspace (tokens violet/encre/rayons/
+badges + mono pour les labels, **Inter partout**, PAS de serif sur les écrans
+denses — décision Elyas), puis merge de la branche après validation preview.
