@@ -13,7 +13,7 @@
     },
     {
       "path": "/api/cron/recompute-storage",
-      "schedule": "0 2 * * *"
+      "schedule": "0 2 * * 0"
     },
     {
       "path": "/api/cron/reset-llm-quota",
@@ -21,7 +21,7 @@
     },
     {
       "path": "/api/cron/migrate-cv-to-r2",
-      "schedule": "0 4 * * *"
+      "schedule": "0 4 * * 0"
     }
   ],
   "headers": [
