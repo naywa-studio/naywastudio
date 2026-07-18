@@ -19,7 +19,7 @@ import { openrouterChat, safeJsonParse } from "@/lib/openrouter"
 export const runtime = "nodejs"
 export const maxDuration = 20
 
-const SYSTEM_PROMPT = `Tu es Nora, l'assistante de recrutement de Naywa. Le sourceur a modifié le brouillon de message d'approche que tu lui avais préparé. Tu le relis et signales 0 à 4 problèmes courts (en français) avant qu'il ne l'envoie.
+const SYSTEM_PROMPT = `Tu es Nora, l'assistante de recrutement de Naywa. Le sourceur a modifié le brouillon de message d'approche que tu lui avais préparé. Tu le relis et signales 0 à 4 problèmes courts avant qu'il ne l'envoie.
 
 Réponds UNIQUEMENT en JSON valide :
 {
@@ -36,6 +36,11 @@ Règles :
 - Chaque flag : <90 caractères, action ou diagnostic. Ex : "Ouverture générique, supprime 'J'espère que vous allez bien'", "Aucun appel à l'action clair".
 - 0 flag si tout est bon. Max 4.`
 
+const LANG_INSTRUCTION: Record<"fr" | "en", string> = {
+  fr: "\n\nÉcris les \"text\" des flags EN FRANÇAIS.",
+  en: "\n\nWrite the flags' \"text\" IN ENGLISH.",
+}
+
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
   const sb = await createSupabaseServerClient()
@@ -45,12 +50,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!gate.ok) return gate.response
 
   const body = await req.json().catch(() => null) as {
-    subject?: unknown; body?: unknown; channel?: unknown; job_id?: unknown
+    subject?: unknown; body?: unknown; channel?: unknown; job_id?: unknown; lang?: unknown
   } | null
   const subject = typeof body?.subject === "string" ? body.subject.trim().slice(0, 200) : ""
   const draftBody = typeof body?.body === "string" ? body.body.trim() : ""
   const channel = body?.channel === "linkedin" ? "linkedin" : "email"
   const jobId = typeof body?.job_id === "string" ? body.job_id : null
+  const lang = body?.lang === "en" ? "en" : "fr"
   if (!draftBody) return NextResponse.json({ error: "empty_body" }, { status: 400 })
 
   // Verify candidate belongs to the user.
@@ -95,7 +101,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       // maxDuration de la route = 20s → on borne le LLM en dessous.
       timeoutMs: 15_000,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: SYSTEM_PROMPT + LANG_INSTRUCTION[lang] },
         { role: "user", content: userMsg },
       ],
     })

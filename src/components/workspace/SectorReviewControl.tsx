@@ -16,6 +16,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { SectorStatus } from "@/lib/database.types"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+import { sectorDisplayName } from "@/lib/sector-i18n"
 
 const CAP = 20 // pas de vraie limite produit ; garde-fou anti-abus.
 
@@ -224,7 +225,7 @@ export function SectorReviewControl({
                 )}
               </span>
               <span style={{ fontSize: 12.5, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {name}
+                {sectorDisplayName(name, lang)}
               </span>
             </button>
           )
@@ -309,7 +310,7 @@ export function SectorReviewControl({
         }}
       >
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {sectors.length ? sectors.join(", ") : t.choose}
+          {sectors.length ? sectors.map((s) => sectorDisplayName(s, lang)).join(", ") : t.choose}
         </span>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
           <path d="m6 9 6 6 6-6" />

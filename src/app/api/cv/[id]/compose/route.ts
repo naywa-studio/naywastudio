@@ -35,6 +35,11 @@ Règles :
 - Propose un échange / un appel pour la suite sans inventer de lien ou de créneau spécifique : on laisse le sourceur cadrer la logistique dans son échange suivant.
 - Si la mission contient un champ "briefing", il liste les contraintes/préférences du client (budget, démarrage, profils à éviter, etc.). Tiens-en compte sans le citer brut au candidat : adapte le ton, les détails évoqués et la promesse. NE révèle PAS le budget ni les info confidentielles du briefing au candidat.`
 
+const LANG_INSTRUCTION: Record<"fr" | "en", string> = {
+  fr: "\n\nÉcris le message en FRANÇAIS.",
+  en: "\n\nWrite the message in ENGLISH — subject and body both, entirely in English.",
+}
+
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
   const sb = await createSupabaseServerClient()
@@ -44,17 +49,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!gate.ok) return gate.response
 
   const body = await req.json().catch(() => null) as {
-    channel?: unknown; job_id?: unknown; instruction?: unknown
+    channel?: unknown; job_id?: unknown; instruction?: unknown; lang?: unknown
   } | null
   const channel: OutreachChannel = body?.channel === "linkedin" ? "linkedin" : "email"
   const jobId = typeof body?.job_id === "string" ? body.job_id : null
   const instruction = typeof body?.instruction === "string" ? body.instruction.trim().slice(0, 400) : ""
+  const lang = body?.lang === "en" ? "en" : "fr"
 
   const { data: candidate, error } = await sb.from("candidates").select("*").eq("id", id).single()
   if (error || !candidate) return NextResponse.json({ error: "not_found" }, { status: 404 })
   if (candidate.parse_status !== "parsed") {
     return NextResponse.json(
-      { error: "not_parsed", message: "Le CV doit être parsé avant de rédiger un message." },
+      {
+        error: "not_parsed",
+        message: lang === "en"
+          ? "The CV must be parsed before drafting a message."
+          : "Le CV doit être parsé avant de rédiger un message.",
+      },
       { status: 400 },
     )
   }
@@ -128,7 +139,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       responseFormat: "json_object",
       maxTokens: 700,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: SYSTEM_PROMPT + LANG_INSTRUCTION[lang] },
         { role: "user", content: userMsg },
       ],
     })
@@ -142,7 +153,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const parsed = safeJsonParse<{ subject?: unknown; body?: unknown }>(result.content)
   const draftBody = typeof parsed?.body === "string" ? parsed.body.trim() : ""
   if (!draftBody) {
-    return NextResponse.json({ error: "empty_draft", message: "Nora n'a pas pu rédiger le message." }, { status: 502 })
+    return NextResponse.json({
+      error: "empty_draft",
+      message: lang === "en" ? "Nora couldn't draft the message." : "Nora n'a pas pu rédiger le message.",
+    }, { status: 502 })
   }
   const subject = channel === "email" && typeof parsed?.subject === "string"
     ? parsed.subject.trim() || null

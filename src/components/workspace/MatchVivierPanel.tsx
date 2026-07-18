@@ -20,6 +20,7 @@ import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { sectorColors } from "@/lib/sector-color"
 import type { Job } from "@/lib/database.types"
 import type { MatchMode } from "@/lib/sector-gate"
+import { sectorDisplayName } from "@/lib/sector-i18n"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const copy = {
@@ -238,7 +239,7 @@ export function MatchVivierPanel({
                           width: 8, height: 8, borderRadius: "50%",
                           background: on ? col.solid : "#D1D5DB",
                         }} />
-                        {s}
+                        {sectorDisplayName(s, lang)}
                         {on && (
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={col.text} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                             <path d="M20 6 9 17l-5-5" />

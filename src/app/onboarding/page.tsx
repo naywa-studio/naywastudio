@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation"
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { Logo } from "@/components/ui/Logo"
 import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher"
 import { getSupabase } from "@/lib/supabase"
 import { TRIAL_DURATION_DAYS } from "@/lib/trial"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 import type { Profile } from "@/lib/database.types"
 
 /**
@@ -30,14 +32,146 @@ import type { Profile } from "@/lib/database.types"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
-const PACKAGE_FEATURES = [
-  "Vivier illimité, upload PDF, OCR et parsing IA",
-  "Vos candidats classés par secteur automatiquement",
-  "Matching IA contre vos missions avec score justifié",
-  "Anonymisation PDF en 1 clic",
-  "Pipeline candidat avec suivi des relances et entretiens",
-  "Pricing Syntec automatisé + export PDF",
-]
+const copy = {
+  fr: {
+    loading: "Chargement…",
+    // Step 1
+    welcomeWithName: (name: string) => `Bienvenue dans votre espace ${name}`,
+    welcome: "Bienvenue dans votre espace",
+    step1Subtitle: "Donnez un nom à votre organisation. Il sera visible par vos collègues et apparaîtra sur les documents que vous générez (PDF anonymisé, fiche pricing…).",
+    orgNameLabel: "Nom de l'organisation",
+    orgNamePlaceholderWithName: (name: string) => `Organisation de ${name}`,
+    orgNamePlaceholder: "Organisation Dupont",
+    orgNameHint: "Vous pourrez le modifier à tout moment depuis votre console.",
+    continueBtn: "Continuer",
+    errNoOrgName: "Donnez un nom à votre organisation pour continuer.",
+    // Step 2
+    brandingTitlePrefix: "Votre ",
+    brandingTitleItalic: "identité visuelle",
+    step2Subtitle: "Tout est optionnel. Ces éléments apparaîtront sur les CV anonymisés que vous générerez pour vos clients, et leur permettront de vous recontacter au sujet d'un candidat.",
+    logoLabel: "Logo",
+    logoNone: "Aucun",
+    logoReplace: "Remplacer",
+    logoUpload: "Téléverser",
+    logoRemove: "Retirer",
+    colorsLabel: "Couleurs de marque",
+    colorsHint: "Non configurée = rendu en noir sur le PDF anonymisé. Choisissez une couleur de votre logo ou de la palette suggérée.",
+    sloganLabel: "Slogan (optionnel)",
+    sloganPlaceholder: "Recruter, c'est notre métier",
+    sloganCounter: (n: number) => `${n}/120 caractères`,
+    contactEmailLabel: "Email de contact",
+    contactEmailPlaceholder: "contact@votre-cabinet.com",
+    contactEmailHint: "Ce mail sera ajouté aux CV anonymisés et permettra à vos clients de vous recontacter au sujet des candidats.",
+    saving: "Sauvegarde…",
+    skipStep: "Passer cette étape",
+    errBrandSave: "Sauvegarde branding impossible",
+    errColorSave: "Sauvegarde couleur impossible",
+    errUnknown: "Erreur inconnue",
+    errLogoSaveFail: "Logo téléversé mais sauvegarde en échec.",
+    errLogoUpload: "Erreur upload logo",
+    errLogoRemove: "Erreur suppression logo",
+    // Step 3
+    inviteTitlePrefix: "Invitez votre ",
+    inviteTitleItalic: "équipe",
+    step3Subtitle: "Optionnel. Vos collègues recevront un mail pour rejoindre l'organisation. Vous pourrez en inviter d'autres à tout moment depuis votre console.",
+    invitePlaceholderFirst: "collegue@cabinet.com",
+    invitePlaceholderOther: "autre.collegue@cabinet.com",
+    removeRowTitle: "Retirer cette ligne",
+    addInvite: "+ Ajouter une invitation",
+    sending: "Envoi…",
+    // Step 4
+    lastStep: "Dernière étape",
+    packageTitlePrefix: "Package Sourcing, ",
+    packageTitleItalic: (n: number) => `${n} jours offerts`,
+    step4Subtitle: "Tout le workspace Nora pour votre organisation. Sans engagement, annulable à tout moment.",
+    packageName: "Package Sourcing",
+    packageTagline: "Nora, l'assistante IA du sourceur",
+    trialBadge: (n: number) => `Essai gratuit ${n} j`,
+    features: [
+      "Vivier illimité, upload PDF, OCR et parsing IA",
+      "Vos candidats classés par secteur automatiquement",
+      "Matching IA contre vos missions avec score justifié",
+      "Anonymisation PDF en 1 clic",
+      "Pipeline candidat avec suivi des relances et entretiens",
+      "Pricing Syntec automatisé + export PDF",
+    ],
+    activating: "Activation en cours…",
+    activateBtn: (n: number) => `Activer mes ${n} jours gratuits`,
+    continueWithoutActivating: "Continuer sans activer pour l'instant",
+    canActivateLater: "Vous pourrez activer l'essai à tout moment depuis votre console.",
+    errOnboardingFail: "Onboarding impossible",
+    errActivationFail: "Activation impossible",
+  },
+  en: {
+    loading: "Loading…",
+    // Step 1
+    welcomeWithName: (name: string) => `Welcome to your workspace ${name}`,
+    welcome: "Welcome to your workspace",
+    step1Subtitle: "Give your organization a name. It will be visible to your colleagues and appear on the documents you generate (anonymized PDF, pricing sheet…).",
+    orgNameLabel: "Organization name",
+    orgNamePlaceholderWithName: (name: string) => `${name}'s Organization`,
+    orgNamePlaceholder: "Dupont Organization",
+    orgNameHint: "You can change it at any time from your console.",
+    continueBtn: "Continue",
+    errNoOrgName: "Give your organization a name to continue.",
+    // Step 2
+    brandingTitlePrefix: "Your ",
+    brandingTitleItalic: "visual identity",
+    step2Subtitle: "Everything is optional. These elements will appear on the anonymized CVs you generate for your clients, and let them reach you about a candidate.",
+    logoLabel: "Logo",
+    logoNone: "None",
+    logoReplace: "Replace",
+    logoUpload: "Upload",
+    logoRemove: "Remove",
+    colorsLabel: "Brand colors",
+    colorsHint: "Not set = rendered in black on the anonymized PDF. Pick a color from your logo or the suggested palette.",
+    sloganLabel: "Slogan (optional)",
+    sloganPlaceholder: "Recruiting is our craft",
+    sloganCounter: (n: number) => `${n}/120 characters`,
+    contactEmailLabel: "Contact email",
+    contactEmailPlaceholder: "contact@your-firm.com",
+    contactEmailHint: "This email will be added to anonymized CVs and let your clients reach you about candidates.",
+    saving: "Saving…",
+    skipStep: "Skip this step",
+    errBrandSave: "Could not save branding",
+    errColorSave: "Could not save color",
+    errUnknown: "Unknown error",
+    errLogoSaveFail: "Logo uploaded but the save failed.",
+    errLogoUpload: "Logo upload error",
+    errLogoRemove: "Logo removal error",
+    // Step 3
+    inviteTitlePrefix: "Invite your ",
+    inviteTitleItalic: "team",
+    step3Subtitle: "Optional. Your colleagues will get an email to join the organization. You can invite more at any time from your console.",
+    invitePlaceholderFirst: "colleague@yourfirm.com",
+    invitePlaceholderOther: "other.colleague@yourfirm.com",
+    removeRowTitle: "Remove this row",
+    addInvite: "+ Add an invite",
+    sending: "Sending…",
+    // Step 4
+    lastStep: "Last step",
+    packageTitlePrefix: "Package Sourcing, ",
+    packageTitleItalic: (n: number) => `${n} days free`,
+    step4Subtitle: "The entire Nora workspace for your organization. No commitment, cancel anytime.",
+    packageName: "Package Sourcing",
+    packageTagline: "Nora, the sourcer's AI assistant",
+    trialBadge: (n: number) => `${n}-day free trial`,
+    features: [
+      "Unlimited talent pool, PDF upload, OCR and AI parsing",
+      "Your candidates automatically classified by sector",
+      "AI matching against your missions with a justified score",
+      "One-click anonymized PDF",
+      "Candidate pipeline with follow-up and interview tracking",
+      "Automated Syntec pricing + PDF export",
+    ],
+    activating: "Activating…",
+    activateBtn: (n: number) => `Activate my ${n} free days`,
+    continueWithoutActivating: "Continue without activating for now",
+    canActivateLater: "You can activate the trial at any time from your console.",
+    errOnboardingFail: "Onboarding failed",
+    errActivationFail: "Activation failed",
+  },
+}
 
 interface InviteRow {
   id: string
@@ -48,6 +182,8 @@ const TOTAL_STEPS = 4
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const [profile, setProfile] = useState<Profile | null>(null)
   const [orgId, setOrgId] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
@@ -107,7 +243,7 @@ export default function OnboardingPage() {
   const finishStep1 = () => {
     setError(null)
     if (!cabinetName.trim()) {
-      setError("Donnez un nom à votre organisation pour continuer.")
+      setError(t.errNoOrgName)
       return
     }
     setStep(2)
@@ -133,12 +269,12 @@ export default function OnboardingPage() {
         })
         if (!res.ok) {
           const j = await res.json().catch(() => ({} as { error?: string }))
-          throw new Error(j.error ?? "Sauvegarde branding impossible")
+          throw new Error(j.error ?? t.errBrandSave)
         }
       }
       setStep(3)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue")
+      setError(err instanceof Error ? err.message : t.errUnknown)
     } finally {
       setSubmitting(false)
     }
@@ -158,12 +294,12 @@ export default function OnboardingPage() {
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({} as { error?: string }))
-        throw new Error(j.error ?? "Sauvegarde couleur impossible")
+        throw new Error(j.error ?? t.errColorSave)
       }
       if ("brand_color" in patch) setBrandColor(patch.brand_color ?? null)
       if ("brand_color_secondary" in patch) setBrandColorSecondary(patch.brand_color_secondary ?? null)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue")
+      setError(err instanceof Error ? err.message : t.errUnknown)
     } finally {
       setSavingBrand(false)
     }
@@ -185,14 +321,14 @@ export default function OnboardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brand_logo_path: path }),
       })
-      if (!res.ok) throw new Error("Logo téléversé mais sauvegarde en échec.")
+      if (!res.ok) throw new Error(t.errLogoSaveFail)
       setLogoPath(path)
       const { data: signed } = await sb.storage
         .from("brand-logos")
         .createSignedUrl(path, 3600)
       setLogoPreviewUrl(signed?.signedUrl ?? null)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur upload logo")
+      setError(err instanceof Error ? err.message : t.errLogoUpload)
     } finally {
       setUploadingLogo(false)
     }
@@ -212,7 +348,7 @@ export default function OnboardingPage() {
       setLogoPath(null)
       setLogoPreviewUrl(null)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur suppression logo")
+      setError(err instanceof Error ? err.message : t.errLogoRemove)
     } finally {
       setUploadingLogo(false)
     }
@@ -271,7 +407,7 @@ export default function OnboardingPage() {
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? "Onboarding impossible")
+        throw new Error(body.error ?? t.errOnboardingFail)
       }
       // 2. Si trial demandé -> stamp app-side. L'owner configurera son
       // moyen de paiement plus tard depuis /organisation.
@@ -279,12 +415,12 @@ export default function OnboardingPage() {
         const tr = await fetch("/api/cabinet/activate-trial", { method: "POST" })
         if (!tr.ok) {
           const body = await tr.json().catch(() => ({}))
-          throw new Error(body.error ?? "Activation impossible")
+          throw new Error(body.error ?? t.errActivationFail)
         }
       }
       router.replace("/organisation")
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue")
+      setError(err instanceof Error ? err.message : t.errUnknown)
       setSubmitting(false)
     }
   }
@@ -293,7 +429,7 @@ export default function OnboardingPage() {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA" }}>
         <span style={{ color: "#6B7280", fontSize: 14, fontFamily: "var(--font-inter), sans-serif" }}>
-          Chargement…
+          {t.loading}
         </span>
       </div>
     )
@@ -314,6 +450,13 @@ export default function OnboardingPage() {
           zIndex: 2,
         }}
       >
+        <div style={{
+          width: "100%", maxWidth: 620,
+          display: "flex", justifyContent: "flex-end", marginBottom: 4,
+        }}>
+          <LanguageSwitcher />
+        </div>
+
         <div style={{ marginBottom: 28 }}>
           <Logo size="md" />
         </div>
@@ -355,32 +498,30 @@ export default function OnboardingPage() {
           {step === 1 && (
             <m.div key="s1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
               <h1 style={titleStyle}>
-                {greetingName ? `Bienvenue dans votre espace ${greetingName}` : "Bienvenue dans votre espace"}
+                {greetingName ? t.welcomeWithName(greetingName) : t.welcome}
               </h1>
               <p style={subtitleStyle}>
-                Donnez un nom à votre organisation. Il sera visible par vos
-                collègues et apparaîtra sur les documents que vous générez
-                (PDF anonymisé, fiche pricing…).
+                {t.step1Subtitle}
               </p>
 
               <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <span style={fieldLabelStyle}>Nom de l&apos;organisation</span>
+                <span style={fieldLabelStyle}>{t.orgNameLabel}</span>
                 <input
                   type="text"
                   value={cabinetName}
                   onChange={(e) => setCabinetName(e.target.value)}
-                  placeholder={profile?.first_name ? `Organisation de ${profile.first_name}` : "Organisation Dupont"}
+                  placeholder={profile?.first_name ? t.orgNamePlaceholderWithName(profile.first_name) : t.orgNamePlaceholder}
                   maxLength={120}
                   autoFocus
                   style={inputStyle}
                 />
                 <span style={fieldHintStyle}>
-                  Vous pourrez le modifier à tout moment depuis votre console.
+                  {t.orgNameHint}
                 </span>
               </label>
 
               {error && <ErrorBox text={error} />}
-              <button onClick={finishStep1} style={primaryBtn(false)}>Continuer</button>
+              <button onClick={finishStep1} style={primaryBtn(false)}>{t.continueBtn}</button>
             </m.div>
           )}
 
@@ -388,18 +529,16 @@ export default function OnboardingPage() {
           {step === 2 && (
             <m.div key="s2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
               <h1 style={titleStyle}>
-                Votre{" "}
-                <span style={italicAccentStyle}>identité visuelle</span>
+                {t.brandingTitlePrefix}
+                <span style={italicAccentStyle}>{t.brandingTitleItalic}</span>
               </h1>
               <p style={subtitleStyle}>
-                Tout est optionnel. Ces éléments apparaîtront sur les CV
-                anonymisés que vous générerez pour vos clients, et leur
-                permettront de vous recontacter au sujet d&apos;un candidat.
+                {t.step2Subtitle}
               </p>
 
               {/* Logo */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
-                <span style={fieldLabelStyle}>Logo</span>
+                <span style={fieldLabelStyle}>{t.logoLabel}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{
                     width: 72, height: 72,
@@ -412,7 +551,7 @@ export default function OnboardingPage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={logoPreviewUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8 }} />
                     ) : (
-                      <span style={{ fontSize: 10, color: "#6B7280" }}>Aucun</span>
+                      <span style={{ fontSize: 10, color: "#6B7280" }}>{t.logoNone}</span>
                     )}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -422,11 +561,11 @@ export default function OnboardingPage() {
                       disabled={uploadingLogo}
                       style={brandingSmallBtn(false)}
                     >
-                      {uploadingLogo ? "…" : logoPath ? "Remplacer" : "Téléverser"}
+                      {uploadingLogo ? "…" : logoPath ? t.logoReplace : t.logoUpload}
                     </button>
                     {logoPath && (
                       <button type="button" onClick={removeLogo} disabled={uploadingLogo} style={brandingSmallBtn(true)}>
-                        Retirer
+                        {t.logoRemove}
                       </button>
                     )}
                   </div>
@@ -443,11 +582,9 @@ export default function OnboardingPage() {
 
               {/* Couleurs — picker complet (palette curated + extraction logo + bicolore) */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
-                <span style={fieldLabelStyle}>Couleurs de marque</span>
+                <span style={fieldLabelStyle}>{t.colorsLabel}</span>
                 <span style={{ ...fieldHintStyle, marginBottom: 4 }}>
-                  Non configurée = rendu en noir sur le PDF anonymisé.
-                  Choisissez une couleur de votre logo ou de la palette
-                  suggérée.
+                  {t.colorsHint}
                 </span>
                 <BrandColorPicker
                   primary={brandColor}
@@ -461,41 +598,40 @@ export default function OnboardingPage() {
 
               {/* Slogan */}
               <label style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
-                <span style={fieldLabelStyle}>Slogan (optionnel)</span>
+                <span style={fieldLabelStyle}>{t.sloganLabel}</span>
                 <input
                   type="text"
                   value={brandSlogan}
                   onChange={(e) => setBrandSlogan(e.target.value.slice(0, 120))}
-                  placeholder="Recruter, c'est notre métier"
+                  placeholder={t.sloganPlaceholder}
                   maxLength={120}
                   style={inputStyle}
                 />
-                <span style={fieldHintStyle}>{brandSlogan.length}/120 caractères</span>
+                <span style={fieldHintStyle}>{t.sloganCounter(brandSlogan.length)}</span>
               </label>
 
               {/* Contact email */}
               <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <span style={fieldLabelStyle}>Email de contact</span>
+                <span style={fieldLabelStyle}>{t.contactEmailLabel}</span>
                 <input
                   type="email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="contact@votre-cabinet.com"
+                  placeholder={t.contactEmailPlaceholder}
                   style={inputStyle}
                 />
                 <span style={fieldHintStyle}>
-                  Ce mail sera ajouté aux CV anonymisés et permettra à vos
-                  clients de vous recontacter au sujet des candidats.
+                  {t.contactEmailHint}
                 </span>
               </label>
 
               {error && <ErrorBox text={error} />}
 
               <button onClick={finishStep2} disabled={submitting || uploadingLogo} style={primaryBtn(submitting || uploadingLogo)}>
-                {submitting ? "Sauvegarde…" : "Continuer"}
+                {submitting ? t.saving : t.continueBtn}
               </button>
               <button onClick={() => setStep(3)} disabled={submitting || uploadingLogo} style={skipBtnStyle(submitting || uploadingLogo)}>
-                Passer cette étape
+                {t.skipStep}
               </button>
             </m.div>
           )}
@@ -504,13 +640,11 @@ export default function OnboardingPage() {
           {step === 3 && (
             <m.div key="s3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
               <h1 style={titleStyle}>
-                Invitez votre{" "}
-                <span style={italicAccentStyle}>équipe</span>
+                {t.inviteTitlePrefix}
+                <span style={italicAccentStyle}>{t.inviteTitleItalic}</span>
               </h1>
               <p style={subtitleStyle}>
-                Optionnel. Vos collègues recevront un mail pour rejoindre
-                l&apos;organisation. Vous pourrez en inviter d&apos;autres à
-                tout moment depuis votre console.
+                {t.step3Subtitle}
               </p>
 
               <div style={{ display: "grid", gap: 10, marginBottom: 6 }}>
@@ -520,7 +654,7 @@ export default function OnboardingPage() {
                       type="email"
                       value={row.email}
                       onChange={(e) => updateInvite(row.id, e.target.value)}
-                      placeholder={idx === 0 ? "collegue@cabinet.com" : "autre.collegue@cabinet.com"}
+                      placeholder={idx === 0 ? t.invitePlaceholderFirst : t.invitePlaceholderOther}
                       style={{ ...inputStyle, flex: 1 }}
                     />
                     {invites.length > 1 && (
@@ -528,7 +662,7 @@ export default function OnboardingPage() {
                         type="button"
                         onClick={() => removeInviteRow(row.id)}
                         style={smallIconBtn}
-                        title="Retirer cette ligne"
+                        title={t.removeRowTitle}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <line x1="18" y1="6" x2="6" y2="18" />
@@ -542,7 +676,7 @@ export default function OnboardingPage() {
 
               {invites.length < 5 && (
                 <button type="button" onClick={addInviteRow} style={linkBtnStyle}>
-                  + Ajouter une invitation
+                  {t.addInvite}
                 </button>
               )}
 
@@ -553,7 +687,7 @@ export default function OnboardingPage() {
                 disabled={submitting}
                 style={primaryBtn(submitting)}
               >
-                {submitting ? "Envoi…" : "Continuer"}
+                {submitting ? t.sending : t.continueBtn}
               </button>
 
               <button
@@ -561,7 +695,7 @@ export default function OnboardingPage() {
                 disabled={submitting}
                 style={skipBtnStyle(submitting)}
               >
-                Passer cette étape
+                {t.skipStep}
               </button>
             </m.div>
           )}
@@ -569,13 +703,13 @@ export default function OnboardingPage() {
           {/* STEP 4 — package */}
           {step === 4 && (
             <m.div key="s4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
-              <span style={kickerStyle}>Dernière étape</span>
+              <span style={kickerStyle}>{t.lastStep}</span>
               <h1 style={titleStyle}>
-                Package Sourcing,{" "}
-                <span style={italicAccentStyle}>{TRIAL_DURATION_DAYS} jours offerts</span>
+                {t.packageTitlePrefix}
+                <span style={italicAccentStyle}>{t.packageTitleItalic(TRIAL_DURATION_DAYS)}</span>
               </h1>
               <p style={subtitleStyle}>
-                Tout le workspace Nora pour votre organisation. <strong style={{ color: "#111827" }}>Sans engagement</strong>, annulable à tout moment.
+                {t.step4Subtitle}
               </p>
 
               <div style={{
@@ -588,10 +722,10 @@ export default function OnboardingPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
                   <div>
                     <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
-                      Package Sourcing
+                      {t.packageName}
                     </p>
                     <p style={{ margin: 0, fontSize: 12, color: "#7C63C8", fontWeight: 600 }}>
-                      Nora, l&apos;assistante IA du sourceur
+                      {t.packageTagline}
                     </p>
                   </div>
                   <span style={{
@@ -600,12 +734,12 @@ export default function OnboardingPage() {
                     padding: "5px 10px", borderRadius: 999,
                     letterSpacing: "0.04em", textTransform: "uppercase",
                   }}>
-                    Essai gratuit {TRIAL_DURATION_DAYS} j
+                    {t.trialBadge(TRIAL_DURATION_DAYS)}
                   </span>
                 </div>
 
                 <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 9 }}>
-                  {PACKAGE_FEATURES.map((feat) => (
+                  {t.features.map((feat) => (
                     <li key={feat} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13.5, color: "#374151", lineHeight: 1.5 }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 3 }}>
                         <polyline points="20 6 9 17 4 12" />
@@ -623,7 +757,7 @@ export default function OnboardingPage() {
                 disabled={submitting}
                 style={primaryBtn(submitting)}
               >
-                {submitting ? "Activation en cours…" : `Activer mes ${TRIAL_DURATION_DAYS} jours gratuits`}
+                {submitting ? t.activating : t.activateBtn(TRIAL_DURATION_DAYS)}
               </button>
 
               <button
@@ -631,11 +765,11 @@ export default function OnboardingPage() {
                 disabled={submitting}
                 style={skipBtnStyle(submitting)}
               >
-                {submitting ? "Enregistrement…" : "Continuer sans activer pour l'instant"}
+                {submitting ? t.saving : t.continueWithoutActivating}
               </button>
 
               <p style={{ margin: "16px 0 0", fontSize: 11.5, color: "#6B7280", textAlign: "center", lineHeight: 1.5 }}>
-                Vous pourrez activer l&apos;essai à tout moment depuis votre console.
+                {t.canActivateLater}
               </p>
             </m.div>
           )}

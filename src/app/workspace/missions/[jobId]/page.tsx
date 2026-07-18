@@ -19,6 +19,7 @@ import { MissionBriefSection } from "@/components/workspace/MissionBriefSection"
 import { MatchVivierPanel } from "@/components/workspace/MatchVivierPanel"
 import type { MatchMode } from "@/lib/sector-gate"
 import { sectorColors } from "@/lib/sector-color"
+import { sectorDisplayName } from "@/lib/sector-i18n"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 const MATCH_MODE_LABEL: Record<Lang, Record<MatchMode, string>> = {
@@ -562,7 +563,7 @@ export default function JobDetailPage() {
                       color: sectorColors(s).text, background: sectorColors(s).bg,
                       border: `1px solid ${sectorColors(s).border}`,
                       borderRadius: 99, padding: "1px 7px",
-                    }}>{s}</span>
+                    }}>{sectorDisplayName(s, lang)}</span>
                   ))}
                 </span>
               )}

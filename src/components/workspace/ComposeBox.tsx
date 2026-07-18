@@ -112,6 +112,7 @@ export default function ComposeBox({
           channel,
           job_id: selectedJobId || null,
           instruction: instruction.trim() || null,
+          lang,
         }),
       })
       const data = await res.json()
@@ -138,7 +139,7 @@ export default function ComposeBox({
       const res = await fetch(`/api/cv/${candidate.id}/critique`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, body: bodyText, channel, job_id: selectedJobId || null }),
+        body: JSON.stringify({ subject, body: bodyText, channel, job_id: selectedJobId || null, lang }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) {

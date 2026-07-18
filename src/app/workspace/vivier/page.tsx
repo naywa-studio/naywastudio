@@ -9,6 +9,7 @@ import { customTagsOf } from "@/lib/tags"
 import { matchesCandidateRef, candidateRefLabel } from "@/lib/candidate-ref"
 import { SectorReviewControl } from "@/components/workspace/SectorReviewControl"
 import { sectorColors } from "@/lib/sector-color"
+import { sectorDisplayName } from "@/lib/sector-i18n"
 import type { SectorStatus } from "@/lib/database.types"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { VivierSkeleton } from "@/components/workspace/PageSkeletons"
@@ -1610,7 +1611,7 @@ function SectorOverview({
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: sectorColors(s.name).solid, flexShrink: 0 }} />
               <span style={{ fontSize: 14, fontWeight: 700, color: "#111827", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {s.name}
+                {sectorDisplayName(s.name, lang)}
               </span>
               <span style={{
                 fontSize: 12, fontWeight: 800, color: "#7C63C8",
@@ -1655,7 +1656,7 @@ function SectorDetail({
   const { lang } = useLanguage()
   const t = copy[lang]
   const isUnclassified = view === UNCLASSIFIED
-  const title = isUnclassified ? t.toClassifyTitle : view
+  const title = isUnclassified ? t.toClassifyTitle : sectorDisplayName(view, lang)
   const [renaming, setRenaming] = useState(false)
   const [newName, setNewName] = useState(view)
   const [busy, setBusy] = useState(false)
@@ -1677,7 +1678,7 @@ function SectorDetail({
 
   const doDelete = async () => {
     if (readOnly || !sector) return
-    if (!confirm(t.confirmDeleteSector(view))) return
+    if (!confirm(t.confirmDeleteSector(sectorDisplayName(view, lang)))) return
     setBusy(true)
     try {
       const res = await fetch(`/api/sectors/${sector.id}`, { method: "DELETE" })
@@ -1828,7 +1829,7 @@ function CreateSectorModal({
 
         {duplicateOf && (
           <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B45309", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.28)", borderRadius: 9, padding: "8px 11px" }}>
-            {t.duplicateHint(duplicateOf)}
+            {t.duplicateHint(sectorDisplayName(duplicateOf, lang))}
           </p>
         )}
 
