@@ -161,7 +161,7 @@ export default function CandidateMiniKanban({
         gap: vertical ? 4 : 0,
         marginBottom: 10, padding: "0 4px",
       }}>
-        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
           {onlyMatchId
             ? "Pipeline de ce match"
             : `Dans le pipeline · ${rows.length} poste${rows.length > 1 ? "s" : ""}`}

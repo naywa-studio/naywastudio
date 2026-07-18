@@ -35,14 +35,19 @@
    le sable de la vitrine y serait fatigant).
    ────────────────────────────────────────────────────────────────────── */
 :root {
-  /* Surfaces
-     --nw-bg est calé à #FBFAFD et pas plus sombre : c'est le seuil à partir
-     duquel le violet de marque garde un contraste AA (4.53:1) quand il sert
-     de couleur de texte sur le fond de l'app. */
-  --nw-bg:            #FBFAFD;
+  /* Surfaces — même famille « papier » que la vitrine.
+     Le fond est le paper #FDFCF9 déjà validé : il se lit comme du blanc (aucun
+     choc en arrivant d'un écran blanc) tout en portant la chaleur de la marque.
+     Les cartes restent BLANCHES : sur un écran dense, c'est ce qui donne la
+     séparation la plus nette et le texte le plus lisible. La chaleur se voit
+     donc sur le canvas et les panneaux secondaires (craie), pas sous les
+     tableaux. */
+  --nw-bg:            #FDFCF9;
   --nw-surface:       #FFFFFF;
-  --nw-surface-muted: #FAFAFA;
-  --nw-neutral-100:   #F3F4F6;
+  /* Craie éclaircie d'un cran vs la vitrine (#FAF7F0) : c'est le minimum pour
+     que le violet reste lisible en AA quand il sert de lien sur ce fond. */
+  --nw-surface-muted: #FCFAF5;
+  --nw-neutral-100:   #F2EFE9;
 
   /* Texte — encre chaude de la charte (remplace les gris froids Tailwind) */
   --nw-text:           #1A1B2E;
@@ -57,9 +62,11 @@
   --nw-primary-100:    #E2DAF6;
   --nw-primary-50:     #EEE9FB;
 
-  /* Bordures */
-  --nw-border:      #E5E7EB;
-  --nw-border-soft: #F0ECF8;
+  /* Bordures — dérivées du lin de la charte, mais désaturées.
+     Le lin brut (#E9E1CB) vire au jaune quand il quadrille un tableau dense ;
+     ces deux valeurs en gardent la chaleur sans la teinte. */
+  --nw-border:      #E6E1D8;
+  --nw-border-soft: #F0EBE2;
 
   /* États sémantiques */
   --nw-success:      #2F6B33;

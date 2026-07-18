@@ -80,7 +80,7 @@ export default function AdminMajPage() {
           <div>
             <p style={{
               margin: "0 0 6px", fontSize: 11, fontWeight: 700,
-              color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase",
+              color: "var(--nw-primary)", letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}>
               Console admin · Nouveautés
             </p>
@@ -146,7 +146,7 @@ export default function AdminMajPage() {
                         fontSize: 10, fontWeight: 700, color: cat.color,
                         background: `${cat.color}1A`,
                         padding: "2px 7px", borderRadius: 100,
-                        letterSpacing: "0.05em", textTransform: "uppercase",
+                        letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
                       }}>
                         {cat.label}
                       </span>
@@ -155,7 +155,7 @@ export default function AdminMajPage() {
                         color: isDraft ? "var(--nw-text-muted)" : "var(--nw-success)",
                         background: isDraft ? "var(--nw-neutral-100)" : "rgba(34,197,94,0.10)",
                         padding: "2px 7px", borderRadius: 100,
-                        letterSpacing: "0.05em", textTransform: "uppercase",
+                        letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
                       }}>
                         {isDraft ? "Brouillon" : "Publié"}
                       </span>
@@ -284,7 +284,7 @@ function EditModal({
         boxShadow: "0 24px 64px -24px rgba(17,24,39,0.30)",
       }}>
         <header style={{ marginBottom: 18 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase" }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
             {initial ? "Éditer" : "Nouvelle"}
           </p>
           <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
@@ -386,7 +386,7 @@ Confirmation positive.
                   <div key={group}>
                     <div style={{
                       fontSize: 10, fontWeight: 700, color: "var(--nw-primary)",
-                      letterSpacing: "0.07em", textTransform: "uppercase",
+                      letterSpacing: "0.07em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
                       marginBottom: 4,
                     }}>
                       {group}

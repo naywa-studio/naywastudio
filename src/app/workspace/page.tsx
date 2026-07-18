@@ -241,7 +241,7 @@ export default function WorkspaceHome() {
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
             margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
-            letterSpacing: "0.08em", textTransform: "uppercase",
+            letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
           }}>
             {brandName ?? "Organisation sans nom"}
           </p>
@@ -519,7 +519,7 @@ function StatTile({ href, label, value, delta, loading }: {
     >
       <p style={{
         margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
-        letterSpacing: "0.07em", textTransform: "uppercase",
+        letterSpacing: "0.07em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         {label}
       </p>
@@ -566,7 +566,7 @@ function RecentPanel({
       }}>
         <h2 style={{
           margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
-          letterSpacing: "0.08em", textTransform: "uppercase",
+          letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {title}
         </h2>

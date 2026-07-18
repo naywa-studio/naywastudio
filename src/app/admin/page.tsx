@@ -62,7 +62,7 @@ export default function AdminDashboardPage() {
           <div>
             <p style={{
               margin: "0 0 6px", fontSize: 11, fontWeight: 700,
-              color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase",
+              color: "var(--nw-primary)", letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}>
               Console admin
             </p>
@@ -267,7 +267,7 @@ function KpiCard({
           {icon}
           <span style={{
             fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
-            letterSpacing: "0.06em", textTransform: "uppercase",
+            letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
           }}>
             {label}
           </span>

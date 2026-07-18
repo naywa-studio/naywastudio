@@ -792,7 +792,7 @@ function VerdictHero({
       <div style={{ minWidth: 0 }}>
         <div style={{
           fontSize: 10.5, fontWeight: 700, color: status.color,
-          letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4,
+          letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 4,
         }}>
           {status.icon} {status.label}
         </div>
@@ -892,7 +892,7 @@ function HeroKpi({
     }}>
       <div style={{
         fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
-        letterSpacing: "0.04em", textTransform: "uppercase",
+        letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         {label}
       </div>
@@ -1056,7 +1056,7 @@ function ActiveAvantagesStrip({ avantages, job }: {
     }}>
       <span style={{
         fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
-        letterSpacing: "0.05em", textTransform: "uppercase", marginRight: 4,
+        letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginRight: 4,
       }}>
         Avantages appliqués
       </span>
@@ -1151,7 +1151,7 @@ function SyntecContextBar({
           }}>
             <div style={{
               fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
-              letterSpacing: "0.05em", textTransform: "uppercase",
+              letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
               Choisir une position Syntec
@@ -1210,7 +1210,7 @@ function ExtremeMonthCard({
     }}>
       <div style={{
         fontSize: 10, fontWeight: 700, color: palette.fg,
-        letterSpacing: "0.05em", textTransform: "uppercase",
+        letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         {label}
       </div>
@@ -1319,7 +1319,7 @@ function StepperField({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{
           fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
-          letterSpacing: "0.05em", textTransform: "uppercase",
+          letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {label}
         </span>
@@ -1433,7 +1433,7 @@ function CostBreakdown({
     }}>
       <div style={{
         fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
-        letterSpacing: "0.05em", textTransform: "uppercase",
+        letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         Coût fixe mensuel (constant chaque mois)
       </div>
@@ -1484,7 +1484,7 @@ function CostBreakdown({
         <>
           <div style={{
             fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
-            letterSpacing: "0.05em", textTransform: "uppercase",
+            letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             marginTop: 10,
           }}>
             Coût variable par jour travaillé

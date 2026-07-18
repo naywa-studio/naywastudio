@@ -50,7 +50,7 @@ export function MissionBriefSection({
           <span style={{
             fontSize: 9.5, fontWeight: 700, color: "var(--nw-primary)",
             background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
-            borderRadius: 999, padding: "1px 8px", letterSpacing: "0.04em", textTransform: "uppercase",
+            borderRadius: 999, padding: "1px 8px", letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
           }}>
             Appel d&apos;offre
           </span>

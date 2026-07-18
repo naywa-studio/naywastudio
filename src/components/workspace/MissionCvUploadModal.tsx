@@ -389,7 +389,7 @@ function StageBadge({
             fontSize: 9.5, fontWeight: 700, color: "var(--nw-warn)",
             background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.28)",
             borderRadius: 999, padding: "1px 6px",
-            letterSpacing: "0.04em", textTransform: "uppercase",
+            letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
           }}>
             Doublon
           </span>

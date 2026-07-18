@@ -192,7 +192,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
           ) : (
             <>
               <header style={{ marginBottom: 18 }}>
-                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase" }}>
+                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                   Support
                 </p>
                 <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>

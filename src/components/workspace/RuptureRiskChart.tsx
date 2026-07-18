@@ -189,7 +189,7 @@ export default function RuptureRiskChart({
               fill="var(--nw-danger-strong)"
               textAnchor="middle"
               letterSpacing="0.04em"
-              style={{ textTransform: "uppercase" }}
+              style={{ fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}
             >
               Période d&apos;essai
             </text>
@@ -411,7 +411,7 @@ export default function RuptureRiskChart({
           }}>
             <div style={{
               fontSize: 10, color: "var(--nw-text-muted)", fontWeight: 700,
-              letterSpacing: "0.05em", textTransform: "uppercase",
+              letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}>
               {MONTH_ABBR_FR[r.calendarMonth]} {r.year} · m{r.monthIndex}
             </div>

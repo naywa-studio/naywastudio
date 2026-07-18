@@ -49,7 +49,7 @@ const headerCellStyle: React.CSSProperties = {
   borderBottom: "1px solid var(--nw-primary-100)",
   padding: "10px 12px",
   fontSize: 11, fontWeight: 800,
-  letterSpacing: "0.06em", textTransform: "uppercase",
+  letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
 }
 
 /* Days a card can sit in a stage before Nora suggests a relance. */
@@ -273,7 +273,7 @@ export default function PipelinePage() {
           }}>
             {allJobs.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <label style={{ fontSize: 11.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                <label style={{ fontSize: 11.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                   Mission
                 </label>
                 <Select

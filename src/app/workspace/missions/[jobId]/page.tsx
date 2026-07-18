@@ -816,7 +816,7 @@ function AssignModal({
         }}
       >
         <div style={{ padding: "18px 22px", borderBottom: "1px solid var(--nw-border-soft)" }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
             Assigner manuellement
           </p>
           <h3 style={{ margin: "4px 0 10px", fontSize: 17, fontWeight: 800, color: "var(--nw-text)" }}>

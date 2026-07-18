@@ -220,7 +220,7 @@ export default function MissionsPage() {
             fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
             background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
             padding: "4px 11px", borderRadius: 100,
-            letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
+            letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 12,
           }}>
             Missions
           </span>
@@ -462,7 +462,7 @@ function StatGroup({ title, children }: { title: string; children: React.ReactNo
     }}>
       <div style={{
         fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)",
-        letterSpacing: "0.08em", textTransform: "uppercase",
+        letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         marginBottom: 8, padding: "0 2px",
       }}>
         {title}
@@ -650,7 +650,7 @@ function StatusChip({ status }: { status: Job["status"] }) {
       flexShrink: 0,
       fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 100,
       background: s.bg, color: s.fg, border: `1px solid ${s.bd}`,
-      letterSpacing: "0.04em", textTransform: "uppercase",
+      letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
     }}>{s.label}</span>
   )
 }
@@ -978,7 +978,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
           {/* Header */}
           <div style={{ padding: "22px 28px 18px", borderBottom: "1px solid var(--nw-border-soft)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div style={{ minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 {editMode ? "Modifier la mission" : "Nouvelle mission"}
               </p>
               <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.02em" }}>
@@ -1415,7 +1415,7 @@ function StatusPill({ kind, children }: { kind: "ok" | "missing" | "review"; chi
       fontSize: 10, fontWeight: 700, color: map.fg,
       background: map.bg, border: `1px solid ${map.bd}`,
       padding: "2px 7px", borderRadius: 100,
-      textTransform: "uppercase", letterSpacing: "0.05em",
+      fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", letterSpacing: "0.05em",
     }}>
       {children}
     </span>

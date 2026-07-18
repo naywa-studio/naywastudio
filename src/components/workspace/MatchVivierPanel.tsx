@@ -148,7 +148,7 @@ export function MatchVivierPanel({
         {showSectors && (
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 9 }}>
-              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 Secteurs ciblés
               </p>
               <span style={{ fontSize: 11, color: "var(--nw-text-muted)" }}>· cliquez pour cibler</span>

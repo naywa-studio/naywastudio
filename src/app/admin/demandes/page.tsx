@@ -220,7 +220,7 @@ export default function AdminDemandesPage() {
                       background: "var(--nw-surface-muted)", borderRadius: 8,
                       borderLeft: "3px solid var(--nw-primary)",
                     }}>
-                      <strong style={{ color: "var(--nw-text-muted)", fontSize: 11.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Raison :</strong>{" "}
+                      <strong style={{ color: "var(--nw-text-muted)", fontSize: 11.5, fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Raison :</strong>{" "}
                       {batch.reason}
                     </p>
                   )}
@@ -284,7 +284,7 @@ function ChangeCard({
           fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           background: "rgba(124,99,200,0.08)",
           padding: "3px 8px", borderRadius: 100,
-          letterSpacing: "0.05em", textTransform: "uppercase",
+          letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {FIELD_LABEL[change.field]}
         </span>
@@ -392,7 +392,7 @@ function ConfirmationModal({
             <label style={{
               display: "block", marginBottom: 5,
               fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
-              letterSpacing: "0.05em", textTransform: "uppercase",
+              letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}>
               Raison du refus
             </label>
@@ -439,7 +439,7 @@ function FieldHeader({ children }: { children: React.ReactNode }) {
   return (
     <p style={{
       margin: "0 0 6px", fontSize: 10.5, fontWeight: 700,
-      color: "var(--nw-text-muted)", letterSpacing: "0.05em", textTransform: "uppercase",
+      color: "var(--nw-text-muted)", letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
     }}>
       {children}
     </p>
@@ -493,7 +493,7 @@ function ChangeStatusPill({ status }: { status: Status }) {
     <span style={{
       fontSize: 10, fontWeight: 700, color: s.color, background: s.bg,
       padding: "2px 7px", borderRadius: 100,
-      letterSpacing: "0.05em", textTransform: "uppercase",
+      letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
     }}>
       {s.label}
     </span>
@@ -515,7 +515,7 @@ function Pill({ label, color, bg }: { label: string; color: string; bg: string }
     <span style={{
       fontSize: 10.5, fontWeight: 700, color, background: bg,
       padding: "2px 8px", borderRadius: 100,
-      letterSpacing: "0.05em", textTransform: "uppercase",
+      letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
     }}>
       {label}
     </span>

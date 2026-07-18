@@ -211,7 +211,7 @@ export default function ParametragePage() {
         }}>
           <p style={{
             margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
-            letterSpacing: "0.10em", textTransform: "uppercase",
+            letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
           }}>
             Option non activée
           </p>
@@ -268,7 +268,7 @@ export default function ParametragePage() {
           fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
           padding: "4px 11px", borderRadius: 100,
-          letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
+          letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 12,
         }}>
           Paramètres organisation
         </span>
@@ -389,7 +389,7 @@ export default function ParametragePage() {
 
           <p style={{
             margin: "8px 0 -2px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
-            letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 4px",
+            letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", padding: "0 4px",
           }}>
             Optionnels
           </p>
@@ -420,7 +420,7 @@ export default function ParametragePage() {
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
         }}>
           <div>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
               Coût mensuel estimé des avantages activés
             </p>
             <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)" }}>
@@ -657,7 +657,7 @@ function SmartAvantageRow({
                 fontSize: 9.5, fontWeight: 800, color: "var(--nw-primary)",
                 background: "rgba(124,99,200,0.10)", border: "1px solid rgba(124,99,200,0.25)",
                 borderRadius: 100, padding: "1px 7px",
-                letterSpacing: "0.05em", textTransform: "uppercase",
+                letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               }}>
                 Obligatoire
               </span>

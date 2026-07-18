@@ -157,7 +157,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
             <div>
               <p style={{
                 margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
-                letterSpacing: "0.10em", textTransform: "uppercase",
+                letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               }}>
                 Étape {current.number} sur 06 · Visite guidée
               </p>

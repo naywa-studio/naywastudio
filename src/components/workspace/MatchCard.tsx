@@ -98,7 +98,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = fals
             <span style={{ fontSize: 20, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
               {row.score}
             </span>
-            <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
               {tier.label}
             </span>
           </div>

@@ -100,7 +100,7 @@ export function MissionSummaryBar({
           {/* Skills + description */}
           {job.required_skills && job.required_skills.length > 0 && (
             <div style={{ marginTop: 14 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "var(--nw-text-muted)", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "var(--nw-text-muted)", letterSpacing: "0.07em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 Compétences requises
               </p>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
@@ -126,7 +126,7 @@ export function MissionSummaryBar({
           {/* Critères principaux */}
           {mainCriteria.length > 0 && (
             <div style={{ marginTop: 14 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "var(--nw-success)", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "var(--nw-success)", letterSpacing: "0.07em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 Critères principaux
               </p>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
@@ -140,7 +140,7 @@ export function MissionSummaryBar({
           {/* Bonus */}
           {bonusCriteria.length > 0 && (
             <div style={{ marginTop: 12 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.07em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 Bonus
               </p>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>

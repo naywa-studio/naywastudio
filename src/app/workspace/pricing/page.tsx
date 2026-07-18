@@ -338,7 +338,7 @@ function Header({ missionCount }: { missionCount: number }) {
         fontSize: 11, fontWeight: 700, color: "#D97706",
         background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.22)",
         padding: "4px 11px", borderRadius: 100,
-        letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
+        letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 12,
       }}>
         <PricingIcon size={11} style={{ marginRight: 5 }} /> Pricing
       </span>

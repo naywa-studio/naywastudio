@@ -164,7 +164,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
               background: "rgba(124,99,200,0.08)",
               border: "1px solid rgba(124,99,200,0.18)",
               padding: "4px 10px", borderRadius: 100,
-              letterSpacing: "0.08em", textTransform: "uppercase",
+              letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               marginLeft: 12,
             }}>
               Console organisation
@@ -203,7 +203,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
                     padding: "10px 12px",
                     borderBottom: "1px solid var(--nw-border-soft)", marginBottom: 4,
                   }}>
-                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
                       Connecté en tant que
                     </p>
                     <p style={{

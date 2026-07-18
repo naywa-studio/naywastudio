@@ -241,7 +241,7 @@ function MacroMap({ clusters, onZoom }: { clusters: VivierCluster[]; onZoom: (id
               >
                 <span style={{
                   fontSize: Math.max(13, sizePx / 13),
-                  fontWeight: 800, letterSpacing: "0.02em", textTransform: "uppercase",
+                  fontWeight: 800, letterSpacing: "0.02em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
                   textShadow: "0 1px 0 rgba(255,255,255,0.6)",
                   pointerEvents: "none", textAlign: "center", padding: "0 8%",
                 }}>
@@ -350,7 +350,7 @@ function SectorZoomView({
         </button>
 
         <div style={{ textAlign: "right" }}>
-          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: hsl(cluster.hue, 50, 50), letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: hsl(cluster.hue, 50, 50), letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
             Secteur
           </p>
           <h2 style={{ margin: "2px 0 0", fontSize: 22, fontWeight: 800, color: hsl(cluster.hue, 60, 28), letterSpacing: "-0.01em" }}>
@@ -395,7 +395,7 @@ function SectorZoomView({
               gridColumn: "1 / -1",
               display: "flex", alignItems: "center", gap: 10, margin: "14px 0 4px",
               fontSize: 10, fontWeight: 700, color: hsl(cluster.hue, 35, 45),
-              letterSpacing: "0.08em", textTransform: "uppercase",
+              letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}
           >
             <span style={{ flex: 1, height: 1, background: hsl(cluster.hue, 35, 75) }} />
@@ -456,7 +456,7 @@ function SideRailClusters({
       </button>
       <div style={{
         fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)",
-        letterSpacing: "0.08em", textTransform: "uppercase",
+        letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         padding: "10px 4px 4px",
       }}>
         Secteurs

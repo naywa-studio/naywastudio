@@ -143,7 +143,7 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
                       fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)",
                       background: "var(--nw-neutral-100)", border: "1px solid var(--nw-border)",
                       borderRadius: 999, padding: "1px 6px",
-                      letterSpacing: "0.05em", textTransform: "uppercase",
+                      letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
                     }}>
                       Système
                     </span>
@@ -153,7 +153,7 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
                       fontSize: 9.5, fontWeight: 700, color: "var(--nw-primary)",
                       background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.22)",
                       borderRadius: 999, padding: "1px 6px",
-                      letterSpacing: "0.05em", textTransform: "uppercase",
+                      letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
                     }}>
                       Nora
                     </span>

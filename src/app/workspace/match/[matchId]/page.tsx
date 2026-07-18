@@ -67,7 +67,7 @@ function PricingShortcut({ targets }: {
           }}>
             <div style={{
               fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
-              letterSpacing: "0.05em", textTransform: "uppercase",
+              letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
               Choisir la mission
@@ -531,7 +531,7 @@ export default function MatchPage() {
             }}>
               <h3 style={{
                 margin: 0, fontSize: 11, fontWeight: 800, color: "var(--nw-success)",
-                letterSpacing: "0.06em", textTransform: "uppercase",
+                letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               }}>
                 ✦ Critères de cette mission
               </h3>
@@ -540,7 +540,7 @@ export default function MatchPage() {
               {hasCriteriaEval ? (
                 <>
                   <div style={{ marginTop: 10 }}>
-                    <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                       Principaux
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
@@ -551,7 +551,7 @@ export default function MatchPage() {
                   </div>
                   {bonusCriteria.length > 0 && (
                     <div style={{ marginTop: 12 }}>
-                      <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                         Bonus
                       </p>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
@@ -588,7 +588,7 @@ export default function MatchPage() {
               border: "1px solid rgba(124,99,200,0.22)",
               borderRadius: 16, padding: 16,
             }}>
-              <h3 style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              <h3 style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 ✋ Assignation manuelle
               </h3>
               <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-body)", lineHeight: 1.55 }}>
@@ -601,7 +601,7 @@ export default function MatchPage() {
               Pricing). Comparée au salaire cible du poste si renseigné, et
               réutilisable dans le pricing ensuite. */}
           <section style={{ background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16, padding: 16 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
               Prétention salariale
             </h3>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -644,7 +644,7 @@ export default function MatchPage() {
           </section>
 
           <section style={{ flex: 1, background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16, padding: 18 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
               Résumé candidat
             </h3>
             {cv?.summary && (
@@ -682,7 +682,7 @@ export default function MatchPage() {
             {/* Parcours — remplit la carte avec du concret plutôt que du vide */}
             {(cv?.experience?.length ?? 0) > 0 && (
               <div style={{ marginTop: 16 }}>
-                <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                   Parcours
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -715,7 +715,7 @@ export default function MatchPage() {
         {/* COL 2 (rangée 1) — message d'approche */}
         <div style={{ gridColumn: "2", gridRow: "1", display: "flex", flexDirection: "column", gap: 14 }}>
           <section style={{ flex: 1, background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16, padding: 18 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
               ✉ Message d&apos;approche
             </h3>
             {isReadOnly ? (

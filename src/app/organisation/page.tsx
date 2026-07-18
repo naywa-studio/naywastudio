@@ -2002,7 +2002,7 @@ function LockedBadge() {
       fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
       background: "var(--nw-neutral-100)", border: "1px solid var(--nw-border)",
       padding: "3px 7px", borderRadius: 100,
-      letterSpacing: "0.05em", textTransform: "uppercase",
+      letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
     }}>
       <LockIcon size={10} />
       Verrouillé
@@ -2160,7 +2160,7 @@ function BrandingChangeRequestModal({
         }}
       >
         <header style={{ marginBottom: 16 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase" }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
             Demande de modification
           </p>
           <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
@@ -2412,7 +2412,7 @@ function LogoFrame({ src, placeholder, highlight }: { src: string | null | undef
 const miniLabel: React.CSSProperties = {
   margin: "0 0 4px",
   fontSize: 10.5, fontWeight: 700,
-  color: "var(--nw-text-muted)", letterSpacing: "0.05em", textTransform: "uppercase",
+  color: "var(--nw-text-muted)", letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
 }
 
 /**
@@ -2534,7 +2534,7 @@ function PreviewToolsCard() {
           fontWeight: 700,
           color: "var(--nw-warn-strong)",
           letterSpacing: "0.08em",
-          textTransform: "uppercase",
+          fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           Outils de preview
         </p>
@@ -3052,7 +3052,7 @@ function RolePill({ role }: { role: "owner" | "member" }) {
       background: role === "owner" ? "rgba(124,99,200,0.08)" : "var(--nw-neutral-100)",
       border: role === "owner" ? "1px solid rgba(124,99,200,0.22)" : "1px solid var(--nw-border)",
       borderRadius: 100, padding: "2px 7px",
-      textTransform: "uppercase", letterSpacing: "0.06em",
+      fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", letterSpacing: "0.06em",
       flexShrink: 0,
     }}>
       {role === "owner" ? "Owner" : "Member"}

@@ -108,7 +108,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               fontSize: 11, fontWeight: 800, color: "white",
               background: "linear-gradient(135deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               padding: "4px 10px", borderRadius: 100,
-              letterSpacing: "0.10em", textTransform: "uppercase",
+              letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               marginLeft: 8,
             }}>
               Admin

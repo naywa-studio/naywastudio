@@ -42,7 +42,7 @@ export function UpdatesHeroCard() {
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
           margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
-          letterSpacing: "0.05em", textTransform: "uppercase",
+          letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {single ? "Nouveauté Naywa" : `${unreadCount} nouveautés Naywa`}
         </p>

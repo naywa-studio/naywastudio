@@ -378,7 +378,7 @@ export default function CandidatePage() {
                 <SubSection title="Compétences">
                   {candidate.skills && candidate.skills.length > 0 && (
                     <div>
-                      <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                      <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                         Techniques &amp; méthodes
                       </p>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -394,7 +394,7 @@ export default function CandidatePage() {
                   )}
                   {cv?.qualities && cv.qualities.length > 0 && (
                     <div style={{ marginTop: candidate.skills && candidate.skills.length > 0 ? 16 : 0 }}>
-                      <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#16a34a", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                      <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#16a34a", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                         Qualités
                       </p>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -485,7 +485,7 @@ export default function CandidatePage() {
           }}>
             <h3 style={{
               margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
-              letterSpacing: "0.08em", textTransform: "uppercase",
+              letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}>
               📌 Missions matchées
             </h3>
@@ -562,7 +562,7 @@ export default function CandidatePage() {
             }}>
               <h3 style={{
                 margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
-                letterSpacing: "0.08em", textTransform: "uppercase",
+                letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               }}>
                 CV original
               </h3>
@@ -616,7 +616,7 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
         <h2 style={{
           margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
-          letterSpacing: "0.08em", textTransform: "uppercase",
+          letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {title}
         </h2>
@@ -632,7 +632,7 @@ function SubSection({ title, children }: { title: string; children: React.ReactN
     <div>
       <h3 style={{
         margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
-        letterSpacing: "0.08em", textTransform: "uppercase",
+        letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         {title}
       </h3>
@@ -706,7 +706,7 @@ export function PricingShortcut({ matches }: { matches: JobMatch[] }) {
           }}>
             <div style={{
               fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
-              letterSpacing: "0.05em", textTransform: "uppercase",
+              letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
               Choisir la mission
@@ -783,7 +783,7 @@ function InfoChip({ label, value }: { label: string; value: string | null | unde
       background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)", borderRadius: 9,
       fontSize: 12,
     }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
         {label}
       </span>
       <span style={{ color: "var(--nw-text)", fontWeight: 600, marginTop: 2 }}>{value}</span>

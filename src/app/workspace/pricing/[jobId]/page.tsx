@@ -397,7 +397,7 @@ function MissionConfigSummary({
     }}>
       <span style={{
         fontSize: 10.5, fontWeight: 700, color: "var(--nw-success)",
-        letterSpacing: "0.06em", textTransform: "uppercase",
+        letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         ✓ Mission paramétrée
       </span>
@@ -542,7 +542,7 @@ function MissionConfigWizard({
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
         <span style={{
           fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
-          letterSpacing: "0.06em", textTransform: "uppercase",
+          letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           📋 Paramétrage mission
         </span>
@@ -643,7 +643,7 @@ function MissionConfigWizard({
       }}>
         <p style={{
           margin: "0 0 10px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)",
-          letterSpacing: "0.06em", textTransform: "uppercase",
+          letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           Activations conditionnelles
         </p>
@@ -969,7 +969,7 @@ function CompactCandidatesList({
       }}>
         <p style={{
           margin: 0, fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
-          letterSpacing: "0.06em", textTransform: "uppercase",
+          letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           Candidats · {sorted.length}
         </p>
@@ -1407,7 +1407,7 @@ function NoraVerdictBubble({
                 background: "rgba(34,197,94,0.10)",
                 border: "1px solid rgba(34,197,94,0.25)",
                 borderRadius: 100, padding: "2px 8px", marginBottom: 6,
-                letterSpacing: "0.05em", textTransform: "uppercase",
+                letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               }}>
                 ✓ Préférence : {state.winner === "A" ? candidateAName : candidateBName}
               </div>
@@ -1514,7 +1514,7 @@ function ComparisonCard({
       {/* Verdict */}
       <div style={{
         fontSize: 10, fontWeight: 700, color: status.fg,
-        letterSpacing: "0.06em", textTransform: "uppercase",
+        letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         {status.label}
       </div>
@@ -1564,7 +1564,7 @@ function CompareStat({ label, value }: { label: string; value: string }) {
     <div>
       <div style={{
         fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)",
-        letterSpacing: "0.05em", textTransform: "uppercase",
+        letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         {label}
       </div>

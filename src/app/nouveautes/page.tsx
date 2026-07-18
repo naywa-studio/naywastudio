@@ -175,7 +175,7 @@ export default function NouveautesPage() {
         <header style={{ marginBottom: 20 }}>
           <p style={{
             margin: "0 0 6px", fontSize: 11, fontWeight: 700,
-            color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase",
+            color: "var(--nw-primary)", letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
           }}>
             Naywa Studio
           </p>
@@ -339,7 +339,7 @@ export default function NouveautesPage() {
                     flexShrink: 0,
                     fontSize: 10, fontWeight: 700, color: meta.color,
                     background: meta.bg, padding: "3px 8px", borderRadius: 999,
-                    letterSpacing: "0.05em", textTransform: "uppercase",
+                    letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
                   }}>
                     {meta.label}
                   </span>

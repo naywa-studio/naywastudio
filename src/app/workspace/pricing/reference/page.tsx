@@ -137,7 +137,7 @@ export default function PricingReferencePage() {
           fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
           padding: "4px 11px", borderRadius: 100,
-          letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
+          letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 12,
         }}>
           Référence Syntec
         </span>
@@ -250,7 +250,7 @@ function RefCategory({
               <span style={{
                 fontSize: 10.5, fontWeight: 700,
                 color: accent, letterSpacing: "0.06em",
-                textTransform: "uppercase",
+                fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               }}>
                 {it.source}
               </span>

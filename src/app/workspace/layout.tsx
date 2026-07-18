@@ -241,7 +241,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           de la marque sans concurrencer le contenu. */}
       <div aria-hidden style={{
         position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none",
-        background: `${ui.bg} radial-gradient(120% 80% at 100% 0%, rgba(184,174,222,0.10) 0%, rgba(248,246,255,0) 55%)`,
+        // Voile violet très léger en haut à droite. Le point d'arrivée est
+        // transparent (et non l'ancien lavande opaque #F8F6FF) : sur le fond
+        // papier, une couleur froide en fin de dégradé faisait une tache.
+        background: `${ui.bg} radial-gradient(120% 80% at 100% 0%, rgba(123,99,200,0.07) 0%, rgba(123,99,200,0) 55%)`,
       }} />
       <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 2, fontFamily: "var(--font-inter), sans-serif" }}>
         {/* Top bar */}
@@ -336,7 +339,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                     padding: "10px 12px",
                     borderBottom: "1px solid var(--nw-border-soft)", marginBottom: 4,
                   }}>
-                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
                       Connecté en tant que
                     </p>
                     <p style={{

@@ -254,7 +254,7 @@ function Th({ children }: { children: React.ReactNode }) {
     <th style={{
       padding: "12px 14px",
       fontSize: 11, fontWeight: 700,
-      color: "var(--nw-text-muted)", letterSpacing: "0.05em", textTransform: "uppercase",
+      color: "var(--nw-text-muted)", letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
     }}>
       {children}
     </th>
@@ -363,7 +363,7 @@ const pill = (color: string, bg: string, border: string): React.CSSProperties =>
   fontSize: 10, fontWeight: 700, color,
   background: bg, border: `1px solid ${border}`,
   padding: "2px 7px", borderRadius: 100,
-  letterSpacing: "0.05em", textTransform: "uppercase",
+  letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
   marginLeft: 4,
 })
 // ─── Période d'essai (admin) ────────────────────────────────────────────

@@ -192,7 +192,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
         <div style={{ flex: 1, minWidth: 0 }}>
           {!embedded && (
             <>
-              <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 Étape unique · Critères de matching
               </p>
               <h2 style={{ margin: "4px 0 0", fontSize: 19, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
@@ -331,7 +331,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
           marginTop: 12, padding: 12,
           background: "#FAF9FE", border: "1px solid var(--nw-border-soft)", borderRadius: 11,
         }}>
-          <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
             Ajouter un critère depuis le catalogue
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>

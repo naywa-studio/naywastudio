@@ -126,7 +126,7 @@ export function QuotaGauges({
         </h3>
         <span style={{
           fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)",
-          letterSpacing: "0.04em", textTransform: "uppercase",
+          letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {data.plan.label}
         </span>
@@ -226,7 +226,7 @@ function DetailModal({
         </h2>
         <p style={{
           margin: "0 0 18px", fontSize: 12.5, fontWeight: 600, color: "var(--nw-primary)",
-          letterSpacing: "0.04em", textTransform: "uppercase",
+          letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {plan.label}
         </p>

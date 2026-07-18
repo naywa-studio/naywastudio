@@ -227,7 +227,7 @@ export default function ComposeBox({
                 <span style={{
                   fontSize: 11, fontWeight: 800,
                   color: critique.verdict === "ok" ? "var(--nw-success)" : "var(--nw-warn-strong)",
-                  letterSpacing: "0.04em", textTransform: "uppercase",
+                  letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
                 }}>
                   ✦ {critique.verdict === "ok" ? "Nora approuve" : "Nora suggère"}
                 </span>

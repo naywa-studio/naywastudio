@@ -93,7 +93,7 @@ export default function AnonymizeForJob({
       {!embedded && (
         <h2 style={{
           margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
-          letterSpacing: "0.08em", textTransform: "uppercase",
+          letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           🔒 CV anonymisé
         </h2>

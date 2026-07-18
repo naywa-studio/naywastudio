@@ -495,7 +495,7 @@ export default function VivierPage() {
             fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
             background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
             padding: "4px 11px", borderRadius: 100,
-            letterSpacing: "0.08em", textTransform: "uppercase",
+            letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             marginBottom: 12,
           }}>
             Vivier
@@ -851,7 +851,7 @@ function CandidateCard({
           position: "absolute", top: 12, right: 12,
           fontSize: 10, fontWeight: 700,
           padding: "3px 8px", borderRadius: 100,
-          letterSpacing: "0.04em", textTransform: "uppercase",
+          letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
           background: errored ? "#FEE2E2" : "rgba(124,99,200,0.10)",
           color:      errored ? "var(--nw-danger-strong)" : "var(--nw-primary)",
           border:     errored ? "1px solid #FCA5A5" : "1px solid rgba(124,99,200,0.18)",
@@ -938,7 +938,7 @@ function CandidateCard({
               border: "1px solid #FDE68A",
               padding: "2px 7px", borderRadius: 100,
               fontSize: 10, fontWeight: 700,
-              letterSpacing: "0.04em", textTransform: "uppercase",
+              letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}>
               Doublon
             </span>
@@ -1618,7 +1618,7 @@ function CreateSectorModal({
           Nommez le secteur, Nora en propose une définition — elle servira à ranger les CV de façon cohérente.
         </p>
 
-        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 6 }}>
           Nom du secteur
         </label>
         <div style={{ display: "flex", gap: 8 }}>
@@ -1644,7 +1644,7 @@ function CreateSectorModal({
 
         {asked && (
           <div style={{ marginTop: 14 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 6 }}>
               Définition (modifiable)
             </label>
             <textarea

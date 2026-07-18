@@ -31,7 +31,7 @@ export function SectorStatusBadge({ status }: { status: SectorStatus }) {
       fontSize: 9.5, fontWeight: 700, color: m.color,
       background: m.bg, border: `1px solid ${m.border}`,
       borderRadius: 999, padding: "1px 7px",
-      letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap",
+      letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", whiteSpace: "nowrap",
     }}>
       {m.label}
     </span>
