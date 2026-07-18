@@ -3,6 +3,8 @@ import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { BrandBands } from "@/components/ui/BrandBands"
+import { Eyebrow } from "@/components/brand/Eyebrow"
+import { brand, type as t } from "@/lib/brand"
 
 export const metadata: Metadata = {
   title: "FAQ",
@@ -140,34 +142,14 @@ export default function FAQPage() {
       <main style={{ flex: 1, padding: "120px 24px 80px", position: "relative", zIndex: 2 }}>
         <div style={{ maxWidth: 880, margin: "0 auto" }}>
           {/* Hero */}
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 7,
-            background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
-            borderRadius: 999, padding: "5px 13px",
-            marginBottom: 22,
-            fontSize: 11, fontWeight: 700, color: "#7C63C8",
-            letterSpacing: "0.07em", textTransform: "uppercase",
-            fontFamily: "var(--font-inter), sans-serif",
-          }}>
-            Questions fréquentes
-          </span>
+          <Eyebrow>Questions fréquentes</Eyebrow>
 
-          <h1 style={{
-            fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, color: "#111827",
-            letterSpacing: "-0.03em", lineHeight: 1.08,
-            margin: "0 0 18px",
-            maxWidth: "22ch",
-            fontFamily: "var(--font-inter), sans-serif",
-          }}>
+          <h1 style={{ ...t.h1, margin: "18px 0 18px", maxWidth: "22ch" }}>
             Tout ce qu&apos;il faut savoir sur Nora.
           </h1>
-          <p style={{
-            fontSize: "clamp(15px, 1.1vw, 17px)", color: "#4B5563", lineHeight: 1.7,
-            margin: "0 0 56px", maxWidth: "60ch",
-            fontFamily: "var(--font-inter), sans-serif",
-          }}>
+          <p style={{ ...t.lead, margin: "0 0 56px", maxWidth: "60ch" }}>
             Si une question manque,{" "}
-            <a href="mailto:contact@naywastudio.com" style={{ color: "#7C63C8", fontWeight: 600 }}>
+            <a href="mailto:contact@naywastudio.com" style={{ color: brand.violet, fontWeight: 600 }}>
               écrivez-nous
             </a>{" "}: on ajoute la réponse ici.
           </p>
@@ -175,33 +157,33 @@ export default function FAQPage() {
           {CATEGORIES.map((cat) => (
             <section key={cat.title} style={{ marginBottom: 44 }}>
               <h2 style={{
+                ...t.h2,
                 margin: "0 0 18px",
-                fontSize: "clamp(20px, 2.2vw, 26px)",
-                fontWeight: 800, color: "#111827",
-                letterSpacing: "-0.02em",
-                fontFamily: "var(--font-inter), sans-serif",
+                fontSize: "clamp(20px, 2.2vw, 28px)",
               }}>
                 {cat.title}
               </h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {cat.questions.map((q) => (
                   <details key={q.q} style={{
-                    background: "white", borderRadius: 14,
-                    border: "1px solid #F0ECF8",
+                    background: brand.surface,
+                    borderRadius: brand.radiusLg,
+                    border: `1px solid ${brand.border}`,
                     padding: "16px 20px",
-                    fontFamily: "var(--font-inter), sans-serif",
+                    fontFamily: brand.fontBody,
                   }}>
                     <summary style={{
                       cursor: "pointer", listStyle: "none",
-                      fontSize: 15, fontWeight: 700, color: "#111827",
+                      fontSize: 15, fontWeight: 600, color: brand.text,
                       display: "flex", alignItems: "center", gap: 10,
                     }}>
-                      <span style={{ fontSize: 13, color: "#7C63C8" }}>›</span>
+                      <span style={{ fontSize: 13, color: brand.violet }}>›</span>
                       {q.q}
                     </summary>
                     <p style={{
+                      ...t.body,
                       margin: "10px 0 0 22px",
-                      fontSize: 14, color: "#4B5563", lineHeight: 1.7,
+                      fontSize: 14, lineHeight: 1.7,
                     }}>
                       {q.a}
                     </p>
@@ -213,7 +195,7 @@ export default function FAQPage() {
 
           <div style={{
             marginTop: 30, paddingTop: 26,
-            borderTop: "1px solid #F0ECF8",
+            borderTop: `1px solid ${brand.border}`,
             display: "flex", flexWrap: "wrap", gap: 14,
             fontFamily: "var(--font-inter), sans-serif",
           }}>

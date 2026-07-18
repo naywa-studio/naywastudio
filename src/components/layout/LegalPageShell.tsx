@@ -1,16 +1,20 @@
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import { BrandBands } from "@/components/ui/BrandBands"
+import { Eyebrow } from "@/components/brand/Eyebrow"
+import { brand, type as t } from "@/lib/brand"
 
 /**
- * Shared chrome for the static legal pages :
+ * Chrome partagé des pages légales statiques :
  *   - /mentions-legales
  *   - /politique-confidentialite
  *   - /cgu
  *
- * Same header / hero / footer everywhere — only the SECTIONS array
- * differs between pages. Lines starting and ending with ** render as a
- * bold standout (the same convention as the existing mentions-legales).
+ * Même header / hero / footer partout — seul le tableau SECTIONS diffère
+ * d'une page à l'autre. Une ligne encadrée par ** ressort en gras.
+ *
+ * Charte v2.0 : sur-titre mono §, titres Fraunces, corps Inter (lecture
+ * dense), surfaces craie + bordures lin, fond papier via BrandBands.
  */
 
 export interface LegalSection {
@@ -35,9 +39,10 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
       <header
         style={{
           position: "sticky", top: 0, zIndex: 40,
-          background: "rgba(255,255,255,0.92)",
+          background: "rgba(253,252,249,0.92)",
           backdropFilter: "blur(12px)",
-          borderBottom: "1px solid #F0ECF8",
+          WebkitBackdropFilter: "blur(12px)",
+          borderBottom: `1px solid ${brand.border}`,
           padding: "0 24px", height: 64,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}
@@ -45,47 +50,24 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
         <Link href="/" style={{ textDecoration: "none" }}>
           <Logo size="md" />
         </Link>
-        <Link href="/" style={{
-          fontSize: 13, color: "#6B7280", textDecoration: "none",
-          fontFamily: "var(--font-inter), sans-serif",
-        }}>
+        <Link href="/" style={{ ...t.caption, color: brand.textMuted, textDecoration: "none" }}>
           ← Retour à l&apos;accueil
         </Link>
       </header>
 
       {/* Content */}
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "64px 24px 80px" }}>
-        {/* Hero — reste centré, largeur de lecture confortable. */}
+        {/* Hero — largeur de lecture confortable. */}
         <div style={{ maxWidth: 720, margin: "0 auto 56px" }}>
-          <span style={{
-            display: "inline-block",
-            fontSize: 11, fontWeight: 700,
-            letterSpacing: 1.5, textTransform: "uppercase",
-            color: "#7C63C8", background: "#F0ECF8",
-            padding: "5px 14px", borderRadius: 100, marginBottom: 20,
-            fontFamily: "var(--font-inter), sans-serif",
-          }}>
-            {badge}
-          </span>
-          <h1 style={{
-            fontSize: "clamp(26px, 4vw, 38px)",
-            fontWeight: 800, color: "#111827",
-            margin: "0 0 12px", letterSpacing: -0.3,
-            fontFamily: "var(--font-space-grotesk), sans-serif",
-          }}>
+          <Eyebrow>{badge}</Eyebrow>
+          <h1 style={{ ...t.h1, fontSize: "clamp(26px, 4vw, 40px)", margin: "16px 0 12px" }}>
             {title}
           </h1>
-          <p style={{
-            fontSize: 14, color: "#6B7280", margin: 0,
-            fontFamily: "var(--font-inter), sans-serif",
-          }}>
+          <p style={{ ...t.caption, margin: 0 }}>
             Dernière mise à jour : {lastUpdated}
           </p>
           {intro && (
-            <p style={{
-              marginTop: 22, fontSize: 14.5, color: "#4B5563", lineHeight: 1.7,
-              fontFamily: "var(--font-inter), sans-serif",
-            }}>
+            <p style={{ ...t.body, marginTop: 22, lineHeight: 1.7 }}>
               {intro}
             </p>
           )}
@@ -106,10 +88,13 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
           {sections.map((section) => (
             <section key={section.title}>
               <h2 style={{
-                fontSize: 17, fontWeight: 700, color: "#111827",
+                ...t.h3,
+                fontFamily: brand.fontDisplay,
+                fontWeight: 500,
+                fontSize: 19,
                 margin: "0 0 16px",
-                fontFamily: "var(--font-space-grotesk), sans-serif",
-                paddingBottom: 12, borderBottom: "1px solid #F0ECF8",
+                paddingBottom: 12,
+                borderBottom: `1px solid ${brand.border}`,
               }}>
                 {section.title}
               </h2>
@@ -119,10 +104,12 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
                   const text = isBold ? line.slice(2, -2) : line
                   return (
                     <p key={i} style={{
-                      margin: 0, fontSize: 14, lineHeight: 1.7,
-                      color: isBold ? "#111827" : "#4B5563",
+                      ...t.body,
+                      margin: 0,
+                      fontSize: 14,
+                      lineHeight: 1.7,
+                      color: isBold ? brand.text : brand.textSecondary,
                       fontWeight: isBold ? 600 : 400,
-                      fontFamily: "var(--font-inter), sans-serif",
                     }}>
                       {text}
                     </p>
@@ -136,25 +123,29 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
         {/* Contact — recentré comme le hero pour clore la page proprement. */}
         <div style={{
           maxWidth: 720, margin: "56px auto 0",
-          background: "#F8F6FF",
-          borderRadius: 16, padding: "28px 24px",
-          border: "1px solid #E2DAF6",
+          background: brand.surface,
+          borderRadius: brand.radiusLg,
+          padding: "28px 24px",
+          border: `1px solid ${brand.border}`,
         }}>
           <p style={{
-            margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "#111827",
-            fontFamily: "var(--font-space-grotesk), sans-serif",
+            ...t.h3,
+            fontFamily: brand.fontDisplay,
+            fontWeight: 500,
+            fontSize: 18,
+            margin: "0 0 6px",
           }}>
-            Une question ?
+            Une question&nbsp;?
           </p>
-          <p style={{
-            margin: "0 0 16px", fontSize: 14, color: "#6B7280",
-            fontFamily: "var(--font-inter), sans-serif",
-          }}>
+          <p style={{ ...t.body, fontSize: 14, margin: "0 0 16px" }}>
             Écrivez-nous, nous répondons sous 48 h ouvrées.
           </p>
           <a href="mailto:contact@naywastudio.com" style={{
-            fontSize: 14, fontWeight: 600, color: "#7C63C8", textDecoration: "none",
-            fontFamily: "var(--font-inter), sans-serif",
+            ...t.body,
+            fontSize: 14,
+            fontWeight: 600,
+            color: brand.violet,
+            textDecoration: "none",
           }}>
             contact@naywastudio.com →
           </a>
@@ -163,12 +154,13 @@ export function LegalPageShell({ badge = "Légal", title, lastUpdated, intro, se
 
       {/* Footer */}
       <footer style={{
-        padding: 24, borderTop: "1px solid #F0ECF8",
+        padding: 24,
+        borderTop: `1px solid ${brand.border}`,
         display: "flex", alignItems: "center", justifyContent: "center",
         gap: 16, flexWrap: "wrap",
       }}>
         <Logo size="sm" />
-        <span style={{ fontSize: 12, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
+        <span style={{ ...t.caption, fontSize: 12 }}>
           © 2026 Naywa Studio
         </span>
         <FooterLink href="/mentions-legales">Mentions légales</FooterLink>
@@ -188,6 +180,7 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
 }
 
 const footerLinkStyle: React.CSSProperties = {
-  fontSize: 12, color: "#6B7280", textDecoration: "none",
-  fontFamily: "var(--font-inter), sans-serif",
+  ...t.caption,
+  fontSize: 12,
+  textDecoration: "none",
 }
