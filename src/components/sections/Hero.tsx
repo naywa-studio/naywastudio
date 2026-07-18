@@ -47,7 +47,9 @@ export function Hero() {
           maxWidth: 1152,
           margin: '0',
           width: '100%',
-          padding: '0 0 24px 56px',
+          // Marge gauche fluide : 24px sur mobile, jusqu'à 56px au-delà.
+          // Un padding fixe écrasait le titre sur les petits écrans.
+          padding: '0 clamp(24px, 5vw, 56px) 24px',
         }}
         className="hero-content"
       >
@@ -209,9 +211,7 @@ export function Hero() {
 
       <style>{`
         @media (max-width: 640px) {
-          .hero-content {
-            padding: 0 0 72px 24px !important;
-          }
+          .hero-content h1 { max-width: 100% !important; }
         }
       `}</style>
     </section>

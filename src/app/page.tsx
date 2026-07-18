@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Hero } from "@/components/sections/Hero"
-import { TrustBar, PricingTeaser } from "@/components/sections/HomeBands"
+import { TrustBar, NoraIntro, PricingTeaser } from "@/components/sections/HomeBands"
 import { SimulatedDemo } from "@/components/sections/SimulatedDemo"
 import { HowItWorks } from "@/components/sections/HowItWorks"
 import { WhyNawa } from "@/components/sections/WhyNawa"
@@ -14,12 +14,16 @@ import { brand, type as t } from "@/lib/brand"
 /**
  * Accueil — parcours de conversion.
  *
- * Ordre : promesse → à qui c'est destiné → PREUVE (la démo) → comment →
+ * Ordre : promesse → garanties → QUI est Nora → PREUVE (la démo) → comment →
  * pourquoi nous → combien → qui nous sommes → agir.
  *
- * La démo simulée monte juste après la promesse : c'est l'asset qui convertit,
- * elle n'a rien à faire en bas de page. `AgentsPreview` a été retiré — la démo
- * raconte la même histoire, en la MONTRANT.
+ * `NoraIntro` précède la démo à dessein : la démo la met en scène, il faut
+ * donc savoir ce qu'elle est avant de la voir travailler. (`AgentsPreview` a
+ * été retiré ; c'est NoraIntro qui reprend ce rôle, en plus direct.)
+ *
+ * La démo est en variante COMPACTE ici — 3 étapes. La version intégrale à 5
+ * étapes vit sur /solutions : elle dure trop longtemps pour une page
+ * d'accueil, où le visiteur décide en quelques secondes.
  */
 export default function Home() {
   return (
@@ -30,7 +34,8 @@ export default function Home() {
       <main style={{ position: "relative", zIndex: 1 }}>
         <Hero />
         <TrustBar />
-        <SimulatedDemo />
+        <NoraIntro />
+        <SimulatedDemo variant="compact" title="Du brief à la shortlist." />
         <HowItWorks />
         <WhyNawa />
         <PricingTeaser />

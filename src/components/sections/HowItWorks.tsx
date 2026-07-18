@@ -19,9 +19,9 @@ const steps = [
         <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 11h-6M19 8v6" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
-    title: "Importez vos CVs",
-    subtitle: "Drag-drop",
-    desc: "Glissez vos PDFs — même les CVs scannés (OCR intégré). Nora extrait les compétences, l'expérience et les coordonnées, puis classe chaque candidat dans son secteur.",
+    title: "Décrivez la mission",
+    subtitle: "Un brief suffit",
+    desc: "Collez un brief, une fiche de poste ou un appel d'offres. Nora en extrait les critères : intitulé, lieu, séniorité, compétences. Vous corrigez, vous validez.",
   },
   {
     number: "02",
@@ -30,9 +30,9 @@ const steps = [
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
-    title: "Décrivez vos missions",
-    subtitle: "1 minute par mission",
-    desc: "Brief court : titre, lieu, compétences, séniorité. Nora score immédiatement tous les CVs de votre vivier contre cette mission.",
+    title: "Réunissez les candidats",
+    subtitle: "Import ou vivier",
+    desc: "Déposez des CVs en PDF dans la mission — même scannés, la lecture optique est intégrée. Ou laissez Nora piocher dans votre vivier. Chaque profil est scoré, avec sa justification.",
   },
   {
     number: "03",
@@ -43,7 +43,7 @@ const steps = [
     ),
     title: "Présentez votre shortlist",
     subtitle: "Anonymisée si vous voulez",
-    desc: "Pour chaque mission, votre top candidats triés et justifiés. Génère un PDF anonymisé en 1 clic pour vos clients, suit la prise de contact dans le pipeline.",
+    desc: "Vous retenez qui vous voulez, Nora rédige l'approche. Un clic génère un PDF anonymisé pour votre client, et la pipeline suit chaque candidat jusqu'à l'offre.",
   },
 ]
 
@@ -71,7 +71,7 @@ export function HowItWorks() {
             gap: 16,
           }}
         >
-          <Eyebrow n="02" align="center">Comment ça marche</Eyebrow>
+          <Eyebrow n="03" align="center">Comment ça marche</Eyebrow>
 
           <h2
             style={{
@@ -84,8 +84,8 @@ export function HowItWorks() {
               margin: 0,
             }}
           >
-            Votre vivier, organisé<br />
-            et matché par Nora
+            Du besoin client<br />
+            à la shortlist
           </h2>
 
           <p

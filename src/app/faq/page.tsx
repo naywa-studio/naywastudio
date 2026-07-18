@@ -39,7 +39,7 @@ const CATEGORIES = [
     questions: [
       {
         q: "Quels formats de CV sont supportés ?",
-        a: "PDF natif (export Word, LinkedIn, Canva, etc.) et CVs scannés ou photographiés grâce à l'OCR intégré. DOCX et autres formats seront ajoutés selon la demande.",
+        a: "Le PDF, sous toutes ses formes : export Word, LinkedIn, Canva, mais aussi les CVs scannés ou photographiés, grâce à la lecture optique intégrée. D'autres formats seront ajoutés selon la demande.",
       },
       {
         q: "Combien de CVs peut-on uploader ?",

@@ -4,6 +4,7 @@ import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { BrandBands } from "@/components/ui/BrandBands"
 import { PackageSourcingFlow } from "@/components/sections/PackageSourcingFlow"
+import { SimulatedDemo } from "@/components/sections/SimulatedDemo"
 import { Eyebrow } from "@/components/brand/Eyebrow"
 import { brand, type as t, accentItalic } from "@/lib/brand"
 
@@ -36,11 +37,22 @@ const ONBOARDING_STEPS = [
   },
 ] as const
 
+/**
+ * Engagements factuels uniquement.
+ *
+ * ⚠️ Naywa ne détient AUCUNE certification en propre. On ne peut donc afficher
+ * ISO 27001 / SOC 2 / HDS que comme certification de NOS HÉBERGEURS, jamais
+ * comme la nôtre : la nuance est juridique, pas cosmétique. Le jour où Naywa
+ * en obtient une, elle se met ici en son nom.
+ *
+ * Pas de nom de prestataire ici : le prospect s'en moque, et la liste
+ * nominative vit dans la politique de confidentialité (obligation RGPD).
+ */
 const SECURITY = [
-  "Hébergement européen (Vercel Paris, Supabase Francfort).",
-  "Isolation stricte par organisation via RLS Postgres.",
-  "Aucun entraînement de modèle sur vos données.",
-  "Suppression de votre vivier à tout moment, depuis votre console organisation.",
+  "Vos données sont hébergées en Europe, de bout en bout.",
+  "Nos hébergeurs sont certifiés selon les standards du secteur (ISO 27001, SOC 2 Type II).",
+  "Vos données n'entraînent aucun modèle d'intelligence artificielle.",
+  "Vous gardez le contrôle : export ou suppression de votre vivier à tout moment, depuis votre console.",
 ] as const
 
 export default function SolutionsPage() {
@@ -145,6 +157,10 @@ export default function SolutionsPage() {
           </div>
         </section>
 
+        {/* Démo intégrale — 5 étapes. Elle précède la frise : on MONTRE
+            d'abord, on détaille ensuite. Les deux suivent le même ordre. */}
+        <SimulatedDemo variant="full" eyebrowN="04" />
+
         {/* Frise interactive Package Sourcing */}
         <PackageSourcingFlow />
 
@@ -160,7 +176,7 @@ export default function SolutionsPage() {
                 marginBottom: 40,
               }}
             >
-              <Eyebrow n="04">Sécurité et données</Eyebrow>
+              <Eyebrow n="05">Sécurité et données</Eyebrow>
               <ul
                 style={{
                   listStyle: "none",
@@ -204,6 +220,20 @@ export default function SolutionsPage() {
                   </li>
                 ))}
               </ul>
+
+              {/* Un engagement se vérifie : on renvoie vers les documents qui
+                  l'opposent contractuellement, plutôt que de le déclarer. */}
+              <p style={{ ...t.caption, margin: "18px 0 0" }}>
+                Conformité RGPD · accord de sous-traitance (DPA) fourni sur
+                demande · liste des sous-traitants détaillée dans notre{" "}
+                <Link
+                  href="/politique-confidentialite"
+                  style={{ color: brand.violet, textDecoration: "underline" }}
+                >
+                  politique de confidentialité
+                </Link>
+                .
+              </p>
             </div>
 
             {/* CTAs */}

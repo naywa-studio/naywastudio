@@ -27,58 +27,64 @@ interface Step {
   y: number
 }
 
+/**
+ * Ordre calé sur le vrai déroulé de travail — et sur la démo simulée juste
+ * au-dessus : on part d'un BESOIN CLIENT (la mission), pas d'un stock de CVs.
+ * Le Pricing ferme la marche : c'est une option, pas une étape que tout le
+ * monde traverse.
+ */
 const STEPS: Step[] = [
   {
     number: "01",
-    title:  "Vivier",
-    short:  "Upload CV + classement par secteur",
-    body:   "Drag-drop vos CVs en PDF — même scannés (OCR intégré). Nora extrait le nom, l'expérience post-diplôme réelle, les compétences, la séniorité, et classe chaque candidat dans son secteur (Commercial, IT / Data, Ingénierie…). Pas de tri manuel — votre vivier s'organise tout seul, CV après CV.",
-    hint:   "Vivier organisé par secteurs + fiche candidat parsée",
+    title:  "Mission",
+    short:  "Un brief suffit",
+    body:   "Vous collez un brief client, une fiche de poste ou un appel d'offres. Nora en extrait les critères structurés en quelques secondes : intitulé, lieu, séniorité, compétences requises, type de contrat. Vous corrigez ce qui doit l'être, vous validez — rien n'est figé sans votre accord.",
+    hint:   "Formulaire pré-rempli, chaque champ éditable",
     x: 90,
     y: 110,
   },
   {
     number: "02",
-    title:  "Missions",
-    short:  "Brief texte → formulaire pré-rempli",
-    body:   "Vous collez un brief client, une fiche de poste ou un RFP. Nora extrait les 14 champs structurés en 5 secondes : intitulé, lieu, séniorité, compétences requises, type de contrat, TJM cible, brut cible. Vous corrigez ce qui doit l'être, vous validez — le matching se lance automatiquement.",
-    hint:   "Modal de création de mission avec bordures colorées",
+    title:  "Candidats",
+    short:  "Import direct ou vivier existant",
+    body:   "Déposez des CVs en PDF directement dans la mission — même scannés, la lecture optique est intégrée. Ou laissez Nora piocher dans le vivier que vous avez déjà constitué. Chaque candidat porte son badge de provenance, vous savez toujours d'où il vient.",
+    hint:   "Zone de dépôt + badges « importé » / « vivier »",
     x: 270,
     y: 50,
   },
   {
     number: "03",
     title:  "Matching",
-    short:  "Score + justification multi-critères",
-    body:   "Pour chaque mission, Nora score tous les candidats du vivier. Le score est justifié dimension par dimension : compétences techniques, séniorité, secteur, localisation. Aucune boîte noire — vous cliquez sur un candidat et vous voyez pourquoi il a 87% et pas 60%.",
-    hint:   "Shortlist triée par tier : excellent / bon / moyen",
+    short:  "Score justifié, critère par critère",
+    body:   "Nora score chaque candidat face aux critères de la mission. Le score s'explique ligne par ligne : compétences, séniorité, secteur, localisation. Aucune boîte noire — vous ouvrez un candidat et vous voyez pourquoi il obtient 87 et pas 60. Et le matching ne part que lorsque vous le lancez.",
+    hint:   "Liste triée, score et justification par candidat",
     x: 450,
     y: 110,
   },
   {
     number: "04",
-    title:  "Pricing Syntec",
-    short:  "Calcul marge temps réel selon convention",
-    body:   "Vous réglez le TJM facturable et le brut consultant. Naywa calcule la marge mensuelle réelle, avec charges patronales par statut, plafonds URSSAF, calendrier fériés français, indemnité de congés payés, période d'essai. Bonus : un chart « risque de rupture » qui visualise mois par mois où sont les zones de fragilité.",
-    hint:   "Layout 2 colonnes : sliders + verdict + charts",
+    title:  "Shortlist",
+    short:  "Approche rédigée, anonymisation en un clic",
+    body:   "Vous retenez qui vous voulez. Nora rédige le message d'approche, vous le relisez et l'envoyez — jamais l'inverse. Besoin de présenter au client sans dévoiler l'identité ? Un clic génère un PDF anonymisé à vos couleurs, avec une référence interne. Le CV original reste intact.",
+    hint:   "Fiche candidat, message éditable, PDF anonymisé",
     x: 630,
     y: 50,
   },
   {
     number: "05",
-    title:  "Anonymisation",
-    short:  "PDF brandé à votre organisation, 1 clic",
-    body:   "Bouton « Anonymiser pour cette mission ». PDF généré sans nom, sans photo, sans coordonnées, avec votre logo en header et une référence interne C-XXXXXXXX pour suivre le candidat avec votre client sans révéler son identité. Le CV original reste intact dans votre vivier.",
-    hint:   "Aperçu du PDF anonymisé téléchargeable",
+    title:  "Pipeline",
+    short:  "Suivi de Identifié à Offre",
+    body:   "Un tableau partagé entre les membres de votre organisation. Chaque candidat sur chaque mission a son étape : Identifié, Contacté, Réponse, Entretien, Offre. Vous déplacez à la main — Nora suggère, ne décide jamais. Tout le monde voit où en est chaque positionnement, sans tableur à maintenir.",
+    hint:   "Tableau partagé, une colonne par étape",
     x: 810,
     y: 110,
   },
   {
     number: "06",
-    title:  "Pipeline",
-    short:  "Suivi candidat Identifié → Offre",
-    body:   "Kanban partagé entre les membres de votre structure. Chaque candidat × mission a son étape : Identifié, Contacté, Réponse, Entretien, Offre. Vous déplacez à la main — Nora suggère mais ne décide jamais. Tout le monde voit où en est chaque positionnement, sans tableur partagé à maintenir.",
-    hint:   "Vue Kanban partagée avec colonnes par stage",
+    title:  "Pricing",
+    short:  "En option, fondé sur la convention Syntec",
+    body:   "La rencontre entre votre politique de marge et les prétentions du candidat. Vous réglez le TJM facturé et le salaire visé : Naywa calcule la marge réelle mois par mois, charges patronales par statut, plafonds URSSAF, jours fériés, congés payés et période d'essai compris. Option indépendante du Package Sourcing.",
+    hint:   "Configuration courte, puis verdict de marge",
     x: 990,
     y: 50,
   },
