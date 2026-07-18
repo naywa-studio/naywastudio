@@ -17,12 +17,15 @@ export function Hero() {
     <section
       style={{
         position: 'relative',
-        minHeight: '100vh',
+        // Le hero était calé en bas de viewport : joli, mais il enterrait la
+        // promesse et le CTA sous un grand vide. Recentré et raccourci pour
+        // que les deux passent au-dessus de la ligne de flottaison.
+        minHeight: '76vh',
         overflow: 'hidden',
         background: 'transparent',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'flex-end',
+        justifyContent: 'center',
       }}
     >
       <div
@@ -44,7 +47,7 @@ export function Hero() {
           maxWidth: 1152,
           margin: '0',
           width: '100%',
-          padding: '0 0 88px 56px',
+          padding: '0 0 24px 56px',
         }}
         className="hero-content"
       >

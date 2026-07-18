@@ -53,7 +53,7 @@ export function WhyNawa() {
             gap: 16,
           }}
         >
-          <Eyebrow n="01" align="center">Notre proposition de valeur</Eyebrow>
+          <Eyebrow n="03" align="center">Notre proposition de valeur</Eyebrow>
 
           <h2
             style={{

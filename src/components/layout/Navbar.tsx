@@ -5,12 +5,18 @@ import { useRouter } from "next/navigation"
 import { Logo } from "@/components/ui/Logo"
 import { getSupabase } from "@/lib/supabase"
 
+/**
+ * Nav volontairement courte : un seul produit, donc un seul chemin.
+ * « À propos » et « Contact » vivent en pied de page — le premier ne convertit
+ * pas, le second est une action (CTA) plutôt qu'une destination. La FAQ
+ * remonte : elle lève les objections d'achat.
+ * L'URL /solutions est conservée (liens + référencement), seul le libellé
+ * change en « Produit » — il n'y a qu'un package, le pluriel mentait.
+ */
 const navLinks = [
-  { label: "Accueil",   href: "/" },
-  { label: "À propos",  href: "/a-propos" },
-  { label: "Solutions", href: "/solutions" },
-  { label: "Tarifs",    href: "/tarifs" },
-  { label: "Contact",   href: "/contact" },
+  { label: "Produit", href: "/solutions" },
+  { label: "Tarifs",  href: "/tarifs" },
+  { label: "FAQ",     href: "/faq" },
 ]
 
 interface AuthState {

@@ -71,7 +71,7 @@ export function HowItWorks() {
             gap: 16,
           }}
         >
-          <Eyebrow n="03" align="center">Comment ça marche</Eyebrow>
+          <Eyebrow n="02" align="center">Comment ça marche</Eyebrow>
 
           <h2
             style={{
