@@ -66,11 +66,11 @@ export function QuotaWarningBanner() {
         : "1px solid rgba(217,119,6,0.30)",
       display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
       fontSize: 13,
-      color: critical ? "#7F1D1D" : "#92400E",
+      color: critical ? "#7F1D1D" : "var(--nw-warn-strong)",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-        stroke={critical ? "#B91C1C" : "#D97706"} strokeWidth="2"
+        stroke={critical ? "var(--nw-danger-strong)" : "#D97706"} strokeWidth="2"
         strokeLinecap="round" strokeLinejoin="round"
         style={{ flexShrink: 0 }} aria-hidden>
         <path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/>
@@ -91,7 +91,7 @@ export function QuotaWarningBanner() {
           padding: "6px 12px", borderRadius: 8,
           border: critical ? "1px solid rgba(220,38,38,0.40)" : "1px solid rgba(217,119,6,0.40)",
           background: "white",
-          color: critical ? "#B91C1C" : "#92400E",
+          color: critical ? "var(--nw-danger-strong)" : "var(--nw-warn-strong)",
           fontSize: 12, fontWeight: 700, textDecoration: "none",
           whiteSpace: "nowrap",
         }}

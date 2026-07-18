@@ -365,7 +365,7 @@ function OrgTabs({
       role="tablist"
       style={{
         display: "flex", gap: 4,
-        borderBottom: "1px solid #E5E7EB",
+        borderBottom: "1px solid var(--nw-border)",
         overflowX: "auto",
       }}
     >
@@ -383,7 +383,7 @@ function OrgTabs({
               padding: "12px 18px",
               fontSize: 14,
               fontWeight: active ? 700 : 500,
-              color: active ? "#111827" : "#6B7280",
+              color: active ? "var(--nw-text)" : "var(--nw-text-muted)",
               background: "transparent",
               border: "none",
               cursor: "pointer",
@@ -401,7 +401,7 @@ function OrgTabs({
                   position: "absolute",
                   left: 14, right: 14, bottom: -1,
                   height: 2,
-                  background: "#7C63C8",
+                  background: "var(--nw-primary)",
                   borderRadius: 2,
                 }}
               />
@@ -459,7 +459,7 @@ function EmailConfirmationBanner({ email }: { email: string }) {
       display: "flex", alignItems: "center", gap: 12,
       flexWrap: "wrap",
       fontSize: 13,
-      color: "#92400E",
+      color: "var(--nw-warn-strong)",
     }}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -472,7 +472,7 @@ function EmailConfirmationBanner({ email }: { email: string }) {
         de réception (et le dossier spam) pour valider votre compte.
       </span>
       {sent && cooldown > 0 ? (
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#15803D", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nw-success)", whiteSpace: "nowrap" }}>
           Email renvoyé. Réessayez dans {cooldown}s.
         </span>
       ) : (
@@ -483,7 +483,7 @@ function EmailConfirmationBanner({ email }: { email: string }) {
           style={{
             padding: "6px 12px", borderRadius: 8,
             border: "1px solid rgba(217,119,6,0.40)",
-            background: "white", color: "#92400E",
+            background: "white", color: "var(--nw-warn-strong)",
             fontSize: 12, fontWeight: 700,
             cursor: busy ? "wait" : cooldown > 0 ? "not-allowed" : "pointer",
             fontFamily: "inherit",
@@ -495,7 +495,7 @@ function EmailConfirmationBanner({ email }: { email: string }) {
         </button>
       )}
       {error && (
-        <span style={{ width: "100%", fontSize: 12, color: "#B91C1C", marginTop: 4 }}>
+        <span style={{ width: "100%", fontSize: 12, color: "var(--nw-danger-strong)", marginTop: 4 }}>
           {error}
         </span>
       )}
@@ -570,10 +570,10 @@ function MySeatBanner({ hasSeat, hasAccess, onToggle, isOwner }: {
         <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#F59E0B", flexShrink: 0 }} />
           <div>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#92400E" }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--nw-warn-strong)" }}>
               Vous occupez un siège, mais votre accès est suspendu.
             </p>
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#92400E" }}>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--nw-warn-strong)" }}>
               Souscrivez ci-dessous pour rouvrir l&apos;accès au workspace.
             </p>
           </div>
@@ -604,7 +604,7 @@ function MySeatBanner({ hasSeat, hasAccess, onToggle, isOwner }: {
             background: "#22C55E", flexShrink: 0,
           }} />
           <div>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#15803d" }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--nw-success)" }}>
               Vous occupez un siège du Package Sourcing.
             </p>
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#166534" }}>
@@ -637,10 +637,10 @@ function MySeatBanner({ hasSeat, hasAccess, onToggle, isOwner }: {
       flexWrap: "wrap",
     }}>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: "#111827" }}>
+        <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: "var(--nw-text)" }}>
           Vous n&apos;avez pas encore alloué de siège du Package Sourcing.
         </p>
-        <p style={{ margin: "3px 0 0", fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+        <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
           Allouez-vous un siège pour accéder au workspace, ou invitez un collègue pour qu&apos;il utilise un siège à votre place.
         </p>
       </div>
@@ -738,7 +738,7 @@ function SubscriptionCard({
       <Card title="Abonnement" subtitle="Statut du Package Sourcing.">
         <Panel tone="warn">
           <p style={panelTitle("#D97706")}>Suppression programmée</p>
-          <p style={panelBody("#92400E")}>
+          <p style={panelBody("var(--nw-warn-strong)")}>
             L&apos;organisation et toutes ses données seront supprimées le <strong>{date}</strong>.
             Le workspace est en lecture seule d&apos;ici là. Vous pouvez encore tout annuler.
           </p>
@@ -747,7 +747,7 @@ function SubscriptionCard({
               {busy ? "Annulation…" : "Annuler la suppression"}
             </button>
           )}
-          {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>}
+          {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--nw-danger-strong)" }}>{error}</p>}
         </Panel>
       </Card>
     )
@@ -772,10 +772,10 @@ function SubscriptionCard({
         {/* Stripe sub — affichage prioritaire si présente */}
         {hasStripeSub && (
           <Panel tone={scheduledCancel ? "warn" : access.state === "paid" ? "success" : access.state === "trialing" ? "brand" : "warn"}>
-            <p style={panelTitle(scheduledCancel ? "#B45309" : access.state === "paid" ? "#15803D" : access.state === "trialing" ? "#7C63C8" : "#B91C1C")}>
+            <p style={panelTitle(scheduledCancel ? "var(--nw-warn)" : access.state === "paid" ? "var(--nw-success)" : access.state === "trialing" ? "var(--nw-primary)" : "var(--nw-danger-strong)")}>
               {scheduledCancel ? "Résiliation programmée" : planLabel(organization)}
             </p>
-            <p style={panelBody("#374151")}>
+            <p style={panelBody("var(--nw-text-body)")}>
               {organization.subscription_status === "past_due"
                 ? "Échec du dernier paiement. Mettez à jour votre moyen de paiement."
                 : scheduledCancel
@@ -814,8 +814,8 @@ function SubscriptionCard({
         {/* Pas de Stripe sub — pending : pas encore d'essai activé. */}
         {!hasStripeSub && trial.state === "pending" && (
           <Panel tone="brand">
-            <p style={panelTitle("#7C63C8")}>Aucun abonnement actif</p>
-            <p style={panelBody("#374151")}>
+            <p style={panelTitle("var(--nw-primary)")}>Aucun abonnement actif</p>
+            <p style={panelBody("var(--nw-text-body)")}>
               Démarrez votre essai gratuit {TRIAL_DURATION_DAYS} jours
               (jusqu&apos;à {TRIAL_SEAT_CAP} sièges, sans carte bancaire)
               ou souscrivez directement pour aller plus loin.
@@ -843,7 +843,7 @@ function SubscriptionCard({
             débloquer plus de 2 sièges). */}
         {!hasStripeSub && trial.state === "active" && (
           <Panel tone="success">
-            <p style={panelTitle("#15803D")}>
+            <p style={panelTitle("var(--nw-success)")}>
               Essai actif · {trial.daysLeft} jour{trial.daysLeft > 1 ? "s" : ""} restant{trial.daysLeft > 1 ? "s" : ""}
             </p>
             <p style={panelBody("#166534")}>
@@ -866,8 +866,8 @@ function SubscriptionCard({
 
         {!hasStripeSub && trial.state === "expired" && isAdmin && (
           <Panel tone="brand">
-            <p style={panelTitle("#7C63C8")}>Compte administrateur Naywa</p>
-            <p style={panelBody("#374151")}>
+            <p style={panelTitle("var(--nw-primary)")}>Compte administrateur Naywa</p>
+            <p style={panelBody("var(--nw-text-body)")}>
               Accès permanent — aucun abonnement requis pour ce compte.
             </p>
           </Panel>
@@ -875,7 +875,7 @@ function SubscriptionCard({
 
         {!hasStripeSub && trial.state === "expired" && !isAdmin && (
           <Panel tone="warn">
-            <p style={panelTitle("#B91C1C")}>Période d&apos;essai terminée</p>
+            <p style={panelTitle("var(--nw-danger-strong)")}>Période d&apos;essai terminée</p>
             <p style={panelBody("#7F1D1D")}>
               Souscrivez pour reprendre l&apos;accès à votre workspace.
             </p>
@@ -885,7 +885,7 @@ function SubscriptionCard({
               disabled={!isOwner}
               style={{
                 ...ctaPrimaryBtn(false),
-                background: "linear-gradient(120deg, #DC2626 0%, #B91C1C 100%)",
+                background: "linear-gradient(120deg, var(--nw-danger-strong) 0%, var(--nw-danger-strong) 100%)",
                 boxShadow: "0 6px 16px -4px rgba(220,38,38,0.40)",
               }}
             >
@@ -895,10 +895,10 @@ function SubscriptionCard({
         )}
 
         {error && (
-          <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B91C1C" }}>{error}</p>
+          <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--nw-danger-strong)" }}>{error}</p>
         )}
 
-        <div style={{ marginTop: 14, fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
+        <div style={{ marginTop: 14, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
           {organization.seats_total} siège{organization.seats_total > 1 ? "s" : ""} alloué{organization.seats_total > 1 ? "s" : ""}.
         </div>
       </Card>
@@ -925,7 +925,7 @@ const ctaPrimaryBtn = (busy: boolean): React.CSSProperties => ({
   padding: "10px 16px",
   borderRadius: 10,
   border: "none",
-  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
   color: "white",
   fontSize: 13,
   fontWeight: 700,
@@ -941,7 +941,7 @@ const ctaSecondaryBtn = (busy: boolean): React.CSSProperties => ({
   borderRadius: 10,
   border: "1px solid rgba(124,99,200,0.30)",
   background: "white",
-  color: "#7C63C8",
+  color: "var(--nw-primary)",
   fontSize: 12.5,
   fontWeight: 700,
   cursor: busy ? "wait" : "pointer",
@@ -1009,10 +1009,10 @@ function PricingAddonToggle({
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <div style={{ minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: "#111827" }}>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: "var(--nw-text)" }}>
             Suite Pricing Syntec
           </p>
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280" }}>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--nw-text-muted)" }}>
             {syncing
               ? "Synchronisation…"
               : active
@@ -1027,9 +1027,9 @@ function PricingAddonToggle({
           style={{
             flexShrink: 0,
             padding: "7px 13px", borderRadius: 9,
-            border: active ? "1px solid #E2DAF6" : "none",
-            background: active ? "white" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-            color: active ? "#6B7280" : "white",
+            border: active ? "1px solid var(--nw-primary-100)" : "none",
+            background: active ? "white" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+            color: active ? "var(--nw-text-muted)" : "white",
             fontSize: 12, fontWeight: 700,
             cursor: busy || !isOwner ? "not-allowed" : "pointer",
             opacity: busy || !isOwner ? 0.6 : 1,
@@ -1040,12 +1040,12 @@ function PricingAddonToggle({
         </button>
       </div>
       {!isOwner && (
-        <p style={{ margin: "6px 0 0", fontSize: 10.5, color: "#6B7280" }}>
+        <p style={{ margin: "6px 0 0", fontSize: 10.5, color: "var(--nw-text-muted)" }}>
           Seul le propriétaire peut modifier l&apos;abonnement.
         </p>
       )}
       {error && (
-        <p style={{ margin: "6px 0 0", fontSize: 11, color: "#B91C1C" }}>{error}</p>
+        <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--nw-danger-strong)" }}>{error}</p>
       )}
     </div>
   )
@@ -1118,16 +1118,16 @@ function PlanPickerModal({
         }}
       >
         <header style={{ marginBottom: 18 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase" }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase" }}>
             Souscrire au Package Sourcing
           </p>
-          <h2 style={{ margin: "6px 0 0", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
+          <h2 style={{ margin: "6px 0 0", fontSize: 22, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.02em" }}>
             Choisissez votre formule
           </h2>
         </header>
 
         {/* Nombre de personnes — saisie libre, plus un palier à choisir */}
-        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "#374151", letterSpacing: "0.01em" }}>
+        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-body)", letterSpacing: "0.01em" }}>
           Combien de personnes utiliseront Naywa ?
         </p>
         <div style={{
@@ -1135,7 +1135,7 @@ function PlanPickerModal({
         }}>
           <div style={{
             display: "flex", alignItems: "center",
-            border: "1px solid #E2DAF6", borderRadius: 12, overflow: "hidden",
+            border: "1px solid var(--nw-primary-100)", borderRadius: 12, overflow: "hidden",
           }}>
             <button
               type="button"
@@ -1157,7 +1157,7 @@ function PlanPickerModal({
               aria-label="Nombre de personnes"
               style={{
                 width: 58, border: "none", outline: "none", textAlign: "center",
-                fontSize: 18, fontWeight: 800, color: "#111827",
+                fontSize: 18, fontWeight: 800, color: "var(--nw-text)",
                 fontFamily: "inherit", fontVariantNumeric: "tabular-nums",
                 padding: "10px 0", background: "white",
               }}
@@ -1172,13 +1172,13 @@ function PlanPickerModal({
             </button>
           </div>
           {selfServe && (
-            <span style={{ fontSize: 12, color: "#6B7280" }}>
-              soit <strong style={{ color: "#111827" }}>{formatEur(priceForSeats(seats))}</strong>
+            <span style={{ fontSize: 12, color: "var(--nw-text-muted)" }}>
+              soit <strong style={{ color: "var(--nw-text)" }}>{formatEur(priceForSeats(seats))}</strong>
               {seats > 1 && ` · ${formatEur(priceForSeats(seats) / seats)} par personne`}
             </span>
           )}
         </div>
-        <p style={{ margin: "0 0 18px", fontSize: 11, color: "#6B7280" }}>
+        <p style={{ margin: "0 0 18px", fontSize: 11, color: "var(--nw-text-muted)" }}>
           Tarif dégressif : plus vous êtes nombreux, moins la personne coûte.
         </p>
 
@@ -1191,7 +1191,7 @@ function PlanPickerModal({
             width: "100%", display: "flex", alignItems: "flex-start", gap: 11,
             padding: "13px 14px", marginBottom: 18,
             borderRadius: 14,
-            border: withPricing ? "2px solid #7C63C8" : "1px solid #E2DAF6",
+            border: withPricing ? "2px solid var(--nw-primary)" : "1px solid var(--nw-primary-100)",
             background: withPricing ? "rgba(124,99,200,0.08)" : "white",
             cursor: "pointer", textAlign: "left", fontFamily: "inherit",
           }}
@@ -1202,7 +1202,7 @@ function PlanPickerModal({
               flexShrink: 0, marginTop: 1,
               width: 18, height: 18, borderRadius: 5,
               border: withPricing ? "none" : "1.5px solid #C9BEE8",
-              background: withPricing ? "#7C63C8" : "white",
+              background: withPricing ? "var(--nw-primary)" : "white",
               display: "inline-flex", alignItems: "center", justifyContent: "center",
             }}
           >
@@ -1215,14 +1215,14 @@ function PlanPickerModal({
           </span>
           <span style={{ flex: 1 }}>
             <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "var(--nw-text)" }}>
                 Suite Pricing Syntec
               </span>
-              <span style={{ fontSize: 12.5, fontWeight: 800, color: "#7C63C8", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--nw-primary)", whiteSpace: "nowrap" }}>
                 + {formatEur(PRICING_ADDON_EUR)}
               </span>
             </span>
-            <span style={{ display: "block", marginTop: 3, fontSize: 11.5, color: "#6B7280", lineHeight: 1.45 }}>
+            <span style={{ display: "block", marginTop: 3, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.45 }}>
               TJM, marges, simulation et fiche PDF. Prix unique, quel que soit le nombre de personnes.
             </span>
           </span>
@@ -1231,17 +1231,17 @@ function PlanPickerModal({
         {/* Récap */}
         {selfServe ? (
           <div style={{
-            background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
-            border: "1px solid #E2DAF6",
+            background: "linear-gradient(120deg, var(--nw-bg) 0%, var(--nw-border-soft) 100%)",
+            border: "1px solid var(--nw-primary-100)",
             borderRadius: 14,
             padding: "14px 16px",
             marginBottom: 16,
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+              <span style={{ fontSize: 13, color: "var(--nw-text-body)", fontWeight: 600 }}>
                 Total mensuel HT
               </span>
-              <span style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+              <span style={{ fontSize: 22, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
                 {formatEur(total)}
               </span>
             </div>
@@ -1278,10 +1278,10 @@ function PlanPickerModal({
             padding: "14px 16px",
             marginBottom: 16,
           }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#92400E" }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--nw-warn-strong)" }}>
               À {seats} personnes, parlons-en
             </p>
-            <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#92400E", lineHeight: 1.5 }}>
+            <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "var(--nw-warn-strong)", lineHeight: 1.5 }}>
               Au-delà de {MAX_SELF_SERVE_SEATS} personnes, on construit une offre avec vous
               plutôt que de vous laisser deviner. Prenez 20 minutes avec l&apos;équipe.
             </p>
@@ -1289,13 +1289,13 @@ function PlanPickerModal({
         )}
 
         {selfServe && (
-          <p style={{ margin: "0 0 16px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
+          <p style={{ margin: "0 0 16px", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
             Pas de TVA appliquée (micro-entreprise). Annulation à tout moment depuis votre portail Stripe.
           </p>
         )}
 
         {error && (
-          <p style={{ margin: "0 0 12px", fontSize: 12, color: "#B91C1C" }}>{error}</p>
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--nw-danger-strong)" }}>{error}</p>
         )}
 
         <div style={{ display: "flex", gap: 10 }}>
@@ -1307,9 +1307,9 @@ function PlanPickerModal({
               flex: 1,
               padding: "12px 16px",
               borderRadius: 12,
-              border: "1px solid #E2DAF6",
+              border: "1px solid var(--nw-primary-100)",
               background: "white",
-              color: "#6B7280",
+              color: "var(--nw-text-muted)",
               fontSize: 13.5,
               fontWeight: 600,
               cursor: busy ? "wait" : "pointer",
@@ -1343,7 +1343,7 @@ const ctaModalBtn = (busy: boolean): React.CSSProperties => ({
   padding: "12px 16px",
   borderRadius: 12,
   border: "none",
-  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
   color: "white",
   fontSize: 14,
   fontWeight: 700,
@@ -1359,7 +1359,7 @@ const stepperBtn = (disabled: boolean): React.CSSProperties => ({
   padding: "10px 0",
   border: "none",
   background: "white",
-  color: disabled ? "#D1D5DB" : "#7C63C8",
+  color: disabled ? "var(--nw-border)" : "var(--nw-primary)",
   fontSize: 18,
   fontWeight: 700,
   lineHeight: 1,
@@ -1429,8 +1429,8 @@ function IdentitySection({
           flexShrink: 0,
           width: 72, height: 72,
           borderRadius: 14,
-          border: "1px solid #E2DAF6",
-          background: "#FAFAFA",
+          border: "1px solid var(--nw-primary-100)",
+          background: "var(--nw-surface-muted)",
           display: "flex", alignItems: "center", justifyContent: "center",
           overflow: "hidden",
         }}>
@@ -1438,14 +1438,14 @@ function IdentitySection({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
           ) : (
-            <span style={{ fontSize: 16, color: "#C4B6E0", fontWeight: 800, letterSpacing: "0.04em" }}>
+            <span style={{ fontSize: 16, color: "var(--nw-primary-200)", fontWeight: 800, letterSpacing: "0.04em" }}>
               {initials}
             </span>
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
-            margin: 0, fontSize: 17, fontWeight: 800, color: "#111827",
+            margin: 0, fontSize: 17, fontWeight: 800, color: "var(--nw-text)",
             letterSpacing: "-0.01em",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
@@ -1453,14 +1453,14 @@ function IdentitySection({
           </p>
           {organization.brand_slogan ? (
             <p style={{
-              margin: "3px 0 0", fontSize: 12.5, color: "#6B7280",
+              margin: "3px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)",
               fontStyle: "italic",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
               {organization.brand_slogan}
             </p>
           ) : (
-            <p style={{ margin: "3px 0 0", fontSize: 12, color: "#C4B6E0" }}>
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--nw-primary-200)" }}>
               Pas de slogan
             </p>
           )}
@@ -1482,10 +1482,10 @@ function IdentitySection({
               )}
             </div>
             <span style={{
-              fontSize: 11.5, color: "#6B7280",
+              fontSize: 11.5, color: "var(--nw-text-muted)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
-              {organization.contact_email || <span style={{ color: "#C4B6E0" }}>Aucun email de contact</span>}
+              {organization.contact_email || <span style={{ color: "var(--nw-primary-200)" }}>Aucun email de contact</span>}
             </span>
           </div>
         </div>
@@ -1675,7 +1675,7 @@ function BrandingSection({
               type="button"
               onClick={() => setRequestModalOpen(true)}
               style={{
-                fontSize: 11.5, fontWeight: 700, color: "#7C63C8",
+                fontSize: 11.5, fontWeight: 700, color: "var(--nw-primary)",
                 background: "white",
                 border: "1px solid rgba(124,99,200,0.30)",
                 padding: "6px 11px", borderRadius: 8,
@@ -1693,7 +1693,7 @@ function BrandingSection({
             type="button"
             onClick={() => setOpen((v) => !v)}
             style={{
-              fontSize: 12, fontWeight: 700, color: "#7C63C8",
+              fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
               background: "transparent", border: "none",
               padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
               display: "inline-flex", alignItems: "center", gap: 4,
@@ -1705,7 +1705,7 @@ function BrandingSection({
       }
     >
       {!open && (
-        <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280" }}>
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-muted)" }}>
           <span style={{ color: organization.brand_color || "#000000", marginRight: 6, fontWeight: 700 }}>●</span>
           {summary}
         </p>
@@ -1742,8 +1742,8 @@ function BrandingSection({
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{
                 width: 64, height: 64,
-                borderRadius: 12, border: "1.5px dashed #E2DAF6",
-                background: "#FAFAFA",
+                borderRadius: 12, border: "1.5px dashed var(--nw-primary-100)",
+                background: "var(--nw-surface-muted)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 overflow: "hidden",
                 flexShrink: 0,
@@ -1752,7 +1752,7 @@ function BrandingSection({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
                 ) : (
-                  <span style={{ fontSize: 10, color: "#6B7280" }}>Aucun</span>
+                  <span style={{ fontSize: 10, color: "var(--nw-text-muted)" }}>Aucun</span>
                 )}
               </div>
               {brandingLocked ? (
@@ -1806,7 +1806,7 @@ function BrandingSection({
 
           {/* Slogan */}
           <div>
-            <Label>Slogan <span style={{ color: "#6B7280", fontWeight: 400 }}>(optionnel)</span></Label>
+            <Label>Slogan <span style={{ color: "var(--nw-text-muted)", fontWeight: 400 }}>(optionnel)</span></Label>
             <input
               value={slogan}
               onChange={(e) => setSlogan(e.target.value.slice(0, 120))}
@@ -1888,13 +1888,13 @@ function LockedField({ value }: { value: string }) {
       display: "flex", alignItems: "center", gap: 10,
       padding: "9px 11px",
       borderRadius: 8,
-      background: "#FAFAFA",
-      border: "1.5px solid #E5E7EB",
+      background: "var(--nw-surface-muted)",
+      border: "1.5px solid var(--nw-border)",
     }}>
       <LockIcon />
       <span style={{
         flex: 1, minWidth: 0,
-        fontSize: 13.5, color: "#374151", fontWeight: 500,
+        fontSize: 13.5, color: "var(--nw-text-body)", fontWeight: 500,
         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
       }}>
         {value}
@@ -1929,8 +1929,8 @@ function RequestStatusInline({ request }: { request: BrandingRequestRow | null }
         borderRadius: 8,
         display: "flex", alignItems: "center", gap: 9,
       }}>
-        <DotIndicator color="#B45309" />
-        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
+        <DotIndicator color="var(--nw-warn)" />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--nw-warn-strong)", lineHeight: 1.5 }}>
           <strong>Demande en cours de traitement.</strong>{" "}
           Soumise le {dateLabel(request.created_at)}. Vous recevrez un email
           dès qu&apos;elle est validée ou refusée.
@@ -1948,7 +1948,7 @@ function RequestStatusInline({ request }: { request: BrandingRequestRow | null }
         borderRadius: 8,
         display: "flex", alignItems: "center", gap: 9,
       }}>
-        <DotIndicator color="#15803D" />
+        <DotIndicator color="var(--nw-success)" />
         <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#166534", lineHeight: 1.5 }}>
           <strong>Modification validée</strong>
           {request.decided_at ? ` le ${dateLabel(request.decided_at)}` : ""}.
@@ -1966,7 +1966,7 @@ function RequestStatusInline({ request }: { request: BrandingRequestRow | null }
       borderRadius: 8,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: request.decision_note ? 4 : 0 }}>
-        <DotIndicator color="#B91C1C" />
+        <DotIndicator color="var(--nw-danger-strong)" />
         <span style={{ flex: 1, fontSize: 12, color: "#991B1B", lineHeight: 1.5 }}>
           <strong>Demande refusée</strong>
           {request.decided_at ? ` le ${dateLabel(request.decided_at)}` : ""}.
@@ -1999,8 +1999,8 @@ function LockedBadge() {
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
-      fontSize: 10.5, fontWeight: 700, color: "#6B7280",
-      background: "#F3F4F6", border: "1px solid #E5E7EB",
+      fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
+      background: "var(--nw-neutral-100)", border: "1px solid var(--nw-border)",
       padding: "3px 7px", borderRadius: 100,
       letterSpacing: "0.05em", textTransform: "uppercase",
     }}>
@@ -2024,7 +2024,7 @@ function LockIcon({ size = 13 }: { size?: number }) {
 function ShieldIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-      stroke="#7C63C8" strokeWidth="1.7"
+      stroke="var(--nw-primary)" strokeWidth="1.7"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden
       style={{ flexShrink: 0, marginTop: 1 }}>
       <path d="M12 3l8 3v6c0 4.5-3.4 8.5-8 9-4.6-.5-8-4.5-8-9V6l8-3z" />
@@ -2160,13 +2160,13 @@ function BrandingChangeRequestModal({
         }}
       >
         <header style={{ marginBottom: 16 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase" }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase" }}>
             Demande de modification
           </p>
-          <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+          <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
             Modifier vos informations verrouillées
           </h2>
-          <p style={{ margin: "10px 0 0", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
+          <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
             Cochez les informations que vous souhaitez modifier, puis indiquez
             la nouvelle valeur pour chacune. Notre équipe examinera votre
             demande sous 24 à 48 heures ouvrées et vous répondra par email.
@@ -2180,8 +2180,8 @@ function BrandingChangeRequestModal({
             display: "flex", gap: 9, alignItems: "flex-start",
           }}>
             <ShieldIcon />
-            <p style={{ margin: 0, fontSize: 11.5, color: "#4B5563", lineHeight: 1.5 }}>
-              <strong style={{ color: "#374151" }}>Pourquoi cette étape ?</strong>{" "}
+            <p style={{ margin: 0, fontSize: 11.5, color: "var(--nw-text-secondary)", lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--nw-text-body)" }}>Pourquoi cette étape ?</strong>{" "}
               Le nom, le logo et l&apos;email de contact apparaissent sur les
               CV anonymisés que vous présentez à vos clients. Pour éviter
               l&apos;usurpation d&apos;identité d&apos;un cabinet, ces
@@ -2278,7 +2278,7 @@ function BrandingChangeRequestModal({
           <div>
             <Label>
               Raison de la demande{" "}
-              <span style={{ color: "#6B7280", fontWeight: 400 }}>(optionnel)</span>
+              <span style={{ color: "var(--nw-text-muted)", fontWeight: 400 }}>(optionnel)</span>
             </Label>
             <textarea
               value={reason}
@@ -2294,11 +2294,11 @@ function BrandingChangeRequestModal({
           </div>
 
           {error && (
-            <p style={{ margin: 0, fontSize: 12.5, color: "#B91C1C" }}>{error}</p>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-danger-strong)" }}>{error}</p>
           )}
 
           {!editName && !editLogo && !editEmail && (
-            <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", fontStyle: "italic" }}>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-muted)", fontStyle: "italic" }}>
               Cochez au moins une information à modifier.
             </p>
           )}
@@ -2316,8 +2316,8 @@ function BrandingChangeRequestModal({
               padding: "10px 16px", borderRadius: 10,
               border: "none", color: "white",
               background: busy || !canSubmit
-                ? "#C4B6E0"
-                : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                ? "var(--nw-primary-200)"
+                : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               fontSize: 13, fontWeight: 700,
               cursor: busy || !canSubmit ? "not-allowed" : "pointer",
               fontFamily: "inherit",
@@ -2347,7 +2347,7 @@ function ChangeBlock({
   return (
     <div style={{
       borderRadius: 12,
-      border: checked ? "1.5px solid rgba(124,99,200,0.30)" : "1px solid #F0ECF8",
+      border: checked ? "1.5px solid rgba(124,99,200,0.30)" : "1px solid var(--nw-border-soft)",
       background: checked ? "rgba(124,99,200,0.03)" : "white",
       padding: 12,
     }}>
@@ -2360,19 +2360,19 @@ function ChangeBlock({
           checked={checked}
           onChange={onToggle}
           style={{
-            marginTop: 3, accentColor: "#7C63C8",
+            marginTop: 3, accentColor: "var(--nw-primary)",
             width: 16, height: 16, cursor: "pointer",
           }}
         />
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
             margin: 0, fontSize: 13.5, fontWeight: 700,
-            color: "#111827", letterSpacing: "-0.005em",
+            color: "var(--nw-text)", letterSpacing: "-0.005em",
           }}>
             {title}
           </p>
           <p style={{
-            margin: "2px 0 0", fontSize: 12, color: "#6B7280",
+            margin: "2px 0 0", fontSize: 12, color: "var(--nw-text-muted)",
             fontStyle: "italic",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
@@ -2394,8 +2394,8 @@ function LogoFrame({ src, placeholder, highlight }: { src: string | null | undef
     <div style={{
       width: "100%", aspectRatio: "2 / 1",
       borderRadius: 8,
-      border: highlight ? "1px solid rgba(124,99,200,0.30)" : "1px solid #F0ECF8",
-      background: "#FAFAFA",
+      border: highlight ? "1px solid rgba(124,99,200,0.30)" : "1px solid var(--nw-border-soft)",
+      background: "var(--nw-surface-muted)",
       display: "flex", alignItems: "center", justifyContent: "center",
       overflow: "hidden",
     }}>
@@ -2403,7 +2403,7 @@ function LogoFrame({ src, placeholder, highlight }: { src: string | null | undef
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", padding: 6 }} />
       ) : (
-        <span style={{ fontSize: 11.5, color: "#6B7280", fontStyle: "italic" }}>{placeholder}</span>
+        <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)", fontStyle: "italic" }}>{placeholder}</span>
       )}
     </div>
   )
@@ -2412,7 +2412,7 @@ function LogoFrame({ src, placeholder, highlight }: { src: string | null | undef
 const miniLabel: React.CSSProperties = {
   margin: "0 0 4px",
   fontSize: 10.5, fontWeight: 700,
-  color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase",
+  color: "var(--nw-text-muted)", letterSpacing: "0.05em", textTransform: "uppercase",
 }
 
 /**
@@ -2431,7 +2431,7 @@ function PricingPolicySectionCollapsible() {
           type="button"
           onClick={() => setOpen((v) => !v)}
           style={{
-            fontSize: 12, fontWeight: 700, color: "#7C63C8",
+            fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
             background: "transparent", border: "none",
             padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
           }}
@@ -2441,7 +2441,7 @@ function PricingPolicySectionCollapsible() {
       }
     >
       {!open ? (
-        <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280" }}>
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-muted)" }}>
           Réutilisé sur chaque chiffrage candidat × mission.
         </p>
       ) : (
@@ -2452,10 +2452,10 @@ function PricingPolicySectionCollapsible() {
           flexWrap: "wrap",
         }}>
           <div>
-            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)" }}>
               Marges, avantages, lieux
             </p>
-            <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6B7280" }}>
+            <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)" }}>
               Configurez les paramètres détaillés.
             </p>
           </div>
@@ -2463,7 +2463,7 @@ function PricingPolicySectionCollapsible() {
             href="/organisation/parametrage"
             style={{
               padding: "8px 13px", borderRadius: 8,
-              background: "#7C63C8", color: "white",
+              background: "var(--nw-primary)", color: "white",
               fontSize: 12, fontWeight: 700,
               textDecoration: "none", whiteSpace: "nowrap",
             }}
@@ -2532,7 +2532,7 @@ function PreviewToolsCard() {
           margin: "0 0 4px",
           fontSize: 11,
           fontWeight: 700,
-          color: "#92400E",
+          color: "var(--nw-warn-strong)",
           letterSpacing: "0.08em",
           textTransform: "uppercase",
         }}>
@@ -2549,7 +2549,7 @@ function PreviewToolsCard() {
           NULL — aucune donnée n&apos;est supprimée.
         </p>
         {error && (
-          <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C", fontWeight: 600 }}>
+          <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--nw-danger-strong)", fontWeight: 600 }}>
             {error}
           </p>
         )}
@@ -2561,8 +2561,8 @@ function PreviewToolsCard() {
         style={{
           padding: "10px 16px",
           borderRadius: 10,
-          border: "1px solid #92400E",
-          background: "#92400E",
+          border: "1px solid var(--nw-warn-strong)",
+          background: "var(--nw-warn-strong)",
           color: "#FEF3C7",
           fontSize: 13,
           fontWeight: 700,
@@ -2738,7 +2738,7 @@ function MembersSection({
                   <p style={memberNameStyle}>
                     {m.first_name ?? "Sans prénom"}
                     {m.user_id === currentUserId && (
-                      <span style={{ color: "#6B7280", fontWeight: 500 }}> · vous</span>
+                      <span style={{ color: "var(--nw-text-muted)", fontWeight: 500 }}> · vous</span>
                     )}
                   </p>
                   {m.user_id === currentUserId && (
@@ -2831,7 +2831,7 @@ function MembersSection({
             <div key={`e-${idx}`} style={emptySeatRowStyle(false)}>
               <Avatar letter="·" dim />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ ...memberNameStyle, color: "#6B7280", fontWeight: 600 }}>
+                <p style={{ ...memberNameStyle, color: "var(--nw-text-muted)", fontWeight: 600 }}>
                   Siège vide
                 </p>
               </div>
@@ -2850,11 +2850,11 @@ function MembersSection({
       </div>
 
       {error && <p style={{ margin: "10px 0 0", fontSize: 12, color: "#EF4444" }}>{error}</p>}
-      {okMessage && <p style={{ margin: "10px 0 0", fontSize: 12, color: "#15803d" }}>{okMessage}</p>}
+      {okMessage && <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--nw-success)" }}>{okMessage}</p>}
 
       <p style={{
         margin: "12px 0 0",
-        fontSize: 11.5, color: "#6B7280", lineHeight: 1.55,
+        fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55,
       }}>
         Les invitations sont envoyées par email. Le membre clique sur le lien
         reçu, choisit son mot de passe, et accède directement au workspace.
@@ -2868,7 +2868,7 @@ const emptySeatRowStyle = (editing: boolean): React.CSSProperties => ({
   padding: editing ? "8px 10px" : "10px 12px",
   borderRadius: 10,
   background: editing ? "rgba(124,99,200,0.06)" : "rgba(243,244,246,0.55)",
-  border: editing ? "1px solid rgba(124,99,200,0.30)" : "1px dashed #E5E7EB",
+  border: editing ? "1px solid rgba(124,99,200,0.30)" : "1px dashed var(--nw-border)",
 })
 
 /** Menu d'action sur un siège vide.
@@ -2957,7 +2957,7 @@ function EmptySeatActions({
             right: pos.right,
             minWidth: 240,
             background: "white",
-            border: "1px solid #E5E7EB",
+            border: "1px solid var(--nw-border)",
             borderRadius: 10,
             boxShadow: "0 12px 32px -8px rgba(17,24,39,0.20)",
             padding: 5,
@@ -2973,7 +2973,7 @@ function EmptySeatActions({
           >
             + Inviter un nouveau membre (email)
           </button>
-          <div style={{ height: 1, background: "#F0ECF8", margin: "4px 0" }} />
+          <div style={{ height: 1, background: "var(--nw-border-soft)", margin: "4px 0" }} />
           {unallocated.map((m) => {
             const isSelf = m.user_id === currentUserId
             return (
@@ -2986,7 +2986,7 @@ function EmptySeatActions({
               >
                 {isSelf ? "M'allouer un siège" : `Allouer à ${m.first_name ?? "Sans prénom"}`}
                 {m.role === "owner" && !isSelf && (
-                  <span style={{ marginLeft: 6, fontSize: 10.5, color: "#6B7280", fontWeight: 500 }}>
+                  <span style={{ marginLeft: 6, fontSize: 10.5, color: "var(--nw-text-muted)", fontWeight: 500 }}>
                     (owner)
                   </span>
                 )}
@@ -3008,7 +3008,7 @@ const dropdownItemStyle: React.CSSProperties = {
   borderRadius: 6,
   border: "none",
   background: "transparent",
-  color: "#374151",
+  color: "var(--nw-text-body)",
   fontSize: 12.5,
   fontWeight: 600,
   cursor: "pointer",
@@ -3020,7 +3020,7 @@ const addMemberBtnStyle: React.CSSProperties = {
   borderRadius: 8,
   border: "1px solid rgba(124,99,200,0.30)",
   background: "white",
-  color: "#7C63C8",
+  color: "var(--nw-primary)",
   fontSize: 11.5,
   fontWeight: 700,
   cursor: "pointer",
@@ -3032,10 +3032,10 @@ function Avatar({ letter, dim }: { letter: string; dim?: boolean }) {
   return (
     <div style={{
       width: 28, height: 28, borderRadius: "50%",
-      background: dim ? "#F3F4F6" : "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-      border: dim ? "1px solid #E5E7EB" : "1px solid rgba(124,99,200,0.30)",
+      background: dim ? "var(--nw-neutral-100)" : "linear-gradient(135deg, var(--nw-border-soft) 0%, var(--nw-primary-100) 100%)",
+      border: dim ? "1px solid var(--nw-border)" : "1px solid rgba(124,99,200,0.30)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      color: dim ? "#6B7280" : "#7C63C8",
+      color: dim ? "var(--nw-text-muted)" : "var(--nw-primary)",
       fontWeight: 700, fontSize: 11.5,
       flexShrink: 0,
     }}>
@@ -3048,9 +3048,9 @@ function RolePill({ role }: { role: "owner" | "member" }) {
   return (
     <span style={{
       fontSize: 10, fontWeight: 700,
-      color: role === "owner" ? "#7C63C8" : "#6B7280",
-      background: role === "owner" ? "rgba(124,99,200,0.08)" : "#F3F4F6",
-      border: role === "owner" ? "1px solid rgba(124,99,200,0.22)" : "1px solid #E5E7EB",
+      color: role === "owner" ? "var(--nw-primary)" : "var(--nw-text-muted)",
+      background: role === "owner" ? "rgba(124,99,200,0.08)" : "var(--nw-neutral-100)",
+      border: role === "owner" ? "1px solid rgba(124,99,200,0.22)" : "1px solid var(--nw-border)",
       borderRadius: 100, padding: "2px 7px",
       textTransform: "uppercase", letterSpacing: "0.06em",
       flexShrink: 0,
@@ -3117,26 +3117,26 @@ function DangerSection({
         padding: "16px 18px", background: "white",
         border: "1px solid rgba(239,68,68,0.30)", borderRadius: 14, boxSizing: "border-box",
       }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>Suppression programmée</h2>
-        <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
-          L&apos;organisation et toutes ses données seront supprimées définitivement le <strong style={{ color: "#111827" }}>{date}</strong>.
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-danger-strong)" }}>Suppression programmée</h2>
+        <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
+          L&apos;organisation et toutes ses données seront supprimées définitivement le <strong style={{ color: "var(--nw-text)" }}>{date}</strong>.
           Le workspace est en lecture seule d&apos;ici là. Tant que ce délai n&apos;est pas écoulé, vous pouvez tout annuler.
         </p>
         {isOwner ? (
           <button type="button" onClick={cancelDeletion} disabled={busy}
             style={{
               padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(124,99,200,0.35)",
-              background: "white", color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+              background: "white", color: "var(--nw-primary)", fontSize: 12.5, fontWeight: 700,
               cursor: busy ? "default" : "pointer",
             }}>
             {busy ? "Annulation…" : "Annuler la suppression"}
           </button>
         ) : (
-          <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontStyle: "italic" }}>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--nw-text-muted)", fontStyle: "italic" }}>
             Seul le propriétaire de l&apos;organisation peut annuler.
           </p>
         )}
-        {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>}
+        {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--nw-danger-strong)" }}>{error}</p>}
       </section>
     )
   }
@@ -3149,10 +3149,10 @@ function DangerSection({
       padding: "16px 18px", background: "white",
       border: "1px solid rgba(239,68,68,0.30)", borderRadius: 14, boxSizing: "border-box",
     }}>
-      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-danger-strong)" }}>
         Zone de danger
       </h2>
-      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
         Programmer la suppression de l&apos;organisation et de toutes ses données.
         Le workspace passe en lecture seule pendant <strong>30 jours</strong> (le temps
         d&apos;exporter vos données), puis tout est supprimé définitivement. Vous pouvez
@@ -3162,7 +3162,7 @@ function DangerSection({
         style={{
           padding: "8px 14px", borderRadius: 9,
           border: "1px solid rgba(239,68,68,0.35)",
-          background: "white", color: "#B91C1C",
+          background: "white", color: "var(--nw-danger-strong)",
           fontSize: 12.5, fontWeight: 700, cursor: "pointer",
         }}>
         Supprimer mon organisation
@@ -3184,16 +3184,16 @@ function DangerSection({
             border: "1px solid rgba(239,68,68,0.25)",
             boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
           }}>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#B91C1C" }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--nw-danger-strong)" }}>
               Supprimer {organization.name} ?
             </h3>
-            <p style={{ margin: "10px 0 18px", fontSize: 13.5, color: "#4B5563", lineHeight: 1.6 }}>
+            <p style={{ margin: "10px 0 18px", fontSize: 13.5, color: "var(--nw-text-secondary)", lineHeight: 1.6 }}>
               L&apos;organisation passe en <strong>lecture seule</strong> et sera supprimée
               définitivement, avec toutes ses données, dans <strong>30 jours</strong>.
               Vous (et vos collègues) pourrez exporter les données et <strong>annuler</strong>
               {" "}la suppression à tout moment avant l&apos;échéance.
             </p>
-            <Label>Tapez le nom de l&apos;organisation pour confirmer&nbsp;: <code style={{ background: "#F3F4F6", padding: "1px 6px", borderRadius: 4, color: "#111827" }}>{expectedConfirm}</code></Label>
+            <Label>Tapez le nom de l&apos;organisation pour confirmer&nbsp;: <code style={{ background: "var(--nw-neutral-100)", padding: "1px 6px", borderRadius: 4, color: "var(--nw-text)" }}>{expectedConfirm}</code></Label>
             <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
               placeholder={expectedConfirm} autoFocus style={inputStyle} />
             {error && <p style={{ margin: "12px 0 0", fontSize: 13, color: "#EF4444" }}>{error}</p>}
@@ -3206,7 +3206,7 @@ function DangerSection({
                 style={{
                   padding: "10px 18px", borderRadius: 10,
                   border: "none", color: "white",
-                  background: canDelete ? "#B91C1C" : "#FCA5A5",
+                  background: canDelete ? "var(--nw-danger-strong)" : "#FCA5A5",
                   fontSize: 13, fontWeight: 700,
                   cursor: canDelete ? "pointer" : "not-allowed",
                 }}>
@@ -3279,12 +3279,12 @@ function TransferOwnershipCard({
   return (
     <section style={{
       padding: "16px 18px", background: "white",
-      border: "1px solid #F0ECF8", borderRadius: 14, boxSizing: "border-box",
+      border: "1px solid var(--nw-border-soft)", borderRadius: 14, boxSizing: "border-box",
     }}>
-      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-text)" }}>
         Transférer la propriété
       </h2>
-      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
         Passez la main à un autre membre. Vous deviendrez membre de l&apos;organisation ;
         le nouveau propriétaire gérera l&apos;abonnement, les sièges et le branding.
       </p>
@@ -3300,7 +3300,7 @@ function TransferOwnershipCard({
           <button type="button" onClick={() => target && setConfirming(true)} disabled={!target}
             style={{
               padding: "9px 14px", borderRadius: 9, border: "1px solid rgba(124,99,200,0.35)",
-              background: "white", color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+              background: "white", color: "var(--nw-primary)", fontSize: 12.5, fontWeight: 700,
               cursor: target ? "pointer" : "not-allowed",
             }}>
             Transférer
@@ -3309,14 +3309,14 @@ function TransferOwnershipCard({
           <button type="button" onClick={doTransfer} disabled={busy}
             style={{
               padding: "9px 14px", borderRadius: 9, border: "none",
-              background: "#7C63C8", color: "white", fontSize: 12.5, fontWeight: 700,
+              background: "var(--nw-primary)", color: "white", fontSize: 12.5, fontWeight: 700,
               cursor: busy ? "default" : "pointer",
             }}>
             {busy ? "Transfert…" : "Confirmer le transfert"}
           </button>
         )}
       </div>
-      {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>}
+      {error && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--nw-danger-strong)" }}>{error}</p>}
     </section>
   )
 }
@@ -3349,19 +3349,19 @@ function ExportDataCard() {
     <section style={{
       padding: "16px 18px",
       background: "white",
-      border: "1px solid #F0ECF8",
+      border: "1px solid var(--nw-border-soft)",
       borderRadius: 14,
       boxSizing: "border-box",
     }}>
-      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>
+      <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-text)" }}>
         Exporter mes données
       </h2>
-      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
         Téléchargez un fichier JSON avec l&apos;intégralité de votre organisation :
         candidats, missions, matches, mails et paramétrage. Conservez-le
         comme archive.
       </p>
-      <p style={{ margin: "0 0 14px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
+      <p style={{ margin: "0 0 14px", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
         En raison des mises à jour produit, nous ne pouvons pas garantir la
         restauration complète de ces données dans une future version du service.
       </p>
@@ -3372,14 +3372,14 @@ function ExportDataCard() {
         style={{
           padding: "8px 14px", borderRadius: 9,
           border: "1px solid rgba(124,99,200,0.30)",
-          background: "white", color: "#7C63C8",
+          background: "white", color: "var(--nw-primary)",
           fontSize: 12.5, fontWeight: 700,
           cursor: busy ? "wait" : "pointer",
         }}
       >
         {busy ? "Préparation…" : "Télécharger l'export JSON"}
       </button>
-      {error && <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B91C1C" }}>{error}</p>}
+      {error && <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--nw-danger-strong)" }}>{error}</p>}
     </section>
   )
 }
@@ -3399,7 +3399,7 @@ function Card({ title, subtitle, children, headerRight }: {
     <section style={{
       padding: "16px 18px",
       background: "white",
-      border: "1px solid #F0ECF8",
+      border: "1px solid var(--nw-border-soft)",
       borderRadius: 14,
       height: "100%",
       boxSizing: "border-box",
@@ -3410,10 +3410,10 @@ function Card({ title, subtitle, children, headerRight }: {
         display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8,
         marginBottom: 4,
       }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>{title}</h2>
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-text)" }}>{title}</h2>
         {headerRight}
       </div>
-      <p style={{ margin: "0 0 12px", fontSize: 12, color: "#6B7280" }}>{subtitle}</p>
+      <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--nw-text-muted)" }}>{subtitle}</p>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {children}
       </div>
@@ -3425,7 +3425,7 @@ function Label({ children }: { children: React.ReactNode }) {
   return (
     <label style={{
       display: "block", marginBottom: 5,
-      fontSize: 11.5, fontWeight: 700, color: "#6B7280",
+      fontSize: 11.5, fontWeight: 700, color: "var(--nw-text-muted)",
       letterSpacing: "0.03em",
     }}>
       {children}
@@ -3435,14 +3435,14 @@ function Label({ children }: { children: React.ReactNode }) {
 
 function Hint({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ margin: "5px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>{children}</p>
+    <p style={{ margin: "5px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>{children}</p>
   )
 }
 
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "8px 11px",
-  borderRadius: 8, border: "1.5px solid #E5E7EB",
-  fontSize: 13.5, color: "#111827",
+  borderRadius: 8, border: "1.5px solid var(--nw-border)",
+  fontSize: 13.5, color: "var(--nw-text)",
   outline: "none", transition: "border-color 150ms",
   fontFamily: "var(--font-inter), sans-serif",
   boxSizing: "border-box",
@@ -3451,7 +3451,7 @@ const inputStyle: React.CSSProperties = {
 const smallBtnPrimary: React.CSSProperties = {
   padding: "8px 13px", borderRadius: 8,
   border: "none", color: "white",
-  background: "#7C63C8",
+  background: "var(--nw-primary)",
   fontSize: 12, fontWeight: 700, cursor: "pointer",
   fontFamily: "var(--font-inter), sans-serif",
   whiteSpace: "nowrap",
@@ -3459,8 +3459,8 @@ const smallBtnPrimary: React.CSSProperties = {
 
 const smallBtnGhost: React.CSSProperties = {
   padding: "8px 13px", borderRadius: 8,
-  border: "1px solid #E5E7EB", background: "white",
-  color: "#374151",
+  border: "1px solid var(--nw-border)", background: "white",
+  color: "var(--nw-text-body)",
   fontSize: 12, fontWeight: 600, cursor: "pointer",
   fontFamily: "var(--font-inter), sans-serif",
   whiteSpace: "nowrap",
@@ -3468,8 +3468,8 @@ const smallBtnGhost: React.CSSProperties = {
 
 const iconBtnStyle: React.CSSProperties = {
   padding: "5px 9px", borderRadius: 7,
-  border: "1px solid #E5E7EB", background: "white",
-  color: "#6B7280", fontSize: 11, fontWeight: 600,
+  border: "1px solid var(--nw-border)", background: "white",
+  color: "var(--nw-text-muted)", fontSize: 11, fontWeight: 600,
   cursor: "pointer", flexShrink: 0,
   fontFamily: "var(--font-inter), sans-serif",
 }
@@ -3477,15 +3477,15 @@ const iconBtnStyle: React.CSSProperties = {
 const memberRowStyle: React.CSSProperties = {
   display: "flex", alignItems: "center", gap: 9,
   padding: "7px 9px",
-  background: "#FAFAFA",
-  border: "1px solid #F0ECF8",
+  background: "var(--nw-surface-muted)",
+  border: "1px solid var(--nw-border-soft)",
   borderRadius: 10,
 }
 const memberNameStyle: React.CSSProperties = {
-  margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827",
+  margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--nw-text)",
   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }
 const memberSubStyle: React.CSSProperties = {
-  margin: "1px 0 0", fontSize: 11, color: "#6B7280",
+  margin: "1px 0 0", fontSize: 11, color: "var(--nw-text-muted)",
   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }

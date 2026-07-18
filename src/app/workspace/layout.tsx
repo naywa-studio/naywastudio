@@ -176,7 +176,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   if (!ready) {
     return (
       <div style={{
-        minHeight: "100vh", background: "#FAFAFA",
+        minHeight: "100vh", background: "var(--nw-surface-muted)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
         <Spinner />
@@ -209,7 +209,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           position: "relative",
           fontSize: 13,
           fontWeight: active ? 700 : 500,
-          color: active ? "#7C63C8" : "#4B5563",
+          color: active ? "var(--nw-primary)" : "var(--nw-text-secondary)",
           textDecoration: "none",
           padding: "8px 12px",
           borderRadius: 8,
@@ -251,7 +251,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
             height: 60,
             background: "rgba(255,255,255,0.94)",
             backdropFilter: "blur(14px)",
-            borderBottom: "1px solid #F0ECF8",
+            borderBottom: "1px solid var(--nw-border-soft)",
             display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "0 20px",
           }}
@@ -261,8 +261,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
               style={{
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 width: 30, height: 30, borderRadius: 8,
-                border: "1px solid #E2DAF6", background: "white",
-                color: "#7C63C8", textDecoration: "none",
+                border: "1px solid var(--nw-primary-100)", background: "white",
+                color: "var(--nw-primary)", textDecoration: "none",
               }}
             >
               <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
@@ -291,7 +291,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "7px 12px", borderRadius: 9,
                   border: "1px solid rgba(124,99,200,0.30)", background: "white",
-                  color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+                  color: "var(--nw-primary)", fontSize: 12.5, fontWeight: 700,
                   textDecoration: "none", whiteSpace: "nowrap",
                   transition: "background 150ms",
                 }}
@@ -314,10 +314,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                 title={userEmail}
                 style={{
                   width: 34, height: 34, borderRadius: "50%",
-                  background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+                  background: "linear-gradient(135deg, var(--nw-border-soft) 0%, var(--nw-primary-100) 100%)",
                   border: "1px solid rgba(124,99,200,0.30)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#7C63C8", fontWeight: 700, fontSize: 13,
+                  color: "var(--nw-primary)", fontWeight: 700, fontSize: 13,
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >
@@ -327,20 +327,20 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                 <div style={{
                   position: "absolute", top: 42, right: 0,
                   minWidth: 220, background: "white",
-                  border: "1px solid #F0ECF8", borderRadius: 12,
+                  border: "1px solid var(--nw-border-soft)", borderRadius: 12,
                   boxShadow: "0 12px 32px rgba(124,99,200,0.18)",
                   padding: 6, zIndex: 50,
                   fontFamily: "var(--font-inter), sans-serif",
                 }}>
                   <div style={{
                     padding: "10px 12px",
-                    borderBottom: "1px solid #F0ECF8", marginBottom: 4,
+                    borderBottom: "1px solid var(--nw-border-soft)", marginBottom: 4,
                   }}>
-                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
                       Connecté en tant que
                     </p>
                     <p style={{
-                      margin: "2px 0 0", fontSize: 13, fontWeight: 600, color: "#111827",
+                      margin: "2px 0 0", fontSize: 13, fontWeight: 600, color: "var(--nw-text)",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>
                       {userEmail}
@@ -377,7 +377,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           position: "sticky", top: 60, zIndex: 39,
           background: "rgba(255,255,255,0.94)",
           backdropFilter: "blur(14px)",
-          borderBottom: "1px solid #F0ECF8",
+          borderBottom: "1px solid var(--nw-border-soft)",
           padding: "6px 12px",
           gap: 2,
           overflowX: "auto",
@@ -391,7 +391,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           .ws-tabs a:not([data-active]):not([aria-disabled="true"]):hover,
           .ws-tabs-mobile a:not([data-active]):not([aria-disabled="true"]):hover {
             background: rgba(124,99,200,0.07) !important;
-            color: #7C63C8 !important;
+            color: var(--nw-primary) !important;
           }
           .ws-org-link:hover { background: rgba(124,99,200,0.08) !important; }
           @media (max-width: 720px) {
@@ -429,7 +429,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
 const MENU_ITEM: React.CSSProperties = {
   display: "block", padding: "9px 12px", borderRadius: 8,
-  fontSize: 13, fontWeight: 500, color: "#374151",
+  fontSize: 13, fontWeight: 500, color: "var(--nw-text-body)",
   textDecoration: "none", transition: "background 150ms",
   cursor: "pointer",
 }
@@ -445,8 +445,8 @@ const MENU_ITEM_DANGER: React.CSSProperties = {
 function Spinner() {
   return (
     <svg width="32" height="32" viewBox="0 0 24 24" style={{ animation: "spin 0.8s linear infinite" }}>
-      <circle cx="12" cy="12" r="10" stroke="#E2DAF6" strokeWidth="3" fill="none" />
-      <path d="M12 2a10 10 0 0 1 10 10" stroke="#7C63C8" strokeWidth="3" fill="none" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="10" stroke="var(--nw-primary-100)" strokeWidth="3" fill="none" />
+      <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--nw-primary)" strokeWidth="3" fill="none" strokeLinecap="round" />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </svg>
   )

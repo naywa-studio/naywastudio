@@ -294,7 +294,7 @@ function CurrentColorPreview({ label, hex, isOff }: { label: string; hex: string
         <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase" }}>
           {label}
         </p>
-        <p style={{ margin: "2px 0 0", fontSize: 14, fontFamily: "var(--font-space-grotesk), monospace", fontWeight: 700, color: "#111827" }}>
+        <p style={{ margin: "2px 0 0", fontSize: 14, fontFamily: "var(--nw-font-mono)", fontWeight: 700, color: "#111827" }}>
           {isOff ? <span style={{ color: "#6B7280" }}>Non configurée</span> : hex.toUpperCase()}
         </p>
       </div>

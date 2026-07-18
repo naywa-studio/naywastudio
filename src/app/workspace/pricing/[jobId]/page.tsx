@@ -135,9 +135,9 @@ export default function PricingMissionPage() {
   if (notFound || !job) {
     return (
       <main style={mainStyle}>
-        <div style={{ textAlign: "center", padding: "60px 24px", color: "#6B7280" }}>
+        <div style={{ textAlign: "center", padding: "60px 24px", color: "var(--nw-text-muted)" }}>
           <p style={{ fontSize: 16, fontWeight: 600 }}>Mission introuvable.</p>
-          <Link href="/workspace/pricing" style={{ color: "#7C63C8", textDecoration: "none", fontSize: 14 }}>
+          <Link href="/workspace/pricing" style={{ color: "var(--nw-primary)", textDecoration: "none", fontSize: 14 }}>
             ← Retour au pricing
           </Link>
         </div>
@@ -259,7 +259,7 @@ function CompactHeader({ job }: { job: Job }) {
           display: "inline-flex", alignItems: "center", justifyContent: "center",
           width: 32, height: 32, borderRadius: 9,
           border: "1px solid rgba(124,99,200,0.20)", background: "white",
-          color: "#7C63C8", textDecoration: "none", flexShrink: 0,
+          color: "var(--nw-primary)", textDecoration: "none", flexShrink: 0,
         }}>
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
             <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -267,7 +267,7 @@ function CompactHeader({ job }: { job: Job }) {
         </Link>
         <div style={{ minWidth: 0 }}>
           <h1 style={{
-            margin: 0, fontSize: 20, fontWeight: 800, color: "#111827",
+            margin: 0, fontSize: 20, fontWeight: 800, color: "var(--nw-text)",
             letterSpacing: "-0.015em", lineHeight: 1.2,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           }}>
@@ -282,7 +282,7 @@ function CompactHeader({ job }: { job: Job }) {
       </div>
       <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
         <Link href="/organisation/parametrage" style={{
-          fontSize: 12, fontWeight: 700, color: "#7C63C8",
+          fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
           background: "white", border: "1px solid rgba(124,99,200,0.25)",
           borderRadius: 9, padding: "8px 14px", textDecoration: "none",
           whiteSpace: "nowrap",
@@ -290,7 +290,7 @@ function CompactHeader({ job }: { job: Job }) {
           ⚙ Paramètres organisation
         </Link>
         <Link href={`/workspace/missions/${job.id}`} style={{
-          fontSize: 12, fontWeight: 700, color: "#7C63C8",
+          fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
           background: "white", border: "1px solid rgba(124,99,200,0.25)",
           borderRadius: 9, padding: "8px 14px", textDecoration: "none",
           whiteSpace: "nowrap",
@@ -305,9 +305,9 @@ function CompactHeader({ job }: { job: Job }) {
 function Chip({ children }: { children: React.ReactNode }) {
   return (
     <span style={{
-      fontSize: 11, color: "#6B7280", fontWeight: 600,
+      fontSize: 11, color: "var(--nw-text-muted)", fontWeight: 600,
       padding: "3px 9px", borderRadius: 100,
-      background: "#F8F6FF", border: "1px solid #F0ECF8",
+      background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)",
     }}>
       {children}
     </span>
@@ -393,10 +393,10 @@ function MissionConfigSummary({
       border: "1px solid rgba(34,197,94,0.20)",
       borderRadius: 10, padding: "8px 12px",
       display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-      fontSize: 12, color: "#374151",
+      fontSize: 12, color: "var(--nw-text-body)",
     }}>
       <span style={{
-        fontSize: 10.5, fontWeight: 700, color: "#15803d",
+        fontSize: 10.5, fontWeight: 700, color: "var(--nw-success)",
         letterSpacing: "0.06em", textTransform: "uppercase",
       }}>
         ✓ Mission paramétrée
@@ -411,7 +411,7 @@ function MissionConfigSummary({
       )}
       {(job.has_grand_deplacement || job.is_expatriated) && (
         <span style={{
-          fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+          fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)",
           background: "rgba(124,99,200,0.10)", border: "1px solid rgba(124,99,200,0.22)",
           borderRadius: 100, padding: "1px 8px",
         }}>
@@ -424,7 +424,7 @@ function MissionConfigSummary({
       <button
         onClick={onEdit}
         style={{
-          fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
+          fontSize: 11.5, fontWeight: 600, color: "var(--nw-primary)",
           background: "transparent",
           border: "1px solid rgba(124,99,200,0.30)",
           borderRadius: 8, padding: "4px 10px", cursor: "pointer",
@@ -541,7 +541,7 @@ function MissionConfigWizard({
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
         <span style={{
-          fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
           📋 Paramétrage mission
@@ -553,7 +553,7 @@ function MissionConfigWizard({
           <button
             onClick={onCancel}
             style={{
-              marginLeft: "auto", fontSize: 11, fontWeight: 600, color: "#7C63C8",
+              marginLeft: "auto", fontSize: 11, fontWeight: 600, color: "var(--nw-primary)",
               background: "white", border: "1px solid rgba(124,99,200,0.25)",
               borderRadius: 8, padding: "4px 10px", cursor: "pointer",
               fontFamily: "inherit",
@@ -563,7 +563,7 @@ function MissionConfigWizard({
           </button>
         )}
       </div>
-      <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6B7280", lineHeight: 1.5 }}>
+      <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
         Les avantages organisation s&apos;appliquent d&apos;office. Les toggles en bas activent
         les tarifs conditionnels.
       </p>
@@ -639,10 +639,10 @@ function MissionConfigWizard({
         marginTop: 16,
         padding: "12px 14px",
         background: "rgba(124,99,200,0.04)",
-        border: "1px solid #F0ECF8", borderRadius: 10,
+        border: "1px solid var(--nw-border-soft)", borderRadius: 10,
       }}>
         <p style={{
-          margin: "0 0 10px", fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+          margin: "0 0 10px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)",
           letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
           Activations conditionnelles
@@ -669,7 +669,7 @@ function MissionConfigWizard({
           onClick={() => setAdvancedOpen((v) => !v)}
           style={{
             display: "flex", alignItems: "center", gap: 6,
-            fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
+            fontSize: 11.5, fontWeight: 600, color: "var(--nw-primary)",
             background: "transparent", border: "none", cursor: "pointer",
             padding: "4px 0", fontFamily: "inherit",
           }}
@@ -679,12 +679,12 @@ function MissionConfigWizard({
             transform: advancedOpen ? "rotate(90deg)" : "none",
             transition: "transform 140ms",
           }}>›</span>
-          Overrides marges <span style={{ color: "#6B7280", fontWeight: 400 }}>· défaut = organisation</span>
+          Overrides marges <span style={{ color: "var(--nw-text-muted)", fontWeight: 400 }}>· défaut = organisation</span>
         </button>
         {advancedOpen && (
           <div style={{
             marginTop: 8, padding: "12px 14px",
-            background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 10,
+            background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border-soft)", borderRadius: 10,
             display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
           }}>
             <WizardField
@@ -710,7 +710,7 @@ function MissionConfigWizard({
             {marginsInvalid && (
               <p style={{
                 gridColumn: "1 / -1", margin: 0,
-                padding: "8px 10px", fontSize: 11.5, color: "#B91C1C",
+                padding: "8px 10px", fontSize: 11.5, color: "var(--nw-danger-strong)",
                 background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
                 borderRadius: 8,
               }}>
@@ -725,11 +725,11 @@ function MissionConfigWizard({
           laisser le sourceur taper tranquillement sans que la zone se
           referme dans son dos. */}
       <div style={{
-        marginTop: 18, paddingTop: 14, borderTop: "1px solid #F0ECF8",
+        marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--nw-border-soft)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
         gap: 12, flexWrap: "wrap",
       }}>
-        <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
           {requiredMissing
             ? "Renseignez le TJM, la durée et la date de démarrage pour valider."
             : marginsInvalid
@@ -741,8 +741,8 @@ function MissionConfigWizard({
             <button
               onClick={onCancel}
               style={{
-                fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, color: "#6B7280",
-                background: "white", border: "1px solid #E5E7EB",
+                fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, color: "var(--nw-text-muted)",
+                background: "white", border: "1px solid var(--nw-border)",
                 borderRadius: 9, padding: "9px 16px", cursor: "pointer",
               }}
             >
@@ -757,7 +757,7 @@ function MissionConfigWizard({
               color: "white",
               padding: "9px 18px", borderRadius: 9,
               background: canSubmit
-                ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
+                ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
                 : "rgba(124,99,200,0.45)",
               border: "none",
               cursor: canSubmit ? "pointer" : "not-allowed",
@@ -774,9 +774,9 @@ function MissionConfigWizard({
 
 function SaveBadge({ tone, children }: { tone: "muted" | "green" | "red"; children: React.ReactNode }) {
   const colors = {
-    muted: { fg: "#6B7280", bg: "#F3F4F6", bd: "#E5E7EB" },
-    green: { fg: "#15803d", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
-    red:   { fg: "#B91C1C", bg: "rgba(220,38,38,0.06)", bd: "rgba(220,38,38,0.25)" },
+    muted: { fg: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)", bd: "var(--nw-border)" },
+    green: { fg: "var(--nw-success)", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
+    red:   { fg: "var(--nw-danger-strong)", bg: "rgba(220,38,38,0.06)", bd: "rgba(220,38,38,0.25)" },
   }[tone]
   return (
     <span style={{
@@ -805,14 +805,14 @@ function WizardToggleRow({
         display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center",
         padding: "9px 12px",
         background: enabled ? "rgba(124,99,200,0.08)" : "white",
-        border: enabled ? "1px solid rgba(124,99,200,0.30)" : "1px solid #F0ECF8",
+        border: enabled ? "1px solid rgba(124,99,200,0.30)" : "1px solid var(--nw-border-soft)",
         borderRadius: 9, cursor: "pointer", textAlign: "left", fontFamily: "inherit",
       }}
     >
       <span style={{
         width: 20, height: 20, borderRadius: 6,
-        border: enabled ? "none" : "1.5px solid #D1D5DB",
-        background: enabled ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)" : "white",
+        border: enabled ? "none" : "1.5px solid var(--nw-border)",
+        background: enabled ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)" : "white",
         display: "inline-flex", alignItems: "center", justifyContent: "center",
       }}>
         {enabled && (
@@ -822,10 +822,10 @@ function WizardToggleRow({
         )}
       </span>
       <div>
-        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{label}</p>
-        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{hint}</p>
+        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--nw-text)" }}>{label}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--nw-text-muted)", lineHeight: 1.4 }}>{hint}</p>
       </div>
-      <span style={{ fontSize: 10.5, color: enabled ? "#7C63C8" : "#6B7280", fontWeight: 700 }}>
+      <span style={{ fontSize: 10.5, color: enabled ? "var(--nw-primary)" : "var(--nw-text-muted)", fontWeight: 700 }}>
         {enabled ? "Actif" : "Inactif"}
       </span>
     </button>
@@ -851,7 +851,7 @@ function WizardField({
       <div style={{
         display: "flex", alignItems: "baseline", gap: 6,
         padding: "10px 12px",
-        background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
+        background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border)", borderRadius: 9,
       }}>
         <input
           type="number" inputMode="decimal"
@@ -861,19 +861,19 @@ function WizardField({
           placeholder={placeholder}
           style={{
             flex: 1, minWidth: 0,
-            fontSize: 14, fontWeight: 700, color: "#111827",
+            fontSize: 14, fontWeight: 700, color: "var(--nw-text)",
             background: "transparent", border: "none", outline: "none",
             padding: 0, fontFamily: "inherit",
             fontVariantNumeric: "tabular-nums",
             appearance: "textfield",
           }}
         />
-        <span style={{ fontSize: 11.5, color: "#6B7280", flexShrink: 0 }}>{suffix}</span>
+        <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)", flexShrink: 0 }}>{suffix}</span>
       </div>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
-        {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)" }}>
+        {label} {required && <span style={{ color: "var(--nw-danger-strong)" }}>*</span>}
       </span>
-      {hint && <span style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 10.5, color: "var(--nw-text-muted)", lineHeight: 1.4 }}>{hint}</span>}
     </label>
   )
 }
@@ -890,8 +890,8 @@ function WizardSelectField({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <Select value={value} onChange={onChange} options={options} ariaLabel={label} />
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
-      {hint && <span style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>{hint}</span>}
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)" }}>{label}</span>
+      {hint && <span style={{ fontSize: 10.5, color: "var(--nw-text-muted)", lineHeight: 1.4 }}>{hint}</span>}
     </div>
   )
 }
@@ -913,15 +913,15 @@ function WizardDateField({
         onChange={(e) => onChange(e.target.value)}
         style={{
           padding: "10px 12px",
-          fontSize: 14, fontWeight: 700, color: "#111827",
-          background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
+          fontSize: 14, fontWeight: 700, color: "var(--nw-text)",
+          background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border)", borderRadius: 9,
           outline: "none", fontFamily: "inherit",
         }}
       />
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
-        {label} {required && <span style={{ color: "#B91C1C" }}>*</span>}
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)" }}>
+        {label} {required && <span style={{ color: "var(--nw-danger-strong)" }}>*</span>}
       </span>
-      {hint && <span style={{ fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 10.5, color: "var(--nw-text-muted)", lineHeight: 1.4 }}>{hint}</span>}
     </label>
   )
 }
@@ -968,7 +968,7 @@ function CompactCandidatesList({
         gap: 8, marginBottom: 4,
       }}>
         <p style={{
-          margin: 0, fontSize: 10.5, fontWeight: 700, color: "#6B7280",
+          margin: 0, fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
           letterSpacing: "0.06em", textTransform: "uppercase",
         }}>
           Candidats · {sorted.length}
@@ -979,12 +979,12 @@ function CompactCandidatesList({
             style={{
               fontFamily: "inherit", fontSize: 10, fontWeight: 700,
               padding: "3px 8px", borderRadius: 100,
-              color: compareMode ? "white" : "#7C63C8",
+              color: compareMode ? "white" : "var(--nw-primary)",
               background: compareMode
-                ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
+                ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
                 : "rgba(124,99,200,0.08)",
               border: compareMode
-                ? "1px solid #7C63C8"
+                ? "1px solid var(--nw-primary)"
                 : "1px solid rgba(124,99,200,0.25)",
               cursor: "pointer",
             }}
@@ -995,7 +995,7 @@ function CompactCandidatesList({
       </div>
       {compareMode && (
         <p style={{
-          margin: "0 0 4px", fontSize: 11, color: "#7C63C8", lineHeight: 1.4,
+          margin: "0 0 4px", fontSize: 11, color: "var(--nw-primary)", lineHeight: 1.4,
           padding: "6px 10px",
           background: "rgba(124,99,200,0.06)",
           border: "1px solid rgba(124,99,200,0.18)",
@@ -1007,7 +1007,7 @@ function CompactCandidatesList({
         </p>
       )}
       {sorted.length === 0 && (
-        <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
           Aucun candidat à chiffrer.
         </p>
       )}
@@ -1023,10 +1023,10 @@ function CompactCandidatesList({
           candidate: c.candidate, job, profile,
           persistedTjm: c.pricingTjm, persistedBrut: c.pricingBrut,
         })
-        const margeColor = quick == null ? "#6B7280"
-          : quick.margePct >= 22 ? "#15803d"
-          : quick.margePct >= 15 ? "#B45309"
-          : "#B91C1C"
+        const margeColor = quick == null ? "var(--nw-text-muted)"
+          : quick.margePct >= 22 ? "var(--nw-success)"
+          : quick.margePct >= 15 ? "var(--nw-warn)"
+          : "var(--nw-danger-strong)"
         return (
           <m.button
             key={c.matchId}
@@ -1045,10 +1045,10 @@ function CompactCandidatesList({
                   ? "linear-gradient(135deg, rgba(124,99,200,0.10), rgba(124,99,200,0.04))"
                   : "white",
               border: inCompare
-                ? "1.5px solid #7C63C8"
+                ? "1.5px solid var(--nw-primary)"
                 : active
                   ? "1.5px solid rgba(124,99,200,0.40)"
-                  : "1px solid #F0ECF8",
+                  : "1px solid var(--nw-border-soft)",
               borderRadius: 10, padding: "9px 10px",
               display: "flex", flexDirection: "column", gap: 5,
               position: "relative",
@@ -1058,7 +1058,7 @@ function CompactCandidatesList({
               <span style={{
                 position: "absolute", top: -7, right: -7,
                 width: 18, height: 18, borderRadius: "50%",
-                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                 color: "white", fontSize: 10, fontWeight: 800,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 boxShadow: "0 2px 6px rgba(124,99,200,0.30)",
@@ -1070,8 +1070,8 @@ function CompactCandidatesList({
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{
                 width: 26, height: 26, borderRadius: "50%",
-                background: active ? "#7C63C8" : "#F4F1FB",
-                color: active ? "white" : "#7C63C8",
+                background: active ? "var(--nw-primary)" : "#F4F1FB",
+                color: active ? "white" : "var(--nw-primary)",
                 fontSize: 10, fontWeight: 800,
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 flexShrink: 0,
@@ -1079,7 +1079,7 @@ function CompactCandidatesList({
                 {initials || "?"}
               </span>
               <span style={{
-                fontSize: 12.5, fontWeight: active ? 700 : 600, color: "#111827",
+                fontSize: 12.5, fontWeight: active ? 700 : 600, color: "var(--nw-text)",
                 flex: 1, minWidth: 0,
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
@@ -1087,7 +1087,7 @@ function CompactCandidatesList({
               </span>
               {c.score != null && (
                 <span style={{
-                  fontSize: 10, fontWeight: 800, color: "#6B7280",
+                  fontSize: 10, fontWeight: 800, color: "var(--nw-text-muted)",
                   padding: "1px 6px", borderRadius: 100,
                   background: active ? "white" : "#F4F1FB", flexShrink: 0,
                 }}>
@@ -1097,8 +1097,8 @@ function CompactCandidatesList({
             </div>
             {/* Ligne 1.5 : ref candidate */}
             <div style={{
-              paddingLeft: 34, fontSize: 9.5, color: "#6B7280",
-              fontFamily: "var(--font-space-grotesk), monospace",
+              paddingLeft: 34, fontSize: 9.5, color: "var(--nw-text-muted)",
+              fontFamily: "var(--nw-font-mono)",
               letterSpacing: "0.04em", marginTop: -2,
             }}>
               {candidateRefLabel(c.candidate.id)}
@@ -1110,7 +1110,7 @@ function CompactCandidatesList({
             {quick && (c.pricingTjm != null || c.pricingBrut != null) && (
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
-                gap: 6, paddingLeft: 34, fontSize: 10.5, color: "#6B7280",
+                gap: 6, paddingLeft: 34, fontSize: 10.5, color: "var(--nw-text-muted)",
                 fontVariantNumeric: "tabular-nums",
               }}>
                 <span>{Math.round(quick.brut / 1000)} k€</span>
@@ -1143,11 +1143,11 @@ function MissionNotConfiguredCta({ onEdit }: { onEdit: () => void }) {
       }}
     >
       <div style={{ fontSize: 40, marginBottom: 14 }}>📋</div>
-      <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "#111827" }}>
+      <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "var(--nw-text)" }}>
         Mission à paramétrer
       </h3>
       <p style={{
-        margin: "0 auto 16px", maxWidth: 460, fontSize: 13, color: "#6B7280",
+        margin: "0 auto 16px", maxWidth: 460, fontSize: 13, color: "var(--nw-text-muted)",
         lineHeight: 1.6,
       }}>
         Renseigne le <strong>TJM</strong>, la <strong>durée</strong>, la <strong>date de démarrage</strong>
@@ -1159,7 +1159,7 @@ function MissionNotConfiguredCta({ onEdit }: { onEdit: () => void }) {
         style={{
           display: "inline-block",
           fontSize: 12.5, fontWeight: 700, color: "white",
-          background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
           border: "none", borderRadius: 10, padding: "9px 18px",
           cursor: "pointer", fontFamily: "inherit",
         }}
@@ -1188,11 +1188,11 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
         <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
-      <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "#111827" }}>
+      <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "var(--nw-text)" }}>
         Aucun candidat à chiffrer
       </h3>
       <p style={{
-        margin: "0 auto 16px", maxWidth: 460, fontSize: 13, color: "#6B7280",
+        margin: "0 auto 16px", maxWidth: 460, fontSize: 13, color: "var(--nw-text-muted)",
         lineHeight: 1.6,
       }}>
         Seuls les candidats <strong>ajoutés à la pipeline</strong> apparaissent ici.
@@ -1202,7 +1202,7 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
       <Link href={`/workspace/missions/${jobId}`} style={{
         display: "inline-block",
         fontSize: 12.5, fontWeight: 700, color: "white",
-        background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+        background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
         borderRadius: 10, padding: "9px 16px", textDecoration: "none",
       }}>
         Fiche mission →
@@ -1244,7 +1244,7 @@ function ComparisonPanel({
 
   return (
     <section style={{
-      background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+      background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
       padding: 18,
     }}>
       {/* Header — titre + close */}
@@ -1254,18 +1254,18 @@ function ComparisonPanel({
       }}>
         <div>
           <h3 style={{
-            margin: 0, fontSize: 14, fontWeight: 800, color: "#111827",
+            margin: 0, fontSize: 14, fontWeight: 800, color: "var(--nw-text)",
           }}>
             Comparaison de candidats
           </h3>
           <p style={{
-            margin: "3px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4,
+            margin: "3px 0 0", fontSize: 11, color: "var(--nw-text-muted)", lineHeight: 1.4,
           }}>
             {picked.length}/2 sélectionnés · choisis les candidats dans la liste à gauche pour les comparer côte à côte.
           </p>
         </div>
         <button onClick={onExit} style={{
-          fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           background: "rgba(124,99,200,0.06)",
           border: "1px solid rgba(124,99,200,0.20)",
           borderRadius: 8, padding: "5px 10px", cursor: "pointer",
@@ -1354,7 +1354,7 @@ function NoraVerdictBubble({
       <div style={{
         width: 30, height: 30, flexShrink: 0,
         borderRadius: "50%",
-        background: "linear-gradient(135deg, #7C63C8 0%, #6B54B2 100%)",
+        background: "linear-gradient(135deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
         color: "white", fontSize: 12, fontWeight: 800,
         display: "flex", alignItems: "center", justifyContent: "center",
         boxShadow: "0 2px 8px rgba(124,99,200,0.25)",
@@ -1371,21 +1371,21 @@ function NoraVerdictBubble({
         boxShadow: "0 1px 2px rgba(17,24,39,0.04)",
       }}>
         <div style={{
-          fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           marginBottom: 4,
         }}>
           La reco de Nora
         </div>
         {state.kind === "idle" && (
           <>
-            <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
+            <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "var(--nw-text-body)", lineHeight: 1.55 }}>
               Vous voulez un avis rapide sur le meilleur choix entre {candidateAName} et {candidateBName} ?
             </p>
             <button onClick={ask} style={{
               fontFamily: "inherit", fontSize: 11.5, fontWeight: 700,
               color: "white",
               padding: "6px 12px", borderRadius: 8,
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               border: "1px solid rgba(124,99,200,0.40)",
               cursor: "pointer",
             }}>
@@ -1394,7 +1394,7 @@ function NoraVerdictBubble({
           </>
         )}
         {state.kind === "loading" && (
-          <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280", lineHeight: 1.55, fontStyle: "italic" }}>
+          <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55, fontStyle: "italic" }}>
             Nora analyse les deux candidats…
           </p>
         )}
@@ -1403,7 +1403,7 @@ function NoraVerdictBubble({
             {state.winner !== "tie" && (
               <div style={{
                 display: "inline-block",
-                fontSize: 10, fontWeight: 800, color: "#15803d",
+                fontSize: 10, fontWeight: 800, color: "var(--nw-success)",
                 background: "rgba(34,197,94,0.10)",
                 border: "1px solid rgba(34,197,94,0.25)",
                 borderRadius: 100, padding: "2px 8px", marginBottom: 6,
@@ -1412,19 +1412,19 @@ function NoraVerdictBubble({
                 ✓ Préférence : {state.winner === "A" ? candidateAName : candidateBName}
               </div>
             )}
-            <p style={{ margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-body)", lineHeight: 1.55 }}>
               {state.commentary}
             </p>
           </>
         )}
         {state.kind === "error" && (
           <>
-            <p style={{ margin: "0 0 6px", fontSize: 12.5, color: "#B91C1C", lineHeight: 1.55 }}>
+            <p style={{ margin: "0 0 6px", fontSize: 12.5, color: "var(--nw-danger-strong)", lineHeight: 1.55 }}>
               Désolée, je n&apos;ai pas pu donner d&apos;avis ({state.message}).
             </p>
             <button onClick={ask} style={{
               fontFamily: "inherit", fontSize: 11, fontWeight: 700,
-              color: "#7C63C8", background: "rgba(124,99,200,0.06)",
+              color: "var(--nw-primary)", background: "rgba(124,99,200,0.06)",
               border: "1px solid rgba(124,99,200,0.25)",
               borderRadius: 7, padding: "4px 10px", cursor: "pointer",
             }}>
@@ -1441,13 +1441,13 @@ function ComparisonEmptyState({ picked }: { picked: number }) {
   return (
     <div style={{
       padding: "36px 18px", textAlign: "center",
-      background: "#FAFAFA", border: "1px dashed #E5E7EB", borderRadius: 12,
+      background: "var(--nw-surface-muted)", border: "1px dashed var(--nw-border)", borderRadius: 12,
     }}>
       <div style={{ fontSize: 28, marginBottom: 6 }}>⇆</div>
-      <p style={{ margin: 0, fontSize: 13, color: "#374151", fontWeight: 600 }}>
+      <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-body)", fontWeight: 600 }}>
         {picked === 0 ? "Choisissez 2 candidats à comparer." : "Encore un candidat à choisir."}
       </p>
-      <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
+      <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
         Cliquez dans la liste à gauche pour les ajouter à la comparaison.
       </p>
     </div>
@@ -1471,11 +1471,11 @@ function ComparisonCard({
   const targetPct = job.margin_target_pct ?? 22
   const minPct = job.margin_min_pct ?? 15
   const status: { fg: string; bg: string; bd: string; label: string } =
-    quick == null            ? { fg: "#6B7280", bg: "#FAFAFA",                bd: "#E5E7EB",                label: "Pricing en attente" }
-    : quick.margePct >= targetPct ? { fg: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)",  label: "Mission rentable" }
-    : quick.margePct >= minPct    ? { fg: "#B45309", bg: "rgba(217,119,6,0.06)",  bd: "rgba(217,119,6,0.25)",  label: "Sous la cible" }
-    : quick.margePct >= 0         ? { fg: "#B91C1C", bg: "#FEF2F2",               bd: "#FECACA",                label: "Sous le plancher" }
-                                  : { fg: "#B91C1C", bg: "#FEF2F2",               bd: "#FECACA",                label: "Mission en perte" }
+    quick == null            ? { fg: "var(--nw-text-muted)", bg: "var(--nw-surface-muted)",                bd: "var(--nw-border)",                label: "Pricing en attente" }
+    : quick.margePct >= targetPct ? { fg: "var(--nw-success)", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)",  label: "Mission rentable" }
+    : quick.margePct >= minPct    ? { fg: "var(--nw-warn)", bg: "rgba(217,119,6,0.06)",  bd: "rgba(217,119,6,0.25)",  label: "Sous la cible" }
+    : quick.margePct >= 0         ? { fg: "var(--nw-danger-strong)", bg: "#FEF2F2",               bd: "var(--nw-danger-border)",                label: "Sous le plancher" }
+                                  : { fg: "var(--nw-danger-strong)", bg: "#FEF2F2",               bd: "var(--nw-danger-border)",                label: "Mission en perte" }
   const margeMonth = quick ? quick.margeMensuelleEur : null
   const margeTotal = quick ? Math.round(quick.margeMensuelleEur * 12) : null
   const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR")
@@ -1490,7 +1490,7 @@ function ComparisonCard({
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{
           width: 24, height: 24, borderRadius: "50%",
-          background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
           color: "white", fontSize: 11, fontWeight: 800,
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0,
@@ -1499,12 +1499,12 @@ function ComparisonCard({
         </span>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{
-            fontSize: 13, fontWeight: 800, color: "#111827",
+            fontSize: 13, fontWeight: 800, color: "var(--nw-text)",
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           }}>
             {pc.candidate.full_name ?? "Sans nom"}
           </div>
-          <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 1 }}>
+          <div style={{ fontSize: 10.5, color: "var(--nw-text-muted)", marginTop: 1 }}>
             {pc.candidate.current_title ?? "—"}
             {pc.candidate.years_experience != null ? ` · ${pc.candidate.years_experience} ans XP` : ""}
           </div>
@@ -1548,7 +1548,7 @@ function ComparisonCard({
       {/* Précision : si pas de pricing persisté, on prévient. */}
       {quick != null && pc.pricingTjm == null && pc.pricingBrut == null && (
         <p style={{
-          margin: 0, fontSize: 10.5, color: "#6B7280", lineHeight: 1.4,
+          margin: 0, fontSize: 10.5, color: "var(--nw-text-muted)", lineHeight: 1.4,
           fontStyle: "italic",
         }}>
           Valeurs auto-calculées (TJM mission + brut par défaut). Ouvre la
@@ -1563,13 +1563,13 @@ function CompareStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div style={{
-        fontSize: 9.5, fontWeight: 700, color: "#6B7280",
+        fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)",
         letterSpacing: "0.05em", textTransform: "uppercase",
       }}>
         {label}
       </div>
       <div style={{
-        fontSize: 13, fontWeight: 700, color: "#111827",
+        fontSize: 13, fontWeight: 700, color: "var(--nw-text)",
         fontVariantNumeric: "tabular-nums", marginTop: 2,
       }}>
         {value}

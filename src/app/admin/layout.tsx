@@ -73,8 +73,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!ready || !ctx) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA" }}>
-        <span style={{ color: "#6B7280", fontSize: 14, fontFamily: "var(--font-inter), sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--nw-surface-muted)" }}>
+        <span style={{ color: "var(--nw-text-muted)", fontSize: 14, fontFamily: "var(--font-inter), sans-serif" }}>
           Chargement…
         </span>
       </div>
@@ -96,7 +96,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           height: 60,
           background: "rgba(255,255,255,0.94)",
           backdropFilter: "blur(14px)",
-          borderBottom: "1px solid #F0ECF8",
+          borderBottom: "1px solid var(--nw-border-soft)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "0 20px",
         }}>
@@ -106,7 +106,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
             <span style={{
               fontSize: 11, fontWeight: 800, color: "white",
-              background: "linear-gradient(135deg, #7C63C8 0%, #6B54B2 100%)",
+              background: "linear-gradient(135deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               padding: "4px 10px", borderRadius: 100,
               letterSpacing: "0.10em", textTransform: "uppercase",
               marginLeft: 8,
@@ -124,7 +124,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       position: "relative",
                       fontSize: 13,
                       fontWeight: active ? 700 : 500,
-                      color: active ? "#7C63C8" : "#4B5563",
+                      color: active ? "var(--nw-primary)" : "var(--nw-text-secondary)",
                       textDecoration: "none",
                       padding: "8px 12px",
                       borderRadius: 8,
@@ -141,9 +141,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Link href="/workspace" style={{
-              fontSize: 12, fontWeight: 600, color: "#6B7280",
+              fontSize: 12, fontWeight: 600, color: "var(--nw-text-muted)",
               textDecoration: "none", padding: "6px 10px",
-              border: "1px solid #E5E7EB", borderRadius: 8, background: "white",
+              border: "1px solid var(--nw-border)", borderRadius: 8, background: "white",
             }}>
               Workspace →
             </Link>
@@ -154,10 +154,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               title={ctx.userEmail}
               style={{
                 width: 34, height: 34, borderRadius: "50%",
-                background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+                background: "linear-gradient(135deg, var(--nw-border-soft) 0%, var(--nw-primary-100) 100%)",
                 border: "1px solid rgba(124,99,200,0.30)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#7C63C8", fontWeight: 700, fontSize: 13,
+                color: "var(--nw-primary)", fontWeight: 700, fontSize: 13,
                 cursor: "pointer", fontFamily: "inherit",
               }}
             >

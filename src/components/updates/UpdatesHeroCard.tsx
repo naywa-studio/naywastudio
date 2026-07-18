@@ -41,13 +41,13 @@ export function UpdatesHeroCard() {
       <SparkleIcon />
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
-          margin: 0, fontSize: 12, fontWeight: 700, color: "#7C63C8",
+          margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
           letterSpacing: "0.05em", textTransform: "uppercase",
         }}>
           {single ? "Nouveauté Naywa" : `${unreadCount} nouveautés Naywa`}
         </p>
         <p style={{
-          margin: "2px 0 0", fontSize: 13.5, color: "#374151",
+          margin: "2px 0 0", fontSize: 13.5, color: "var(--nw-text-body)",
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           lineHeight: 1.4,
         }}>
@@ -55,7 +55,7 @@ export function UpdatesHeroCard() {
         </p>
       </div>
       <span style={{
-        fontSize: 12.5, fontWeight: 700, color: "#7C63C8",
+        fontSize: 12.5, fontWeight: 700, color: "var(--nw-primary)",
         whiteSpace: "nowrap",
         display: "inline-flex", alignItems: "center", gap: 6,
       }}>
@@ -69,7 +69,7 @@ function SparkleIcon() {
   return (
     <svg
       width="22" height="22" viewBox="0 0 24 24"
-      fill="none" stroke="#7C63C8" strokeWidth="1.6"
+      fill="none" stroke="var(--nw-primary)" strokeWidth="1.6"
       strokeLinecap="round" strokeLinejoin="round"
       style={{ flexShrink: 0 }}
       aria-hidden

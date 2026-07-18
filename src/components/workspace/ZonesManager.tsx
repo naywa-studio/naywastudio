@@ -70,16 +70,16 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
   return (
     <section style={{
       background: "white",
-      border: "1px solid #F0ECF8",
+      border: "1px solid var(--nw-border-soft)",
       borderRadius: 14,
       padding: 18,
     }}>
       <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827", letterSpacing: "-0.005em" }}>
+          <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)", letterSpacing: "-0.005em" }}>
             Mes zones
           </h3>
-          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5 }}>
+          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
             Taxonomie utilisée par Nora pour ranger vos candidats. {customCount}/{MAX_ZONES - 1} zones personnalisées.
           </p>
         </div>
@@ -90,9 +90,9 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
           title={atCap ? `Limite atteinte (${MAX_ZONES - 1} zones max hors Autre).` : "Ajouter une zone"}
           style={{
             fontFamily: "inherit", fontSize: 12, fontWeight: 700,
-            color: atCap ? "#6B7280" : "#7C63C8",
+            color: atCap ? "var(--nw-text-muted)" : "var(--nw-primary)",
             background: "white",
-            border: `1px solid ${atCap ? "#E5E7EB" : "rgba(124,99,200,0.30)"}`,
+            border: `1px solid ${atCap ? "var(--nw-border)" : "rgba(124,99,200,0.30)"}`,
             borderRadius: 8, padding: "6px 12px",
             cursor: atCap ? "not-allowed" : "pointer",
             whiteSpace: "nowrap",
@@ -104,7 +104,7 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
 
       {error && (
         <div style={{
-          padding: "8px 11px", fontSize: 12, color: "#B91C1C",
+          padding: "8px 11px", fontSize: 12, color: "var(--nw-danger-strong)",
           background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
           borderRadius: 8, marginBottom: 10,
         }}>
@@ -113,13 +113,13 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
       )}
 
       {loading ? (
-        <div style={{ fontSize: 12, color: "#6B7280", padding: 16, textAlign: "center" }}>
+        <div style={{ fontSize: 12, color: "var(--nw-text-muted)", padding: 16, textAlign: "center" }}>
           Chargement…
         </div>
       ) : sorted.length === 0 ? (
         <div style={{
-          padding: 16, fontSize: 12.5, color: "#6B7280", textAlign: "center",
-          border: "1px dashed #E5E7EB", borderRadius: 9,
+          padding: 16, fontSize: 12.5, color: "var(--nw-text-muted)", textAlign: "center",
+          border: "1px dashed var(--nw-border)", borderRadius: 9,
         }}>
           Aucune zone définie. Lancez une analyse pour que Nora propose une taxonomie de base.
         </div>
@@ -130,18 +130,18 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
               display: "flex", alignItems: "center", gap: 10,
               padding: "9px 11px",
               borderRadius: 9,
-              background: z.label === FALLBACK_LABEL ? "#FAFAFA" : "#FCFBFD",
-              border: "1px solid #F0ECF8",
+              background: z.label === FALLBACK_LABEL ? "var(--nw-surface-muted)" : "#FCFBFD",
+              border: "1px solid var(--nw-border-soft)",
             }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--nw-text)" }}>
                     {z.label}
                   </span>
                   {z.label === FALLBACK_LABEL && (
                     <span style={{
-                      fontSize: 9.5, fontWeight: 700, color: "#6B7280",
-                      background: "#F3F4F6", border: "1px solid #E5E7EB",
+                      fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)",
+                      background: "var(--nw-neutral-100)", border: "1px solid var(--nw-border)",
                       borderRadius: 999, padding: "1px 6px",
                       letterSpacing: "0.05em", textTransform: "uppercase",
                     }}>
@@ -150,7 +150,7 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
                   )}
                   {z.is_seed && z.label !== FALLBACK_LABEL && (
                     <span style={{
-                      fontSize: 9.5, fontWeight: 700, color: "#7C63C8",
+                      fontSize: 9.5, fontWeight: 700, color: "var(--nw-primary)",
                       background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.22)",
                       borderRadius: 999, padding: "1px 6px",
                       letterSpacing: "0.05em", textTransform: "uppercase",
@@ -158,11 +158,11 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
                       Nora
                     </span>
                   )}
-                  <span style={{ fontSize: 11, color: "#6B7280", marginLeft: "auto" }}>
+                  <span style={{ fontSize: 11, color: "var(--nw-text-muted)", marginLeft: "auto" }}>
                     {z.candidate_count} {z.candidate_count > 1 ? "candidats" : "candidat"}
                   </span>
                 </div>
-                <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                   {z.description}
                 </p>
               </div>
@@ -172,7 +172,7 @@ export function ZonesManager({ onChange }: { onChange?: () => void }) {
                   onClick={() => setEditing(z)}
                   style={{
                     fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
-                    color: "#7C63C8", background: "transparent",
+                    color: "var(--nw-primary)", background: "transparent",
                     border: "1px solid rgba(124,99,200,0.20)",
                     borderRadius: 7, padding: "5px 10px",
                     cursor: "pointer",
@@ -277,10 +277,10 @@ function ZoneEditModal({
         background: "white", borderRadius: 16, padding: 24,
         boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)",
       }}>
-        <h2 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+        <h2 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
           {mode === "create" ? "Créer une zone" : "Modifier la zone"}
         </h2>
-        <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+        <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
           Le brief de la zone est lu par Nora à chaque re-clustering pour décider
           quels candidats y atterrissent. Soyez explicite sur le métier, les outils
           clés et les signaux distinctifs.
@@ -288,7 +288,7 @@ function ZoneEditModal({
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
           <div>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#374151" }}>
+            <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "var(--nw-text-body)" }}>
               Nom de la zone
             </label>
             <input
@@ -299,15 +299,15 @@ function ZoneEditModal({
               maxLength={60}
               style={{
                 width: "100%", padding: "9px 12px",
-                borderRadius: 8, border: `1.5px solid ${labelOk || !label ? "#E5E7EB" : "#FCA5A5"}`,
-                fontSize: 13.5, color: "#111827", outline: "none", fontFamily: "inherit",
+                borderRadius: 8, border: `1.5px solid ${labelOk || !label ? "var(--nw-border)" : "#FCA5A5"}`,
+                fontSize: 13.5, color: "var(--nw-text)", outline: "none", fontFamily: "inherit",
                 boxSizing: "border-box",
               }}
             />
-            <p style={{ margin: "3px 0 0", fontSize: 11, color: "#6B7280" }}>2-60 caractères</p>
+            <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--nw-text-muted)" }}>2-60 caractères</p>
           </div>
           <div>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#374151" }}>
+            <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "var(--nw-text-body)" }}>
               Brief de la zone (« qui ressemble à ça »)
             </label>
             <textarea
@@ -318,18 +318,18 @@ function ZoneEditModal({
               rows={4}
               style={{
                 width: "100%", padding: "9px 12px",
-                borderRadius: 8, border: `1.5px solid ${descOk || !description ? "#E5E7EB" : "#FCA5A5"}`,
-                fontSize: 13, color: "#111827", outline: "none",
+                borderRadius: 8, border: `1.5px solid ${descOk || !description ? "var(--nw-border)" : "#FCA5A5"}`,
+                fontSize: 13, color: "var(--nw-text)", outline: "none",
                 fontFamily: "inherit", resize: "vertical", lineHeight: 1.5,
                 boxSizing: "border-box",
               }}
             />
-            <p style={{ margin: "3px 0 0", fontSize: 11, color: "#6B7280" }}>{description.trim().length}/280 caractères (10 min)</p>
+            <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--nw-text-muted)" }}>{description.trim().length}/280 caractères (10 min)</p>
           </div>
         </div>
 
         {error && (
-          <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#B91C1C" }}>{error}</p>
+          <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--nw-danger-strong)" }}>{error}</p>
         )}
 
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
@@ -338,7 +338,7 @@ function ZoneEditModal({
               style={{
                 padding: "9px 14px", borderRadius: 9,
                 border: "1px solid rgba(220,38,38,0.30)", background: "white",
-                color: "#B91C1C", fontSize: 12.5, fontWeight: 600,
+                color: "var(--nw-danger-strong)", fontSize: 12.5, fontWeight: 600,
                 cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
               }}>
               Supprimer
@@ -348,8 +348,8 @@ function ZoneEditModal({
             <button type="button" onClick={onClose} disabled={busy}
               style={{
                 padding: "9px 14px", borderRadius: 9,
-                border: "1px solid #E5E7EB", background: "white",
-                color: "#374151", fontSize: 13, fontWeight: 600,
+                border: "1px solid var(--nw-border)", background: "white",
+                color: "var(--nw-text-body)", fontSize: 13, fontWeight: 600,
                 cursor: "pointer", fontFamily: "inherit",
               }}>
               Annuler
@@ -358,9 +358,9 @@ function ZoneEditModal({
               style={{
                 padding: "9px 16px", borderRadius: 9,
                 border: "none", color: "white",
-                background: busy ? "#C4B6E0"
-                  : canSave ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
-                  : "#C4B6E0",
+                background: busy ? "var(--nw-primary-200)"
+                  : canSave ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
+                  : "var(--nw-primary-200)",
                 fontSize: 13, fontWeight: 700,
                 cursor: canSave ? "pointer" : "not-allowed",
                 fontFamily: "inherit",

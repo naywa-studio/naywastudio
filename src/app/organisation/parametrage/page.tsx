@@ -206,23 +206,23 @@ export default function ParametragePage() {
       }}>
         <div style={{
           padding: "32px 28px", borderRadius: 16, textAlign: "center",
-          background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
-          border: "1px solid #E2DAF6",
+          background: "linear-gradient(120deg, var(--nw-bg) 0%, var(--nw-border-soft) 100%)",
+          border: "1px solid var(--nw-primary-100)",
         }}>
           <p style={{
-            margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8",
+            margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
             letterSpacing: "0.10em", textTransform: "uppercase",
           }}>
             Option non activée
           </p>
           <h1 style={{
-            margin: "8px 0 0", fontSize: 22, fontWeight: 800, color: "#111827",
+            margin: "8px 0 0", fontSize: 22, fontWeight: 800, color: "var(--nw-text)",
             letterSpacing: "-0.02em",
-            fontFamily: "var(--font-space-grotesk), sans-serif",
+            fontFamily: "var(--font-inter), sans-serif",
           }}>
             Politique de chiffrage
           </h1>
-          <p style={{ margin: "12px auto 0", maxWidth: 440, fontSize: 14, lineHeight: 1.65, color: "#4B5563" }}>
+          <p style={{ margin: "12px auto 0", maxWidth: 440, fontSize: 14, lineHeight: 1.65, color: "var(--nw-text-secondary)" }}>
             Ces réglages — marges minimale et cible, RTT, avantages standards —
             servent au moteur Syntec. Ils n&apos;ont d&apos;effet qu&apos;avec la
             Suite Pricing.
@@ -232,7 +232,7 @@ export default function ParametragePage() {
             style={{
               display: "inline-block", marginTop: 20,
               padding: "11px 20px", borderRadius: 12,
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               color: "white", fontSize: 13.5, fontWeight: 700,
               textDecoration: "none",
               boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
@@ -261,21 +261,21 @@ export default function ParametragePage() {
       <div style={{ marginBottom: 26 }}>
         <Link href="/workspace/pricing" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
-          fontSize: 13, color: "#7C63C8", textDecoration: "none", marginBottom: 18,
+          fontSize: 13, color: "var(--nw-primary)", textDecoration: "none", marginBottom: 18,
         }}>← Retour au pricing</Link>
         <span style={{
           display: "inline-block",
-          fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
           padding: "4px 11px", borderRadius: 100,
           letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
         }}>
           Paramètres organisation
         </span>
-        <h1 style={{ margin: 0, fontSize: "clamp(24px, 3vw, 30px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
+        <h1 style={{ margin: 0, fontSize: "clamp(24px, 3vw, 30px)", fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
           Réglages récurrents de votre organisation
         </h1>
-        <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6, maxWidth: 640 }}>
+        <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--nw-text-muted)", lineHeight: 1.6, maxWidth: 640 }}>
           Marges et avantages standards de votre organisation.
         </p>
         {isOwner && <SaveBadge state={saveState} error={error} />}
@@ -286,9 +286,9 @@ export default function ParametragePage() {
           padding: "12px 16px", marginBottom: 18,
           background: "rgba(124,99,200,0.06)",
           border: "1px solid rgba(124,99,200,0.20)",
-          borderRadius: 12, fontSize: 13, color: "#4B5563", lineHeight: 1.55,
+          borderRadius: 12, fontSize: 13, color: "var(--nw-text-secondary)", lineHeight: 1.55,
         }}>
-          <strong style={{ color: "#7C63C8" }}>Lecture seule.</strong>{" "}
+          <strong style={{ color: "var(--nw-primary)" }}>Lecture seule.</strong>{" "}
           Seul l&apos;owner de l&apos;organisation modifie ces paramètres. Vous les consultez pour
           comprendre comment vos chiffrages sont calculés.
         </div>
@@ -332,7 +332,7 @@ export default function ParametragePage() {
         </div>
         {margesInvalid && (
           <p style={{
-            marginTop: 12, padding: "9px 12px", fontSize: 12.5, color: "#B91C1C",
+            marginTop: 12, padding: "9px 12px", fontSize: 12.5, color: "var(--nw-danger-strong)",
             background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
             borderRadius: 9,
           }}>
@@ -388,7 +388,7 @@ export default function ParametragePage() {
           ))}
 
           <p style={{
-            margin: "8px 0 -2px", fontSize: 10.5, fontWeight: 700, color: "#6B7280",
+            margin: "8px 0 -2px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
             letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 4px",
           }}>
             Optionnels
@@ -420,14 +420,14 @@ export default function ParametragePage() {
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
         }}>
           <div>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
               Coût mensuel estimé des avantages activés
             </p>
-            <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "#6B7280" }}>
+            <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)" }}>
               Tickets resto × 21 j · annuels /12 · hors URSSAF grand déplacement (conditionnel).
             </p>
           </div>
-          <span style={{ fontSize: 20, fontWeight: 800, color: "#7C63C8", fontVariantNumeric: "tabular-nums" }}>
+          <span style={{ fontSize: 20, fontWeight: 800, color: "var(--nw-primary)", fontVariantNumeric: "tabular-nums" }}>
             ~{Math.round(monthly)} €
           </span>
         </div>
@@ -446,10 +446,10 @@ export default function ParametragePage() {
           border: onboarded ? "1px solid rgba(34,197,94,0.25)" : "1px solid rgba(124,99,200,0.25)",
         }}>
           <div style={{ minWidth: 0, flex: "1 1 280px" }}>
-            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)" }}>
               {onboarded ? "Politique pricing confirmée" : "Confirmer ces paramètres"}
             </p>
-            <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
+            <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
               {onboarded
                 ? "Vous pouvez modifier librement ; les changements sont enregistrés automatiquement."
                 : "Vos chiffrages utiliseront ces valeurs. Confirmez pour marquer la politique comme configurée et masquer la bannière du pricing."}
@@ -462,13 +462,13 @@ export default function ParametragePage() {
             style={{
               padding: "10px 18px", borderRadius: 10,
               background: confirming || margesInvalid
-                ? "#E5E7EB"
+                ? "var(--nw-border)"
                 : onboarded
                   ? "white"
-                  : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               color: confirming || margesInvalid
-                ? "#6B7280"
-                : onboarded ? "#7C63C8" : "white",
+                ? "var(--nw-text-muted)"
+                : onboarded ? "var(--nw-primary)" : "white",
               border: onboarded ? "1px solid rgba(124,99,200,0.30)" : "none",
               fontSize: 13, fontWeight: 700, fontFamily: "inherit",
               cursor: confirming || margesInvalid ? "default" : "pointer",
@@ -501,18 +501,18 @@ const sectionStyle: React.CSSProperties = {
   marginBottom: 18,
   background: "white",
   borderRadius: 16,
-  border: "1px solid #F0ECF8",
+  border: "1px solid var(--nw-border-soft)",
   padding: 22,
 }
 
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div style={{ marginBottom: 18 }}>
-      <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+      <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
         {title}
       </h2>
       {subtitle && (
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>{subtitle}</p>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>{subtitle}</p>
       )}
     </div>
   )
@@ -520,9 +520,9 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 
 function SaveBadge({ state, error }: { state: "idle" | "saving" | "saved" | "error"; error: string | null }) {
   if (state === "idle") return null
-  const fg = state === "error" ? "#B91C1C" : state === "saved" ? "#15803d" : "#6B7280"
-  const bg = state === "error" ? "rgba(220,38,38,0.06)" : state === "saved" ? "rgba(34,197,94,0.07)" : "#F3F4F6"
-  const bd = state === "error" ? "rgba(220,38,38,0.25)" : state === "saved" ? "rgba(34,197,94,0.25)" : "#E5E7EB"
+  const fg = state === "error" ? "var(--nw-danger-strong)" : state === "saved" ? "var(--nw-success)" : "var(--nw-text-muted)"
+  const bg = state === "error" ? "rgba(220,38,38,0.06)" : state === "saved" ? "rgba(34,197,94,0.07)" : "var(--nw-neutral-100)"
+  const bd = state === "error" ? "rgba(220,38,38,0.25)" : state === "saved" ? "rgba(34,197,94,0.25)" : "var(--nw-border)"
   const text =
     state === "saving" ? "Enregistrement…"
     : state === "saved" ? "Enregistré"
@@ -542,8 +542,8 @@ function SaveBadge({ state, error }: { state: "idle" | "saving" | "saved" | "err
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
-      {hint && <span style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{hint}</span>}
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)" }}>{label}</span>
+      {hint && <span style={{ fontSize: 11, color: "var(--nw-text-muted)", lineHeight: 1.4 }}>{hint}</span>}
       {children}
     </label>
   )
@@ -571,7 +571,7 @@ function NumberInput({
         }}
         style={inputInnerStyle}
       />
-      <span style={{ fontSize: 12, color: "#6B7280", paddingRight: 12 }}>{suffix}</span>
+      <span style={{ fontSize: 12, color: "var(--nw-text-muted)", paddingRight: 12 }}>{suffix}</span>
     </div>
   )
 }
@@ -588,14 +588,14 @@ function BooleanAvantageRow({
     <div style={{
       display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center",
       padding: "10px 12px",
-      background: enabled ? "rgba(124,99,200,0.04)" : "#FAFAFA",
-      border: enabled ? "1px solid rgba(124,99,200,0.18)" : "1px solid #F0ECF8",
+      background: enabled ? "rgba(124,99,200,0.04)" : "var(--nw-surface-muted)",
+      border: enabled ? "1px solid rgba(124,99,200,0.18)" : "1px solid var(--nw-border-soft)",
       borderRadius: 9,
     }}>
       <Checkbox checked={enabled} onChange={onToggle} />
       <div>
-        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827" }}>{label}</p>
-        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{hint}</p>
+        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--nw-text)" }}>{label}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--nw-text-muted)", lineHeight: 1.4 }}>{hint}</p>
       </div>
     </div>
   )
@@ -636,25 +636,25 @@ function SmartAvantageRow({
   return (
     <div style={{
       padding: "10px 12px",
-      background: enabled ? "rgba(124,99,200,0.04)" : "#FAFAFA",
-      border: enabled ? "1px solid rgba(124,99,200,0.18)" : "1px solid #F0ECF8",
+      background: enabled ? "rgba(124,99,200,0.04)" : "var(--nw-surface-muted)",
+      border: enabled ? "1px solid rgba(124,99,200,0.18)" : "1px solid var(--nw-border-soft)",
       borderRadius: 9,
     }}>
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center" }}>
         {isRequired ? (
           <span style={{
             display: "inline-block", width: 8, height: 8, borderRadius: "50%",
-            background: "#7C63C8", margin: "0 6px",
+            background: "var(--nw-primary)", margin: "0 6px",
           }} title="Obligation légale, toujours actif" />
         ) : (
           <Checkbox checked={enabled} onChange={handleToggle} />
         )}
         <div>
-          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: 6 }}>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--nw-text)", display: "flex", alignItems: "center", gap: 6 }}>
             {config.label}
             {isRequired && (
               <span style={{
-                fontSize: 9.5, fontWeight: 800, color: "#7C63C8",
+                fontSize: 9.5, fontWeight: 800, color: "var(--nw-primary)",
                 background: "rgba(124,99,200,0.10)", border: "1px solid rgba(124,99,200,0.25)",
                 borderRadius: 100, padding: "1px 7px",
                 letterSpacing: "0.05em", textTransform: "uppercase",
@@ -663,7 +663,7 @@ function SmartAvantageRow({
               </span>
             )}
           </p>
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{config.hint}</p>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--nw-text-muted)", lineHeight: 1.4 }}>{config.hint}</p>
         </div>
         <div style={{ width: 140 }}>
           <div style={inputBoxStyle}>
@@ -672,18 +672,18 @@ function SmartAvantageRow({
               value={inputValue}
               placeholder={placeholderValue}
               onChange={(e) => handleInputChange(e.target.value)}
-              style={{ ...inputInnerStyle, color: "#111827" }}
+              style={{ ...inputInnerStyle, color: "var(--nw-text)" }}
               min={0}
               max={config.max}
               step={config.step ?? 1}
             />
-            <span style={{ fontSize: 11, color: "#6B7280", paddingRight: 10 }}>{config.suffix}</span>
+            <span style={{ fontSize: 11, color: "var(--nw-text-muted)", paddingRight: 10 }}>{config.suffix}</span>
           </div>
         </div>
       </div>
       {warningMsg && (
         <p style={{
-          margin: "8px 0 0", fontSize: 11.5, color: "#B45309",
+          margin: "8px 0 0", fontSize: 11.5, color: "var(--nw-warn)",
           background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.25)",
           borderRadius: 7, padding: "5px 9px",
         }}>
@@ -702,8 +702,8 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: (on: bool
       onClick={() => onChange(!checked)}
       style={{
         width: 20, height: 20, borderRadius: 6, cursor: "pointer",
-        border: checked ? "none" : "1.5px solid #D1D5DB",
-        background: checked ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)" : "white",
+        border: checked ? "none" : "1.5px solid var(--nw-border)",
+        background: checked ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)" : "white",
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         padding: 0,
       }}
@@ -721,13 +721,13 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: (on: bool
 
 const inputBoxStyle: React.CSSProperties = {
   display: "flex", alignItems: "center",
-  background: "white", border: "1px solid #E5E7EB", borderRadius: 9,
+  background: "white", border: "1px solid var(--nw-border)", borderRadius: 9,
   overflow: "hidden",
 }
 
 const inputInnerStyle: React.CSSProperties = {
   flex: 1, padding: "9px 12px",
-  fontSize: 13, color: "#111827",
+  fontSize: 13, color: "var(--nw-text)",
   background: "transparent", border: "none", outline: "none",
   fontFamily: "inherit", minWidth: 0, width: "100%",
 }

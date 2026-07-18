@@ -146,20 +146,20 @@ export function TrialBanner({ organization, isOwner = true, alwaysVisible = fals
         bg:     "linear-gradient(90deg, rgba(254,226,226,0.95) 0%, rgba(254,202,202,0.95) 100%)",
         border: "1px solid rgba(239,68,68,0.32)",
         color:  "#991B1B",
-        accent: "#DC2626",
+        accent: "var(--nw-danger-strong)",
       }
     : isWarning
     ? {
         bg:     "linear-gradient(90deg, rgba(254,243,199,0.95) 0%, rgba(253,230,138,0.95) 100%)",
         border: "1px solid rgba(217,119,6,0.30)",
-        color:  "#92400E",
+        color:  "var(--nw-warn-strong)",
         accent: "#D97706",
       }
     : {
         bg:     "linear-gradient(90deg, rgba(243,232,255,0.95) 0%, rgba(233,213,255,0.95) 100%)",
         border: "1px solid rgba(124,99,200,0.25)",
         color:  "#5B45A8",
-        accent: "#7C63C8",
+        accent: "var(--nw-primary)",
       }
 
   const dismiss = () => {

@@ -26,10 +26,10 @@ interface JobMatch {
 }
 
 const TIER_COLOR: Record<MatchTier, { fg: string; bg: string; bd: string }> = {
-  excellent: { fg: "#15803d", bg: "rgba(34,197,94,0.10)",  bd: "rgba(34,197,94,0.3)" },
-  good:      { fg: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.22)" },
-  fair:      { fg: "#B45309", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" },
-  poor:      { fg: "#6B7280", bg: "#F3F4F6",               bd: "#E5E7EB" },
+  excellent: { fg: "var(--nw-success)", bg: "rgba(34,197,94,0.10)",  bd: "rgba(34,197,94,0.3)" },
+  good:      { fg: "var(--nw-primary)", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.22)" },
+  fair:      { fg: "var(--nw-warn)", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" },
+  poor:      { fg: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)",               bd: "var(--nw-border)" },
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -196,9 +196,9 @@ export default function CandidatePage() {
   }
   if (notFound || !candidate) {
     return (
-      <div style={{ padding: "60px 24px", textAlign: "center", color: "#6B7280" }}>
+      <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--nw-text-muted)" }}>
         <p style={{ fontSize: 16, fontWeight: 600 }}>Candidat introuvable.</p>
-        <Link href="/workspace/vivier" style={{ color: "#7C63C8", textDecoration: "none", fontSize: 14 }}>
+        <Link href="/workspace/vivier" style={{ color: "var(--nw-primary)", textDecoration: "none", fontSize: 14 }}>
           ← Retour au vivier
         </Link>
       </div>
@@ -215,7 +215,7 @@ export default function CandidatePage() {
     }}>
       <Link href="/workspace/vivier" style={{
         display: "inline-flex", alignItems: "center", gap: 6,
-        fontSize: 13, color: "#7C63C8", textDecoration: "none",
+        fontSize: 13, color: "var(--nw-primary)", textDecoration: "none",
         marginBottom: 22,
       }}>
         ← Retour au vivier
@@ -229,26 +229,26 @@ export default function CandidatePage() {
         {/* LEFT — identité + CV parsé + CV original + notes */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <section style={{
-            background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+            background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
             padding: 24,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
               <div style={{
                 width: 56, height: 56, borderRadius: "50%",
-                background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-                color: "#7C63C8", fontSize: 18, fontWeight: 800,
+                background: "linear-gradient(135deg, var(--nw-border-soft) 0%, var(--nw-primary-100) 100%)",
+                color: "var(--nw-primary)", fontSize: 18, fontWeight: 800,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
                 {initials(candidate.full_name ?? candidate.cv_file_name)}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
+                  <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.02em" }}>
                     {candidate.full_name ?? "Nom à compléter"}
                   </h1>
                   <RefBadge candidateId={candidate.id} />
                 </div>
-                <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6B7280" }}>
+                <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--nw-text-muted)" }}>
                   {candidate.current_title ?? "—"}
                   {candidate.current_company ? <> · <span>{candidate.current_company}</span></> : null}
                 </p>
@@ -263,7 +263,7 @@ export default function CandidatePage() {
               <button
                 onClick={handleDelete}
                 style={{
-                  fontSize: 12, fontWeight: 600, color: "#DC2626",
+                  fontSize: 12, fontWeight: 600, color: "var(--nw-danger-strong)",
                   background: "transparent", border: "1px solid #FCA5A5",
                   borderRadius: 8, padding: "7px 14px", cursor: "pointer",
                   fontFamily: "inherit",
@@ -276,8 +276,8 @@ export default function CandidatePage() {
             {candidate.parse_status === "error" && (
               <div style={{
                 marginTop: 16, padding: "12px 14px",
-                background: "#FEF2F2", border: "1px solid #FECACA",
-                borderRadius: 10, fontSize: 13, color: "#B91C1C",
+                background: "#FEF2F2", border: "1px solid var(--nw-danger-border)",
+                borderRadius: 10, fontSize: 13, color: "var(--nw-danger-strong)",
                 display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
               }}>
                 <span><strong>Parsing échoué.</strong> {candidate.parse_error}</span>
@@ -285,7 +285,7 @@ export default function CandidatePage() {
                   onClick={handleRetryParse}
                   style={{
                     fontSize: 12, fontWeight: 700, color: "white",
-                    background: "#DC2626", border: "none",
+                    background: "var(--nw-danger-strong)", border: "none",
                     borderRadius: 8, padding: "7px 14px", cursor: "pointer",
                     fontFamily: "inherit",
                   }}
@@ -298,7 +298,7 @@ export default function CandidatePage() {
               <div style={{
                 marginTop: 16, padding: "10px 14px",
                 background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.18)",
-                borderRadius: 10, fontSize: 13, color: "#7C63C8",
+                borderRadius: 10, fontSize: 13, color: "var(--nw-primary)",
               }}>
                 ✦ Nora est en train d&apos;analyser le CV…
               </div>
@@ -306,7 +306,7 @@ export default function CandidatePage() {
 
             <div style={{
               marginTop: 18, display: "flex", flexWrap: "wrap", gap: 14,
-              fontSize: 13, color: "#374151",
+              fontSize: 13, color: "var(--nw-text-body)",
             }}>
               <InfoChip label="Email"        value={candidate.email} />
               <InfoChip label="Téléphone"    value={candidate.phone} />
@@ -330,7 +330,7 @@ export default function CandidatePage() {
                   onClick={handleRetryParse}
                   title="Re-soumettre le CV au parsing — utile après une mise à jour de l'analyse Nora"
                   style={{
-                    fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
+                    fontSize: 11.5, fontWeight: 600, color: "var(--nw-primary)",
                     background: "transparent", border: "1px solid rgba(124,99,200,0.3)",
                     borderRadius: 8, padding: "5px 11px", cursor: "pointer",
                     fontFamily: "inherit",
@@ -356,13 +356,13 @@ export default function CandidatePage() {
 
           {/* Parsed CV */}
           <section style={{
-            background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+            background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
             overflow: "hidden",
           }}>
             <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 22 }}>
               {cv?.summary && (
                 <SubSection title="Résumé">
-                  <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.7 }}>{cv.summary}</p>
+                  <p style={{ margin: 0, fontSize: 14, color: "var(--nw-text-body)", lineHeight: 1.7 }}>{cv.summary}</p>
                 </SubSection>
               )}
 
@@ -378,14 +378,14 @@ export default function CandidatePage() {
                 <SubSection title="Compétences">
                   {candidate.skills && candidate.skills.length > 0 && (
                     <div>
-                      <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                      <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
                         Techniques &amp; méthodes
                       </p>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {candidate.skills.map((s) => (
                           <span key={s} style={{
-                            fontSize: 12, color: "#4B5563",
-                            background: "#F8F6FF", border: "1px solid #F0ECF8",
+                            fontSize: 12, color: "var(--nw-text-secondary)",
+                            background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)",
                             padding: "5px 10px", borderRadius: 7,
                           }}>{s}</span>
                         ))}
@@ -400,7 +400,7 @@ export default function CandidatePage() {
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {cv.qualities.map((q) => (
                           <span key={q} style={{
-                            fontSize: 12, color: "#15803d",
+                            fontSize: 12, color: "var(--nw-success)",
                             background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)",
                             padding: "5px 10px", borderRadius: 7,
                           }}>{q}</span>
@@ -415,12 +415,12 @@ export default function CandidatePage() {
                 <SubSection title="Formation">
                   <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
                     {cv.education.map((ed, i) => (
-                      <li key={i} style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.55 }}>
-                        <strong style={{ color: "#111827" }}>{ed.degree}</strong>
+                      <li key={i} style={{ fontSize: 13.5, color: "var(--nw-text-body)", lineHeight: 1.55 }}>
+                        <strong style={{ color: "var(--nw-text)" }}>{ed.degree}</strong>
                         {ed.field ? `, ${ed.field}` : ""}
-                        {ed.school ? <> — <span style={{ color: "#6B7280" }}>{ed.school}</span></> : null}
+                        {ed.school ? <> — <span style={{ color: "var(--nw-text-muted)" }}>{ed.school}</span></> : null}
                         {(ed.start || ed.end) && (
-                          <span style={{ color: "#6B7280", marginLeft: 8 }}>· {ed.start ?? ""}{ed.end ? `–${ed.end}` : ""}</span>
+                          <span style={{ color: "var(--nw-text-muted)", marginLeft: 8 }}>· {ed.start ?? ""}{ed.end ? `–${ed.end}` : ""}</span>
                         )}
                       </li>
                     ))}
@@ -431,13 +431,13 @@ export default function CandidatePage() {
               {((cv?.languages && cv.languages.length > 0) || (cv?.certifications && cv.certifications.length > 0)) && (
                 <SubSection title="Autres">
                   {cv.languages && cv.languages.length > 0 && (
-                    <p style={{ margin: "0 0 8px", fontSize: 13, color: "#374151" }}>
-                      <strong style={{ color: "#111827" }}>Langues:</strong> {cv.languages.join(" · ")}
+                    <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--nw-text-body)" }}>
+                      <strong style={{ color: "var(--nw-text)" }}>Langues:</strong> {cv.languages.join(" · ")}
                     </p>
                   )}
                   {cv.certifications && cv.certifications.length > 0 && (
-                    <p style={{ margin: 0, fontSize: 13, color: "#374151" }}>
-                      <strong style={{ color: "#111827" }}>Certifications:</strong> {cv.certifications.join(" · ")}
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-body)" }}>
+                      <strong style={{ color: "var(--nw-text)" }}>Certifications:</strong> {cv.certifications.join(" · ")}
                     </p>
                   )}
                 </SubSection>
@@ -448,7 +448,7 @@ export default function CandidatePage() {
           {/* Notes */}
           <Section
             title="Notes"
-            right={savingNotes === "saving" ? <SmallStatus color="#7C63C8" label="Enregistrement…" />
+            right={savingNotes === "saving" ? <SmallStatus color="var(--nw-primary)" label="Enregistrement…" />
               : savingNotes === "saved" ? <SmallStatus color="#16a34a" label="✓ Sauvegardé" /> : null}
           >
             <textarea
@@ -459,10 +459,10 @@ export default function CandidatePage() {
               rows={4}
               style={{
                 width: "100%", boxSizing: "border-box",
-                fontSize: 13.5, color: "#111827",
+                fontSize: 13.5, color: "var(--nw-text)",
                 padding: 12,
-                background: "#FAFAFA",
-                border: "1px solid #F0ECF8",
+                background: "var(--nw-surface-muted)",
+                border: "1px solid var(--nw-border-soft)",
                 borderRadius: 10,
                 outline: "none",
                 resize: "vertical",
@@ -480,19 +480,19 @@ export default function CandidatePage() {
           display: "flex", flexDirection: "column", gap: 14,
         }} className="cand-aside">
           <section style={{
-            background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+            background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
             padding: 18,
           }}>
             <h3 style={{
-              margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "#6B7280",
+              margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
               letterSpacing: "0.08em", textTransform: "uppercase",
             }}>
               📌 Missions matchées
             </h3>
             {jobMatches.length === 0 ? (
-              <p style={{ margin: 0, fontSize: 13, color: "#6B7280", lineHeight: 1.6 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
                 Ce candidat n&apos;est associé à aucune mission pour l&apos;instant.
-                {" "}<Link href="/workspace/missions" style={{ color: "#7C63C8", textDecoration: "none", fontWeight: 600 }}>
+                {" "}<Link href="/workspace/missions" style={{ color: "var(--nw-primary)", textDecoration: "none", fontWeight: 600 }}>
                   Lancez un matching →
                 </Link>
               </p>
@@ -512,14 +512,14 @@ export default function CandidatePage() {
                     }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 4 }}>
                         <span style={{
-                          fontSize: 13.5, fontWeight: 700, color: "#111827",
+                          fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)",
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                         }}>
                           {m.job_title}
                         </span>
                         <span style={{
                           fontSize: 10.5, fontWeight: 700,
-                          color: tier?.fg ?? "#7C63C8",
+                          color: tier?.fg ?? "var(--nw-primary)",
                           background: "white",
                           border: `1px solid ${tier?.bd ?? "rgba(124,99,200,0.22)"}`,
                           padding: "2px 7px", borderRadius: 100, flexShrink: 0,
@@ -528,10 +528,10 @@ export default function CandidatePage() {
                         </span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 11, color: "#6B7280" }}>
+                        <span style={{ fontSize: 11, color: "var(--nw-text-muted)" }}>
                           {STAGE_LABELS[m.pipeline_stage] ?? m.pipeline_stage}
                         </span>
-                        <span style={{ fontSize: 11, color: "#7C63C8", fontWeight: 700 }}>
+                        <span style={{ fontSize: 11, color: "var(--nw-primary)", fontWeight: 700 }}>
                           Ouvrir ▶
                         </span>
                       </div>
@@ -541,7 +541,7 @@ export default function CandidatePage() {
               </div>
             )}
             <p style={{
-              margin: "12px 0 0", fontSize: 11, color: "#6B7280",
+              margin: "12px 0 0", fontSize: 11, color: "var(--nw-text-muted)",
               lineHeight: 1.55, fontStyle: "italic",
             }}>
               Le message d&apos;approche et la version anonymisée du CV se font
@@ -553,22 +553,22 @@ export default function CandidatePage() {
               La fiche étant maintenant légère, l'aperçu PDF ne pollue
               plus la page principale. */}
           <section style={{
-            background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+            background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
             overflow: "hidden",
           }}>
             <div style={{
-              padding: "12px 16px", borderBottom: "1px solid #F0ECF8",
+              padding: "12px 16px", borderBottom: "1px solid var(--nw-border-soft)",
               display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
               <h3 style={{
-                margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
+                margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
                 letterSpacing: "0.08em", textTransform: "uppercase",
               }}>
                 CV original
               </h3>
               {signedUrl && (
                 <a href={signedUrl} target="_blank" rel="noreferrer" style={{
-                  fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                  fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
                   textDecoration: "none",
                 }}>
                   Ouvrir ↗
@@ -582,7 +582,7 @@ export default function CandidatePage() {
                 style={{ width: "100%", height: 600, border: "none", display: "block" }}
               />
             ) : (
-              <p style={{ margin: 0, padding: 24, fontSize: 13, color: "#6B7280" }}>
+              <p style={{ margin: 0, padding: 24, fontSize: 13, color: "var(--nw-text-muted)" }}>
                 {candidate.cv_file_path ? "Préparation de l'aperçu…" : "Aucun fichier PDF."}
               </p>
             )}
@@ -610,12 +610,12 @@ export default function CandidatePage() {
 function Section({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section style={{
-      background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+      background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
       padding: 20,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
         <h2 style={{
-          margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
+          margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
           letterSpacing: "0.08em", textTransform: "uppercase",
         }}>
           {title}
@@ -631,7 +631,7 @@ function SubSection({ title, children }: { title: string; children: React.ReactN
   return (
     <div>
       <h3 style={{
-        margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#6B7280",
+        margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
         letterSpacing: "0.08em", textTransform: "uppercase",
       }}>
         {title}
@@ -657,7 +657,7 @@ const PROFILE_BRANDS: Record<ProfileBrand, { label: string; color: string; path:
     path: "M3 19h3v-9.5L11 19h2l5-9.5V19h3V5h-4l-5 9.5L7 5H3v14z",
   },
   portfolio: {
-    label: "Site", color: "#7C63C8",
+    label: "Site", color: "var(--nw-primary)",
     path: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm6.93 6h-2.95a15.65 15.65 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.92 8zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.08 16zm2.95-8H5.08a7.99 7.99 0 0 1 4.33-3.56A15.65 15.65 0 0 0 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z",
   },
 }
@@ -673,7 +673,7 @@ export function PricingShortcut({ matches }: { matches: JobMatch[] }) {
     fontFamily: "inherit", fontSize: 12, fontWeight: 700,
     color: "white",
     padding: "7px 12px", borderRadius: 9,
-    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
     border: "1px solid rgba(124,99,200,0.40)",
     cursor: "pointer",
     display: "inline-flex", alignItems: "center", gap: 6,
@@ -705,7 +705,7 @@ export function PricingShortcut({ matches }: { matches: JobMatch[] }) {
             padding: 6, minWidth: 260, maxHeight: 320, overflowY: "auto",
           }}>
             <div style={{
-              fontSize: 10, fontWeight: 700, color: "#6B7280",
+              fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
               letterSpacing: "0.05em", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
@@ -713,12 +713,12 @@ export function PricingShortcut({ matches }: { matches: JobMatch[] }) {
             </div>
             {pipelineMatches.map((m) => (
               <Link key={m.id} href={`/workspace/pricing/${m.job_id}`} style={{
-                display: "block", fontSize: 12.5, color: "#374151", fontWeight: 600,
+                display: "block", fontSize: 12.5, color: "var(--nw-text-body)", fontWeight: 600,
                 padding: "8px 10px", borderRadius: 7, textDecoration: "none",
               }}>
                 {m.job_title}
                 {m.score != null && (
-                  <span style={{ marginLeft: 6, fontSize: 11, color: "#6B7280" }}>· {m.score}</span>
+                  <span style={{ marginLeft: 6, fontSize: 11, color: "var(--nw-text-muted)" }}>· {m.score}</span>
                 )}
               </Link>
             ))}
@@ -736,13 +736,13 @@ export function RefBadge({ candidateId }: { candidateId: string }) {
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 4,
-      fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+      fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)",
       letterSpacing: "0.04em",
       background: "rgba(124,99,200,0.08)",
       border: "1px solid rgba(124,99,200,0.22)",
       borderRadius: 7,
       padding: "2px 8px",
-      fontFamily: "var(--font-space-grotesk), monospace",
+      fontFamily: "var(--nw-font-mono)",
     }}>
       Ref · {candidateRefLabel(candidateId)}
     </span>
@@ -780,13 +780,13 @@ function InfoChip({ label, value }: { label: string; value: string | null | unde
     <span style={{
       display: "inline-flex", flexDirection: "column",
       padding: "8px 12px",
-      background: "#F8F6FF", border: "1px solid #F0ECF8", borderRadius: 9,
+      background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)", borderRadius: 9,
       fontSize: 12,
     }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
         {label}
       </span>
-      <span style={{ color: "#111827", fontWeight: 600, marginTop: 2 }}>{value}</span>
+      <span style={{ color: "var(--nw-text)", fontWeight: 600, marginTop: 2 }}>{value}</span>
     </span>
   )
 }
@@ -794,20 +794,20 @@ function InfoChip({ label, value }: { label: string; value: string | null | unde
 function ExperienceItem({ e }: { e: NonNullable<ParsedCv["experience"]>[number] }) {
   const dateLabel = [e.start, e.end ?? "actuel"].filter(Boolean).join(" – ")
   return (
-    <div style={{ paddingLeft: 14, borderLeft: "2px solid #F0ECF8", position: "relative" }}>
+    <div style={{ paddingLeft: 14, borderLeft: "2px solid var(--nw-border-soft)", position: "relative" }}>
       <span style={{
         position: "absolute", left: -5, top: 5,
         width: 8, height: 8, borderRadius: "50%",
-        background: "#7C63C8", boxShadow: "0 0 0 3px white",
+        background: "var(--nw-primary)", boxShadow: "0 0 0 3px white",
       }} />
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111827" }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-text)" }}>
           {e.title}
-          {e.company ? <span style={{ fontWeight: 500, color: "#6B7280" }}> — {e.company}</span> : null}
+          {e.company ? <span style={{ fontWeight: 500, color: "var(--nw-text-muted)" }}> — {e.company}</span> : null}
         </p>
         {e.seniority && (
           <span style={{
-            fontSize: 10, fontWeight: 700, color: "#7C63C8",
+            fontSize: 10, fontWeight: 700, color: "var(--nw-primary)",
             background: "rgba(124,99,200,0.08)",
             border: "1px solid rgba(124,99,200,0.2)",
             borderRadius: 100, padding: "1px 7px",
@@ -817,11 +817,11 @@ function ExperienceItem({ e }: { e: NonNullable<ParsedCv["experience"]>[number] 
           </span>
         )}
       </div>
-      <p style={{ margin: "2px 0 6px", fontSize: 11.5, color: "#6B7280" }}>
+      <p style={{ margin: "2px 0 6px", fontSize: 11.5, color: "var(--nw-text-muted)" }}>
         {dateLabel}{e.location ? ` · ${e.location}` : ""}
       </p>
       {e.description && (
-        <p style={{ margin: 0, fontSize: 13, color: "#4B5563", lineHeight: 1.6 }}>{e.description}</p>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-secondary)", lineHeight: 1.6 }}>{e.description}</p>
       )}
     </div>
   )
@@ -840,9 +840,9 @@ function CvHealthBar({ cv }: { cv: ParsedCv | null }) {
   if (score == null && !lang && warnings.length === 0) return null
 
   const tier = score == null ? null
-    : score >= 75 ? { label: "CV complet",  fg: "#15803d", bg: "rgba(34,197,94,0.10)", bd: "rgba(34,197,94,0.3)" }
-    : score >= 40 ? { label: "CV partiel",  fg: "#B45309", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" }
-    :               { label: "CV pauvre",   fg: "#B91C1C", bg: "rgba(220,38,38,0.10)", bd: "rgba(220,38,38,0.3)" }
+    : score >= 75 ? { label: "CV complet",  fg: "var(--nw-success)", bg: "rgba(34,197,94,0.10)", bd: "rgba(34,197,94,0.3)" }
+    : score >= 40 ? { label: "CV partiel",  fg: "var(--nw-warn)", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" }
+    :               { label: "CV pauvre",   fg: "var(--nw-danger-strong)", bg: "rgba(220,38,38,0.10)", bd: "rgba(220,38,38,0.3)" }
 
   return (
     <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -859,8 +859,8 @@ function CvHealthBar({ cv }: { cv: ParsedCv | null }) {
         )}
         {lang && (
           <span style={{
-            fontSize: 11, fontWeight: 700, color: "#4B5563",
-            background: "#F3F4F6", border: "1px solid #E5E7EB",
+            fontSize: 11, fontWeight: 700, color: "var(--nw-text-secondary)",
+            background: "var(--nw-neutral-100)", border: "1px solid var(--nw-border)",
             borderRadius: 100, padding: "3px 9px",
           }}>
             CV en {LANGUAGE_LABEL[lang] ?? lang.toUpperCase()}
@@ -876,7 +876,7 @@ function CvHealthBar({ cv }: { cv: ParsedCv | null }) {
           display: "flex", flexDirection: "column", gap: 3,
         }}>
           {warnings.map((w, i) => (
-            <li key={i} style={{ fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
+            <li key={i} style={{ fontSize: 12, color: "var(--nw-warn-strong)", lineHeight: 1.5 }}>
               ⚠ {w}
             </li>
           ))}

@@ -98,17 +98,17 @@ export function StarterChecklist({ onComplete }: {
     <section style={{
       marginBottom: 24,
       background: "white",
-      border: "1px solid #F0ECF8",
+      border: "1px solid var(--nw-border-soft)",
       borderRadius: 16,
       padding: "18px 20px",
       boxShadow: "0 4px 14px rgba(124,99,200,0.08)",
     }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
           Bien démarrer avec Nora
         </h2>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#7C63C8" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--nw-primary)" }}>
             {doneCount}/4
           </span>
           <button
@@ -117,7 +117,7 @@ export function StarterChecklist({ onComplete }: {
             title="Masquer pour cette session — la checklist reviendra tant que tout n'est pas fait"
             style={{
               background: "none", border: "none", padding: 0,
-              fontSize: 12, color: "#6B7280", cursor: "pointer",
+              fontSize: 12, color: "var(--nw-text-muted)", cursor: "pointer",
               textDecoration: "underline", fontFamily: "inherit",
             }}
           >
@@ -133,7 +133,7 @@ export function StarterChecklist({ onComplete }: {
       }}>
         <div style={{
           width: `${(doneCount / 4) * 100}%`, height: "100%",
-          background: "linear-gradient(90deg, #7C63C8 0%, #6B54B2 100%)",
+          background: "linear-gradient(90deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
           borderRadius: 999, transition: "width 400ms ease",
         }} />
       </div>
@@ -154,7 +154,7 @@ export function StarterChecklist({ onComplete }: {
                   background: "rgba(34,197,94,0.12)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#15803D"
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--nw-success)"
                     strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
@@ -162,8 +162,8 @@ export function StarterChecklist({ onComplete }: {
               ) : (
                 <span aria-hidden style={{
                   width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                  border: `1.5px solid ${isNext ? "#7C63C8" : "#D1D5DB"}`,
-                  color: isNext ? "#7C63C8" : "#9CA3AF",
+                  border: `1.5px solid ${isNext ? "var(--nw-primary)" : "var(--nw-border)"}`,
+                  color: isNext ? "var(--nw-primary)" : "var(--nw-text-muted)",
                   fontSize: 10.5, fontWeight: 800,
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
@@ -173,7 +173,7 @@ export function StarterChecklist({ onComplete }: {
               <span style={{
                 flex: 1, fontSize: 13,
                 fontWeight: item.done ? 500 : 600,
-                color: item.done ? "#9CA3AF" : "#111827",
+                color: item.done ? "var(--nw-text-muted)" : "var(--nw-text)",
                 textDecoration: item.done ? "line-through" : "none",
               }}>
                 {item.label}
@@ -182,7 +182,7 @@ export function StarterChecklist({ onComplete }: {
                 <Link href={item.href} style={{
                   fontSize: 12, fontWeight: 700, color: "white",
                   padding: "6px 12px", borderRadius: 8,
-                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                   textDecoration: "none", whiteSpace: "nowrap",
                 }}>
                   {item.cta} →

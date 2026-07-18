@@ -8,7 +8,7 @@
  *
  * NoraLoader reste utilisé pour les petits placeholders in-card (inline).
  *
- * Design : blocs gris-violet de la charte (#F0ECF8) en pulsation douce.
+ * Design : blocs gris-violet de la charte (var(--nw-border-soft)) en pulsation douce.
  * `prefers-reduced-motion` désactive l'animation (accessibilité).
  */
 
@@ -30,7 +30,7 @@ function Sk({
       aria-hidden
       style={{
         display: "block", width: w, height: h, borderRadius: r,
-        background: "#F0ECF8", ...style,
+        background: "var(--nw-border-soft)", ...style,
       }}
     />
   )
@@ -40,7 +40,7 @@ function Sk({
 function SkCard({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{
-      background: "white", border: "1px solid #F0ECF8", borderRadius: 14,
+      background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 14,
       padding: 18, ...style,
     }}>
       {children}
@@ -163,7 +163,7 @@ export function PipelineSkeleton() {
       }}>
         {Array.from({ length: 4 }, (_, col) => (
           <div key={col} style={{
-            background: "#FAFAFB", border: "1px solid #F0ECF8",
+            background: "#FAFAFB", border: "1px solid var(--nw-border-soft)",
             borderRadius: 12, padding: 12,
           }}>
             <Sk w={100} h={13} style={{ marginBottom: 12 }} />

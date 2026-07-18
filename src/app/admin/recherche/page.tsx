@@ -82,17 +82,17 @@ export default function AdminRecherchePage() {
       <header style={{ marginBottom: 24 }}>
         <p style={{
           margin: "0 0 6px", fontSize: 11, fontWeight: 700,
-          color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase",
+          color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase",
         }}>
           Console admin · Recherche
         </p>
         <h1 style={{
-          margin: 0, fontSize: 28, fontWeight: 800, color: "#111827",
+          margin: 0, fontSize: 28, fontWeight: 800, color: "var(--nw-text)",
           letterSpacing: "-0.02em",
         }}>
           Recherche support
         </h1>
-        <p style={{ margin: "8px 0 0", fontSize: 13.5, color: "#6B7280", lineHeight: 1.6 }}>
+        <p style={{ margin: "8px 0 0", fontSize: 13.5, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
           Lecture seule. Toute consultation est journalisée dans le registre d&apos;audit
           (conformité RGPD / DPA).
         </p>
@@ -106,8 +106,8 @@ export default function AdminRecherchePage() {
           autoFocus
           style={{
             flex: 1, padding: "12px 14px",
-            borderRadius: 10, border: "1.5px solid #E5E7EB",
-            fontSize: 14, color: "#111827", outline: "none",
+            borderRadius: 10, border: "1.5px solid var(--nw-border)",
+            fontSize: 14, color: "var(--nw-text)", outline: "none",
             fontFamily: "inherit",
           }}
         />
@@ -118,8 +118,8 @@ export default function AdminRecherchePage() {
             padding: "12px 20px", borderRadius: 10,
             border: "none",
             background: loading || q.trim().length < 2
-              ? "#C4B6E0"
-              : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              ? "var(--nw-primary-200)"
+              : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
             color: "white", fontSize: 13, fontWeight: 700,
             cursor: loading || q.trim().length < 2 ? "not-allowed" : "pointer",
             fontFamily: "inherit",
@@ -134,14 +134,14 @@ export default function AdminRecherchePage() {
           padding: "10px 12px", borderRadius: 10,
           background: "rgba(245,158,11,0.06)",
           border: "1px solid rgba(245,158,11,0.25)",
-          color: "#92400E", fontSize: 12.5, marginBottom: 20,
+          color: "var(--nw-warn-strong)", fontSize: 12.5, marginBottom: 20,
         }}>
           {message}
         </div>
       )}
 
       {!searched && (
-        <p style={{ fontSize: 13, color: "#6B7280" }}>
+        <p style={{ fontSize: 13, color: "var(--nw-text-muted)" }}>
           Saisissez au moins 2 caractères pour lancer la recherche.
         </p>
       )}
@@ -149,9 +149,9 @@ export default function AdminRecherchePage() {
       {searched && !loading && results.length === 0 && !message && (
         <div style={{
           padding: 32, textAlign: "center",
-          border: "1px dashed #E5E7EB", borderRadius: 14, background: "#FAFAFA",
+          border: "1px dashed var(--nw-border)", borderRadius: 14, background: "var(--nw-surface-muted)",
         }}>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#374151" }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--nw-text-body)" }}>
             Aucun résultat.
           </p>
         </div>
@@ -159,12 +159,12 @@ export default function AdminRecherchePage() {
 
       {results.length > 0 && (
         <div style={{
-          background: "white", border: "1px solid #F0ECF8",
+          background: "white", border: "1px solid var(--nw-border-soft)",
           borderRadius: 14, overflow: "hidden",
         }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
             <thead>
-              <tr style={{ background: "#FAFAFA", textAlign: "left" }}>
+              <tr style={{ background: "var(--nw-surface-muted)", textAlign: "left" }}>
                 <Th>Utilisateur</Th>
                 <Th>Organisation</Th>
                 <Th>Rôle</Th>
@@ -177,19 +177,19 @@ export default function AdminRecherchePage() {
             </thead>
             <tbody>
               {results.map((r) => (
-                <tr key={r.user_id} style={{ borderTop: "1px solid #F0ECF8" }}>
+                <tr key={r.user_id} style={{ borderTop: "1px solid var(--nw-border-soft)" }}>
                   <Td>
-                    <div style={{ fontWeight: 600, color: "#111827" }}>
-                      {r.first_name ?? <em style={{ color: "#6B7280" }}>Sans prénom</em>}
+                    <div style={{ fontWeight: 600, color: "var(--nw-text)" }}>
+                      {r.first_name ?? <em style={{ color: "var(--nw-text-muted)" }}>Sans prénom</em>}
                     </div>
-                    <div style={{ fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
+                    <div style={{ fontSize: 11.5, color: "var(--nw-text-muted)", marginTop: 2 }}>
                       {r.email ?? "—"}
                     </div>
                   </Td>
                   <Td>
                     {r.organization ? (
                       <>
-                        <span style={{ color: "#374151" }}>{r.organization.name}</span>
+                        <span style={{ color: "var(--nw-text-body)" }}>{r.organization.name}</span>
                         {r.organization.pending_deletion_at && (
                           <span style={pillWarn}>Suppression</span>
                         )}
@@ -212,7 +212,7 @@ export default function AdminRecherchePage() {
                       trialEndsAt={r.organization?.trial_ends_at ?? null}
                     />
                     {r.organization?.subscription_price_lookup && (
-                      <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 3 }}>
+                      <div style={{ fontSize: 10.5, color: "var(--nw-text-muted)", marginTop: 3 }}>
                         {r.organization.subscription_price_lookup}
                         {r.organization.subscription_seats != null && ` · ${r.organization.subscription_seats} siège${(r.organization.subscription_seats ?? 0) > 1 ? "s" : ""}`}
                       </div>
@@ -225,7 +225,7 @@ export default function AdminRecherchePage() {
                       trialEndsAt={r.organization?.trial_ends_at ?? null}
                     />
                   </Td>
-                  <Td style={{ color: "#6B7280" }}>{formatDate(r.last_sign_in_at)}</Td>
+                  <Td style={{ color: "var(--nw-text-muted)" }}>{formatDate(r.last_sign_in_at)}</Td>
                   <Td>
                     {r.organization ? (
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -254,7 +254,7 @@ function Th({ children }: { children: React.ReactNode }) {
     <th style={{
       padding: "12px 14px",
       fontSize: 11, fontWeight: 700,
-      color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase",
+      color: "var(--nw-text-muted)", letterSpacing: "0.05em", textTransform: "uppercase",
     }}>
       {children}
     </th>
@@ -262,7 +262,7 @@ function Th({ children }: { children: React.ReactNode }) {
 }
 function Td({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <td style={{ padding: "12px 14px", color: "#374151", ...style }}>
+    <td style={{ padding: "12px 14px", color: "var(--nw-text-body)", ...style }}>
       {children}
     </td>
   )
@@ -286,7 +286,7 @@ function DueDateCell({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setNow(Date.now())
   }, [currentPeriodEnd, trialEndsAt])
-  if (now == null) return <span style={{ color: "#6B7280" }}>—</span>
+  if (now == null) return <span style={{ color: "var(--nw-text-muted)" }}>—</span>
 
   const fmt = (iso: string) =>
     new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
@@ -298,12 +298,12 @@ function DueDateCell({
       const isSoon = days <= 7 && days >= 0
       return (
         <div>
-          <div style={{ color: "#374151", fontVariantNumeric: "tabular-nums" }}>
+          <div style={{ color: "var(--nw-text-body)", fontVariantNumeric: "tabular-nums" }}>
             {fmt(currentPeriodEnd)}
           </div>
           <div style={{
             fontSize: 11, marginTop: 2,
-            color: days < 0 ? "#B91C1C" : isSoon ? "#B45309" : "#6B7280",
+            color: days < 0 ? "var(--nw-danger-strong)" : isSoon ? "var(--nw-warn)" : "var(--nw-text-muted)",
           }}>
             {days < 0
               ? `Échue depuis ${Math.abs(days)} j`
@@ -313,7 +313,7 @@ function DueDateCell({
         </div>
       )
     }
-    return <span style={{ color: "#6B7280" }}>—</span>
+    return <span style={{ color: "var(--nw-text-muted)" }}>—</span>
   }
 
   if (trialEndsAt) {
@@ -322,21 +322,21 @@ function DueDateCell({
     if (days <= 0) {
       return (
         <div>
-          <div style={{ color: "#B91C1C", fontWeight: 600 }}>Essai expiré</div>
-          <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
+          <div style={{ color: "var(--nw-danger-strong)", fontWeight: 600 }}>Essai expiré</div>
+          <div style={{ fontSize: 11, color: "var(--nw-text-muted)", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
         </div>
       )
     }
     return (
       <div>
-        <div style={{ color: days <= 3 ? "#B91C1C" : "#374151", fontWeight: 600 }}>
+        <div style={{ color: days <= 3 ? "var(--nw-danger-strong)" : "var(--nw-text-body)", fontWeight: 600 }}>
           Essai · {days} j restant{days > 1 ? "s" : ""}
         </div>
-        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
+        <div style={{ fontSize: 11, color: "var(--nw-text-muted)", marginTop: 2 }}>{fmt(trialEndsAt)}</div>
       </div>
     )
   }
-  return <span style={{ color: "#6B7280" }}>—</span>
+  return <span style={{ color: "var(--nw-text-muted)" }}>—</span>
 }
 
 function SubStatusPill({ status, trialEndsAt }: { status: string | null; trialEndsAt: string | null }) {
@@ -384,8 +384,8 @@ function TrialButton({
         onClick={() => setOpen(true)}
         style={{
           padding: "5px 9px", borderRadius: 7,
-          border: "1px solid #E5E7EB", background: "white",
-          color: "#7C63C8", fontSize: 11.5, fontWeight: 700,
+          border: "1px solid var(--nw-border)", background: "white",
+          color: "var(--nw-primary)", fontSize: 11.5, fontWeight: 700,
           cursor: "pointer", fontFamily: "inherit",
           whiteSpace: "nowrap",
         }}
@@ -467,12 +467,12 @@ function TrialModal({
         boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)",
       }}>
         <h2 style={{
-          margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#111827",
+          margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "var(--nw-text)",
           letterSpacing: "-0.01em",
         }}>
           Période d&apos;essai gratuite
         </h2>
-        <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6B7280" }}>
+        <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--nw-text-muted)" }}>
           Organisation : <strong>{orgName}</strong>
         </p>
 
@@ -489,7 +489,7 @@ function TrialModal({
         ) : (
           <>
             <div style={{
-              padding: "12px 14px", borderRadius: 10, background: "#F8F6FF",
+              padding: "12px 14px", borderRadius: 10, background: "var(--nw-bg)",
               marginBottom: 14, fontSize: 12.5, color: "#5C46A0", lineHeight: 1.55,
             }}>
               <div>Fin actuelle : <strong>{fmt(trialEndsAt)}</strong></div>
@@ -497,9 +497,9 @@ function TrialModal({
 
             <div style={{
               padding: "14px 14px", borderRadius: 10,
-              border: "1px solid #F0ECF8", marginBottom: 12,
+              border: "1px solid var(--nw-border-soft)", marginBottom: 12,
             }}>
-              <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "#111827" }}>
+              <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "var(--nw-text)" }}>
                 Prolonger la période d&apos;essai
               </p>
               <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
@@ -518,8 +518,8 @@ function TrialModal({
                   style={{
                     padding: "9px 16px", borderRadius: 9,
                     border: "none", color: "white",
-                    background: busy ? "#C4B6E0"
-                      : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    background: busy ? "var(--nw-primary-200)"
+                      : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                     fontSize: 13, fontWeight: 700, cursor: busy ? "wait" : "pointer",
                     fontFamily: "inherit", whiteSpace: "nowrap",
                   }}
@@ -527,7 +527,7 @@ function TrialModal({
                   Ajouter {days} j
                 </button>
               </div>
-              <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "#6B7280" }}>
+              <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)" }}>
                 Maximum 90 jours par opération. Si l&apos;essai est déjà expiré,
                 on prolonge à partir d&apos;aujourd&apos;hui.
               </p>
@@ -535,12 +535,12 @@ function TrialModal({
 
             <div style={{
               padding: "14px 14px", borderRadius: 10,
-              border: "1px solid #F0ECF8", marginBottom: 14,
+              border: "1px solid var(--nw-border-soft)", marginBottom: 14,
             }}>
-              <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "#111827" }}>
+              <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "var(--nw-text)" }}>
                 Réinitialiser la période d&apos;essai
               </p>
-              <p style={{ margin: "0 0 10px", fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+              <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
                 Remet la fin à J+15 (essai gratuit standard) à partir d&apos;aujourd&apos;hui.
               </p>
               <button
@@ -549,8 +549,8 @@ function TrialModal({
                 disabled={busy}
                 style={{
                   padding: "9px 14px", borderRadius: 9,
-                  border: "1px solid #E2DAF6", background: "white",
-                  color: "#7C63C8", fontSize: 12.5, fontWeight: 700,
+                  border: "1px solid var(--nw-primary-100)", background: "white",
+                  color: "var(--nw-primary)", fontSize: 12.5, fontWeight: 700,
                   cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
                 }}
               >
@@ -559,7 +559,7 @@ function TrialModal({
             </div>
 
             {error && (
-              <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#B91C1C" }}>
+              <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--nw-danger-strong)" }}>
                 {error}
               </p>
             )}
@@ -571,8 +571,8 @@ function TrialModal({
                 disabled={busy}
                 style={{
                   padding: "9px 14px", borderRadius: 9,
-                  border: "1px solid #E5E7EB", background: "white",
-                  color: "#374151", fontSize: 13, fontWeight: 600,
+                  border: "1px solid var(--nw-border)", background: "white",
+                  color: "var(--nw-text-body)", fontSize: 13, fontWeight: 600,
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >
@@ -597,8 +597,8 @@ function QuotaOverrideButton({ orgId, orgName }: { orgId: string; orgName: strin
         onClick={() => setOpen(true)}
         style={{
           padding: "5px 9px", borderRadius: 7,
-          border: "1px solid #E5E7EB", background: "white",
-          color: "#7C63C8", fontSize: 11.5, fontWeight: 700,
+          border: "1px solid var(--nw-border)", background: "white",
+          color: "var(--nw-primary)", fontSize: 11.5, fontWeight: 700,
           cursor: "pointer", fontFamily: "inherit",
           whiteSpace: "nowrap",
         }}
@@ -687,12 +687,12 @@ function QuotaOverrideModal({
         boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)",
       }}>
         <h2 style={{
-          margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#111827",
+          margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "var(--nw-text)",
           letterSpacing: "-0.01em",
         }}>
           Quota custom
         </h2>
-        <p style={{ margin: "0 0 18px", fontSize: 13, color: "#6B7280" }}>
+        <p style={{ margin: "0 0 18px", fontSize: 13, color: "var(--nw-text-muted)" }}>
           Organisation : <strong>{orgName}</strong>
         </p>
 
@@ -708,7 +708,7 @@ function QuotaOverrideModal({
         ) : (
           <>
             <div style={{
-              padding: "12px 14px", borderRadius: 10, background: "#F8F6FF",
+              padding: "12px 14px", borderRadius: 10, background: "var(--nw-bg)",
               marginBottom: 16, fontSize: 12, color: "#5C46A0", lineHeight: 1.55,
             }}>
               Laissez un champ vide pour ne pas le surcharger. Toute valeur saisie
@@ -718,7 +718,7 @@ function QuotaOverrideModal({
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
               <div>
-                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 700, color: "#374151" }}>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 700, color: "var(--nw-text-body)" }}>
                   Capacité vivier (CV) — plafond principal
                 </label>
                 <input
@@ -732,7 +732,7 @@ function QuotaOverrideModal({
                 />
               </div>
               <div>
-                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#6B7280" }}>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "var(--nw-text-muted)" }}>
                   Stockage (GB) — filet interne, optionnel
                 </label>
                 <input
@@ -746,7 +746,7 @@ function QuotaOverrideModal({
                 />
               </div>
               <div>
-                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "#6B7280" }}>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 12, fontWeight: 600, color: "var(--nw-text-muted)" }}>
                   Actions IA / mois — filet interne, optionnel
                 </label>
                 <input
@@ -762,7 +762,7 @@ function QuotaOverrideModal({
             </div>
 
             {error && (
-              <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#B91C1C" }}>
+              <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--nw-danger-strong)" }}>
                 {error}
               </p>
             )}
@@ -772,7 +772,7 @@ function QuotaOverrideModal({
                 style={{
                   padding: "9px 14px", borderRadius: 9,
                   border: "1px solid rgba(220,38,38,0.30)", background: "white",
-                  color: "#B91C1C", fontSize: 12.5, fontWeight: 600,
+                  color: "var(--nw-danger-strong)", fontSize: 12.5, fontWeight: 600,
                   cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
                 }}>
                 Supprimer override
@@ -781,8 +781,8 @@ function QuotaOverrideModal({
                 <button type="button" onClick={onClose} disabled={busy}
                   style={{
                     padding: "9px 14px", borderRadius: 9,
-                    border: "1px solid #E5E7EB", background: "white",
-                    color: "#374151", fontSize: 13, fontWeight: 600,
+                    border: "1px solid var(--nw-border)", background: "white",
+                    color: "var(--nw-text-body)", fontSize: 13, fontWeight: 600,
                     cursor: "pointer", fontFamily: "inherit",
                   }}>
                   Annuler
@@ -792,8 +792,8 @@ function QuotaOverrideModal({
                   style={{
                     padding: "9px 16px", borderRadius: 9,
                     border: "none", color: "white",
-                    background: busy ? "#C4B6E0"
-                      : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    background: busy ? "var(--nw-primary-200)"
+                      : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                     fontSize: 13, fontWeight: 700, cursor: busy ? "wait" : "pointer",
                     fontFamily: "inherit",
                     opacity: (!cv && !storageGb && !llmMonthly) ? 0.5 : 1,
@@ -811,16 +811,16 @@ function QuotaOverrideModal({
 
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "9px 12px",
-  borderRadius: 8, border: "1.5px solid #E5E7EB",
-  fontSize: 13.5, color: "#111827",
+  borderRadius: 8, border: "1.5px solid var(--nw-border)",
+  fontSize: 13.5, color: "var(--nw-text)",
   outline: "none", fontFamily: "inherit",
   boxSizing: "border-box",
 }
 
-const pillOwner = pill("#7C63C8", "rgba(124,99,200,0.08)", "rgba(124,99,200,0.22)")
-const pillMember = pill("#6B7280", "#F3F4F6", "#E5E7EB")
-const pillSeatOn = pill("#15803D", "rgba(34,197,94,0.08)", "rgba(34,197,94,0.22)")
-const pillSeatOff = pill("#6B7280", "#F3F4F6", "#E5E7EB")
-const pillOk = pill("#15803D", "rgba(34,197,94,0.08)", "rgba(34,197,94,0.22)")
-const pillTrial = pill("#7C63C8", "rgba(124,99,200,0.08)", "rgba(124,99,200,0.22)")
-const pillWarn = pill("#B91C1C", "rgba(220,38,38,0.06)", "rgba(220,38,38,0.25)")
+const pillOwner = pill("var(--nw-primary)", "rgba(124,99,200,0.08)", "rgba(124,99,200,0.22)")
+const pillMember = pill("var(--nw-text-muted)", "var(--nw-neutral-100)", "var(--nw-border)")
+const pillSeatOn = pill("var(--nw-success)", "rgba(34,197,94,0.08)", "rgba(34,197,94,0.22)")
+const pillSeatOff = pill("var(--nw-text-muted)", "var(--nw-neutral-100)", "var(--nw-border)")
+const pillOk = pill("var(--nw-success)", "rgba(34,197,94,0.08)", "rgba(34,197,94,0.22)")
+const pillTrial = pill("var(--nw-primary)", "rgba(124,99,200,0.08)", "rgba(124,99,200,0.22)")
+const pillWarn = pill("var(--nw-danger-strong)", "rgba(220,38,38,0.06)", "rgba(220,38,38,0.25)")

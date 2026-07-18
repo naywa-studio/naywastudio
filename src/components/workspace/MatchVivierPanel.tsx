@@ -123,10 +123,10 @@ export function MatchVivierPanel({
         borderRadius: 16, padding: 22,
         boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)",
       }}>
-        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
           Matcher le vivier
         </h2>
-        <p style={{ margin: "4px 0 16px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
+        <p style={{ margin: "4px 0 16px", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
           Choisissez l&apos;étendue de la recherche. Plus le périmètre est large, plus l&apos;analyse est longue.
         </p>
 
@@ -148,16 +148,16 @@ export function MatchVivierPanel({
         {showSectors && (
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 9 }}>
-              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                 Secteurs ciblés
               </p>
-              <span style={{ fontSize: 11, color: "#6B7280" }}>· cliquez pour cibler</span>
+              <span style={{ fontSize: 11, color: "var(--nw-text-muted)" }}>· cliquez pour cibler</span>
             </div>
             {loadingProposal ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#7C63C8", padding: "4px 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--nw-primary)", padding: "4px 0" }}>
                 <span style={{
                   display: "inline-block", width: 13, height: 13, borderRadius: "50%",
-                  border: "2px solid rgba(124,99,200,0.25)", borderTopColor: "#7C63C8",
+                  border: "2px solid rgba(124,99,200,0.25)", borderTopColor: "var(--nw-primary)",
                   animation: "mvp-spin 0.9s linear infinite",
                 }} />
                 Nora identifie les secteurs…
@@ -167,7 +167,7 @@ export function MatchVivierPanel({
               <>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
                   {allPills.length === 0 && (
-                    <span style={{ fontSize: 12, color: "#6B7280" }}>
+                    <span style={{ fontSize: 12, color: "var(--nw-text-muted)" }}>
                       Aucun secteur dans le vivier — classez vos CV ou passez en Complet.
                     </span>
                   )}
@@ -183,16 +183,16 @@ export function MatchVivierPanel({
                         style={{
                           display: "inline-flex", alignItems: "center", gap: 6,
                           fontSize: 12.5, fontWeight: 600, fontFamily: "inherit",
-                          color: on ? col.text : "#6B7280",
+                          color: on ? col.text : "var(--nw-text-muted)",
                           background: on ? col.bg : "white",
-                          border: `1px solid ${on ? col.border : "#E5E7EB"}`,
+                          border: `1px solid ${on ? col.border : "var(--nw-border)"}`,
                           borderRadius: 99, padding: "5px 11px", cursor: "pointer",
                           transition: "all 120ms",
                         }}
                       >
                         <span style={{
                           width: 8, height: 8, borderRadius: "50%",
-                          background: on ? col.solid : "#D1D5DB",
+                          background: on ? col.solid : "var(--nw-border)",
                         }} />
                         {s}
                         {on && (
@@ -209,7 +209,7 @@ export function MatchVivierPanel({
                     type="button"
                     onClick={() => setShowAllPills((v) => !v)}
                     style={{
-                      marginTop: 8, fontSize: 11.5, fontWeight: 600, color: "#7C63C8",
+                      marginTop: 8, fontSize: 11.5, fontWeight: 600, color: "var(--nw-primary)",
                       background: "transparent", border: "none", cursor: "pointer",
                       fontFamily: "inherit", padding: 0,
                     }}
@@ -217,7 +217,7 @@ export function MatchVivierPanel({
                     {showAllPills ? "Voir moins" : `Voir tous les secteurs (+${allPills.length - PILL_FOLD})`}
                   </button>
                 )}
-                <p style={{ margin: "10px 0 0", fontSize: 10.5, color: "#6B7280", lineHeight: 1.4 }}>
+                <p style={{ margin: "10px 0 0", fontSize: 10.5, color: "var(--nw-text-muted)", lineHeight: 1.4 }}>
                   Pour créer un nouveau secteur, rendez-vous dans le Vivier — Nora l&apos;aide à le définir.
                 </p>
               </>
@@ -230,8 +230,8 @@ export function MatchVivierPanel({
             type="button"
             onClick={onClose}
             style={{
-              fontSize: 13, fontWeight: 600, color: "#6B7280",
-              background: "white", border: "1px solid #E5E7EB", borderRadius: 9,
+              fontSize: 13, fontWeight: 600, color: "var(--nw-text-muted)",
+              background: "white", border: "1px solid var(--nw-border)", borderRadius: 9,
               padding: "9px 15px", cursor: "pointer", fontFamily: "inherit",
             }}
           >
@@ -243,7 +243,7 @@ export function MatchVivierPanel({
             disabled={loadingProposal}
             style={{
               fontSize: 13, fontWeight: 700, color: "white",
-              background: loadingProposal ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: loadingProposal ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               border: "none", borderRadius: 9, padding: "9px 18px",
               cursor: loadingProposal ? "default" : "pointer", fontFamily: "inherit",
             }}
@@ -272,21 +272,21 @@ function ModeRow({
         display: "flex", alignItems: "flex-start", gap: 11, width: "100%",
         padding: "11px 13px", borderRadius: 11, textAlign: "left",
         background: active ? "rgba(124,99,200,0.06)" : "white",
-        border: `1px solid ${active ? "rgba(124,99,200,0.40)" : "#E5E7EB"}`,
+        border: `1px solid ${active ? "rgba(124,99,200,0.40)" : "var(--nw-border)"}`,
         cursor: "pointer", fontFamily: "inherit",
         transition: "border-color 120ms, background 120ms",
       }}
     >
       <span style={{
         width: 16, height: 16, borderRadius: "50%", flexShrink: 0, marginTop: 1,
-        border: `2px solid ${active ? "#7C63C8" : "#D1D5DB"}`,
+        border: `2px solid ${active ? "var(--nw-primary)" : "var(--nw-border)"}`,
         display: "inline-flex", alignItems: "center", justifyContent: "center",
       }}>
-        {active && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7C63C8" }} />}
+        {active && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--nw-primary)" }} />}
       </span>
       <span style={{ minWidth: 0 }}>
-        <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: "#111827" }}>{label}</span>
-        <span style={{ display: "block", fontSize: 11.5, color: "#6B7280", lineHeight: 1.45, marginTop: 1 }}>{hint}</span>
+        <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)" }}>{label}</span>
+        <span style={{ display: "block", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.45, marginTop: 1 }}>{hint}</span>
       </span>
     </button>
   )

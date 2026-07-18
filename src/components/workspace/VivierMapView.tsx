@@ -89,7 +89,7 @@ export default function VivierMapView({
         display: "flex", alignItems: "center", justifyContent: "space-between",
         gap: 12, flexWrap: "wrap",
       }}>
-        <p style={{ margin: 0, fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 12, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
           {everClassified
             ? "Carte structurée par Nora à partir de vos candidats."
             : "Lancez une analyse pour que Nora regroupe les profils en secteurs cohérents."}
@@ -103,7 +103,7 @@ export default function VivierMapView({
             padding: "7px 14px", borderRadius: 9,
             background: busy
               ? "rgba(124,99,200,0.5)"
-              : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
             border: "none",
             cursor: busy ? "wait" : "pointer",
             boxShadow: busy ? "none" : "0 6px 16px -8px rgba(124,99,200,0.5)",
@@ -115,7 +115,7 @@ export default function VivierMapView({
 
       {error && (
         <div style={{
-          padding: "9px 12px", fontSize: 12, color: "#B91C1C",
+          padding: "9px 12px", fontSize: 12, color: "var(--nw-danger-strong)",
           background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
           borderRadius: 9,
         }}>
@@ -125,7 +125,7 @@ export default function VivierMapView({
 
       {busy ? (
         <div style={{
-          background: "white", border: "1px solid #F0ECF8", borderRadius: 14,
+          background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 14,
           padding: 32, minHeight: 320,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
@@ -134,8 +134,8 @@ export default function VivierMapView({
       ) : clusters.length === 0 ? (
         <div style={{
           padding: "60px 24px", textAlign: "center",
-          background: "white", border: "1px dashed #E5E7EB", borderRadius: 14,
-          color: "#6B7280", fontSize: 14,
+          background: "white", border: "1px dashed var(--nw-border)", borderRadius: 14,
+          color: "var(--nw-text-muted)", fontSize: 14,
         }}>
           Aucun candidat ne correspond.
         </div>
@@ -265,7 +265,7 @@ function MacroMap({ clusters, onZoom }: { clusters: VivierCluster[]; onZoom: (id
         transition={{ duration: 0.5, ease: EASE, delay: 0.4 }}
         style={{
           position: "absolute", bottom: 14, left: "50%", transform: "translateX(-50%)",
-          margin: 0, fontSize: 11, color: "#6B7280", fontStyle: "italic",
+          margin: 0, fontSize: 11, color: "var(--nw-text-muted)", fontStyle: "italic",
           pointerEvents: "none",
         }}
       >
@@ -364,7 +364,7 @@ function SectorZoomView({
       </m.div>
 
       {cluster.total === 0 && (
-        <p style={{ margin: "40px 0", fontSize: 13, color: "#6B7280", textAlign: "center" }}>
+        <p style={{ margin: "40px 0", fontSize: 13, color: "var(--nw-text-muted)", textAlign: "center" }}>
           Aucun candidat dans ce secteur.
         </p>
       )}
@@ -445,7 +445,7 @@ function SideRailClusters({
       <button
         onClick={onBackToMap}
         style={{
-          fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           background: "rgba(124,99,200,0.06)",
           border: "1px solid rgba(124,99,200,0.22)",
           borderRadius: 9, padding: "8px 12px", cursor: "pointer",
@@ -455,7 +455,7 @@ function SideRailClusters({
         ◍ Vue d&apos;ensemble
       </button>
       <div style={{
-        fontSize: 9.5, fontWeight: 700, color: "#6B7280",
+        fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)",
         letterSpacing: "0.08em", textTransform: "uppercase",
         padding: "10px 4px 4px",
       }}>
@@ -587,10 +587,10 @@ function CandidateCardLight({
             {initials}
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--nw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {c.full_name ?? "Nom à compléter"}
             </div>
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)" }}>
               {candidateRefLabel(c.id)}
             </div>
           </div>
@@ -621,11 +621,11 @@ function CandidateCardLight({
           )}
         </div>
 
-        <div style={{ fontSize: 12, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingLeft: 42, marginTop: 6 }}>
+        <div style={{ fontSize: 12, color: "var(--nw-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingLeft: 42, marginTop: 6 }}>
           {title}{company ? ` · ${company}` : ""}
         </div>
 
-        <div style={{ display: "flex", gap: 6, alignItems: "center", paddingLeft: 42, fontSize: 10.5, color: "#6B7280", marginTop: 3 }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", paddingLeft: 42, fontSize: 10.5, color: "var(--nw-text-muted)", marginTop: 3 }}>
           {c.location ? `${c.location} · ` : ""}
           {yearsExperience != null ? `${yearsExperience} an${yearsExperience !== 1 ? "s" : ""} XP` : "XP n/c"}
         </div>

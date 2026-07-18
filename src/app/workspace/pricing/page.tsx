@@ -128,26 +128,26 @@ export default function PricingPage() {
       <main style={mainStyle}>
         <div style={{
           margin: "24px 0", padding: "32px 28px", borderRadius: 16,
-          background: "linear-gradient(120deg, #F8F6FF 0%, #F0ECF8 100%)",
-          border: "1px solid #E2DAF6",
+          background: "linear-gradient(120deg, var(--nw-bg) 0%, var(--nw-border-soft) 100%)",
+          border: "1px solid var(--nw-primary-100)",
           textAlign: "center",
           fontFamily: "var(--font-inter), sans-serif",
         }}>
           <p style={{
-            margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8",
+            margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
             letterSpacing: "0.10em", textTransform: "uppercase",
           }}>
             Option non activée
           </p>
           <h1 style={{
-            margin: "8px 0 0", fontSize: 24, fontWeight: 800, color: "#111827",
+            margin: "8px 0 0", fontSize: 24, fontWeight: 800, color: "var(--nw-text)",
             letterSpacing: "-0.02em",
-            fontFamily: "var(--font-space-grotesk), sans-serif",
+            fontFamily: "var(--font-inter), sans-serif",
           }}>
             La Suite Pricing Syntec
           </h1>
           <p style={{
-            margin: "12px auto 0", maxWidth: 460, fontSize: 14, lineHeight: 1.65, color: "#4B5563",
+            margin: "12px auto 0", maxWidth: 460, fontSize: 14, lineHeight: 1.65, color: "var(--nw-text-secondary)",
           }}>
             Chiffrez vos missions en régie sans vous tromper : TJM, marge réelle,
             charges par statut, calendrier des jours facturables, et la fiche PDF
@@ -158,7 +158,7 @@ export default function PricingPage() {
             style={{
               display: "inline-block", marginTop: 20,
               padding: "11px 20px", borderRadius: 12,
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               color: "white", fontSize: 13.5, fontWeight: 700,
               textDecoration: "none",
               boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
@@ -167,7 +167,7 @@ export default function PricingPage() {
             {isOwner ? "Activer l'option →" : "Voir mon organisation →"}
           </Link>
           {!isOwner && (
-            <p style={{ margin: "12px 0 0", fontSize: 11.5, color: "#6B7280" }}>
+            <p style={{ margin: "12px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)" }}>
               Seul le propriétaire de l&apos;organisation peut activer une option.
             </p>
           )}
@@ -188,7 +188,7 @@ export default function PricingPage() {
           textAlign: "center",
           fontFamily: "var(--font-inter), sans-serif",
         }}>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#B91C1C" }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-danger-strong)" }}>
             Impossible de charger les missions.
           </p>
           <p style={{ margin: "6px 0 14px", fontSize: 12.5, color: "#7F1D1D" }}>
@@ -202,7 +202,7 @@ export default function PricingPage() {
             }}
             style={{
               padding: "8px 16px", borderRadius: 10,
-              border: "none", background: "#7C63C8", color: "white",
+              border: "none", background: "var(--nw-primary)", color: "white",
               fontSize: 13, fontWeight: 700, cursor: "pointer",
               fontFamily: "inherit",
             }}
@@ -291,7 +291,7 @@ function PricingGroup({ title, rows, isMine }: {
   rows: MissionRow[]
   isMine?: boolean
 }) {
-  const accent = isMine ? "#7C63C8" : "#6B7280"
+  const accent = isMine ? "var(--nw-primary)" : "var(--nw-text-muted)"
   return (
     <section>
       <header style={{
@@ -304,12 +304,12 @@ function PricingGroup({ title, rows, isMine }: {
         }} />
         <h2 style={{
           margin: 0, fontSize: 14, fontWeight: 700,
-          color: isMine ? "#111827" : "#374151",
+          color: isMine ? "var(--nw-text)" : "var(--nw-text-body)",
           letterSpacing: "-0.005em",
         }}>
           {title}
         </h2>
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: "#6B7280" }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--nw-text-muted)" }}>
           · {rows.length} mission{rows.length > 1 ? "s" : ""}
         </span>
       </header>
@@ -349,11 +349,11 @@ function Header({ missionCount }: { missionCount: number }) {
         <div>
           <h1 style={{
             margin: 0, fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 800,
-            color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15,
+            color: "var(--nw-text)", letterSpacing: "-0.025em", lineHeight: 1.15,
           }}>
             Vos missions à chiffrer
           </h1>
-          <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6, maxWidth: 640 }}>
+          <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--nw-text-muted)", lineHeight: 1.6, maxWidth: 640 }}>
             {missionCount === 0
               ? "Aucune mission ouverte pour l'instant. Créez-en une depuis l'onglet Missions."
               : `${missionCount} mission${missionCount > 1 ? "s" : ""} ouverte${missionCount > 1 ? "s" : ""}. Cliquez pour ouvrir le chiffrage candidat.`}
@@ -373,7 +373,7 @@ function Header({ missionCount }: { missionCount: number }) {
 }
 
 const linkBtnStyle: React.CSSProperties = {
-  fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
+  fontSize: 12.5, fontWeight: 600, color: "var(--nw-primary)",
   background: "white", border: "1px solid rgba(124,99,200,0.25)",
   borderRadius: 9, padding: "8px 14px", textDecoration: "none",
   whiteSpace: "nowrap",
@@ -400,7 +400,7 @@ function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
       flexWrap: "wrap",
     }}>
       <div style={{ minWidth: 0, flex: "1 1 280px" }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#92400E" }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--nw-warn-strong)" }}>
           {isOwner
             ? "Politique pricing pas encore configurée"
             : "Le cabinet n'a pas encore configuré sa politique pricing"}
@@ -417,7 +417,7 @@ function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
           style={{
             display: "inline-block",
             padding: "8px 14px", borderRadius: 9,
-            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
             color: "white", fontSize: 12.5, fontWeight: 700,
             textDecoration: "none", whiteSpace: "nowrap",
           }}
@@ -447,13 +447,13 @@ function EmptyState() {
     >
       <div style={{ fontSize: 44, marginBottom: 12 }}>💼</div>
       <h2 style={{
-        margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827",
+        margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "var(--nw-text)",
         letterSpacing: "-0.015em",
       }}>
         Aucune mission ouverte
       </h2>
       <p style={{
-        margin: "0 auto 18px", maxWidth: 540, fontSize: 14, color: "#6B7280",
+        margin: "0 auto 18px", maxWidth: 540, fontSize: 14, color: "var(--nw-text-muted)",
         lineHeight: 1.6,
       }}>
         Créez une mission depuis l&apos;onglet Missions.
@@ -461,7 +461,7 @@ function EmptyState() {
       <Link href="/workspace/missions" style={{
         display: "inline-block",
         padding: "11px 22px", borderRadius: 12,
-        background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+        background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
         color: "white", fontWeight: 700, fontSize: 14, textDecoration: "none",
         boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
@@ -504,7 +504,7 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
         href={`/workspace/pricing/${job.id}`}
         style={{
           display: "block", textDecoration: "none",
-          background: "white", borderRadius: 14, border: "1px solid #F0ECF8",
+          background: "white", borderRadius: 14, border: "1px solid var(--nw-border-soft)",
           padding: 16,
           transition: "border-color 0.2s ease",
         }}
@@ -514,7 +514,7 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
           gap: 10, marginBottom: 10,
         }}>
           <h2 style={{
-            margin: 0, fontSize: 15.5, fontWeight: 800, color: "#111827",
+            margin: 0, fontSize: 15.5, fontWeight: 800, color: "var(--nw-text)",
             lineHeight: 1.3,
           }}>
             {job.title}
@@ -522,7 +522,7 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
           {pricingCandidatesCount > 0 && (
             <span style={{
               flexShrink: 0,
-              fontSize: 11, fontWeight: 700, color: "#7C63C8",
+              fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
               background: "rgba(124,99,200,0.10)",
               border: "1px solid rgba(124,99,200,0.25)",
               borderRadius: 100, padding: "3px 9px",
@@ -534,7 +534,7 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
 
         <div style={{
           display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 12,
-          fontSize: 11.5, color: "#6B7280",
+          fontSize: 11.5, color: "var(--nw-text-muted)",
         }}>
           {job.location && <Tag>{job.location}</Tag>}
           {job.contract_type && <Tag>{job.contract_type}</Tag>}
@@ -551,7 +551,7 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
             tjmLabel={tjmLabel}
           />
           <span style={{
-            fontSize: 12, fontWeight: 700, color: "#7C63C8",
+            fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
             display: "inline-flex", alignItems: "center", gap: 4,
           }}>
             Ouvrir →
@@ -565,7 +565,7 @@ function MissionCard({ row, index }: { row: MissionRow; index: number }) {
 function Tag({ children }: { children: React.ReactNode }) {
   return (
     <span style={{
-      background: "#F8F6FF", border: "1px solid #F0ECF8",
+      background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)",
       padding: "2px 8px", borderRadius: 6,
     }}>
       {children}
@@ -583,7 +583,7 @@ function PricingStatus({
   if (allRequiredFilled) {
     return (
       <span style={{
-        fontSize: 11, fontWeight: 700, color: "#15803d",
+        fontSize: 11, fontWeight: 700, color: "var(--nw-success)",
         display: "inline-flex", alignItems: "center", gap: 5,
       }}>
         ✓ {tjmLabel ? `TJM ${tjmLabel}` : "Prêt à chiffrer"}
@@ -592,7 +592,7 @@ function PricingStatus({
   }
   return (
     <span style={{
-      fontSize: 11, fontWeight: 600, color: "#B45309",
+      fontSize: 11, fontWeight: 600, color: "var(--nw-warn)",
       display: "inline-flex", alignItems: "center", gap: 5,
     }}>
       ⚠ À compléter · TJM, durée, date

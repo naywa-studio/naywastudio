@@ -84,15 +84,15 @@ export default function TagPicker({
       <div style={{
         display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6,
         padding: "8px 10px",
-        background: "#FAFAFA",
-        border: "1px solid #E5E7EB", borderRadius: 10,
+        background: "var(--nw-surface-muted)",
+        border: "1px solid var(--nw-border)", borderRadius: 10,
         minHeight: 40,
       }}>
         {value.map((t) => (
           <span key={t} style={{
             display: "inline-flex", alignItems: "center", gap: 5,
-            fontSize: 12, fontWeight: 600, color: "#4B5563",
-            background: "white", border: "1px solid #E2DAF6",
+            fontSize: 12, fontWeight: 600, color: "var(--nw-text-secondary)",
+            background: "white", border: "1px solid var(--nw-primary-100)",
             borderRadius: 100, padding: "3px 4px 3px 10px",
           }}>
             {t}
@@ -103,12 +103,12 @@ export default function TagPicker({
               style={{
                 width: 16, height: 16, borderRadius: "50%",
                 background: "transparent", border: "none",
-                color: "#6B7280", fontSize: 12, lineHeight: 1, padding: 0,
+                color: "var(--nw-text-muted)", fontSize: 12, lineHeight: 1, padding: 0,
                 cursor: "pointer", fontFamily: "inherit",
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#F0ECF8"; e.currentTarget.style.color = "#7C63C8" }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6B7280" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--nw-border-soft)"; e.currentTarget.style.color = "var(--nw-primary)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--nw-text-muted)" }}
             >
               ×
             </button>
@@ -124,12 +124,12 @@ export default function TagPicker({
           style={{
             flex: 1, minWidth: 120,
             background: "transparent", border: "none", outline: "none",
-            fontSize: 13, color: "#111827",
+            fontSize: 13, color: "var(--nw-text)",
             padding: "3px 2px",
           }}
         />
         {saving && (
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.04em" }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.04em" }}>
             ✦
           </span>
         )}
@@ -140,7 +140,7 @@ export default function TagPicker({
           position: "absolute", top: "100%", left: 0, right: 0,
           marginTop: 4, zIndex: 20,
           background: "white", borderRadius: 10,
-          border: "1px solid #E2DAF6",
+          border: "1px solid var(--nw-primary-100)",
           boxShadow: "0 8px 24px -8px rgba(17,24,39,0.15)",
           padding: 6, maxHeight: 240, overflowY: "auto",
         }}>
@@ -150,12 +150,12 @@ export default function TagPicker({
               onClick={() => add(s)}
               style={{
                 width: "100%", textAlign: "left",
-                fontSize: 13, color: "#374151",
+                fontSize: 13, color: "var(--nw-text-body)",
                 background: "transparent", border: "none",
                 padding: "7px 10px", borderRadius: 7,
                 cursor: "pointer", fontFamily: "inherit",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#F8F6FF" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--nw-bg)" }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
             >
               {s}
@@ -166,11 +166,11 @@ export default function TagPicker({
               onClick={() => add(draft)}
               style={{
                 width: "100%", textAlign: "left",
-                fontSize: 13, fontWeight: 600, color: "#7C63C8",
+                fontSize: 13, fontWeight: 600, color: "var(--nw-primary)",
                 background: "transparent", border: "none",
                 padding: "7px 10px", borderRadius: 7,
                 cursor: "pointer", fontFamily: "inherit",
-                borderTop: matches.length > 0 ? "1px solid #F0ECF8" : "none",
+                borderTop: matches.length > 0 ? "1px solid var(--nw-border-soft)" : "none",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(124,99,200,0.06)" }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}

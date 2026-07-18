@@ -28,7 +28,7 @@ export function MissionBriefSection({
   return (
     <section style={{
       marginBottom: 16, background: "white",
-      border: "1px solid #F0ECF8", borderRadius: 14, overflow: "hidden",
+      border: "1px solid var(--nw-border-soft)", borderRadius: 14, overflow: "hidden",
     }}>
       <button
         type="button"
@@ -39,23 +39,23 @@ export function MissionBriefSection({
           cursor: "pointer", fontFamily: "inherit", textAlign: "left",
         }}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--nw-primary)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
           <path d="M14 4v5h5M8 13h8M8 17h5" />
         </svg>
-        <span style={{ fontSize: 13.5, fontWeight: 800, color: "#111827", flex: 1 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 800, color: "var(--nw-text)", flex: 1 }}>
           Brief de la mission
         </span>
         {hasClientBrief && (
           <span style={{
-            fontSize: 9.5, fontWeight: 700, color: "#7C63C8",
+            fontSize: 9.5, fontWeight: 700, color: "var(--nw-primary)",
             background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
             borderRadius: 999, padding: "1px 8px", letterSpacing: "0.04em", textTransform: "uppercase",
           }}>
             Appel d&apos;offre
           </span>
         )}
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nw-text-muted)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} aria-hidden="true">
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
@@ -124,7 +124,7 @@ function BriefBlock({
   return (
     <div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#374151", letterSpacing: "0.02em" }}>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--nw-text-body)", letterSpacing: "0.02em" }}>
           {label}
         </span>
         {!editing && (
@@ -132,7 +132,7 @@ function BriefBlock({
             type="button"
             onClick={startEdit}
             style={{
-              marginLeft: "auto", fontSize: 11, fontWeight: 600, color: "#7C63C8",
+              marginLeft: "auto", fontSize: 11, fontWeight: 600, color: "var(--nw-primary)",
               background: "transparent", border: "none", cursor: "pointer",
               fontFamily: "inherit", padding: 0,
             }}
@@ -152,9 +152,9 @@ function BriefBlock({
             placeholder={hint}
             style={{
               width: "100%", boxSizing: "border-box",
-              fontSize: 13, lineHeight: 1.6, color: "#111827",
+              fontSize: 13, lineHeight: 1.6, color: "var(--nw-text)",
               padding: "10px 12px", borderRadius: 10,
-              border: "1px solid #E2DAF6", background: "#FBFAFE",
+              border: "1px solid var(--nw-primary-100)", background: "#FBFAFE",
               outline: "none", fontFamily: "inherit", resize: "vertical",
             }}
           />
@@ -163,8 +163,8 @@ function BriefBlock({
               type="button"
               onClick={() => setEditing(false)}
               style={{
-                fontSize: 12, fontWeight: 600, color: "#6B7280",
-                background: "white", border: "1px solid #E5E7EB", borderRadius: 8,
+                fontSize: 12, fontWeight: 600, color: "var(--nw-text-muted)",
+                background: "white", border: "1px solid var(--nw-border)", borderRadius: 8,
                 padding: "7px 13px", cursor: "pointer", fontFamily: "inherit",
               }}
             >
@@ -176,7 +176,7 @@ function BriefBlock({
               disabled={saving}
               style={{
                 fontSize: 12, fontWeight: 700, color: "white",
-                background: saving ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                background: saving ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                 border: "none", borderRadius: 8, padding: "7px 15px",
                 cursor: saving ? "default" : "pointer", fontFamily: "inherit",
               }}
@@ -187,9 +187,9 @@ function BriefBlock({
         </>
       ) : value.trim() ? (
         <p style={{
-          margin: 0, fontSize: 13, lineHeight: 1.65, color: "#374151",
+          margin: 0, fontSize: 13, lineHeight: 1.65, color: "var(--nw-text-body)",
           whiteSpace: "pre-wrap", wordBreak: "break-word",
-          background: "#FBFAFE", border: "1px solid #F0ECF8", borderRadius: 10,
+          background: "#FBFAFE", border: "1px solid var(--nw-border-soft)", borderRadius: 10,
           padding: "11px 13px", maxHeight: 320, overflowY: "auto",
         }}>
           {value}
@@ -199,7 +199,7 @@ function BriefBlock({
           type="button"
           onClick={startEdit}
           style={{
-            fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
+            fontSize: 12.5, fontWeight: 600, color: "var(--nw-primary)",
             background: "rgba(124,99,200,0.05)", border: "1px dashed rgba(124,99,200,0.30)",
             borderRadius: 10, padding: "10px 14px", cursor: "pointer",
             fontFamily: "inherit", width: "100%", textAlign: "left",

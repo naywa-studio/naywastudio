@@ -62,10 +62,10 @@ interface MissionToPrice {
 }
 
 const TIER_COLOR: Record<MatchTier, { fg: string; bg: string; bd: string }> = {
-  excellent: { fg: "#15803d", bg: "rgba(34,197,94,0.10)",  bd: "rgba(34,197,94,0.3)" },
-  good:      { fg: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.22)" },
-  fair:      { fg: "#B45309", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" },
-  poor:      { fg: "#6B7280", bg: "#F3F4F6",               bd: "#E5E7EB" },
+  excellent: { fg: "var(--nw-success)", bg: "rgba(34,197,94,0.10)",  bd: "rgba(34,197,94,0.3)" },
+  good:      { fg: "var(--nw-primary)", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.22)" },
+  fair:      { fg: "var(--nw-warn)", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" },
+  poor:      { fg: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)",               bd: "var(--nw-border)" },
 }
 
 export default function WorkspaceHome() {
@@ -240,20 +240,20 @@ export default function WorkspaceHome() {
         <BrandAvatar logoUrl={brandLogoUrl} initials={brandInitials} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
-            margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
+            margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
             letterSpacing: "0.08em", textTransform: "uppercase",
           }}>
             {brandName ?? "Organisation sans nom"}
           </p>
           <h1 style={{
             margin: "4px 0 0", fontSize: "clamp(26px, 3.4vw, 34px)", fontWeight: 800,
-            color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15,
+            color: "var(--nw-text)", letterSpacing: "-0.025em", lineHeight: 1.15,
           }}>
             Bonjour{firstName ? `, ${firstName}` : ""}
           </h1>
           {!brandName && (
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: "#6B7280" }}>
-              <Link href="/organisation" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "none" }}>
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--nw-text-muted)" }}>
+              <Link href="/organisation" style={{ color: "var(--nw-primary)", fontWeight: 600, textDecoration: "none" }}>
                 Définir l&apos;identité de votre organisation
               </Link>{" "}
               · apparaît sur les CV anonymisés
@@ -366,7 +366,7 @@ export default function WorkspaceHome() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={rowTitleStyle}>
                     {mm.candidate?.full_name ?? "Candidat"}
-                    <span style={{ color: "#6B7280", fontWeight: 500 }}> · {mm.job?.title ?? "—"}</span>
+                    <span style={{ color: "var(--nw-text-muted)", fontWeight: 500 }}> · {mm.job?.title ?? "—"}</span>
                   </p>
                   <p style={rowSubStyle}>{mm.candidate?.current_title ?? ""}</p>
                 </div>
@@ -434,7 +434,7 @@ function BrandAvatar({ logoUrl, initials }: { logoUrl: string | null; initials: 
           // que le logo ne touche pas le bord arrondi.
           objectFit: "contain",
           padding: 4,
-          border: "1px solid #F0ECF8",
+          border: "1px solid var(--nw-border-soft)",
           background: "white",
         }}
       />
@@ -443,10 +443,10 @@ function BrandAvatar({ logoUrl, initials }: { logoUrl: string | null; initials: 
   return (
     <div style={{
       width: 56, height: 56, borderRadius: 14,
-      background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+      background: "linear-gradient(135deg, var(--nw-border-soft) 0%, var(--nw-primary-100) 100%)",
       border: "1px solid rgba(124,99,200,0.30)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      color: "#7C63C8", fontWeight: 800, fontSize: 18,
+      color: "var(--nw-primary)", fontWeight: 800, fontSize: 18,
       letterSpacing: "0.02em",
     }}>
       {initials ?? "—"}
@@ -463,29 +463,29 @@ function ActionTile({ href, label, icon }: {
     <Link href={href} style={{
       display: "flex", alignItems: "center", gap: 10,
       padding: "12px 14px",
-      background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
+      background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 12,
       textDecoration: "none",
       transition: "border-color 160ms, box-shadow 160ms, transform 160ms",
     }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "#E2DAF6"
+        e.currentTarget.style.borderColor = "var(--nw-primary-100)"
         e.currentTarget.style.boxShadow = "0 4px 14px -8px rgba(124,99,200,0.25)"
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "#F0ECF8"
+        e.currentTarget.style.borderColor = "var(--nw-border-soft)"
         e.currentTarget.style.boxShadow = "none"
       }}
     >
       <span style={{
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         width: 32, height: 32, borderRadius: 8,
-        background: "rgba(124,99,200,0.08)", color: "#7C63C8",
+        background: "rgba(124,99,200,0.08)", color: "var(--nw-primary)",
         flexShrink: 0,
       }}>
         {icon}
       </span>
       <span style={{
-        fontSize: 13, fontWeight: 600, color: "#111827",
+        fontSize: 13, fontWeight: 600, color: "var(--nw-text)",
         lineHeight: 1.25,
       }}>
         {label}
@@ -504,28 +504,28 @@ function StatTile({ href, label, value, delta, loading }: {
   return (
     <Link href={href} style={{
       display: "block", padding: "16px 18px",
-      background: "white", border: "1px solid #F0ECF8", borderRadius: 14,
+      background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 14,
       textDecoration: "none",
       transition: "border-color 160ms, box-shadow 160ms",
     }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "#E2DAF6"
+        e.currentTarget.style.borderColor = "var(--nw-primary-100)"
         e.currentTarget.style.boxShadow = "0 4px 14px -8px rgba(124,99,200,0.25)"
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "#F0ECF8"
+        e.currentTarget.style.borderColor = "var(--nw-border-soft)"
         e.currentTarget.style.boxShadow = "none"
       }}
     >
       <p style={{
-        margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280",
+        margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
         letterSpacing: "0.07em", textTransform: "uppercase",
       }}>
         {label}
       </p>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 8 }}>
         <p style={{
-          margin: 0, fontSize: 28, fontWeight: 800, color: "#111827",
+          margin: 0, fontSize: 28, fontWeight: 800, color: "var(--nw-text)",
           letterSpacing: "-0.02em", lineHeight: 1,
         }}>
           {loading ? "—" : value ?? 0}
@@ -534,7 +534,7 @@ function StatTile({ href, label, value, delta, loading }: {
             importé cette semaine) — "+77" sous "77" n'apporte rien. */}
         {!loading && delta != null && delta > 0 && value != null && delta < value && (
           <span style={{
-            fontSize: 11, fontWeight: 700, color: "#15803d",
+            fontSize: 11, fontWeight: 700, color: "var(--nw-success)",
           }}>
             +{delta} cette semaine
           </span>
@@ -557,21 +557,21 @@ function RecentPanel({
   const items = Array.isArray(children) ? children : children ? [children] : []
   return (
     <section style={{
-      background: "white", border: "1px solid #F0ECF8", borderRadius: 16,
+      background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16,
       overflow: "hidden",
     }}>
       <div style={{
-        padding: "14px 18px", borderBottom: "1px solid #F0ECF8",
+        padding: "14px 18px", borderBottom: "1px solid var(--nw-border-soft)",
         display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
       }}>
         <h2 style={{
-          margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
+          margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
           letterSpacing: "0.08em", textTransform: "uppercase",
         }}>
           {title}
         </h2>
         <Link href={actionHref} style={{
-          fontSize: 11.5, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
+          fontSize: 11.5, fontWeight: 700, color: "var(--nw-primary)", textDecoration: "none",
           whiteSpace: "nowrap",
         }}>
           {actionLabel}
@@ -581,7 +581,7 @@ function RecentPanel({
         {loading ? (
           <div style={{ padding: "20px 12px" }}><NoraLoader inline /></div>
         ) : items.length === 0 ? (
-          <p style={{ margin: 0, padding: "20px 12px", fontSize: 13, color: "#6B7280" }}>
+          <p style={{ margin: 0, padding: "20px 12px", fontSize: 13, color: "var(--nw-text-muted)" }}>
             {empty}
           </p>
         ) : (
@@ -650,15 +650,15 @@ const rowLinkStyle: React.CSSProperties = {
   textDecoration: "none",
 }
 const rowTitleStyle: React.CSSProperties = {
-  margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827",
+  margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)",
   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }
 const rowSubStyle: React.CSSProperties = {
-  margin: "2px 0 0", fontSize: 11.5, color: "#6B7280",
+  margin: "2px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)",
   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 }
 const rowDateStyle: React.CSSProperties = {
-  fontSize: 11, color: "#6B7280", flexShrink: 0,
+  fontSize: 11, color: "var(--nw-text-muted)", flexShrink: 0,
 }
 
 function timeAgo(iso: string): string {

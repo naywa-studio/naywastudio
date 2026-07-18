@@ -23,18 +23,18 @@ type StageMeta = { key: PipelineStage; label: string; color: string; bg: string 
 // Active board columns — the relational journey. Pricing was removed (handled
 // in the dedicated Pricing tab) and the terminal states live outside the board.
 const ACTIVE_STAGES: StageMeta[] = [
-  { key: "identified", label: "Identifié", color: "#6B7280", bg: "#F9FAFB" },
+  { key: "identified", label: "Identifié", color: "var(--nw-text-muted)", bg: "#F9FAFB" },
   { key: "contacted",  label: "Contacté",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
-  { key: "replied",    label: "Réponse",   color: "#7C63C8", bg: "rgba(124,99,200,0.05)" },
-  { key: "interview",  label: "Entretien", color: "#B45309", bg: "rgba(245,158,11,0.06)" },
-  { key: "offer",      label: "Offre",     color: "#15803d", bg: "rgba(34,197,94,0.06)" },
+  { key: "replied",    label: "Réponse",   color: "var(--nw-primary)", bg: "rgba(124,99,200,0.05)" },
+  { key: "interview",  label: "Entretien", color: "var(--nw-warn)", bg: "rgba(245,158,11,0.06)" },
+  { key: "offer",      label: "Offre",     color: "var(--nw-success)", bg: "rgba(34,197,94,0.06)" },
 ]
 
 // Terminal states — outcomes, not steps. Shown as clickable + droppable chips
 // above the board, never as columns (they'd just add horizontal scroll).
 const TERMINAL_STAGES: StageMeta[] = [
   { key: "hired",    label: "Recruté", color: "#0F766E", bg: "rgba(15,118,110,0.08)" },
-  { key: "rejected", label: "Écarté",  color: "#6B7280", bg: "#F3F4F6" },
+  { key: "rejected", label: "Écarté",  color: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)" },
 ]
 
 /** Legacy 'pricing' rows (column removed) are shown in 'identified'. */
@@ -46,7 +46,7 @@ function displayStage(s: PipelineStage): PipelineStage {
 const headerCellStyle: React.CSSProperties = {
   position: "sticky", top: 0, zIndex: 2,
   background: "#FFFFFF",
-  borderBottom: "1px solid #E2DAF6",
+  borderBottom: "1px solid var(--nw-primary-100)",
   padding: "10px 12px",
   fontSize: 11, fontWeight: 800,
   letterSpacing: "0.06em", textTransform: "uppercase",
@@ -253,10 +253,10 @@ export default function PipelinePage() {
       }}>
         {/* Header (compact) */}
         <div style={{ flexShrink: 0 }}>
-          <h1 style={{ margin: 0, fontSize: "clamp(22px, 2.4vw, 28px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
+          <h1 style={{ margin: 0, fontSize: "clamp(22px, 2.4vw, 28px)", fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
             Suivi candidat
           </h1>
-          <p style={{ margin: "5px 0 0", fontSize: 13, color: "#6B7280" }}>
+          <p style={{ margin: "5px 0 0", fontSize: 13, color: "var(--nw-text-muted)" }}>
             {rows.length === 0
               ? "Ajoutez des candidats à la pipeline depuis vos missions — vous les suivrez ici, étape par étape."
               : terminalView
@@ -273,7 +273,7 @@ export default function PipelinePage() {
           }}>
             {allJobs.length > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <label style={{ fontSize: 11.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                <label style={{ fontSize: 11.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                   Mission
                 </label>
                 <Select
@@ -335,7 +335,7 @@ export default function PipelinePage() {
             flexShrink: 0, marginTop: 10, padding: "9px 14px",
             background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)",
             borderRadius: 10, display: "flex", alignItems: "center", gap: 9,
-            fontSize: 12.5, color: "#92400E",
+            fontSize: 12.5, color: "var(--nw-warn-strong)",
           }}>
             <span style={{ fontSize: 14 }}>⏰</span>
             <span>
@@ -358,7 +358,7 @@ export default function PipelinePage() {
         ) : lanes.length === 0 ? (
           <div style={{
             flex: 1, marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center",
-            textAlign: "center", color: "#6B7280",
+            textAlign: "center", color: "var(--nw-text-muted)",
           }}>
             <div>
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#B8AEDE"
@@ -367,7 +367,7 @@ export default function PipelinePage() {
                 <path d="M22 12h-6l-2 3h-4l-2-3H2" />
                 <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
               </svg>
-              <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827" }}>
+              <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "var(--nw-text)" }}>
                 Aucun candidat dans la pipeline
               </p>
               <p style={{ margin: 0, fontSize: 13, maxWidth: 420 }}>
@@ -385,7 +385,7 @@ export default function PipelinePage() {
               minWidth: 200 + ACTIVE_STAGES.length * 190,
             }}>
               {/* En-tête de colonnes — figé en haut */}
-              <div style={{ ...headerCellStyle, color: "#6B7280" }}>Mission</div>
+              <div style={{ ...headerCellStyle, color: "var(--nw-text-muted)" }}>Mission</div>
               {ACTIVE_STAGES.map((s) => (
                 <div key={s.key} style={{ ...headerCellStyle, display: "flex", alignItems: "center", gap: 7 }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, display: "inline-block" }} />
@@ -406,21 +406,21 @@ export default function PipelinePage() {
                         display: "flex", alignItems: "flex-start", gap: 7,
                         textAlign: "left", cursor: "pointer", fontFamily: "inherit",
                         background: "#FBFAFE", border: "none",
-                        borderBottom: "1px solid #F0ECF8", borderRight: "1px solid #F0ECF8",
+                        borderBottom: "1px solid var(--nw-border-soft)", borderRight: "1px solid var(--nw-border-soft)",
                         padding: "12px 12px",
                       }}
                     >
                       <span style={{
-                        fontSize: 11, color: "#7C63C8", marginTop: 1,
+                        fontSize: 11, color: "var(--nw-primary)", marginTop: 1,
                         transform: open ? "rotate(90deg)" : "none",
                         transition: "transform 140ms", display: "inline-block", width: 9,
                       }}>›</span>
                       <span style={{ minWidth: 0, flex: 1 }}>
                         <span style={{
-                          display: "block", fontSize: 12.5, fontWeight: 700, color: "#111827",
+                          display: "block", fontSize: 12.5, fontWeight: 700, color: "var(--nw-text)",
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3,
                         }}>{lane.jobTitle}</span>
-                        <span style={{ fontSize: 10.5, color: "#6B7280" }}>
+                        <span style={{ fontSize: 10.5, color: "var(--nw-text-muted)" }}>
                           {lane.activeTotal} candidat{lane.activeTotal > 1 ? "s" : ""}
                         </span>
                       </span>
@@ -442,7 +442,7 @@ export default function PipelinePage() {
                             setDragId(null); setOverCell(null)
                           }}
                           style={{
-                            borderBottom: "1px solid #F0ECF8",
+                            borderBottom: "1px solid var(--nw-border-soft)",
                             borderRight: "1px solid #F5F3FB",
                             background: isOver ? "rgba(124,99,200,0.07)" : open ? s.bg : "white",
                             padding: open ? 8 : 0,
@@ -473,7 +473,7 @@ export default function PipelinePage() {
                           ) : (
                             <span style={{
                               fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums",
-                              color: cards.length > 0 ? s.color : "#D1D5DB",
+                              color: cards.length > 0 ? s.color : "var(--nw-border)",
                             }}>
                               {cards.length}
                             </span>
@@ -523,7 +523,7 @@ function TerminalListView({
       {rows.length === 0 ? (
         <div style={{
           flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#6B7280", fontSize: 14,
+          color: "var(--nw-text-muted)", fontSize: 14,
         }}>
           Aucun candidat dans « {stage.label} » pour l&apos;instant.
         </div>
@@ -538,16 +538,16 @@ function TerminalListView({
             const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
             return (
               <div key={row.id} style={{
-                background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
+                background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 12,
                 padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8,
               }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {name}
                     </p>
                     {c?.current_title && (
-                      <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {c.current_title}
                       </p>
                     )}
@@ -561,8 +561,8 @@ function TerminalListView({
                 </div>
                 {row.job && (
                   <span style={{
-                    alignSelf: "flex-start", fontSize: 10.5, color: "#6B7280",
-                    background: "#F8F6FF", border: "1px solid #F0ECF8",
+                    alignSelf: "flex-start", fontSize: 10.5, color: "var(--nw-text-muted)",
+                    background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)",
                     borderRadius: 6, padding: "2px 7px", maxWidth: "100%",
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}>{row.job.title}</span>
@@ -574,7 +574,7 @@ function TerminalListView({
                     <button
                       onClick={() => onReactivate(row.id)}
                       style={{
-                        fontSize: 11, fontWeight: 600, color: "#7C63C8",
+                        fontSize: 11, fontWeight: 600, color: "var(--nw-primary)",
                         background: "transparent", border: "none", cursor: "pointer",
                         fontFamily: "inherit", padding: 0,
                       }}
@@ -583,7 +583,7 @@ function TerminalListView({
                     </button>
                   )}
                   <Link href={`/workspace/match/${row.id}`} style={{
-                    fontSize: 11, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
+                    fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", textDecoration: "none",
                   }}>Ouvrir ▶</Link>
                 </div>
               </div>
@@ -610,7 +610,7 @@ function Card({
   const c = row.candidate
   const name = c?.full_name ?? c?.cv_file_name ?? "Candidat"
   const relance = needsRelance(row)
-  const scoreColor = (row.score ?? 0) >= 80 ? "#15803d" : (row.score ?? 0) >= 60 ? "#7C63C8" : "#B45309"
+  const scoreColor = (row.score ?? 0) >= 80 ? "var(--nw-success)" : (row.score ?? 0) >= 60 ? "var(--nw-primary)" : "var(--nw-warn)"
 
   return (
     <div
@@ -619,7 +619,7 @@ function Card({
       onDragEnd={readOnly ? undefined : onDragEnd}
       style={{
         background: "white",
-        border: relance ? "1px solid rgba(245,158,11,0.4)" : "1px solid #F0ECF8",
+        border: relance ? "1px solid rgba(245,158,11,0.4)" : "1px solid var(--nw-border-soft)",
         borderRadius: 11,
         padding: "10px 11px",
         cursor: readOnly ? "default" : "grab",
@@ -630,7 +630,7 @@ function Card({
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
         <p style={{
-          margin: 0, fontSize: 13, fontWeight: 700, color: "#111827", lineHeight: 1.3,
+          margin: 0, fontSize: 13, fontWeight: 700, color: "var(--nw-text)", lineHeight: 1.3,
           overflow: "hidden", textOverflow: "ellipsis",
         }}>
           {name}
@@ -638,7 +638,7 @@ function Card({
         {row.score != null && (
           <span style={{
             flexShrink: 0, fontSize: 11, fontWeight: 800, color: scoreColor,
-            background: "#F8F6FF", border: "1px solid #F0ECF8",
+            background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)",
             borderRadius: 100, padding: "1px 7px",
           }}>
             {row.score}
@@ -648,7 +648,7 @@ function Card({
 
       {c?.current_title && (
         <p style={{
-          margin: 0, fontSize: 11.5, color: "#6B7280",
+          margin: 0, fontSize: 11.5, color: "var(--nw-text-muted)",
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
           {c.current_title}
@@ -658,8 +658,8 @@ function Card({
       {row.job && !hideJobBadge && (
         <span style={{
           alignSelf: "flex-start",
-          fontSize: 10.5, color: "#6B7280",
-          background: "#F8F6FF", border: "1px solid #F0ECF8",
+          fontSize: 10.5, color: "var(--nw-text-muted)",
+          background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)",
           borderRadius: 6, padding: "2px 7px",
           maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
@@ -668,11 +668,11 @@ function Card({
       )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 2 }}>
-        <span style={{ fontSize: 10.5, color: "#6B7280" }}>{timeAgo(row.updated_at)}</span>
+        <span style={{ fontSize: 10.5, color: "var(--nw-text-muted)" }}>{timeAgo(row.updated_at)}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {relance && (
             <span title="À relancer, stagne dans cette étape" style={{
-              fontSize: 10, fontWeight: 700, color: "#92400E",
+              fontSize: 10, fontWeight: 700, color: "var(--nw-warn-strong)",
               background: "rgba(245,158,11,0.14)", border: "1px solid rgba(245,158,11,0.3)",
               borderRadius: 100, padding: "1px 6px",
             }}>
@@ -681,14 +681,14 @@ function Card({
           )}
           {/* Primary: open the match workspace for this candidate × job */}
           <Link href={`/workspace/match/${row.id}`} style={{
-            fontSize: 10.5, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
+            fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)", textDecoration: "none",
           }}>
             Ouvrir ▶
           </Link>
           {/* Secondary: discreet shortcut to the bare candidate identity */}
           {c && (
             <Link href={`/workspace/vivier/${c.id}`} title="Fiche candidat (identité)" style={{
-              fontSize: 12, color: "#6B7280", textDecoration: "none",
+              fontSize: 12, color: "var(--nw-text-muted)", textDecoration: "none",
             }}>
               👤
             </Link>
@@ -707,21 +707,21 @@ function EmptyState() {
       transition={{ duration: 0.6, ease: EASE }}
       style={{
         marginTop: 40, padding: "72px 36px",
-        background: "white", border: "2px dashed #E2DAF6", borderRadius: 22,
+        background: "white", border: "2px dashed var(--nw-primary-100)", borderRadius: 22,
         textAlign: "center",
       }}
     >
       <svg width="52" height="52" viewBox="0 0 24 24" fill="none"
-        stroke="#7C63C8" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"
+        stroke="var(--nw-primary)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"
         style={{ marginBottom: 16, opacity: 0.7 }} aria-hidden>
         <rect x="3" y="3" width="6" height="18" rx="1.5" />
         <rect x="10" y="9" width="6" height="12" rx="1.5" />
         <rect x="17" y="6" width="4" height="15" rx="1.5" />
       </svg>
-      <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.015em" }}>
+      <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.015em" }}>
         Votre pipeline est vide
       </h2>
-      <p style={{ margin: "0 auto 18px", maxWidth: 460, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
+      <p style={{ margin: "0 auto 18px", maxWidth: 460, fontSize: 14, color: "var(--nw-text-muted)", lineHeight: 1.65 }}>
         {/* Matcher ne suffit PAS : il faut ajouter explicitement un candidat à
             la pipeline depuis ses résultats de matching. L'ancien texte disait
             l'inverse et perdait les users qui venaient de matcher. */}
@@ -732,7 +732,7 @@ function EmptyState() {
       <Link href="/workspace/missions" style={{
         display: "inline-block",
         padding: "11px 22px", borderRadius: 12,
-        background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+        background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
         color: "white", fontWeight: 700, fontSize: 14, textDecoration: "none",
         boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>

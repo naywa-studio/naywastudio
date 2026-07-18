@@ -67,7 +67,7 @@ export function NoraAssistant() {
           position: "fixed", right: 22, bottom: 22, zIndex: 60,
           width: 54, height: 54, borderRadius: "50%",
           border: "none", cursor: "pointer",
-          background: "linear-gradient(135deg, #7C63C8 0%, #6B54B2 100%)",
+          background: "linear-gradient(135deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
           color: "white", fontSize: 22,
           boxShadow: "0 10px 30px -6px rgba(124,99,200,0.6)",
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -92,7 +92,7 @@ export function NoraAssistant() {
               width: "min(390px, calc(100vw - 44px))",
               height: "min(540px, calc(100vh - 140px))",
               background: "white", borderRadius: 18,
-              border: "1px solid #F0ECF8",
+              border: "1px solid var(--nw-border-soft)",
               boxShadow: "0 24px 64px -12px rgba(124,99,200,0.32)",
               display: "flex", flexDirection: "column", overflow: "hidden",
               fontFamily: "var(--font-inter), sans-serif",
@@ -100,18 +100,18 @@ export function NoraAssistant() {
           >
             {/* Header */}
             <div style={{
-              padding: "14px 18px", borderBottom: "1px solid #F0ECF8",
+              padding: "14px 18px", borderBottom: "1px solid var(--nw-border-soft)",
               display: "flex", alignItems: "center", gap: 10,
             }}>
               <span style={{
                 width: 30, height: 30, borderRadius: "50%",
-                background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-                color: "#7C63C8", fontWeight: 800, fontSize: 14,
+                background: "linear-gradient(135deg, var(--nw-border-soft) 0%, var(--nw-primary-100) 100%)",
+                color: "var(--nw-primary)", fontWeight: 800, fontSize: 14,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>✦</span>
               <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#111827" }}>Nora</p>
-                <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>Assistante vivier</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--nw-text)" }}>Nora</p>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--nw-text-muted)" }}>Assistante vivier</p>
               </div>
             </div>
 
@@ -125,9 +125,9 @@ export function NoraAssistant() {
                   alignSelf: mm.role === "user" ? "flex-end" : "flex-start",
                   maxWidth: "86%",
                   background: mm.role === "user"
-                    ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
+                    ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
                     : "#F4F1FB",
-                  color: mm.role === "user" ? "white" : "#374151",
+                  color: mm.role === "user" ? "white" : "var(--nw-text-body)",
                   fontSize: 13.5, lineHeight: 1.55,
                   padding: "9px 12px",
                   borderRadius: mm.role === "user" ? "13px 13px 4px 13px" : "13px 13px 13px 4px",
@@ -138,7 +138,7 @@ export function NoraAssistant() {
               ))}
               {thinking && (
                 <div style={{
-                  alignSelf: "flex-start", fontSize: 13, color: "#6B7280",
+                  alignSelf: "flex-start", fontSize: 13, color: "var(--nw-text-muted)",
                   padding: "8px 12px", background: "#F4F1FB", borderRadius: "13px 13px 13px 4px",
                 }}>
                   Nora cherche…
@@ -146,14 +146,14 @@ export function NoraAssistant() {
               )}
               {error && (
                 <div style={{
-                  padding: "8px 11px", background: "#FEF2F2", border: "1px solid #FECACA",
-                  borderRadius: 10, fontSize: 12.5, color: "#B91C1C",
+                  padding: "8px 11px", background: "#FEF2F2", border: "1px solid var(--nw-danger-border)",
+                  borderRadius: 10, fontSize: 12.5, color: "var(--nw-danger-strong)",
                 }}>{error}</div>
               )}
             </div>
 
             {/* Input */}
-            <div style={{ padding: "12px 14px", borderTop: "1px solid #F0ECF8", display: "flex", gap: 8 }}>
+            <div style={{ padding: "12px 14px", borderTop: "1px solid var(--nw-border-soft)", display: "flex", gap: 8 }}>
               <input
                 ref={inputRef}
                 value={input}
@@ -162,16 +162,16 @@ export function NoraAssistant() {
                 placeholder="Demande quelque chose…"
                 disabled={thinking}
                 style={{
-                  flex: 1, fontSize: 13, color: "#111827",
+                  flex: 1, fontSize: 13, color: "var(--nw-text)",
                   padding: "9px 12px", borderRadius: 9,
-                  background: "#FAFAFA", border: "1px solid #E5E7EB",
+                  background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border)",
                   outline: "none", fontFamily: "inherit",
                 }}
               />
               <button onClick={send} disabled={thinking || !input.trim()} style={{
                 flexShrink: 0, padding: "0 14px", borderRadius: 9, border: "none",
                 background: thinking || !input.trim()
-                  ? "#E2DAF6" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  ? "var(--nw-primary-100)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                 color: "white", fontSize: 14, fontWeight: 700,
                 cursor: thinking || !input.trim() ? "default" : "pointer", fontFamily: "inherit",
               }}>→</button>

@@ -62,12 +62,12 @@ export default function AdminDashboardPage() {
           <div>
             <p style={{
               margin: "0 0 6px", fontSize: 11, fontWeight: 700,
-              color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase",
+              color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase",
             }}>
               Console admin
             </p>
             <h1 style={{
-              margin: 0, fontSize: 28, fontWeight: 800, color: "#111827",
+              margin: 0, fontSize: 28, fontWeight: 800, color: "var(--nw-text)",
               letterSpacing: "-0.02em",
             }}>
               Tableau de bord
@@ -79,8 +79,8 @@ export default function AdminDashboardPage() {
             disabled={loading}
             style={{
               padding: "8px 14px", borderRadius: 9,
-              border: "1px solid #E5E7EB", background: "white",
-              color: "#374151", fontSize: 12.5, fontWeight: 600,
+              border: "1px solid var(--nw-border)", background: "white",
+              color: "var(--nw-text-body)", fontSize: 12.5, fontWeight: 600,
               cursor: loading ? "wait" : "pointer", fontFamily: "inherit",
             }}
           >
@@ -93,7 +93,7 @@ export default function AdminDashboardPage() {
             padding: "12px 14px", borderRadius: 10,
             background: "rgba(220,38,38,0.06)",
             border: "1px solid rgba(220,38,38,0.25)",
-            color: "#B91C1C", fontSize: 13, marginBottom: 20,
+            color: "var(--nw-danger-strong)", fontSize: 13, marginBottom: 20,
           }}>
             {error}
           </div>
@@ -150,7 +150,7 @@ export default function AdminDashboardPage() {
         </div>
 
         <p style={{
-          marginTop: 28, fontSize: 11.5, color: "#6B7280", lineHeight: 1.55,
+          marginTop: 28, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55,
         }}>
           Chaque KPI vient d&apos;une requête unique côté API. Aucun ratio
           composé. Le MRR estimé compte les sub Stripe actives ou en essai
@@ -198,12 +198,12 @@ function StripeSeedCard() {
   return (
     <div style={{
       marginTop: 32, padding: "16px 18px",
-      background: "#F8F6FF", border: "1px solid #E2DAF6", borderRadius: 14,
+      background: "var(--nw-bg)", border: "1px solid var(--nw-primary-100)", borderRadius: 14,
     }}>
-      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#111827" }}>
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--nw-text)" }}>
         Catalogue Stripe — mode test
       </p>
-      <p style={{ margin: "5px 0 12px", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55 }}>
+      <p style={{ margin: "5px 0 12px", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
         Crée les deux prix du plan (<code>sourcing_seat</code> dégressif +{" "}
         <code>pricing_addon</code>) dans le compte de <strong>test</strong>, pour pouvoir
         tester le checkout sur les previews sans paiement réel. Idempotent : sans effet si
@@ -215,7 +215,7 @@ function StripeSeedCard() {
         disabled={busy}
         style={{
           padding: "9px 15px", borderRadius: 10, border: "none",
-          background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
           color: "white", fontSize: 12.5, fontWeight: 700,
           cursor: busy ? "wait" : "pointer", opacity: busy ? 0.7 : 1,
           fontFamily: "inherit",
@@ -226,7 +226,7 @@ function StripeSeedCard() {
       {result && (
         <p style={{
           margin: "10px 0 0", fontSize: 11.5, lineHeight: 1.5,
-          color: failed ? "#B91C1C" : "#15803D",
+          color: failed ? "var(--nw-danger-strong)" : "var(--nw-success)",
         }}>
           {result}
         </p>
@@ -257,30 +257,30 @@ function KpiCard({
         style={{
           padding: "16px 18px",
           background: "white",
-          border: "1px solid #F0ECF8",
+          border: "1px solid var(--nw-border-soft)",
           borderRadius: 14,
           gridColumn: wide ? "span 2" : undefined,
           minWidth: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, color: "#7C63C8" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, color: "var(--nw-primary)" }}>
           {icon}
           <span style={{
-            fontSize: 11, fontWeight: 700, color: "#6B7280",
+            fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
             letterSpacing: "0.06em", textTransform: "uppercase",
           }}>
             {label}
           </span>
         </div>
         <p style={{
-          margin: 0, fontSize: 32, fontWeight: 800, color: "#111827",
+          margin: 0, fontSize: 32, fontWeight: 800, color: "var(--nw-text)",
           letterSpacing: "-0.025em", lineHeight: 1.1,
           fontVariantNumeric: "tabular-nums",
         }}>
           {display}
         </p>
         <p style={{
-          margin: "6px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.5,
+          margin: "6px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5,
         }}>
           {hint}
         </p>
