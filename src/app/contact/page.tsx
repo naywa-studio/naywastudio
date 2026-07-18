@@ -5,6 +5,8 @@ import { m } from "framer-motion"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { BrandBands } from "@/components/ui/BrandBands"
+import { Eyebrow } from "@/components/brand/Eyebrow"
+import { brand, type as t, accentItalic } from "@/lib/brand"
 import { getSupabase } from "@/lib/supabase"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -73,47 +75,15 @@ export default function ContactPage() {
                 marginBottom: 40,
               }}
             >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "#7C63C8",
-                  letterSpacing: "0.10em",
-                  textTransform: "uppercase",
-                  fontFamily: "var(--font-inter), sans-serif",
-                }}
-              >
-                Contact
-              </span>
-              <h1
-                style={{
-                  fontFamily: "var(--font-inter), sans-serif",
-                  fontSize: "clamp(34px, 4.5vw, 52px)",
-                  fontWeight: 800,
-                  color: "#111827",
-                  margin: 0,
-                  lineHeight: 1.05,
-                  letterSpacing: "-0.025em",
-                }}
-              >
+              <Eyebrow>Contact</Eyebrow>
+              <h1 style={{ ...t.h1, margin: 0 }}>
                 Parlons de votre{" "}
-                <span
-                  style={{
-                    fontFamily: "var(--font-instrument-serif), serif",
-                    fontWeight: 400,
-                    fontStyle: "italic",
-                    color: "#7C63C8",
-                  }}
-                >
-                  structure
-                </span>
-                .
+                <span style={accentItalic}>structure</span>.
               </h1>
               <p
                 style={{
-                  fontFamily: "var(--font-inter), sans-serif",
+                  ...t.lead,
                   fontSize: 16,
-                  color: "#4B5563",
                   lineHeight: 1.7,
                   maxWidth: "55ch",
                   margin: 0,
@@ -134,9 +104,9 @@ export default function ContactPage() {
                   marginTop: 8,
                   padding: "10px 16px",
                   borderRadius: 999,
-                  border: "1px solid rgba(124,99,200,0.25)",
-                  background: "rgba(124,99,200,0.05)",
-                  color: "#7C63C8",
+                  border: `1px solid ${brand.violetSoft}`,
+                  background: brand.violet100,
+                  color: brand.violet,
                   fontFamily: "var(--font-inter), sans-serif",
                   fontSize: 13.5,
                   fontWeight: 600,
@@ -262,8 +232,8 @@ export default function ContactPage() {
                 disabled={disabled}
                 style={{
                   marginTop: 6,
-                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                  color: "white",
+                  background: brand.violet,
+                  color: brand.white,
                   border: "none",
                   borderRadius: 12,
                   padding: "14px 28px",
@@ -323,15 +293,17 @@ function Field({
   )
 }
 
+/** Champ de formulaire — spec charte §07 : h 44 · r 12 · bordure lin. */
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "11px 14px",
-  borderRadius: 10,
-  border: "1px solid #E2DAF6",
-  background: "white",
+  minHeight: 44,
+  padding: "12px 14px",
+  borderRadius: brand.radiusMd,
+  border: `1px solid ${brand.border}`,
+  background: brand.surface2,
   fontSize: 14,
-  fontFamily: "var(--font-inter), sans-serif",
-  color: "#111827",
+  fontFamily: brand.fontBody,
+  color: brand.text,
   outline: "none",
   transition: "border-color 150ms ease, box-shadow 150ms ease",
 }

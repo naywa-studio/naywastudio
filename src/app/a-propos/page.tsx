@@ -4,6 +4,8 @@ import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import { BrandBands } from "@/components/ui/BrandBands"
 import { Founders } from "@/components/sections/Founders"
+import { Eyebrow } from "@/components/brand/Eyebrow"
+import { brand, type as t, accentItalic } from "@/lib/brand"
 
 export const metadata: Metadata = {
   title: "À propos",
@@ -21,52 +23,12 @@ export default function AProposPage() {
         {/* Hero */}
         <section style={{ padding: "0 24px 56px" }}>
           <div style={{ maxWidth: 780, margin: "0 auto" }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#7C63C8",
-                letterSpacing: "0.10em",
-                textTransform: "uppercase",
-                fontFamily: "var(--font-inter), sans-serif",
-              }}
-            >
-              À propos de Naywa Studio
-            </span>
-            <h1
-              style={{
-                fontFamily: "var(--font-inter), sans-serif",
-                fontSize: "clamp(32px, 4.6vw, 52px)",
-                fontWeight: 800,
-                color: "#111827",
-                margin: "12px 0 18px",
-                lineHeight: 1.05,
-                letterSpacing: "-0.025em",
-              }}
-            >
-              L&apos;IA traite,{" "}
-              <span
-                style={{
-                  fontFamily: "var(--font-instrument-serif), serif",
-                  fontWeight: 400,
-                  fontStyle: "italic",
-                  color: "#7C63C8",
-                }}
-              >
-                vous décidez
-              </span>
-              .
+            <Eyebrow n="01">À propos de Naywa Studio</Eyebrow>
+            <h1 style={{ ...t.h1, margin: "18px 0 18px" }}>
+              Nous traitons,{" "}
+              <span style={accentItalic}>vous décidez</span>.
             </h1>
-            <p
-              style={{
-                fontFamily: "var(--font-inter), sans-serif",
-                fontSize: 17,
-                color: "#4B5563",
-                lineHeight: 1.7,
-                margin: 0,
-                maxWidth: "60ch",
-              }}
-            >
+            <p style={{ ...t.lead, margin: 0, maxWidth: "60ch" }}>
               Naywa Studio conçoit des packages d&apos;optimisation de
               process métier augmentés par l&apos;intelligence artificielle.
               <strong> Nous traitons. Vous décidez.</strong> Notre premier
@@ -92,14 +54,14 @@ export default function AProposPage() {
                 <article
                   key={p.title}
                   style={{
-                    background: "white",
-                    border: "1px solid #F0ECF8",
-                    borderRadius: 18,
+                    background: brand.surface,
+                    border: `1px solid ${brand.border}`,
+                    borderRadius: brand.radiusXl,
                     padding: "26px 22px",
                     display: "flex",
                     flexDirection: "column",
                     gap: 12,
-                    boxShadow: "0 4px 16px rgba(124,99,200,0.05)",
+                    boxShadow: brand.shadowSm,
                   }}
                 >
                   <div
@@ -108,8 +70,8 @@ export default function AProposPage() {
                       width: 38,
                       height: 38,
                       borderRadius: 11,
-                      background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-                      border: "1px solid rgba(124,99,200,0.30)",
+                      background: brand.violet100,
+                      border: `1px solid ${brand.violetSoft}`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -125,8 +87,8 @@ export default function AProposPage() {
                       fontFamily: "var(--font-inter), sans-serif",
                       margin: 0,
                       fontSize: 16,
-                      fontWeight: 700,
-                      color: "#111827",
+                      fontWeight: 600,
+                      color: brand.text,
                       letterSpacing: "-0.01em",
                     }}
                   >
@@ -137,7 +99,7 @@ export default function AProposPage() {
                       fontFamily: "var(--font-inter), sans-serif",
                       margin: 0,
                       fontSize: 14,
-                      color: "#4B5563",
+                      color: brand.textSecondary,
                       lineHeight: 1.6,
                     }}
                   >
@@ -162,27 +124,24 @@ export default function AProposPage() {
         <Founders />
 
         {/* Final CTA */}
-        <section style={{ padding: "96px 24px 112px", background: "white", borderTop: "1px solid #F0ECF8" }}>
+        <section style={{ padding: "104px 24px 120px", background: brand.ink }}>
           <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
             <h2
               style={{
-                fontFamily: "var(--font-inter), sans-serif",
+                ...t.h2,
                 fontSize: "clamp(24px, 3.4vw, 36px)",
-                fontWeight: 800,
-                color: "#111827",
+                color: brand.sable,
                 margin: "0 0 16px",
-                lineHeight: 1.15,
-                letterSpacing: "-0.02em",
               }}
             >
-              Une question ou envie d&apos;essayer ?
+              Une question ou envie d&apos;essayer&nbsp;?
             </h2>
             <p
               style={{
-                fontFamily: "var(--font-inter), sans-serif",
+                ...t.body,
                 fontSize: 15.5,
-                color: "#4B5563",
                 lineHeight: 1.7,
+                color: brand.violetSoft,
                 margin: "0 0 28px",
               }}
             >
@@ -197,24 +156,8 @@ export default function AProposPage() {
                 justifyContent: "center",
               }}
             >
-              <Link
-                href="/login?mode=signup"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                  color: "white",
-                  borderRadius: 12,
-                  padding: "13px 26px",
-                  fontFamily: "var(--font-inter), sans-serif",
-                  fontSize: 14.5,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                  boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55)",
-                }}
-              >
-                Créer mon organisation
+              <Link href="/login?mode=signup" className="nw-btn nw-btn-primary">
+                Créer mon organisation →
               </Link>
               <Link
                 href="/contact"
@@ -222,12 +165,12 @@ export default function AProposPage() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
-                  borderRadius: 12,
+                  borderRadius: brand.radiusMd,
                   padding: "13px 24px",
-                  border: "1px solid #E2DAF6",
-                  background: "white",
-                  color: "#4B5563",
-                  fontFamily: "var(--font-inter), sans-serif",
+                  border: `1px solid ${brand.violetSoft}`,
+                  background: "transparent",
+                  color: brand.sable,
+                  fontFamily: brand.fontBody,
                   fontSize: 14.5,
                   fontWeight: 600,
                   textDecoration: "none",
