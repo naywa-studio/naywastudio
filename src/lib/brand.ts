@@ -39,7 +39,16 @@ export const brand = {
   textMuted: '#6B6C7F',
 
   // ── Surfaces ────────────────────────────────────────────────────────
+  /**
+   * Fond de page = blanc chaud quasi imperceptible. Se lit comme blanc (aucun
+   * choc en arrivant d'un écran blanc), garde juste un souffle de chaleur. La
+   * chaleur « papier » (sable/craie) est dosée en ACCENT — cartes et bandes —
+   * pas étalée sur tout le canvas.
+   */
+  paper: '#FDFCF9',
+  /** Sable = bande d'accent chaude (section ponctuelle), plus le fond global. */
   bg: '#F5F1E8',
+  /** Craie = surface de carte (chaleur qui ressort sur le fond blanc chaud). */
   surface: '#FAF7F0',
   surface2: '#FFFFFF',
   border: '#E9E1CB',

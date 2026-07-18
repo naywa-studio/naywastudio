@@ -84,7 +84,7 @@ export function BrandBands() {
         inset: 0,
         zIndex: 0,
         pointerEvents: 'none',
-        background: brand.sable,
+        background: brand.paper,
       }}
     >
       <svg

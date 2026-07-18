@@ -68,7 +68,7 @@ export default function SolutionsPage() {
         {/* ── 4 étapes pour démarrer ─────────────────────────── */}
         <section
           style={{
-            background: "transparent",
+            background: brand.bg,
             padding: "96px 24px",
             borderTop: `1px solid ${brand.border}`,
             borderBottom: `1px solid ${brand.border}`,
