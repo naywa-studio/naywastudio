@@ -88,26 +88,35 @@
   to { transform: rotate(360deg); }
 }
 
-/* Dérive des nappes de marbre (BrandBands).
-   On anime UNIQUEMENT `transform` : cette propriété est prise en charge par
-   le compositeur, donc ni recalcul de mise en page ni repeinture. Le marbre
-   lui-même (filtre feTurbulence) est rastérisé UNE fois et se contente
-   d'être déplacé.
+/* ──────────────────────────────────────────────────────────────────────
+   Premier écran de l'accueil (hero + bande de garanties).
+   ──────────────────────────────────────────────────────────────────────
+   Objectif : la ligne de flottaison tombe EXACTEMENT sous la TrustBar, sur
+   n'importe quelle taille d'écran. Rien de la section suivante ne doit
+   dépasser.
 
-   ⚠️ Aucun couplage au scroll, jamais : c'est ce couplage qui saccadait avec
-   l'ancien shader WebGL, pas l'animation. Les deux cadences sont premières
-   entre elles (42s / 58s) pour que le croisement ne se répète pas. */
-@keyframes nwMarbleA {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
-  50%      { transform: translate3d(2.5%, -1.8%, 0) scale(1.07) rotate(0.6deg); }
-}
-@keyframes nwMarbleB {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1.06) rotate(0deg); }
-  50%      { transform: translate3d(-3%, 2.2%, 0) scale(1) rotate(-0.8deg); }
-}
+   Pourquoi une hauteur fixe sur le hero ne suffisait pas : `76vh` + la
+   hauteur propre de la TrustBar donne un total qui varie avec l'écran —
+   trop court ici, débordant là. On impose donc la hauteur au CONTENEUR des
+   deux, et le hero absorbe le reste (`flex: 1`). Le calcul devient exact
+   par construction, sans dépendre d'aucune mesure.
 
-@media (prefers-reduced-motion: reduce) {
-  .nw-marble { animation: none !important; }
+   `svh` = hauteur visible hors barre d'adresse mobile (qui apparaît et
+   disparaît au scroll) ; `vh` la compte toujours, d'où un décalage sur
+   téléphone. Repli en `vh` pour les navigateurs qui ignorent `svh`. */
+.nw-fold {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+@supports (height: 100svh) {
+  .nw-fold { min-height: 100svh; }
+}
+/* Le hero prend toute la place restante une fois la TrustBar posée. Plus
+   spécifique que `.hero-section`, donc gagne sur sa hauteur propre. */
+.nw-fold > .hero-section {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* ── Tailwind v4 theme extension ── */

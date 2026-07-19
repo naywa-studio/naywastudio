@@ -35,8 +35,16 @@ export default function Home() {
       <BrandBands />
       <Navbar />
       <main style={{ position: "relative", zIndex: 1 }}>
-        <Hero />
-        <TrustBar />
+        {/* Premier écran : le hero et la bande de garanties occupent ensemble
+            exactement une hauteur d'écran, de sorte que la ligne de
+            flottaison tombe SOUS la TrustBar quelle que soit la taille du
+            viewport. Le hero absorbe la place restante (cf. `.nw-fold` dans
+            globals.css) — le calcul est exact par construction, sans mesure
+            en JavaScript. */}
+        <div className="nw-fold">
+          <Hero />
+          <TrustBar />
+        </div>
         <NoraIntro />
         <HowItWorks />
         <WhyNawa />

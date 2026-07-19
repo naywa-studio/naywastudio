@@ -4,37 +4,68 @@ import { useEffect, useState } from 'react'
 import { brand } from '@/lib/brand'
 
 /**
- * Naywa Studio — Fond de marque : marbre violet sur papier.
+ * Naywa Studio — Bandes signature (charte v2.0, §03 « Motif de marque »).
  *
- * HISTORIQUE, pour ne pas refaire le tour :
- *  1. `ShaderBackground` (WebGL) donnait le marbre qu'on veut, mais il
- *     redessinait en continu ET recalculait au scroll → saccades sur PC.
- *  2. On l'a remplacé par des rubans SVG à dégradé plat : fluide, mais sans
- *     matière — « trop monotone ».
- *  3. Ici : on retrouve la MATIÈRE du shader sans son coût.
+ * Géométrie reprise À L'IDENTIQUE du handoff Claude Design : deux rubans FINS
+ * (viewBox 900×500, ~60px d'épaisseur) qui traversent en diagonale ascendante,
+ * bas-gauche → haut-droite. Dégradé horizontal très léger, la majorité de
+ * l'écran reste du papier sable. « Lente, presque immobile, on la remarque à
+ * peine. » Cadence 11s + 15s.
  *
- * Comment : le marbre vient d'un `feTurbulence` (bruit fractal) teinté en
- * violet, que le navigateur rastérise UNE FOIS. L'animation ne touche ensuite
- * qu'un `transform` sur le conteneur — propriété prise en charge par le
- * compositeur, donc ni recalcul de mise en page ni repeinture.
- *
- * ⚠️ RÈGLE : aucun écouteur de scroll, jamais. C'était la cause du lag, pas
- * l'animation elle-même. Rien ici ne lit la position de défilement.
- *
- * `prefers-reduced-motion` fige les deux nappes.
+ * Remplace `ShaderBackground` (WebGL plein écran qui redessinait en continu +
+ * recalculait à chaque scroll → saccades sur PC). Ici : pur SVG, animation
+ * `d` en SMIL, pas de canvas ni de listener scroll. `prefers-reduced-motion`
+ * → rubans figés (état A), sans balise `<animate>`.
  */
 
-// Rubans diagonaux de la charte (bas-gauche → haut-droite). Ils ne sont plus
-// peints directement : ils servent de MASQUE, pour que le marbre soit plus
-// dense le long de la géométrie de marque et plus diffus ailleurs.
-const BAND_1 =
-  'M-60 470 C 360 350, 1000 620, 1500 400 L 1500 545 C 1000 762, 360 486, -60 610 Z'
-const BAND_2 =
-  'M-60 648 C 360 520, 1000 796, 1500 574 L 1500 706 C 1000 928, 360 656, -60 778 Z'
+// Deux clés d'animation (A ↔ B), reproduites du handoff (bandDrift1/2).
+const B1_FILL_A = 'M-40 220 C 240 140, 620 340, 940 200 L 940 260 C 620 400, 240 200, -40 280 Z'
+const B1_FILL_B = 'M-40 240 C 240 160, 620 320, 940 180 L 940 240 C 620 380, 240 220, -40 300 Z'
+const B2_FILL_A = 'M-40 300 C 240 220, 620 420, 940 280 L 940 340 C 620 480, 240 280, -40 360 Z'
+const B2_FILL_B = 'M-40 320 C 240 240, 620 400, 940 260 L 940 320 C 620 460, 240 300, -40 380 Z'
+const B1_LINE_A = 'M-40 220 C 240 140, 620 340, 940 200'
+const B1_LINE_B = 'M-40 240 C 240 160, 620 320, 940 180'
+const B2_LINE_A = 'M-40 300 C 240 220, 620 420, 940 280'
+const B2_LINE_B = 'M-40 320 C 240 240, 620 400, 940 260'
+
+const KTIMES = '0;0.5;1'
+const SPLINE = '0.45 0 0.55 1;0.45 0 0.55 1'
+
+/** valeurs SMIL « A;B;A » (aller-retour fluide). */
+const cycle = (a: string, b: string) => `${a};${b};${a}`
+
+function Band({
+  a,
+  b,
+  dur,
+  animate,
+  ...rest
+}: {
+  a: string
+  b: string
+  dur: string
+  animate: boolean
+} & React.SVGProps<SVGPathElement>) {
+  return (
+    <path d={a} {...rest}>
+      {animate && (
+        <animate
+          attributeName="d"
+          dur={dur}
+          repeatCount="indefinite"
+          calcMode="spline"
+          keyTimes={KTIMES}
+          keySplines={SPLINE}
+          values={cycle(a, b)}
+        />
+      )}
+    </path>
+  )
+}
 
 export function BrandBands() {
-  // 1er rendu identique serveur/client, puis on coupe si l'utilisateur
-  // préfère la sobriété. Pas de décalage d'hydratation.
+  // 1er paint identique serveur/client (animate = true), puis on coupe si
+  // l'utilisateur préfère la sobriété. Pas de mismatch d'hydratation.
   const [animate, setAnimate] = useState(true)
 
   useEffect(() => {
@@ -54,104 +85,47 @@ export function BrandBands() {
         zIndex: 0,
         pointerEvents: 'none',
         background: brand.paper,
-        overflow: 'hidden',
       }}
     >
-      {/* Deux nappes de marbre superposées, dérivant hors phase et à des
-          échelles différentes : c'est leur croisement lent qui donne
-          l'impression de veines qui vivent, sans qu'aucune forme ne soit
-          identifiable ni ne se répète. */}
-      <div
-        className="nw-marble"
-        style={{
-          position: 'absolute',
-          inset: '-14%',
-          animation: animate ? 'nwMarbleA 42s ease-in-out infinite' : undefined,
-          willChange: 'transform',
-        }}
+      <svg
+        viewBox="0 0 900 500"
+        preserveAspectRatio="none"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.9 }}
       >
-        <MarbleField seed={7} idSuffix="a" />
-      </div>
+        <defs>
+          <linearGradient id="nawa-band-1" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={brand.violet} stopOpacity="0.20" />
+            <stop offset="100%" stopColor={brand.violetSoft} stopOpacity="0.05" />
+          </linearGradient>
+          <linearGradient id="nawa-band-2" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={brand.violetDeep} stopOpacity="0.15" />
+            <stop offset="100%" stopColor={brand.violet} stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
 
-      <div
-        className="nw-marble"
-        style={{
-          position: 'absolute',
-          inset: '-14%',
-          opacity: 0.7,
-          animation: animate ? 'nwMarbleB 58s ease-in-out infinite' : undefined,
-          willChange: 'transform',
-        }}
-      >
-        <MarbleField seed={23} idSuffix="b" />
-      </div>
+        <Band a={B1_FILL_A} b={B1_FILL_B} dur="11s" animate={animate} fill="url(#nawa-band-1)" />
+        <Band a={B2_FILL_A} b={B2_FILL_B} dur="15s" animate={animate} fill="url(#nawa-band-2)" />
+        <Band
+          a={B1_LINE_A}
+          b={B1_LINE_B}
+          dur="11s"
+          animate={animate}
+          fill="none"
+          stroke={brand.violetSoft}
+          strokeWidth="1"
+          opacity="0.6"
+        />
+        <Band
+          a={B2_LINE_A}
+          b={B2_LINE_B}
+          dur="15s"
+          animate={animate}
+          fill="none"
+          stroke={brand.violetSoft}
+          strokeWidth="1"
+          opacity="0.5"
+        />
+      </svg>
     </div>
-  )
-}
-
-/**
- * Une nappe de marbre.
- *
- * `preserveAspectRatio="xMidYMid slice"` est essentiel : sans lui (ou avec
- * `none`), le bruit serait étiré horizontalement sur un écran large et le
- * marbre deviendrait un filé sale. « slice » garde les proportions et rogne.
- */
-function MarbleField({ seed, idSuffix }: { seed: number; idSuffix: string }) {
-  const filterId = `nw-marble-${idSuffix}`
-  const maskId = `nw-bands-${idSuffix}`
-
-  return (
-    <svg
-      viewBox="0 0 1440 800"
-      preserveAspectRatio="xMidYMid slice"
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-    >
-      <defs>
-        <filter
-          id={filterId}
-          x="-25%"
-          y="-25%"
-          width="150%"
-          height="150%"
-          colorInterpolationFilters="sRGB"
-        >
-          {/* Basse fréquence + nombreuses octaves = grandes volutes douces
-              avec du détail dedans, c'est-à-dire du marbre. Une fréquence
-              élevée donnerait du grain de film, pas des veines. */}
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.0055 0.009"
-            numOctaves={5}
-            seed={seed}
-            result="noise"
-          />
-          {/* Le bruit sort en niveaux de gris : on force la COULEUR au violet
-              de marque (constantes des 3 premières lignes) et on pilote
-              l'OPACITÉ avec le canal rouge du bruit (dernière ligne). D'où
-              des veines violettes plus ou moins denses sur le papier. */}
-          <feColorMatrix
-            in="noise"
-            type="matrix"
-            values="0 0 0 0 0.482
-                    0 0 0 0 0.388
-                    0 0 0 0 0.784
-                    0.62 0 0 0 -0.17"
-          />
-        </filter>
-
-        <mask id={maskId}>
-          {/* Noir = marbre presque effacé, blanc = marbre plein.
-              Le gris de fond laisse une trace de matière sur tout l'écran ;
-              les rubans en blanc la concentrent sur la diagonale de marque. */}
-          <rect width="1440" height="800" fill="#2b2b2b" />
-          <path d={BAND_1} fill="#ffffff" />
-          <path d={BAND_2} fill="#e8e8e8" />
-        </mask>
-      </defs>
-
-      <g mask={`url(#${maskId})`}>
-        <rect width="1440" height="800" filter={`url(#${filterId})`} opacity="0.62" />
-      </g>
-    </svg>
   )
 }

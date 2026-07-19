@@ -245,17 +245,12 @@ export function Hero() {
       </div>
 
       <style>{`
-        /* svh = hauteur du viewport SANS la barre d'adresse mobile, qui
-           apparaît et disparaît au scroll. vh la compte toujours, ce qui
-           décale le hero sur téléphone. */
-        @supports (height: 100svh) {
-          .hero-section { min-height: min(76svh, 780px); }
-        }
-        /* Écrans courts (portables 13"/14" en 768px de haut ou moins) : on
-           réduit encore la hauteur imposée pour que les CTA restent visibles
-           sans scroller. */
+        /* La HAUTEUR du hero n'est plus décidée ici : sur l'accueil c'est
+           la classe .nw-fold (globals.css) qui la donne, pour que la ligne
+           de flottaison tombe pile sous la bande de garanties. Ne restent
+           que les respirations, qui dépendent de la place disponible. */
         @media (max-height: 800px) {
-          .hero-section { min-height: 0; padding-top: 118px; padding-bottom: 44px; }
+          .hero-section { padding-top: 112px; padding-bottom: 36px; }
         }
         @media (max-width: 640px) {
           .hero-content h1 { max-width: 100% !important; }
