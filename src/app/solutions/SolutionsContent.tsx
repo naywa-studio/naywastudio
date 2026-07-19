@@ -102,7 +102,7 @@ export function SolutionsContent() {
           </span>
           <h1
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(34px, 5vw, 56px)",
               fontWeight: 800,
               color: "#111827",
@@ -163,7 +163,7 @@ export function SolutionsContent() {
             </span>
             <h2
               style={{
-                fontFamily: "var(--font-inter), sans-serif",
+                fontFamily: "var(--font-fraunces), serif",
                 fontSize: "clamp(28px, 3.8vw, 40px)",
                 fontWeight: 800,
                 color: "#111827",
@@ -215,7 +215,7 @@ export function SolutionsContent() {
                 <h3
                   style={{
                     margin: 0,
-                    fontFamily: "var(--font-inter), sans-serif",
+                    fontFamily: "var(--font-fraunces), serif",
                     fontSize: 16,
                     fontWeight: 700,
                     color: "#111827",
@@ -272,7 +272,7 @@ export function SolutionsContent() {
             </span>
             <h2
               style={{
-                fontFamily: "var(--font-inter), sans-serif",
+                fontFamily: "var(--font-fraunces), serif",
                 fontSize: "clamp(32px, 4.4vw, 48px)",
                 fontWeight: 800,
                 color: "#111827",
@@ -445,7 +445,7 @@ export function SolutionsContent() {
           </span>
           <h2
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(26px, 3.5vw, 36px)",
               fontWeight: 800,
               color: "#111827",
@@ -475,7 +475,7 @@ export function SolutionsContent() {
         <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
           <h2
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(26px, 3.5vw, 36px)",
               fontWeight: 800,
               color: "#111827",

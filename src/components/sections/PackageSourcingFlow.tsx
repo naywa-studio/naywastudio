@@ -207,7 +207,7 @@ export function PackageSourcingFlow() {
         >
           <h3
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(22px, 2.8vw, 30px)",
               fontWeight: 800,
               letterSpacing: "-0.02em",
@@ -411,7 +411,7 @@ export function PackageSourcingFlow() {
                   <h3
                     style={{
                       margin: 0,
-                      fontFamily: "var(--font-inter), sans-serif",
+                      fontFamily: "var(--font-fraunces), serif",
                       fontSize: 22,
                       fontWeight: 800,
                       color: "#111827",

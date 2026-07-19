@@ -94,7 +94,7 @@ const CATEGORIES = {
       questions: [
         {
           q: "Nos CVs et données sont-ils confidentiels ?",
-          a: "Oui. Vos données restent dans votre espace, isolées au niveau de la base de données par Row Level Security. Aucune revente, aucun partage en dehors des prestataires techniques nécessaires au fonctionnement (hébergement, IA, envoi d'email). Aucune utilisation pour entraîner un modèle.",
+          a: "Oui. Vos données restent dans votre espace, cloisonné au niveau de la base de données. Aucune revente, aucun partage en dehors des prestataires techniques nécessaires au fonctionnement (hébergement, IA, envoi d'email). Aucune utilisation pour entraîner un modèle.",
         },
         {
           q: "Pouvons-nous exporter ou supprimer notre vivier ?",
@@ -214,7 +214,7 @@ const CATEGORIES = {
       questions: [
         {
           q: "Are our CVs and data confidential?",
-          a: "Yes. Your data stays within your own space, isolated at the database level via Row Level Security. No reselling, no sharing outside the technical providers required to run the service (hosting, AI, email delivery). Never used to train a model.",
+          a: "Yes. Your data stays within your own space, walled off at the database level. No reselling, no sharing outside the technical providers required to run the service (hosting, AI, email delivery). Never used to train a model.",
         },
         {
           q: "Can we export or delete our talent pool?",
@@ -295,7 +295,7 @@ export function FaqContent() {
           letterSpacing: "-0.03em", lineHeight: 1.08,
           margin: "0 0 18px",
           maxWidth: "22ch",
-          fontFamily: "var(--font-inter), sans-serif",
+          fontFamily: "var(--font-fraunces), serif",
         }}>
           {t.title}
         </h1>
@@ -318,7 +318,7 @@ export function FaqContent() {
               fontSize: "clamp(20px, 2.2vw, 26px)",
               fontWeight: 800, color: "#111827",
               letterSpacing: "-0.02em",
-              fontFamily: "var(--font-inter), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
             }}>
               {cat.title}
             </h2>

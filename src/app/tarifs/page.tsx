@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
-import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { BrandBands } from "@/components/ui/BrandBands"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 import {
   priceForSeats,
@@ -84,7 +84,7 @@ const copy = {
       },
       {
         q: "Mes données sont-elles isolées des autres structures ?",
-        a: "Oui. Chaque structure dispose de son propre périmètre, isolé via Row Level Security au niveau de la base de données. Aucun candidat, aucune mission, aucun chiffrage ne fuite entre structures, même en cas d'erreur applicative.",
+        a: "Oui. Chaque organisation dispose de son propre périmètre, cloisonné au niveau de la base de données. Aucun candidat, aucune mission, aucun chiffrage ne fuite entre structures, même en cas d'erreur applicative.",
       },
     ],
   },
@@ -148,7 +148,7 @@ const copy = {
       },
       {
         q: "Is my data isolated from other firms?",
-        a: "Yes. Each firm has its own scope, isolated via Row Level Security at the database level. No candidate, mission, or quote ever leaks between firms, even in the event of an application error.",
+        a: "Yes. Each organization has its own scope, walled off at the database level. No candidate, mission, or quote ever leaks between firms, even in the event of an application error.",
       },
     ],
   },
@@ -169,7 +169,7 @@ export default function TarifsPage() {
 
   return (
     <>
-      <ShaderBackground />
+      <BrandBands />
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>
@@ -190,7 +190,7 @@ export default function TarifsPage() {
             </span>
             <h1
               style={{
-                fontFamily: "var(--font-inter), sans-serif",
+                fontFamily: "var(--font-fraunces), serif",
                 fontSize: "clamp(34px, 5vw, 56px)",
                 fontWeight: 800,
                 color: "#111827",
@@ -329,7 +329,7 @@ export default function TarifsPage() {
           <div style={{ maxWidth: 720, margin: "0 auto" }}>
             <h3
               style={{
-                fontFamily: "var(--font-inter), sans-serif",
+                fontFamily: "var(--font-fraunces), serif",
                 fontSize: 18,
                 fontWeight: 700,
                 color: "#111827",
@@ -473,7 +473,7 @@ function PriceCard({
         </p>
         <h2
           style={{
-            fontFamily: "var(--font-inter), sans-serif",
+            fontFamily: "var(--font-fraunces), serif",
             margin: 0,
             fontSize: 24,
             fontWeight: 800,
