@@ -6,7 +6,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const content = {
   fr: {
-    heroBadge: "Nos solutions",
+    heroBadge: "Le produit",
     heroTitlePre: "Des packages d'",
     heroTitleItalic: "optimisation",
     heroTitleSuffix: " de vos process métier.",
@@ -42,7 +42,7 @@ const content = {
     contactCta: "Contactez-nous",
   },
   en: {
-    heroBadge: "Our solutions",
+    heroBadge: "The product",
     heroTitlePre: "Packages that ",
     heroTitleItalic: "optimize",
     heroTitleSuffix: " your business processes.",
