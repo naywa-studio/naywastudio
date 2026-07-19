@@ -88,6 +88,24 @@
   to { transform: rotate(360deg); }
 }
 
+/* Voiles de fond des rubans de marque (BrandBands).
+   On anime UNIQUEMENT transform/opacity : ces deux propriétés sont prises en
+   charge par le compositeur, donc aucun recalcul de mise en page ni repaint.
+   Aucun couplage au scroll — c'est ce couplage qui saccadait avec l'ancien
+   shader WebGL. */
+@keyframes nwWashA {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(3%, -2%, 0) scale(1.08); }
+}
+@keyframes nwWashB {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50%      { transform: translate3d(-4%, 3%, 0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nw-wash { animation: none !important; }
+}
+
 /* ── Tailwind v4 theme extension ── */
 @theme inline {
   --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
