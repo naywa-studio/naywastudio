@@ -35,10 +35,10 @@ interface UpdateRow {
 }
 
 const CATEGORY_META: Record<AppUpdateCategory, { label: string; color: string; bg: string }> = {
-  feature:   { label: "Nouveauté",  color: "#15803D", bg: "rgba(34,197,94,0.10)" },
+  feature:   { label: "Nouveauté",  color: "var(--nw-success)", bg: "rgba(34,197,94,0.10)" },
   fix:       { label: "Correctif",  color: "#0369A1", bg: "rgba(3,105,161,0.10)" },
-  important: { label: "Important",  color: "#B45309", bg: "rgba(245,158,11,0.10)" },
-  announce:  { label: "Annonce",    color: "#7C63C8", bg: "rgba(124,99,200,0.10)" },
+  important: { label: "Important",  color: "var(--nw-warn)", bg: "rgba(245,158,11,0.10)" },
+  announce:  { label: "Annonce",    color: "var(--nw-primary)", bg: "rgba(124,99,200,0.10)" },
 }
 
 const ALL_TAB = "__all__"
@@ -157,10 +157,10 @@ export default function NouveautesPage() {
           href={backHref}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
-            fontSize: 13, fontWeight: 600, color: "#6B7280",
+            fontSize: 13, fontWeight: 600, color: "var(--nw-text-muted)",
             textDecoration: "none", marginBottom: 18,
             padding: "6px 10px", borderRadius: 8,
-            border: "1px solid #E5E7EB", background: "white",
+            border: "1px solid var(--nw-border)", background: "white",
           }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
@@ -175,24 +175,24 @@ export default function NouveautesPage() {
         <header style={{ marginBottom: 20 }}>
           <p style={{
             margin: "0 0 6px", fontSize: 11, fontWeight: 700,
-            color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase",
+            color: "var(--nw-primary)", letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
           }}>
             Naywa Studio
           </p>
           <h1 style={{
-            margin: 0, fontSize: 32, fontWeight: 800, color: "#111827",
+            margin: 0, fontSize: 32, fontWeight: 800, color: "var(--nw-text)",
             letterSpacing: "-0.02em", lineHeight: 1.15,
           }}>
             Nouveautés
           </h1>
-          <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.55 }}>
+          <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
             Filtrez par zone, dépliez ce qui vous intéresse. Les nouveautés
             sont marquées comme lues dès que vous arrivez ici.
           </p>
         </header>
 
         {loading && (
-          <p style={{ fontSize: 13, color: "#6B7280" }}>Chargement…</p>
+          <p style={{ fontSize: 13, color: "var(--nw-text-muted)" }}>Chargement…</p>
         )}
 
         {error && (
@@ -200,7 +200,7 @@ export default function NouveautesPage() {
             padding: "12px 14px", borderRadius: 10,
             background: "rgba(220,38,38,0.06)",
             border: "1px solid rgba(220,38,38,0.25)",
-            color: "#B91C1C", fontSize: 13,
+            color: "var(--nw-danger-strong)", fontSize: 13,
           }}>
             {error}
           </div>
@@ -209,14 +209,14 @@ export default function NouveautesPage() {
         {empty && (
           <div style={{
             padding: "32px 20px", borderRadius: 14,
-            border: "1px dashed #E5E7EB",
-            background: "#FAFAFA",
+            border: "1px dashed var(--nw-border)",
+            background: "var(--nw-surface-muted)",
             textAlign: "center",
           }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#374151" }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--nw-text-body)" }}>
               Aucune nouveauté pour le moment.
             </p>
-            <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "#6B7280" }}>
+            <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)" }}>
               Revenez plus tard — on travaille sur la suite.
             </p>
           </div>
@@ -230,7 +230,7 @@ export default function NouveautesPage() {
               display: "flex", flexWrap: "wrap", gap: 6,
               marginBottom: 12,
               padding: "6px",
-              background: "#F8F6FF",
+              background: "var(--nw-bg)",
               borderRadius: 12,
               border: "1px solid #EDE7F8",
             }}
@@ -249,7 +249,7 @@ export default function NouveautesPage() {
                     borderRadius: 8,
                     border: "none",
                     background: active ? "white" : "transparent",
-                    color: active ? "#5C46A0" : "#6B7280",
+                    color: active ? "#5C46A0" : "var(--nw-text-muted)",
                     fontSize: 12.5,
                     fontWeight: active ? 700 : 600,
                     cursor: "pointer",
@@ -261,7 +261,7 @@ export default function NouveautesPage() {
                   {t.label}
                   <span style={{
                     fontSize: 10.5, fontWeight: 700,
-                    color: active ? "#7C63C8" : "#6B7280",
+                    color: active ? "var(--nw-primary)" : "var(--nw-text-muted)",
                     background: active ? "rgba(124,99,200,0.10)" : "rgba(107,114,128,0.10)",
                     padding: "1px 7px", borderRadius: 999,
                     minWidth: 18, textAlign: "center",
@@ -273,7 +273,7 @@ export default function NouveautesPage() {
                       aria-label={`${t.unread} non lu${t.unread > 1 ? "s" : ""}`}
                       style={{
                         width: 6, height: 6, borderRadius: "50%",
-                        background: "#7C63C8",
+                        background: "var(--nw-primary)",
                         display: "inline-block",
                       }}
                     />
@@ -313,7 +313,7 @@ export default function NouveautesPage() {
                 transition={{ duration: 0.3, ease: EASE, delay: Math.min(0.1, idx * 0.03) }}
                 style={{
                   background: "white",
-                  border: "1px solid #F0ECF8",
+                  border: "1px solid var(--nw-border-soft)",
                   borderRadius: 14,
                   boxShadow: "0 1px 0 rgba(17,24,39,0.02)",
                   overflow: "hidden",
@@ -339,19 +339,19 @@ export default function NouveautesPage() {
                     flexShrink: 0,
                     fontSize: 10, fontWeight: 700, color: meta.color,
                     background: meta.bg, padding: "3px 8px", borderRadius: 999,
-                    letterSpacing: "0.05em", textTransform: "uppercase",
+                    letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
                   }}>
                     {meta.label}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{
-                      margin: 0, fontSize: 14.5, fontWeight: 700, color: "#111827",
+                      margin: 0, fontSize: 14.5, fontWeight: 700, color: "var(--nw-text)",
                       letterSpacing: "-0.01em", lineHeight: 1.35,
                     }}>
                       {u.title}
                     </p>
                     <p style={{
-                      margin: "2px 0 0", fontSize: 11.5, color: "#6B7280",
+                      margin: "2px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)",
                     }}>
                       {formatDate(u.published_at)}
                     </p>
@@ -360,7 +360,7 @@ export default function NouveautesPage() {
                     animate={{ rotate: expanded ? 180 : 0 }}
                     transition={{ duration: 0.2, ease: EASE }}
                     width="16" height="16" viewBox="0 0 24 24"
-                    fill="none" stroke="#6B7280" strokeWidth="2.2"
+                    fill="none" stroke="var(--nw-text-muted)" strokeWidth="2.2"
                     strokeLinecap="round" strokeLinejoin="round"
                     style={{ flexShrink: 0 }}
                     aria-hidden
@@ -383,7 +383,7 @@ export default function NouveautesPage() {
                       <div
                         style={{
                           padding: "14px 18px 18px",
-                          fontSize: 14, color: "#374151",
+                          fontSize: 14, color: "var(--nw-text-body)",
                           borderTop: "1px solid #F4F0FA",
                         }}
                         dangerouslySetInnerHTML={{ __html: renderMarkdown(u.body) }}
@@ -398,7 +398,7 @@ export default function NouveautesPage() {
 
         {filteredItems.length === 0 && !loading && items.length > 0 && (
           <p style={{
-            margin: "20px 0 0", fontSize: 13, color: "#6B7280",
+            margin: "20px 0 0", fontSize: 13, color: "var(--nw-text-muted)",
             textAlign: "center",
           }}>
             Rien dans cette zone pour l&apos;instant.
@@ -411,8 +411,8 @@ export default function NouveautesPage() {
 
 const toolbarBtn: React.CSSProperties = {
   padding: "5px 10px", borderRadius: 7,
-  border: "1px solid #E5E7EB", background: "white",
-  color: "#6B7280",
+  border: "1px solid var(--nw-border)", background: "white",
+  color: "var(--nw-text-muted)",
   fontSize: 11.5, fontWeight: 600, cursor: "pointer",
   fontFamily: "var(--font-inter), sans-serif",
 }

@@ -139,12 +139,12 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
         >
           {/* Progress bar */}
           <div style={{
-            height: 3, background: "#F0ECF8", position: "relative",
+            height: 3, background: "var(--nw-border-soft)", position: "relative",
           }}>
             <div style={{
               position: "absolute", left: 0, top: 0, bottom: 0,
               width: `${((step + 1) / STEPS.length) * 100}%`,
-              background: "linear-gradient(90deg, #7C63C8 0%, #6B54B2 100%)",
+              background: "linear-gradient(90deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               transition: "width 320ms cubic-bezier(0.22, 1, 0.36, 1)",
             }} />
           </div>
@@ -156,19 +156,19 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
           }}>
             <div>
               <p style={{
-                margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8",
-                letterSpacing: "0.10em", textTransform: "uppercase",
+                margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
+                letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               }}>
                 Étape {current.number} sur 06 · Visite guidée
               </p>
               <h2 style={{
-                margin: "8px 0 0", fontSize: 24, fontWeight: 800, color: "#111827",
+                margin: "8px 0 0", fontSize: 24, fontWeight: 800, color: "var(--nw-text)",
                 letterSpacing: "-0.02em", lineHeight: 1.15,
               }}>
                 {current.title}
               </h2>
               <p style={{
-                margin: "6px 0 0", fontSize: 14, color: "#7C63C8", fontWeight: 600,
+                margin: "6px 0 0", fontSize: 14, color: "var(--nw-primary)", fontWeight: 600,
               }}>
                 {current.short}
               </p>
@@ -179,7 +179,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
               aria-label="Plus tard"
               style={{
                 background: "transparent", border: "none",
-                fontSize: 22, color: "#6B7280",
+                fontSize: 22, color: "var(--nw-text-muted)",
                 cursor: "pointer", padding: 4, marginTop: -4,
                 fontFamily: "inherit",
               }}
@@ -191,7 +191,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
           {/* Body */}
           <div style={{ padding: "16px 30px 22px" }}>
             <p style={{
-              margin: 0, fontSize: 14.5, color: "#374151", lineHeight: 1.65,
+              margin: 0, fontSize: 14.5, color: "var(--nw-text-body)", lineHeight: 1.65,
             }}>
               {current.body}
             </p>
@@ -203,7 +203,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
                   marginTop: 18,
                   padding: "10px 16px", borderRadius: 10,
                   border: "1px solid rgba(124,99,200,0.30)",
-                  background: "white", color: "#7C63C8",
+                  background: "white", color: "var(--nw-primary)",
                   fontSize: 13, fontWeight: 700, textDecoration: "none",
                 }}
               >
@@ -216,8 +216,8 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
           <footer style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
             padding: "16px 30px 24px",
-            borderTop: "1px solid #F0ECF8",
-            background: "#FAFAFA",
+            borderTop: "1px solid var(--nw-border-soft)",
+            background: "var(--nw-surface-muted)",
           }}>
             <div style={{ display: "flex", gap: 6 }}>
               {STEPS.map((_, i) => (
@@ -228,7 +228,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
                   aria-label={`Étape ${i + 1}`}
                   style={{
                     width: 8, height: 8, borderRadius: "50%", border: "none",
-                    background: i === step ? "#7C63C8" : i < step ? "#C4B5E5" : "#E5E7EB",
+                    background: i === step ? "var(--nw-primary)" : i < step ? "#C4B5E5" : "var(--nw-border)",
                     cursor: "pointer", padding: 0,
                   }}
                 />
@@ -242,8 +242,8 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
                   onClick={() => setStep(step - 1)}
                   style={{
                     padding: "9px 14px", borderRadius: 10,
-                    border: "1px solid #E5E7EB",
-                    background: "white", color: "#374151",
+                    border: "1px solid var(--nw-border)",
+                    background: "white", color: "var(--nw-text-body)",
                     fontSize: 13, fontWeight: 600, cursor: "pointer",
                     fontFamily: "inherit",
                   }}
@@ -258,7 +258,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
                   style={{
                     padding: "9px 16px", borderRadius: 10,
                     border: "none",
-                    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                     color: "white", fontSize: 13.5, fontWeight: 700,
                     cursor: "pointer",
                     boxShadow: "0 6px 18px -6px rgba(124,99,200,0.55)",
@@ -275,7 +275,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
                   style={{
                     padding: "9px 16px", borderRadius: 10,
                     border: "none",
-                    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                     color: "white", fontSize: 13.5, fontWeight: 700,
                     cursor: busy ? "wait" : "pointer",
                     boxShadow: "0 6px 18px -6px rgba(124,99,200,0.55)",

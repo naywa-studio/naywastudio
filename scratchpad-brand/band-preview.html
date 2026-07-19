@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter:wght@400;500;700;800&display=swap');
+  html,body{margin:0;height:100%}
+  body{background:#F5F1E8;font-family:Inter,sans-serif;color:#1A1B2E;overflow:hidden}
+  .bg{position:fixed;inset:0;z-index:0;background:#F5F1E8}
+  .bg svg{position:absolute;inset:0;width:100%;height:100%;opacity:.9}
+  .wrap{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:0 0 88px 56px;box-sizing:border-box}
+  h1{font-family:Fraunces,serif;font-weight:500;font-size:clamp(44px,6vw,88px);line-height:.98;letter-spacing:-.03em;margin:0 0 28px;max-width:14ch}
+  .acc{font-style:italic;font-weight:400;background:linear-gradient(120deg,#7B63C8,#B8AEDE);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  p{font-size:18px;color:#4B4C5E;line-height:1.75;max-width:54ch;margin:0 0 40px}
+  .cta{background:#7B63C8;color:#fff;border-radius:12px;padding:14px 30px;font-weight:700;display:inline-block}
+</style></head><body>
+  <div class="bg">
+    <svg viewBox="0 0 900 500" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="b1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#7B63C8" stop-opacity=".20"/><stop offset="100%" stop-color="#B8AEDE" stop-opacity=".05"/></linearGradient>
+        <linearGradient id="b2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4B3A8F" stop-opacity=".15"/><stop offset="100%" stop-color="#7B63C8" stop-opacity=".05"/></linearGradient>
+      </defs>
+      <path d="M-40 220 C 240 140, 620 340, 940 200 L 940 260 C 620 400, 240 200, -40 280 Z" fill="url(#b1)"/>
+      <path d="M-40 300 C 240 220, 620 420, 940 280 L 940 340 C 620 480, 240 280, -40 360 Z" fill="url(#b2)"/>
+      <path d="M-40 220 C 240 140, 620 340, 940 200" fill="none" stroke="#B8AEDE" stroke-width="1" opacity=".6"/>
+      <path d="M-40 300 C 240 220, 620 420, 940 280" fill="none" stroke="#B8AEDE" stroke-width="1" opacity=".5"/>
+    </svg>
+  </div>
+  <div class="wrap">
+    <h1>Nous traitons,<br>vous <span class="acc">décidez</span>.</h1>
+    <p>Naywa Studio conçoit des packages d'optimisation de process métier, pour ESN, cabinets de consulting et de recrutement.</p>
+    <span class="cta">Démarrer votre essai gratuit →</span>
+  </div>
+</body></html>

@@ -236,10 +236,10 @@ function SupportModal({ onClose }: { onClose: () => void }) {
         >
           {sent ? (
             <>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
                 {t.sentTitle}
               </h2>
-              <p style={{ margin: "10px 0 18px", fontSize: 13.5, color: "#6B7280", lineHeight: 1.6 }}>
+              <p style={{ margin: "10px 0 18px", fontSize: 13.5, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
                 {t.sentDesc}
               </p>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -249,7 +249,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                   style={{
                     padding: "10px 16px", borderRadius: 10,
                     border: "none",
-                    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                     color: "white", fontSize: 13, fontWeight: 700,
                     cursor: "pointer", fontFamily: "inherit",
                   }}
@@ -261,13 +261,13 @@ function SupportModal({ onClose }: { onClose: () => void }) {
           ) : (
             <>
               <header style={{ marginBottom: 18 }}>
-                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase" }}>
+                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                   {t.badge}
                 </p>
-                <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+                <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
                   {t.modalTitle}
                 </h2>
-                <p style={{ margin: "10px 0 0", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
+                <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
                   {t.modalDesc}
                 </p>
               </header>
@@ -327,14 +327,14 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                       lineHeight: 1.55,
                     }}
                   />
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "#6B7280" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "var(--nw-text-muted)" }}>
                     <span>{t.teamOnly}</span>
                     <span>{message.length}/5000</span>
                   </div>
                 </div>
 
                 {error && (
-                  <p style={{ margin: 0, fontSize: 12.5, color: "#B91C1C" }}>{error}</p>
+                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-danger-strong)" }}>{error}</p>
                 )}
               </div>
 
@@ -345,8 +345,8 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                   disabled={busy}
                   style={{
                     padding: "10px 16px", borderRadius: 10,
-                    border: "1px solid #E5E7EB", background: "white",
-                    color: "#374151", fontSize: 13, fontWeight: 600,
+                    border: "1px solid var(--nw-border)", background: "white",
+                    color: "var(--nw-text-body)", fontSize: 13, fontWeight: 600,
                     cursor: busy ? "wait" : "pointer", fontFamily: "inherit",
                   }}
                 >
@@ -360,8 +360,8 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                     padding: "10px 18px", borderRadius: 10,
                     border: "none", color: "white",
                     background: busy || !canSubmit
-                      ? "#C4B6E0"
-                      : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                      ? "var(--nw-primary-200)"
+                      : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                     fontSize: 13, fontWeight: 700,
                     cursor: busy || !canSubmit ? "not-allowed" : "pointer",
                     fontFamily: "inherit",
@@ -383,7 +383,7 @@ function Label({ children }: { children: React.ReactNode }) {
   return (
     <label style={{
       display: "block", marginBottom: 5,
-      fontSize: 11.5, fontWeight: 700, color: "#6B7280",
+      fontSize: 11.5, fontWeight: 700, color: "var(--nw-text-muted)",
       letterSpacing: "0.03em",
     }}>
       {children}
@@ -415,8 +415,8 @@ function MailIcon() {
 
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "10px 12px",
-  borderRadius: 8, border: "1.5px solid #E5E7EB",
-  fontSize: 13.5, color: "#111827",
+  borderRadius: 8, border: "1.5px solid var(--nw-border)",
+  fontSize: 13.5, color: "var(--nw-text)",
   outline: "none", transition: "border-color 150ms",
   fontFamily: "var(--font-inter), sans-serif",
   boxSizing: "border-box",
@@ -426,14 +426,14 @@ const inputStyle: React.CSSProperties = {
 const readOnlyField: React.CSSProperties = {
   display: "flex", alignItems: "center", gap: 8,
   padding: "9px 11px", borderRadius: 8,
-  background: "#FAFAFA", border: "1.5px solid #F0ECF8",
-  fontSize: 13, color: "#374151", fontWeight: 500,
+  background: "var(--nw-surface-muted)", border: "1.5px solid var(--nw-border-soft)",
+  fontSize: 13, color: "var(--nw-text-body)", fontWeight: 500,
 }
 
 const compactStyle: React.CSSProperties = {
   padding: "6px 11px", borderRadius: 8,
-  border: "1px solid #E5E7EB", background: "white",
-  color: "#6B7280", fontSize: 12, fontWeight: 600,
+  border: "1px solid var(--nw-border)", background: "white",
+  color: "var(--nw-text-muted)", fontSize: 12, fontWeight: 600,
   cursor: "pointer", fontFamily: "inherit",
   display: "inline-flex", alignItems: "center", gap: 6,
   whiteSpace: "nowrap",
@@ -443,7 +443,7 @@ const ghostStyle: React.CSSProperties = {
   display: "flex", width: "100%", alignItems: "center", gap: 8,
   padding: "10px 12px", borderRadius: 8,
   border: "none", background: "transparent",
-  color: "#374151", fontSize: 13, fontWeight: 600,
+  color: "var(--nw-text-body)", fontSize: 13, fontWeight: 600,
   cursor: "pointer", fontFamily: "inherit",
   textAlign: "left",
 }

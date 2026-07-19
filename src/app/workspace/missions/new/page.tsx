@@ -32,7 +32,7 @@ export default function NewMissionPage() {
       <div style={{ marginBottom: 18 }}>
         <Link href="/workspace/missions" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
-          fontSize: 13, color: "#7C63C8", textDecoration: "none",
+          fontSize: 13, color: "var(--nw-primary)", textDecoration: "none",
         }}>{t.back}</Link>
       </div>
       <JobForm

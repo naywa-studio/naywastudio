@@ -477,17 +477,17 @@ export default function MissionsPage() {
         <div>
           <span style={{
             display: "inline-block",
-            fontSize: 11, fontWeight: 700, color: "#7C63C8",
+            fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
             background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
             padding: "4px 11px", borderRadius: 100,
-            letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
+            letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 12,
           }}>
             {t.badge}
           </span>
-          <h1 style={{ margin: 0, fontSize: "clamp(26px, 3vw, 34px)", fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
+          <h1 style={{ margin: 0, fontSize: "clamp(26px, 3vw, 34px)", fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
             {t.title}
           </h1>
-          <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
+          <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
             {jobs.length === 0
               ? t.subtitleEmpty
               : t.subtitleCount(jobs.length)}
@@ -499,7 +499,7 @@ export default function MissionsPage() {
           title={isReadOnly ? "Lecture seule — souscrivez pour créer une mission" : undefined}
           style={{
             fontSize: 13, fontWeight: 700, color: "white",
-            background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            background: isReadOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
             border: "none", borderRadius: 10, padding: "10px 18px",
             cursor: isReadOnly ? "not-allowed" : "pointer",
             boxShadow: isReadOnly ? "none" : "0 6px 20px -8px rgba(124,99,200,0.55)", fontFamily: "inherit",
@@ -531,22 +531,22 @@ export default function MissionsPage() {
               onChange={(e) => setQuery(e.target.value)}
               style={{
                 width: "100%",
-                fontSize: 13.5, color: "#111827",
+                fontSize: 13.5, color: "var(--nw-text)",
                 padding: "11px 14px",
                 background: "white",
-                border: "1px solid #E5E7EB",
+                border: "1px solid var(--nw-border)",
                 borderRadius: 10,
                 outline: "none", fontFamily: "inherit",
                 transition: "border-color 150ms, box-shadow 150ms",
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,99,200,0.10)" }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none" }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--nw-primary-200)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,99,200,0.10)" }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--nw-border)"; e.currentTarget.style.boxShadow = "none" }}
             />
             {filteredJobs.length === 0 ? (
               <div style={{
                 padding: "40px 24px", textAlign: "center",
-                background: "white", border: "1px dashed #E5E7EB", borderRadius: 14,
-                color: "#6B7280", fontSize: 14,
+                background: "white", border: "1px dashed var(--nw-border)", borderRadius: 14,
+                color: "var(--nw-text-muted)", fontSize: 14,
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
               }}>
                 <div>{t.noResults(query)}</div>
@@ -556,7 +556,7 @@ export default function MissionsPage() {
                     onClick={() => setQuery("")}
                     style={{
                       padding: "9px 16px", borderRadius: 9,
-                      border: "1px solid #E5E7EB", background: "white", color: "#374151",
+                      border: "1px solid var(--nw-border)", background: "white", color: "var(--nw-text-body)",
                       fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                     }}
                   >
@@ -570,7 +570,7 @@ export default function MissionsPage() {
                     style={{
                       padding: "9px 16px", borderRadius: 9,
                       border: "none", color: "white",
-                      background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                      background: isReadOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                       fontSize: 13, fontWeight: 700, cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit",
                     }}
                   >
@@ -633,7 +633,7 @@ function MissionGroup({
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
-  const accent = isMine ? "#7C63C8" : "#6B7280"
+  const accent = isMine ? "var(--nw-primary)" : "var(--nw-text-muted)"
   return (
     <section>
       <header style={{
@@ -646,13 +646,13 @@ function MissionGroup({
         }} />
         <h2 style={{
           margin: 0, fontSize: 14, fontWeight: 700,
-          color: isMine ? "#111827" : "#374151",
+          color: isMine ? "var(--nw-text)" : "var(--nw-text-body)",
           letterSpacing: "-0.005em",
         }}>
           {title}
         </h2>
         <span style={{
-          fontSize: 11.5, fontWeight: 600, color: "#6B7280",
+          fontSize: 11.5, fontWeight: 600, color: "var(--nw-text-muted)",
         }}>
           {t.missionCount(jobs.length)}
         </span>
@@ -721,12 +721,12 @@ function SidebarStats({ stats, totalJobs }: { stats: SidebarStatsData | null; to
 function StatGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{
-      background: "white", border: "1px solid #F0ECF8", borderRadius: 12,
+      background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 12,
       padding: 12,
     }}>
       <div style={{
-        fontSize: 9.5, fontWeight: 700, color: "#6B7280",
-        letterSpacing: "0.08em", textTransform: "uppercase",
+        fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)",
+        letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         marginBottom: 8, padding: "0 2px",
       }}>
         {title}
@@ -739,14 +739,14 @@ function StatGroup({ title, children }: { title: string; children: React.ReactNo
 }
 
 function StatRow({ label, value, tone }: { label: string; value: number | string; tone?: "good" | "warn" }) {
-  const valueColor = tone === "good" ? "#15803d" : tone === "warn" ? "#B45309" : "#111827"
+  const valueColor = tone === "good" ? "var(--nw-success)" : tone === "warn" ? "var(--nw-warn)" : "var(--nw-text)"
   return (
     <div style={{
       display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8,
       padding: "4px 2px",
       fontSize: 12,
     }}>
-      <span style={{ color: "#6B7280" }}>{label}</span>
+      <span style={{ color: "var(--nw-text-muted)" }}>{label}</span>
       <span style={{ fontWeight: 800, color: valueColor, fontVariantNumeric: "tabular-nums" }}>
         {value}
       </span>
@@ -807,7 +807,7 @@ function JobCard({ job, visual, delay }: {
   // encore de matching.
   const hues = visual?.hues ?? []
   const barBackground =
-    hues.length === 0   ? "#E5E7EB" :
+    hues.length === 0   ? "var(--nw-border)" :
     hues.length === 1   ? hsl(hues[0], 60, 55) :
     `linear-gradient(180deg, ${hsl(hues[0], 60, 55)} 0%, ${hsl(hues[1], 60, 55)} 100%)`
 
@@ -817,7 +817,7 @@ function JobCard({ job, visual, delay }: {
       transition={{ duration: 0.4, delay, ease: EASE }}
       whileHover={{ y: -2 }}
       style={{
-        background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
+        background: "white", borderRadius: 12, border: "1px solid var(--nw-border-soft)",
         padding: "14px 16px 14px 20px",
         display: "flex", flexDirection: "column", gap: 9,
         position: "relative", overflow: "hidden",
@@ -831,11 +831,11 @@ function JobCard({ job, visual, delay }: {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
         <div style={{ minWidth: 0 }}>
-          <h2 style={{ margin: 0, fontSize: 14.5, fontWeight: 800, color: "#111827", lineHeight: 1.3 }}>
+          <h2 style={{ margin: 0, fontSize: 14.5, fontWeight: 800, color: "var(--nw-text)", lineHeight: 1.3 }}>
             {job.role_name?.trim() || job.title}
           </h2>
           {job.role_name?.trim() && job.title && job.title !== job.role_name && (
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--nw-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {job.title}
             </p>
           )}
@@ -843,7 +843,7 @@ function JobCard({ job, visual, delay }: {
         <StatusChip status={job.status} />
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: 11, color: "#6B7280" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: 11, color: "var(--nw-text-muted)" }}>
         {job.location && <Meta>{job.location}</Meta>}
         {seniorityLabel(job, lang) && <Meta>{seniorityLabel(job, lang)}</Meta>}
         {job.contract_type && <Meta>{job.contract_type}</Meta>}
@@ -868,21 +868,21 @@ function JobCard({ job, visual, delay }: {
             }} />
             {visual.top1Label}
           </span>
-          <span style={{ fontSize: 10, color: "#6B7280" }}>
+          <span style={{ fontSize: 10, color: "var(--nw-text-muted)" }}>
             {t.relevantSuffix(visual.totalMatches)}
           </span>
         </div>
       )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 2 }}>
-        <span style={{ fontSize: 11, color: "#6B7280" }}>
+        <span style={{ fontSize: 11, color: "var(--nw-text-muted)" }}>
           {ms === "matching" ? t.matchingInProgress
             : ms === "done" ? t.matched
             : ms === "error" ? t.matchingError
             : t.notMatchedYet}
         </span>
         <Link href={`/workspace/missions/${job.id}`} style={{
-          fontSize: 11, fontWeight: 600, color: "#7C63C8",
+          fontSize: 11, fontWeight: 600, color: "var(--nw-primary)",
           padding: "5px 10px", borderRadius: 7,
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.16)",
           textDecoration: "none",
@@ -897,7 +897,7 @@ function JobCard({ job, visual, delay }: {
 function Meta({ children }: { children: React.ReactNode }) {
   return (
     <span style={{
-      background: "#F9FAFB", border: "1px solid #F0ECF8",
+      background: "#F9FAFB", border: "1px solid var(--nw-border-soft)",
       padding: "3px 8px", borderRadius: 6,
     }}>{children}</span>
   )
@@ -907,10 +907,10 @@ function StatusChip({ status }: { status: Job["status"] }) {
   const { lang } = useLanguage()
   const t = copy[lang]
   const map: Record<Job["status"], { label: string; bg: string; fg: string; bd: string }> = {
-    draft:    { label: t.statusDraft,    bg: "#F3F4F6", fg: "#6B7280", bd: "#E5E7EB" },
+    draft:    { label: t.statusDraft,    bg: "var(--nw-neutral-100)", fg: "var(--nw-text-muted)", bd: "var(--nw-border)" },
     open:     { label: t.statusOpen,     bg: "rgba(34,197,94,0.10)", fg: "#16a34a", bd: "rgba(34,197,94,0.22)" },
-    filled:   { label: t.statusFilled,   bg: "rgba(124,99,200,0.10)", fg: "#7C63C8", bd: "rgba(124,99,200,0.22)" },
-    archived: { label: t.statusArchived, bg: "#F3F4F6", fg: "#6B7280", bd: "#E5E7EB" },
+    filled:   { label: t.statusFilled,   bg: "rgba(124,99,200,0.10)", fg: "var(--nw-primary)", bd: "rgba(124,99,200,0.22)" },
+    archived: { label: t.statusArchived, bg: "var(--nw-neutral-100)", fg: "var(--nw-text-muted)", bd: "var(--nw-border)" },
   }
   const s = map[status]
   return (
@@ -918,7 +918,7 @@ function StatusChip({ status }: { status: Job["status"] }) {
       flexShrink: 0,
       fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 100,
       background: s.bg, color: s.fg, border: `1px solid ${s.bd}`,
-      letterSpacing: "0.04em", textTransform: "uppercase",
+      letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
     }}>{s.label}</span>
   )
 }
@@ -932,21 +932,21 @@ function EmptyState({ onCreate, readOnly = false }: { onCreate: () => void; read
       transition={{ duration: 0.6, ease: EASE }}
       style={{
         marginTop: 40, padding: "72px 36px",
-        background: "white", border: "2px dashed #E2DAF6", borderRadius: 22,
+        background: "white", border: "2px dashed var(--nw-primary-100)", borderRadius: 22,
         textAlign: "center",
       }}
     >
       <div style={{ fontSize: 56, marginBottom: 16 }}>📋</div>
-      <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.015em" }}>
+      <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.015em" }}>
         {t.emptyTitle}
       </h2>
-      <p style={{ margin: "0 auto 18px", maxWidth: 460, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
+      <p style={{ margin: "0 auto 18px", maxWidth: 460, fontSize: 14, color: "var(--nw-text-muted)", lineHeight: 1.65 }}>
         {t.emptyDesc}
       </p>
       <button onClick={onCreate} disabled={readOnly} title={readOnly ? t.readOnlyCreateMission : undefined} style={{
         padding: "11px 22px", borderRadius: 12, border: "none",
         cursor: readOnly ? "not-allowed" : "pointer",
-        background: readOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+        background: readOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
         color: "white", fontWeight: 700, fontSize: 14, fontFamily: "inherit",
         boxShadow: readOnly ? "none" : "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
@@ -1225,7 +1225,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
             width: "100%", maxWidth: stage === "criteria" ? 860 : 640,
             background: "white", borderRadius: 18,
             boxShadow: isPage ? "0 1px 3px rgba(17,24,39,0.06), 0 10px 34px -20px rgba(124,99,200,0.35)" : "0 30px 80px rgba(17,24,39,0.28)",
-            border: isPage ? "1px solid #F0ECF8" : undefined,
+            border: isPage ? "1px solid var(--nw-border-soft)" : undefined,
             display: "flex", flexDirection: "column",
             fontFamily: "var(--font-inter), sans-serif",
             overflow: "hidden",
@@ -1233,12 +1233,12 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
           }}
         >
           {/* Header */}
-          <div style={{ padding: "22px 28px 18px", borderBottom: "1px solid #F0ECF8", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ padding: "22px 28px 18px", borderBottom: "1px solid var(--nw-border-soft)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div style={{ minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 {editMode ? t.editMissionBadge : t.newMissionBadge}
               </p>
-              <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
+              <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.02em" }}>
                 {editMode
                   ? t.editingMission
                   : stage === "brief" ? t.giveNoraBrief
@@ -1260,17 +1260,17 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                     const active = order[i] === stage
                     return (
                       <span key={s.k} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                        {i > 0 && <span style={{ width: 16, height: 1, background: done || active ? "#7C63C8" : "#E5E7EB" }} />}
+                        {i > 0 && <span style={{ width: 16, height: 1, background: done || active ? "var(--nw-primary)" : "var(--nw-border)" }} />}
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                           <span style={{
                             width: 18, height: 18, borderRadius: "50%",
                             display: "inline-flex", alignItems: "center", justifyContent: "center",
                             fontSize: 10.5, fontWeight: 800,
-                            color: active ? "white" : done ? "#7C63C8" : "#6B7280",
-                            background: active ? "#7C63C8" : done ? "rgba(124,99,200,0.12)" : "#F3F4F6",
-                            border: `1px solid ${active || done ? "rgba(124,99,200,0.35)" : "#E5E7EB"}`,
+                            color: active ? "white" : done ? "var(--nw-primary)" : "var(--nw-text-muted)",
+                            background: active ? "var(--nw-primary)" : done ? "rgba(124,99,200,0.12)" : "var(--nw-neutral-100)",
+                            border: `1px solid ${active || done ? "rgba(124,99,200,0.35)" : "var(--nw-border)"}`,
                           }}>{done ? "✓" : s.n}</span>
-                          <span style={{ fontSize: 11, fontWeight: active ? 700 : 600, color: active ? "#111827" : "#6B7280" }}>{s.label}</span>
+                          <span style={{ fontSize: 11, fontWeight: active ? 700 : 600, color: active ? "var(--nw-text)" : "var(--nw-text-muted)" }}>{s.label}</span>
                         </span>
                       </span>
                     )
@@ -1280,14 +1280,14 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
             </div>
             <button onClick={onClose} aria-label={t.close} style={{
               background: "transparent", border: "none", cursor: "pointer",
-              fontSize: 22, color: "#6B7280", lineHeight: 1, padding: 4,
+              fontSize: 22, color: "var(--nw-text-muted)", lineHeight: 1, padding: 4,
             }}>✕</button>
           </div>
 
           {/* ─── STAGE 1 : brief texte ─── */}
           {stage === "brief" && (
             <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 16 }}>
-              <p style={{ margin: 0, fontSize: 13, color: "#6B7280", lineHeight: 1.6 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
                 {t.briefIntro}
               </p>
 
@@ -1308,14 +1308,14 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
               {brief.length > 0 && (
                 <div style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
-                  fontSize: 11.5, color: "#6B7280",
+                  fontSize: 11.5, color: "var(--nw-text-muted)",
                 }}>
                   <button
                     type="button"
                     onClick={() => setBriefExpanded((v) => !v)}
                     style={{
                       background: "none", border: "none", cursor: "pointer",
-                      fontSize: 12, color: "#7C63C8", fontWeight: 600,
+                      fontSize: 12, color: "var(--nw-primary)", fontWeight: 600,
                       padding: 0, textDecoration: "underline",
                     }}
                   >
@@ -1327,8 +1327,8 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
 
               {extractError && (
                 <div style={{
-                  padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA",
-                  borderRadius: 10, fontSize: 13, color: "#B91C1C",
+                  padding: "10px 14px", background: "#FEF2F2", border: "1px solid var(--nw-danger-border)",
+                  borderRadius: 10, fontSize: 13, color: "var(--nw-danger-strong)",
                 }}>{extractError}</div>
               )}
 
@@ -1337,7 +1337,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                   type="button"
                   onClick={() => setStage("manual")}
                   style={{
-                    fontSize: 12.5, color: "#6B7280", background: "none", border: "none",
+                    fontSize: 12.5, color: "var(--nw-text-muted)", background: "none", border: "none",
                     cursor: "pointer", textDecoration: "underline", padding: 0,
                   }}
                 >
@@ -1350,8 +1350,8 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                   style={{
                     padding: "11px 22px", borderRadius: 10, border: "none",
                     background: extracting || !brief.trim()
-                      ? "#C4B6E0"
-                      : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                      ? "var(--nw-primary-200)"
+                      : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                     color: "white", fontSize: 13, fontWeight: 700,
                     cursor: extracting || !brief.trim() ? "default" : "pointer",
                     fontFamily: "inherit",
@@ -1368,10 +1368,10 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
             <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 16 }}>
               {stage === "form" && brief && (
                 <details style={{
-                  background: "#F8F6FF", border: "1px solid #E2DAF6", borderRadius: 10,
+                  background: "var(--nw-bg)", border: "1px solid var(--nw-primary-100)", borderRadius: 10,
                   padding: "10px 14px", fontSize: 12.5,
                 }}>
-                  <summary style={{ cursor: "pointer", fontWeight: 600, color: "#6B54B2" }}>
+                  <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--nw-primary-dark)" }}>
                     {t.briefAnalyzed(brief.length)}
                   </summary>
                   <textarea
@@ -1382,8 +1382,8 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                   />
                   <button type="button" onClick={runExtract} disabled={extracting}
                     style={{
-                      marginTop: 8, padding: "7px 14px", borderRadius: 8, border: "1px solid #7C63C8",
-                      background: "white", color: "#7C63C8", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      marginTop: 8, padding: "7px 14px", borderRadius: 8, border: "1px solid var(--nw-primary)",
+                      background: "white", color: "var(--nw-primary)", fontSize: 12, fontWeight: 700, cursor: "pointer",
                     }}>
                     {extracting ? t.reanalyzing : t.reanalyze}
                   </button>
@@ -1412,8 +1412,8 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
 
               {error && (
                 <div style={{
-                  padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA",
-                  borderRadius: 10, fontSize: 13, color: "#B91C1C",
+                  padding: "10px 14px", background: "#FEF2F2", border: "1px solid var(--nw-danger-border)",
+                  borderRadius: 10, fontSize: 13, color: "var(--nw-danger-strong)",
                 }}>{error}</div>
               )}
             </div>
@@ -1423,23 +1423,23 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
               a son propre pied ("Valider et ouvrir la mission"), et le brief
               a le sien : on évite le double bouton de création. */}
           {(stage === "form" || stage === "manual") && (
-            <div style={{ padding: "16px 28px", borderTop: "1px solid #F0ECF8", display: "flex", gap: 10, justifyContent: "space-between" }}>
+            <div style={{ padding: "16px 28px", borderTop: "1px solid var(--nw-border-soft)", display: "flex", gap: 10, justifyContent: "space-between" }}>
               {editMode ? (
                 <button onClick={onClose} style={{
                   padding: "11px 18px", borderRadius: 10,
-                  background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
+                  background: "white", border: "1px solid var(--nw-border)", color: "var(--nw-text-muted)",
                   fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                 }}>{t.cancel}</button>
               ) : (
                 <button onClick={() => setStage("brief")} style={{
                   padding: "11px 18px", borderRadius: 10,
-                  background: "white", border: "1px solid #E5E7EB", color: "#6B7280",
+                  background: "white", border: "1px solid var(--nw-border)", color: "var(--nw-text-muted)",
                   fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                 }}>{t.backToBrief}</button>
               )}
               <button onClick={submitForm} disabled={submitting} style={{
                 padding: "11px 24px", borderRadius: 10, border: "none",
-                background: submitting ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                background: submitting ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                 color: "white", fontSize: 13, fontWeight: 700,
                 cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
               }}>
@@ -1557,11 +1557,11 @@ function FormFieldGrid(p: FormFieldGridProps) {
             <input type="number" min={0} max={40} value={p.seniorityMin}
               onChange={(e) => p.setSeniorityMin(e.target.value)}
               placeholder="5" style={{ ...ringStyle(senState.border), width: 64, textAlign: "center" }} />
-            <span style={{ fontSize: 13, color: "#6B7280" }}>{t.to}</span>
+            <span style={{ fontSize: 13, color: "var(--nw-text-muted)" }}>{t.to}</span>
             <input type="number" min={0} max={40} value={p.seniorityMax}
               onChange={(e) => p.setSeniorityMax(e.target.value)}
               placeholder="10" style={{ ...ringStyle(senState.border), width: 64, textAlign: "center" }} />
-            <span style={{ fontSize: 13, color: "#6B7280" }}>{t.years}</span>
+            <span style={{ fontSize: 13, color: "var(--nw-text-muted)" }}>{t.years}</span>
           </div>
         </Field>
       </div>
@@ -1571,9 +1571,9 @@ function FormFieldGrid(p: FormFieldGridProps) {
           display: "inline-flex", alignItems: "center", gap: 8,
           padding: "5px 12px", borderRadius: 100,
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.20)",
-          fontSize: 12, color: "#6B54B2",
+          fontSize: 12, color: "var(--nw-primary-dark)",
         }}>
-          {t.noraUnderstood}<strong style={{ color: "#7C63C8" }}>{p.detected}</strong>
+          {t.noraUnderstood}<strong style={{ color: "var(--nw-primary)" }}>{p.detected}</strong>
         </div>
       )}
 
@@ -1619,8 +1619,8 @@ function FormFieldGrid(p: FormFieldGridProps) {
           background: "#FAF9FE", border: "1px solid #EDE8FA", borderRadius: 12,
           padding: "12px 14px",
         }}>
-          <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: "#6B54B2", listStyle: "none" }}>
-            {t.pricingDetails} <span style={{ color: "#6B7280", fontWeight: 500 }}>{t.pricingSuiteOnly}</span>
+          <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: "var(--nw-primary-dark)", listStyle: "none" }}>
+            {t.pricingDetails} <span style={{ color: "var(--nw-text-muted)", fontWeight: 500 }}>{t.pricingSuiteOnly}</span>
           </summary>
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
             <Field label={t.pricingZoneLabel} hint={t.pricingZoneHint} status={pricingState.statusPill}>
@@ -1662,16 +1662,16 @@ const BORDER = {
 
 function StatusPill({ kind, children }: { kind: "ok" | "missing" | "review"; children: React.ReactNode }) {
   const map = {
-    ok:      { bg: "rgba(34,197,94,0.10)",  fg: "#15803d", bd: "rgba(34,197,94,0.25)" },
-    missing: { bg: "rgba(239,68,68,0.08)",  fg: "#B91C1C", bd: "rgba(239,68,68,0.22)" },
-    review:  { bg: "rgba(245,158,11,0.10)", fg: "#B45309", bd: "rgba(245,158,11,0.25)" },
+    ok:      { bg: "rgba(34,197,94,0.10)",  fg: "var(--nw-success)", bd: "rgba(34,197,94,0.25)" },
+    missing: { bg: "rgba(239,68,68,0.08)",  fg: "var(--nw-danger-strong)", bd: "rgba(239,68,68,0.22)" },
+    review:  { bg: "rgba(245,158,11,0.10)", fg: "var(--nw-warn)", bd: "rgba(245,158,11,0.25)" },
   }[kind]
   return (
     <span style={{
       fontSize: 10, fontWeight: 700, color: map.fg,
       background: map.bg, border: `1px solid ${map.bd}`,
       padding: "2px 7px", borderRadius: 100,
-      textTransform: "uppercase", letterSpacing: "0.05em",
+      fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", letterSpacing: "0.05em",
     }}>
       {children}
     </span>
@@ -1681,9 +1681,9 @@ function StatusPill({ kind, children }: { kind: "ok" | "missing" | "review"; chi
 function Field({ label, hint, status, children }: { label: string; hint?: string; status?: React.ReactNode; children: React.ReactNode }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--nw-text-body)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span>{label}</span>
-        {hint && <span style={{ fontWeight: 400, color: "#6B7280" }}>· {hint}</span>}
+        {hint && <span style={{ fontWeight: 400, color: "var(--nw-text-muted)" }}>· {hint}</span>}
         {status}
       </span>
       {children}
@@ -1693,9 +1693,9 @@ function Field({ label, hint, status, children }: { label: string; hint?: string
 
 const inputStyle: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
-  fontSize: 13.5, color: "#111827",
+  fontSize: 13.5, color: "var(--nw-text)",
   padding: "9px 12px",
-  background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 9,
+  background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border)", borderRadius: 9,
   outline: "none", fontFamily: "inherit",
 }
 
@@ -1711,20 +1711,20 @@ function TagInput({ tags, onChange, placeholder, borderColor }: { tags: string[]
   return (
     <div style={{
       display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
-      padding: "7px 9px", background: "#FAFAFA",
-      border: `1px solid ${borderColor ?? "#E5E7EB"}`, borderRadius: 9, minHeight: 38,
+      padding: "7px 9px", background: "var(--nw-surface-muted)",
+      border: `1px solid ${borderColor ?? "var(--nw-border)"}`, borderRadius: 9, minHeight: 38,
     }}>
       {tags.map((t) => (
         <span key={t} style={{
           display: "inline-flex", alignItems: "center", gap: 5,
-          fontSize: 12, color: "#4B5563",
-          background: "white", border: "1px solid #F0ECF8",
+          fontSize: 12, color: "var(--nw-text-secondary)",
+          background: "white", border: "1px solid var(--nw-border-soft)",
           padding: "3px 6px 3px 9px", borderRadius: 6,
         }}>
           {t}
           <button onClick={() => onChange(tags.filter((x) => x !== t))} style={{
             background: "transparent", border: "none", cursor: "pointer",
-            color: "#6B7280", fontSize: 13, lineHeight: 1, padding: 0,
+            color: "var(--nw-text-muted)", fontSize: 13, lineHeight: 1, padding: 0,
           }}>✕</button>
         </span>
       ))}
@@ -1743,7 +1743,7 @@ function TagInput({ tags, onChange, placeholder, borderColor }: { tags: string[]
         placeholder={tags.length === 0 ? placeholder : ""}
         style={{
           flex: 1, minWidth: 100, border: "none", outline: "none",
-          background: "transparent", fontSize: 13, color: "#111827", fontFamily: "inherit",
+          background: "transparent", fontSize: 13, color: "var(--nw-text)", fontFamily: "inherit",
         }}
       />
     </div>

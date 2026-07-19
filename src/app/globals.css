@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* ── Design tokens ── */
+/* ── Design tokens (legacy — conservés le temps de la migration) ── */
 :root {
   --bg:                  #FFFFFF;
   --surface:             #F8F6FF;
@@ -13,6 +13,74 @@
   --accent-violet:       #B8AEDE;
   --accent-violet-light: #DDD8F5;
 
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Palette de l'app connectée (workspace / organisation / admin)
+   ──────────────────────────────────────────────────────────────────────
+   Pourquoi des variables CSS et pas seulement `lib/ui-tokens.ts` :
+   le projet écrit ses styles en objets inline, et les couleurs vivaient en
+   hex bruts répétés (~2000 occurrences, `ui-tokens` n'était importé que par
+   2 fichiers). Une variable CSS fonctionne partout de la même façon — objet
+   de style, template string, attribut SVG — sans imposer d'import. La charte
+   s'ajuste donc ICI, en un seul endroit.
+
+   ⚠️ NE PAS utiliser ces variables dans ce qui n'est pas rendu par le
+   navigateur : PDF (@react-pdf), DOCX et emails ne résolvent pas `var()`.
+   Ces rendus gardent leurs valeurs littérales.
+
+   Alignement charte v2.0 : encre et violet repris de `lib/brand.ts` pour que
+   l'app et la vitrine partagent la même identité. Les SURFACES restent
+   propres à l'app (écrans denses : on garde un fond très clair et neutre,
+   le sable de la vitrine y serait fatigant).
+   ────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces — même famille « papier » que la vitrine.
+     Le fond est le paper #FDFCF9 déjà validé : il se lit comme du blanc (aucun
+     choc en arrivant d'un écran blanc) tout en portant la chaleur de la marque.
+     Les cartes restent BLANCHES : sur un écran dense, c'est ce qui donne la
+     séparation la plus nette et le texte le plus lisible. La chaleur se voit
+     donc sur le canvas et les panneaux secondaires (craie), pas sous les
+     tableaux. */
+  --nw-bg:            #FDFCF9;
+  --nw-surface:       #FFFFFF;
+  /* Craie éclaircie d'un cran vs la vitrine (#FAF7F0) : c'est le minimum pour
+     que le violet reste lisible en AA quand il sert de lien sur ce fond. */
+  --nw-surface-muted: #FCFAF5;
+  --nw-neutral-100:   #F2EFE9;
+
+  /* Texte — encre chaude de la charte (remplace les gris froids Tailwind) */
+  --nw-text:           #1A1B2E;
+  --nw-text-body:      #3A3B4D;
+  --nw-text-secondary: #4B4C5E;
+  --nw-text-muted:     #6B6C7F;
+
+  /* Violet de marque */
+  --nw-primary:        #7B63C8;
+  --nw-primary-dark:   #4B3A8F;
+  --nw-primary-200:    #C4B6E0;
+  --nw-primary-100:    #E2DAF6;
+  --nw-primary-50:     #EEE9FB;
+
+  /* Bordures — dérivées du lin de la charte, mais désaturées.
+     Le lin brut (#E9E1CB) vire au jaune quand il quadrille un tableau dense ;
+     ces deux valeurs en gardent la chaleur sans la teinte. */
+  --nw-border:      #E6E1D8;
+  --nw-border-soft: #F0EBE2;
+
+  /* États sémantiques */
+  --nw-success:      #2F6B33;
+  --nw-success-bg:   #E4EFE1;
+  --nw-warn:         #8A6216;
+  --nw-warn-strong:  #92400E;
+  --nw-warn-bg:      #F5E7C4;
+  --nw-danger:       #C24A3E;
+  --nw-danger-strong:#B91C1C;
+  --nw-danger-bg:    #F6DDD8;
+  --nw-danger-border:#FECACA;
+
+  /* Typo */
+  --nw-font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
 /* ── Shared animations ── */
@@ -94,6 +162,41 @@ select:focus, input:focus, textarea:focus {
    can at least tone down the highlight color on browsers that respect it. */
 option { color: #111827; background: white; padding: 8px; }
 option:checked { background: rgba(124, 99, 200, 0.10); color: #7C63C8; }
+
+/* ── Boutons charte v2.0 (vitrine) — hover en CSS pour rester server-safe ── */
+.nw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 14px 28px;
+  font-family: var(--font-inter), sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 180ms cubic-bezier(0.22,1,0.36,1), background 180ms ease, box-shadow 180ms ease, color 180ms ease;
+}
+.nw-btn:hover { transform: translateY(-2px); }
+.nw-btn-primary {
+  background: #7B63C8;
+  color: #FFFFFF;
+  box-shadow: 0 24px 48px -20px rgba(123,99,200,0.30);
+}
+.nw-btn-primary:hover { background: #4B3A8F; }
+.nw-btn-ink {
+  background: #1A1B2E;
+  color: #F5F1E8;
+}
+.nw-btn-ink:hover { background: #2E2A5A; }
+.nw-btn-outline {
+  background: transparent;
+  color: #1A1B2E;
+  border: 1px solid #1A1B2E;
+  font-weight: 600;
+}
+.nw-btn-outline:hover { background: #1A1B2E; color: #F5F1E8; }
 
 /* ── Hero background blob animations ── */
 @keyframes heroBlob1 {

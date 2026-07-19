@@ -29,13 +29,13 @@ type Row = Pick<MatchAssessment, "id" | "job_id" | "score" | "match_tier" | "pip
 // 'rejected' sont conservés ici pour qu'un candidat à une issue terminale
 // reste visible dans ce mini-kanban contextuel.
 const STAGES: { key: PipelineStage; color: string; bg: string }[] = [
-  { key: "identified", color: "#6B7280", bg: "#F9FAFB" },
+  { key: "identified", color: "var(--nw-text-muted)", bg: "#F9FAFB" },
   { key: "contacted",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
-  { key: "replied",    color: "#7C63C8", bg: "rgba(124,99,200,0.05)" },
-  { key: "interview",  color: "#B45309", bg: "rgba(245,158,11,0.06)" },
-  { key: "offer",      color: "#15803d", bg: "rgba(34,197,94,0.06)" },
+  { key: "replied",    color: "var(--nw-primary)", bg: "rgba(124,99,200,0.05)" },
+  { key: "interview",  color: "var(--nw-warn)", bg: "rgba(245,158,11,0.06)" },
+  { key: "offer",      color: "var(--nw-success)", bg: "rgba(34,197,94,0.06)" },
   { key: "hired",      color: "#0F766E", bg: "rgba(15,118,110,0.06)" },
-  { key: "rejected",   color: "#6B7280", bg: "#F3F4F6" },
+  { key: "rejected",   color: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)" },
 ]
 
 const copy = {
@@ -181,14 +181,14 @@ export default function CandidateMiniKanban({
   }, [visibleRows])
 
   if (loading) {
-    return <div style={{ padding: 14, fontSize: 12, color: "#6B7280" }}>{t.loading}</div>
+    return <div style={{ padding: 14, fontSize: 12, color: "var(--nw-text-muted)" }}>{t.loading}</div>
   }
 
   const vertical = layout === "vertical"
 
   return (
     <section style={{
-      background: "white", borderRadius: 14, border: "1px solid #F0ECF8",
+      background: "white", borderRadius: 14, border: "1px solid var(--nw-border-soft)",
       padding: vertical ? 12 : 14,
     }}>
       <div style={{
@@ -199,12 +199,12 @@ export default function CandidateMiniKanban({
         gap: vertical ? 4 : 0,
         marginBottom: 10, padding: "0 4px",
       }}>
-        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
           {onlyMatchId
             ? t.thisMatchPipeline
             : t.inPipeline(rows.length)}
         </h3>
-        <span style={{ fontSize: 10.5, color: "#6B7280", fontStyle: "italic" }}>
+        <span style={{ fontSize: 10.5, color: "var(--nw-text-muted)", fontStyle: "italic" }}>
           {readOnly ? t.readOnly : vertical ? t.dragVertical : t.dragHorizontal}
         </span>
       </div>
@@ -231,7 +231,7 @@ export default function CandidateMiniKanban({
               style={{
                 flex: vertical ? "0 0 auto" : "0 0 168px",
                 background: isOver ? "rgba(124,99,200,0.08)" : stage.bg,
-                border: isOver ? "1.5px dashed #7C63C8" : "1px solid #F0ECF8",
+                border: isOver ? "1.5px dashed var(--nw-primary)" : "1px solid var(--nw-border-soft)",
                 borderRadius: 9, padding: vertical ? 7 : 8,
                 display: "flex", flexDirection: "column", gap: 6,
                 minHeight: vertical ? 0 : 90,
@@ -241,8 +241,8 @@ export default function CandidateMiniKanban({
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px" }}>
                 <span style={{ fontSize: 11.5, fontWeight: 800, color: stage.color }}>{t.stageLabels[stage.key]}</span>
                 <span style={{
-                  fontSize: 10, fontWeight: 700, color: "#6B7280",
-                  background: "white", borderRadius: 100, padding: "0 6px", border: "1px solid #F0ECF8",
+                  fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
+                  background: "white", borderRadius: 100, padding: "0 6px", border: "1px solid var(--nw-border-soft)",
                 }}>
                   {cards.length}
                 </span>
@@ -257,7 +257,7 @@ export default function CandidateMiniKanban({
                     onDragEnd={readOnly ? undefined : () => { setDragId(null); setOverStage(null) }}
                     style={{
                       background: isCurrent ? "rgba(124,99,200,0.10)" : "white",
-                      border: isCurrent ? "1px solid #7C63C8" : "1px solid #F0ECF8",
+                      border: isCurrent ? "1px solid var(--nw-primary)" : "1px solid var(--nw-border-soft)",
                       borderRadius: 7,
                       padding: "7px 9px",
                       cursor: readOnly ? "default" : "grab",
@@ -266,21 +266,21 @@ export default function CandidateMiniKanban({
                     }}
                   >
                     {isCurrent ? (
-                      <div style={{ fontSize: 9, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.04em", marginBottom: 2 }}>{t.here}</div>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.04em", marginBottom: 2 }}>{t.here}</div>
                     ) : null}
                     <div style={{
-                      fontSize: 11.5, fontWeight: 700, color: "#111827",
+                      fontSize: 11.5, fontWeight: 700, color: "var(--nw-text)",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>
                       {r.job?.title ?? t.noJob}
                     </div>
                     <div style={{
-                      fontSize: 10.5, color: "#6B7280", marginTop: 1,
+                      fontSize: 10.5, color: "var(--nw-text-muted)", marginTop: 1,
                       display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6,
                     }}>
                       <span>{r.score != null ? `${r.score}` : t.manual}</span>
                       {!isCurrent && r.id && (
-                        <Link href={`/workspace/match/${r.id}`} style={{ color: "#7C63C8", fontWeight: 700 }}>→</Link>
+                        <Link href={`/workspace/match/${r.id}`} style={{ color: "var(--nw-primary)", fontWeight: 700 }}>→</Link>
                       )}
                     </div>
                   </div>

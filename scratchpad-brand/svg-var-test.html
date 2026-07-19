@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root{--nw-primary:#7B63C8;--nw-success:#2F6B33;--nw-border:#E6E1D8;--nw-primary-dark:#4B3A8F}
+body{font-family:system-ui;padding:16px;background:#FDFCF9}
+h2{font-size:13px;margin:14px 0 6px}
+code{font-size:11px;background:#eee;padding:1px 4px}
+</style></head><body>
+<h2>1. <code>fill</code> en attribut de présentation</h2>
+<svg width="120" height="40"><rect id="r1" width="120" height="40" fill="var(--nw-primary)"/></svg>
+
+<h2>2. <code>stroke</code> en attribut de présentation</h2>
+<svg width="120" height="40"><path id="r2" d="M4 34 L60 8 L116 26" fill="none" stroke="var(--nw-success)" stroke-width="3"/></svg>
+
+<h2>3. <code>stopColor</code> dans un dégradé</h2>
+<svg width="120" height="40">
+  <defs><linearGradient id="g"><stop offset="0" stop-color="var(--nw-primary)"/><stop offset="1" stop-color="var(--nw-primary-dark)"/></linearGradient></defs>
+  <rect id="r3" width="120" height="40" fill="url(#g)"/>
+</svg>
+
+<h2>Résultat calculé</h2>
+<pre id="out" style="font-size:12px"></pre>
+<script>
+const g=(id,p)=>getComputedStyle(document.getElementById(id))[p];
+const stop=getComputedStyle(document.querySelector('#g stop')).stopColor;
+document.getElementById('out').textContent=
+ 'fill        = '+g('r1','fill')+'\n'+
+ 'stroke      = '+g('r2','stroke')+'\n'+
+ 'stop-color  = '+stop+'\n'+
+ '(attendu : rgb(123, 99, 200) / rgb(47, 107, 51) / rgb(123, 99, 200))';
+</script>
+</body></html>

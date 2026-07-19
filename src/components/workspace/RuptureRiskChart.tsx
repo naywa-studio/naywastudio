@@ -132,8 +132,8 @@ export default function RuptureRiskChart({
   if (rows.length === 0) {
     return (
       <div style={{
-        background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
-        padding: 20, color: "#6B7280", fontSize: 13, textAlign: "center",
+        background: "white", borderRadius: 12, border: "1px solid var(--nw-border-soft)",
+        padding: 20, color: "var(--nw-text-muted)", fontSize: 13, textAlign: "center",
       }}>
         {t.needsMission}
       </div>
@@ -172,7 +172,7 @@ export default function RuptureRiskChart({
   // Couleur de barre = santé en cas de RC. RC bien moins chère que
   // licenciement → la grande majorité des mois passent au vert.
   const barColor = (margePct: number): string => {
-    if (margePct < 0) return "#DC2626"
+    if (margePct < 0) return "var(--nw-danger-strong)"
     if (margePct < seuilPct) return "#EA580C"
     if (margePct < seuilPct + 10) return "#F59E0B"
     return "#16A34A"
@@ -192,7 +192,7 @@ export default function RuptureRiskChart({
 
   return (
     <div style={{
-      background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
+      background: "white", borderRadius: 12, border: "1px solid var(--nw-border-soft)",
       padding: 16, marginTop: 14, position: "relative",
     }}>
       <header style={{
@@ -200,10 +200,10 @@ export default function RuptureRiskChart({
         flexWrap: "wrap", gap: 10, marginBottom: 10,
       }}>
         <div>
-          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
+          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--nw-text)" }}>
             {t.chartTitle}
           </h4>
-          <p style={{ margin: "3px 0 0", fontSize: 10.5, color: "#6B7280" }}>
+          <p style={{ margin: "3px 0 0", fontSize: 10.5, color: "var(--nw-text-muted)" }}>
             {t.chartSubtitle}
           </p>
         </div>
@@ -232,10 +232,10 @@ export default function RuptureRiskChart({
               y={PAD_T + 12}
               fontSize={10}
               fontWeight={700}
-              fill="#B91C1C"
+              fill="var(--nw-danger-strong)"
               textAnchor="middle"
               letterSpacing="0.04em"
-              style={{ textTransform: "uppercase" }}
+              style={{ fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}
             >
               {t.trialPeriod}
             </text>
@@ -243,7 +243,7 @@ export default function RuptureRiskChart({
               x={PAD_L + (finEssaiX - PAD_L) / 2}
               y={PAD_T + 24}
               fontSize={9}
-              fill="#B91C1C"
+              fill="var(--nw-danger-strong)"
               textAnchor="middle"
               opacity={0.75}
             >
@@ -251,11 +251,11 @@ export default function RuptureRiskChart({
             </text>
             <line
               x1={finEssaiX} y1={PAD_T} x2={finEssaiX} y2={PAD_T + PLOT_H}
-              stroke="#B91C1C" strokeWidth={1.5} strokeDasharray="4 3" opacity={0.6}
+              stroke="var(--nw-danger-strong)" strokeWidth={1.5} strokeDasharray="4 3" opacity={0.6}
             />
             <text
               x={finEssaiX + 4} y={PAD_T + PLOT_H - 4}
-              fontSize={9} fill="#B91C1C" opacity={0.8}
+              fontSize={9} fill="var(--nw-danger-strong)" opacity={0.8}
             >
               {t.trialEnd}
             </text>
@@ -267,13 +267,13 @@ export default function RuptureRiskChart({
           <g key={`y-${v}`}>
             <line
               x1={PAD_L} y1={yOf(v)} x2={W - PAD_R} y2={yOf(v)}
-              stroke={v === 0 ? "#6B7280" : "#F0ECF8"}
+              stroke={v === 0 ? "var(--nw-text-muted)" : "var(--nw-border-soft)"}
               strokeWidth={v === 0 ? 1.2 : 1}
               strokeDasharray={v === 0 ? "none" : "2 4"}
             />
             <text
               x={PAD_L - 8} y={yOf(v) + 3}
-              fontSize={10} fill="#6B7280" textAnchor="end"
+              fontSize={10} fill="var(--nw-text-muted)" textAnchor="end"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
               {compactEur(v, locale)}
@@ -347,7 +347,7 @@ export default function RuptureRiskChart({
               {barW >= 18 && (
                 <text
                   x={xOf(i)} y={barY - 4}
-                  fontSize={9.5} fill="#374151" textAnchor="middle" fontWeight={700}
+                  fontSize={9.5} fill="var(--nw-text-body)" textAnchor="middle" fontWeight={700}
                   style={{ pointerEvents: "none" }}
                 >
                   {compactEur(r.margeCumulNominaleEur, locale)}
@@ -361,7 +361,7 @@ export default function RuptureRiskChart({
         <path
           d={curveLicPath}
           fill="none"
-          stroke="#6B7280"
+          stroke="var(--nw-text-muted)"
           strokeWidth={1.5}
           strokeDasharray="5 4"
           strokeLinejoin="round"
@@ -373,7 +373,7 @@ export default function RuptureRiskChart({
         <path
           d={curveRcPath}
           fill="none"
-          stroke="#7C63C8"
+          stroke="var(--nw-primary)"
           strokeWidth={2.5}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -406,19 +406,19 @@ export default function RuptureRiskChart({
             <g key={`x-${r.monthIndex}`}>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 16}
-                fontSize={10} fill="#6B7280" textAnchor="middle" fontWeight={600}
+                fontSize={10} fill="var(--nw-text-muted)" textAnchor="middle" fontWeight={600}
               >
                 {monthAbbr[r.calendarMonth]}
               </text>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 30}
-                fontSize={9} fill="#6B7280" textAnchor="middle"
+                fontSize={9} fill="var(--nw-text-muted)" textAnchor="middle"
               >
                 {r.year}
               </text>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 44}
-                fontSize={9} fill="#6B7280" textAnchor="middle" fontStyle="italic"
+                fontSize={9} fill="var(--nw-text-muted)" textAnchor="middle" fontStyle="italic"
               >
                 m{r.monthIndex}
               </text>
@@ -433,7 +433,7 @@ export default function RuptureRiskChart({
           et le détail chiffré (tooltip). */}
       {hoveredIdx !== null && rows[hoveredIdx] && (() => {
         const r = rows[hoveredIdx]
-        const margeColor = r.margePct < 0 ? "#B91C1C" : "#15803D"
+        const margeColor = r.margePct < 0 ? "var(--nw-danger-strong)" : "var(--nw-success)"
         // Si la barre survolée est dans la moitié gauche, le tooltip va à
         // droite (et vice-versa). Évite tout chevauchement quelle que soit
         // la position du curseur.
@@ -444,7 +444,7 @@ export default function RuptureRiskChart({
             top: 60,
             ...(onLeftHalf ? { right: 24 } : { left: 80 }),
             background: "white",
-            border: "1px solid #E2DAF6",
+            border: "1px solid var(--nw-primary-100)",
             borderRadius: 10,
             boxShadow: "0 10px 24px -8px rgba(17,24,39,0.25)",
             padding: "10px 14px",
@@ -456,26 +456,26 @@ export default function RuptureRiskChart({
             zIndex: 5,
           }}>
             <div style={{
-              fontSize: 10, color: "#6B7280", fontWeight: 700,
-              letterSpacing: "0.05em", textTransform: "uppercase",
+              fontSize: 10, color: "var(--nw-text-muted)", fontWeight: 700,
+              letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}>
               {monthAbbr[r.calendarMonth]} {r.year} · m{r.monthIndex}
             </div>
-            <Row label={t.cumulMargin} value={formatEur(r.margeCumulNominaleEur, locale)} color="#374151" />
+            <Row label={t.cumulMargin} value={formatEur(r.margeCumulNominaleEur, locale)} color="var(--nw-text-body)" />
             {r.coutRupture > 0 ? (
               <>
-                <div style={{ borderTop: "1px solid #F0ECF8", margin: "3px 0" }} />
-                <Row label={t.rcCost} value={`− ${formatEur(r.coutRupture, locale)}`} color="#7C63C8" />
+                <div style={{ borderTop: "1px solid var(--nw-border-soft)", margin: "3px 0" }} />
+                <Row label={t.rcCost} value={`− ${formatEur(r.coutRupture, locale)}`} color="var(--nw-primary)" />
                 <RowSmall label={t.rcAllowance} value={formatEur(r.breakdown.indemniteRC, locale)} swatch="rgba(184,174,222,0.85)" />
                 <RowSmall label={t.unusedLeave} value={formatEur(r.breakdown.indemniteCp, locale)} swatch="rgba(124,99,200,0.85)" />
-                <div style={{ borderTop: "1px solid #F0ECF8", margin: "3px 0" }} />
+                <div style={{ borderTop: "1px solid var(--nw-border-soft)", margin: "3px 0" }} />
                 <Row label={t.netIfRc} value={`${formatEur(r.margeNetteEur, locale)} · ${r.margePct.toFixed(0)}%`} color={margeColor} bold />
-                <RowSmall label={t.ifDismissal} value={formatEur(r.margeNetteLicenciementEur, locale)} swatch="#6B7280" dashed />
+                <RowSmall label={t.ifDismissal} value={formatEur(r.margeNetteLicenciementEur, locale)} swatch="var(--nw-text-muted)" dashed />
               </>
             ) : (
               <>
-                <Row label={t.ruptureCost} value="—" color="#6B7280" />
-                <div style={{ fontSize: 10, color: "#6B7280", fontStyle: "italic", marginTop: 2 }}>
+                <Row label={t.ruptureCost} value="—" color="var(--nw-text-muted)" />
+                <div style={{ fontSize: 10, color: "var(--nw-text-muted)", fontStyle: "italic", marginTop: 2 }}>
                   {t.inTrialPeriod}
                 </div>
               </>
@@ -487,16 +487,16 @@ export default function RuptureRiskChart({
       {/* Mini-légende sous le chart pour distinguer les 2 courbes. */}
       <div style={{
         display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap",
-        marginTop: 8, fontSize: 10.5, color: "#6B7280",
+        marginTop: 8, fontSize: 10.5, color: "var(--nw-text-muted)",
       }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 16, height: 2.5, background: "#7C63C8", borderRadius: 2 }} />
+          <span style={{ width: 16, height: 2.5, background: "var(--nw-primary)", borderRadius: 2 }} />
           {t.legendRc}
         </span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           <span style={{
             width: 16, height: 2,
-            background: "repeating-linear-gradient(to right, #6B7280 0 5px, transparent 5px 9px)",
+            background: "repeating-linear-gradient(to right, var(--nw-text-muted) 0 5px, transparent 5px 9px)",
           }} />
           {t.legendDismissal}
         </span>
@@ -525,7 +525,7 @@ function Row({
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
     }}>
-      <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 10.5, color: "var(--nw-text-muted)", fontWeight: 600 }}>{label}</span>
       <span style={{ fontSize: bold ? 13 : 12, fontWeight: bold ? 800 : 600, color }}>
         {value}
       </span>
@@ -540,18 +540,18 @@ function RowSmall({
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, paddingLeft: 8,
     }}>
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9.5, color: "#6B7280" }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9.5, color: "var(--nw-text-muted)" }}>
         <span style={{
           display: "inline-block",
           width: 10, height: dashed ? 1.5 : 8,
           background: dashed
-            ? "repeating-linear-gradient(to right, #6B7280 0 3px, transparent 3px 5px)"
+            ? "repeating-linear-gradient(to right, var(--nw-text-muted) 0 3px, transparent 3px 5px)"
             : swatch,
           borderRadius: dashed ? 0 : 2,
         }} />
         {label}
       </span>
-      <span style={{ fontSize: 10.5, fontWeight: 600, color: "#6B7280" }}>{value}</span>
+      <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--nw-text-muted)" }}>{value}</span>
     </div>
   )
 }

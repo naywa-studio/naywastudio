@@ -41,15 +41,15 @@ export const AnonymizePreview = forwardRef<HTMLElement, {
       ref={ref}
       style={{
         background: "white",
-        border: "1px solid #F0ECF8",
+        border: "1px solid var(--nw-border-soft)",
         borderRadius: 16,
         padding: 18,
       }}
     >
       <div style={{ marginBottom: 12 }}>
         <h3 style={{
-          margin: 0, fontSize: 12, fontWeight: 700, color: "#6B7280",
-          letterSpacing: "0.08em", textTransform: "uppercase",
+          margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
+          letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {t.title}
         </h3>
@@ -57,14 +57,14 @@ export const AnonymizePreview = forwardRef<HTMLElement, {
 
       {status.state !== "ready" || !status.previewUrl ? (
         <div style={{
-          border: "1.5px dashed #E2DAF6",
+          border: "1.5px dashed var(--nw-primary-100)",
           borderRadius: 12,
           padding: "44px 24px",
           textAlign: "center",
-          background: "#FAFAFA",
+          background: "var(--nw-surface-muted)",
         }}>
           <p style={{
-            margin: 0, fontSize: 13.5, color: "#6B7280",
+            margin: 0, fontSize: 13.5, color: "var(--nw-text-muted)",
             lineHeight: 1.6, maxWidth: 420, marginInline: "auto",
           }}>
             {status.state === "working" ? t.working : t.idle}
@@ -73,7 +73,7 @@ export const AnonymizePreview = forwardRef<HTMLElement, {
       ) : (
         <div style={{
           borderRadius: 12, overflow: "hidden",
-          border: "1px solid #F0ECF8", background: "#FAFAFA",
+          border: "1px solid var(--nw-border-soft)", background: "var(--nw-surface-muted)",
           // Format proche d'une page A4 pour une lecture confortable.
           maxWidth: 840, marginInline: "auto",
         }}>

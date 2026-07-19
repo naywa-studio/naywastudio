@@ -1,0 +1,418 @@
+Bundled Page
+This page requires JavaScript to display.
+[SVG]
+Unpacking...
+[SVG]
+Brand System · v2.0 · Édition Juillet 2026
+Brand
+Guidelines.
+La source de vérité de
+Naywa Studio
+— packages d'optimisation de process métier. Le système que suivent designers, développeurs et IA pour tout ce qui porte notre nom.
+Sommaire
+01
+Positionnement
+02
+Logo & symbole
+03
+Bandes signature
+04
+Palette
+05
+Typographie
+06
+Hiérarchie
+07
+Composants UI
+08
+Voix & ton
+09
+Tokens code
+§ 01
+Fondations
+Nous
+traitons,
+vous décidez.
+Notre métier
+Naywa Studio conçoit des
+packages d'optimisation de process métier
+— pour ESN, cabinets de consulting et de recrutement.
+Premier package :
+Package Sourcing
+. Vivier, missions, matching, pricing Syntec, pipeline candidat. Pensé pour vos équipes, pas à leur place.
+Attributs de marque
+01
+Éditorial & posé
+02
+Rigoureux, pas rigide
+03
+Humain avant l'IA
+04
+Précision, pas performance
+05
+Sobre, sans jamais froid
+Promesse
+L'
+outil qui range
+, l'équipe qui tranche.
+§ 02
+Identité
+Logo &
+symbole.
+Notre wordmark est un serif haut-contraste. Le
+violet joue le rôle de capitale ornée : c'est notre symbole autonome. Toujours l'un des deux, jamais reconstruit.
+✓ Faire
+Conserver la zone de protection = hauteur du
+autour du logo.
+Le mark seul pour favicon, avatar, formats &lt; 32px.
+Fond papier
+#F5F1E8
+par défaut, ou blanc, ou encre
+#1A1B2E
+Taille minimum : wordmark 80px de large, mark 24px de haut.
+✕ Éviter
+Pas de recolor, pas de gradient, pas d'ombre portée.
+Pas de rotation, distorsion, contour ajouté.
+Pas de placement sur photo à contraste faible.
+Ne jamais retracer le
+— toujours utiliser le fichier fourni.
+§ 03
+Motif de marque
+Les
+bandes
+signature.
+Deux flux diagonaux qui glissent lentement — bas-gauche vers haut-droite. Métaphore visuelle du
+process
+qui coule d'une étape à l'autre, sans à-coup. Motif exclusif à la marque, présent sur toutes les pages publiques et l'app.
+[SVG]
+brand-band · live preview
+Direction
+bas-gauche → haut-droite
+Toujours ascendante. Jamais inversée.
+Cadence
+11s + 15s · ease 0.45 0 0.55 1
+Lente. Presque immobile. On la remarque à peine.
+Opacité
+stroke 0.5 · fill 0.06 – 0.35
+Doit rester en arrière-plan du contenu, toujours lisible par-dessus.
+§ 04
+Couleur
+Palette
+signature.
+PRIMARY · 60% usage
+Violet Naywa
+#7B63C8
+rgb 123 · 99 · 200
+Notre signature. CTA, accents, N du logo, bandes.
+INK · anchor
+Encre
+#1A1B2E
+Texte, titres, fonds sombres.
+PAPER · 30% surface
+Sable
+#F5F1E8
+Fond principal. Papier chaud, différencie du SaaS générique.
+SIGNAL · 5% max
+Corail
+#E96A5A
+Contrepoint. Alerte, urgence, éditorial ponctuel.
+Violet · variations
+Prune 900
+#2E2A5A
+Prune 700
+#4B3A8F
+Violet 500
+#7B63C8
+Violet 300
+#B8AEDE
+Violet 100
+#EEE9FB
+Neutres papier
+Encre
+#1A1B2E
+Ardoise
+#4B4C5E
+Pierre
+#6B6C7F
+Lin
+#E9E1CB
+Craie
+#FAF7F0
+Sable
+#F5F1E8
+États sémantiques
+Success
+#2F6B33 · bg #E4EFE1
+Warning
+#8A6216 · bg #F5E7C4
+Danger
+#C24A3E · bg #F6DDD8
+Ratio 60 · 30 · 5 · 5
+Sable 60
+Encre 30
+V 5
+C 5
+Papier partout comme respiration. Encre pour lire. Violet en accents précis (CTA, marque). Corail exclusivement pour signaler.
+§ 05
+Typographie
+Trois voix,
+un discours.
+Display · éditorial
+--font-display
+Aa
+Ee
+Fraunces
+Serif variable haut-contraste. Écho au tracé du logo. Titres, chiffres, citations. Weights
+400 · 500 · 600 · 700
+· italiques romantiques.
+UI · fonctionnel
+--font-body
+Aa
+Inter
+Sans-serif neutre pour toute l'interface, boutons, formulaires, tableaux denses.
+400 · 500 · 600 · 700 · 800
+Mono · meta
+--font-mono
+Aa
+JetBrains Mono
+Labels techniques, tokens, tags de section (§ 01). Renforce le côté
+process
+— nommé, versionné.
+§ 06
+Hiérarchie
+Échelle
+textuelle.
+Display
+Fraunces · 96 / 0.92
+-0.035em · 500
+Traiter,
+décider.
+H1
+Fraunces · 56 / 1.02
+-0.025em · 500
+L'outil qui range, l'équipe qui tranche.
+H2
+Fraunces · 36 / 1.15
+-0.02em · 500
+Un vivier qui pense, une équipe qui décide.
+H3
+Inter · 22 / 1.3
+-0.015em · 600
+Pricing Syntec conforme, généré en un clic.
+Lead
+Inter · 18 / 1.6 · 400
+Naywa Studio conçoit des packages d'optimisation de process métier — pour ESN, cabinets de consulting et cabinets de recrutement.
+Body
+Inter · 15 / 1.65 · 400
+Notre premier package, Package Sourcing, couvre le vivier, les missions, le matching, le pricing Syntec et le pipeline candidat. Il est pensé pour votre équipe — pas à sa place.
+Caption
+Inter · 13 / 1.5 · 500
+Labels de champ · méta d'une carte · timestamps.
+Meta
+JetBrains Mono · 11
+0.14em uppercase · 500
+§ 04 · Package Sourcing
+§ 07
+Composants
+Composants
+UI.
+Boutons
+Primary
+Démarrer →
+Démarrer →
+Ink
+Contactez-nous
+Contactez-nous
+Outline
+Voir la démo
+Voir la démo
+Text link
+en savoir plus
+découvrir Nora
+Cartes
+§ Package
+Sourcing
+Vivier, missions, matching, pricing Syntec, pipeline candidat.
+490€
+/mois
+découvrir →
+§ Package · popular
+Team
+Tout Sourcing + org multi-utilisateurs, rôles & permissions.
+890€
+/mois
+découvrir →
+§ Metric
+1 247
+candidats matchés cette semaine
++18% vs S-1
+Badges & états
+Nouveauté
+✓ Actif
+⚠ En attente
+✕ Rejeté
+Brouillon
+Pro
+Urgent
+Champs de formulaire
+Email pro
+h 44 · r 12 · border #E9E1CB
+focus · border #7B63C8 · ring rgba(123,99,200,.15)
+Espacement · 4 / 8
+12
+16
+24
+32
+Rayons
+12
+16
+20
+Élévation
+SM
+0 1 2 / .06
+MD
+0 4 14 / .06
+LG
+0 12 34 / .10
+Violet
+0 24 48 -20 / v.30
+§ 08
+Copywriting
+Voix &
+ton.
+✓ On dit
+« Nous traitons, vous décidez. »
+« Un vivier qui pense, une équipe qui tranche. »
+« Pricing Syntec conforme, en un clic. »
+« Pensé pour votre équipe, pas à sa place. »
+✕ On évite
+« Boostez votre productivité avec l'IA ! »
+« La révolution du recrutement 3.0 »
+« Solution disruptive next-gen »
+« Automatisez votre business à 100% »
+Direct
+Phrases courtes. Verbes actifs. Zéro périphrase.
+Concret
+On nomme ce qu'on fait — "vivier", "matching", "pricing Syntec".
+Sobre
+Pas de superlatifs. Pas de "!". Pas de "révolution".
+Humain
+L'équipe décide. L'IA outille. Jamais l'inverse.
+§ 09
+Handoff
+Tokens ·
+prêts à copier.
+naywa.tokens.css
+:root
+/* Marque */
+--violet:
+#7B63C8
+--violet-deep:
+#4B3A8F
+--violet-soft:
+#B8AEDE
+--ink:
+#1A1B2E
+--sable:
+#F5F1E8
+--craie:
+#FAF7F0
+--coral:
+#E96A5A
+/* Texte */
+--text:
+#1A1B2E
+--text-2:
+#4B4C5E
+--text-muted:
+#6B6C7F
+/* Surfaces */
+--bg:
+#F5F1E8
+--surface:
+#FAF7F0
+--surface-2:
+#FFFFFF
+--border:
+#E9E1CB
+/* Typo */
+--font-display:
+'Fraunces', serif
+--font-body:
+'Inter', sans-serif
+--font-mono:
+'JetBrains Mono', monospace
+/* Rayons */
+--r-sm: 8px; --r-md: 12px;
+--r-lg: 16px; --r-xl: 20px; --r-pill: 999px;
+/* Élévation */
+--sh-sm: 0 1px 2px rgba(26,27,46,.06);
+--sh-md: 0 4px 14px rgba(26,27,46,.06);
+--sh-lg: 0 12px 34px rgba(26,27,46,.10);
+--sh-v:  0 24px 48px -20px rgba(123,99,200,.30);
+naywa.tokens.ts
+export const
+brand = {
+violet:
+"#7B63C8"
+violetDeep:
+"#4B3A8F"
+violetSoft:
+"#B8AEDE"
+ink:
+"#1A1B2E"
+sable:
+"#F5F1E8"
+craie:
+"#FAF7F0"
+coral:
+"#E96A5A"
+as const
+export const
+ui = {
+text:
+"#1A1B2E"
+textSecond:
+"#4B4C5E"
+textMuted:
+"#6B6C7F"
+bg:
+"#F5F1E8"
+surface:
+"#FAF7F0"
+surface2:
+"#FFFFFF"
+border:
+"#E9E1CB"
+radiusSm:
+radiusMd:
+12
+radiusLg:
+16
+radiusXl:
+20
+radiusPill:
+999
+shadowSm:
+"0 1px 2px rgba(26,27,46,.06)"
+shadowMd:
+"0 4px 14px rgba(26,27,46,.06)"
+shadowLg:
+"0 12px 34px rgba(26,27,46,.10)"
+shadowV:
+"0 24px 48px -20px rgba(123,99,200,.30)"
+as const
+export const
+font = {
+display:
+"'Fraunces', serif"
+body:
+"'Inter', sans-serif"
+mono:
+"'JetBrains Mono', monospace"
+as const
+[SVG]
+Naywa Studio
+Brand System
+v2.0 · juillet 2026 · contact@naywastudio.com · naywastudio.com
+La source de vérité — tout futur design commence ici.

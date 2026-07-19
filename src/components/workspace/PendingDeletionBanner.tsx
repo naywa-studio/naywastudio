@@ -55,7 +55,7 @@ export default function PendingDeletionBanner() {
       background: "rgba(217,119,6,0.10)",
       borderBottom: "1px solid rgba(217,119,6,0.25)",
       padding: "10px 20px",
-      fontSize: 13, fontWeight: 600, color: "#92400E",
+      fontSize: 13, fontWeight: 600, color: "var(--nw-warn-strong)",
       textAlign: "center",
       fontFamily: "var(--font-inter), sans-serif",
     }}>

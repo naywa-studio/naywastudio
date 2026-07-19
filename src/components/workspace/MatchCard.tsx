@@ -27,16 +27,16 @@ type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
 
 const SOURCE_META: Record<Lang, Record<MatchSource, { label: string; color: string; bg: string; bd: string }>> = {
   fr: {
-    applied:         { label: "Postulé",  color: "#15803d", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)" },
+    applied:         { label: "Postulé",  color: "var(--nw-success)", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)" },
     uploaded:        { label: "Importé",  color: "#1D4ED8", bg: "rgba(59,130,246,0.08)", bd: "rgba(59,130,246,0.25)" },
-    vivier_matched:  { label: "Vivier",   color: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" },
-    vivier_assigned: { label: "Assigné",  color: "#6B7280", bg: "#F3F4F6",                bd: "#E5E7EB" },
+    vivier_matched:  { label: "Vivier",   color: "var(--nw-primary)", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" },
+    vivier_assigned: { label: "Assigné",  color: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)",                bd: "var(--nw-border)" },
   },
   en: {
-    applied:         { label: "Applied",  color: "#15803d", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)" },
+    applied:         { label: "Applied",  color: "var(--nw-success)", bg: "rgba(34,197,94,0.08)",  bd: "rgba(34,197,94,0.25)" },
     uploaded:        { label: "Imported", color: "#1D4ED8", bg: "rgba(59,130,246,0.08)", bd: "rgba(59,130,246,0.25)" },
-    vivier_matched:  { label: "Talent pool", color: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" },
-    vivier_assigned: { label: "Assigned", color: "#6B7280", bg: "#F3F4F6",                bd: "#E5E7EB" },
+    vivier_matched:  { label: "Talent pool", color: "var(--nw-primary)", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" },
+    vivier_assigned: { label: "Assigned", color: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)",                bd: "var(--nw-border)" },
   },
 }
 
@@ -102,11 +102,11 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = fals
           background: "rgba(124,99,200,0.08)",
           border: "1px solid rgba(124,99,200,0.18)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#7C63C8", fontWeight: 800, fontSize: 13,
+          color: "var(--nw-primary)", fontWeight: 800, fontSize: 13,
         }}>{initials}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "var(--nw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {name}
             </p>
             <span style={{
@@ -134,7 +134,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = fals
             <span style={{ fontSize: 20, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
               {row.score}
             </span>
-            <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
               {tier.label}
             </span>
           </div>
@@ -166,7 +166,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = fals
             fontSize: 11.5, fontWeight: 700, fontFamily: "inherit",
             cursor: readOnly ? "not-allowed" : "pointer",
             padding: "6px 11px", borderRadius: 8,
-            color: readOnly ? "#B8AEDE" : (row.in_pipeline ? "#15803d" : "#7C63C8"),
+            color: readOnly ? "#B8AEDE" : (row.in_pipeline ? "var(--nw-success)" : "var(--nw-primary)"),
             background: readOnly ? "#F3F0FA" : (row.in_pipeline ? "rgba(34,197,94,0.08)" : "white"),
             border: `1px solid ${readOnly ? "#E5E0F0" : (row.in_pipeline ? "rgba(34,197,94,0.3)" : "rgba(124,99,200,0.3)")}`,
             whiteSpace: "nowrap",
@@ -190,7 +190,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = fals
         <Link href={`/workspace/match/${row.id}`} style={{
           fontSize: 12, fontWeight: 700, color: "white",
           padding: "6px 14px", borderRadius: 8,
-          background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
           textDecoration: "none",
         }}>
           {t.open}
@@ -220,12 +220,12 @@ function CriterionEvalRow({ criterion, ev }: { criterion: Criterion; ev: Criteri
     return (
       <div title={tooltip} style={{
         padding: "7px 10px",
-        background: "#FAFAFB", border: "1px solid #F0ECF8",
+        background: "#FAFAFB", border: "1px solid var(--nw-border-soft)",
         borderRadius: 8, minWidth: 0,
       }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6, marginBottom: 5 }}>
           <span style={{
-            fontSize: 11, color: "#6B7280", fontWeight: 600,
+            fontSize: 11, color: "var(--nw-text-muted)", fontWeight: 600,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0,
           }}>
             {name}
@@ -262,7 +262,7 @@ function CriterionEvalRow({ criterion, ev }: { criterion: Criterion; ev: Criteri
       }}
     >
       <span style={{
-        fontSize: 11, color: "#6B7280", fontWeight: 600,
+        fontSize: 11, color: "var(--nw-text-muted)", fontWeight: 600,
         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         flex: 1, minWidth: 0,
       }}>

@@ -87,26 +87,26 @@ export default function AnonymizeForJob({
 
   return (
     <section style={embedded ? { background: "transparent" } : {
-      background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+      background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
       padding: 18,
     }}>
       {!embedded && (
         <h2 style={{
-          margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280",
-          letterSpacing: "0.08em", textTransform: "uppercase",
+          margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
+          letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           🔒 CV anonymisé
         </h2>
       )}
-      <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+      <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
         {!candidateParsed
           ? "Disponible une fois le CV parsé."
           : hasJob
-            ? <>Génère un PDF présentable au client, orienté pour la mission <strong style={{ color: "#111827" }}>{jobTitle}</strong>. Identité retirée.</>
+            ? <>Génère un PDF présentable au client, orienté pour la mission <strong style={{ color: "var(--nw-text)" }}>{jobTitle}</strong>. Identité retirée.</>
             : "Aucune mission sélectionnée — le PDF sera générique."}
       </p>
       {error && (
-        <p style={{ margin: "0 0 8px", fontSize: 12, color: "#B91C1C" }}>{error}</p>
+        <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--nw-danger-strong)" }}>{error}</p>
       )}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <button
@@ -115,10 +115,10 @@ export default function AnonymizeForJob({
           title={!hasJob ? "Aucune mission sélectionnée" : undefined}
           style={{
             fontSize: 12.5, fontWeight: 700,
-            color: (!candidateParsed || !hasJob) ? "#6B7280" : "white",
-            background: (!candidateParsed || !hasJob) ? "#F3F4F6"
-              : state === "working" ? "#C4B6E0"
-              : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            color: (!candidateParsed || !hasJob) ? "var(--nw-text-muted)" : "white",
+            background: (!candidateParsed || !hasJob) ? "var(--nw-neutral-100)"
+              : state === "working" ? "var(--nw-primary-200)"
+              : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
             border: "none", borderRadius: 9, padding: "9px 16px",
             cursor: (!candidateParsed || !hasJob || state === "working") ? "default" : "pointer",
             fontFamily: "inherit",
@@ -130,7 +130,7 @@ export default function AnonymizeForJob({
         </button>
         {state === "ready" && downloadUrl && (
           <a href={downloadUrl} style={{
-            fontSize: 12.5, fontWeight: 700, color: "#7C63C8",
+            fontSize: 12.5, fontWeight: 700, color: "var(--nw-primary)",
             background: "white", border: "1px solid rgba(124,99,200,0.25)",
             borderRadius: 9, padding: "9px 14px", textDecoration: "none",
             display: "inline-flex", alignItems: "center",
@@ -143,7 +143,7 @@ export default function AnonymizeForJob({
       {state === "ready" && previewUrl && (
         <div style={{
           marginTop: 14, borderRadius: 12, overflow: "hidden",
-          border: "1px solid #F0ECF8", background: "#FAFAFA",
+          border: "1px solid var(--nw-border-soft)", background: "var(--nw-surface-muted)",
           // Centré, format proche d'une page A4 pour une lecture confortable.
           maxWidth: 840, marginLeft: "auto", marginRight: "auto",
         }}>

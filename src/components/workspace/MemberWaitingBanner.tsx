@@ -72,7 +72,7 @@ export function MemberWaitingBanner({ organization, role }: Props) {
     >
       <span aria-hidden style={{
         width: 8, height: 8, borderRadius: "50%",
-        background: "#7C63C8", flexShrink: 0,
+        background: "var(--nw-primary)", flexShrink: 0,
       }} />
       <span style={{ flex: "0 1 auto" }}>
         {t.message(orgName)}

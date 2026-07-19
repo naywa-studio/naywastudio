@@ -75,7 +75,7 @@ export function MissionSummaryBar({
   return (
     <section style={{
       background: "white", borderRadius: 16,
-      border: "1px solid #F0ECF8",
+      border: "1px solid var(--nw-border-soft)",
       marginBottom: 18,
       overflow: "hidden",
     }}>
@@ -89,7 +89,7 @@ export function MissionSummaryBar({
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? t.collapse : t.expand}
           style={{
-            fontSize: 11, fontWeight: 700, color: "#6B7280",
+            fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
             background: "transparent", border: "none",
             cursor: "pointer", fontFamily: "inherit",
             padding: "4px 6px",
@@ -98,15 +98,15 @@ export function MissionSummaryBar({
           {open ? "▾" : "▸"}
         </button>
         <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 2 }}>
-          <h1 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+          <h1 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
             {job.role_name?.trim() || job.title}
           </h1>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11.5, color: "#6B7280" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11.5, color: "var(--nw-text-muted)" }}>
             {job.location && <span>{job.location}</span>}
             {job.contract_type && <span>· {job.contract_type}</span>}
             {job.seniority && <span>· {job.seniority}</span>}
             {mainCriteria.length > 0 && (
-              <span>· <strong style={{ color: "#15803d", fontWeight: 700 }}>{mainCriteria.length}</strong> {t.mainCriteriaSuffix(mainCriteria.length)}</span>
+              <span>· <strong style={{ color: "var(--nw-success)", fontWeight: 700 }}>{mainCriteria.length}</strong> {t.mainCriteriaSuffix(mainCriteria.length)}</span>
             )}
           </div>
         </div>
@@ -136,14 +136,14 @@ export function MissionSummaryBar({
           {/* Skills + description */}
           {job.required_skills && job.required_skills.length > 0 && (
             <div style={{ marginTop: 14 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "#6B7280", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "var(--nw-text-muted)", letterSpacing: "0.07em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 {t.requiredSkills}
               </p>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                 {job.required_skills.map((s) => (
                   <span key={s} style={{
-                    fontSize: 11.5, color: "#4B5563", background: "#F8F6FF",
-                    border: "1px solid #F0ECF8", padding: "3px 8px", borderRadius: 7,
+                    fontSize: 11.5, color: "var(--nw-text-secondary)", background: "var(--nw-bg)",
+                    border: "1px solid var(--nw-border-soft)", padding: "3px 8px", borderRadius: 7,
                   }}>{s}</span>
                 ))}
               </div>
@@ -152,7 +152,7 @@ export function MissionSummaryBar({
 
           {job.description && (
             <p style={{
-              margin: "14px 0 0", fontSize: 13, color: "#4B5563",
+              margin: "14px 0 0", fontSize: 13, color: "var(--nw-text-secondary)",
               lineHeight: 1.65, whiteSpace: "pre-wrap",
             }}>
               {job.description}
@@ -162,7 +162,7 @@ export function MissionSummaryBar({
           {/* Critères principaux */}
           {mainCriteria.length > 0 && (
             <div style={{ marginTop: 14 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "#15803d", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "var(--nw-success)", letterSpacing: "0.07em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 {t.mainCriteria}
               </p>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
@@ -176,7 +176,7 @@ export function MissionSummaryBar({
           {/* Bonus */}
           {bonusCriteria.length > 0 && (
             <div style={{ marginTop: 12 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.07em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 {t.bonus}
               </p>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
@@ -189,7 +189,7 @@ export function MissionSummaryBar({
 
           <div style={{ display: "flex", gap: 14, marginTop: 14, flexWrap: "wrap" }}>
             <Link href={`/workspace/pricing/${job.id}`} style={{
-              fontSize: 12, fontWeight: 700, color: "#7C63C8", textDecoration: "none",
+              fontSize: 12, fontWeight: 700, color: "var(--nw-primary)", textDecoration: "none",
             }}>
               {t.pricingLink}
             </Link>
@@ -203,8 +203,8 @@ export function MissionSummaryBar({
 function CriterionPill({ c, kind }: { c: Criterion; kind: "main" | "bonus" }) {
   const { lang } = useLanguage()
   const palette = kind === "main"
-    ? { color: "#15803d", bg: "rgba(34,197,94,0.08)", bd: "rgba(34,197,94,0.25)" }
-    : { color: "#7C63C8", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" }
+    ? { color: "var(--nw-success)", bg: "rgba(34,197,94,0.08)", bd: "rgba(34,197,94,0.25)" }
+    : { color: "var(--nw-primary)", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.25)" }
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 4,
@@ -221,12 +221,12 @@ function CriterionPill({ c, kind }: { c: Criterion; kind: "main" | "bonus" }) {
 const btnGhost: React.CSSProperties = {
   padding: "8px 12px", borderRadius: 9,
   background: "white", border: "1px solid rgba(124,99,200,0.30)",
-  color: "#7C63C8", fontSize: 12, fontWeight: 700,
+  color: "var(--nw-primary)", fontSize: 12, fontWeight: 700,
   cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
 }
 const btnPrimary: React.CSSProperties = {
   padding: "8px 14px", borderRadius: 9,
-  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
   border: "none", color: "white",
   fontSize: 12, fontWeight: 700,
   cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
@@ -238,5 +238,5 @@ const btnGhostDisabled: React.CSSProperties = {
 }
 const btnPrimaryDisabled: React.CSSProperties = {
   ...btnPrimary,
-  background: "#C4B6E0", cursor: "not-allowed",
+  background: "var(--nw-primary-200)", cursor: "not-allowed",
 }

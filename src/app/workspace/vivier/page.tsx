@@ -649,16 +649,16 @@ export default function VivierPage() {
           >
             <div style={{
               background: "white", borderRadius: 24,
-              border: "2px dashed #7C63C8",
+              border: "2px dashed var(--nw-primary)",
               padding: "48px 64px",
               boxShadow: "0 24px 64px rgba(124,99,200,0.25)",
               textAlign: "center",
             }}>
               <div style={{ fontSize: 44, marginBottom: 12 }}>📥</div>
-              <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827" }}>
+              <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--nw-text)" }}>
                 {t.dropTitle}
               </p>
-              <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6B7280" }}>
+              <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--nw-text-muted)" }}>
                 {t.dropSubtitle}
               </p>
             </div>
@@ -671,21 +671,21 @@ export default function VivierPage() {
         <div>
           <span style={{
             display: "inline-block",
-            fontSize: 11, fontWeight: 700, color: "#7C63C8",
+            fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
             background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
             padding: "4px 11px", borderRadius: 100,
-            letterSpacing: "0.08em", textTransform: "uppercase",
+            letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             marginBottom: 12,
           }}>
             {t.badge}
           </span>
           <h1 style={{
             margin: 0, fontSize: "clamp(26px, 3vw, 34px)", fontWeight: 800,
-            color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.1,
+            color: "var(--nw-text)", letterSpacing: "-0.025em", lineHeight: 1.1,
           }}>
             {t.title}
           </h1>
-          <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
+          <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
             {candidates.length === 0
               ? t.subtitleEmpty
               : t.subtitleCount(candidates.length)}
@@ -700,7 +700,7 @@ export default function VivierPage() {
             title={isReadOnly ? t.readOnlyImport : undefined}
             style={{
               fontSize: 13, fontWeight: 700, color: "white",
-              background: isReadOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: isReadOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               border: "none", borderRadius: 10, padding: "10px 18px",
               cursor: isReadOnly ? "not-allowed" : "pointer",
               boxShadow: isReadOnly ? "none" : "0 6px 20px -8px rgba(124,99,200,0.55)",
@@ -727,20 +727,20 @@ export default function VivierPage() {
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
             style={{
               display: "flex", flexDirection: "column", gap: 8, marginBottom: 22,
-              background: "white", borderRadius: 14, border: "1px solid #F0ECF8",
+              background: "white", borderRadius: 14, border: "1px solid var(--nw-border-soft)",
               padding: 14,
             }}
           >
             {jobs.map((j) => (
               <div key={j.id} style={{
                 display: "flex", alignItems: "center", gap: 12,
-                fontSize: 13, color: "#374151",
+                fontSize: 13, color: "var(--nw-text-body)",
               }}>
                 <JobIcon status={j.status} />
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {j.fileName}
                 </span>
-                <span style={{ fontSize: 11, color: j.status === "error" ? "#DC2626" : "#6B7280" }}>
+                <span style={{ fontSize: 11, color: j.status === "error" ? "var(--nw-danger-strong)" : "var(--nw-text-muted)" }}>
                   {j.status === "uploading" && t.jobUploading}
                   {j.status === "parsing"   && t.jobParsing}
                   {j.status === "done"      && t.jobDone}
@@ -763,18 +763,18 @@ export default function VivierPage() {
               onChange={(e) => setQuery(e.target.value)}
               style={{
                 flex: 1, minWidth: 260,
-                fontSize: 13.5, color: "#111827",
+                fontSize: 13.5, color: "var(--nw-text)",
                 padding: "10px 14px",
                 background: "white",
-                border: "1px solid #E5E7EB",
+                border: "1px solid var(--nw-border)",
                 borderRadius: 10,
                 outline: "none", fontFamily: "inherit",
                 transition: "border-color 150ms, box-shadow 150ms",
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,99,200,0.10)" }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none" }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--nw-primary-200)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,99,200,0.10)" }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--nw-border)"; e.currentTarget.style.boxShadow = "none" }}
             />
-            <span style={{ fontSize: 12, color: "#6B7280" }}>
+            <span style={{ fontSize: 12, color: "var(--nw-text-muted)" }}>
               {t.resultsCount(filtered.length, candidates.length)}
             </span>
           </div>
@@ -790,7 +790,7 @@ export default function VivierPage() {
           borderRadius: 12,
           display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         }}>
-          <span style={{ fontSize: 13.5, color: "#92400E", flex: 1, minWidth: 240 }}>
+          <span style={{ fontSize: 13.5, color: "var(--nw-warn-strong)", flex: 1, minWidth: 240 }}>
             <strong>{t.doublonFound(doublonCount)}</strong>
             {t.doublonDesc}
           </span>
@@ -799,7 +799,7 @@ export default function VivierPage() {
             disabled={dedupRunning}
             style={{
               fontSize: 12.5, fontWeight: 700, color: "white",
-              background: dedupRunning ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: dedupRunning ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               border: "none", borderRadius: 9, padding: "8px 14px",
               cursor: dedupRunning ? "default" : "pointer",
               fontFamily: "inherit",
@@ -829,18 +829,18 @@ export default function VivierPage() {
             <span style={{
               display: "inline-flex", width: 18, height: 18, borderRadius: "50%",
               border: "2px solid rgba(124,99,200,0.25)",
-              borderTopColor: "#7C63C8",
+              borderTopColor: "var(--nw-primary)",
               animation: "spin 0.9s linear infinite",
             }} />
-            <span style={{ fontSize: 13, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.02em" }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.02em" }}>
               {t.parsingStripTitle}
             </span>
             <span style={{
-              fontSize: 11, fontWeight: 700, color: "#7C63C8",
+              fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
               background: "white", border: "1px solid rgba(124,99,200,0.22)",
               borderRadius: 100, padding: "1px 8px",
             }}>{parsingCandidates.length}</span>
-            <span style={{ fontSize: 11.5, color: "#6B7280", marginLeft: "auto" }}>
+            <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)", marginLeft: "auto" }}>
               {t.parsingStripSubtitle}
             </span>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -880,7 +880,7 @@ export default function VivierPage() {
             />
           ))}
           {parsedOrErrored.length === 0 && (
-            <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "#6B7280", fontSize: 14 }}>
+            <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "var(--nw-text-muted)", fontSize: 14 }}>
               {t.noSearchResults}
             </div>
           )}
@@ -952,10 +952,10 @@ export default function VivierPage() {
 
 function JobIcon({ status }: { status: UploadJob["status"] }) {
   const map = {
-    uploading: { color: "#7C63C8", anim: true,  icon: "↑" },
-    parsing:   { color: "#7C63C8", anim: true,  icon: "✦" },
+    uploading: { color: "var(--nw-primary)", anim: true,  icon: "↑" },
+    parsing:   { color: "var(--nw-primary)", anim: true,  icon: "✦" },
     done:      { color: "#16a34a", anim: false, icon: "✓" },
-    error:     { color: "#DC2626", anim: false, icon: "!" },
+    error:     { color: "var(--nw-danger-strong)", anim: false, icon: "!" },
   }[status]
   return (
     <span style={{
@@ -996,7 +996,7 @@ function CandidateCard({
   const primarySector = (c.sectors ?? [])[0] ?? null
   const secondarySector = (c.sectors ?? [])[1] ?? null
   const barBackground = !primarySector
-    ? "#D1D5DB"
+    ? "var(--nw-border)"
     : secondarySector
       ? `linear-gradient(180deg, ${sectorColors(primarySector).solid} 0%, ${sectorColors(secondarySector).solid} 100%)`
       : sectorColors(primarySector).solid
@@ -1008,7 +1008,7 @@ function CandidateCard({
       transition={{ duration: 0.35, delay, ease: EASE }}
       style={{
         background: "white", borderRadius: 12,
-        border: `1px solid ${errored ? "#FECACA" : "#F0ECF8"}`,
+        border: `1px solid ${errored ? "var(--nw-danger-border)" : "var(--nw-border-soft)"}`,
         padding: "12px 14px 12px 16px",
         display: "flex", flexDirection: "column", gap: 8,
         // overflow visible : le dropdown de reclassement (SectorReviewControl)
@@ -1032,9 +1032,9 @@ function CandidateCard({
           position: "absolute", top: 12, right: 12,
           fontSize: 10, fontWeight: 700,
           padding: "3px 8px", borderRadius: 100,
-          letterSpacing: "0.04em", textTransform: "uppercase",
+          letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
           background: errored ? "#FEE2E2" : "rgba(124,99,200,0.10)",
-          color:      errored ? "#B91C1C" : "#7C63C8",
+          color:      errored ? "var(--nw-danger-strong)" : "var(--nw-primary)",
           border:     errored ? "1px solid #FCA5A5" : "1px solid rgba(124,99,200,0.18)",
         }}>
           {errored ? t.errorParsing : t.parsingEllipsis}
@@ -1044,8 +1044,8 @@ function CandidateCard({
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <div style={{
           width: 32, height: 32, borderRadius: "50%",
-          background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-          color: "#7C63C8", fontSize: 11.5, fontWeight: 800,
+          background: "linear-gradient(135deg, var(--nw-border-soft) 0%, var(--nw-primary-100) 100%)",
+          color: "var(--nw-primary)", fontSize: 11.5, fontWeight: 800,
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0,
         }}>
@@ -1053,22 +1053,22 @@ function CandidateCard({
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <p style={{
-            margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827",
+            margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {c.full_name ?? (parsing ? t.parsingInProgress : c.cv_file_name ?? t.noName)}
           </p>
           <p style={{
-            margin: "1px 0 0", fontSize: 11.5, color: "#6B7280",
+            margin: "1px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {c.current_title ?? (errored ? c.parse_error ?? t.errorFallback : "—")}
-            {c.current_company ? <> · <span style={{ color: "#6B7280" }}>{c.current_company}</span></> : null}
+            {c.current_company ? <> · <span style={{ color: "var(--nw-text-muted)" }}>{c.current_company}</span></> : null}
           </p>
           <p style={{
-            margin: "2px 0 0", fontSize: 9.5, fontWeight: 700, color: "#6B7280",
+            margin: "2px 0 0", fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)",
             letterSpacing: "0.04em",
-            fontFamily: "var(--font-space-grotesk), monospace",
+            fontFamily: "var(--nw-font-mono)",
           }}>
             {candidateRefLabel(c.id)}
           </p>
@@ -1080,15 +1080,15 @@ function CandidateCard({
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
           {c.skills.slice(0, 3).map((s) => (
             <span key={s} style={{
-              fontSize: 10, color: "#4B5563",
-              background: "#F8F6FF", border: "1px solid #F0ECF8",
+              fontSize: 10, color: "var(--nw-text-secondary)",
+              background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)",
               padding: "2px 7px", borderRadius: 5,
             }}>
               {s}
             </span>
           ))}
           {c.skills.length > 3 && (
-            <span style={{ fontSize: 10, color: "#6B7280", padding: "2px 3px" }}>
+            <span style={{ fontSize: 10, color: "var(--nw-text-muted)", padding: "2px 3px" }}>
               +{c.skills.length - 3}
             </span>
           )}
@@ -1098,28 +1098,28 @@ function CandidateCard({
       {/* Pied : métadonnées (peuvent passer à la ligne) PUIS ligne d'actions
           stable (secteur à gauche, Ouvrir/× à droite toujours alignés). */}
       <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#6B7280", flexWrap: "wrap", minHeight: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--nw-text-muted)", flexWrap: "wrap", minHeight: 16 }}>
           {c.location ?? "—"}
           {c.years_experience != null && <span>· {t.yearsAbbrev(c.years_experience)}</span>}
           {customTagsOf(c.tags).slice(0, 2).map((t) => (
             <span key={t} style={{
-              fontSize: 10, fontWeight: 600, color: "#4B5563",
-              background: "white", border: "1px solid #E2DAF6",
+              fontSize: 10, fontWeight: 600, color: "var(--nw-text-secondary)",
+              background: "white", border: "1px solid var(--nw-primary-100)",
               borderRadius: 100, padding: "1px 8px",
             }}>
               {t}
             </span>
           ))}
           {customTagsOf(c.tags).length > 2 && (
-            <span style={{ fontSize: 10, color: "#6B7280" }}>+{customTagsOf(c.tags).length - 2}</span>
+            <span style={{ fontSize: 10, color: "var(--nw-text-muted)" }}>+{customTagsOf(c.tags).length - 2}</span>
           )}
           {c.tags?.includes("doublon") && (
             <span style={{
-              background: "#FEF3C7", color: "#92400E",
+              background: "#FEF3C7", color: "var(--nw-warn-strong)",
               border: "1px solid #FDE68A",
               padding: "2px 7px", borderRadius: 100,
               fontSize: 10, fontWeight: 700,
-              letterSpacing: "0.04em", textTransform: "uppercase",
+              letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}>
               {t.duplicateBadge}
             </span>
@@ -1147,12 +1147,12 @@ function CandidateCard({
                 style={{
                   height: 24, width: 24, boxSizing: "border-box",
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  background: "transparent", border: "1px solid #E5E7EB",
+                  background: "transparent", border: "1px solid var(--nw-border)",
                   borderRadius: 7, padding: 0, cursor: "pointer",
-                  color: "#6B7280",
+                  color: "var(--nw-text-muted)",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5" }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "#6B7280"; e.currentTarget.style.borderColor = "#E5E7EB" }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--nw-danger-strong)"; e.currentTarget.style.borderColor = "#FCA5A5" }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--nw-text-muted)"; e.currentTarget.style.borderColor = "var(--nw-border)" }}
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M18 6 6 18M6 6l12 12" />
@@ -1164,7 +1164,7 @@ function CandidateCard({
               style={{
                 height: 28, boxSizing: "border-box",
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
-                fontSize: 11, fontWeight: 600, color: "#7C63C8", lineHeight: 1,
+                fontSize: 11, fontWeight: 600, color: "var(--nw-primary)", lineHeight: 1,
                 padding: "0 10px", borderRadius: 7,
                 background: "rgba(124,99,200,0.08)",
                 border: "1px solid rgba(124,99,200,0.16)",
@@ -1243,26 +1243,26 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <div style={{
           width: 42, height: 42, borderRadius: "50%",
-          background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-          color: "#7C63C8", fontSize: 16, fontWeight: 800,
+          background: "linear-gradient(135deg, var(--nw-border-soft) 0%, var(--nw-primary-100) 100%)",
+          color: "var(--nw-primary)", fontSize: 16, fontWeight: 800,
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0,
         }}>
           <span style={{
             display: "inline-block", width: 16, height: 16, borderRadius: "50%",
             border: "2px solid rgba(124,99,200,0.25)",
-            borderTopColor: "#7C63C8",
+            borderTopColor: "var(--nw-primary)",
             animation: "spin 0.9s linear infinite",
           }} />
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <p style={{
-            margin: 0, fontSize: 14, fontWeight: 700, color: "#111827",
+            margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-text)",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {c.cv_file_name ?? t.noName}
           </p>
-          <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6B7280" }}>
+          <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)" }}>
             {label}
           </p>
         </div>
@@ -1270,9 +1270,9 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
           onClick={onDelete}
           title={t.cancelTitle}
           style={{
-            background: "transparent", border: "1px solid #E5E7EB",
+            background: "transparent", border: "1px solid var(--nw-border)",
             borderRadius: 8, padding: "5px 8px", cursor: "pointer",
-            color: "#6B7280", fontSize: 11, lineHeight: 1, flexShrink: 0,
+            color: "var(--nw-text-muted)", fontSize: 11, lineHeight: 1, flexShrink: 0,
           }}
         >✕</button>
       </div>
@@ -1294,15 +1294,15 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
               width: "40%",
               borderRadius: 100,
               background: stalling
-                ? "linear-gradient(90deg, rgba(124,99,200,0) 0%, #C4B6E0 50%, rgba(124,99,200,0) 100%)"
-                : "linear-gradient(90deg, rgba(124,99,200,0) 0%, #7C63C8 50%, rgba(124,99,200,0) 100%)",
+                ? "linear-gradient(90deg, rgba(124,99,200,0) 0%, var(--nw-primary-200) 50%, rgba(124,99,200,0) 100%)"
+                : "linear-gradient(90deg, rgba(124,99,200,0) 0%, var(--nw-primary) 50%, rgba(124,99,200,0) 100%)",
               animation: "indeterminate 1.6s ease-in-out infinite",
             }} />
           ) : (
             <div style={{
               position: "absolute", left: 0, top: 0, bottom: 0,
               width: `${pct}%`,
-              background: "linear-gradient(90deg, #7C63C8 0%, #B8AEDE 100%)",
+              background: "linear-gradient(90deg, var(--nw-primary) 0%, #B8AEDE 100%)",
               borderRadius: 100,
               transition: "width 600ms cubic-bezier(0.22, 1, 0.36, 1)",
             }}>
@@ -1317,7 +1317,7 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
         <div style={{
           marginTop: 6, display: "flex", justifyContent: "space-between",
           alignItems: "center",
-          fontSize: 10.5, color: "#6B7280", fontVariantNumeric: "tabular-nums",
+          fontSize: 10.5, color: "var(--nw-text-muted)", fontVariantNumeric: "tabular-nums",
         }}>
           <span>{nearAsymptote ? t.finalizing : `${Math.round(pct)}%`}</span>
           {veryStalled ? (
@@ -1325,7 +1325,7 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
               onClick={manualRetry}
               disabled={retrying}
               style={{
-                fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
                 background: "white",
                 border: "1px solid rgba(124,99,200,0.3)",
                 borderRadius: 7, padding: "3px 9px",
@@ -1367,34 +1367,34 @@ function EmptyDropZone({ onPick, readOnly = false }: { onPick: () => void; readO
         marginTop: 40,
         padding: "72px 36px",
         background: "white",
-        border: "2px dashed #E2DAF6",
+        border: "2px dashed var(--nw-primary-100)",
         borderRadius: 22,
         textAlign: "center",
         transition: "border-color 200ms, background 200ms",
       }}
-      onMouseEnter={readOnly ? undefined : (e) => { e.currentTarget.style.borderColor = "#C4B6E0"; e.currentTarget.style.background = "#FBFAFE" }}
-      onMouseLeave={readOnly ? undefined : (e) => { e.currentTarget.style.borderColor = "#E2DAF6"; e.currentTarget.style.background = "white" }}
+      onMouseEnter={readOnly ? undefined : (e) => { e.currentTarget.style.borderColor = "var(--nw-primary-200)"; e.currentTarget.style.background = "#FBFAFE" }}
+      onMouseLeave={readOnly ? undefined : (e) => { e.currentTarget.style.borderColor = "var(--nw-primary-100)"; e.currentTarget.style.background = "white" }}
     >
       <div style={{ fontSize: 56, marginBottom: 16 }}>📄</div>
       <h2 style={{
-        margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "#111827",
+        margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "var(--nw-text)",
         letterSpacing: "-0.015em",
       }}>
         {t.emptyTitle}
       </h2>
-      <p style={{ margin: "0 auto 18px", maxWidth: 480, fontSize: 14, color: "#6B7280", lineHeight: 1.65 }}>
+      <p style={{ margin: "0 auto 18px", maxWidth: 480, fontSize: 14, color: "var(--nw-text-muted)", lineHeight: 1.65 }}>
         {t.emptyDesc}
       </p>
       <span style={{
         display: "inline-block",
         padding: "11px 22px", borderRadius: 12,
-        background: readOnly ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+        background: readOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
         color: "white", fontWeight: 700, fontSize: 14,
         boxShadow: readOnly ? "none" : "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
         {readOnly ? t.readOnlyLabel : t.emptyCta}
       </span>
-      <p style={{ margin: "18px 0 0", fontSize: 11, color: "#6B7280" }}>
+      <p style={{ margin: "18px 0 0", fontSize: 11, color: "var(--nw-text-muted)" }}>
         {t.emptyHint}
       </p>
     </m.div>
@@ -1436,7 +1436,7 @@ function RecentUploadsStrip({
   const arrowBtn: React.CSSProperties = {
     width: 28, height: 28, borderRadius: 8, flexShrink: 0,
     display: "inline-flex", alignItems: "center", justifyContent: "center",
-    background: "white", border: "1px solid #E5E7EB", color: "#7C63C8",
+    background: "white", border: "1px solid var(--nw-border)", color: "var(--nw-primary)",
     cursor: "pointer", fontFamily: "inherit", fontSize: 14, lineHeight: 1,
   }
 
@@ -1450,17 +1450,17 @@ function RecentUploadsStrip({
           onClick={() => setCollapsed((v) => !v)}
           style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }} aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--nw-primary)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }} aria-hidden="true">
             <path d="m6 9 6 6 6-6" />
           </svg>
-          <span style={{ fontSize: 13, fontWeight: 800, color: "#7C63C8" }}>{t.recentTitle}</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "var(--nw-primary)" }}>{t.recentTitle}</span>
         </button>
         <span style={{
-          fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
           borderRadius: 100, padding: "1px 8px",
         }}>{candidates.length}</span>
-        <span style={{ fontSize: 11.5, color: "#6B7280" }}>{t.recentHint}</span>
+        <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)" }}>{t.recentHint}</span>
         {!collapsed && overflow && (
           <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
             <button onClick={() => scrollBy(-1)} style={arrowBtn} aria-label={t.scrollLeft}>‹</button>
@@ -1519,8 +1519,8 @@ function SectorOverview({
     <div>
       {/* Barre d'actions secteurs */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>{t.rangedBy}</span>
-        <span style={{ fontSize: 11.5, color: "#6B7280" }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--nw-text-body)" }}>{t.rangedBy}</span>
+        <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)" }}>
           {t.hybridHint}
         </span>
         {/* Actions de mutation masquées en lecture seule. */}
@@ -1532,7 +1532,7 @@ function SectorOverview({
                 disabled={classifying}
                 style={{
                   fontSize: 12.5, fontWeight: 700,
-                  color: classifying ? "#6B7280" : "#7C63C8",
+                  color: classifying ? "var(--nw-text-muted)" : "var(--nw-primary)",
                   background: "white", border: "1px solid rgba(124,99,200,0.30)",
                   borderRadius: 9, padding: "8px 13px",
                   cursor: classifying ? "default" : "pointer", fontFamily: "inherit",
@@ -1545,7 +1545,7 @@ function SectorOverview({
               onClick={onCreate}
               style={{
                 fontSize: 12.5, fontWeight: 700, color: "white",
-                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                 border: "none", borderRadius: 9, padding: "8px 14px",
                 cursor: "pointer", fontFamily: "inherit",
               }}
@@ -1570,21 +1570,21 @@ function SectorOverview({
           <span style={{
             width: 34, height: 34, borderRadius: 10, flexShrink: 0,
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            background: "rgba(245,158,11,0.14)", color: "#B45309",
+            background: "rgba(245,158,11,0.14)", color: "var(--nw-warn)",
           }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 9v4M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
             </svg>
           </span>
           <span style={{ flex: 1 }}>
-            <span style={{ display: "block", fontSize: 14, fontWeight: 800, color: "#92400E" }}>
+            <span style={{ display: "block", fontSize: 14, fontWeight: 800, color: "var(--nw-warn-strong)" }}>
               {t.toClassifyTitle}
             </span>
-            <span style={{ display: "block", fontSize: 12, color: "#B45309", marginTop: 1 }}>
+            <span style={{ display: "block", fontSize: 12, color: "var(--nw-warn)", marginTop: 1 }}>
               {t.toClassifyDesc(unclassifiedCount)}
             </span>
           </span>
-          <span style={{ fontSize: 18, color: "#B45309" }}>→</span>
+          <span style={{ fontSize: 18, color: "var(--nw-warn)" }}>→</span>
         </button>
       )}
 
@@ -1602,19 +1602,19 @@ function SectorOverview({
               display: "flex", flexDirection: "column", gap: 6, textAlign: "left",
               cursor: "pointer", fontFamily: "inherit",
               padding: "16px 16px", borderRadius: 14,
-              background: "white", border: "1px solid #F0ECF8",
+              background: "white", border: "1px solid var(--nw-border-soft)",
               transition: "border-color 150ms, transform 150ms",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#D8CEF0"; e.currentTarget.style.transform = "translateY(-2px)" }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#F0ECF8"; e.currentTarget.style.transform = "none" }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--nw-border-soft)"; e.currentTarget.style.transform = "none" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: sectorColors(s.name).solid, flexShrink: 0 }} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#111827", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--nw-text)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {sectorDisplayName(s.name, lang)}
               </span>
               <span style={{
-                fontSize: 12, fontWeight: 800, color: "#7C63C8",
+                fontSize: 12, fontWeight: 800, color: "var(--nw-primary)",
                 background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
                 borderRadius: 100, padding: "1px 9px", fontVariantNumeric: "tabular-nums",
               }}>
@@ -1622,14 +1622,14 @@ function SectorOverview({
               </span>
             </div>
             {s.description && (
-              <span style={{ fontSize: 11.5, color: "#6B7280", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                 {s.description}
               </span>
             )}
           </button>
         ))}
         {visibleSectors.length === 0 && (
-          <div style={{ gridColumn: "1 / -1", padding: 30, textAlign: "center", color: "#6B7280", fontSize: 13 }}>
+          <div style={{ gridColumn: "1 / -1", padding: 30, textAlign: "center", color: "var(--nw-text-muted)", fontSize: 13 }}>
             {t.noSectors}
           </div>
         )}
@@ -1690,7 +1690,7 @@ function SectorDetail({
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <button onClick={onBack} style={{
-          fontSize: 13, fontWeight: 600, color: "#7C63C8",
+          fontSize: 13, fontWeight: 600, color: "var(--nw-primary)",
           background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0,
         }}>{t.backToSectors}</button>
         {renaming ? (
@@ -1698,33 +1698,33 @@ function SectorDetail({
             <input
               value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus
               onKeyDown={(e) => { if (e.key === "Enter") void doRename(); if (e.key === "Escape") setRenaming(false) }}
-              style={{ fontSize: 15, fontWeight: 700, color: "#111827", padding: "4px 8px", border: "1px solid #C4B6E0", borderRadius: 7, outline: "none", fontFamily: "inherit" }}
+              style={{ fontSize: 15, fontWeight: 700, color: "var(--nw-text)", padding: "4px 8px", border: "1px solid var(--nw-primary-200)", borderRadius: 7, outline: "none", fontFamily: "inherit" }}
             />
-            <button onClick={doRename} disabled={busy} style={{ fontSize: 12, fontWeight: 700, color: "white", background: "#7C63C8", border: "none", borderRadius: 7, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.ok}</button>
-            <button onClick={() => setRenaming(false)} style={{ fontSize: 12, color: "#6B7280", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{t.cancel}</button>
+            <button onClick={doRename} disabled={busy} style={{ fontSize: 12, fontWeight: 700, color: "white", background: "var(--nw-primary)", border: "none", borderRadius: 7, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.ok}</button>
+            <button onClick={() => setRenaming(false)} style={{ fontSize: 12, color: "var(--nw-text-muted)", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}>{t.cancel}</button>
           </div>
         ) : (
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
             {title}
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#6B7280", marginLeft: 8 }}>{candidates.length}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--nw-text-muted)", marginLeft: 8 }}>{candidates.length}</span>
           </h2>
         )}
         {!isUnclassified && sector && !renaming && !readOnly && (
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            <button onClick={() => { setNewName(view); setRenaming(true) }} style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", background: "white", border: "1px solid #E5E7EB", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.rename}</button>
-            <button onClick={doDelete} disabled={busy} style={{ fontSize: 12, fontWeight: 600, color: "#DC2626", background: "white", border: "1px solid #FCA5A5", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.delete}</button>
+            <button onClick={() => { setNewName(view); setRenaming(true) }} style={{ fontSize: 12, fontWeight: 600, color: "var(--nw-text-muted)", background: "white", border: "1px solid var(--nw-border)", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.rename}</button>
+            <button onClick={doDelete} disabled={busy} style={{ fontSize: 12, fontWeight: 600, color: "var(--nw-danger-strong)", background: "white", border: "1px solid #FCA5A5", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" }}>{t.delete}</button>
           </div>
         )}
       </div>
 
       {isUnclassified && (
-        <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#B45309", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 10, padding: "10px 13px" }}>
+        <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "var(--nw-warn)", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 10, padding: "10px 13px" }}>
           {t.unclassifiedHint}
         </p>
       )}
 
       {candidates.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", color: "#6B7280", fontSize: 14, background: "white", border: "1px dashed #E2DAF6", borderRadius: 14 }}>
+        <div style={{ padding: 40, textAlign: "center", color: "var(--nw-text-muted)", fontSize: 14, background: "white", border: "1px dashed var(--nw-primary-100)", borderRadius: 14 }}>
           {t.noCandidatesInSector}
         </div>
       ) : (
@@ -1804,12 +1804,12 @@ function CreateSectorModal({
       }}
     >
       <div style={{ width: "100%", maxWidth: 460, background: "white", borderRadius: 16, padding: 22, boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)" }}>
-        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111827" }}>{t.createModalTitle}</h2>
-        <p style={{ margin: "4px 0 16px", fontSize: 12.5, color: "#6B7280", lineHeight: 1.5 }}>
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "var(--nw-text)" }}>{t.createModalTitle}</h2>
+        <p style={{ margin: "4px 0 16px", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
           {t.createModalDesc}
         </p>
 
-        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 6 }}>
           {t.sectorNameLabel}
         </label>
         <div style={{ display: "flex", gap: 8 }}>
@@ -1817,39 +1817,39 @@ function CreateSectorModal({
             value={name} onChange={(e) => { setName(e.target.value); setAsked(false) }} autoFocus
             onKeyDown={(e) => { if (e.key === "Enter") void askNora() }}
             placeholder={t.sectorNamePlaceholder}
-            style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: "#111827", padding: "9px 12px", border: "1px solid #E5E7EB", borderRadius: 9, outline: "none", fontFamily: "inherit" }}
+            style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: "var(--nw-text)", padding: "9px 12px", border: "1px solid var(--nw-border)", borderRadius: 9, outline: "none", fontFamily: "inherit" }}
           />
           <button
             onClick={askNora} disabled={!name.trim() || defining}
-            style={{ fontSize: 12.5, fontWeight: 700, color: name.trim() && !defining ? "#7C63C8" : "#C4C4C4", background: "white", border: "1px solid #E5E7EB", borderRadius: 9, padding: "0 13px", cursor: name.trim() && !defining ? "pointer" : "default", fontFamily: "inherit", whiteSpace: "nowrap" }}
+            style={{ fontSize: 12.5, fontWeight: 700, color: name.trim() && !defining ? "var(--nw-primary)" : "#C4C4C4", background: "white", border: "1px solid var(--nw-border)", borderRadius: 9, padding: "0 13px", cursor: name.trim() && !defining ? "pointer" : "default", fontFamily: "inherit", whiteSpace: "nowrap" }}
           >
             {defining ? "…" : t.askNora}
           </button>
         </div>
 
         {duplicateOf && (
-          <p style={{ margin: "10px 0 0", fontSize: 12, color: "#B45309", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.28)", borderRadius: 9, padding: "8px 11px" }}>
+          <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--nw-warn)", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.28)", borderRadius: 9, padding: "8px 11px" }}>
             {t.duplicateHint(sectorDisplayName(duplicateOf, lang))}
           </p>
         )}
 
         {asked && (
           <div style={{ marginTop: 14 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 6 }}>
               {t.definitionLabel}
             </label>
             <textarea
               value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
-              style={{ width: "100%", boxSizing: "border-box", fontSize: 13, lineHeight: 1.5, color: "#111827", padding: "9px 11px", border: "1px solid #E2DAF6", background: "#FBFAFE", borderRadius: 9, outline: "none", fontFamily: "inherit", resize: "vertical" }}
+              style={{ width: "100%", boxSizing: "border-box", fontSize: 13, lineHeight: 1.5, color: "var(--nw-text)", padding: "9px 11px", border: "1px solid var(--nw-primary-100)", background: "#FBFAFE", borderRadius: 9, outline: "none", fontFamily: "inherit", resize: "vertical" }}
             />
           </div>
         )}
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
-          <button onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: "#6B7280", background: "white", border: "1px solid #E5E7EB", borderRadius: 9, padding: "9px 15px", cursor: "pointer", fontFamily: "inherit" }}>{t.cancel}</button>
+          <button onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: "var(--nw-text-muted)", background: "white", border: "1px solid var(--nw-border)", borderRadius: 9, padding: "9px 15px", cursor: "pointer", fontFamily: "inherit" }}>{t.cancel}</button>
           <button
             onClick={create} disabled={!name.trim() || creating}
-            style={{ fontSize: 13, fontWeight: 700, color: "white", background: !name.trim() || creating ? "#C4B6E0" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)", border: "none", borderRadius: 9, padding: "9px 18px", cursor: !name.trim() || creating ? "default" : "pointer", fontFamily: "inherit" }}
+            style={{ fontSize: 13, fontWeight: 700, color: "white", background: !name.trim() || creating ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)", border: "none", borderRadius: 9, padding: "9px 18px", cursor: !name.trim() || creating ? "default" : "pointer", fontFamily: "inherit" }}
           >
             {creating ? t.creatingSector : t.createSector}
           </button>

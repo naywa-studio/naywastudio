@@ -30,10 +30,10 @@ const copy = {
     viewPricing: "€ Voir le pricing",
     ref: "Ref",
     tierMeta: {
-      excellent: { label: "Excellent match", fg: "#15803d", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
-      good:      { label: "Bon match",       fg: "#7C63C8", bg: "rgba(124,99,200,0.07)", bd: "rgba(124,99,200,0.22)" },
-      fair:      { label: "Match moyen",     fg: "#B45309", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
-      poor:      { label: "Match faible",    fg: "#6B7280", bg: "#F9FAFB", bd: "#E5E7EB" },
+      excellent: { label: "Excellent match", fg: "var(--nw-success)", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
+      good:      { label: "Bon match",       fg: "var(--nw-primary)", bg: "rgba(124,99,200,0.07)", bd: "rgba(124,99,200,0.22)" },
+      fair:      { label: "Match moyen",     fg: "var(--nw-warn)", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
+      poor:      { label: "Match faible",    fg: "var(--nw-text-muted)", bg: "#F9FAFB", bd: "var(--nw-border)" },
     } as Record<MatchTier, { label: string; fg: string; bg: string; bd: string }>,
     scoreDimLabels: {
       skills_match: "Skills", seniority_fit: "Séniorité", location_fit: "Lieu",
@@ -89,10 +89,10 @@ const copy = {
     viewPricing: "€ View pricing",
     ref: "Ref",
     tierMeta: {
-      excellent: { label: "Excellent match", fg: "#15803d", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
-      good:      { label: "Good match",      fg: "#7C63C8", bg: "rgba(124,99,200,0.07)", bd: "rgba(124,99,200,0.22)" },
-      fair:      { label: "Fair match",      fg: "#B45309", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
-      poor:      { label: "Weak match",      fg: "#6B7280", bg: "#F9FAFB", bd: "#E5E7EB" },
+      excellent: { label: "Excellent match", fg: "var(--nw-success)", bg: "rgba(34,197,94,0.07)", bd: "rgba(34,197,94,0.25)" },
+      good:      { label: "Good match",      fg: "var(--nw-primary)", bg: "rgba(124,99,200,0.07)", bd: "rgba(124,99,200,0.22)" },
+      fair:      { label: "Fair match",      fg: "var(--nw-warn)", bg: "rgba(245,158,11,0.07)", bd: "rgba(245,158,11,0.22)" },
+      poor:      { label: "Weak match",      fg: "var(--nw-text-muted)", bg: "#F9FAFB", bd: "var(--nw-border)" },
     } as Record<MatchTier, { label: string; fg: string; bg: string; bd: string }>,
     scoreDimLabels: {
       skills_match: "Skills", seniority_fit: "Seniority", location_fit: "Location",
@@ -159,7 +159,7 @@ function PricingShortcut({ targets, lang }: {
     fontFamily: "inherit", fontSize: 12, fontWeight: 700,
     color: "white",
     padding: "8px 12px", borderRadius: 9,
-    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
     border: "1px solid rgba(124,99,200,0.40)",
     cursor: "pointer",
     display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none",
@@ -190,20 +190,20 @@ function PricingShortcut({ targets, lang }: {
             padding: 6, minWidth: 260, maxHeight: 320, overflowY: "auto",
           }}>
             <div style={{
-              fontSize: 10, fontWeight: 700, color: "#6B7280",
-              letterSpacing: "0.05em", textTransform: "uppercase",
+              fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
+              letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
               {t.chooseMission}
             </div>
             {withJob.map((tg) => (
               <Link key={tg.job!.id} href={`/workspace/pricing/${tg.job!.id}`} style={{
-                display: "block", fontSize: 12.5, color: "#374151", fontWeight: 600,
+                display: "block", fontSize: 12.5, color: "var(--nw-text-body)", fontWeight: 600,
                 padding: "8px 10px", borderRadius: 7, textDecoration: "none",
               }}>
                 {tg.job!.title}
                 {tg.score != null && (
-                  <span style={{ marginLeft: 6, fontSize: 11, color: "#6B7280" }}>· {tg.score}</span>
+                  <span style={{ marginLeft: 6, fontSize: 11, color: "var(--nw-text-muted)" }}>· {tg.score}</span>
                 )}
               </Link>
             ))}
@@ -222,13 +222,13 @@ function RefBadge({ candidateId, lang }: { candidateId: string; lang: Lang }) {
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 4,
-      fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+      fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)",
       letterSpacing: "0.04em",
       background: "rgba(124,99,200,0.08)",
       border: "1px solid rgba(124,99,200,0.22)",
       borderRadius: 7,
       padding: "2px 8px",
-      fontFamily: "var(--font-space-grotesk), monospace",
+      fontFamily: "var(--nw-font-mono)",
     }}>
       {t.ref} · {candidateRefLabel(candidateId)}
     </span>
@@ -420,9 +420,9 @@ export default function MatchPage() {
   }
   if (notFound || !match || !candidate) {
     return (
-      <div style={{ padding: "60px 24px", textAlign: "center", color: "#6B7280" }}>
+      <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--nw-text-muted)" }}>
         <p style={{ fontSize: 16, fontWeight: 600 }}>{t.matchNotFound}</p>
-        <Link href="/workspace/pipeline" style={{ color: "#7C63C8", textDecoration: "none", fontSize: 14 }}>
+        <Link href="/workspace/pipeline" style={{ color: "var(--nw-primary)", textDecoration: "none", fontSize: 14 }}>
           {t.backToPipeline}
         </Link>
       </div>
@@ -486,12 +486,12 @@ export default function MatchPage() {
       <div style={{ marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, fontSize: 12.5 }}>
         {/* Gauche : retour à la mission (origine du candidat) */}
         {job ? (
-          <Link href={`/workspace/missions/${job.id}`} style={{ color: "#7C63C8", textDecoration: "none" }}>
+          <Link href={`/workspace/missions/${job.id}`} style={{ color: "var(--nw-primary)", textDecoration: "none" }}>
             {t.missionPrefix(job.title)}
           </Link>
         ) : <span />}
         {/* Droite : avancer vers la pipeline (sens de progression du workspace) */}
-        <Link href="/workspace/pipeline" style={{ color: "#7C63C8", textDecoration: "none" }}>
+        <Link href="/workspace/pipeline" style={{ color: "var(--nw-primary)", textDecoration: "none" }}>
           {t.pipelineArrow}
         </Link>
       </div>
@@ -503,7 +503,7 @@ export default function MatchPage() {
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: EASE }}
         style={{
-          background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+          background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
           padding: "18px 22px", marginBottom: 14,
           display: "grid", gridTemplateColumns: "1fr auto", gap: 14, alignItems: "center",
         }}
@@ -512,10 +512,10 @@ export default function MatchPage() {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <h1 style={{
-              margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#111827",
+              margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--nw-text)",
             }}>
               {candidate.full_name ?? t.noNameCandidate}
-              <span style={{ fontWeight: 500, color: "#6B7280", fontSize: 15 }}>{t.forSuffix}</span>
+              <span style={{ fontWeight: 500, color: "var(--nw-text-muted)", fontSize: 15 }}>{t.forSuffix}</span>
             </h1>
             <RefBadge candidateId={candidate.id} lang={lang} />
             <div style={{ minWidth: 280, maxWidth: 420 }}>
@@ -535,7 +535,7 @@ export default function MatchPage() {
               />
             </div>
           </div>
-          <div style={{ marginTop: 8, fontSize: 12.5, color: "#6B7280", display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ marginTop: 8, fontSize: 12.5, color: "var(--nw-text-muted)", display: "flex", gap: 10, flexWrap: "wrap" }}>
             {candidate.current_title && <span>{candidate.current_title}</span>}
             {candidate.location && <span>· {candidate.location}</span>}
             {candidate.seniority_level && <span>· {candidate.seniority_level}</span>}
@@ -555,15 +555,15 @@ export default function MatchPage() {
               ...(isReadOnly
                 ? { color: "#B8AEDE", background: "#F3F0FA", border: "1px solid #E5E0F0" }
                 : match.in_pipeline
-                ? { color: "#15803d", background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.35)" }
-                : { color: "white", background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)", border: "none", boxShadow: "0 6px 18px -8px rgba(124,99,200,0.6)" }),
+                ? { color: "var(--nw-success)", background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.35)" }
+                : { color: "white", background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)", border: "none", boxShadow: "0 6px 18px -8px rgba(124,99,200,0.6)" }),
             }}
           >
             {match.in_pipeline ? t.inPipeline : t.addToPipeline}
           </button>
           {isManual ? (
             <span style={{
-              fontSize: 12, fontWeight: 700, color: "#7C63C8",
+              fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
               background: "rgba(124,99,200,0.08)",
               border: "1px solid rgba(124,99,200,0.22)",
               borderRadius: 10, padding: "8px 12px",
@@ -592,7 +592,7 @@ export default function MatchPage() {
             return <PricingShortcut targets={targets} lang={lang} />
           })()}
           <Link href={`/workspace/vivier/${candidate.id}`} style={{
-            fontSize: 12, fontWeight: 700, color: "#7C63C8",
+            fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
             background: "white", border: "1px solid rgba(124,99,200,0.25)",
             borderRadius: 9, padding: "8px 12px", textDecoration: "none",
           }}>
@@ -637,13 +637,13 @@ export default function MatchPage() {
           {!isManual && (hasCriteriaEval || dimEntries.length > 0) && (
             <section style={{
               background: "white",
-              border: "1px solid #F0ECF8",
+              border: "1px solid var(--nw-border-soft)",
               borderRadius: 16,
               padding: 16,
             }}>
               <h3 style={{
-                margin: 0, fontSize: 11, fontWeight: 800, color: "#15803d",
-                letterSpacing: "0.06em", textTransform: "uppercase",
+                margin: 0, fontSize: 11, fontWeight: 800, color: "var(--nw-success)",
+                letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               }}>
                 {t.criteriaTitle}
               </h3>
@@ -652,7 +652,7 @@ export default function MatchPage() {
               {hasCriteriaEval ? (
                 <>
                   <div style={{ marginTop: 10 }}>
-                    <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                       {t.mainLabel}
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
@@ -663,7 +663,7 @@ export default function MatchPage() {
                   </div>
                   {bonusCriteria.length > 0 && (
                     <div style={{ marginTop: 12 }}>
-                      <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                         {t.bonusLabel}
                       </p>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 6 }}>
@@ -679,7 +679,7 @@ export default function MatchPage() {
                 dimEntries.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 10 }}>
                     {dimEntries.map(([k, v]) => (
-                      <span key={k} style={{ fontSize: 11, color: "#15803d", fontWeight: 700 }}>
+                      <span key={k} style={{ fontSize: 11, color: "var(--nw-success)", fontWeight: 700 }}>
                         {t.scoreDimLabels[k] ?? k} <strong style={{ fontSize: 14 }}>{v}</strong>
                       </span>
                     ))}
@@ -688,7 +688,7 @@ export default function MatchPage() {
               )}
 
               {match.justification && (
-                <p style={{ margin: "12px 0 0", fontSize: 12.5, color: "#374151", lineHeight: 1.55, fontStyle: "italic" }}>
+                <p style={{ margin: "12px 0 0", fontSize: 12.5, color: "var(--nw-text-body)", lineHeight: 1.55, fontStyle: "italic" }}>
                   &ldquo;{match.justification}&rdquo;
                 </p>
               )}
@@ -700,10 +700,10 @@ export default function MatchPage() {
               border: "1px solid rgba(124,99,200,0.22)",
               borderRadius: 16, padding: 16,
             }}>
-              <h3 style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              <h3 style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 {t.manualAssignmentTitle}
               </h3>
-              <p style={{ margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
+              <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-body)", lineHeight: 1.55 }}>
                 {match.justification ?? t.manualAssignmentBody}
               </p>
             </section>
@@ -712,8 +712,8 @@ export default function MatchPage() {
           {/* Prétention salariale du candidat — universelle (hors Suite
               Pricing). Comparée au salaire cible du poste si renseigné, et
               réutilisable dans le pricing ensuite. */}
-          <section style={{ background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 16 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <section style={{ background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16, padding: 16 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
               {t.salaryExpectationTitle}
             </h3>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -725,29 +725,29 @@ export default function MatchPage() {
                 disabled={isReadOnly}
                 placeholder={t.salaryPlaceholder}
                 title={isReadOnly ? t.readOnlyLabel : undefined}
-                style={{ width: 150, padding: "9px 12px", fontSize: 13.5, borderRadius: 9, border: "1px solid #E2DAF6", outline: "none", fontFamily: "inherit", background: isReadOnly ? "#F3F0FA" : "white", cursor: isReadOnly ? "not-allowed" : "text" }}
+                style={{ width: 150, padding: "9px 12px", fontSize: 13.5, borderRadius: 9, border: "1px solid var(--nw-primary-100)", outline: "none", fontFamily: "inherit", background: isReadOnly ? "#F3F0FA" : "white", cursor: isReadOnly ? "not-allowed" : "text" }}
               />
-              <span style={{ fontSize: 12, color: "#6B7280" }}>{t.grossPerYear(salarySaving)}</span>
+              <span style={{ fontSize: 12, color: "var(--nw-text-muted)" }}>{t.grossPerYear(salarySaving)}</span>
             </div>
             {(() => {
               const target = match.job?.target_gross_salary ?? null
               const ask = match.salary_expectation_brut ?? null
               const locale = lang === "fr" ? "fr-FR" : "en-US"
               if (target == null) {
-                return <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "#6B7280" }}>{t.fillTargetSalary}</p>
+                return <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)" }}>{t.fillTargetSalary}</p>
               }
               if (ask == null) {
-                return <p style={{ margin: "10px 0 0", fontSize: 12, color: "#6B7280" }}>{t.targetSalaryOnly(target.toLocaleString(locale))}</p>
+                return <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--nw-text-muted)" }}>{t.targetSalaryOnly(target.toLocaleString(locale))}</p>
               }
               const diff = ask - target
               const pct = target > 0 ? Math.round((diff / target) * 100) : 0
               const over = diff > 0
               const col = over
-                ? { fg: "#B45309", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.28)" }
-                : { fg: "#15803d", bg: "rgba(34,197,94,0.10)", bd: "rgba(34,197,94,0.28)" }
+                ? { fg: "var(--nw-warn)", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.28)" }
+                : { fg: "var(--nw-success)", bg: "rgba(34,197,94,0.10)", bd: "rgba(34,197,94,0.28)" }
               return (
                 <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 12, color: "#6B7280" }}>{t.targetSalaryLabel}<strong>{target.toLocaleString(locale)} €</strong></span>
+                  <span style={{ fontSize: 12, color: "var(--nw-text-muted)" }}>{t.targetSalaryLabel}<strong>{target.toLocaleString(locale)} €</strong></span>
                   <span style={{ fontSize: 11.5, fontWeight: 700, color: col.fg, background: col.bg, border: `1px solid ${col.bd}`, borderRadius: 99, padding: "2px 10px" }}>
                     {over ? t.aboveBudget : diff === 0 ? t.inBudget : t.underBudget}{diff !== 0 ? ` · ${over ? "+" : ""}${pct}%` : ""}
                   </span>
@@ -756,12 +756,12 @@ export default function MatchPage() {
             })()}
           </section>
 
-          <section style={{ flex: 1, background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <section style={{ flex: 1, background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16, padding: 18 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
               {t.candidateSummaryTitle}
             </h3>
             {cv?.summary && (
-              <p style={{ margin: "0 0 10px", fontSize: 13.5, color: "#374151", lineHeight: 1.65 }}>
+              <p style={{ margin: "0 0 10px", fontSize: 13.5, color: "var(--nw-text-body)", lineHeight: 1.65 }}>
                 {cv.summary}
               </p>
             )}
@@ -769,8 +769,8 @@ export default function MatchPage() {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
                 {candidate.skills.slice(0, 12).map((s) => (
                   <span key={s} style={{
-                    fontSize: 11.5, color: "#4B5563",
-                    background: "#F8F6FF", border: "1px solid #F0ECF8",
+                    fontSize: 11.5, color: "var(--nw-text-secondary)",
+                    background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)",
                     padding: "3px 9px", borderRadius: 6,
                   }}>{s}</span>
                 ))}
@@ -781,10 +781,10 @@ export default function MatchPage() {
             {(cv?.years_experience != null || (cv?.languages?.length ?? 0) > 0) && (
               <div style={{
                 display: "flex", flexWrap: "wrap", gap: 16, marginTop: 14,
-                fontSize: 12, color: "#6B7280",
+                fontSize: 12, color: "var(--nw-text-muted)",
               }}>
                 {cv?.years_experience != null && (
-                  <span>📈 <strong style={{ color: "#374151" }}>{t.yearsExp(cv.years_experience)}</strong> {t.experienceSuffix}</span>
+                  <span>📈 <strong style={{ color: "var(--nw-text-body)" }}>{t.yearsExp(cv.years_experience)}</strong> {t.experienceSuffix}</span>
                 )}
                 {(cv?.languages?.length ?? 0) > 0 && (
                   <span>🌐 {cv!.languages!.join(", ")}</span>
@@ -795,7 +795,7 @@ export default function MatchPage() {
             {/* Parcours — remplit la carte avec du concret plutôt que du vide */}
             {(cv?.experience?.length ?? 0) > 0 && (
               <div style={{ marginTop: 16 }}>
-                <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                   {t.pathTitle}
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -806,14 +806,14 @@ export default function MatchPage() {
                       <div key={i} style={{ display: "flex", gap: 10 }}>
                         <span style={{
                           flexShrink: 0, width: 7, height: 7, borderRadius: "50%",
-                          background: "#C4B6E0", marginTop: 5,
+                          background: "var(--nw-primary-200)", marginTop: 5,
                         }} />
                         <div style={{ minWidth: 0 }}>
-                          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#374151", lineHeight: 1.4 }}>
-                            {xp.title}{xp.company ? <span style={{ fontWeight: 400, color: "#6B7280" }}> · {xp.company}</span> : null}
+                          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--nw-text-body)", lineHeight: 1.4 }}>
+                            {xp.title}{xp.company ? <span style={{ fontWeight: 400, color: "var(--nw-text-muted)" }}> · {xp.company}</span> : null}
                           </p>
                           {period && (
-                            <p style={{ margin: "1px 0 0", fontSize: 11, color: "#6B7280" }}>{period}</p>
+                            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--nw-text-muted)" }}>{period}</p>
                           )}
                         </div>
                       </div>
@@ -827,12 +827,12 @@ export default function MatchPage() {
 
         {/* COL 2 (rangée 1) — message d'approche */}
         <div style={{ gridColumn: "2", gridRow: "1", display: "flex", flexDirection: "column", gap: 14 }}>
-          <section style={{ flex: 1, background: "white", border: "1px solid #F0ECF8", borderRadius: 16, padding: 18 }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "#6B7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <section style={{ flex: 1, background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16, padding: 18 }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
               {t.approachMessageTitle}
             </h3>
             {isReadOnly ? (
-              <p style={{ margin: 0, fontSize: 13, color: "#6B7280" }}>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-muted)" }}>
                 Lecture seule — la rédaction de messages est indisponible. Souscrivez pour reprendre la main.
               </p>
             ) : candidate.parse_status === "parsed" ? (
@@ -843,7 +843,7 @@ export default function MatchPage() {
                 showJobBadge={false}
               />
             ) : (
-              <p style={{ margin: 0, fontSize: 13, color: "#6B7280" }}>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-muted)" }}>
                 {t.availableOnceParsed}
               </p>
             )}
@@ -914,7 +914,7 @@ function CriteriaEvalLine({ criterion, ev, lang }: { criterion: Criterion; ev: C
       <div title={tooltip} style={{ minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6, marginBottom: 4 }}>
           <span style={{
-            fontSize: 11, color: "#6B7280", fontWeight: 600,
+            fontSize: 11, color: "var(--nw-text-muted)", fontWeight: 600,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0,
           }}>{name}</span>
           <span style={{
@@ -944,7 +944,7 @@ function CriteriaEvalLine({ criterion, ev, lang }: { criterion: Criterion; ev: C
       }}
     >
       <span style={{
-        fontSize: 11.5, color: "#4B5563", fontWeight: 600,
+        fontSize: 11.5, color: "var(--nw-text-secondary)", fontWeight: 600,
         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         flex: 1, minWidth: 0,
       }}>{name}</span>

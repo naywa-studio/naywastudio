@@ -264,28 +264,28 @@ export default function PricingReferencePage() {
       <div style={{ marginBottom: 26 }}>
         <Link href="/workspace/pricing" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
-          fontSize: 13, color: "#7C63C8", textDecoration: "none", marginBottom: 18,
+          fontSize: 13, color: "var(--nw-primary)", textDecoration: "none", marginBottom: 18,
         }}>
           {t.back}
         </Link>
         <span style={{
           display: "inline-block",
-          fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
           padding: "4px 11px", borderRadius: 100,
-          letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12,
+          letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 12,
         }}>
           {t.badge}
         </span>
         <h1 style={{
           margin: 0, fontSize: "clamp(24px, 3vw, 30px)",
-          fontWeight: 800, color: "#111827",
+          fontWeight: 800, color: "var(--nw-text)",
           letterSpacing: "-0.025em", lineHeight: 1.15,
         }}>
           {t.title}
         </h1>
         <p style={{
-          margin: "8px 0 0", fontSize: 14, color: "#6B7280",
+          margin: "8px 0 0", fontSize: 14, color: "var(--nw-text-muted)",
           lineHeight: 1.6, maxWidth: 720,
         }}>
           {t.intro}
@@ -294,7 +294,7 @@ export default function PricingReferencePage() {
 
       <RefCategory
         label={t.categorySyntec}
-        accent="#7C63C8"
+        accent="var(--nw-primary)"
         items={CONVENTION_SYNTEC[lang]}
         delay={0}
       />
@@ -306,7 +306,7 @@ export default function PricingReferencePage() {
       />
       <RefCategory
         label={t.categoryCodeTravail}
-        accent="#15803D"
+        accent="var(--nw-success)"
         items={CODE_TRAVAIL[lang]}
         delay={0.12}
       />
@@ -316,10 +316,10 @@ export default function PricingReferencePage() {
         background: "rgba(124,99,200,0.05)",
         border: "1px solid rgba(124,99,200,0.18)",
         borderRadius: 12,
-        fontSize: 12.5, color: "#4B5563", lineHeight: 1.6,
+        fontSize: 12.5, color: "var(--nw-text-secondary)", lineHeight: 1.6,
       }}>
         {t.footer}
-        <Link href="/contact" style={{ color: "#7C63C8", fontWeight: 700, textDecoration: "underline" }}>
+        <Link href="/contact" style={{ color: "var(--nw-primary)", fontWeight: 700, textDecoration: "underline" }}>
           {t.contact}
         </Link>
         .
@@ -355,7 +355,7 @@ function RefCategory({
         }} />
         <h2 style={{
           margin: 0, fontSize: 16, fontWeight: 800,
-          color: "#111827", letterSpacing: "-0.01em",
+          color: "var(--nw-text)", letterSpacing: "-0.01em",
         }}>
           {label}
         </h2>
@@ -372,7 +372,7 @@ function RefCategory({
             style={{
               padding: "16px 18px",
               background: "white",
-              border: "1px solid #F0ECF8",
+              border: "1px solid var(--nw-border-soft)",
               borderRadius: 12,
               display: "flex", flexDirection: "column", gap: 8,
             }}
@@ -381,24 +381,24 @@ function RefCategory({
               <span style={{
                 fontSize: 10.5, fontWeight: 700,
                 color: accent, letterSpacing: "0.06em",
-                textTransform: "uppercase",
+                fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               }}>
                 {it.source}
               </span>
               <h3 style={{
-                margin: 0, fontSize: 14, fontWeight: 700, color: "#111827",
+                margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-text)",
                 letterSpacing: "-0.005em",
               }}>
                 {it.title}
               </h3>
             </div>
             <p style={{
-              margin: 0, fontSize: 13, color: "#4B5563", lineHeight: 1.6,
+              margin: 0, fontSize: 13, color: "var(--nw-text-secondary)", lineHeight: 1.6,
             }}>
               {it.summary}
             </p>
             <p style={{
-              margin: 0, fontSize: 12, color: "#7C63C8", lineHeight: 1.55,
+              margin: 0, fontSize: 12, color: "var(--nw-primary)", lineHeight: 1.55,
               fontWeight: 500,
             }}>
               {it.whereWeUse}

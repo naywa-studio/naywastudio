@@ -1,0 +1,63 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box}html,body{margin:0}
+body{background:#FDFCF9;font-family:Inter,sans-serif;color:#1A1B2E}
+.bg{position:fixed;inset:0;z-index:0;background:#FDFCF9}
+.bg svg{position:absolute;inset:0;width:100%;height:100%;opacity:.9}
+.w{position:relative;z-index:1}
+.meta{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6B6C7F;display:inline-flex;gap:8px;align-items:center}
+.meta .s{color:#7B63C8}.meta .d{color:#E9E1CB}
+.h1{font-family:Fraunces,serif;font-weight:500;font-size:56px;line-height:1.02;letter-spacing:-.025em;margin:16px 0 18px}
+.h2{font-family:Fraunces,serif;font-weight:500;font-size:36px;line-height:1.12;letter-spacing:-.02em;margin:14px 0 18px}
+.acc{font-style:italic;font-weight:400;color:#7B63C8}
+.lead{font-size:18px;line-height:1.6;color:#4B4C5E;max-width:55ch}
+.body{font-size:15px;line-height:1.65;color:#4B4C5E}
+.btn{display:inline-flex;gap:8px;border-radius:12px;padding:14px 28px;font-size:15px;font-weight:700;text-decoration:none;background:#7B63C8;color:#fff;box-shadow:0 24px 48px -20px rgba(123,99,200,.3)}
+.card{background:#FAF7F0;border:1px solid #E9E1CB;border-radius:20px;padding:32px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.sable{background:#F5F1E8;border-top:1px solid #E9E1CB;border-bottom:1px solid #E9E1CB}
+.ink{background:#1A1B2E;text-align:center;color:#F5F1E8}
+section{padding:64px 48px}
+</style></head><body>
+<div class="bg"><svg viewBox="0 0 900 500" preserveAspectRatio="none">
+<defs>
+<linearGradient id="b1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#7B63C8" stop-opacity=".20"/><stop offset="100%" stop-color="#B8AEDE" stop-opacity=".05"/></linearGradient>
+<linearGradient id="b2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4B3A8F" stop-opacity=".15"/><stop offset="100%" stop-color="#7B63C8" stop-opacity=".05"/></linearGradient>
+</defs>
+<path d="M-40 220 C 240 140, 620 340, 940 200 L 940 260 C 620 400, 240 200, -40 280 Z" fill="url(#b1)"/>
+<path d="M-40 300 C 240 220, 620 420, 940 280 L 940 340 C 620 480, 240 280, -40 360 Z" fill="url(#b2)"/>
+<path d="M-40 220 C 240 140, 620 340, 940 200" fill="none" stroke="#B8AEDE" stroke-width="1" opacity=".6"/>
+<path d="M-40 300 C 240 220, 620 420, 940 280" fill="none" stroke="#B8AEDE" stroke-width="1" opacity=".5"/>
+</svg></div>
+
+<div class="w">
+  <section style="padding-top:80px">
+    <span class="meta"><span class="s">§&nbsp;01</span><span class="d">·</span>Fond blanc chaud — aucun choc</span>
+    <h1 class="h1">Nous traitons,<br>vous <span class="acc">décidez</span>.</h1>
+    <p class="lead">Le canvas se lit comme blanc. La chaleur est dosée dans les cartes et une bande d'accent, pas étalée partout.</p>
+    <p style="margin-top:26px"><a class="btn" href="#">Démarrer votre essai gratuit →</a></p>
+  </section>
+
+  <section>
+    <span class="meta"><span class="s">§&nbsp;02</span><span class="d">·</span>Cartes craie sur fond blanc chaud</span>
+    <h2 class="h2">La chaleur vit dans les cartes.</h2>
+    <div class="grid">
+      <div class="card"><div class="meta s" style="color:#7B63C8;margin-bottom:16px">Vivier</div><b>Nora range</b><p class="body" style="margin:8px 0 0">Parsing, indexation, classement par secteur.</p></div>
+      <div class="card"><div class="meta s" style="color:#7B63C8;margin-bottom:16px">Matching</div><b>Score justifié</b><p class="body" style="margin:8px 0 0">Chaque score s'explique, vous tranchez.</p></div>
+      <div class="card"><div class="meta s" style="color:#7B63C8;margin-bottom:16px">Pricing</div><b>Syntec conforme</b><p class="body" style="margin:8px 0 0">Marge, charges, plafonds URSSAF.</p></div>
+    </div>
+  </section>
+
+  <section class="sable">
+    <span class="meta"><span class="s">§&nbsp;03</span><span class="d">·</span>Bande sable — accent ponctuel</span>
+    <h2 class="h2">Le sable devient un <span class="acc">accent</span>, plus le fond.</h2>
+    <p class="lead">Une section chaude de temps en temps donne du rythme sans baigner tout le site dans le crème.</p>
+  </section>
+
+  <section class="ink">
+    <h2 class="h2" style="color:#F5F1E8">Et l'encre pour le contraste.</h2>
+    <p class="body" style="color:#B8AEDE;margin:0 0 26px">Une bande sombre casse la monotonie mieux qu'une couleur en plus.</p>
+    <a class="btn" href="#">Contactez-nous →</a>
+  </section>
+</div>
+</body></html>

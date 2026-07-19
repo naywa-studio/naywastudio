@@ -22,14 +22,14 @@ const CAP = 20 // pas de vraie limite produit ; garde-fou anti-abus.
 
 const STATUS_META: Record<Lang, Record<SectorStatus, { label: string; color: string; bg: string; border: string }>> = {
   fr: {
-    auto:      { label: "Nora",      color: "#7C63C8", bg: "rgba(124,99,200,0.10)", border: "rgba(124,99,200,0.28)" },
-    to_review: { label: "À classer", color: "#B45309", bg: "rgba(245,158,11,0.10)", border: "rgba(245,158,11,0.30)" },
-    validated: { label: "Validé",    color: "#15803D", bg: "rgba(34,197,94,0.10)",  border: "rgba(34,197,94,0.30)" },
+    auto:      { label: "Nora",      color: "var(--nw-primary)", bg: "rgba(124,99,200,0.10)", border: "rgba(124,99,200,0.28)" },
+    to_review: { label: "À classer", color: "var(--nw-warn)", bg: "rgba(245,158,11,0.10)", border: "rgba(245,158,11,0.30)" },
+    validated: { label: "Validé",    color: "var(--nw-success)", bg: "rgba(34,197,94,0.10)",  border: "rgba(34,197,94,0.30)" },
   },
   en: {
-    auto:      { label: "Nora",      color: "#7C63C8", bg: "rgba(124,99,200,0.10)", border: "rgba(124,99,200,0.28)" },
-    to_review: { label: "To classify", color: "#B45309", bg: "rgba(245,158,11,0.10)", border: "rgba(245,158,11,0.30)" },
-    validated: { label: "Validated", color: "#15803D", bg: "rgba(34,197,94,0.10)",  border: "rgba(34,197,94,0.30)" },
+    auto:      { label: "Nora",      color: "var(--nw-primary)", bg: "rgba(124,99,200,0.10)", border: "rgba(124,99,200,0.28)" },
+    to_review: { label: "To classify", color: "var(--nw-warn)", bg: "rgba(245,158,11,0.10)", border: "rgba(245,158,11,0.30)" },
+    validated: { label: "Validated", color: "var(--nw-success)", bg: "rgba(34,197,94,0.10)",  border: "rgba(34,197,94,0.30)" },
   },
 }
 
@@ -62,7 +62,7 @@ export function SectorStatusBadge({ status }: { status: SectorStatus }) {
       fontSize: 9.5, fontWeight: 700, color: m.color,
       background: m.bg, border: `1px solid ${m.border}`,
       borderRadius: 999, padding: "1px 7px",
-      letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap",
+      letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", whiteSpace: "nowrap",
     }}>
       {m.label}
     </span>
@@ -188,12 +188,12 @@ export function SectorReviewControl({
         padding: 10, fontFamily: "var(--font-inter), sans-serif",
       }}
     >
-      <p style={{ margin: "0 0 8px", fontSize: 10.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+      <p style={{ margin: "0 0 8px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
         {t.sectors}
       </p>
       <div style={{ maxHeight: 168, overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
         {options.length === 0 && (
-          <p style={{ margin: "4px 2px", fontSize: 11.5, color: "#6B7280" }}>
+          <p style={{ margin: "4px 2px", fontSize: 11.5, color: "var(--nw-text-muted)" }}>
             {t.noSectors}
           </p>
         )}
@@ -215,8 +215,8 @@ export function SectorReviewControl({
               <span style={{
                 width: 15, height: 15, borderRadius: 4, flexShrink: 0,
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
-                background: checked ? "#7C63C8" : "white",
-                border: `1.5px solid ${checked ? "#7C63C8" : "#D1D5DB"}`,
+                background: checked ? "var(--nw-primary)" : "white",
+                border: `1.5px solid ${checked ? "var(--nw-primary)" : "var(--nw-border)"}`,
               }}>
                 {checked && (
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -224,7 +224,7 @@ export function SectorReviewControl({
                   </svg>
                 )}
               </span>
-              <span style={{ fontSize: 12.5, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12.5, color: "var(--nw-text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {sectorDisplayName(name, lang)}
               </span>
             </button>
@@ -239,8 +239,8 @@ export function SectorReviewControl({
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNew() } }}
           placeholder={t.newSectorPlaceholder}
           style={{
-            flex: 1, minWidth: 0, fontSize: 12, color: "#111827",
-            padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 7,
+            flex: 1, minWidth: 0, fontSize: 12, color: "var(--nw-text)",
+            padding: "6px 8px", border: "1px solid var(--nw-border)", borderRadius: 7,
             outline: "none", fontFamily: "inherit",
           }}
         />
@@ -250,8 +250,8 @@ export function SectorReviewControl({
           disabled={!newName.trim()}
           style={{
             fontSize: 12, fontWeight: 700,
-            color: newName.trim() ? "#7C63C8" : "#C4C4C4",
-            background: "white", border: "1px solid #E5E7EB", borderRadius: 7,
+            color: newName.trim() ? "var(--nw-primary)" : "#C4C4C4",
+            background: "white", border: "1px solid var(--nw-border)", borderRadius: 7,
             padding: "0 10px", cursor: newName.trim() ? "pointer" : "default",
             fontFamily: "inherit",
           }}
@@ -265,8 +265,8 @@ export function SectorReviewControl({
           type="button"
           onClick={() => { setDraft(sectors); setOpen(false) }}
           style={{
-            fontSize: 12, fontWeight: 600, color: "#6B7280",
-            background: "white", border: "1px solid #E5E7EB", borderRadius: 7,
+            fontSize: 12, fontWeight: 600, color: "var(--nw-text-muted)",
+            background: "white", border: "1px solid var(--nw-border)", borderRadius: 7,
             padding: "6px 11px", cursor: "pointer", fontFamily: "inherit",
           }}
         >
@@ -278,7 +278,7 @@ export function SectorReviewControl({
           disabled={saving}
           style={{
             fontSize: 12, fontWeight: 700, color: "white",
-            background: saving ? "#C4B6E0" : "#7C63C8",
+            background: saving ? "var(--nw-primary-200)" : "var(--nw-primary)",
             border: "none", borderRadius: 7, padding: "6px 13px",
             cursor: saving ? "default" : "pointer", fontFamily: "inherit",
           }}
@@ -303,8 +303,8 @@ export function SectorReviewControl({
           height: 28, boxSizing: "border-box",
           display: "inline-flex", alignItems: "center", gap: 5,
           maxWidth: 190, overflow: "hidden",
-          fontSize: 11, fontWeight: 600, color: sectors.length ? "#4B5563" : "#6B7280",
-          background: "white", border: "1px solid #E5E7EB",
+          fontSize: 11, fontWeight: 600, color: sectors.length ? "var(--nw-text-secondary)" : "var(--nw-text-muted)",
+          background: "white", border: "1px solid var(--nw-border)",
           borderRadius: 7, padding: "0 8px",
           cursor: disabled ? "default" : "pointer", fontFamily: "inherit",
         }}

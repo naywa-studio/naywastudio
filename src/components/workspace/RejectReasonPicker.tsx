@@ -108,19 +108,19 @@ export default function RejectReasonPicker({
             }}
           >
             <p style={{
-              margin: 0, fontSize: 10.5, fontWeight: 700, color: "#6B7280",
-              letterSpacing: "0.08em", textTransform: "uppercase",
+              margin: 0, fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
+              letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}>
               {t.eyebrow}
             </p>
             <h3 style={{
-              margin: "4px 0 4px", fontSize: 15, fontWeight: 800, color: "#111827",
+              margin: "4px 0 4px", fontSize: 15, fontWeight: 800, color: "var(--nw-text)",
               letterSpacing: "-0.01em",
             }}>
               {t.title(candidateName)}
             </h3>
             <p style={{
-              margin: "0 0 14px", fontSize: 12, color: "#6B7280", lineHeight: 1.55,
+              margin: "0 0 14px", fontSize: 12, color: "var(--nw-text-muted)", lineHeight: 1.55,
             }}>
               {t.body}
             </p>
@@ -140,9 +140,9 @@ export default function RejectReasonPicker({
                       borderRadius: 10,
                       fontSize: 13,
                       fontWeight: active ? 700 : 500,
-                      color: active ? "#7C63C8" : "#374151",
+                      color: active ? "var(--nw-primary)" : "var(--nw-text-body)",
                       background: active ? "rgba(124,99,200,0.08)" : "white",
-                      border: `1px solid ${active ? "rgba(124,99,200,0.40)" : "#E5E7EB"}`,
+                      border: `1px solid ${active ? "rgba(124,99,200,0.40)" : "var(--nw-border)"}`,
                       cursor: "pointer",
                     }}
                   >
@@ -161,10 +161,10 @@ export default function RejectReasonPicker({
                   rows={3}
                   style={{
                     marginTop: 10, width: "100%", padding: "9px 12px",
-                    fontSize: 12.5, color: "#111827",
+                    fontSize: 12.5, color: "var(--nw-text)",
                     fontFamily: "inherit", lineHeight: 1.5,
                     background: "white",
-                    border: "1px solid #E5E7EB", borderRadius: 9,
+                    border: "1px solid var(--nw-border)", borderRadius: 9,
                     outline: "none", resize: "vertical",
                   }}
                 />
@@ -180,7 +180,7 @@ export default function RejectReasonPicker({
                 onClick={() => submit(null)}
                 style={{
                   fontFamily: "inherit", fontSize: 12, fontWeight: 600,
-                  color: "#6B7280",
+                  color: "var(--nw-text-muted)",
                   background: "transparent", border: "none", cursor: "pointer",
                   padding: "6px 0", textDecoration: "underline",
                 }}
@@ -191,8 +191,8 @@ export default function RejectReasonPicker({
                 <button
                   onClick={onCancel}
                   style={{
-                    fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, color: "#6B7280",
-                    background: "white", border: "1px solid #E5E7EB",
+                    fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, color: "var(--nw-text-muted)",
+                    background: "white", border: "1px solid var(--nw-border)",
                     borderRadius: 9, padding: "8px 14px", cursor: "pointer",
                   }}
                 >
@@ -204,7 +204,7 @@ export default function RejectReasonPicker({
                   style={{
                     fontFamily: "inherit", fontSize: 12.5, fontWeight: 700, color: "white",
                     background: reason
-                      ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
+                      ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
                       : "rgba(124,99,200,0.4)",
                     border: "none",
                     borderRadius: 9, padding: "8px 16px",

@@ -208,7 +208,7 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
         {/* Header avec progression */}
         <div style={{
           padding: "20px 28px 14px",
-          borderBottom: "1px solid #F0ECF8",
+          borderBottom: "1px solid var(--nw-border-soft)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -219,7 +219,7 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
                   width: n === step ? 22 : 8,
                   height: 8,
                   borderRadius: 100,
-                  background: n <= step ? "#7C63C8" : "#E2DAF6",
+                  background: n <= step ? "var(--nw-primary)" : "var(--nw-primary-100)",
                   transition: "all 240ms ease",
                 }}
               />
@@ -229,7 +229,7 @@ export function PricingOnboardingWizard({ open, initial, onClose, onDone }: Prop
             type="button"
             onClick={onClose}
             style={{
-              fontSize: 12, fontWeight: 600, color: "#6B7280",
+              fontSize: 12, fontWeight: 600, color: "var(--nw-text-muted)",
               background: "transparent", border: "none", cursor: "pointer",
               fontFamily: "inherit",
             }}
@@ -417,11 +417,11 @@ function FieldNum({
 }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>{label}</span>
-      {hint && <span style={{ fontSize: 11, color: "#6B7280" }}>{hint}</span>}
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)" }}>{label}</span>
+      {hint && <span style={{ fontSize: 11, color: "var(--nw-text-muted)" }}>{hint}</span>}
       <div style={{
         display: "flex", alignItems: "center",
-        background: "white", border: "1px solid #E5E7EB", borderRadius: 9,
+        background: "white", border: "1px solid var(--nw-border)", borderRadius: 9,
         overflow: "hidden",
       }}>
         <input
@@ -434,12 +434,12 @@ function FieldNum({
           }}
           style={{
             flex: 1, padding: "9px 12px",
-            fontSize: 13, color: "#111827",
+            fontSize: 13, color: "var(--nw-text)",
             background: "transparent", border: "none", outline: "none",
             fontFamily: "inherit", minWidth: 0, width: "100%",
           }}
         />
-        <span style={{ fontSize: 12, color: "#6B7280", paddingRight: 12 }}>{suffix}</span>
+        <span style={{ fontSize: 12, color: "var(--nw-text-muted)", paddingRight: 12 }}>{suffix}</span>
       </div>
     </label>
   )
@@ -447,30 +447,30 @@ function FieldNum({
 
 const titleStyle: React.CSSProperties = {
   margin: 0,
-  fontSize: 22, fontWeight: 800, color: "#111827",
+  fontSize: 22, fontWeight: 800, color: "var(--nw-text)",
   letterSpacing: "-0.02em", lineHeight: 1.2,
-  fontFamily: "var(--font-space-grotesk), sans-serif",
+  fontFamily: "var(--font-inter), sans-serif",
 }
 
 const italicStyle: React.CSSProperties = {
-  fontFamily: "var(--font-instrument-serif), serif",
+  fontFamily: "var(--font-inter), sans-serif",
   fontStyle: "italic", fontWeight: 400,
-  color: "#7C63C8",
+  color: "var(--nw-primary)",
 }
 
 const leadStyle: React.CSSProperties = {
   margin: "8px 0 0",
-  fontSize: 13.5, color: "#6B7280", lineHeight: 1.6,
+  fontSize: 13.5, color: "var(--nw-text-muted)", lineHeight: 1.6,
 }
 
 const listStyle: React.CSSProperties = {
   margin: "16px 0 0", paddingLeft: 18,
-  fontSize: 13, color: "#374151", lineHeight: 1.7,
+  fontSize: 13, color: "var(--nw-text-body)", lineHeight: 1.7,
 }
 
 const primaryBtnStyle: React.CSSProperties = {
   padding: "10px 18px", borderRadius: 10,
-  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
   color: "white", fontSize: 13, fontWeight: 700,
   border: "none", cursor: "pointer",
   fontFamily: "inherit",
@@ -479,15 +479,15 @@ const primaryBtnStyle: React.CSSProperties = {
 
 const ghostBtnStyle: React.CSSProperties = {
   padding: "10px 16px", borderRadius: 10,
-  background: "white", color: "#6B7280",
+  background: "white", color: "var(--nw-text-muted)",
   fontSize: 12.5, fontWeight: 600,
-  border: "1px solid #E5E7EB", cursor: "pointer",
+  border: "1px solid var(--nw-border)", cursor: "pointer",
   fontFamily: "inherit",
 }
 
 const errorBoxStyle: React.CSSProperties = {
   margin: "14px 0 0",
-  padding: "9px 12px", fontSize: 12.5, color: "#B91C1C",
+  padding: "9px 12px", fontSize: 12.5, color: "var(--nw-danger-strong)",
   background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
   borderRadius: 9, lineHeight: 1.5,
 }

@@ -108,7 +108,7 @@ export function LockdownBanner({ organization, isOwner = true }: Props) {
     >
       <span aria-hidden style={{
         width: 8, height: 8, borderRadius: "50%",
-        background: "#DC2626", flexShrink: 0,
+        background: "var(--nw-danger-strong)", flexShrink: 0,
       }} />
       <span style={{ flex: "0 1 auto" }}>
         {lead} {countdown}
@@ -116,14 +116,14 @@ export function LockdownBanner({ organization, isOwner = true }: Props) {
           <>
             <Link
               href={primary.href}
-              style={{ color: "#DC2626", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
+              style={{ color: "var(--nw-danger-strong)", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
             >
               {primary.label}
             </Link>
             {" "}·{" "}
             <Link
               href="/organisation?tab=securite"
-              style={{ color: "#DC2626", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
+              style={{ color: "var(--nw-danger-strong)", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
             >
               {t.exportData}
             </Link>
@@ -133,7 +133,7 @@ export function LockdownBanner({ organization, isOwner = true }: Props) {
             {grace.cause === "deletion" ? t.askOwnerDeletion : t.askOwnerSub}
             <Link
               href="/organisation?tab=securite"
-              style={{ color: "#DC2626", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
+              style={{ color: "var(--nw-danger-strong)", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
             >
               {t.exportData}
             </Link>

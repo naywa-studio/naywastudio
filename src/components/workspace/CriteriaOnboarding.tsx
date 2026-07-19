@@ -33,7 +33,7 @@ const copy = {
     stepBadge: "Étape unique · Critères de matching",
     title: "Nora propose, vous validez",
     intro: (
-      <>Choisissez les critères qui comptent pour cette mission. Les <strong style={{ color: "#15803d" }}>principaux</strong> pèsent dans le score, les <strong style={{ color: "#7C63C8" }}>bonus</strong> sont affichés mais ne pénalisent pas.</>
+      <>Choisissez les critères qui comptent pour cette mission. Les <strong style={{ color: "var(--nw-success)" }}>principaux</strong> pèsent dans le score, les <strong style={{ color: "var(--nw-primary)" }}>bonus</strong> sont affichés mais ne pénalisent pas.</>
     ),
     relaunchNora: "↻ Relancer Nora",
     analyzing: "Nora analyse la mission…",
@@ -69,7 +69,7 @@ const copy = {
     stepBadge: "Single step · Matching criteria",
     title: "Nora suggests, you confirm",
     intro: (
-      <>Choose the criteria that matter for this mission. <strong style={{ color: "#15803d" }}>Main</strong> criteria weigh into the score, <strong style={{ color: "#7C63C8" }}>bonus</strong> ones are shown but don&apos;t penalize.</>
+      <>Choose the criteria that matter for this mission. <strong style={{ color: "var(--nw-success)" }}>Main</strong> criteria weigh into the score, <strong style={{ color: "var(--nw-primary)" }}>bonus</strong> ones are shown but don&apos;t penalize.</>
     ),
     relaunchNora: "↻ Re-run Nora",
     analyzing: "Nora is analyzing the mission…",
@@ -270,15 +270,15 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
         <div style={{ flex: 1, minWidth: 0 }}>
           {!embedded && (
             <>
-              <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, color: "#7C63C8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, color: "var(--nw-primary)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 {t.stepBadge}
               </p>
-              <h2 style={{ margin: "4px 0 0", fontSize: 19, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+              <h2 style={{ margin: "4px 0 0", fontSize: 19, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
                 {t.title}
               </h2>
             </>
           )}
-          <p style={{ margin: embedded ? 0 : "4px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+          <p style={{ margin: embedded ? 0 : "4px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
             {t.intro}
           </p>
         </div>
@@ -288,7 +288,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
             onClick={() => void propose()}
             disabled={loading || saving}
             style={{
-              fontSize: 11.5, fontWeight: 700, color: "#7C63C8",
+              fontSize: 11.5, fontWeight: 700, color: "var(--nw-primary)",
               background: "white", border: "1px solid rgba(124,99,200,0.30)",
               borderRadius: 9, padding: "6px 12px",
               cursor: loading || saving ? "default" : "pointer",
@@ -302,12 +302,12 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
 
       {loading && (
         <div style={{
-          padding: "40px 0", textAlign: "center", color: "#7C63C8",
+          padding: "40px 0", textAlign: "center", color: "var(--nw-primary)",
           fontSize: 13, fontWeight: 600,
         }}>
           <span style={{
             display: "inline-block", width: 18, height: 18, borderRadius: "50%",
-            border: "2px solid rgba(124,99,200,0.25)", borderTopColor: "#7C63C8",
+            border: "2px solid rgba(124,99,200,0.25)", borderTopColor: "var(--nw-primary)",
             animation: "criteria-spin 0.9s linear infinite",
             marginRight: 10, verticalAlign: "middle",
           }} />
@@ -324,7 +324,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
           <Column
             title={t.mainColumn}
             subtitle={t.mainSubtitle(mainCount, MAX_MAIN_CRITERIA)}
-            accent="#15803d"
+            accent="var(--nw-success)"
             items={mainList}
             onToggleWeight={toggleWeight}
             onRemove={remove}
@@ -334,7 +334,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
           <Column
             title={t.bonusColumn}
             subtitle={t.bonusSubtitle(bonusCount, MAX_BONUS_CRITERIA)}
-            accent="#7C63C8"
+            accent="var(--nw-primary)"
             items={bonusList}
             onToggleWeight={toggleWeight}
             onRemove={remove}
@@ -354,7 +354,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
             onClick={() => setShowAdd((v) => !v)}
             disabled={criteria.length >= MAX_MAIN_CRITERIA + MAX_BONUS_CRITERIA}
             style={{
-              fontSize: 12, fontWeight: 700, color: "#7C63C8",
+              fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
               background: "white", border: "1px dashed rgba(124,99,200,0.40)",
               borderRadius: 9, padding: "7px 12px",
               cursor: "pointer", fontFamily: "inherit",
@@ -364,7 +364,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
           </button>
           <div style={{ flex: 1 }} />
           {error && (
-            <span style={{ fontSize: 12, color: "#B91C1C" }}>{error}</span>
+            <span style={{ fontSize: 12, color: "var(--nw-danger-strong)" }}>{error}</span>
           )}
           {onCancel && (
             <button
@@ -372,9 +372,9 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
               onClick={onCancel}
               disabled={saving}
               style={{
-                fontSize: 13, fontWeight: 600, color: "#6B7280",
+                fontSize: 13, fontWeight: 600, color: "var(--nw-text-muted)",
                 padding: "10px 16px", borderRadius: 10,
-                background: "white", border: "1px solid #E5E7EB",
+                background: "white", border: "1px solid var(--nw-border)",
                 cursor: saving ? "default" : "pointer", fontFamily: "inherit",
               }}
             >
@@ -390,7 +390,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
               padding: "10px 18px", borderRadius: 10, border: "none",
               background: saving || criteria.length === 0 || mainCount === 0
                 ? "#C7BFE4"
-                : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               cursor: saving || criteria.length === 0 || mainCount === 0 ? "default" : "pointer",
               fontFamily: "inherit",
               boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
@@ -407,9 +407,9 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
       {showAdd && (
         <div style={{
           marginTop: 12, padding: 12,
-          background: "#FAF9FE", border: "1px solid #F0ECF8", borderRadius: 11,
+          background: "#FAF9FE", border: "1px solid var(--nw-border-soft)", borderRadius: 11,
         }}>
-          <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
             {t.addFromCatalog}
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -421,8 +421,8 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
                   type="button"
                   onClick={() => addManual(ct)}
                   style={{
-                    fontSize: 11.5, fontWeight: 600, color: "#374151",
-                    background: "white", border: "1px solid #E5E7EB",
+                    fontSize: 11.5, fontWeight: 600, color: "var(--nw-text-body)",
+                    background: "white", border: "1px solid var(--nw-border)",
                     borderRadius: 7, padding: "5px 10px",
                     cursor: "pointer", fontFamily: "inherit",
                   }}
@@ -460,7 +460,7 @@ function SkillsPreview({ skills }: { skills: string[] }) {
           onClick={() => setExpanded((v) => !v)}
           style={{
             marginLeft: 6, background: "none", border: "none", padding: 0,
-            cursor: "pointer", fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
+            cursor: "pointer", fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)",
             fontFamily: "inherit",
           }}
         >
@@ -487,7 +487,7 @@ function Column({
   const t = copy[lang]
   return (
     <div style={{
-      background: "#FAFAFA", border: "1px solid #F0ECF8", borderRadius: 12,
+      background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border-soft)", borderRadius: 12,
       padding: 14,
     }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
@@ -495,18 +495,18 @@ function Column({
           width: 6, height: 6, borderRadius: "50%", background: accent,
           display: "inline-block",
         }} />
-        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: "#111827" }}>{title}</p>
-        <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>{subtitle}</p>
+        <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: "var(--nw-text)" }}>{title}</p>
+        <p style={{ margin: 0, fontSize: 11, color: "var(--nw-text-muted)" }}>{subtitle}</p>
       </div>
       {items.length === 0 ? (
-        <p style={{ margin: 0, padding: "16px 6px", fontSize: 12, color: "#6B7280", textAlign: "center", fontStyle: "italic" }}>
+        <p style={{ margin: 0, padding: "16px 6px", fontSize: 12, color: "var(--nw-text-muted)", textAlign: "center", fontStyle: "italic" }}>
           {isMain ? t.noMainCriteria : t.noBonus}
         </p>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
           {items.map((c) => (
             <li key={c.id} style={{
-              background: "white", border: "1px solid #F0ECF8", borderRadius: 9,
+              background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 9,
               padding: "8px 10px",
               display: "flex", alignItems: "center", gap: 8,
             }}>
@@ -521,18 +521,18 @@ function Column({
                     placeholder={t.customPlaceholder}
                     style={{
                       width: "100%", boxSizing: "border-box",
-                      fontSize: 12.5, fontWeight: 600, color: "#111827",
+                      fontSize: 12.5, fontWeight: 600, color: "var(--nw-text)",
                       padding: "4px 6px", borderRadius: 6,
-                      border: "1px solid #E2DAF6", background: "#FAFAFF",
+                      border: "1px solid var(--nw-primary-100)", background: "#FAFAFF",
                       outline: "none", fontFamily: "inherit",
                     }}
                   />
                 ) : (
-                  <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--nw-text)", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {shortCriterionLabel(c, lang)}
                   </p>
                 )}
-                <p style={{ margin: "2px 0 0", fontSize: 10.5, color: "#6B7280" }}>
+                <p style={{ margin: "2px 0 0", fontSize: 10.5, color: "var(--nw-text-muted)" }}>
                   {typeLabel(c.type, lang)}{c.source === "manual" && t.addedSuffix}
                 </p>
                 {/* Skills : liste des compétences rattachées (grisées), repliée
@@ -550,8 +550,8 @@ function Column({
                 onClick={() => onToggleWeight(c.id)}
                 title={isMain ? t.demoteToBonus : t.promoteToMain}
                 style={{
-                  fontSize: 10.5, fontWeight: 700, color: "#6B7280",
-                  background: "transparent", border: "1px solid #E5E7EB",
+                  fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
+                  background: "transparent", border: "1px solid var(--nw-border)",
                   borderRadius: 7, padding: "3px 8px",
                   cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
                 }}
@@ -563,7 +563,7 @@ function Column({
                 onClick={() => onRemove(c.id)}
                 title={t.remove}
                 style={{
-                  fontSize: 14, color: "#6B7280",
+                  fontSize: 14, color: "var(--nw-text-muted)",
                   background: "transparent", border: "none",
                   cursor: "pointer", padding: "2px 4px",
                 }}

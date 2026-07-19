@@ -378,9 +378,9 @@ export default function PricingWidget({
   if (profile === undefined) {
     return (
       <section style={{
-        background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+        background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
         padding: 18, minHeight: 200, display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 12, color: "#6B7280",
+        fontSize: 12, color: "var(--nw-text-muted)",
       }}>
         {t.loadingPricing}
       </section>
@@ -681,7 +681,7 @@ function PricingWidgetInner({
 
   return (
     <section style={{
-      background: "white", borderRadius: 16, border: "1px solid #F0ECF8",
+      background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
       padding: 18,
     }}>
       {/* ═══ VERDICT HERO ═══ */}
@@ -748,10 +748,10 @@ function PricingWidgetInner({
             markers={[
               ...(limits ? [
                 { value: Math.round(limits.tjmMin),   label: t.floorPct(margeMinPct), color: "#D97706" },
-                { value: Math.round(limits.tjmIdeal), label: t.targetPct(margeTargetPct), color: "#15803d" },
+                { value: Math.round(limits.tjmIdeal), label: t.targetPct(margeTargetPct), color: "var(--nw-success)" },
               ] : []),
               ...(job?.client_tjm_min != null ? [
-                { value: job.client_tjm_min, label: t.missionTarget, color: "#7C63C8" },
+                { value: job.client_tjm_min, label: t.missionTarget, color: "var(--nw-primary)" },
               ] : []),
             ]}
           />
@@ -763,8 +763,8 @@ function PricingWidgetInner({
             suffix={lang === "fr" ? "€/an" : "€/yr"}
             onChange={setBrutAnnuel}
             markers={limits ? [
-              { value: Math.round(limits.brutMin),   label: t.syntecMin,                 color: "#B91C1C" },
-              { value: Math.round(limits.brutIdeal), label: t.targetPct(margeTargetPct),   color: "#15803d" },
+              { value: Math.round(limits.brutMin),   label: t.syntecMin,                 color: "var(--nw-danger-strong)" },
+              { value: Math.round(limits.brutIdeal), label: t.targetPct(margeTargetPct),   color: "var(--nw-success)" },
               { value: Math.round(limits.brutMax),   label: t.floorPct(margeMinPct),   color: "#D97706" },
             ] : []}
           />
@@ -815,8 +815,8 @@ function PricingWidgetInner({
           {!minimumCheck.ok && (
             <div style={{
               padding: "8px 12px",
-              background: "#FEF2F2", border: "1px solid #FECACA",
-              borderRadius: 9, fontSize: 12, color: "#B91C1C", lineHeight: 1.5,
+              background: "#FEF2F2", border: "1px solid var(--nw-danger-border)",
+              borderRadius: 9, fontSize: 12, color: "var(--nw-danger-strong)", lineHeight: 1.5,
             }}>
               ⚠ {minimumCheck.message}
             </div>
@@ -826,7 +826,7 @@ function PricingWidgetInner({
         {/* ─── COLONNE DROITE — tabs charts ─── */}
         <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
           <div style={{
-            display: "flex", gap: 4, borderBottom: "1px solid #F0ECF8",
+            display: "flex", gap: 4, borderBottom: "1px solid var(--nw-border-soft)",
             flexWrap: "wrap",
           }}>
             <TabButton active={tab === "monthly"} onClick={() => setTab("monthly")}>
@@ -954,7 +954,7 @@ function PricingToolbar({ matchId, onReset }: { matchId: string; onReset: () => 
   return (
     <div style={{
       marginTop: 14, paddingTop: 14,
-      borderTop: "1px solid #F0ECF8",
+      borderTop: "1px solid var(--nw-border-soft)",
       display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap",
     }}>
       <button
@@ -990,7 +990,7 @@ function PricingToolbar({ matchId, onReset }: { matchId: string; onReset: () => 
 
 const toolbarBtnPrimary: React.CSSProperties = {
   padding: "8px 14px", borderRadius: 9,
-  border: "none", background: "#7C63C8", color: "white",
+  border: "none", background: "var(--nw-primary)", color: "white",
   fontSize: 12.5, fontWeight: 700, cursor: "pointer",
   textDecoration: "none",
   fontFamily: "var(--font-inter), sans-serif",
@@ -998,7 +998,7 @@ const toolbarBtnPrimary: React.CSSProperties = {
 
 const toolbarBtnGhost: React.CSSProperties = {
   padding: "8px 14px", borderRadius: 9,
-  border: "1px solid #E5E7EB", background: "white", color: "#374151",
+  border: "1px solid var(--nw-border)", background: "white", color: "var(--nw-text-body)",
   fontSize: 12.5, fontWeight: 600, cursor: "pointer",
   textDecoration: "none",
   fontFamily: "var(--font-inter), sans-serif",
@@ -1032,12 +1032,12 @@ function VerdictHero({
   const t = copy[lang]
   const status: { color: string; bg: string; bd: string; label: string; icon: string } =
     margePct >= margeTargetPct
-      ? { color: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)",  label: t.statusProfitable, icon: "✓" }
+      ? { color: "var(--nw-success)", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)",  label: t.statusProfitable, icon: "✓" }
       : margePct >= margeMinPct
-        ? { color: "#B45309", bg: "rgba(217,119,6,0.07)", bd: "rgba(217,119,6,0.25)",  label: t.statusBelowTarget, icon: "⚠" }
+        ? { color: "var(--nw-warn)", bg: "rgba(217,119,6,0.07)", bd: "rgba(217,119,6,0.25)",  label: t.statusBelowTarget, icon: "⚠" }
         : margePct >= 0
-          ? { color: "#B91C1C", bg: "#FEF2F2",            bd: "#FECACA",                label: t.statusBelowFloor, icon: "🚨" }
-          : { color: "#B91C1C", bg: "#FEF2F2",            bd: "#FECACA",                label: t.statusLoss,       icon: "🚨" }
+          ? { color: "var(--nw-danger-strong)", bg: "#FEF2F2",            bd: "var(--nw-danger-border)",                label: t.statusBelowFloor, icon: "🚨" }
+          : { color: "var(--nw-danger-strong)", bg: "#FEF2F2",            bd: "var(--nw-danger-border)",                label: t.statusLoss,       icon: "🚨" }
 
   return (
     <div style={{
@@ -1050,23 +1050,23 @@ function VerdictHero({
       <div style={{ minWidth: 0 }}>
         <div style={{
           fontSize: 10.5, fontWeight: 700, color: status.color,
-          letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4,
+          letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 4,
         }}>
           {status.icon} {status.label}
         </div>
         <div style={{
-          fontSize: 16, fontWeight: 800, color: "#111827",
+          fontSize: 16, fontWeight: 800, color: "var(--nw-text)",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>
           {candidateName}
         </div>
-        <div style={{ fontSize: 11.5, color: "#6B7280", marginTop: 2 }}>
+        <div style={{ fontSize: 11.5, color: "var(--nw-text-muted)", marginTop: 2 }}>
           {candidateTitle && <>{candidateTitle}{candidateYears != null && ` · ${t.yearsExpAbbr(candidateYears)}`}</>}
         </div>
         <div style={{
-          fontSize: 10, fontWeight: 700, color: "#6B7280",
+          fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
           letterSpacing: "0.04em", marginTop: 3,
-          fontFamily: "var(--font-space-grotesk), monospace",
+          fontFamily: "var(--nw-font-mono)",
         }}>
           {candidateRef}
         </div>
@@ -1080,11 +1080,11 @@ function VerdictHero({
               style={{
                 fontSize: 10.5, fontWeight: 600,
                 padding: "3px 8px", borderRadius: 100, cursor: "pointer",
-                border: seniority === k ? "none" : "1px solid #E5E7EB",
+                border: seniority === k ? "none" : "1px solid var(--nw-border)",
                 background: seniority === k
-                  ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)"
+                  ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
                   : "white",
-                color: seniority === k ? "white" : "#6B7280",
+                color: seniority === k ? "white" : "var(--nw-text-muted)",
                 fontFamily: "inherit",
               }}
             >
@@ -1095,7 +1095,7 @@ function VerdictHero({
             <button
               onClick={() => onSenioritySelect(detectedPreset)}
               style={{
-                fontSize: 10, color: "#7C63C8",
+                fontSize: 10, color: "var(--nw-primary)",
                 background: "transparent", border: "none", cursor: "pointer",
                 textDecoration: "underline", padding: 0,
               }}
@@ -1119,7 +1119,7 @@ function VerdictHero({
         label={t.kpiMonthlyMargin}
         value={`${formatEurInt(margeMensuelleEur, lang === "fr" ? "fr-FR" : "en-US")} €`}
         sub={t.kpiMonthlyMarginSub(monthCount)}
-        color="#111827"
+        color="var(--nw-text)"
       />
 
       {/* KPI 3 — Marge totale mission */}
@@ -1127,7 +1127,7 @@ function VerdictHero({
         label={t.kpiTotalMargin}
         value={`${formatEurInt(margeTotaleEur, lang === "fr" ? "fr-FR" : "en-US")} €`}
         sub={t.kpiTotalMarginSub(monthCount)}
-        color="#111827"
+        color="var(--nw-text)"
       />
     </div>
   )
@@ -1149,8 +1149,8 @@ function HeroKpi({
       display: "flex", flexDirection: "column", gap: 2,
     }}>
       <div style={{
-        fontSize: 10, fontWeight: 700, color: "#6B7280",
-        letterSpacing: "0.04em", textTransform: "uppercase",
+        fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
+        letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         {label}
       </div>
@@ -1161,7 +1161,7 @@ function HeroKpi({
       }}>
         {value}
       </div>
-      <div style={{ fontSize: 10.5, color: "#6B7280" }}>
+      <div style={{ fontSize: 10.5, color: "var(--nw-text-muted)" }}>
         {sub}
       </div>
     </div>
@@ -1226,9 +1226,9 @@ function RecommendationBanner({
   })()
 
   const palette = {
-    success: { fg: "#15803d", bg: "#FFFFFF",                bd: "rgba(34,197,94,0.25)" },
-    warn:    { fg: "#B45309", bg: "#FFFFFF",                bd: "rgba(217,119,6,0.25)" },
-    alert:   { fg: "#B91C1C", bg: "#FFFFFF",                bd: "rgba(220,38,38,0.25)" },
+    success: { fg: "var(--nw-success)", bg: "#FFFFFF",                bd: "rgba(34,197,94,0.25)" },
+    warn:    { fg: "var(--nw-warn)", bg: "#FFFFFF",                bd: "rgba(217,119,6,0.25)" },
+    alert:   { fg: "var(--nw-danger-strong)", bg: "#FFFFFF",                bd: "rgba(220,38,38,0.25)" },
   }[reco.tone]
 
   return (
@@ -1240,7 +1240,7 @@ function RecommendationBanner({
       <div style={{
         width: 30, height: 30, flexShrink: 0,
         borderRadius: "50%",
-        background: "linear-gradient(135deg, #7C63C8 0%, #6B54B2 100%)",
+        background: "linear-gradient(135deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
         color: "white", fontSize: 12, fontWeight: 800,
         display: "flex", alignItems: "center", justifyContent: "center",
         boxShadow: "0 2px 8px rgba(124,99,200,0.25)",
@@ -1267,7 +1267,7 @@ function RecommendationBanner({
           {t.noraReco}
         </div>
         <p style={{
-          margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.55,
+          margin: 0, fontSize: 12.5, color: "var(--nw-text-body)", lineHeight: 1.55,
           fontWeight: 400,
         }}>
           {reco.text}
@@ -1316,24 +1316,24 @@ function ActiveAvantagesStrip({ avantages, job }: {
   return (
     <div style={{
       marginTop: 8, padding: "8px 12px",
-      background: "white", border: "1px solid #F0ECF8", borderRadius: 10,
+      background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 10,
       display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
     }}>
       <span style={{
-        fontSize: 10, fontWeight: 700, color: "#6B7280",
-        letterSpacing: "0.05em", textTransform: "uppercase", marginRight: 4,
+        fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
+        letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginRight: 4,
       }}>
         {t.appliedBenefits}
       </span>
       {chips.map((c) => (
         <span key={c.label} style={{
-          fontSize: 11, color: "#374151",
-          background: "#F8F6FF", border: "1px solid #F0ECF8",
+          fontSize: 11, color: "var(--nw-text-body)",
+          background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)",
           padding: "2px 8px", borderRadius: 100,
           display: "inline-flex", gap: 5, alignItems: "baseline",
         }}>
-          <span style={{ color: "#6B7280" }}>{c.label}</span>
-          <strong style={{ color: "#111827", fontVariantNumeric: "tabular-nums" }}>{c.value}</strong>
+          <span style={{ color: "var(--nw-text-muted)" }}>{c.label}</span>
+          <strong style={{ color: "var(--nw-text)", fontVariantNumeric: "tabular-nums" }}>{c.value}</strong>
         </span>
       ))}
     </div>
@@ -1368,29 +1368,29 @@ function SyntecContextBar({
     <div style={{
       position: "relative",
       display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
-      padding: "8px 12px", background: "#FAFAFA", borderRadius: 10,
-      fontSize: 11, color: "#6B7280",
+      padding: "8px 12px", background: "var(--nw-surface-muted)", borderRadius: 10,
+      fontSize: 11, color: "var(--nw-text-muted)",
     }}>
-      <strong style={{ color: "#374151" }}>{seniorityLabel}</strong>
+      <strong style={{ color: "var(--nw-text-body)" }}>{seniorityLabel}</strong>
       <span>·</span>
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
-          fontFamily: "inherit", fontSize: 11, color: "#374151",
+          fontFamily: "inherit", fontSize: 11, color: "var(--nw-text-body)",
           background: isOverridden ? "rgba(124,99,200,0.10)" : "white",
-          border: `1px solid ${isOverridden ? "rgba(124,99,200,0.30)" : "#E5E7EB"}`,
+          border: `1px solid ${isOverridden ? "rgba(124,99,200,0.30)" : "var(--nw-border)"}`,
           borderRadius: 7, padding: "3px 8px", cursor: "pointer",
           display: "inline-flex", alignItems: "center", gap: 5,
         }}
       >
         {t.cadrePosCoef(position, coefficient)}
-        <span style={{ color: "#7C63C8", fontSize: 10 }}>▾</span>
+        <span style={{ color: "var(--nw-primary)", fontSize: 10 }}>▾</span>
       </button>
       {isOverridden && (
         <button
           onClick={onReset}
           style={{
-            fontFamily: "inherit", fontSize: 10.5, color: "#7C63C8",
+            fontFamily: "inherit", fontSize: 10.5, color: "var(--nw-primary)",
             background: "transparent", border: "none", cursor: "pointer",
             textDecoration: "underline", padding: 0,
           }}
@@ -1417,8 +1417,8 @@ function SyntecContextBar({
             padding: 6, minWidth: 320, maxHeight: 320, overflowY: "auto",
           }}>
             <div style={{
-              fontSize: 10, fontWeight: 700, color: "#6B7280",
-              letterSpacing: "0.05em", textTransform: "uppercase",
+              fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
+              letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               padding: "6px 10px 4px",
             }}>
               {t.choosePosition}
@@ -1432,7 +1432,7 @@ function SyntecContextBar({
                   style={{
                     display: "block", width: "100%", textAlign: "left",
                     fontFamily: "inherit", fontSize: 12,
-                    color: isActive ? "#7C63C8" : "#374151",
+                    color: isActive ? "var(--nw-primary)" : "var(--nw-text-body)",
                     fontWeight: isActive ? 700 : 500,
                     background: isActive ? "rgba(124,99,200,0.08)" : "transparent",
                     border: "none", borderRadius: 7, padding: "7px 10px",
@@ -1469,9 +1469,9 @@ function ExtremeMonthCard({
   const locale = lang === "fr" ? "fr-FR" : "en-US"
   const dayAbbr = lang === "fr" ? "j" : "d"
   const palette = {
-    good: { fg: "#15803d", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)" },
-    warn: { fg: "#B45309", bg: "rgba(217,119,6,0.06)",  bd: "rgba(217,119,6,0.25)" },
-    bad:  { fg: "#B91C1C", bg: "#FEF2F2",               bd: "#FECACA"               },
+    good: { fg: "var(--nw-success)", bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.25)" },
+    warn: { fg: "var(--nw-warn)", bg: "rgba(217,119,6,0.06)",  bd: "rgba(217,119,6,0.25)" },
+    bad:  { fg: "var(--nw-danger-strong)", bg: "#FEF2F2",               bd: "var(--nw-danger-border)"               },
   }[tone]
   const sign = month.marge < 0 ? "−" : ""
   return (
@@ -1481,16 +1481,16 @@ function ExtremeMonthCard({
     }}>
       <div style={{
         fontSize: 10, fontWeight: 700, color: palette.fg,
-        letterSpacing: "0.05em", textTransform: "uppercase",
+        letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         {label}
       </div>
       <div style={{
-        fontSize: 14, fontWeight: 800, color: "#111827", marginTop: 2,
+        fontSize: 14, fontWeight: 800, color: "var(--nw-text)", marginTop: 2,
       }}>
         {monthAbbr[month.calendarMonth]} {month.year}
       </div>
-      <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>
+      <div style={{ fontSize: 10.5, color: "var(--nw-text-muted)", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>
         {subValue ?? `${sign}${Math.abs(Math.round(month.marge)).toLocaleString(locale)} € · ${month.workingDays} ${dayAbbr}`}
       </div>
     </div>
@@ -1515,10 +1515,10 @@ function TabButton({
         padding: "9px 14px",
         fontSize: 12.5,
         fontWeight: active ? 700 : 600,
-        color: active ? "#7C63C8" : "#6B7280",
+        color: active ? "var(--nw-primary)" : "var(--nw-text-muted)",
         background: "transparent",
         border: "none",
-        borderBottom: active ? "2px solid #7C63C8" : "2px solid transparent",
+        borderBottom: active ? "2px solid var(--nw-primary)" : "2px solid transparent",
         cursor: "pointer",
         fontFamily: "inherit",
         marginBottom: -1,
@@ -1549,7 +1549,7 @@ function formatEurSmart(v: number, locale = "fr-FR"): string {
 
 const stepperBtnStyle: React.CSSProperties = {
   width: 32, fontSize: 16, fontWeight: 800,
-  color: "#7C63C8", background: "rgba(124,99,200,0.06)",
+  color: "var(--nw-primary)", background: "rgba(124,99,200,0.06)",
   border: "1px solid rgba(124,99,200,0.20)", borderRadius: 8,
   cursor: "pointer", fontFamily: "inherit",
   padding: "0 4px",
@@ -1586,14 +1586,14 @@ function StepperField({
 
   return (
     <div style={{
-      background: "white", border: "1.5px solid #F0ECF8",
+      background: "white", border: "1.5px solid var(--nw-border-soft)",
       borderRadius: 12, padding: "12px 14px",
       display: "flex", flexDirection: "column", gap: 10,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{
-          fontSize: 10.5, fontWeight: 700, color: "#6B7280",
-          letterSpacing: "0.05em", textTransform: "uppercase",
+          fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
+          letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {label}
         </span>
@@ -1605,7 +1605,7 @@ function StepperField({
           >−</button>
           <div style={{
             display: "inline-flex", alignItems: "baseline", gap: 5,
-            background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 8,
+            background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border)", borderRadius: 8,
             padding: "5px 12px", minWidth: 120,
           }}>
             <input
@@ -1619,14 +1619,14 @@ function StepperField({
               }}
               style={{
                 flex: 1, minWidth: 0, width: "100%",
-                fontSize: 18, fontWeight: 800, color: "#111827",
+                fontSize: 18, fontWeight: 800, color: "var(--nw-text)",
                 background: "transparent", border: "none", outline: "none",
                 padding: 0, textAlign: "right",
                 fontFamily: "inherit", fontVariantNumeric: "tabular-nums",
                 appearance: "textfield",
               }}
             />
-            <span style={{ fontSize: 12, color: "#6B7280" }}>{suffix}</span>
+            <span style={{ fontSize: 12, color: "var(--nw-text-muted)" }}>{suffix}</span>
           </div>
           <button
             onClick={() => nudge(step)}
@@ -1706,33 +1706,33 @@ function CostBreakdown({
   return (
     <div style={{
       padding: 16, background: "white",
-      borderRadius: 12, border: "1px solid #F0ECF8",
+      borderRadius: 12, border: "1px solid var(--nw-border-soft)",
       display: "flex", flexDirection: "column", gap: 6,
     }}>
       <div style={{
-        fontSize: 10.5, fontWeight: 700, color: "#6B7280",
-        letterSpacing: "0.05em", textTransform: "uppercase",
+        fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
+        letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
       }}>
         {t.fixedCostTitle}
       </div>
       {fixedRows.filter((r) => r.value !== 0).map((r) => (
         <div key={r.label} style={{
           display: "flex", justifyContent: "space-between", alignItems: "baseline",
-          fontSize: 12.5, color: "#4B5563",
+          fontSize: 12.5, color: "var(--nw-text-secondary)",
         }}>
           <span>
             {r.label}
-            {r.hint && <span style={{ color: "#6B7280", marginLeft: 6 }}>· {r.hint}</span>}
+            {r.hint && <span style={{ color: "var(--nw-text-muted)", marginLeft: 6 }}>· {r.hint}</span>}
           </span>
-          <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
+          <span style={{ fontWeight: 700, color: "var(--nw-text)", fontVariantNumeric: "tabular-nums" }}>
             {fmt(r.value)}
           </span>
         </div>
       ))}
       <div style={{
-        marginTop: 4, paddingTop: 6, borderTop: "1px dashed #E5E7EB",
+        marginTop: 4, paddingTop: 6, borderTop: "1px dashed var(--nw-border)",
         display: "flex", justifyContent: "space-between",
-        fontSize: 12.5, fontWeight: 700, color: "#374151",
+        fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)",
       }}>
         <span>{t.fixedSubtotal}</span>
         <span style={{ fontVariantNumeric: "tabular-nums" }}>
@@ -1742,13 +1742,13 @@ function CostBreakdown({
 
       {cpRttHaircutMensuel > 0 && (
         <div style={{
-          marginTop: 8, paddingTop: 8, borderTop: "1px dashed #E5E7EB",
+          marginTop: 8, paddingTop: 8, borderTop: "1px dashed var(--nw-border)",
           display: "flex", justifyContent: "space-between",
-          fontSize: 12.5, color: "#B45309",
+          fontSize: 12.5, color: "var(--nw-warn)",
         }}>
           <span>
             {t.cpImpact(rttDaysPerYear > 0)}
-            <span style={{ color: "#6B7280", marginLeft: 6 }}>
+            <span style={{ color: "var(--nw-text-muted)", marginLeft: 6 }}>
               {t.cpImpactHint(rttDaysPerYear)}
             </span>
           </span>
@@ -1761,32 +1761,32 @@ function CostBreakdown({
       {cost.coutVariableJournalier > 0 && (
         <>
           <div style={{
-            fontSize: 10.5, fontWeight: 700, color: "#6B7280",
-            letterSpacing: "0.05em", textTransform: "uppercase",
+            fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)",
+            letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             marginTop: 10,
           }}>
             {t.variableCostTitle}
           </div>
           {(avantages.urssafIndemniteJour ?? 0) > 0 && (
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#4B5563" }}>
-              <span>{t.rowUrssaf} <span style={{ color: "#6B7280" }}>· {t.rowUrssafHint}</span></span>
-              <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "var(--nw-text-secondary)" }}>
+              <span>{t.rowUrssaf} <span style={{ color: "var(--nw-text-muted)" }}>· {t.rowUrssafHint}</span></span>
+              <span style={{ fontWeight: 700, color: "var(--nw-text)", fontVariantNumeric: "tabular-nums" }}>
                 {(avantages.urssafIndemniteJour ?? 0).toFixed(2)} {t.perDay}
               </span>
             </div>
           )}
           {(avantages.ticketsResto ?? 0) > 0 && (
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#4B5563" }}>
-              <span>{t.rowTicketsRestoRow} <span style={{ color: "#6B7280" }}>· {t.rowTicketsRestoHint}</span></span>
-              <span style={{ fontWeight: 700, color: "#111827", fontVariantNumeric: "tabular-nums" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "var(--nw-text-secondary)" }}>
+              <span>{t.rowTicketsRestoRow} <span style={{ color: "var(--nw-text-muted)" }}>· {t.rowTicketsRestoHint}</span></span>
+              <span style={{ fontWeight: 700, color: "var(--nw-text)", fontVariantNumeric: "tabular-nums" }}>
                 {(avantages.ticketsResto ?? 0).toFixed(2)} {t.perDay}
               </span>
             </div>
           )}
           <div style={{
-            marginTop: 4, paddingTop: 6, borderTop: "1px dashed #E5E7EB",
+            marginTop: 4, paddingTop: 6, borderTop: "1px dashed var(--nw-border)",
             display: "flex", justifyContent: "space-between",
-            fontSize: 12.5, fontWeight: 700, color: "#374151",
+            fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)",
           }}>
             <span>{t.variableSubtotal}</span>
             <span style={{ fontVariantNumeric: "tabular-nums" }}>
@@ -1797,13 +1797,13 @@ function CostBreakdown({
       )}
 
       <div style={{
-        marginTop: 8, paddingTop: 8, borderTop: "1px solid #E5E7EB",
+        marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--nw-border)",
         display: "flex", justifyContent: "space-between",
-        fontSize: 13, fontWeight: 800, color: "#7C63C8",
+        fontSize: 13, fontWeight: 800, color: "var(--nw-primary)",
       }}>
         <span>
           {t.totalCostEstimate}
-          <span style={{ fontSize: 11, fontWeight: 500, color: "#6B7280", marginLeft: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 500, color: "var(--nw-text-muted)", marginLeft: 6 }}>
             {t.avgMonth21d}
           </span>
         </span>
@@ -1812,7 +1812,7 @@ function CostBreakdown({
         </span>
       </div>
       <p style={{
-        margin: "4px 0 0", fontSize: 11, color: "#6B7280",
+        margin: "4px 0 0", fontSize: 11, color: "var(--nw-text-muted)",
         fontStyle: "italic", lineHeight: 1.4,
       }}>
         {t.footnote}
@@ -1871,8 +1871,8 @@ function EssaiRenouveleToggle({
   return (
     <div
       style={{
-        background: value ? "rgba(124,99,200,0.06)" : "#FAFAFA",
-        border: `1px solid ${value ? "rgba(124,99,200,0.30)" : "#F0ECF8"}`,
+        background: value ? "rgba(124,99,200,0.06)" : "var(--nw-surface-muted)",
+        border: `1px solid ${value ? "rgba(124,99,200,0.30)" : "var(--nw-border-soft)"}`,
         borderRadius: 10,
         padding: "10px 14px",
         marginBottom: 10,
@@ -1885,19 +1885,19 @@ function EssaiRenouveleToggle({
     >
       <div style={{ minWidth: 0, flex: "1 1 280px" }}>
         <p style={{
-          margin: 0, fontSize: 12.5, fontWeight: 700, color: "#111827",
+          margin: 0, fontSize: 12.5, fontWeight: 700, color: "var(--nw-text)",
           letterSpacing: "-0.005em",
         }}>
           {t.trialRenewalTitle}
         </p>
         <p style={{
-          margin: "3px 0 0", fontSize: 11.5, color: "#6B7280", lineHeight: 1.55,
+          margin: "3px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55,
         }}>
           {value ? t.trialRenewalOn : t.trialRenewalOff}
         </p>
         {error && (
           <p style={{
-            margin: "5px 0 0", fontSize: 11, color: "#B91C1C", fontWeight: 600,
+            margin: "5px 0 0", fontSize: 11, color: "var(--nw-danger-strong)", fontWeight: 600,
           }}>
             {error}
           </p>
@@ -1915,7 +1915,7 @@ function EssaiRenouveleToggle({
           height: 24,
           borderRadius: 999,
           border: "none",
-          background: value ? "#7C63C8" : "#D1D5DB",
+          background: value ? "var(--nw-primary)" : "var(--nw-border)",
           cursor: saving ? "wait" : "pointer",
           padding: 0,
           flexShrink: 0,
@@ -1957,14 +1957,14 @@ function CddBanner({ durationMonths }: { durationMonths: number | null }) {
         padding: "10px 14px",
         marginBottom: 10,
         fontSize: 12.5,
-        color: "#92400E",
+        color: "var(--nw-warn-strong)",
         lineHeight: 1.6,
       }}
     >
       <p style={{ margin: 0, fontWeight: 700, color: "#7C2D12" }}>
         {t.cddTitle}
       </p>
-      <p style={{ margin: "3px 0 0", color: "#92400E" }}>
+      <p style={{ margin: "3px 0 0", color: "var(--nw-warn-strong)" }}>
         {t.cddBody(essaiDays)}
       </p>
     </div>

@@ -146,8 +146,8 @@ export default function MonthlyMarginChart({
   if (points.length === 0) {
     return (
       <div style={{
-        background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
-        padding: 20, color: "#6B7280", fontSize: 13, textAlign: "center",
+        background: "white", borderRadius: 12, border: "1px solid var(--nw-border-soft)",
+        padding: 20, color: "var(--nw-text-muted)", fontSize: 13, textAlign: "center",
       }}>
         {t.needsDates}
       </div>
@@ -184,7 +184,7 @@ export default function MonthlyMarginChart({
 
   // Color pour chaque barre : gradient selon marge %
   const barColor = (margePct: number): string => {
-    if (margePct < 0) return "#DC2626"
+    if (margePct < 0) return "var(--nw-danger-strong)"
     if (margePct < seuilPct) return "#EA580C"
     if (margePct < seuilPct + 10) return "#F59E0B"
     return "#16A34A"
@@ -192,14 +192,14 @@ export default function MonthlyMarginChart({
 
   return (
     <div style={{
-      background: "white", borderRadius: 12, border: "1px solid #F0ECF8",
+      background: "white", borderRadius: 12, border: "1px solid var(--nw-border-soft)",
       padding: 16,
     }}>
       <header style={{
         display: "flex", justifyContent: "space-between", alignItems: "center",
         flexWrap: "wrap", gap: 10, marginBottom: 10,
       }}>
-        <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>
+        <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--nw-text)" }}>
           {t.monthlyMargin}
         </h4>
         {margeMinPct !== undefined && (
@@ -219,13 +219,13 @@ export default function MonthlyMarginChart({
           <g key={`y-${v}`}>
             <line
               x1={PAD_L} y1={yOf(v)} x2={W - PAD_R} y2={yOf(v)}
-              stroke={v === 0 ? "#6B7280" : "#F0ECF8"}
+              stroke={v === 0 ? "var(--nw-text-muted)" : "var(--nw-border-soft)"}
               strokeWidth={v === 0 ? 1.2 : 1}
               strokeDasharray={v === 0 ? "none" : "2 4"}
             />
             <text
               x={PAD_L - 8} y={yOf(v) + 3}
-              fontSize={10} fill="#6B7280" textAnchor="end"
+              fontSize={10} fill="var(--nw-text-muted)" textAnchor="end"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
               {v} %
@@ -289,7 +289,7 @@ export default function MonthlyMarginChart({
               {barW >= 18 && (
                 <text
                   x={xOf(i)} y={y - 4}
-                  fontSize={9.5} fill="#374151" textAnchor="middle" fontWeight={700}
+                  fontSize={9.5} fill="var(--nw-text-body)" textAnchor="middle" fontWeight={700}
                   style={{ pointerEvents: "none" }}
                 >
                   {p.margePct.toFixed(0)}%
@@ -303,7 +303,7 @@ export default function MonthlyMarginChart({
         {yMin < 0 && yMax > 0 && (
           <line
             x1={PAD_L} y1={zeroY} x2={W - PAD_R} y2={zeroY}
-            stroke="#6B7280" strokeWidth={1.5}
+            stroke="var(--nw-text-muted)" strokeWidth={1.5}
           />
         )}
 
@@ -320,7 +320,7 @@ export default function MonthlyMarginChart({
           const ty = aboveOk
             ? barTopY - tooltipH - 8
             : Math.min(barTopY + 8, H - PAD_B - tooltipH)
-          const margeColor = p.margePct < 0 ? "#B91C1C" : "#15803D"
+          const margeColor = p.margePct < 0 ? "var(--nw-danger-strong)" : "var(--nw-success)"
           return (
             <foreignObject
               x={tx} y={ty}
@@ -330,7 +330,7 @@ export default function MonthlyMarginChart({
               <div
                 style={{
                   background: "white",
-                  border: "1px solid #E2DAF6",
+                  border: "1px solid var(--nw-primary-100)",
                   borderRadius: 8,
                   boxShadow: "0 6px 16px -6px rgba(17,24,39,0.22)",
                   padding: "7px 11px",
@@ -342,7 +342,7 @@ export default function MonthlyMarginChart({
                 <div style={{
                   display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
                 }}>
-                  <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600 }}>{t.margin}</span>
+                  <span style={{ fontSize: 10.5, color: "var(--nw-text-muted)", fontWeight: 600 }}>{t.margin}</span>
                   <span style={{ fontSize: 13, fontWeight: 800, color: margeColor }}>
                     {formatEur(p.marge, locale)}
                   </span>
@@ -350,8 +350,8 @@ export default function MonthlyMarginChart({
                 <div style={{
                   display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
                 }}>
-                  <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600 }}>{t.employerCost}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#7C63C8" }}>
+                  <span style={{ fontSize: 10.5, color: "var(--nw-text-muted)", fontWeight: 600 }}>{t.employerCost}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--nw-primary)" }}>
                     {formatEur(p.coutTotal, locale)}
                   </span>
                 </div>
@@ -359,8 +359,8 @@ export default function MonthlyMarginChart({
                   display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
                   marginTop: 1,
                 }}>
-                  <span style={{ fontSize: 10, color: "#6B7280" }}>{t.workingDaysAbbr(p.workingDays)}</span>
-                  <span style={{ fontSize: 10, color: "#6B7280" }}>{t.revenue(formatEur(p.revenu, locale))}</span>
+                  <span style={{ fontSize: 10, color: "var(--nw-text-muted)" }}>{t.workingDaysAbbr(p.workingDays)}</span>
+                  <span style={{ fontSize: 10, color: "var(--nw-text-muted)" }}>{t.revenue(formatEur(p.revenu, locale))}</span>
                 </div>
               </div>
             </foreignObject>
@@ -375,20 +375,20 @@ export default function MonthlyMarginChart({
             <g key={`x-${p.monthIndex}`}>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 16}
-                fontSize={10} fill="#6B7280" textAnchor="middle"
+                fontSize={10} fill="var(--nw-text-muted)" textAnchor="middle"
                 fontWeight={p.isPartial ? 400 : 600}
               >
                 {monthAbbr[p.calendarMonth]}
               </text>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 30}
-                fontSize={9} fill="#6B7280" textAnchor="middle"
+                fontSize={9} fill="var(--nw-text-muted)" textAnchor="middle"
               >
                 {p.year}
               </text>
               <text
                 x={xOf(i)} y={PAD_T + PLOT_H + 44}
-                fontSize={9.5} fill="#7C63C8" textAnchor="middle" fontWeight={700}
+                fontSize={9.5} fill="var(--nw-primary)" textAnchor="middle" fontWeight={700}
                 style={{ fontVariantNumeric: "tabular-nums" }}
               >
                 {t.daysAbbr(p.workingDays)}
@@ -430,11 +430,11 @@ export function ChartLegend({
     <div style={{
       display: "inline-flex", alignItems: "center", gap: 12, flexWrap: "wrap",
       fontFamily: "var(--font-inter), sans-serif",
-      fontSize: 10.5, color: "#6B7280",
+      fontSize: 10.5, color: "var(--nw-text-muted)",
     }}>
       <LegendItem color="#16A34A" label={t.legendOk} />
       <LegendItem color="#F59E0B" label={t.legendWatch} />
-      <LegendItem color="#DC2626" label={t.legendBelow} />
+      <LegendItem color="var(--nw-danger-strong)" label={t.legendBelow} />
       <span style={{
         display: "inline-flex", alignItems: "center", gap: 5,
       }}>

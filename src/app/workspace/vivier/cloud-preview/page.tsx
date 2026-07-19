@@ -183,15 +183,15 @@ export default function VivierCloudPreview() {
 function Header({ view, setView }: { view: "list" | "map"; setView: (v: "list" | "map") => void }) {
   return (
     <m.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: EASE }}>
-      <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: "#7C63C8", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+      <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.1em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
         Vivier — Aperçu visuel
       </p>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginTop: 4 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#111827", letterSpacing: "-0.02em" }}>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.02em" }}>
             Mon vivier
           </h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6B7280", maxWidth: 720, lineHeight: 1.6 }}>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--nw-text-muted)", maxWidth: 720, lineHeight: 1.6 }}>
             {CANDIDATES.length} candidats répartis sur {CLUSTERS.length} secteurs détectés par Nora.
           </p>
         </div>
@@ -204,7 +204,7 @@ function Header({ view, setView }: { view: "list" | "map"; setView: (v: "list" |
 function ViewToggle({ view, onChange }: { view: "list" | "map"; onChange: (v: "list" | "map") => void }) {
   return (
     <div style={{
-      display: "inline-flex", background: "white", border: "1px solid #E5E7EB",
+      display: "inline-flex", background: "white", border: "1px solid var(--nw-border)",
       borderRadius: 100, padding: 3, gap: 2, position: "relative",
     }}>
       {(["map", "list"] as const).map((v) => {
@@ -219,7 +219,7 @@ function ViewToggle({ view, onChange }: { view: "list" | "map"; onChange: (v: "l
               padding: "7px 16px", borderRadius: 100,
               fontSize: 12, fontWeight: 700,
               cursor: "pointer",
-              color: active ? "white" : "#6B7280",
+              color: active ? "white" : "var(--nw-text-muted)",
               background: "transparent",
               border: "none",
               zIndex: 1,
@@ -231,7 +231,7 @@ function ViewToggle({ view, onChange }: { view: "list" | "map"; onChange: (v: "l
                 transition={SPRING}
                 style={{
                   position: "absolute", inset: 0, borderRadius: 100,
-                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                   zIndex: -1,
                 }}
               />
@@ -262,10 +262,10 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
         onChange={(e) => onChange(e.target.value)}
         style={{
           width: "100%",
-          fontSize: 13.5, color: "#111827",
+          fontSize: 13.5, color: "var(--nw-text)",
           padding: "12px 16px",
           background: "white",
-          border: "1px solid #E5E7EB",
+          border: "1px solid var(--nw-border)",
           borderRadius: 12,
           outline: "none",
           fontFamily: "inherit",
@@ -367,7 +367,7 @@ function MacroMap({ onZoom }: { onZoom: (id: string) => void }) {
                   fontSize: Math.max(14, sizePx / 12),
                   fontWeight: 800,
                   letterSpacing: "0.02em",
-                  textTransform: "uppercase",
+                  fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
                   textShadow: "0 1px 0 rgba(255,255,255,0.6)",
                   pointerEvents: "none",
                   textAlign: "center",
@@ -395,7 +395,7 @@ function MacroMap({ onZoom }: { onZoom: (id: string) => void }) {
         transition={{ duration: 0.5, ease: EASE, delay: 0.4 }}
         style={{
           position: "absolute", bottom: 14, left: "50%", transform: "translateX(-50%)",
-          margin: 0, fontSize: 11, color: "#6B7280", fontStyle: "italic",
+          margin: 0, fontSize: 11, color: "var(--nw-text-muted)", fontStyle: "italic",
           pointerEvents: "none",
         }}
       >
@@ -475,7 +475,7 @@ function SectorZoomView({
         </button>
 
         <div style={{ textAlign: "right" }}>
-          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: hsl(cluster.hue, 50, 50), letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: hsl(cluster.hue, 50, 50), letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
             Secteur
           </p>
           <h2 style={{ margin: "2px 0 0", fontSize: 22, fontWeight: 800, color: hsl(cluster.hue, 60, 28), letterSpacing: "-0.01em" }}>
@@ -491,7 +491,7 @@ function SectorZoomView({
 
       {/* Empty state si filtre vide */}
       {all.length === 0 && (
-        <p style={{ margin: "40px 0", fontSize: 13, color: "#6B7280", textAlign: "center" }}>
+        <p style={{ margin: "40px 0", fontSize: 13, color: "var(--nw-text-muted)", textAlign: "center" }}>
           Aucun candidat dans ce secteur ne correspond à la recherche.
         </p>
       )}
@@ -514,7 +514,7 @@ function SectorZoomView({
               gridColumn: "1 / -1",
               display: "flex", alignItems: "center", gap: 10, margin: "14px 0 4px",
               fontSize: 10, fontWeight: 700, color: hsl(cluster.hue, 35, 45),
-              letterSpacing: "0.08em", textTransform: "uppercase",
+              letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}
           >
             <span style={{ flex: 1, height: 1, background: hsl(cluster.hue, 35, 75) }} />
@@ -594,10 +594,10 @@ function CandidateCardLight({
           {c.initials}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--nw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {c.fullName}
           </div>
-          <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
+          <div style={{ fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)" }}>
             {c.ref}
           </div>
         </div>
@@ -622,11 +622,11 @@ function CandidateCardLight({
         )}
       </div>
 
-      <div style={{ fontSize: 12, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingLeft: 42 }}>
+      <div style={{ fontSize: 12, color: "var(--nw-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingLeft: 42 }}>
         {c.title}{c.company ? ` · ${c.company}` : ""}
       </div>
 
-      <div style={{ display: "flex", gap: 6, alignItems: "center", paddingLeft: 42, fontSize: 10.5, color: "#6B7280" }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", paddingLeft: 42, fontSize: 10.5, color: "var(--nw-text-muted)" }}>
         {c.location} · {c.yearsExperience} an{c.yearsExperience !== 1 ? "s" : ""} XP
       </div>
 
@@ -658,8 +658,8 @@ function FlatList({ candidates }: { candidates: CvCand[]; onOpenCand?: (c: CvCan
     return (
       <div style={{
         padding: "60px 24px", textAlign: "center",
-        background: "white", border: "1px dashed #E5E7EB", borderRadius: 14,
-        color: "#6B7280", fontSize: 14,
+        background: "white", border: "1px dashed var(--nw-border)", borderRadius: 14,
+        color: "var(--nw-text-muted)", fontSize: 14,
       }}>
         Aucun candidat ne correspond à la recherche.
       </div>
@@ -712,11 +712,11 @@ function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () =
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                 Aperçu candidat
               </span>
               <button onClick={onClose} style={{
-                fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: "#7C63C8",
+                fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
                 background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.20)",
                 borderRadius: 8, padding: "4px 10px", cursor: "pointer",
               }}>
@@ -736,18 +736,18 @@ function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () =
                   {cand.initials}
                 </span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
                     {cand.fullName}
                   </div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.04em", fontFamily: "var(--font-space-grotesk), monospace" }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)" }}>
                     {cand.ref}
                   </div>
                 </div>
               </div>
-              <p style={{ margin: "10px 0 0", fontSize: 13, color: "#374151" }}>
+              <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--nw-text-body)" }}>
                 {cand.title}{cand.company ? ` · ${cand.company}` : ""}
               </p>
-              <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6B7280" }}>
+              <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)" }}>
                 {cand.location} · {cand.yearsExperience} an{cand.yearsExperience !== 1 ? "s" : ""} d&apos;expérience
               </p>
             </div>
@@ -765,8 +765,8 @@ function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () =
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                 {cand.skills.map((s) => (
                   <span key={s} style={{
-                    fontSize: 10.5, color: "#4B5563", background: "#F8F6FF",
-                    border: "1px solid #F0ECF8", padding: "2.5px 9px", borderRadius: 6,
+                    fontSize: 10.5, color: "var(--nw-text-secondary)", background: "var(--nw-bg)",
+                    border: "1px solid var(--nw-border-soft)", padding: "2.5px 9px", borderRadius: 6,
                   }}>
                     {s}
                   </span>
@@ -778,7 +778,7 @@ function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () =
               marginTop: "auto",
               fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: "white",
               padding: "11px 16px", borderRadius: 10,
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               border: "none", cursor: "pointer",
               boxShadow: "0 6px 18px -8px rgba(124,99,200,0.6)",
             }}>
@@ -793,7 +793,7 @@ function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () =
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7280", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 7 }}>
+    <div style={{ fontSize: 9.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", marginBottom: 7 }}>
       {children}
     </div>
   )

@@ -79,7 +79,7 @@ function pct(used: number, limit: number): number {
 }
 
 function colorFor(p: number): string {
-  return p >= 90 ? "#EF4444" : p >= 70 ? "#F59E0B" : "#7C63C8"
+  return p >= 90 ? "#EF4444" : p >= 70 ? "#F59E0B" : "var(--nw-primary)"
 }
 
 function useQuota(): QuotaResponse | null {
@@ -132,12 +132,12 @@ export function QuotaGauges({
           style={{
             display: "flex", alignItems: "center", gap: 10,
             padding: "6px 12px", borderRadius: 10,
-            border: "1px solid #F0ECF8", background: "white",
+            border: "1px solid var(--nw-border-soft)", background: "white",
             cursor: "pointer", fontFamily: "inherit",
           }}
           title={t.viewCapacityDetail}
         >
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nw-text-muted)", whiteSpace: "nowrap" }}>
             {t.talentPool}
           </span>
           {!isUnlimited && (
@@ -151,9 +151,9 @@ export function QuotaGauges({
               }} />
             </span>
           )}
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--nw-text)", whiteSpace: "nowrap" }}>
             {usedFmt}
-            <span style={{ color: "#6B7280", fontWeight: 500 }}>
+            <span style={{ color: "var(--nw-text-muted)", fontWeight: 500 }}>
               {isUnlimited ? t.unlimitedShort : ` / ${limitFmt} CV`}
             </span>
           </span>
@@ -169,15 +169,15 @@ export function QuotaGauges({
     <div style={{
       display: "flex", flexDirection: "column", gap: compact ? 12 : 16,
       padding: compact ? 14 : 18,
-      borderRadius: 14, border: "1px solid #F0ECF8", background: "white",
+      borderRadius: 14, border: "1px solid var(--nw-border-soft)", background: "white",
     }}>
       <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#111827", letterSpacing: "-0.005em" }}>
+        <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--nw-text)", letterSpacing: "-0.005em" }}>
           {t.capacityTitle}
         </h3>
         <span style={{
-          fontSize: 10.5, fontWeight: 700, color: "#7C63C8",
-          letterSpacing: "0.04em", textTransform: "uppercase",
+          fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)",
+          letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {data.plan.label}
         </span>
@@ -185,7 +185,7 @@ export function QuotaGauges({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: "#4B5563" }}>{t.importedCvs}</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--nw-text-secondary)" }}>{t.importedCvs}</span>
           <span style={{ fontSize: 13.5, fontWeight: 800, color }}>
             {isUnlimited ? t.unlimited : `${p}%`}
           </span>
@@ -200,7 +200,7 @@ export function QuotaGauges({
         )}
         <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "baseline",
-          fontSize: 11.5, color: "#6B7280",
+          fontSize: 11.5, color: "var(--nw-text-muted)",
         }}>
           <span>{isUnlimited ? `${usedFmt} CV` : `${usedFmt} / ${limitFmt} CV`}</span>
           <button
@@ -208,7 +208,7 @@ export function QuotaGauges({
             onClick={() => setDetailOpen(true)}
             style={{
               background: "none", border: "none", padding: 0,
-              color: "#7C63C8", fontSize: 11.5, fontWeight: 600,
+              color: "var(--nw-primary)", fontSize: 11.5, fontWeight: 600,
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
@@ -218,7 +218,7 @@ export function QuotaGauges({
       </div>
 
       <p style={{
-        margin: 0, fontSize: 11.5, color: "#6B7280", lineHeight: 1.5,
+        margin: 0, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5,
         display: "flex", alignItems: "center", gap: 6,
       }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22C55E"
@@ -274,24 +274,24 @@ function DetailModal({
         boxShadow: "0 20px 50px -20px rgba(17,24,39,0.30)",
       }} onClick={(e) => e.stopPropagation()}>
         <h2 style={{
-          margin: "0 0 6px", fontSize: 18, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em",
+          margin: "0 0 6px", fontSize: 18, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em",
         }}>
           {t.capacityTitle}
         </h2>
         <p style={{
-          margin: "0 0 18px", fontSize: 12.5, fontWeight: 600, color: "#7C63C8",
-          letterSpacing: "0.04em", textTransform: "uppercase",
+          margin: "0 0 18px", fontSize: 12.5, fontWeight: 600, color: "var(--nw-primary)",
+          letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {plan.label}
         </p>
 
-        <div style={{ padding: "14px 16px", borderRadius: 12, background: "#F8F6FF", marginBottom: 16 }}>
-          <div style={{ fontSize: 26, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
-            {usedFmt}<span style={{ fontSize: 14, fontWeight: 500, color: "#6B7280" }}>
+        <div style={{ padding: "14px 16px", borderRadius: 12, background: "var(--nw-bg)", marginBottom: 16 }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: "var(--nw-text)", lineHeight: 1 }}>
+            {usedFmt}<span style={{ fontSize: 14, fontWeight: 500, color: "var(--nw-text-muted)" }}>
               {isUnlimited ? t.unlimitedCapacity : ` / ${limitFmt} CV`}
             </span>
           </div>
-          <div style={{ marginTop: 6, fontSize: 12.5, color: "#6B7280" }}>
+          <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--nw-text-muted)" }}>
             {isUnlimited ? t.adminUnlimitedBody : t.remainingBody(remaining)}
           </div>
         </div>
@@ -311,8 +311,8 @@ function DetailModal({
             onClick={onClose}
             style={{
               padding: "8px 16px", borderRadius: 9,
-              border: "1px solid #E5E7EB", background: "white",
-              color: "#374151", fontSize: 13, fontWeight: 600,
+              border: "1px solid var(--nw-border)", background: "white",
+              color: "var(--nw-text-body)", fontSize: 13, fontWeight: 600,
               cursor: "pointer", fontFamily: "inherit",
             }}
           >

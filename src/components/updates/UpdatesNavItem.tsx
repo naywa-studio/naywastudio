@@ -34,7 +34,7 @@ export function UpdatesNavBadge({ size = 7 }: { size?: number }) {
         display: "inline-block",
         width: size, height: size,
         borderRadius: "50%",
-        background: "#7C63C8",
+        background: "var(--nw-primary)",
         boxShadow: "0 0 0 2px white",
         flexShrink: 0,
       }}
@@ -63,7 +63,7 @@ export function NavUnreadDot({ href, size = 6 }: { href: string; size?: number }
         display: "inline-block",
         width: size, height: size,
         borderRadius: "50%",
-        background: "#7C63C8",
+        background: "var(--nw-primary)",
         boxShadow: "0 0 0 2px white",
         flexShrink: 0,
       }}

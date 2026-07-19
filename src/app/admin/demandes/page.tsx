@@ -218,17 +218,17 @@ export default function AdminDemandesPage() {
       <header style={{ marginBottom: 24 }}>
         <p style={{
           margin: "0 0 6px", fontSize: 11, fontWeight: 700,
-          color: "#7C63C8", letterSpacing: "0.10em", textTransform: "uppercase",
+          color: "var(--nw-primary)", letterSpacing: "0.10em", textTransform: "uppercase",
         }}>
           {t.badge}
         </p>
         <h1 style={{
-          margin: 0, fontSize: 28, fontWeight: 800, color: "#111827",
+          margin: 0, fontSize: 28, fontWeight: 800, color: "var(--nw-text)",
           letterSpacing: "-0.02em",
         }}>
           {t.title}
         </h1>
-        <p style={{ margin: "8px 0 0", fontSize: 13.5, color: "#6B7280", lineHeight: 1.6 }}>
+        <p style={{ margin: "8px 0 0", fontSize: 13.5, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
           {t.subtitle}
         </p>
       </header>
@@ -241,9 +241,9 @@ export default function AdminDemandesPage() {
             onClick={() => setFilter(f)}
             style={{
               padding: "7px 14px", borderRadius: 100,
-              border: filter === f ? "1px solid #7C63C8" : "1px solid #E5E7EB",
+              border: filter === f ? "1px solid var(--nw-primary)" : "1px solid var(--nw-border)",
               background: filter === f ? "rgba(124,99,200,0.08)" : "white",
-              color: filter === f ? "#7C63C8" : "#6B7280",
+              color: filter === f ? "var(--nw-primary)" : "var(--nw-text-muted)",
               fontSize: 12.5, fontWeight: 700,
               cursor: "pointer", fontFamily: "inherit",
             }}
@@ -257,20 +257,20 @@ export default function AdminDemandesPage() {
         <div style={{
           padding: "10px 12px", borderRadius: 10,
           background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
-          color: "#B91C1C", fontSize: 12.5, marginBottom: 16,
+          color: "var(--nw-danger-strong)", fontSize: 12.5, marginBottom: 16,
         }}>
           {error}
         </div>
       )}
 
       {loading ? (
-        <p style={{ fontSize: 13, color: "#6B7280" }}>{t.loading}</p>
+        <p style={{ fontSize: 13, color: "var(--nw-text-muted)" }}>{t.loading}</p>
       ) : batches.length === 0 ? (
         <div style={{
           padding: 32, textAlign: "center",
-          border: "1px dashed #E5E7EB", borderRadius: 14, background: "#FAFAFA",
+          border: "1px dashed var(--nw-border)", borderRadius: 14, background: "var(--nw-surface-muted)",
         }}>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#374151" }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--nw-text-body)" }}>
             {filter === "pending" ? t.noRequestsPending : t.noRequestsAll}
           </p>
         </div>
@@ -283,12 +283,12 @@ export default function AdminDemandesPage() {
             return (
               <article key={batch.batch_id} style={{
                 padding: "18px 20px", background: "white",
-                border: "1px solid #F0ECF8", borderRadius: 14,
+                border: "1px solid var(--nw-border-soft)", borderRadius: 14,
               }}>
                 <header style={{ marginBottom: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
                     <BatchStatusPill changes={batch.changes} />
-                    <span style={{ fontSize: 11.5, color: "#6B7280" }}>
+                    <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)" }}>
                       {new Date(batch.created_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US", {
                         day: "numeric", month: "short", year: "numeric",
                         hour: "2-digit", minute: "2-digit",
@@ -296,25 +296,25 @@ export default function AdminDemandesPage() {
                     </span>
                   </div>
                   <h2 style={{
-                    margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827",
+                    margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--nw-text)",
                     letterSpacing: "-0.01em",
                   }}>
                     {orgLabel}
                   </h2>
-                  <p style={{ margin: 0, fontSize: 12.5, color: "#6B7280" }}>
-                    {t.requestedBy} <strong style={{ color: "#374151" }}>{requesterLabel}</strong>
+                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-muted)" }}>
+                    {t.requestedBy} <strong style={{ color: "var(--nw-text-body)" }}>{requesterLabel}</strong>
                     {requesterEmail && (
-                      <> · <a href={`mailto:${requesterEmail}`} style={{ color: "#7C63C8" }}>{requesterEmail}</a></>
+                      <> · <a href={`mailto:${requesterEmail}`} style={{ color: "var(--nw-primary)" }}>{requesterEmail}</a></>
                     )}
                   </p>
                   {batch.reason && (
                     <p style={{
                       margin: "10px 0 0", padding: "8px 10px",
-                      fontSize: 13, color: "#374151", lineHeight: 1.5,
-                      background: "#FAFAFA", borderRadius: 8,
-                      borderLeft: "3px solid #7C63C8",
+                      fontSize: 13, color: "var(--nw-text-body)", lineHeight: 1.5,
+                      background: "var(--nw-surface-muted)", borderRadius: 8,
+                      borderLeft: "3px solid var(--nw-primary)",
                     }}>
-                      <strong style={{ color: "#6B7280", fontSize: 11.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>{t.reasonLabel}</strong>{" "}
+                      <strong style={{ color: "var(--nw-text-muted)", fontSize: 11.5, fontFamily: "var(--nw-font-mono)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t.reasonLabel}</strong>{" "}
                       {batch.reason}
                     </p>
                   )}
@@ -369,18 +369,18 @@ function ChangeCard({
     <div style={{
       padding: 14,
       borderRadius: 10,
-      border: change.status === "pending" ? "1px solid #F0ECF8" : "1px solid #E5E7EB",
-      background: change.status === "pending" ? "white" : "#FAFAFA",
+      border: change.status === "pending" ? "1px solid var(--nw-border-soft)" : "1px solid var(--nw-border)",
+      background: change.status === "pending" ? "white" : "var(--nw-surface-muted)",
     }}>
       <div style={{
         display: "flex", alignItems: "center", gap: 8, marginBottom: 10,
         flexWrap: "wrap",
       }}>
         <span style={{
-          fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
           background: "rgba(124,99,200,0.08)",
           padding: "3px 8px", borderRadius: 100,
-          letterSpacing: "0.05em", textTransform: "uppercase",
+          letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
         }}>
           {FIELD_LABEL[lang][change.field]}
         </span>
@@ -411,7 +411,7 @@ function ChangeCard({
       {change.decision_note && (
         <p style={{
           margin: "10px 0 0", padding: "8px 10px",
-          fontSize: 12.5, color: "#B91C1C", lineHeight: 1.5,
+          fontSize: 12.5, color: "var(--nw-danger-strong)", lineHeight: 1.5,
           background: "rgba(220,38,38,0.06)", borderRadius: 8,
         }}>
           <strong>{t.decisionNoteLabel}</strong> {change.decision_note}
@@ -424,7 +424,7 @@ function ChangeCard({
             type="button" onClick={onApprove}
             style={{
               padding: "8px 14px", borderRadius: 8, border: "none",
-              background: "linear-gradient(120deg, #15803D 0%, #166534 100%)",
+              background: "linear-gradient(120deg, var(--nw-success) 0%, #166534 100%)",
               color: "white", fontSize: 12.5, fontWeight: 700,
               cursor: "pointer", fontFamily: "inherit",
             }}
@@ -436,7 +436,7 @@ function ChangeCard({
             style={{
               padding: "8px 14px", borderRadius: 8,
               border: "1px solid #FCA5A5", background: "white",
-              color: "#B91C1C", fontSize: 12.5, fontWeight: 700,
+              color: "var(--nw-danger-strong)", fontSize: 12.5, fontWeight: 700,
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
@@ -476,10 +476,10 @@ function ConfirmationModal({
         fontFamily: "var(--font-inter), sans-serif",
         boxShadow: "0 24px 64px -24px rgba(17,24,39,0.30)",
       }}>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827" }}>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--nw-text)" }}>
           {action === "approve" ? t.approveTitle : t.rejectTitle}
         </h3>
-        <p style={{ margin: "8px 0 14px", fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
+        <p style={{ margin: "8px 0 14px", fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
           {t.fieldConcerned} <strong>{FIELD_LABEL[lang][change.field]}</strong>.
           {action === "approve" ? t.approveBody : t.rejectBody}
         </p>
@@ -487,8 +487,8 @@ function ConfirmationModal({
           <>
             <label style={{
               display: "block", marginBottom: 5,
-              fontSize: 11, fontWeight: 700, color: "#6B7280",
-              letterSpacing: "0.05em", textTransform: "uppercase",
+              fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
+              letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
             }}>
               {t.rejectReasonLabel}
             </label>
@@ -499,7 +499,7 @@ function ConfirmationModal({
               rows={4}
               style={{
                 width: "100%", padding: "10px 12px",
-                borderRadius: 8, border: "1.5px solid #E5E7EB",
+                borderRadius: 8, border: "1.5px solid var(--nw-border)",
                 fontSize: 13.5, fontFamily: "inherit",
                 boxSizing: "border-box", resize: "vertical",
               }}
@@ -509,8 +509,8 @@ function ConfirmationModal({
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
           <button type="button" onClick={onCancel} style={{
             padding: "8px 14px", borderRadius: 8,
-            border: "1px solid #E5E7EB", background: "white",
-            color: "#374151", fontSize: 12.5, fontWeight: 600,
+            border: "1px solid var(--nw-border)", background: "white",
+            color: "var(--nw-text-body)", fontSize: 12.5, fontWeight: 600,
             cursor: "pointer", fontFamily: "inherit",
           }}>
             {t.cancel}
@@ -518,8 +518,8 @@ function ConfirmationModal({
           <button type="button" onClick={onConfirm} style={{
             padding: "8px 16px", borderRadius: 8, border: "none",
             background: action === "approve"
-              ? "linear-gradient(120deg, #15803D 0%, #166534 100%)"
-              : "linear-gradient(120deg, #DC2626 0%, #B91C1C 100%)",
+              ? "linear-gradient(120deg, var(--nw-success) 0%, #166534 100%)"
+              : "linear-gradient(120deg, var(--nw-danger-strong) 0%, var(--nw-danger-strong) 100%)",
             color: "white", fontSize: 12.5, fontWeight: 700,
             cursor: "pointer", fontFamily: "inherit",
           }}>
@@ -535,7 +535,7 @@ function FieldHeader({ children }: { children: React.ReactNode }) {
   return (
     <p style={{
       margin: "0 0 6px", fontSize: 10.5, fontWeight: 700,
-      color: "#6B7280", letterSpacing: "0.05em", textTransform: "uppercase",
+      color: "var(--nw-text-muted)", letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
     }}>
       {children}
     </p>
@@ -548,13 +548,13 @@ function ValueBlock({ value, dim, highlight }: { value: string | null; dim?: boo
   return (
     <div style={{
       padding: "8px 10px", borderRadius: 8,
-      background: highlight ? "rgba(124,99,200,0.05)" : "#FAFAFA",
-      border: highlight ? "1px solid rgba(124,99,200,0.20)" : "1px solid #F0ECF8",
+      background: highlight ? "rgba(124,99,200,0.05)" : "var(--nw-surface-muted)",
+      border: highlight ? "1px solid rgba(124,99,200,0.20)" : "1px solid var(--nw-border-soft)",
       fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
-      fontSize: 12.5, color: dim ? "#6B7280" : "#111827",
+      fontSize: 12.5, color: dim ? "var(--nw-text-muted)" : "var(--nw-text)",
       wordBreak: "break-all", minHeight: 28,
     }}>
-      {value || <em style={{ color: "#6B7280" }}>{t.empty}</em>}
+      {value || <em style={{ color: "var(--nw-text-muted)" }}>{t.empty}</em>}
     </div>
   )
 }
@@ -564,8 +564,8 @@ function LogoPreview({ src, placeholder, highlight }: { src: string | null | und
     <div style={{
       width: "100%", aspectRatio: "2 / 1",
       borderRadius: 8,
-      border: highlight ? "1px solid rgba(124,99,200,0.30)" : "1px solid #F0ECF8",
-      background: highlight ? "rgba(124,99,200,0.05)" : "#FAFAFA",
+      border: highlight ? "1px solid rgba(124,99,200,0.30)" : "1px solid var(--nw-border-soft)",
+      background: highlight ? "rgba(124,99,200,0.05)" : "var(--nw-surface-muted)",
       display: "flex", alignItems: "center", justifyContent: "center",
       overflow: "hidden",
     }}>
@@ -573,7 +573,7 @@ function LogoPreview({ src, placeholder, highlight }: { src: string | null | und
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", padding: 8 }} />
       ) : (
-        <span style={{ fontSize: 11.5, color: "#6B7280", fontStyle: "italic" }}>{placeholder}</span>
+        <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)", fontStyle: "italic" }}>{placeholder}</span>
       )}
     </div>
   )
@@ -583,17 +583,17 @@ function ChangeStatusPill({ status }: { status: Status }) {
   const { lang } = useLanguage()
   const t = copy[lang]
   const map: Record<Status, { label: string; color: string; bg: string }> = {
-    pending:   { label: t.statusPending,   color: "#B45309", bg: "rgba(245,158,11,0.10)" },
-    approved:  { label: t.statusApproved,  color: "#15803D", bg: "rgba(34,197,94,0.10)" },
-    rejected:  { label: t.statusRejected,  color: "#B91C1C", bg: "rgba(220,38,38,0.10)" },
-    cancelled: { label: t.statusCancelled, color: "#6B7280", bg: "#F3F4F6" },
+    pending:   { label: t.statusPending,   color: "var(--nw-warn)", bg: "rgba(245,158,11,0.10)" },
+    approved:  { label: t.statusApproved,  color: "var(--nw-success)", bg: "rgba(34,197,94,0.10)" },
+    rejected:  { label: t.statusRejected,  color: "var(--nw-danger-strong)", bg: "rgba(220,38,38,0.10)" },
+    cancelled: { label: t.statusCancelled, color: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)" },
   }
   const s = map[status]
   return (
     <span style={{
       fontSize: 10, fontWeight: 700, color: s.color, background: s.bg,
       padding: "2px 7px", borderRadius: 100,
-      letterSpacing: "0.05em", textTransform: "uppercase",
+      letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
     }}>
       {s.label}
     </span>
@@ -606,10 +606,10 @@ function BatchStatusPill({ changes }: { changes: ChangeRow[] }) {
   const hasPending = changes.some((c) => c.status === "pending")
   const allApproved = changes.every((c) => c.status === "approved")
   const allRejected = changes.every((c) => c.status === "rejected")
-  if (hasPending) return <Pill label={t.batchToHandle} color="#B45309" bg="rgba(245,158,11,0.10)" />
-  if (allApproved) return <Pill label={t.batchAllApproved} color="#15803D" bg="rgba(34,197,94,0.10)" />
-  if (allRejected) return <Pill label={t.batchAllRejected} color="#B91C1C" bg="rgba(220,38,38,0.10)" />
-  return <Pill label={t.batchDecided} color="#6B7280" bg="#F3F4F6" />
+  if (hasPending) return <Pill label={t.batchToHandle} color="var(--nw-warn)" bg="rgba(245,158,11,0.10)" />
+  if (allApproved) return <Pill label={t.batchAllApproved} color="var(--nw-success)" bg="rgba(34,197,94,0.10)" />
+  if (allRejected) return <Pill label={t.batchAllRejected} color="var(--nw-danger-strong)" bg="rgba(220,38,38,0.10)" />
+  return <Pill label={t.batchDecided} color="var(--nw-text-muted)" bg="var(--nw-neutral-100)" />
 }
 
 function Pill({ label, color, bg }: { label: string; color: string; bg: string }) {
@@ -617,7 +617,7 @@ function Pill({ label, color, bg }: { label: string; color: string; bg: string }
     <span style={{
       fontSize: 10.5, fontWeight: 700, color, background: bg,
       padding: "2px 8px", borderRadius: 100,
-      letterSpacing: "0.05em", textTransform: "uppercase",
+      letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
     }}>
       {label}
     </span>

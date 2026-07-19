@@ -328,10 +328,10 @@ export function MissionCvUploadModal({
         display: "flex", flexDirection: "column",
       }}>
         <header style={{ marginBottom: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
             {t.title}
           </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#6B7280", lineHeight: 1.55 }}>
+          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
             {t.desc(jobLabel)}
           </p>
         </header>
@@ -344,21 +344,21 @@ export function MissionCvUploadModal({
           style={{
             padding: "28px 18px",
             borderRadius: 12,
-            border: `2px dashed ${isDragging ? "#7C63C8" : "#E2DAF6"}`,
-            background: isDragging ? "rgba(124,99,200,0.05)" : "#FAFAFA",
+            border: `2px dashed ${isDragging ? "var(--nw-primary)" : "var(--nw-primary-100)"}`,
+            background: isDragging ? "rgba(124,99,200,0.05)" : "var(--nw-surface-muted)",
             textAlign: "center", cursor: "pointer",
             transition: "all 150ms",
             marginBottom: 14,
           }}
         >
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block", margin: "0 auto 8px" }} aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--nw-primary)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block", margin: "0 auto 8px" }} aria-hidden="true">
             <path d="M12 16V6M8.5 9.5 12 6l3.5 3.5" />
             <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
           </svg>
-          <p style={{ margin: "0 0 4px", fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+          <p style={{ margin: "0 0 4px", fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)" }}>
             {t.dropHint}
           </p>
-          <p style={{ margin: 0, fontSize: 11.5, color: "#6B7280" }}>
+          <p style={{ margin: 0, fontSize: 11.5, color: "var(--nw-text-muted)" }}>
             {t.dropSubhint}
           </p>
           <input
@@ -375,10 +375,10 @@ export function MissionCvUploadModal({
           <>
             <div style={{
               display: "flex", gap: 12, marginBottom: 10, alignItems: "center",
-              fontSize: 12, color: "#6B7280",
+              fontSize: 12, color: "var(--nw-text-muted)",
             }}>
-              <span><strong style={{ color: "#15803D" }}>{doneCount}</strong> {t.processed}</span>
-              {errorCount > 0 && <span><strong style={{ color: "#B91C1C" }}>{errorCount}</strong> {t.withErrors}</span>}
+              <span><strong style={{ color: "var(--nw-success)" }}>{doneCount}</strong> {t.processed}</span>
+              {errorCount > 0 && <span><strong style={{ color: "var(--nw-danger-strong)" }}>{errorCount}</strong> {t.withErrors}</span>}
               {pendingReview.length > 0 && (
                 <button
                   type="button"
@@ -388,9 +388,9 @@ export function MissionCvUploadModal({
                   style={{
                     marginLeft: "auto",
                     fontSize: 11.5, fontWeight: 700,
-                    color: validatingAll ? "#6B7280" : "#15803D",
-                    background: validatingAll ? "#F3F4F6" : "rgba(34,197,94,0.08)",
-                    border: `1px solid ${validatingAll ? "#E5E7EB" : "rgba(34,197,94,0.30)"}`,
+                    color: validatingAll ? "var(--nw-text-muted)" : "var(--nw-success)",
+                    background: validatingAll ? "var(--nw-neutral-100)" : "rgba(34,197,94,0.08)",
+                    border: `1px solid ${validatingAll ? "var(--nw-border)" : "rgba(34,197,94,0.30)"}`,
                     borderRadius: 8, padding: "5px 11px",
                     cursor: validatingAll ? "default" : "pointer", fontFamily: "inherit",
                   }}
@@ -398,12 +398,12 @@ export function MissionCvUploadModal({
                   {validatingAll ? t.validating : t.validateAll(pendingReview.length)}
                 </button>
               )}
-              <span style={{ marginLeft: pendingReview.length > 0 ? 0 : "auto", color: "#6B7280" }}>{t.fileCount(jobs.length)}</span>
+              <span style={{ marginLeft: pendingReview.length > 0 ? 0 : "auto", color: "var(--nw-text-muted)" }}>{t.fileCount(jobs.length)}</span>
             </div>
             <ul style={{
               listStyle: "none", margin: 0, padding: 0,
               maxHeight: 320, overflowY: "auto",
-              border: "1px solid #F0ECF8", borderRadius: 10,
+              border: "1px solid var(--nw-border-soft)", borderRadius: 10,
             }}>
               {jobs.map((j) => {
                 const scored = (j.stage === "done" || j.stage === "duplicate") && !!j.candidateId
@@ -415,14 +415,14 @@ export function MissionCvUploadModal({
                     fontSize: 12.5,
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ flex: 1, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ flex: 1, color: "var(--nw-text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {j.fileName}
                       </span>
                       <StageBadge stage={j.stage} score={j.score} tier={j.tier} error={j.error} />
                     </div>
                     {scored && (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                        <span style={{ fontSize: 10.5, color: "#6B7280", fontWeight: 600, letterSpacing: "0.02em" }}>
+                        <span style={{ fontSize: 10.5, color: "var(--nw-text-muted)", fontWeight: 600, letterSpacing: "0.02em" }}>
                           {t.sector}
                         </span>
                         <SectorReviewControl
@@ -449,8 +449,8 @@ export function MissionCvUploadModal({
             onClick={onClose}
             style={{
               padding: "9px 16px", borderRadius: 9,
-              border: "1px solid #E5E7EB", background: "white",
-              color: "#374151", fontSize: 13, fontWeight: 600,
+              border: "1px solid var(--nw-border)", background: "white",
+              color: "var(--nw-text-body)", fontSize: 13, fontWeight: 600,
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
@@ -473,10 +473,10 @@ function StageBadge({
       <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
         {stage === "duplicate" && (
           <span title={t.duplicateTitle} style={{
-            fontSize: 9.5, fontWeight: 700, color: "#B45309",
+            fontSize: 9.5, fontWeight: 700, color: "var(--nw-warn)",
             background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.28)",
             borderRadius: 999, padding: "1px 6px",
-            letterSpacing: "0.04em", textTransform: "uppercase",
+            letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
           }}>
             {t.duplicate}
           </span>
@@ -495,7 +495,7 @@ function StageBadge({
   if (stage === "error") {
     return (
       <span title={error} style={{
-        fontSize: 11, fontWeight: 700, color: "#B91C1C",
+        fontSize: 11, fontWeight: 700, color: "var(--nw-danger-strong)",
         background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
         borderRadius: 999, padding: "2px 9px",
         whiteSpace: "nowrap", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis",
@@ -507,12 +507,12 @@ function StageBadge({
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 6,
-      fontSize: 11, fontWeight: 600, color: "#7C63C8",
+      fontSize: 11, fontWeight: 600, color: "var(--nw-primary)",
     }}>
       <span style={{
         width: 9, height: 9, borderRadius: "50%",
         border: "2px solid rgba(124,99,200,0.25)",
-        borderTopColor: "#7C63C8",
+        borderTopColor: "var(--nw-primary)",
         animation: "miss-upload-spin 0.9s linear infinite",
         display: "inline-block",
       }} />
@@ -523,8 +523,8 @@ function StageBadge({
 }
 
 const TIER_COLORS: Record<NonNullable<FileJob["tier"]>, { color: string; bg: string; border: string }> = {
-  excellent: { color: "#15803D", bg: "rgba(34,197,94,0.10)", border: "rgba(34,197,94,0.30)" },
-  good:      { color: "#15803D", bg: "rgba(34,197,94,0.06)", border: "rgba(34,197,94,0.20)" },
-  fair:      { color: "#B45309", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.25)" },
-  poor:      { color: "#6B7280", bg: "#F3F4F6",                border: "#E5E7EB" },
+  excellent: { color: "var(--nw-success)", bg: "rgba(34,197,94,0.10)", border: "rgba(34,197,94,0.30)" },
+  good:      { color: "var(--nw-success)", bg: "rgba(34,197,94,0.06)", border: "rgba(34,197,94,0.20)" },
+  fair:      { color: "var(--nw-warn)", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.25)" },
+  poor:      { color: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)",                border: "var(--nw-border)" },
 }
