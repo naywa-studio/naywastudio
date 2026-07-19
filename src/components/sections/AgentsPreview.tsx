@@ -14,46 +14,50 @@ const fu = (delay: number) => ({
 
 const content = {
   fr: {
-    badge: "L'agent disponible",
-    titlePre: "Faites connaissance avec ",
+    badge: "Au cœur du Package Sourcing",
+    titlePre: "Le Package Sourcing est piloté par ",
     titleName: "Nora",
-    subtitle: "L'assistante IA du Package Sourcing. Elle traite, vous décidez.",
-    role: "CV management & matching IA",
-    available: "Disponible",
+    subtitle:
+      "Nora est l'assistante intégrée au package. C'est elle qui fait tout le travail de préparation — lire, ranger, comparer — pour que vous n'ayez plus qu'à décider.",
+    role: "L'assistante du Package Sourcing",
+    available: "Incluse",
     desc:
-      "Vous uploadez vos CVs et décrivez vos missions. Nora parse, indexe, match, chiffre selon Syntec et justifie ses scores. Vous obtenez des shortlists prêtes à présenter — anonymisées si besoin.",
+      "Vous déposez vos CV et vous décrivez votre mission. Nora lit chaque CV, range les candidats par secteur, les compare à votre mission et explique chaque note. Vous récupérez une liste courte, prête à présenter — anonymisée si vous le souhaitez.",
     features: [
-      "Ingestion CV automatique (PDF, OCR pour CVs scannés)",
-      "Vivier organisé : Nora classe vos candidats par secteur",
-      "Matching IA contre vos missions avec score justifié et explicable",
-      "Pricing Syntec automatisé : marge, charges, plafonds URSSAF, calendrier réel",
-      "Risque rupture employeur visualisé mois par mois",
-      "Anonymisation 1 clic — PDF brandé à votre structure, prêt client",
-      "Pipeline candidat partagé entre vos collègues",
+      "Lit vos CV en PDF, y compris les documents scannés",
+      "Range votre vivier par secteur, sans tri manuel",
+      "Note chaque candidat sur votre mission, et dit pourquoi",
+      "Chiffre la mission selon la convention Syntec : marge, charges, jours réellement facturables",
+      "Montre ce que coûte une rupture pendant la période d'essai, mois par mois",
+      "Anonymise un CV en un clic, à vos couleurs, prêt à envoyer au client",
+      "Partage le suivi des candidats avec vos collègues",
     ],
-    cta: "15 jours gratuits →",
-    cardLabel: "Poste · Data Engineer Paris — 3 meilleurs",
+    cta: "Démarrer l'essai de 15 jours →",
+    cardLabel: "Mission · Data Engineer, Paris",
+    cardNote: "Exemple illustratif",
   },
   en: {
-    badge: "The agent on duty",
-    titlePre: "Meet ",
+    badge: "At the heart of Package Sourcing",
+    titlePre: "Package Sourcing runs on ",
     titleName: "Nora",
-    subtitle: "The AI assistant behind Package Sourcing. She handles it, you decide.",
-    role: "CV management & AI matching",
-    available: "Available",
+    subtitle:
+      "Nora is the assistant built into the package. She does all the groundwork — reading, sorting, comparing — so that all you have left to do is decide.",
+    role: "The Package Sourcing assistant",
+    available: "Included",
     desc:
-      "You upload your CVs and describe your job openings. Nora parses, indexes, matches, prices using consulting-rate rules, and justifies her scores. You get shortlists ready to present — anonymized if needed.",
+      "You drop in your CVs and describe your role. Nora reads every CV, sorts candidates by sector, compares them against your role and explains every score. You get back a short list, ready to present — anonymized if you want it.",
     features: [
-      "Automatic CV ingestion (PDF, OCR for scanned CVs)",
-      "Organized talent pool: Nora sorts your candidates by sector",
-      "AI matching against your job openings with a justified, explainable score",
-      "Automated consulting-rate pricing: margin, payroll taxes, social security caps, real calendar",
-      "Termination risk visualized month by month",
-      "One-click anonymization — PDF branded to your team, client-ready",
-      "Shared candidate pipeline across your team",
+      "Reads your CVs in PDF, including scanned documents",
+      "Sorts your talent pool by sector, with no manual filing",
+      "Scores every candidate against your role, and says why",
+      "Prices the role under the Syntec agreement: margin, payroll costs, actual billable days",
+      "Shows what an early termination would cost you, month by month",
+      "Anonymizes a CV in one click, in your colours, ready to send to your client",
+      "Shares candidate tracking with your colleagues",
     ],
-    cta: "15 days free →",
-    cardLabel: "Role · Data Engineer Paris — top 3",
+    cta: "Start the 15-day trial →",
+    cardLabel: "Role · Data Engineer, Paris",
+    cardNote: "Illustrative example",
   },
 }
 
@@ -245,15 +249,26 @@ export function AgentsPreview() {
               fontFamily: "var(--font-inter), sans-serif",
             }}>
               <p style={{
-                margin: "0 0 12px", fontSize: 11, fontWeight: 700,
+                margin: "0 0 2px", fontSize: 11, fontWeight: 700,
                 color: "#6B7280", textTransform: "uppercase" as const, letterSpacing: "0.07em",
               }}>
                 {c.cardLabel}
               </p>
+              {/* Mention explicite : ces profils sont inventés, pas des
+                  candidats réels. */}
+              <p style={{
+                margin: "0 0 12px", fontSize: 10, color: "#6B7280",
+                fontStyle: "italic",
+              }}>
+                {c.cardNote}
+              </p>
+              {/* Données FICTIVES. Les employeurs sont volontairement
+                  génériques : nommer de vraies entreprises laisserait croire
+                  que leurs salariés figurent dans un vivier Naywa. */}
               {[
-                { name: "Mike M.", title: "Senior Data Engineer · BNP", score: 92 },
-                { name: "Paul M.", title: "Lead Data Engineer · Datadog", score: 88 },
-                { name: "Ibtissam R.", title: "Data Platform · OVH", score: 85 },
+                { name: "Mehdi B.", title: "Senior Data Engineer · groupe bancaire", score: 92 },
+                { name: "Paul M.", title: "Lead Data Engineer · éditeur SaaS", score: 88 },
+                { name: "Inès R.", title: "Data Platform · hébergeur cloud", score: 85 },
               ].map((c, i) => (
                 <div key={i} style={{
                   display: "flex", alignItems: "center", gap: 8,

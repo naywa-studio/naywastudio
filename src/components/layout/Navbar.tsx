@@ -8,19 +8,21 @@ import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher"
 
 const navLinks = {
+  // 4 entrées, pas 5 : le logo fait office d'accueil (convention universelle),
+  // donc « Accueil » gaspillait une place. « Solutions » devient « Produit » —
+  // il n'y a qu'un package, le pluriel mentait — mais l'URL /solutions est
+  // CONSERVÉE pour ne pas casser les liens ni le référencement.
   fr: [
-    { label: "Accueil",   href: "/" },
-    { label: "À propos",  href: "/a-propos" },
-    { label: "Solutions", href: "/solutions" },
-    { label: "Tarifs",    href: "/tarifs" },
-    { label: "Contact",   href: "/contact" },
+    { label: "Produit",  href: "/solutions" },
+    { label: "Tarifs",   href: "/tarifs" },
+    { label: "À propos", href: "/a-propos" },
+    { label: "Contact",  href: "/contact" },
   ],
   en: [
-    { label: "Home",      href: "/" },
-    { label: "About",     href: "/a-propos" },
-    { label: "Solutions", href: "/solutions" },
-    { label: "Pricing",   href: "/tarifs" },
-    { label: "Contact",   href: "/contact" },
+    { label: "Product", href: "/solutions" },
+    { label: "Pricing", href: "/tarifs" },
+    { label: "About",   href: "/a-propos" },
+    { label: "Contact", href: "/contact" },
   ],
 }
 

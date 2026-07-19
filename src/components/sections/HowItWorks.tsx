@@ -24,57 +24,59 @@ const icons = [
 ]
 
 const content = {
+  // Ordre mission-d'abord : on part du BESOIN CLIENT, pas d'un stock de CV.
+  // C'est la séquence réelle de travail d'un sourceur.
   fr: {
     badge: "Comment ça marche",
-    titleLine1: "Votre vivier, organisé",
-    titleLine2: "et matché par Nora",
-    intro: "Trois étapes simples entre votre premier contact et vos premiers candidats qualifiés.",
+    titleLine1: "De la mission",
+    titleLine2: "à la shortlist",
+    intro: "Trois étapes entre le besoin de votre client et des candidats prêts à présenter.",
     stepLabel: "Étape",
     steps: [
       {
         number: "01",
-        title: "Importez vos CVs",
-        subtitle: "Drag-drop",
-        desc: "Glissez vos PDFs — même les CVs scannés (OCR intégré). Nora extrait les compétences, l'expérience et les coordonnées, puis classe chaque candidat dans son secteur.",
+        title: "Décrivez votre mission",
+        subtitle: "Une minute suffit",
+        desc: "Le poste, le lieu, les compétences attendues. Nora en tire les critères qui comptent, que vous corrigez si besoin.",
       },
       {
         number: "02",
-        title: "Décrivez vos missions",
-        subtitle: "1 minute par mission",
-        desc: "Brief court : titre, lieu, compétences, séniorité. Nora score immédiatement tous les CVs de votre vivier contre cette mission.",
+        title: "Déposez vos CV",
+        subtitle: "Y compris les documents scannés",
+        desc: "Glissez vos fichiers PDF. Nora les lit, en tire l'expérience et les compétences, et range chaque candidat dans son secteur. Aucun tri manuel.",
       },
       {
         number: "03",
         title: "Présentez votre shortlist",
-        subtitle: "Anonymisée si vous voulez",
-        desc: "Pour chaque mission, votre top candidats triés et justifiés. Génère un PDF anonymisé en 1 clic pour vos clients, suit la prise de contact dans le pipeline.",
+        subtitle: "Anonymisée si vous le souhaitez",
+        desc: "Vos meilleurs profils sur cette mission, classés, avec la raison de chaque note. Un clic pour générer le CV anonymisé à vos couleurs, et le suivi se fait dans la pipeline.",
       },
     ],
   },
   en: {
     badge: "How it works",
-    titleLine1: "Your talent pool, organized",
-    titleLine2: "and matched by Nora",
-    intro: "Three simple steps between your first contact and your first qualified candidates.",
+    titleLine1: "From the role",
+    titleLine2: "to the shortlist",
+    intro: "Three steps between your client's need and candidates ready to present.",
     stepLabel: "Step",
     steps: [
       {
         number: "01",
-        title: "Import your CVs",
-        subtitle: "Drag & drop",
-        desc: "Drop your PDFs — even scanned CVs (built-in OCR). Nora extracts skills, experience, and contact details, then sorts each candidate into their sector.",
+        title: "Describe your role",
+        subtitle: "A minute is enough",
+        desc: "The position, the location, the skills you need. Nora draws out the criteria that matter, and you correct them if needed.",
       },
       {
         number: "02",
-        title: "Describe your job openings",
-        subtitle: "1 minute per opening",
-        desc: "Short brief: title, location, skills, seniority. Nora immediately scores every CV in your talent pool against that opening.",
+        title: "Drop in your CVs",
+        subtitle: "Scanned documents included",
+        desc: "Drag in your PDF files. Nora reads them, pulls out experience and skills, and files each candidate under their sector. No manual sorting.",
       },
       {
         number: "03",
         title: "Present your shortlist",
-        subtitle: "Anonymized if you want",
-        desc: "For each opening, your top candidates sorted and justified. Generate an anonymized PDF in one click for your clients, and track outreach in the pipeline.",
+        subtitle: "Anonymized if you want it",
+        desc: "Your best profiles for that role, ranked, with the reasoning behind every score. One click generates the anonymized CV in your colours, and tracking happens in the pipeline.",
       },
     ],
   },

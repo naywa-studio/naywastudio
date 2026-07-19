@@ -13,25 +13,29 @@ const fu = (delay: number) => ({
 })
 
 const content = {
+  // Slogan unifié : même formule ici, en pied de page et dans les balises SEO.
+  // Trois variantes coexistaient auparavant.
   fr: {
-    titleLine1: "L'IA traite,",
+    titleLine1: 'Nous traitons,',
     titleLine2Pre: 'vous',
     titleWord: 'décidez',
+    // « Nous traitons » pourrait laisser croire que des humains chez Naywa
+    // lisent vos données : la phrase nomme donc Nora immédiatement.
     subtitle:
-      "Naywa Studio conçoit des packages d'optimisation de process métier augmentés par l'intelligence artificielle. Notre premier package est dédié au sourcing : Nora, l'assistante IA qui range, score, anonymise et suit votre vivier de candidats, sans jamais agir à votre place.",
-    ctaPrimary: 'Démarrer votre essai gratuit →',
-    ctaSecondary: 'Découvrir nos solutions',
+      "Notre premier package est dédié au sourcing. Nora, l'assistante qui vient avec, lit vos CV, range votre vivier, note chaque candidat sur vos missions et prépare vos shortlists. Elle ne décide jamais à votre place.",
+    ctaPrimary: "Démarrer l'essai gratuit →",
+    ctaSecondary: 'Voir le produit',
     trialBold: '15 jours offerts',
     trialRest: ' · sans engagement · annulable à tout moment',
   },
   en: {
-    titleLine1: 'AI handles it,',
+    titleLine1: 'We handle it,',
     titleLine2Pre: 'you',
     titleWord: 'decide',
     subtitle:
-      'Naywa Studio designs AI-powered business process optimization packages. Our first package is built for sourcing: Nora, the AI assistant that organizes, scores, anonymizes, and tracks your talent pool — without ever acting in your place.',
-    ctaPrimary: 'Start your free trial →',
-    ctaSecondary: 'Discover our solutions',
+      'Our first package is built for sourcing. Nora, the assistant that comes with it, reads your CVs, organizes your talent pool, scores every candidate against your roles and prepares your shortlists. She never decides in your place.',
+    ctaPrimary: 'Start the free trial →',
+    ctaSecondary: 'See the product',
     trialBold: '15 days free',
     trialRest: ' · no commitment · cancel anytime',
   },
@@ -44,12 +48,12 @@ export function Hero() {
     <section
       style={{
         position: 'relative',
-        minHeight: '100vh',
+        minHeight: '76vh',
         overflow: 'hidden',
         background: 'transparent',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'flex-end',
+        justifyContent: 'center',
       }}
     >
       <div
