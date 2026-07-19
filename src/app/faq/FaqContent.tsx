@@ -27,14 +27,14 @@ const CATEGORIES = {
       ],
     },
     {
-      title: "Vivier et parsing",
+      title: "Vivier et lecture des CV",
       questions: [
         {
           q: "Quels formats de CV sont supportés ?",
-          a: "PDF natif (export Word, LinkedIn, Canva, etc.) et CVs scannés ou photographiés grâce à l'OCR intégré. DOCX et autres formats seront ajoutés selon la demande.",
+          a: "Le PDF, qu'il vienne de Word, LinkedIn, Canva ou d'un scan — Nora lit aussi les CV scannés ou photographiés. Le format Word et les autres seront ajoutés selon la demande.",
         },
         {
-          q: "Combien de CVs peut-on uploader ?",
+          q: "Combien de CV peut-on déposer ?",
           a: "Aucune limite imposée au quotidien. L'usage est dimensionné pour absorber des journées complètes de sourcing intensif. Un palier global est appliqué uniquement pour éviter les abus (scripts, automatisations massives). Si vous le rencontrez en usage normal, contactez-nous : nous relevons le palier au cas par cas.",
         },
         {
@@ -147,14 +147,14 @@ const CATEGORIES = {
       ],
     },
     {
-      title: "Talent pool & parsing",
+      title: "Talent pool & CV reading",
       questions: [
         {
           q: "What CV formats are supported?",
-          a: "Native PDF (exported from Word, LinkedIn, Canva, etc.) and scanned or photographed CVs thanks to built-in OCR. DOCX and other formats will be added based on demand.",
+          a: "PDF, whether it comes from Word, LinkedIn, Canva or a scanner — Nora also reads scanned or photographed CVs. Word and other formats will be added based on demand.",
         },
         {
-          q: "How many CVs can I upload?",
+          q: "How many CVs can I add?",
           a: "No day-to-day limit. Usage is sized to handle full days of intensive sourcing. An overall ceiling only kicks in to prevent abuse (scripts, mass automation). If you hit it during normal use, contact us — we raise the ceiling on a case-by-case basis.",
         },
         {
@@ -167,7 +167,7 @@ const CATEGORIES = {
         },
         {
           q: "How is my talent pool organized?",
-          a: "Nora sorts your candidates by sector (Sales, IT/Data, Engineering, Finance…) as you upload them. You can create your own sectors, rename them, and reclassify a candidate in one click — a hybrid profile can belong to several sectors. That's what keeps the talent pool usable over time, rather than just a pile of files.",
+          a: "Nora sorts your candidates by sector (Sales, IT/Data, Engineering, Finance…) as you add them. You can create your own sectors, rename them, and reclassify a candidate in one click — a hybrid profile can belong to several sectors. That's what keeps the talent pool usable over time, rather than just a pile of files.",
         },
       ],
     },

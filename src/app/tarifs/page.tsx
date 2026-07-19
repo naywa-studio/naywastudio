@@ -41,7 +41,7 @@ const copy = {
     pricingSubtitle: "Pour les structures en régie qui chiffrent au TJM.",
     sourcingIncluded: [
       "Vivier organisé par secteurs (Nora classe chaque CV automatiquement)",
-      "Missions créées via brief LLM + matching scoré et justifié",
+      "Missions décrites en quelques lignes, candidats notés et justifiés",
       "Anonymisation 1 clic — PDF brandé à votre structure",
       "Pipeline candidat partagé entre vos collègues",
       "Support fondateurs (vous parlez à Elyas et Hussein)",
@@ -49,7 +49,7 @@ const copy = {
     pricingExtra: [
       "Tout le Package Sourcing",
       "Pricing Syntec automatisé — marge, charges, calendrier réel",
-      "Chart risque rupture employeur (RC + licenciement)",
+      "Coût d'une rupture anticipée, mois par mois",
       "Export PDF des chiffrages, nominatif ou anonymisé",
     ],
     cta: "Démarrer mes 15 jours →",
@@ -105,7 +105,7 @@ const copy = {
     pricingSubtitle: "For staffing firms that quote in daily rates.",
     sourcingIncluded: [
       "Talent pool organized by sector (Nora classifies every CV automatically)",
-      "Missions created from an LLM brief + scored, justified matching",
+      "Roles described in a few lines, candidates scored and justified",
       "One-click anonymization — PDF branded to your firm",
       "Candidate pipeline shared with your colleagues",
       "Founder support (you talk directly to Elyas and Hussein)",
@@ -113,7 +113,7 @@ const copy = {
     pricingExtra: [
       "Everything in the Sourcing Package",
       "Automated Syntec pricing — margin, charges, real calendar",
-      "Termination risk chart (mutual termination + dismissal)",
+      "Cost of an early termination, month by month",
       "PDF export of quotes, named or anonymized",
     ],
     cta: "Start my 15 free days →",
