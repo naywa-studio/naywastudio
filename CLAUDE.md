@@ -620,6 +620,118 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
+#### i18n FR/EN MERGÉE EN PROD + refonte charte rejouée en V3 — 2026-07-19
+
+**`main` = `c5033af`, déployé en production (READY).** La branche `traduction_fr_en`
+d'Amine a été **relue puis mergée ICI** (fast-forward) conformément au workflow.
+
+**Ce qui a été vérifié avant merge** (le risque annoncé — réinjection de l'ancien
+modèle tarifaire — ne s'est PAS matérialisé : Amine avait mergé main dans sa
+branche, commit `a3dd383`) :
+- **Identiques au bit près à main** : `lib/pricing-plan.ts` (constantes de prix),
+  `lib/access-guard.ts`, `lib/subscription.ts`, `lib/stripe.ts`. Routes Stripe
+  non touchées. Aucune dépendance ajoutée. Seule migration = 060 (déjà en prod).
+- Configurateur `/organisation` intact ; `/tarifs` = extraction de texte
+  seulement ; FAQ décrit bien le NOUVEAU modèle (add-on 9,99 € prix unique).
+- `quota-tiers` / `syntec` / `matching` : additifs et rétrocompatibles
+  (paramètre `lang` défaut `fr`), aucun seuil ni calcul touché.
+- Sécurité OK : allowlist du PATCH `/api/profile` préservée + enum validé (400
+  sinon) ; `lang` partout via le motif sûr `=== "en" ? "en" : "fr"`.
+- tsc + lint + build clean. **Pas de tests dans le dépôt** (le
+  `__tests__/syntec.test.ts` cité plus bas dans ce fichier N'EXISTE PLUS —
+  doc périmée).
+- **NON vérifié** : qualité rédactionnelle de l'anglais page par page, et rendu
+  visuel des textes EN (un libellé long peut casser un bouton).
+  Rollback : `git push origin ac4c99d:main --force-with-lease`.
+
+**Mécanisme i18n (à connaître pour TOUT texte futur)** : pas de fichier central.
+Chaque composant porte `const content = { fr: {...}, en: {...} }`, lu via
+`useLanguage()` (`lib/i18n/LanguageContext.tsx`). Défaut FR, préférence persistée
+sur `profiles.preferred_language` (compte connecté). Provider monté dans
+`app/layout.tsx`.
+→ **RÈGLE PERMANENTE : tout texte visible ajouté ou modifié s'écrit en FR ET EN.**
+
+**Couverture i18n : 75 fichiers client / 93 (~81 %). RESTE À TRADUIRE** (validé
+« à finir » par Elyas, pas urgent) : `CookieBanner` (1ʳᵉ chose vue !), `FinalCTA`,
+le parcours auth hors /login (`accept-invite`, `forgot-password`,
+`reset-password`, `auth/callback`), `app/nouveautes`, `PackageOnboardingModal`,
+`AnonymizeForJob`, `ZonesManager`. Les autres fichiers sans `useLanguage`
+(`NoraLoader`, `useEscapeKey`, `AnimatedBackground`, `NoraAvatar`…) n'affichent
+aucun texte. Limites connues non bloquantes : flash FR au chargement pour un user
+EN connecté (inhérent à l'i18n client) ; **pas de route `/en` ni de `hreflang`**
+→ Google n'indexe que le FR.
+
+---
+
+**BRANCHE ACTIVE : `claude/brand-v3`** (`256a7c6`, poussée, PAS mergée).
+Créée depuis le nouveau main. **`claude/brand-v2-vitrine` est ABANDONNÉE** (gardée
+en référence seulement) : elle modifiait 64 fichiers qu'Amine a restructurés en
+parallèle ; rejouer les scripts coûtait moins cher que résoudre les conflits.
+
+**FAIT dans brand-v3 (app connectée uniquement)** :
+- 1882 couleurs → variables CSS `--nw-*` (55 fichiers)
+- 116 libellés capitales → JetBrains Mono (41 fichiers) · 13 polices harmonisées
+  (Space Grotesk → mono/Inter ; serif retiré du wizard pricing)
+- Fondations reprises : `lib/brand.ts`, `components/brand/{Eyebrow,Card,Badge}`,
+  `ui/BrandBands`, palette de `globals.css`, façade `ui-tokens.ts`
+- Fraunces + JetBrains Mono recâblés dans le `layout.tsx` d'Amine
+- tsc + lint + build clean ; aucune var CSS utilisée sans être déclarée
+
+**ARCHITECTURE COULEURS (à ne pas re-débattre)** : les valeurs vivent en
+**variables CSS `--nw-*` dans `globals.css`**, PAS dans `ui-tokens.ts` (qui n'est
+qu'une façade typée). Raison : styles inline partout, `ui-tokens` n'était importé
+que par 2 fichiers face à ~2000 hex bruts ; une var CSS marche identiquement en
+objet de style, template string et attribut SVG (**vérifié** : `fill`, `stroke`,
+`stop-color` résolvent bien). Ajuster la charte = éditer `globals.css`, point.
+⚠️ **Exclusions délibérées** : `BrandColorPicker.tsx` (parsing hex + canvas) et
+`workspace/anonymize/*` (alimente @react-pdf qui ignore `var()`). Ce sont les
+seuls endroits où des hex de la palette subsistent — c'est voulu.
+Contrastes recalculés, **toutes les paires passent AA** (`--nw-bg` = #FDFCF9 et
+`--nw-surface-muted` = #FCFAF5 sont calés au seuil exact où le violet en texte
+tient 4,5:1 — ne pas les assombrir sans recalculer).
+
+**RESTE À FAIRE EN V3 — la VITRINE** (rien n'est repris pour l'instant) :
+1. Refaire les 7 pages publiques (accueil, /solutions, /tarifs, /faq, /a-propos,
+   /contact, coquille légale) à la charte, **sur la structure
+   `page.tsx` / `XxxContent.tsx` d'Amine**, et **en écrivant chaque texte en FR
+   ET EN** (les textes charte de la V2 n'ont AUCUNE version anglaise).
+   Référence de ce qui avait été fait : branche `claude/brand-v2-vitrine`.
+2. Contenu V2 à reprendre : nav 5→3 (Produit/Tarifs/FAQ, URL /solutions gardée
+   pour le SEO) · hero recentré 76vh · TrustBar garanties **sans ciblage
+   d'audience** (décision Elyas : l'accueil parle à toutes les équipes de
+   recrutement) · **NoraIntro** (Nora doit être présentée comme l'assistante IA
+   du Package Sourcing) · PricingTeaser (montant depuis `lib/pricing-plan`) ·
+   section « Sécurité et données » **sans jargon technique** (données en Europe,
+   aucun entraînement de modèle, contrôle client, certifications attribuées aux
+   HÉBERGEURS jamais à Naywa) · process en 6 étapes réordonné **mission d'abord**
+   (et il ne doit PLUS dire « le matching se lance automatiquement » — c'est faux)
+   · responsive (padding hero fluide, grilles non figées).
+3. **PAS de démo simulée** : Elyas la refait lui-même dans Claude Design. Laisser
+   l'emplacement prêt sur /solutions + accueil. `SimulatedDemo.tsx` de la V2 ne
+   doit PAS être réintégré. Il fournira le HTML, à porter en composant React
+   (tokens de marque + prefers-reduced-motion + responsive). Il donnera aussi des
+   **captures d'écran du produit** (compte TEST uniquement, jamais GMH) comme
+   matériau de référence — je ne peux pas lire de vidéo.
+4. **Rubans de fond — DÉCISION EN ATTENTE.** Historique : le WebGL
+   `ShaderBackground` laggait au scroll sur PC → remplacé par `BrandBands` (SVG
+   /SMIL, rubans fins, validé visuellement). Retour Elyas : « bien mais trop
+   monotone, pas assez de texture, le marbre passait bien ».
+   **Reco donnée** : garder les rubans SVG et ajouter une **trame de grain**
+   (tuile de bruit en data-URI répétée, très faible opacité) → rend le
+   « papier/marbre » sans revenir au WebGL. Coût nul, aucun repaint au scroll,
+   réversible en une ligne. Ne PAS revenir au shader (c'est la cause du bug).
+
+**Garde-fous d'intégrité (non négociables, déjà arbitrés)** : jamais de
+certification que Naywa ne détient pas (ISO/SOC2/HDS ne peuvent être cités que
+comme certifications des HÉBERGEURS) · aucun faux logo client, faux témoignage ni
+métrique inventée · données de démo explicitement illustratives, noms de
+candidats et de fichiers FICTIFS · `prefers-reduced-motion` respecté.
+
+**Vercel Fluid CPU** : le correctif `useUnreadUpdates` (poller partagé) est en
+prod depuis `ac4c99d`. Surveiller la courbe ; si elle ne s'effondre pas, un
+second consommateur existe. Ne jamais lancer d'opérations produit lourdes
+(upload/parsing CV, matching, génération PDF) en preview ou prod pour tester.
+
 #### Modèle tarifaire add-on + fuite Pricing fermée — 2026-07-17 (MERGÉ EN PROD)
 
 **MERGÉ EN PROD** : `claude/cancellation-flow` (`52a82cf`) **ET**
