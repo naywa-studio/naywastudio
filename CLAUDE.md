@@ -620,6 +620,74 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
+#### Report V2 → V3 de la vitrine — EN COURS — 2026-07-20
+
+**BRANCHE `claude/brand-v3`, poussée, PAS mergée.** Décision Elyas après
+comparaison des deux previews : **la V2 est plus fidèle à la charte, on la
+REPORTE au lieu de reconstruire** — sans les démos (il les produit lui-même)
+et en écrivant l'anglais que la V2 n'avait pas.
+
+**Surface de conflit MESURÉE** (ne pas la re-deviner) : base commune
+`26a9818`. V2 touche 86 fichiers, main/Amine 107, **66 se recoupent mais
+seulement 14 côté vitrine** : `Hero`, `WhyNawa`, `HowItWorks`, `Founders`,
+`Navbar`, `Footer`, `PackageSourcingFlow`, `LegalPageShell` + les 5 pages
+`/solutions` `/tarifs` `/faq` `/a-propos` `/contact`.
+**`app/page.tsx` et `HomeBands.tsx` ne sont PAS en collision** → reportés
+tels quels. Méthode sur les collisions : **visuel + textes de la V2,
+mécanisme i18n d'Amine, anglais écrit à la main.**
+
+**FAIT** :
+- `HomeBands` (TrustBar + NoraIntro + PricingTeaser) reporté + i18n FR/EN.
+- `app/page.tsx` : ordre de conversion V2, fond `BrandBands` au lieu du
+  shader WebGL. **Emplacement démo marqué en commentaire** entre NoraIntro
+  et HowItWorks — `SimulatedDemo` NE DOIT PAS revenir.
+- `FinalCTA` réécrit en bande encre + i18n (il était FR-only). Ses pastilles
+  de garanties sautent : doublon avec la TrustBar, qui les dit en HAUT.
+- `Hero` (Fraunces + accent italique, CTA contour encre, padding fluide),
+  `WhyNawa` et `HowItWorks` (Eyebrow mono, Fraunces). Zéro Space Grotesk.
+- Sur-titres renumérotés pour un accueil SANS démo : NoraIntro 01,
+  HowItWorks 02, WhyNawa 03, PricingTeaser 04.
+- **Jargon éradiqué** (vérifié par balayage, FR+EN, plus aucune occurrence) :
+  LLM, OCR, RLS, drag-drop, parsing, upload, ingestion. Syntec/URSSAF/TJM
+  restent (vocabulaire client). « chatbot » reste à dessein (dit ce que Nora
+  n'est PAS).
+- Section sécurité `/solutions` réécrite sans nommer nos prestataires.
+  ⚠️ ISO 27001 / SOC 2 = certifications des **HÉBERGEURS**, jamais de Naywa.
+- Slogan unifié **« Nous traitons, vous décidez »** (hero + footer + SEO).
+- Nav 5 → 4 : Produit · Tarifs · À propos · Contact. URL `/solutions` gardée.
+- Employeurs de la carte démo rendus GÉNÉRIQUES (c'était BNP / Datadog / OVH
+  sur des candidats fictifs) + mention « Exemple illustratif ».
+- `AgentsPreview` n'est plus référencé (NoraIntro reprend son rôle).
+
+**RESTE** :
+1. **Report visuel des 5 pages** (`/tarifs` `/faq` `/a-propos` `/contact` +
+   coquille légale). ⚠️ PIÈGE : ces pages utilisent déjà les variables
+   `--nw-*` de la palette **APP**, alors que la vitrine doit utiliser les
+   tokens charte de `lib/brand.ts` (sable / craie / lin). C'est un remappage
+   SÉMANTIQUE, pas un remplacement de chaînes — ne pas le scripter à
+   l'aveugle. Seul geste sûr déjà fait : titres de `LegalPageShell` en
+   Fraunces.
+2. **RUBANS — décision en attente.** Fait notable : **l'accueil montait
+   `ShaderBackground` (WebGL), PAS `BrandBands`** — deux commits de réglage
+   de BrandBands n'ont donc rien changé à l'écran. **Le marbre qu'Elyas aime
+   EST le shader**, et c'est aussi lui qui saccadait au scroll. `BrandBands`
+   a reçu voiles + veines + grain (tuile feTurbulence en data-URI) puis a été
+   baissé (opacité SVG 0.55, grain 3 %). Objectif : retrouver la matière du
+   shader sans son coût. Ne PAS revenir au WebGL.
+3. Démo : Elyas la fournit (captures du compte TEST uniquement, jamais GMH).
+
+**Vérification** : `npm run build` complet à chaque étape. Compilation +
+TypeScript OK, 69+ pages prérendues. **Seul échec = `/profil`**, panne LOCALE
+connue et pré-existante (variables Supabase absentes de l'environnement de
+dev) — Vercel les a, sans rapport avec ces changements.
+
+**⚠️ Le panneau navigateur de la session ne rend pas les fichiers locaux**
+(il les convertit en instantanés statiques) : la validation visuelle passe
+donc uniquement par la preview Vercel d'Elyas. Dire explicitement quand un
+rendu n'a PAS été vu.
+
+---
+
 #### i18n FR/EN MERGÉE EN PROD + refonte charte rejouée en V3 — 2026-07-19
 
 **`main` = `c5033af`, déployé en production (READY).** La branche `traduction_fr_en`

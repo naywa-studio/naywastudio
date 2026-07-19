@@ -98,7 +98,7 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
             fontSize: "clamp(26px, 4vw, 38px)",
             fontWeight: 800, color: "#111827",
             margin: "0 0 12px", letterSpacing: -0.3,
-            fontFamily: "var(--font-space-grotesk), sans-serif",
+            fontFamily: "var(--font-fraunces), sans-serif",
           }}>
             {title}
           </h1>
@@ -135,7 +135,7 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
               <h2 style={{
                 fontSize: 17, fontWeight: 700, color: "#111827",
                 margin: "0 0 16px",
-                fontFamily: "var(--font-space-grotesk), sans-serif",
+                fontFamily: "var(--font-fraunces), sans-serif",
                 paddingBottom: 12, borderBottom: "1px solid #F0ECF8",
               }}>
                 {section.title}
@@ -169,7 +169,7 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
         }}>
           <p style={{
             margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "#111827",
-            fontFamily: "var(--font-space-grotesk), sans-serif",
+            fontFamily: "var(--font-fraunces), sans-serif",
           }}>
             {t.questionTitle}
           </p>
