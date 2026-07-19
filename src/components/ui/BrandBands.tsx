@@ -132,16 +132,16 @@ export function BrandBands() {
       <svg
         viewBox="0 0 900 500"
         preserveAspectRatio="none"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.9 }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.55 }}
       >
         <defs>
           <linearGradient id="nawa-band-1" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor={brand.violet} stopOpacity="0.20" />
-            <stop offset="100%" stopColor={brand.violetSoft} stopOpacity="0.05" />
+            <stop offset="0%" stopColor={brand.violet} stopOpacity="0.13" />
+            <stop offset="100%" stopColor={brand.violetSoft} stopOpacity="0.03" />
           </linearGradient>
           <linearGradient id="nawa-band-2" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor={brand.violetDeep} stopOpacity="0.15" />
-            <stop offset="100%" stopColor={brand.violet} stopOpacity="0.05" />
+            <stop offset="0%" stopColor={brand.violetDeep} stopOpacity="0.10" />
+            <stop offset="100%" stopColor={brand.violet} stopOpacity="0.03" />
           </linearGradient>
         </defs>
 
@@ -203,7 +203,7 @@ export function BrandBands() {
           backgroundImage: GRAIN_URI,
           backgroundRepeat: 'repeat',
           backgroundSize: '160px 160px',
-          opacity: 0.055,
+          opacity: 0.03,
         }}
       />
     </div>
