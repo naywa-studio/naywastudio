@@ -144,7 +144,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
   if (!ready || !ctx) {
     return (
       <div style={{
-        minHeight: "100vh", background: "var(--nw-surface-muted)",
+        minHeight: "100vh", background: "var(--nw-bg)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
         <Spinner />

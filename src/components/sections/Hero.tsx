@@ -48,12 +48,21 @@ export function Hero() {
 
   return (
     <section
+      className="hero-section"
       style={{
         position: 'relative',
         // Le hero était calé en bas de viewport : joli, mais il enterrait la
         // promesse et le CTA sous un grand vide. Recentré et raccourci pour
         // que les deux passent au-dessus de la ligne de flottaison.
-        minHeight: '76vh',
+        //
+        // La navbar est FIXE et occupe ~84px en haut (20px de marge + 64px de
+        // hauteur). Un contenu simplement centré passait donc dessous sur les
+        // écrans courts (portables). D'où la marge haute, qui garantit que le
+        // titre commence toujours SOUS la navbar quelle que soit la hauteur.
+        minHeight: 'min(76vh, 780px)',
+        paddingTop: 'clamp(104px, 14vh, 168px)',
+        paddingBottom: 'clamp(40px, 7vh, 88px)',
+        boxSizing: 'border-box',
         overflow: 'hidden',
         background: 'transparent',
         display: 'flex',
@@ -236,6 +245,18 @@ export function Hero() {
       </div>
 
       <style>{`
+        /* svh = hauteur du viewport SANS la barre d'adresse mobile, qui
+           apparaît et disparaît au scroll. vh la compte toujours, ce qui
+           décale le hero sur téléphone. */
+        @supports (height: 100svh) {
+          .hero-section { min-height: min(76svh, 780px); }
+        }
+        /* Écrans courts (portables 13"/14" en 768px de haut ou moins) : on
+           réduit encore la hauteur imposée pour que les CTA restent visibles
+           sans scroller. */
+        @media (max-height: 800px) {
+          .hero-section { min-height: 0; padding-top: 118px; padding-bottom: 44px; }
+        }
         @media (max-width: 640px) {
           .hero-content h1 { max-width: 100% !important; }
         }

@@ -88,22 +88,26 @@
   to { transform: rotate(360deg); }
 }
 
-/* Voiles de fond des rubans de marque (BrandBands).
-   On anime UNIQUEMENT transform/opacity : ces deux propriétés sont prises en
-   charge par le compositeur, donc aucun recalcul de mise en page ni repaint.
-   Aucun couplage au scroll — c'est ce couplage qui saccadait avec l'ancien
-   shader WebGL. */
-@keyframes nwWashA {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50%      { transform: translate3d(3%, -2%, 0) scale(1.08); }
+/* Dérive des nappes de marbre (BrandBands).
+   On anime UNIQUEMENT `transform` : cette propriété est prise en charge par
+   le compositeur, donc ni recalcul de mise en page ni repeinture. Le marbre
+   lui-même (filtre feTurbulence) est rastérisé UNE fois et se contente
+   d'être déplacé.
+
+   ⚠️ Aucun couplage au scroll, jamais : c'est ce couplage qui saccadait avec
+   l'ancien shader WebGL, pas l'animation. Les deux cadences sont premières
+   entre elles (42s / 58s) pour que le croisement ne se répète pas. */
+@keyframes nwMarbleA {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
+  50%      { transform: translate3d(2.5%, -1.8%, 0) scale(1.07) rotate(0.6deg); }
 }
-@keyframes nwWashB {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
-  50%      { transform: translate3d(-4%, 3%, 0) scale(1); }
+@keyframes nwMarbleB {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.06) rotate(0deg); }
+  50%      { transform: translate3d(-3%, 2.2%, 0) scale(1) rotate(-0.8deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nw-wash { animation: none !important; }
+  .nw-marble { animation: none !important; }
 }
 
 /* ── Tailwind v4 theme extension ── */

@@ -100,7 +100,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!ready || !ctx) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--nw-surface-muted)" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--nw-bg)" }}>
         <span style={{ color: "var(--nw-text-muted)", fontSize: 14, fontFamily: "var(--font-inter), sans-serif" }}>
           {t.loading}
         </span>
