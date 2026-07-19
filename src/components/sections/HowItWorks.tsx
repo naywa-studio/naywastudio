@@ -1,6 +1,7 @@
 "use client"
 import { m } from "framer-motion"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { Eyebrow } from "@/components/brand/Eyebrow"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -109,29 +110,11 @@ export function HowItWorks() {
             gap: 16,
           }}
         >
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              background: "rgba(124,99,200,0.07)",
-              border: "1px solid rgba(124,99,200,0.18)",
-              borderRadius: 100,
-              padding: "5px 14px",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#7C63C8",
-              letterSpacing: "0.09em",
-              textTransform: "uppercase" as const,
-              fontFamily: "var(--font-inter), sans-serif",
-            }}
-          >
-            {c.badge}
-          </span>
+          <Eyebrow n="02" align="center">{c.badge}</Eyebrow>
 
           <h2
             style={{
-              fontFamily: "var(--font-space-grotesk), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
               fontWeight: 800,
               color: "#111827",
@@ -216,7 +199,7 @@ export function HowItWorks() {
                   <p
                     style={{
                       margin: 0,
-                      fontFamily: "var(--font-space-grotesk), sans-serif",
+                      fontFamily: "var(--font-fraunces), serif",
                       fontSize: 11,
                       fontWeight: 600,
                       color: "#6B7280",
@@ -256,7 +239,7 @@ export function HowItWorks() {
                 <h3
                   style={{
                     margin: 0,
-                    fontFamily: "var(--font-space-grotesk), sans-serif",
+                    fontFamily: "var(--font-fraunces), serif",
                     fontSize: 19,
                     fontWeight: 700,
                     color: "#111827",

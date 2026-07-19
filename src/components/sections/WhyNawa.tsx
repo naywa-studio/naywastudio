@@ -1,6 +1,7 @@
 "use client"
 import { m } from "framer-motion"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { Eyebrow } from "@/components/brand/Eyebrow"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -27,7 +28,7 @@ const content = {
       {
         value: "IA",
         title: "L'IA absorbe la friction",
-        desc: "Parsing, indexation, scoring justifié, anonymisation, calcul de marge : tout ce qui vous prenait des heures se fait pendant que vous lisez ce paragraphe.",
+        desc: "Lire les CV, les ranger, les noter, les anonymiser, calculer la marge : tout ce qui vous prenait des heures se fait pendant que vous lisez ce paragraphe.",
       },
       {
         value: "Métier",
@@ -51,7 +52,7 @@ const content = {
       {
         value: "AI",
         title: "AI absorbs the friction",
-        desc: "Parsing, indexing, justified scoring, anonymization, margin calculation: everything that used to take you hours happens while you read this paragraph.",
+        desc: "Reading CVs, filing them, scoring them, anonymizing them, working out the margin: everything that used to take you hours happens while you read this paragraph.",
       },
       {
         value: "Craft",
@@ -89,29 +90,11 @@ export function WhyNawa() {
             gap: 16,
           }}
         >
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              background: "rgba(124,99,200,0.07)",
-              border: "1px solid rgba(124,99,200,0.18)",
-              borderRadius: 100,
-              padding: "5px 14px",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#7C63C8",
-              letterSpacing: "0.09em",
-              textTransform: "uppercase" as const,
-              fontFamily: "var(--font-inter), sans-serif",
-            }}
-          >
-            {c.badge}
-          </span>
+          <Eyebrow n="03" align="center">{c.badge}</Eyebrow>
 
           <h2
             style={{
-              fontFamily: "var(--font-space-grotesk), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
               fontWeight: 800,
               color: "#111827",
@@ -177,7 +160,7 @@ export function WhyNawa() {
               {/* Big metric */}
               <div
                 style={{
-                  fontFamily: "var(--font-space-grotesk), sans-serif",
+                  fontFamily: "var(--font-fraunces), serif",
                   fontSize: "clamp(56px, 6.5vw, 80px)",
                   fontWeight: 800,
                   color: "#7C63C8",
@@ -192,7 +175,7 @@ export function WhyNawa() {
               <p
                 style={{
                   margin: 0,
-                  fontFamily: "var(--font-space-grotesk), sans-serif",
+                  fontFamily: "var(--font-fraunces), serif",
                   fontSize: 17,
                   fontWeight: 700,
                   color: "#111827",
