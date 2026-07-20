@@ -3,18 +3,19 @@
 import Link from "next/link"
 import { Founders } from "@/components/sections/Founders"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { Eyebrow } from "@/components/brand/Eyebrow"
 
 const content = {
   fr: {
     badge: "À propos de Naywa Studio",
-    titlePre: "L'IA traite, ",
+    titlePre: "Nous traitons, ",
     titleItalic: "vous décidez",
     titleSuffix: ".",
-    intro1: "Naywa Studio conçoit des packages d'optimisation de process métier augmentés par l'intelligence artificielle.",
+    intro1: "Naywa Studio conçoit des packages qui outillent un métier en profondeur.",
     introBold: " Nous traitons. Vous décidez.",
     intro2: " Notre premier package est dédié au sourcing : ",
     introNora: "Nora",
-    intro3: ", l'assistante IA qui range, score, anonymise et suit votre vivier de candidats, sans jamais agir à votre place.",
+    intro3: ", l'assistante qui lit vos CV, range votre vivier, note chaque candidat sur vos missions et prépare vos shortlists, sans jamais agir à votre place.",
     pillars: [
       {
         title: "L'IA propose, jamais elle ne décide",
@@ -26,7 +27,7 @@ const content = {
       },
       {
         title: "Vos données restent à vous",
-        body: "Hébergement européen, base PostgreSQL chiffrée, isolation stricte par organisation. Aucune donnée n'est partagée entre organisations, jamais. Vous pouvez exporter ou supprimer votre vivier à tout moment.",
+        body: "Vos données sont hébergées en Europe et chiffrées. Chaque organisation est cloisonnée : aucune donnée ne passe de l'une à l'autre, jamais. Vous pouvez exporter ou supprimer votre vivier à tout moment.",
       },
     ],
     ctaTitle: "Une question ou envie d'essayer ?",
@@ -36,14 +37,14 @@ const content = {
   },
   en: {
     badge: "About Naywa Studio",
-    titlePre: "AI handles it, ",
+    titlePre: "We handle it, ",
     titleItalic: "you decide",
     titleSuffix: ".",
-    intro1: "Naywa Studio designs AI-powered business process optimization packages.",
+    intro1: "Naywa Studio builds packages that equip one profession, in depth.",
     introBold: " We handle it. You decide.",
     intro2: " Our first package is built for sourcing: ",
     introNora: "Nora",
-    intro3: ", the AI assistant that organizes, scores, anonymizes, and tracks your talent pool — without ever acting in your place.",
+    intro3: ", the assistant that reads your CVs, organizes your talent pool, scores every candidate against your roles and prepares your shortlists, without ever acting in your place.",
     pillars: [
       {
         title: "AI suggests. It never decides.",
@@ -55,7 +56,7 @@ const content = {
       },
       {
         title: "Your data stays yours",
-        body: "European hosting, encrypted PostgreSQL database, strict isolation per organization. No data is ever shared between organizations. You can export or delete your talent pool at any time.",
+        body: "Your data is hosted in Europe and encrypted. Every organization is walled off: no data ever moves from one to another. You can export or delete your talent pool at any time.",
       },
     ],
     ctaTitle: "A question, or want to try it out?",
@@ -87,21 +88,10 @@ export function AProposContent() {
       {/* Hero */}
       <section style={{ padding: "0 24px 56px" }}>
         <div style={{ maxWidth: 780, margin: "0 auto" }}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#7C63C8",
-              letterSpacing: "0.10em",
-              textTransform: "uppercase",
-              fontFamily: "var(--font-inter), sans-serif",
-            }}
-          >
-            {c.badge}
-          </span>
+          <Eyebrow n="01">{c.badge}</Eyebrow>
           <h1
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(32px, 4.6vw, 52px)",
               fontWeight: 800,
               color: "#111827",
@@ -187,7 +177,7 @@ export function AProposContent() {
                 </div>
                 <h2
                   style={{
-                    fontFamily: "var(--font-inter), sans-serif",
+                    fontFamily: "var(--font-fraunces), serif",
                     margin: 0,
                     fontSize: 16,
                     fontWeight: 700,
@@ -231,7 +221,7 @@ export function AProposContent() {
         <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
           <h2
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(24px, 3.4vw, 36px)",
               fontWeight: 800,
               color: "#111827",

@@ -200,7 +200,7 @@ function buildInviteHtml(p: { inviterName: string; cabinetLabel: string; acceptL
 <hr style="border:none;border-top:1px solid #F0ECF8;margin:28px 0;">
 <p style="margin:0;font-size:12px;line-height:1.55;color:#9CA3AF;">Vous ne reconnaissez pas l'expéditeur ? Ignorez ce mail.</p>
 </td></tr></table>
-<p style="margin:18px 0 0;font-size:11px;color:#9CA3AF;">Naywa Studio · L'IA traite, vous décidez.</p>
+<p style="margin:18px 0 0;font-size:11px;color:#9CA3AF;">Naywa Studio · Nous traitons, vous décidez.</p>
 </td></tr></table>
 </body></html>`
 }

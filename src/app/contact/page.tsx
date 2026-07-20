@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { m } from "framer-motion"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
-import { BrandBands } from "@/components/ui/BrandBands"
+import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import { getSupabase } from "@/lib/supabase"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
@@ -104,7 +104,7 @@ export default function ContactPage() {
 
   return (
     <>
-      <BrandBands />
+      <ShaderBackground />
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>

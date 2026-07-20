@@ -6,7 +6,7 @@ import { WhyNawa } from "@/components/sections/WhyNawa"
 import { Founders } from "@/components/sections/Founders"
 import { FinalCTA } from "@/components/sections/FinalCTA"
 import { Footer } from "@/components/layout/Footer"
-import { BrandBands } from "@/components/ui/BrandBands"
+import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import AuthErrorRedirect from "@/components/layout/AuthErrorRedirect"
 
 /**
@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <>
       <AuthErrorRedirect />
-      <BrandBands />
+      <ShaderBackground />
       <Navbar />
       <main style={{ position: "relative", zIndex: 1 }}>
         {/* Premier écran : le hero et la bande de garanties occupent ensemble

@@ -98,12 +98,12 @@ export function ContactEquipeContent() {
             <h1
               style={{
                 margin: "10px 0 0",
+                fontFamily: "var(--font-fraunces), serif",
                 fontSize: 38,
                 lineHeight: 1.15,
                 fontWeight: 800,
                 color: "#111827",
                 letterSpacing: "-0.03em",
-                fontFamily: "var(--font-space-grotesk), sans-serif",
               }}
             >
               {t.title}
