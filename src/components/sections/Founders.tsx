@@ -55,6 +55,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       role: "Direction artistique & Marque",
       quote:
         "On veut un produit qui se voit, se comprend, et qu'on a envie d'utiliser. La marque Naywa doit faire ressentir tout ça dès le premier coup d'œil.",
+      linkedinUrl: "https://www.linkedin.com/in/hussein-malki/",
       avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
       photoUrl: "/founders/hussein.png",
     },
@@ -76,6 +77,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       role: "Art Direction & Brand",
       quote:
         "We want a product that looks good, makes sense, and that people want to use. The Naywa brand has to convey all of that from the very first glance.",
+      linkedinUrl: "https://www.linkedin.com/in/hussein-malki/",
       avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
       photoUrl: "/founders/hussein.png",
     },
