@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { r2GetSize, r2SumSizeByPrefix } from "@/lib/r2-storage"
+import { r2GetSize, r2SumSizeByPrefix, r2DeleteByPrefix } from "@/lib/r2-storage"
 import { decrementStorageUsed } from "@/lib/quota"
 
 export const runtime = "nodejs"
@@ -52,21 +52,13 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
       catch { /* ignore */ }
     }
     // Supprime tous les fichiers du dossier candidat (CV original +
-    // PDF anonymisé + DOCX + futurs artefacts).
-    const { S3Client, ListObjectsV2Command, DeleteObjectCommand } = await import("@aws-sdk/client-s3")
-    const client = new S3Client({
-      region: "auto",
-      endpoint: process.env.R2_ENDPOINT,
-      credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",
-      },
-    })
+    // PDF anonymisé + DOCX + futurs artefacts). Passe par le wrapper
+    // bucket-aware (résout R2_BUCKET_CV, donc naywa-cv-eu post-migration)
+    // au lieu d'un S3Client fait main qui ciblait "naywa-cv" en dur — sur
+    // une org migrée vers le bucket EU, l'ancien code listait/supprimait
+    // dans le mauvais bucket et laissait le vrai fichier orphelin.
     try {
-      const list = await client.send(new ListObjectsV2Command({ Bucket: "naywa-cv", Prefix: folder + "/" }))
-      for (const obj of list.Contents ?? []) {
-        if (obj.Key) await client.send(new DeleteObjectCommand({ Bucket: "naywa-cv", Key: obj.Key }))
-      }
+      await r2DeleteByPrefix("cv", folder + "/")
     } catch (err) {
       console.error("[cv/delete] R2 cleanup error:", err instanceof Error ? err.message : "unknown")
       // On continue quand même la suppression DB — le cron nightly

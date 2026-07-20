@@ -12,9 +12,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { getCabinetOrgId } from "@/lib/cabinet-config"
+import { requireActiveAccess } from "@/lib/access-guard"
 import {
   FALLBACK_ZONE_LABEL,
   sanitizeZoneDescription,
@@ -26,12 +25,11 @@ export const runtime = "nodejs"
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
-  const sb = await createSupabaseServerClient()
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
-
-  const orgId = await getCabinetOrgId(sb, user.id)
-  if (!orgId) return NextResponse.json({ error: "no_org" }, { status: 404 })
+  // Mutation : doit être bloquée en lecture seule comme toutes les autres
+  // routes de mutation du workspace.
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
+  const orgId = gate.orgId
 
   const body = await req.json().catch(() => null) as
     { label?: unknown; description?: unknown } | null
@@ -124,12 +122,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
 export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
-  const sb = await createSupabaseServerClient()
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
-
-  const orgId = await getCabinetOrgId(sb, user.id)
-  if (!orgId) return NextResponse.json({ error: "no_org" }, { status: 404 })
+  // Mutation : doit être bloquée en lecture seule comme toutes les autres
+  // routes de mutation du workspace.
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
+  const orgId = gate.orgId
 
   const admin = getAdminSupabase()
   const { data: existing } = await admin

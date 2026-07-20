@@ -72,6 +72,25 @@ export async function PATCH(req: Request) {
   try { body = (await req.json()) as UpdateBody }
   catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
 
+  // Champs branding fort : verrouillés 24h après onboarding
+  // (organizations.branding_locked_at). Passé ce délai, toute modification
+  // doit passer par POST /api/cabinet/branding/request + validation admin —
+  // sinon n'importe quel owner pourrait re-changer l'identité affichée sur
+  // les CV anonymisés sans revue (vecteur d'usurpation). Le check UI seul
+  // (organisation/page.tsx) ne suffit pas : cette route doit refuser elle-même.
+  const LOCKED_FIELDS: Array<keyof UpdateBody> = ["name", "brand_name", "brand_logo_path", "contact_email"]
+  if (LOCKED_FIELDS.some((f) => f in body)) {
+    const { data: org } = await sb
+      .from("organizations")
+      .select("branding_locked_at")
+      .eq("id", profile.organization_id)
+      .single()
+    const isLocked = !!org?.branding_locked_at && new Date(org.branding_locked_at).getTime() <= Date.now()
+    if (isLocked) {
+      return NextResponse.json({ error: "branding_locked" }, { status: 403 })
+    }
+  }
+
   const patch: UpdateBody = {}
   if ("name" in body && typeof body.name === "string" && body.name.trim()) {
     patch.name = body.name.trim()
@@ -80,7 +99,15 @@ export async function PATCH(req: Request) {
     patch.brand_name = body.brand_name && body.brand_name.trim() ? body.brand_name.trim() : null
   }
   if ("brand_logo_path" in body) {
-    patch.brand_logo_path = body.brand_logo_path && body.brand_logo_path.trim() ? body.brand_logo_path : null
+    const raw = body.brand_logo_path && body.brand_logo_path.trim() ? body.brand_logo_path.trim() : null
+    // Le chemin doit obligatoirement commencer par le préfixe de l'org
+    // appelante — sinon un owner pourrait pointer brand_logo_path vers le
+    // logo d'une autre organisation (le fichier n'a jamais été vérifié
+    // comme appartenant réellement au caller avant cette route).
+    if (raw && !raw.startsWith(`${profile.organization_id}/`)) {
+      return NextResponse.json({ error: "invalid_logo_path" }, { status: 400 })
+    }
+    patch.brand_logo_path = raw
   }
   // Couleur de marque : on valide juste qu'elle a un format hex
   // raisonnable (#RGB ou #RRGGBB) pour éviter d'injecter n'importe

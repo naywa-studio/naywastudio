@@ -114,6 +114,14 @@ export async function POST(req: NextRequest) {
     if (field === "contact_email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedValue)) {
       return NextResponse.json({ error: "invalid_email" }, { status: 400 })
     }
+    // Le nouveau logo doit avoir été uploadé par le caller lui-même dans son
+    // propre préfixe Storage (`{org_id}/pending/...`, cf. RLS migration 025).
+    // Sans ce check, un owner pourrait soumettre requested_value = le chemin
+    // du logo d'une AUTRE org, et le faire adopter (approve) ou supprimer
+    // (reject) via le client service-role de la route admin de décision.
+    if (field === "brand_logo_path" && !requestedValue.startsWith(`${profile.organization_id}/pending/`)) {
+      return NextResponse.json({ error: "invalid_logo_path" }, { status: 400 })
+    }
     normalized.push({ field, requestedValue })
   }
   if (normalized.length === 0) {

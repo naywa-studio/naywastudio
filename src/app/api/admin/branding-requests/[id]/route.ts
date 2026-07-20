@@ -56,6 +56,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (request.status !== "pending") {
     return NextResponse.json({ error: "already_decided" }, { status: 409 })
   }
+  // Filet de sécurité : le chemin d'un logo doit appartenir à l'org de la
+  // demande. Déjà validé à la soumission (POST /api/cabinet/branding/request),
+  // mais on revalide ici avant toute action destructive/d'écriture via le
+  // client service-role (approve écrit sur organizations, reject supprime le
+  // fichier du Storage) — au cas où une ancienne demande pré-fix traînerait.
+  if (
+    request.field === "brand_logo_path" &&
+    !request.requested_value.startsWith(`${request.organization_id}/`)
+  ) {
+    return NextResponse.json({ error: "invalid_logo_path" }, { status: 400 })
+  }
 
   // Récupère l'email + le nom du requester pour le mail final.
   const { data: requesterAuth } = await admin.auth.admin.getUserById(request.requested_by ?? "")

@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { getCabinetOrgId } from "@/lib/cabinet-config"
+import { requireActiveAccess } from "@/lib/access-guard"
 import {
   FALLBACK_ZONE_LABEL,
   MAX_ZONES_PER_ORG,
@@ -39,12 +39,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const sb = await createSupabaseServerClient()
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
-
-  const orgId = await getCabinetOrgId(sb, user.id)
-  if (!orgId) return NextResponse.json({ error: "no_org" }, { status: 404 })
+  // Mutation (crée une zone de taxonomie) : doit être bloquée en lecture
+  // seule comme toutes les autres routes de mutation du workspace.
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
+  const orgId = gate.orgId
+  const userId = gate.userId
 
   const body = await req.json().catch(() => null) as
     { label?: unknown; description?: unknown } | null
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
       description,
       candidate_count: 0,
       is_seed: false,
-      created_by_user_id: user.id,
+      created_by_user_id: userId,
       display_order: 100,
     })
     .select("id, label, description, candidate_count, is_seed, display_order, created_at, updated_at")

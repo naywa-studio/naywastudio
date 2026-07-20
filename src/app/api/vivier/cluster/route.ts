@@ -25,9 +25,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { requireActiveAccess } from "@/lib/access-guard"
 import { consumeQuota, consumeOrgLlmActionForUser } from "@/lib/quota"
 import { openrouterChat } from "@/lib/openrouter"
-import { getCabinetOrgId } from "@/lib/cabinet-config"
 import {
   FALLBACK_ZONE_LABEL,
   MAX_ZONES_PER_ORG,
@@ -179,17 +179,20 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   void req
   const sb = await createSupabaseServerClient()
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+  // Mutation (déclenche du clustering LLM + écrit des cluster_manifests) :
+  // doit être bloquée en lecture seule (essai expiré, suppression
+  // programmée, member sans siège) comme toutes les autres routes de
+  // mutation du workspace. Remplace l'ancien check getUser()+getCabinetOrgId
+  // qui ne vérifiait que l'appartenance à une org, pas l'accès actif.
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
+  const orgId = gate.orgId
 
-  const orgId = await getCabinetOrgId(sb, user.id)
-  if (!orgId) return NextResponse.json({ error: "no_org" }, { status: 404 })
-
-  const quota = await consumeQuota(getAdminSupabase(), user.id, "assistant")
+  const quota = await consumeQuota(getAdminSupabase(), gate.userId, "assistant")
   if (!quota.ok) {
     return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
   }
-  const orgLlm = await consumeOrgLlmActionForUser(getAdminSupabase(), user.id)
+  const orgLlm = await consumeOrgLlmActionForUser(getAdminSupabase(), gate.userId)
   if (!orgLlm.ok) {
     return NextResponse.json({ error: orgLlm.code ?? "llm_quota_exceeded", message: orgLlm.message }, { status: 429 })
   }
