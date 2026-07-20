@@ -2,12 +2,18 @@
 
 import { m } from "framer-motion"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { Eyebrow } from "@/components/brand/Eyebrow"
+import { brand } from "@/lib/brand"
 
 /**
- * Founders — short trust section, two cards (Elyas + Hussein).
+ * Fondateurs — section de confiance, deux cartes (Elyas + Hussein).
  *
- * No photos yet, just initial-based avatars in the brand palette. When
- * real photos land, drop them into <Image> tags and remove the SVG fill.
+ * Les portraits sont des ILLUSTRATIONS AU TRAIT dans le violet de marque
+ * (`/public/founders/`), pas des photos : elles tiennent la charte bien mieux
+ * qu'un portrait photographique, qui ramènerait ses propres couleurs.
+ *
+ * L'avatar à initiales reste en repli si `photoUrl` est absent — utile si un
+ * troisième nom arrive avant son illustration.
  */
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -26,7 +32,7 @@ interface Founder {
   quote: string
   linkedinUrl?: string
   avatarGradient: string
-  /** Chemin public optionnel (ex. /founders/elyas.jpg). Si défini,
+  /** Chemin public optionnel (ex. /founders/elyas.png). Si défini,
    *  remplace l'avatar à initiales. */
   photoUrl?: string
 }
@@ -41,7 +47,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
         "J'ai construit Naywa parce que je voulais que l'IA travaille pour les sourceurs, pas à leur place. Nora propose, vous décidez.",
       linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
       avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
-      photoUrl: "/elyas.jpg",
+      photoUrl: "/founders/elyas.png",
     },
     {
       initials: "HM",
@@ -50,6 +56,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       quote:
         "On veut un produit qui se voit, se comprend, et qu'on a envie d'utiliser. La marque Naywa doit faire ressentir tout ça dès le premier coup d'œil.",
       avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+      photoUrl: "/founders/hussein.png",
     },
   ],
   en: [
@@ -61,7 +68,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
         "I built Naywa because I wanted AI to work for recruiters, not in their place. Nora suggests, you decide.",
       linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
       avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
-      photoUrl: "/elyas.jpg",
+      photoUrl: "/founders/elyas.png",
     },
     {
       initials: "HM",
@@ -70,6 +77,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       quote:
         "We want a product that looks good, makes sense, and that people want to use. The Naywa brand has to convey all of that from the very first glance.",
       avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+      photoUrl: "/founders/hussein.png",
     },
   ],
 }
@@ -103,9 +111,12 @@ export function Founders() {
     <section
       id="fondateurs"
       style={{
-        background: "rgba(248,246,255,0.4)",
+        // Transparent, pas de voile : la section posait un lavande froid
+        // par-dessus le marbre du fond, qui disparaissait derrière. Les autres
+        // sections de l'accueil laissent déjà le fond respirer.
+        background: "transparent",
         padding: "112px 24px",
-        borderTop: "1px solid rgba(240,236,248,0.6)",
+        borderTop: `1px solid ${brand.border}`,
         position: "relative",
       }}
     >
@@ -122,25 +133,14 @@ export function Founders() {
             marginBottom: 56,
           }}
         >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#7C63C8",
-              letterSpacing: "0.10em",
-              textTransform: "uppercase",
-              fontFamily: "var(--font-inter), sans-serif",
-            }}
-          >
-            {t.badge}
-          </span>
+          <Eyebrow n="05" align="center">{t.badge}</Eyebrow>
           <h2
             style={{
-              fontFamily: "var(--font-inter), sans-serif",
+              fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 4vw, 44px)",
               fontWeight: 800,
               letterSpacing: "-0.02em",
-              color: "#111827",
+              color: brand.ink,
               margin: 0,
               lineHeight: 1.1,
             }}
@@ -162,7 +162,7 @@ export function Founders() {
             style={{
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 15,
-              color: "#4B5563",
+              color: brand.textSecondary,
               lineHeight: 1.7,
               maxWidth: "55ch",
               margin: 0,
@@ -186,8 +186,8 @@ export function Founders() {
               key={founder.name}
               {...fu(0.10 + i * 0.08)}
               style={{
-                background: "white",
-                border: "1px solid #F0ECF8",
+                background: brand.surface,
+                border: `1px solid ${brand.border}`,
                 borderRadius: 20,
                 padding: "32px 28px",
                 display: "flex",
@@ -203,21 +203,30 @@ export function Founders() {
                 <div
                   aria-hidden
                   style={{
-                    width: 64,
-                    height: 64,
+                    // 88px et non 64 : les portraits sont des illustrations au
+                    // TRAIT FIN. Sous ~80px, les lignes se confondent et le
+                    // dessin devient une tache grise — autant ne rien mettre.
+                    width: 88,
+                    height: 88,
                     borderRadius: "50%",
+                    // Les PNG ont un fond blanc : on met du blanc DESSOUS, pas
+                    // le dégradé violet, qui déborderait sur le pourtour.
                     background: founder.photoUrl
-                      ? `url(${founder.photoUrl}) center/cover no-repeat, ${founder.avatarGradient}`
+                      ? `url(${founder.photoUrl}) center/cover no-repeat, #FFFFFF`
                       : founder.avatarGradient,
+                    // Anneau lin : détache le cercle blanc de la carte craie.
+                    border: founder.photoUrl ? `1px solid ${brand.border}` : "none",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     color: "white",
                     fontFamily: "var(--font-inter), sans-serif",
                     fontWeight: 700,
-                    fontSize: 22,
+                    fontSize: 26,
                     letterSpacing: "-0.02em",
-                    boxShadow: "0 4px 12px rgba(124,99,200,0.25)",
+                    boxShadow: founder.photoUrl
+                      ? "0 2px 10px rgba(26,27,46,0.06)"
+                      : "0 4px 12px rgba(124,99,200,0.25)",
                     flexShrink: 0,
                   }}
                 >
@@ -229,7 +238,7 @@ export function Founders() {
                       fontFamily: "var(--font-inter), sans-serif",
                       fontSize: 17,
                       fontWeight: 700,
-                      color: "#111827",
+                      color: brand.ink,
                       margin: 0,
                       letterSpacing: "-0.01em",
                     }}
