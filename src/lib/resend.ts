@@ -43,7 +43,11 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       from: input.from,
       to: [input.to],
       reply_to: input.replyTo,
-      subject: input.subject,
+      // Le sujet peut contenir un fragment saisi par l'utilisateur (nom
+      // d'org, sujet libre du formulaire contact...) — on retire tout saut
+      // de ligne avant envoi. Fix centralisé ici plutôt que sur chaque
+      // appelant : protège tous les call sites, présents et futurs.
+      subject: input.subject.replace(/[\r\n]+/g, " "),
       text: input.text,
       ...(input.html ? { html: input.html } : {}),
       ...(input.cc ? { cc: [input.cc] } : {}),

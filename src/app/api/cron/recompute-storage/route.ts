@@ -21,15 +21,14 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { r2SumSizeByPrefix } from "@/lib/r2-storage"
+import { verifyCronSecret } from "@/lib/cron-auth"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
-  const secret = (process.env.CRON_SECRET ?? "").trim()
-  const provided = req.headers.get("authorization") ?? ""
-  if (!secret || provided !== `Bearer ${secret}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 

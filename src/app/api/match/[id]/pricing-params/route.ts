@@ -60,6 +60,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .from("match_assessments")
     .update(update)
     .eq("id", id)
-  if (upErr) return NextResponse.json({ error: "db_update_failed", detail: upErr.message }, { status: 500 })
+  if (upErr) {
+    console.error("[match/pricing-params] db update failed:", upErr.message)
+    return NextResponse.json({ error: "db_update_failed", detail: "internal_error" }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

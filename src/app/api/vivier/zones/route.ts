@@ -33,7 +33,8 @@ export async function GET() {
     .order("display_order", { ascending: true })
     .order("label", { ascending: true })
   if (error) {
-    return NextResponse.json({ error: "list_failed", detail: error.message }, { status: 500 })
+    console.error("[vivier/zones] list failed:", error.message)
+    return NextResponse.json({ error: "list_failed", detail: "internal_error" }, { status: 500 })
   }
   return NextResponse.json({ zones: rows ?? [] })
 }
@@ -97,7 +98,8 @@ export async function POST(req: NextRequest) {
         message: "Une zone avec ce nom existe déjà.",
       }, { status: 409 })
     }
-    return NextResponse.json({ error: "create_failed", detail: insErr?.message }, { status: 500 })
+    console.error("[vivier/zones] create failed:", insErr?.message)
+    return NextResponse.json({ error: "create_failed", detail: "internal_error" }, { status: 500 })
   }
   return NextResponse.json({ zone: created })
 }

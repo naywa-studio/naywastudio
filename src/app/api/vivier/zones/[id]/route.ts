@@ -88,7 +88,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         message: "Une autre zone porte déjà ce nom.",
       }, { status: 409 })
     }
-    return NextResponse.json({ error: "update_failed", detail: updErr.message }, { status: 500 })
+    console.error("[vivier/zones/:id] update failed:", updErr.message)
+    return NextResponse.json({ error: "update_failed", detail: "internal_error" }, { status: 500 })
   }
 
   // Si le label a changé, on doit aussi mettre à jour les cluster_assignments
@@ -167,7 +168,8 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     .eq("id", id)
     .eq("organization_id", orgId)
   if (delErr) {
-    return NextResponse.json({ error: "delete_failed", detail: delErr.message }, { status: 500 })
+    console.error("[vivier/zones/:id] delete failed:", delErr.message)
+    return NextResponse.json({ error: "delete_failed", detail: "internal_error" }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }

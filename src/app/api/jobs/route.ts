@@ -50,7 +50,10 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(200)
 
-  if (error) return NextResponse.json({ error: "db_error", detail: error.message }, { status: 500 })
+  if (error) {
+    console.error("[jobs] db error:", error.message)
+    return NextResponse.json({ error: "db_error", detail: "internal_error" }, { status: 500 })
+  }
   return NextResponse.json({ jobs: data ?? [] })
 }
 
@@ -119,7 +122,8 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (insertErr || !created) {
-    return NextResponse.json({ error: "db_insert_failed", detail: insertErr?.message }, { status: 500 })
+    console.error("[jobs] db insert failed:", insertErr?.message)
+    return NextResponse.json({ error: "db_insert_failed", detail: "internal_error" }, { status: 500 })
   }
 
   // Normalize for matching (best-effort — a failure here doesn't block creation).

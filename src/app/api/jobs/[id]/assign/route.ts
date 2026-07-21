@@ -68,7 +68,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const { data: inserted, error } = await admin
     .from("match_assessments").insert(insert).select("id").single()
   if (error) {
-    return NextResponse.json({ error: "insert_failed", detail: error.message }, { status: 500 })
+    console.error("[jobs/:id/assign] insert failed:", error.message)
+    return NextResponse.json({ error: "insert_failed", detail: "internal_error" }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, id: inserted.id })

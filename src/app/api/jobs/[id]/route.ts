@@ -128,7 +128,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .select("*")
     .single()
 
-  if (updateErr) return NextResponse.json({ error: "db_update_failed", detail: updateErr.message }, { status: 500 })
+  if (updateErr) {
+    console.error("[jobs/:id] db update failed:", updateErr.message)
+    return NextResponse.json({ error: "db_update_failed", detail: "internal_error" }, { status: 500 })
+  }
   return NextResponse.json({ ok: true, job: updated })
 }
 
@@ -141,6 +144,9 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   if (!gate.ok) return gate.response
 
   const { error } = await sb.from("jobs").delete().eq("id", id)
-  if (error) return NextResponse.json({ error: "db_delete_failed", detail: error.message }, { status: 500 })
+  if (error) {
+    console.error("[jobs/:id] db delete failed:", error.message)
+    return NextResponse.json({ error: "db_delete_failed", detail: "internal_error" }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

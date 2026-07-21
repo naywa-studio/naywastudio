@@ -205,7 +205,8 @@ export async function POST(req: NextRequest) {
     .not("tags", "cs", "{ancien}")
     .order("created_at", { ascending: false })
   if (fetchErr) {
-    return NextResponse.json({ error: "fetch_failed", detail: fetchErr.message }, { status: 500 })
+    console.error("[vivier/cluster] fetch failed:", fetchErr.message)
+    return NextResponse.json({ error: "fetch_failed", detail: "internal_error" }, { status: 500 })
   }
   const candidates = (candRows ?? []) as Candidate[]
   if (candidates.length === 0) {

@@ -79,7 +79,8 @@ export async function POST(req: NextRequest) {
     .update({ trial_ends_at: nextEndsAt.toISOString() })
     .eq("id", orgId)
   if (updErr) {
-    return NextResponse.json({ error: "update_failed", detail: updErr.message }, { status: 500 })
+    console.error("[admin/trial] update failed:", updErr.message)
+    return NextResponse.json({ error: "update_failed", detail: "internal_error" }, { status: 500 })
   }
 
   await logAdminAction({

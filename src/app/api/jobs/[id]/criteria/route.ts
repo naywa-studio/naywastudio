@@ -56,7 +56,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     })
     .eq("id", id)
   if (error) {
-    return NextResponse.json({ error: "update_failed", detail: error.message }, { status: 500 })
+    console.error("[jobs/:id/criteria] update failed:", error.message)
+    return NextResponse.json({ error: "update_failed", detail: "internal_error" }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, criteria: finalCriteria })
