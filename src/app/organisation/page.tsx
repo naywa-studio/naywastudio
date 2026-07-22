@@ -218,6 +218,16 @@ const copy = {
     deallocateConfirm: (label: string) => `Libérer le siège de ${label} ? L'utilisateur reste dans l'organisation mais perd l'accès au workspace.`,
     deallocateError: "Libération impossible.",
     seatReleased: (label: string) => `Siège de ${label} libéré.`,
+    // Délégation de la configuration (branding + politique pricing).
+    delegateOnLabel: "Config.",
+    delegateOffLabel: "Déléguer",
+    delegateAddHint: "Autoriser ce membre à gérer le branding et la politique de pricing",
+    delegateRemoveHint: "Retirer la gestion de la configuration à ce membre",
+    delegateConfirm: (label: string) =>
+      `Autoriser ${label} à modifier le branding et la politique de pricing de l'organisation ?\n\nCela ne donne accès ni à la facturation, ni aux sièges, ni à la suppression.`,
+    delegateOn: (label: string) => `${label} peut désormais gérer la configuration.`,
+    delegateOff: (label: string) => `${label} ne gère plus la configuration.`,
+    delegateError: "Impossible de modifier la délégation.",
     members: "Membres",
     seatsSubtitle: (used: number, total: number) => `${used} sur ${total} sièges · vivier partagé`,
     noFirstName: "Sans prénom",
@@ -425,6 +435,15 @@ const copy = {
     deallocateConfirm: (label: string) => `Release ${label}'s seat? They'll remain in the organization but lose workspace access.`,
     deallocateError: "Release failed.",
     seatReleased: (label: string) => `${label}'s seat released.`,
+    delegateOnLabel: "Settings",
+    delegateOffLabel: "Delegate",
+    delegateAddHint: "Let this member manage branding and the pricing policy",
+    delegateRemoveHint: "Revoke this member's access to the configuration",
+    delegateConfirm: (label: string) =>
+      `Let ${label} edit the organisation's branding and pricing policy?\n\nThis grants no access to billing, seats or deletion.`,
+    delegateOn: (label: string) => `${label} can now manage the configuration.`,
+    delegateOff: (label: string) => `${label} no longer manages the configuration.`,
+    delegateError: "Could not update the delegation.",
     members: "Members",
     seatsSubtitle: (used: number, total: number) => `${used} of ${total} seats · shared talent pool`,
     noFirstName: "No name",
@@ -485,6 +504,8 @@ interface MemberRow {
   first_name: string | null
   role: "owner" | "member"
   has_sourcing_seat: boolean
+  /** Membre à qui l'owner a délégué le branding + la politique pricing. */
+  can_manage_org_settings?: boolean
 }
 
 interface PendingInvite {
@@ -496,7 +517,7 @@ interface PendingInvite {
 }
 
 export default function CabinetPage() {
-  const { profile, organization, userEmail, emailConfirmed, isOwner, refetch } = useCabinet()
+  const { profile, organization, userEmail, emailConfirmed, isOwner, canManageSettings, refetch } = useCabinet()
   const router = useRouter()
   const searchParams = useSearchParams()
   const sb = useMemo(() => getSupabase(), [])
@@ -526,11 +547,13 @@ export default function CabinetPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawTab, action])
 
-  // Dashboard reste owner-only. /cabinet/parametrage gère les members
-  // séparément en read-only.
+  // Le tableau de bord reste fermé aux membres SAUF si l'owner leur a
+  // délégué la configuration (migration 062). Un délégué n'accède qu'à
+  // deux cartes — Branding et Politique pricing — le reste est masqué plus
+  // bas, et le serveur refuse de toute façon les champs owner-only.
   useEffect(() => {
-    if (!isOwner) router.replace("/workspace")
-  }, [isOwner, router])
+    if (!isOwner && !canManageSettings) router.replace("/workspace")
+  }, [isOwner, canManageSettings, router])
 
   const [members, setMembers] = useState<MemberRow[]>([])
   const [invites, setInvites] = useState<PendingInvite[]>([])
@@ -539,7 +562,7 @@ export default function CabinetPage() {
   const loadMembers = async () => {
     const { data } = await sb
       .from("profiles")
-      .select("user_id, first_name, role, has_sourcing_seat")
+      .select("user_id, first_name, role, has_sourcing_seat, can_manage_org_settings")
       .eq("organization_id", organization.id)
       .order("role", { ascending: true })
     setMembers((data ?? []) as MemberRow[])
@@ -601,6 +624,7 @@ export default function CabinetPage() {
       <OrgTabs
         activeTab={activeTab}
         orgLabel={orgDisplayName}
+        isOwner={isOwner}
         onChange={setActiveTab}
       />
 
@@ -622,7 +646,7 @@ export default function CabinetPage() {
               organization={organization}
               logoUrl={logoUrl}
             />
-            <MembersSection
+            {isOwner && <MembersSection
               members={members}
               invites={invites}
               seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
@@ -630,7 +654,7 @@ export default function CabinetPage() {
               userEmail={userEmail}
               isOwner={isOwner}
               onChange={() => { void loadInvites() }}
-            />
+            />}
             {/* Row 2 : Branding pleine largeur (la politique pricing
                 vit désormais dans l'onglet "Mes packages"). */}
             <div style={{ gridColumn: "1 / -1" }}>
@@ -646,6 +670,15 @@ export default function CabinetPage() {
                 <PreviewToolsCard />
               </div>
             )}
+            {/* Pour l'owner, la politique pricing reste dans l'onglet
+                « packages », à côté de l'abonnement. Un délégué n'a pas cet
+                onglet : on la lui sert ici, sinon la moitié de sa délégation
+                serait inaccessible. */}
+            {!isOwner && canManageSettings && canUsePricing && (
+              <div style={{ gridColumn: "1 / -1" }}>
+                <PricingPolicySectionCollapsible />
+              </div>
+            )}
             <style>{`
               @media (max-width: 980px) {
                 .org-tab-grid { grid-template-columns: 1fr !important; }
@@ -654,7 +687,7 @@ export default function CabinetPage() {
           </div>
         )}
 
-        {activeTab === "abonnement" && (
+        {activeTab === "abonnement" && isOwner && (
           <div style={{
             display: "grid",
             gridTemplateColumns: "minmax(0, 1fr) minmax(260px, 340px)",
@@ -686,7 +719,7 @@ export default function CabinetPage() {
           </div>
         )}
 
-        {activeTab === "securite" && (
+        {activeTab === "securite" && isOwner && (
           <div style={{ maxWidth: 720, display: "grid", gap: 16 }}>
             <ExportDataCard />
             {isOwner && (
@@ -758,10 +791,14 @@ function PricingOnboardingGate({
 type OrgTab = "org" | "abonnement" | "securite"
 
 function OrgTabs({
-  activeTab, orgLabel, onChange,
+  activeTab, orgLabel, isOwner, onChange,
 }: {
   activeTab: OrgTab
   orgLabel: string
+  /** Un délégué ne voit QUE l'onglet organisation : les onglets
+   *  « packages » (prix, facturation) et « sécurité » (suppression,
+   *  transfert de propriété) restent réservés au propriétaire. */
+  isOwner: boolean
   /** Bascule le state d'activeTab dans le parent. La synchro URL se fait
    *  en plus via history.replaceState pour ne pas casser le partage de
    *  lien / les deep-links, mais sans dépendre du re-render Next. */
@@ -773,8 +810,12 @@ function OrgTabs({
   // historiques (mails Stripe, lockdown banner) — seul le label change.
   const tabs: { id: OrgTab; label: string }[] = [
     { id: "org", label: orgLabel || t.orgFallback },
-    { id: "abonnement", label: t.tabPackages },
-    { id: "securite", label: t.tabSecurity },
+    ...(isOwner
+      ? ([
+          { id: "abonnement", label: t.tabPackages },
+          { id: "securite", label: t.tabSecurity },
+        ] as { id: OrgTab; label: string }[])
+      : []),
   ]
 
   // Source de vérité = state parent (réactif instantanément).
@@ -3145,6 +3186,28 @@ function MembersSection({
     setBusy(false)
   }
 
+  /** Délègue (ou retire) à un membre le droit de gérer le branding et la
+   *  politique de pricing. Volontairement SÉPARÉ du siège : un siège donne
+   *  accès au workspace, la délégation donne accès à la configuration —
+   *  deux choses différentes qu'on ne doit pas confondre. */
+  const toggleDelegate = async (userId: string, allow: boolean, label: string) => {
+    if (allow && !confirm(t.delegateConfirm(label))) return
+    setBusy(true); setError(null); setOkMessage(null)
+    const res = await fetch("/api/cabinet/delegate-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, allow }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({} as { message?: string; error?: string }))
+      setError(j.message ?? j.error ?? t.delegateError)
+    } else {
+      setOkMessage(allow ? t.delegateOn(label) : t.delegateOff(label))
+      onChange()
+    }
+    setBusy(false)
+  }
+
   /** Désalloue un siège (owner peut désallouer n'importe qui ; un member
    *  peut désallouer son propre siège). */
   const deallocateMember = async (userId: string, label: string) => {
@@ -3187,6 +3250,30 @@ function MembersSection({
                   )}
                 </div>
                 <RolePill role={m.role} />
+                {isOwner && m.role !== "owner" && (
+                  <button
+                    type="button"
+                    onClick={() => void toggleDelegate(
+                      m.user_id,
+                      !m.can_manage_org_settings,
+                      m.first_name ?? t.noFirstName,
+                    )}
+                    disabled={busy}
+                    title={m.can_manage_org_settings ? t.delegateRemoveHint : t.delegateAddHint}
+                    style={{
+                      ...iconBtnStyle,
+                      ...(m.can_manage_org_settings
+                        ? {
+                            color: "var(--nw-primary)",
+                            borderColor: "var(--nw-primary-200)",
+                            background: "var(--nw-primary-50)",
+                          }
+                        : null),
+                    }}
+                  >
+                    {m.can_manage_org_settings ? t.delegateOnLabel : t.delegateOffLabel}
+                  </button>
+                )}
                 {canDeallocate && (
                   <button
                     type="button"

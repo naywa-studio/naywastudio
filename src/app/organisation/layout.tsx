@@ -57,6 +57,10 @@ interface CabinetCtx {
   userEmail: string
   emailConfirmed: boolean
   isOwner: boolean
+  /** Owner, OU membre à qui l'owner a délégué la configuration
+   *  (branding + politique pricing). Ne vaut PAS accès à la facturation,
+   *  aux sièges ni à la zone de danger — cf. migration 062. */
+  canManageSettings: boolean
   refetch: () => Promise<void>
 }
 
@@ -105,6 +109,8 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
       userEmail: user.email ?? "",
       emailConfirmed: !!user.email_confirmed_at,
       isOwner: profile.role === "owner",
+      canManageSettings:
+        profile.role === "owner" || profile.can_manage_org_settings === true,
       refetch: fetchAll,
     })
     setReady(true)

@@ -174,6 +174,12 @@ export type Database = {
           /** Langue préférée du site (fr/en), choisie via le sélecteur de
            *  langue. Fallback localStorage pour les visiteurs non connectés. */
           preferred_language: 'fr' | 'en'
+          /** Membre autorisé NOMMÉMENT par l'owner à modifier le branding et
+           *  la politique de pricing de son organisation (migration 062).
+           *  N'ouvre RIEN d'autre : ni facturation, ni sièges, ni transfert
+           *  de propriété, ni suppression. Toujours true pour un owner, qui
+           *  tient ces droits de son rôle. */
+          can_manage_org_settings: boolean
           created_at: string
           updated_at: string
         }

@@ -57,20 +57,55 @@ export async function PATCH(req: Request) {
 
   const { data: profile } = await sb
     .from("profiles")
-    .select("organization_id, role")
+    .select("organization_id, role, can_manage_org_settings")
     .eq("user_id", user.id)
     .single()
 
   if (!profile?.organization_id) {
     return NextResponse.json({ error: "No organization" }, { status: 404 })
   }
-  if (profile.role !== "owner") {
+
+  // Deux niveaux de droit sur cette route.
+  //
+  //   owner    → tout, y compris l'identité légale et l'e-mail de contact.
+  //   délégué  → UNIQUEMENT l'habillage visuel et la politique de pricing.
+  //
+  // Le drapeau `can_manage_org_settings` est posé nommément par l'owner sur
+  // un membre (cf. migration 062). Il ne donne aucun droit sur la
+  // facturation, les sièges, le transfert de propriété ou la suppression —
+  // ces actions vivent sur d'autres routes, toutes owner-only.
+  const isOwner = profile.role === "owner"
+  const isDelegate = profile.can_manage_org_settings === true
+  if (!isOwner && !isDelegate) {
     return NextResponse.json({ error: "Only the owner can edit the cabinet" }, { status: 403 })
   }
 
   let body: UpdateBody
   try { body = (await req.json()) as UpdateBody }
   catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
+
+  // Champs réservés à l'owner. `name` est l'identité légale et `contact_email`
+  // apparaît sur les PDF envoyés aux clients : ce sont des engagements de
+  // l'entreprise, pas des choix graphiques. Les horodatages d'onboarding
+  // pilotent des redirections, ils ne se modifient pas à la main.
+  const OWNER_ONLY: ReadonlyArray<string> = [
+    "name",
+    "contact_email",
+    "cabinet_onboarded_at",
+    "pricing_onboarded_at",
+  ]
+  if (!isOwner) {
+    const forbidden = OWNER_ONLY.filter((k) => k in (body as Record<string, unknown>))
+    if (forbidden.length > 0) {
+      return NextResponse.json(
+        {
+          error: "owner_only_fields",
+          message: `Ces champs ne sont modifiables que par le propriétaire : ${forbidden.join(", ")}.`,
+        },
+        { status: 403 },
+      )
+    }
+  }
 
   const patch: UpdateBody = {}
   if ("name" in body && typeof body.name === "string" && body.name.trim()) {
