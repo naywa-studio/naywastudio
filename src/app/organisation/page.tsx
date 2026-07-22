@@ -28,6 +28,7 @@ import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboar
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
+import { StyledSelect } from "@/components/ui/StyledSelect"
 import { QuotaGauges } from "@/components/quota/QuotaGauges"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
@@ -223,6 +224,15 @@ const copy = {
     delegateOffLabel: "Déléguer",
     delegateAddHint: "Autoriser ce membre à gérer le branding et la politique de pricing",
     delegateRemoveHint: "Retirer la gestion de la configuration à ce membre",
+    // Modification du nombre de sièges sur l'abonnement en cours.
+    seatsCardTitle: "Nombre de personnes",
+    seatsApply: "Mettre à jour",
+    seatsSyncing: "Mise à jour en cours…",
+    seatsCurrentTotal: (total: string) => `${total} / mois HT`,
+    seatsNewTotal: (total: string) => `Nouveau total : ${total} / mois HT`,
+    seatsProrationNote:
+      "Le changement prend effet immédiatement. Stripe ajuste au prorata du temps restant sur la période en cours.",
+    seatsChangeFailed: "La modification n'a pas pu être appliquée.",
     delegateConfirm: (label: string) =>
       `Autoriser ${label} à modifier le branding et la politique de pricing de l'organisation ?\n\nCela ne donne accès ni à la facturation, ni aux sièges, ni à la suppression.`,
     delegateOn: (label: string) => `${label} peut désormais gérer la configuration.`,
@@ -439,6 +449,14 @@ const copy = {
     delegateOffLabel: "Delegate",
     delegateAddHint: "Let this member manage branding and the pricing policy",
     delegateRemoveHint: "Revoke this member's access to the configuration",
+    seatsCardTitle: "Number of people",
+    seatsApply: "Update",
+    seatsSyncing: "Updating…",
+    seatsCurrentTotal: (total: string) => `${total} / month excl. VAT`,
+    seatsNewTotal: (total: string) => `New total: ${total} / month excl. VAT`,
+    seatsProrationNote:
+      "The change takes effect immediately. Stripe prorates against the time left in the current period.",
+    seatsChangeFailed: "The change could not be applied.",
     delegateConfirm: (label: string) =>
       `Let ${label} edit the organisation's branding and pricing policy?\n\nThis grants no access to billing, seats or deletion.`,
     delegateOn: (label: string) => `${label} can now manage the configuration.`,
@@ -1279,6 +1297,11 @@ function SubscriptionCard({
                 ? t.openingPortal
                 : scheduledCancel ? t.resumeSubscription : t.manageSubscription}
             </button>
+            <SeatCountEditor
+              organization={organization}
+              isOwner={isOwner}
+              onChanged={onActivated}
+            />
             <PricingAddonToggle
               organization={organization}
               isOwner={isOwner}
@@ -1420,6 +1443,123 @@ const ctaSecondaryBtn = (busy: boolean): React.CSSProperties => ({
   fontFamily: "inherit",
   width: "100%",
 })
+
+/* ────────────────────────────────────────────────────────────────── */
+/* Nombre de sièges — modification de l'abonnement en cours            */
+/* ────────────────────────────────────────────────────────────────── */
+
+/**
+ * Ajouter une personne n'était possible qu'au moment de souscrire. Un owner
+ * qui recrutait devait donc résilier et re-souscrire — alors qu'on promet
+ * l'inverse dans la FAQ tarifs. Ici, on modifie la ligne « sièges » de
+ * l'abonnement existant, Stripe proratise.
+ *
+ * Le montant affiché vient de `monthlyTotalEur`, la même fonction que le
+ * configurateur public et le checkout : impossible d'annoncer un prix qui
+ * diffère de ce qui sera prélevé.
+ */
+function SeatCountEditor({
+  organization, isOwner, onChanged,
+}: {
+  organization: Organization
+  isOwner: boolean
+  onChanged: () => Promise<void>
+}) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  // Même logique optimiste que l'option Pricing : une fois Stripe confirmé,
+  // le changement est un fait — on l'affiche sans attendre le webhook.
+  const [optimistic, setOptimistic] = useState<number | null>(null)
+  const current = optimistic ?? organization.subscription_seats ?? 1
+  const [draft, setDraft] = useState<number>(current)
+
+  useEffect(() => { setDraft(current) }, [current])
+
+  const dirty = draft !== current
+  const withPricing = organization.subscription_has_pricing === true
+
+  const apply = async () => {
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch("/api/stripe/seats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seats: draft }),
+      })
+      const j = await res.json().catch(() => ({} as { message?: string }))
+      if (!res.ok) throw new Error(j.message ?? t.seatsChangeFailed)
+      setOptimistic(draft)
+      setSyncing(true)
+      onChanged().finally(() => setSyncing(false))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t.genericError)
+      setDraft(current)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{
+      marginTop: 12, paddingTop: 12,
+      borderTop: "1px solid rgba(124,99,200,0.18)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: "var(--nw-text)" }}>
+            {t.seatsCardTitle}
+          </p>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--nw-text-muted)" }}>
+            {syncing
+              ? t.seatsSyncing
+              : dirty
+                ? t.seatsNewTotal(formatEur(monthlyTotalEur(draft, withPricing)))
+                : t.seatsCurrentTotal(formatEur(monthlyTotalEur(current, withPricing)))}
+          </p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <StyledSelect
+            value={String(draft)}
+            onChange={(v) => setDraft(Number(v))}
+            options={Array.from({ length: MAX_SELF_SERVE_SEATS }, (_, i) => ({
+              value: String(i + 1),
+              label: String(i + 1),
+            }))}
+            disabled={busy || !isOwner}
+            width={76}
+            ariaLabel={t.seatsCardTitle}
+            style={{ fontSize: 12.5, padding: "6px 8px" }}
+          />
+          {dirty && (
+            <button
+              type="button"
+              onClick={apply}
+              disabled={busy || !isOwner}
+              style={{
+                padding: "7px 13px", borderRadius: 9, border: "none",
+                background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                color: "white", fontSize: 12, fontWeight: 700,
+                cursor: busy ? "wait" : "pointer", opacity: busy ? 0.7 : 1,
+                fontFamily: "inherit",
+              }}
+            >
+              {busy ? "…" : t.seatsApply}
+            </button>
+          )}
+        </div>
+      </div>
+      <p style={{ margin: "6px 0 0", fontSize: 10.5, color: "var(--nw-text-muted)" }}>
+        {isOwner ? t.seatsProrationNote : t.ownerOnlySubscription}
+      </p>
+      {error && (
+        <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--nw-danger)" }}>{error}</p>
+      )}
+    </div>
+  )
+}
 
 /* ────────────────────────────────────────────────────────────────── */
 /* Suite Pricing — activation/retrait sur l'abonnement en cours        */
