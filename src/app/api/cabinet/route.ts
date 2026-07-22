@@ -84,13 +84,15 @@ export async function PATCH(req: Request) {
   try { body = (await req.json()) as UpdateBody }
   catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
 
-  // Champs réservés à l'owner. `name` est l'identité légale et `contact_email`
-  // apparaît sur les PDF envoyés aux clients : ce sont des engagements de
-  // l'entreprise, pas des choix graphiques. Les horodatages d'onboarding
-  // pilotent des redirections, ils ne se modifient pas à la main.
+  // Champs réservés à l'owner : `name` est l'identité légale de la société,
+  // et les horodatages d'onboarding pilotent des redirections — ils ne se
+  // modifient pas à la main.
+  //
+  // `contact_email` est délégable (décision Elyas) : c'est l'adresse imprimée
+  // sur les documents envoyés aux clients, donc elle fait partie de ce que
+  // gère la personne qui prépare ces documents.
   const OWNER_ONLY: ReadonlyArray<string> = [
     "name",
-    "contact_email",
     "cabinet_onboarded_at",
     "pricing_onboarded_at",
   ]

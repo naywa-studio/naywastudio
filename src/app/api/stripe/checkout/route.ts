@@ -90,11 +90,33 @@ export async function POST(req: Request) {
   const admin = getAdminSupabase()
   const { data: org, error: orgErr } = await admin
     .from("organizations")
-    .select("id, name, stripe_customer_id")
+    .select("id, name, stripe_customer_id, stripe_subscription_id, subscription_status")
     .eq("id", profile.organization_id)
     .single()
   if (orgErr || !org) {
     return NextResponse.json({ error: "Structure introuvable" }, { status: 404 })
+  }
+
+  // Garde-fou FACTURATION : sans lui, un second passage au checkout crée un
+  // DEUXIÈME abonnement en parallèle chez Stripe, et l'organisation est
+  // prélevée deux fois. L'UI masque le bouton quand un abonnement est actif,
+  // mais un double-clic, un retour arrière ou un appel direct suffisaient à
+  // passer outre.
+  //
+  // Changer de formule ne passe donc PAS par ici : on modifie l'abonnement
+  // existant (POST /api/stripe/seats pour le nombre de sièges,
+  // /api/stripe/pricing-addon pour l'option), ce qui laisse Stripe
+  // proratiser au lieu de refacturer un mois plein.
+  const ACTIVE_STATES = ["active", "trialing", "past_due", "unpaid"]
+  if (org.stripe_subscription_id && ACTIVE_STATES.includes(org.subscription_status ?? "")) {
+    return NextResponse.json(
+      {
+        error: "subscription_exists",
+        message:
+          "Un abonnement est déjà en cours pour cette organisation. Modifiez le nombre de personnes ou l'option Pricing depuis votre console plutôt que de souscrire à nouveau.",
+      },
+      { status: 409 },
+    )
   }
 
   // Tout le flux Stripe sous try/catch : avant, un throw (clé invalide,
