@@ -317,9 +317,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* Pont direct vers la console organisation pour l'owner (et
-                l'admin) — avant, seul le menu déroulant du profil y menait. */}
-            {(profile?.role === "owner" || profile?.is_admin) && (
+            {/* Pont vers la console organisation. Ouvert à l'owner, à
+                l'admin, ET au membre à qui l'owner a délégué la configuration
+                (migration 062) — sans ce lien, un délégué n'a AUCUN moyen
+                d'atteindre la page depuis l'interface. */}
+            {(profile?.role === "owner" || profile?.is_admin || profile?.can_manage_org_settings) && (
               <Link
                 href="/organisation"
                 className="ws-org-link"
@@ -386,7 +388,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                   <Link href="/profil" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
                     {t.myProfile}
                   </Link>
-                  {profile?.role === "owner" && (
+                  {(profile?.role === "owner" || profile?.can_manage_org_settings) && (
                     <Link href="/organisation" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
                       {t.myOrganization}
                     </Link>

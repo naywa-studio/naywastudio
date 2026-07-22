@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { getStripe, LOOKUP_SEAT } from "@/lib/stripe"
+import {
+  getStripe,
+  getPriceIdByLookupKey,
+  LOOKUP_SEAT,
+  LOOKUP_PRICING_ADDON,
+} from "@/lib/stripe"
 import { MAX_SELF_SERVE_SEATS } from "@/lib/pricing-plan"
 
 export const runtime = "nodejs"
@@ -109,32 +114,65 @@ export async function POST(req: Request) {
     const sub = await stripe.subscriptions.retrieve(org.stripe_subscription_id)
 
     const seatItem = sub.items.data.find((i) => i.price?.lookup_key === LOOKUP_SEAT)
-    if (!seatItem) {
-      // Abonnement d'avant le modèle « quantité de sièges » (un palier encodé
-      // dans le lookup_key). On ne bricole pas : ça se traite à la main.
+
+    if (seatItem) {
+      // Cas courant : abonnement déjà sur le modèle « quantité de sièges ».
+      //
+      // Idempotent : redemander la quantité en place n'est pas une erreur
+      // (double clic, retry réseau) et ne doit pas générer de proratisation
+      // parasite.
+      if (seatItem.quantity === seats) {
+        return NextResponse.json({ ok: true, seats, unchanged: true })
+      }
+      await stripe.subscriptionItems.update(seatItem.id, {
+        quantity: seats,
+        proration_behavior: "create_prorations",
+      })
+      return NextResponse.json({ ok: true, seats })
+    }
+
+    // ── Abonnement sur une ANCIENNE formule ────────────────────────────
+    // Avant le modèle actuel, le nombre de sièges était encodé dans le nom du
+    // prix (`sourcing_2`, `sourcing_pro_3`…) au lieu d'être une quantité.
+    // Refuser net laisserait ces clients incapables d'ajouter une personne
+    // sans résilier — exactement la friction qu'on veut supprimer. On bascule
+    // donc la ligne vers le prix « siège » à la quantité voulue ; Stripe
+    // proratise l'écart.
+    const legacyItem = sub.items.data[0]
+    if (!legacyItem) {
       return NextResponse.json(
-        {
-          error: "legacy_subscription",
-          message:
-            "Cet abonnement utilise une ancienne formule. Contactez-nous, nous le migrons sans interruption.",
-        },
+        { error: "empty_subscription", message: "Abonnement sans ligne de facturation." },
         { status: 409 },
       )
     }
 
-    // Idempotent : redemander la quantité en place n'est pas une erreur
-    // (double clic, retry réseau) et ne doit pas générer de proratisation
-    // parasite.
-    if (seatItem.quantity === seats) {
-      return NextResponse.json({ ok: true, seats, unchanged: true })
-    }
+    const legacyLookup = legacyItem.price?.lookup_key ?? ""
+    // Les anciennes formules « pro » incluaient la Suite Pricing dans le prix.
+    // En basculant vers le socle « siège » seul, on la perdrait silencieusement
+    // — donc on la rétablit comme ligne d'option, sauf si elle est déjà là.
+    const hadBundledPricing = legacyLookup.startsWith("sourcing_pro_")
+    const addonAlreadyThere = sub.items.data.some(
+      (i) => i.price?.lookup_key === LOOKUP_PRICING_ADDON,
+    )
 
-    await stripe.subscriptionItems.update(seatItem.id, {
+    const seatPriceId = await getPriceIdByLookupKey(LOOKUP_SEAT)
+    await stripe.subscriptionItems.update(legacyItem.id, {
+      price: seatPriceId,
       quantity: seats,
       proration_behavior: "create_prorations",
     })
 
-    return NextResponse.json({ ok: true, seats })
+    if (hadBundledPricing && !addonAlreadyThere) {
+      const addonPriceId = await getPriceIdByLookupKey(LOOKUP_PRICING_ADDON)
+      await stripe.subscriptionItems.create({
+        subscription: sub.id,
+        price: addonPriceId,
+        quantity: 1,
+        proration_behavior: "create_prorations",
+      })
+    }
+
+    return NextResponse.json({ ok: true, seats, migratedFrom: legacyLookup })
   } catch (err) {
     console.error("[stripe/seats]", err)
     return NextResponse.json(
