@@ -230,6 +230,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   // (Distinct de `canPricing` ci-dessus, qui est l'ENTITLEMENT Suite Pricing.)
   const orgCaps = getCapabilities(profile)
   const canReachOrgConsole = orgCaps.isOrgAdmin || orgCaps.canBranding || orgCaps.canPricing
+  // Calculé une fois : réutilisé pour isReadOnly. Éviter de recomparer
+  // `profile?.is_admin === true` à l'intérieur d'une expression déjà gardée par
+  // `!== true` (TS narrow le type et rejette la 2ᵉ comparaison comme impossible).
+  const isAdminUser = profile?.is_admin === true
 
   const tabLinks = TABS[lang].filter((tab) => !tab.requiresPricing || canPricing).map((tab) => {
     const active = isActive(tab.href)
@@ -267,8 +271,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       // (isWorkspaceReadOnly), OU pas de siège alloué (membre invité qui
       // consulte sans muter). Admin Naywa = jamais en lecture seule.
       isReadOnly:
-        profile?.is_admin !== true &&
-        (isWorkspaceReadOnly(organization, { isAdmin: profile?.is_admin === true }) ||
+        !isAdminUser &&
+        (isWorkspaceReadOnly(organization, { isAdmin: isAdminUser }) ||
           profile?.has_sourcing_seat !== true),
       refetchProfile: fetchProfile,
     }}>
