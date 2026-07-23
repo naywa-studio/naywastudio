@@ -6,14 +6,14 @@ import { Eyebrow } from "@/components/brand/Eyebrow"
 import { brand } from "@/lib/brand"
 
 /**
- * Fondateurs — section de confiance, deux cartes (Elyas + Hussein).
+ * Équipe — section de confiance, une carte par personne.
  *
  * Les portraits sont des ILLUSTRATIONS AU TRAIT dans le violet de marque
  * (`/public/founders/`), pas des photos : elles tiennent la charte bien mieux
  * qu'un portrait photographique, qui ramènerait ses propres couleurs.
  *
- * L'avatar à initiales reste en repli si `photoUrl` est absent — utile si un
- * troisième nom arrive avant son illustration.
+ * L'avatar à initiales reste en repli si `photoUrl` est absent — utile tant
+ * qu'un membre n'a pas encore son illustration.
  */
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -29,7 +29,6 @@ interface Founder {
   initials: string
   name: string
   role: string
-  quote: string
   linkedinUrl?: string
   avatarGradient: string
   /** Chemin public optionnel (ex. /founders/elyas.png). Si défini,
@@ -43,8 +42,6 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       initials: "EM",
       name: "Elyas Malki",
       role: "Fondateur — Produit & Tech",
-      quote:
-        "J'ai construit Naywa parce que je voulais que l'IA travaille pour les sourceurs, pas à leur place. Nora propose, vous décidez.",
       linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
       avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
       photoUrl: "/founders/elyas.png",
@@ -53,11 +50,30 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       initials: "HM",
       name: "Hussein Malki",
       role: "Direction artistique & Marque",
-      quote:
-        "On veut un produit qui se voit, se comprend, et qu'on a envie d'utiliser. La marque Naywa doit faire ressentir tout ça dès le premier coup d'œil.",
       linkedinUrl: "https://www.linkedin.com/in/hussein-malki/",
       avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
       photoUrl: "/founders/hussein.png",
+    },
+    {
+      initials: "RB",
+      name: "Raphael Bredin",
+      role: "Business Developer",
+      linkedinUrl: "https://www.linkedin.com/in/raphaelbredin/",
+      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+      photoUrl: "/founders/raphael.png",
+    },
+    {
+      initials: "MM",
+      name: "Maryia Malki",
+      role: "Technical Lead",
+      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+    },
+    {
+      initials: "AE",
+      name: "Amine Errabih",
+      role: "Technical Lead",
+      linkedinUrl: "https://www.linkedin.com/in/amine-errabih/",
+      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
     },
   ],
   en: [
@@ -65,8 +81,6 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       initials: "EM",
       name: "Elyas Malki",
       role: "Founder — Product & Tech",
-      quote:
-        "I built Naywa because I wanted AI to work for recruiters, not in their place. Nora suggests, you decide.",
       linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
       avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
       photoUrl: "/founders/elyas.png",
@@ -75,11 +89,30 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       initials: "HM",
       name: "Hussein Malki",
       role: "Art Direction & Brand",
-      quote:
-        "We want a product that looks good, makes sense, and that people want to use. The Naywa brand has to convey all of that from the very first glance.",
       linkedinUrl: "https://www.linkedin.com/in/hussein-malki/",
       avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
       photoUrl: "/founders/hussein.png",
+    },
+    {
+      initials: "RB",
+      name: "Raphael Bredin",
+      role: "Business Developer",
+      linkedinUrl: "https://www.linkedin.com/in/raphaelbredin/",
+      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+      photoUrl: "/founders/raphael.png",
+    },
+    {
+      initials: "MM",
+      name: "Maryia Malki",
+      role: "Technical Lead",
+      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+    },
+    {
+      initials: "AE",
+      name: "Amine Errabih",
+      role: "Technical Lead",
+      linkedinUrl: "https://www.linkedin.com/in/amine-errabih/",
+      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
     },
   ],
 }
@@ -122,7 +155,7 @@ export function Founders() {
         position: "relative",
       }}
     >
-      <div style={{ maxWidth: 980, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto" }}>
         {/* Header */}
         <m.div
           {...fu(0)}
@@ -178,7 +211,7 @@ export function Founders() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
             gap: 24,
           }}
           className="founders-grid"
@@ -261,22 +294,6 @@ export function Founders() {
                 </div>
               </div>
 
-              {/* Quote */}
-              <blockquote
-                style={{
-                  fontFamily: "var(--font-inter), sans-serif",
-                  fontSize: 14.5,
-                  fontStyle: "italic",
-                  color: "#374151",
-                  lineHeight: 1.7,
-                  margin: 0,
-                  padding: "0 0 0 14px",
-                  borderLeft: "2px solid #E2DAF6",
-                }}
-              >
-                &laquo; {founder.quote} &raquo;
-              </blockquote>
-
               {/* LinkedIn link */}
               {founder.linkedinUrl && (
                 <a
@@ -320,7 +337,12 @@ export function Founders() {
       </div>
 
       <style>{`
-        @media (max-width: 720px) {
+        @media (max-width: 980px) {
+          .founders-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+        @media (max-width: 640px) {
           .founders-grid {
             grid-template-columns: 1fr !important;
           }
