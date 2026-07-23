@@ -179,11 +179,11 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
           padding: "0 20px",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {/* Pont vers le workspace — labellisé, et affiché SEULEMENT si
-                l'user y a réellement accès (siège ou admin). Avant : chevron
-                anonyme montré à tous, qui envoyait l'owner sans siège dans
-                une redirection retour silencieuse. */}
-            {(ctx.profile.has_sourcing_seat || ctx.profile.is_admin) && (
+            {/* Pont vers le workspace — labellisé. Ouvert à tout membre de
+                l'org : avec un siège = accès complet, sans siège = lecture
+                seule (il consulte). Sans ce lien, un owner sans siège n'aurait
+                AUCUN chemin vers le workspace de sa propre organisation. */}
+            {ctx.caps.canViewWorkspace && (
               <Link href="/workspace" title={t.openWorkspace}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
@@ -259,7 +259,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
                   <Link href="/profil" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
                     {t.myProfile}
                   </Link>
-                  {ctx.profile.has_sourcing_seat && (
+                  {ctx.caps.canViewWorkspace && (
                     <Link href="/workspace" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
                       {t.myWorkspace}
                     </Link>

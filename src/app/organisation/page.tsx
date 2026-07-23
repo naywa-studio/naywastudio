@@ -689,7 +689,7 @@ export default function CabinetPage() {
               currentUserId={profile.user_id}
               userEmail={userEmail}
               isOwner={isOwner}
-              onChange={() => { void loadInvites() }}
+              onChange={() => { void loadMembers(); void loadInvites() }}
             />}
             {/* Row 2 : Branding pleine largeur (la politique pricing vit dans
                 l'onglet « Mes packages » pour l'owner). Masqué à qui n'a pas la
