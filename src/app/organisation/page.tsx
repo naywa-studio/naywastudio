@@ -555,38 +555,42 @@ export default function CabinetPage() {
 
   const rawTab = searchParams.get("tab")
   const action = searchParams.get("action")
-  const initialTab: OrgTab = (() => {
-    // Les onglets Abonnement et Sécurité sont réservés à l'owner (leur contenu
-    // ne se rend que si isOwner). Un délégué qui force ?tab=abonnement ou
-    // ?action=subscribe via l'URL retombe donc sur l'onglet par défaut plutôt
-    // que sur une page vide.
-    if (!isOwner) return "org"
-    // Si ?action=subscribe (deep-link depuis la bannière lockdown ou un
-    // mail Stripe), on force l'onglet Abonnement où le SubscriptionCard
-    // détectera le param et ouvrira directement le PlanPicker.
-    if (action === "subscribe") return "abonnement"
-    if (rawTab === "abonnement" || rawTab === "securite") return rawTab
-    return "org"
+
+  // Sections visibles selon les caps (source unique), dans l'ordre d'affichage
+  // de la barre latérale. Un délégué ne voit que ce qu'il peut gérer.
+  const visibleSections = useMemo<OrgSection[]>(() => [
+    "overview" as OrgSection,
+    ...(caps.canBranding ? (["branding"] as OrgSection[]) : []),
+    ...(caps.canPricing ? (["pricing"] as OrgSection[]) : []),
+    ...(caps.isOrgAdmin ? (["team", "billing", "advanced"] as OrgSection[]) : []),
+  ], [caps.canBranding, caps.canPricing, caps.isOrgAdmin])
+
+  const initialSection: OrgSection = (() => {
+    // ?action=subscribe (mail Stripe / bannière lockdown) → Abonnement (owner).
+    if (action === "subscribe" && caps.isOrgAdmin) return "billing"
+    // Rétro-compat des anciennes URLs (?tab=abonnement|securite) + deep-links
+    // directs vers les nouvelles sections.
+    let target: OrgSection | null = null
+    if (rawTab === "abonnement") target = "billing"
+    else if (rawTab === "securite") target = "advanced"
+    else if (rawTab && (["overview", "branding", "pricing", "team", "billing", "advanced"] as string[]).includes(rawTab)) {
+      target = rawTab as OrgSection
+    }
+    if (target && visibleSections.includes(target)) return target
+    return "overview"
   })()
-  // L'onglet actif est piloté par un state local plutôt que dérivé live
-  // de searchParams. Raison : en Next 16, router.replace avec un
-  // pathname identique ne re-rend pas toujours les client components,
-  // ce qui figeait le tab affiché après un refresh sur ?tab=abonnement
-  // puis un clic sur le premier onglet. State local = UI réactive
-  // instantanément, l'URL est synchronisée en background pour les
-  // deep-links et le partage de lien.
-  const [activeTab, setActiveTab] = useState<OrgTab>(initialTab)
-  // Si l'URL change pour une raison externe (deep-link ?tab=…,
-  // bouton retour navigateur), on resynchronise le state.
+
+  // Section active en state local (réactivité instantanée ; l'URL est
+  // synchronisée en arrière-plan via history.replaceState dans OrgSidebar —
+  // Next 16 fige parfois le render sur un pathname identique).
+  const [activeSection, setActiveSection] = useState<OrgSection>(initialSection)
   useEffect(() => {
-    setActiveTab(initialTab)
+    setActiveSection(initialSection)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawTab, action])
 
-  // Le tableau de bord reste fermé aux membres SAUF si l'owner leur a
-  // délégué la configuration (migration 062). Un délégué n'accède qu'à
-  // deux cartes — Branding et Politique pricing — le reste est masqué plus
-  // bas, et le serveur refuse de toute façon les champs owner-only.
+  // Un membre sans AUCUNE cap de configuration (ni branding ni pricing) n'a rien
+  // à faire ici → workspace. (Owner et délégué habilité passent.)
   useEffect(() => {
     if (!isOwner && !canManageSettings) router.replace("/workspace")
   }, [isOwner, canManageSettings, router])
@@ -656,33 +660,59 @@ export default function CabinetPage() {
         <EmailConfirmationBanner email={userEmail} />
       )}
 
-      {/* ── Tabs ──────────────────────────────────────────── */}
-      <OrgTabs
-        activeTab={activeTab}
-        orgLabel={orgDisplayName}
-        isOwner={isOwner}
-        onChange={setActiveTab}
-      />
-
-      {/* ── Tab content ───────────────────────────────────── */}
-      <div style={{ marginTop: 24 }}>
-        <UpdatesHeroCard />
-        {activeTab === "org" && (
-          <div className="org-tab-grid" style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
-            gap: 18,
-            // alignItems "stretch" + Card `height: 100%` font que les
-            // deux cartes d'une même ligne s'alignent sur la plus grande.
-            // Évite les décalages quand l'une est repliée et l'autre pas.
-            alignItems: "stretch",
+      {/* ── Console à barre latérale ──────────────────────── */}
+      <div className="org-console" style={{
+        display: "grid",
+        gridTemplateColumns: "212px minmax(0, 1fr)",
+        gap: 28, alignItems: "start", marginTop: 20,
+      }}>
+        {/* Navigation latérale — sections déjà filtrées par les caps */}
+        <aside className="org-console-nav" style={{ position: "sticky", top: 16 }}>
+          <p style={{
+            margin: "0 0 10px", padding: "0 12px",
+            fontSize: 12, fontWeight: 700, color: "var(--nw-text)",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
-            {/* Row 1 : Identité (vitrine read-only) | Membres */}
-            <IdentitySection
+            {orgDisplayName}
+          </p>
+          <OrgSidebar
+            activeSection={activeSection}
+            sections={visibleSections}
+            onChange={setActiveSection}
+          />
+        </aside>
+
+        {/* Contenu de la section active */}
+        <div style={{ minWidth: 0, display: "grid", gap: 18 }}>
+          <UpdatesHeroCard />
+
+          {activeSection === "overview" && (
+            <OverviewSection organization={organization} logoUrl={logoUrl} />
+          )}
+
+          {activeSection === "branding" && caps.canBranding && (
+            <BrandingSection
               organization={organization}
               logoUrl={logoUrl}
+              isOwner={caps.canBranding}
+              canEditLegalName={isOwner}
+              onUpdated={refetch}
             />
-            {isOwner && <MembersSection
+          )}
+
+          {activeSection === "pricing" && caps.canPricing && (
+            canUsePricing ? (
+              <>
+                <PricingPolicySectionCollapsible />
+                <PricingOnboardingGate organization={organization} onDone={refetch} />
+              </>
+            ) : (
+              <PricingLockedNote />
+            )
+          )}
+
+          {activeSection === "team" && caps.isOrgAdmin && (
+            <MembersSection
               members={members}
               invites={invites}
               seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
@@ -690,96 +720,63 @@ export default function CabinetPage() {
               userEmail={userEmail}
               isOwner={isOwner}
               onChange={() => { void loadMembers(); void loadInvites() }}
-            />}
-            {/* Row 2 : Branding pleine largeur (la politique pricing vit dans
-                l'onglet « Mes packages » pour l'owner). Masqué à qui n'a pas la
-                cap branding — un délégué pricing-only ne le voit pas. */}
-            {caps.canBranding && (
-              <div style={{ gridColumn: "1 / -1" }}>
-                <BrandingSection
-                  organization={organization}
-                  logoUrl={logoUrl}
-                  isOwner={caps.canBranding}
-                  canEditLegalName={isOwner}
-                  onUpdated={refetch}
+            />
+          )}
+
+          {activeSection === "billing" && caps.isOrgAdmin && (
+            <div className="org-two-col" style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 320px)",
+              gap: 20, alignItems: "start",
+            }}>
+              <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
+                <MySeatBanner
+                  hasSeat={profile.has_sourcing_seat}
+                  hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
+                  onToggle={refetch}
+                  isOwner={isOwner}
                 />
-              </div>
-            )}
-            {isOwner && (
-              <div style={{ gridColumn: "1 / -1" }}>
+                <SubscriptionCard
+                  organization={organization}
+                  onActivated={refetch}
+                  isOwner={isOwner}
+                  isAdmin={profile.is_admin === true}
+                  autoOpenPicker={action === "subscribe"}
+                />
                 <PreviewToolsCard />
               </div>
-            )}
-            {/* Pour l'owner, la politique pricing reste dans l'onglet
-                « packages », à côté de l'abonnement. Un délégué n'a pas cet
-                onglet : on la lui sert ici, sinon sa délégation pricing serait
-                inaccessible. */}
-            {!isOwner && caps.canPricing && canUsePricing && (
-              <div style={{ gridColumn: "1 / -1" }}>
-                <PricingPolicySectionCollapsible />
+              <div style={{ position: "sticky", top: 16 }}>
+                <QuotaGauges />
               </div>
-            )}
-            <style>{`
-              @media (max-width: 980px) {
-                .org-tab-grid { grid-template-columns: 1fr !important; }
-              }
-            `}</style>
-          </div>
-        )}
-
-        {activeTab === "abonnement" && isOwner && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1fr) minmax(260px, 340px)",
-            gap: 20,
-            alignItems: "start",
-          }}>
-            {/* Colonne gauche : siège + abonnement + politique pricing */}
-            <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
-              <MySeatBanner
-                hasSeat={profile.has_sourcing_seat}
-                hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
-                onToggle={refetch}
-                isOwner={isOwner}
-              />
-              <SubscriptionCard
-                organization={organization}
-                onActivated={refetch}
-                isOwner={isOwner}
-                isAdmin={profile.is_admin === true}
-                autoOpenPicker={action === "subscribe"}
-              />
-              {canUsePricing && <PricingPolicySectionCollapsible />}
             </div>
-            {/* Colonne droite : utilisation (sticky pour rester visible
-                pendant le scroll des cartes de gauche) */}
-            <div style={{ position: "sticky", top: 16 }}>
-              <QuotaGauges />
-            </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === "securite" && isOwner && (
-          <div style={{ maxWidth: 720, display: "grid", gap: 16 }}>
-            <ExportDataCard />
-            {isOwner && (
+          {activeSection === "advanced" && caps.isOrgAdmin && (
+            <div style={{ maxWidth: 720, display: "grid", gap: 16 }}>
+              <ExportDataCard />
               <TransferOwnershipCard
                 currentUserId={profile.user_id}
                 onTransferred={refetch}
               />
-            )}
-            <DangerSection
-              organization={organization}
-              isOwner={isOwner}
-              onChanged={refetch}
-            />
-          </div>
-        )}
-      </div>
+              <DangerSection
+                organization={organization}
+                isOwner={isOwner}
+                onChanged={refetch}
+              />
+            </div>
+          )}
+        </div>
 
-      {canUsePricing && (
-        <PricingOnboardingGate organization={organization} onDone={refetch} />
-      )}
+        <style>{`
+          @media (max-width: 860px) {
+            .org-console { grid-template-columns: 1fr !important; }
+            .org-console-nav { position: static !important; }
+          }
+          @media (max-width: 720px) {
+            .org-two-col { grid-template-columns: 1fr !important; }
+          }
+        `}</style>
+      </div>
     </main>
   )
 }
@@ -825,103 +822,116 @@ function PricingOnboardingGate({
 }
 
 /* ────────────────────────────────────────────────────────────────── */
-/* OrgTabs — barre d'onglets de la console                              */
+/* OrgSidebar — navigation latérale de la console (6 sections gatées)   */
 /* ────────────────────────────────────────────────────────────────── */
 
-type OrgTab = "org" | "abonnement" | "securite"
+type OrgSection = "overview" | "branding" | "pricing" | "team" | "billing" | "advanced"
 
-function OrgTabs({
-  activeTab, orgLabel, isOwner, onChange,
+const SECTION_LABELS: Record<OrgSection, { fr: string; en: string }> = {
+  overview: { fr: "Vue d'ensemble", en: "Overview" },
+  branding: { fr: "Identité et branding", en: "Identity and branding" },
+  pricing: { fr: "Politique de pricing", en: "Pricing policy" },
+  team: { fr: "Équipe et sièges", en: "Team and seats" },
+  billing: { fr: "Abonnement", en: "Subscription" },
+  advanced: { fr: "Avancé", en: "Advanced" },
+}
+
+/**
+ * Barre latérale de la console. Ne rend QUE les sections passées en prop
+ * (déjà filtrées par les caps côté parent) — un délégué ne voit donc jamais
+ * Abonnement / Avancé. L'URL est synchronisée via history.replaceState (comme
+ * l'ancienne barre d'onglets) pour garder deep-links et partage de lien sans
+ * déclencher un re-render Next 16 qui figerait la vue.
+ */
+function OrgSidebar({
+  activeSection, sections, onChange,
 }: {
-  activeTab: OrgTab
-  orgLabel: string
-  /** Un délégué ne voit QUE l'onglet organisation : les onglets
-   *  « packages » (prix, facturation) et « sécurité » (suppression,
-   *  transfert de propriété) restent réservés au propriétaire. */
-  isOwner: boolean
-  /** Bascule le state d'activeTab dans le parent. La synchro URL se fait
-   *  en plus via history.replaceState pour ne pas casser le partage de
-   *  lien / les deep-links, mais sans dépendre du re-render Next. */
-  onChange: (next: OrgTab) => void
+  activeSection: OrgSection
+  sections: OrgSection[]
+  onChange: (next: OrgSection) => void
 }) {
   const { lang } = useLanguage()
-  const t = copy[lang]
-  // L'URL param reste "abonnement" pour ne pas casser les deep-links
-  // historiques (mails Stripe, lockdown banner) — seul le label change.
-  const tabs: { id: OrgTab; label: string }[] = [
-    { id: "org", label: orgLabel || t.orgFallback },
-    ...(isOwner
-      ? ([
-          { id: "abonnement", label: t.tabPackages },
-          { id: "securite", label: t.tabSecurity },
-        ] as { id: OrgTab; label: string }[])
-      : []),
-  ]
-
-  // Source de vérité = state parent (réactif instantanément).
-  // On met à jour l'URL en parallèle via history.replaceState pour
-  // garder le query string en phase pour les deep-links, MAIS sans
-  // déclencher router.replace : Next 16 a un cache agressif qui peut
-  // figer le render quand le pathname est identique. history natif
-  // contourne ça sans toucher au rendu.
-  const goTo = (id: OrgTab) => {
+  const goTo = (id: OrgSection) => {
     onChange(id)
-    const href = id === "org" ? "/organisation" : `/organisation?tab=${id}`
     if (typeof window !== "undefined") {
+      const href = id === "overview" ? "/organisation" : `/organisation?tab=${id}`
       window.history.replaceState(null, "", href)
     }
   }
-
   return (
-    <nav
-      role="tablist"
-      style={{
-        display: "flex", gap: 4,
-        borderBottom: "1px solid var(--nw-border)",
-        overflowX: "auto",
-      }}
-    >
-      {tabs.map((t) => {
-        const active = activeTab === t.id
+    <nav aria-label="Sections de l'organisation" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {sections.map((id) => {
+        const active = activeSection === id
         return (
           <button
-            key={t.id}
+            key={id}
             type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => goTo(t.id)}
+            aria-current={active ? "page" : undefined}
+            onClick={() => goTo(id)}
             style={{
-              position: "relative",
-              padding: "12px 18px",
-              fontSize: 14,
-              fontWeight: active ? 700 : 500,
-              color: active ? "var(--nw-text)" : "var(--nw-text-muted)",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              whiteSpace: "nowrap",
-              transition: "color 140ms",
-              letterSpacing: t.id === "org" ? "-0.01em" : "0",
+              display: "block", width: "100%", textAlign: "left",
+              padding: "9px 12px", borderRadius: 9,
+              fontSize: 13.5, fontWeight: active ? 700 : 500,
+              color: active ? "var(--nw-primary)" : "var(--nw-text-muted)",
+              background: active ? "var(--nw-primary-50)" : "transparent",
+              border: active ? "1px solid var(--nw-primary-200)" : "1px solid transparent",
+              cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+              transition: "background 140ms, color 140ms",
             }}
           >
-            {t.label}
-            {active && (
-              <span
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  left: 14, right: 14, bottom: -1,
-                  height: 2,
-                  background: "var(--nw-primary)",
-                  borderRadius: 2,
-                }}
-              />
-            )}
+            {SECTION_LABELS[id][lang]}
           </button>
         )
       })}
     </nav>
+  )
+}
+
+/**
+ * Vue d'ensemble — atterrissage de la console. Identité (vitrine read-only) à
+ * gauche + jauges d'usage du vivier à droite. Accessible à tout membre qui
+ * entre dans la console (aucun droit particulier requis).
+ */
+function OverviewSection({
+  organization, logoUrl,
+}: {
+  organization: Organization
+  logoUrl: string | null
+}) {
+  return (
+    <div className="org-two-col" style={{
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 320px)",
+      gap: 20, alignItems: "start",
+    }}>
+      <div style={{ display: "grid", gap: 18, minWidth: 0 }}>
+        <IdentitySection organization={organization} logoUrl={logoUrl} />
+      </div>
+      <div style={{ position: "sticky", top: 16 }}>
+        <QuotaGauges />
+      </div>
+    </div>
+  )
+}
+
+/** Affiché dans la section Pricing quand l'option Suite Pricing n'est pas
+ *  active : la politique de pricing n'a alors pas de raison d'être réglée. */
+function PricingLockedNote() {
+  const { lang } = useLanguage()
+  return (
+    <div style={{
+      background: "white", border: "1px solid var(--nw-border-soft)",
+      borderRadius: 14, padding: "20px 22px",
+    }}>
+      <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-text)" }}>
+        {lang === "en" ? "Pricing Suite not enabled" : "Suite Pricing non activée"}
+      </p>
+      <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
+        {lang === "en"
+          ? "The pricing policy is available with the Pricing Suite add-on. The owner can enable it from the Subscription section."
+          : "La politique de pricing est disponible avec l'option Suite Pricing. Le propriétaire peut l'activer depuis la section Abonnement."}
+      </p>
+    </div>
   )
 }
 
