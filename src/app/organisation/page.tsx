@@ -556,6 +556,11 @@ export default function CabinetPage() {
   const rawTab = searchParams.get("tab")
   const action = searchParams.get("action")
   const initialTab: OrgTab = (() => {
+    // Les onglets Abonnement et Sécurité sont réservés à l'owner (leur contenu
+    // ne se rend que si isOwner). Un délégué qui force ?tab=abonnement ou
+    // ?action=subscribe via l'URL retombe donc sur l'onglet par défaut plutôt
+    // que sur une page vide.
+    if (!isOwner) return "org"
     // Si ?action=subscribe (deep-link depuis la bannière lockdown ou un
     // mail Stripe), on force l'onglet Abonnement où le SubscriptionCard
     // détectera le param et ouvrira directement le PlanPicker.
@@ -695,6 +700,7 @@ export default function CabinetPage() {
                   organization={organization}
                   logoUrl={logoUrl}
                   isOwner={caps.canBranding}
+                  canEditLegalName={isOwner}
                   onUpdated={refetch}
                 />
               </div>
@@ -2147,7 +2153,7 @@ interface BrandingRequestRow {
 }
 
 function BrandingSection({
-  organization, logoUrl, isOwner, onUpdated,
+  organization, logoUrl, isOwner, canEditLegalName, onUpdated,
 }: {
   organization: {
     id: string
@@ -2161,7 +2167,12 @@ function BrandingSection({
     branding_locked_at: string | null
   }
   logoUrl: string | null
+  /** « Peut gérer le branding » (owner OU délégué branding). Gate toutes les
+   *  éditions d'habillage de cette carte. */
   isOwner: boolean
+  /** Peut modifier le nom LÉGAL (`organizations.name`) — owner strict. Un
+   *  délégué branding ne met à jour que le nom d'affichage (`brand_name`). */
+  canEditLegalName: boolean
   onUpdated: () => Promise<void>
 }) {
   const { lang } = useLanguage()
@@ -2284,7 +2295,10 @@ function BrandingSection({
     if (!next) return
     const currentName = (organization.brand_name ?? organization.name ?? "").trim()
     if (currentName === next) return
-    await patch({ name: next, brand_name: next })
+    // Le nom LÉGAL (`name`) est owner-only côté serveur. Un délégué branding ne
+    // met à jour que le nom d'AFFICHAGE (`brand_name`) — sinon la route renvoie
+    // 403 owner_only_fields. L'owner met les deux à jour.
+    await patch(canEditLegalName ? { name: next, brand_name: next } : { brand_name: next })
   }
 
   // Résumé visible quand la carte est repliée — pastilles + label
