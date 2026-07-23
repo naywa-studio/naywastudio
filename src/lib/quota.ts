@@ -23,7 +23,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { Database } from "./database.types"
+import type { Database, Candidate } from "./database.types"
 import { getQuotas } from "./quota-tiers"
 import { isAdmin } from "./admin"
 
@@ -175,29 +175,40 @@ export async function consumeOrgLlmAction(
     }
   }
 
-  if (currentUsed >= quota.llmMonthly) {
-    // Wording côté utilisateur : on ne parle pas de "crédits" — la
-    // limite est purement un anti-abus, le client n'est pas censé la
-    // voir en usage normal.
-    const resetMsg = quota.period === "fixed"
-      ? "Limite d'usage IA atteinte pour votre période d'essai. Souscrivez pour continuer."
-      : "Limite d'usage IA atteinte pour cette période. Contactez-nous si vous avez besoin d'un palier supérieur."
-    return {
-      ok: false,
-      used: currentUsed,
-      limit: quota.llmMonthly,
-      code: "quota_exceeded",
-      message: resetMsg,
+  // Wording côté utilisateur : on ne parle pas de "crédits" — la limite est
+  // purement un anti-abus, le client n'est pas censé la voir en usage normal.
+  const overMsg = quota.period === "fixed"
+    ? "Limite d'usage IA atteinte pour votre période d'essai. Souscrivez pour continuer."
+    : "Limite d'usage IA atteinte pour cette période. Contactez-nous si vous avez besoin d'un palier supérieur."
+
+  // Consommation ATOMIQUE : UPDATE conditionnel (WHERE compteur < limite) via
+  // RPC. Ferme la race où deux requêtes concurrentes lisent toutes deux
+  // "used < limit" avant d'incrémenter. La fonction retourne le nouveau total,
+  // ou null si la limite est déjà atteinte (aucun increment).
+  const { data: newUsed, error: rpcErr } = await admin.rpc("consume_org_llm_quota", {
+    p_org_id: orgId,
+    p_limit: quota.llmMonthly,
+  })
+
+  if (rpcErr) {
+    // Pépin d'infra sur la RPC : on RETOMBE sur l'ancien comportement
+    // (lire-comparer-écrire, non atomique) plutôt que de bloquer l'action.
+    console.error("[quota] consume_org_llm_quota RPC failed, fallback:", rpcErr.message)
+    if (currentUsed >= quota.llmMonthly) {
+      return { ok: false, used: currentUsed, limit: quota.llmMonthly, code: "quota_exceeded", message: overMsg }
     }
+    await admin.from("organizations")
+      .update({ llm_actions_this_month: currentUsed + 1 })
+      .eq("id", orgId)
+    return { ok: true, used: currentUsed + 1, limit: quota.llmMonthly }
   }
 
-  // Bump optimiste — si la requête concurrente nous coiffe au poteau,
-  // c'est OK (race condition tolérée, cf. doc en tête de fonction).
-  await admin.from("organizations")
-    .update({ llm_actions_this_month: currentUsed + 1 })
-    .eq("id", orgId)
+  if (newUsed === null || newUsed === undefined) {
+    // Limite atteinte : la fonction n'a rien incrémenté.
+    return { ok: false, used: currentUsed, limit: quota.llmMonthly, code: "quota_exceeded", message: overMsg }
+  }
 
-  return { ok: true, used: currentUsed + 1, limit: quota.llmMonthly }
+  return { ok: true, used: newUsed, limit: quota.llmMonthly }
 }
 
 /**
@@ -299,6 +310,114 @@ export async function checkCvQuota(
   }
 
   return { ok: true, used, limit: quota.cvLimit }
+}
+
+export interface AtomicCvInsertResult {
+  ok: boolean
+  candidate?: Candidate
+  code?: "cv_quota_exceeded" | "insert_failed"
+  message?: string
+}
+
+/**
+ * Insère une NOUVELLE candidate en respectant le plafond CV de façon
+ * ATOMIQUE : la fonction Postgres compte les CV actifs et insère sous un
+ * verrou par-org (pg_advisory_xact_lock), donc deux uploads simultanés ne
+ * peuvent plus tous les deux passer la limite. Remplace le couple
+ * checkCvQuota() + insert séparés (fenêtre de race).
+ *
+ * À n'appeler QUE pour une nouvelle candidate — les doublons sont détectés
+ * et renvoyés en amont sans ajouter de ligne.
+ *
+ * Robustesse : si la RPC échoue pour une raison d'INFRA (≠ dépassement), on
+ * RETOMBE sur l'ancien chemin (checkCvQuota + insert simple). Un upload ne
+ * doit jamais se bloquer complètement à cause de ce durcissement — au pire
+ * on régresse vers la race d'origine, jamais vers un upload cassé.
+ */
+export async function atomicInsertCandidateUnderCvQuota(
+  admin: SupabaseClient<Database>,
+  params: { userId: string; orgId: string; fileName: string; fileSize: number; mimeType: string },
+  opts?: { isAdmin?: boolean },
+): Promise<AtomicCvInsertResult> {
+  const { userId, orgId, fileName, fileSize, mimeType } = params
+
+  // Admin Naywa : quota infini → insert direct, on court-circuite la RPC.
+  if (opts?.isAdmin) {
+    return plainInsertCandidate(admin, userId, fileName, fileSize, mimeType)
+  }
+
+  // Résout le plafond CV du plan (même source que checkCvQuota).
+  const { data: org, error: orgErr } = await admin
+    .from("organizations")
+    .select("subscription_status, subscription_seats, subscription_has_pricing, trial_ends_at, lockdown_started_at, current_period_end, quota_override_json")
+    .eq("id", orgId)
+    .maybeSingle()
+  if (orgErr || !org) {
+    // Cas dégénéré (pas d'org) : la route exige déjà organization_id, on ne
+    // devrait pas arriver ici. Insert direct, fail ouvert.
+    return plainInsertCandidate(admin, userId, fileName, fileSize, mimeType)
+  }
+  const quota = getQuotas(org as Parameters<typeof getQuotas>[0], { isAdmin: false })
+
+  const { data, error } = await admin.rpc("insert_candidate_if_under_cv_quota", {
+    p_user_id: userId,
+    p_org_id: orgId,
+    p_cv_file_name: fileName,
+    p_cv_file_size: fileSize,
+    p_cv_mime_type: mimeType,
+    p_cv_limit: quota.cvLimit,
+  })
+
+  if (error) {
+    // Dépassement signalé par la fonction (RAISE cv_quota_exceeded).
+    if ((error.message ?? "").includes("cv_quota_exceeded")) {
+      return {
+        ok: false,
+        code: "cv_quota_exceeded",
+        message: `Capacité du vivier atteinte (${quota.cvLimit.toLocaleString("fr-FR")} CV sur ${quota.label}). Supprimez d'anciens CV ou contactez-nous pour un palier supérieur.`,
+      }
+    }
+    // Pépin d'infra : fallback sur l'ancien chemin (check non atomique + insert).
+    console.error("[quota] insert_candidate_if_under_cv_quota RPC failed, fallback:", error.message)
+    const cvCheck = await checkCvQuota(admin, orgId, { isAdmin: false })
+    if (!cvCheck.ok) {
+      return { ok: false, code: "cv_quota_exceeded", message: cvCheck.message }
+    }
+    return plainInsertCandidate(admin, userId, fileName, fileSize, mimeType)
+  }
+
+  return { ok: true, candidate: data as Candidate }
+}
+
+/**
+ * Insert "simple" d'une candidate (parse_status = "parsing"). organization_id
+ * est rempli par le trigger set_organization_id_from_user() (BEFORE INSERT).
+ * Utilisé pour les admins (quota infini) et en fallback si la RPC atomique a
+ * un pépin d'infra.
+ */
+async function plainInsertCandidate(
+  admin: SupabaseClient<Database>,
+  userId: string,
+  fileName: string,
+  fileSize: number,
+  mimeType: string,
+): Promise<AtomicCvInsertResult> {
+  const { data, error } = await admin
+    .from("candidates")
+    .insert({
+      user_id: userId,
+      cv_file_name: fileName,
+      cv_file_size: fileSize,
+      cv_mime_type: mimeType,
+      parse_status: "parsing",
+    })
+    .select("*")
+    .single()
+  if (error || !data) {
+    console.error("[quota] plain candidate insert failed:", error?.message)
+    return { ok: false, code: "insert_failed", message: "insert_failed" }
+  }
+  return { ok: true, candidate: data as Candidate }
 }
 
 // ─── Niveau 4 : Per-org storage (filet interne, jamais montré) ─────────

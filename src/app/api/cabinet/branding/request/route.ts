@@ -171,7 +171,8 @@ export async function POST(req: NextRequest) {
     .insert(rows)
     .select("id")
   if (error || !inserted) {
-    return NextResponse.json({ error: error?.message ?? "insert_failed" }, { status: 500 })
+    console.error("[branding/request] insert error:", error?.message)
+    return NextResponse.json({ error: "insert_failed", detail: "internal_error" }, { status: 500 })
   }
 
   // Mail à l'équipe admin pour qu'elle traite la batch sans avoir à
