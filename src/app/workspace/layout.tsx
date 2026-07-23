@@ -8,6 +8,7 @@ import { ui } from "@/lib/ui-tokens"
 import PendingDeletionBanner from "@/components/workspace/PendingDeletionBanner"
 import { LockdownBanner } from "@/components/workspace/LockdownBanner"
 import { MemberWaitingBanner } from "@/components/workspace/MemberWaitingBanner"
+import { SeatReadOnlyBanner } from "@/components/workspace/SeatReadOnlyBanner"
 import { TrialBanner } from "@/components/trial/TrialBanner"
 import { QuotaWarningBanner } from "@/components/quota/QuotaWarningBanner"
 import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
@@ -138,23 +139,19 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       org = data ?? null
     }
 
-    // Gates accès workspace, différents selon rôle :
+    // Accès workspace :
     //
-    //   OWNER
-    //     - Pas de siège alloué -> bounce /organisation (il s'alloue)
-    //     - Org sans accès actif ET pas en lockdown -> bounce /organisation
-    //       (il souscrit ou réactive l'essai)
+    //   - Admin Naywa : bypass total (ni siège ni paywall).
+    //   - Tout membre de l'org (owner comme member) PEUT entrer. Sans siège, il
+    //     y est en LECTURE SEULE : il est invité dans l'org, il consulte sans
+    //     pouvoir muter (mutations bloquées serveur via requireActiveAccess ET
+    //     UI grisée via isReadOnly). Avec un siège : accès complet.
+    //   - Seul bounce vers /organisation : une org SANS accès actif ET SANS
+    //     fenêtre de grâce (essai jamais activé, mi-onboarding) — il n'y a rien
+    //     à consulter, l'owner doit d'abord activer / souscrire.
     //
-    //   MEMBER
-    //     - Toujours autorisé à entrer dans /workspace. Si org sans accès
-    //       il voit le workspace nu avec un MemberWaitingBanner. Il ne
-    //       peut pas modifier ce qui n'est pas là ; pas de risque produit.
-    //     - Si pas de siège alloué : workspace en lecture seule (le member
-    //       a accepté l'invite donc has_sourcing_seat=true par défaut ;
-    //       cas où l'owner le désalloue plus tard).
-    //
-    // Sans cette différenciation, owner sans sub + member redirigé
-    // /organisation -> /workspace -> /organisation -> ... boucle infinie.
+    // (Avant : owner sans siège était bounce, ce qui l'empêchait de consulter
+    // le workspace de sa propre organisation.)
     const isOwner = prof?.role === "owner"
 
     // Bypass admin Naywa : pas de gate de siège ni de paywall.
@@ -163,11 +160,6 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       setOrganization(org)
       setUserEmail(user.email ?? "")
       setReady(true)
-      return
-    }
-
-    if (isOwner && prof && !prof.has_sourcing_seat) {
-      router.replace("/organisation")
       return
     }
 
@@ -271,10 +263,13 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   return (
     <WorkspaceContext.Provider value={{
       profile, organization, userEmail, hasSubscription,
-      // Lecture seule dès qu'une suppression est programmée OU que l'org n'a
-      // plus d'accès actif (résiliation, impayé, essai expiré). Couvre l'owner
-      // (qui n'est plus bounce) comme les members. Admin Naywa = jamais.
-      isReadOnly: isWorkspaceReadOnly(organization, { isAdmin: profile?.is_admin === true }),
+      // Lecture seule si : suppression programmée / plus d'accès actif
+      // (isWorkspaceReadOnly), OU pas de siège alloué (membre invité qui
+      // consulte sans muter). Admin Naywa = jamais en lecture seule.
+      isReadOnly:
+        profile?.is_admin !== true &&
+        (isWorkspaceReadOnly(organization, { isAdmin: profile?.is_admin === true }) ||
+          profile?.has_sourcing_seat !== true),
       refetchProfile: fetchProfile,
     }}>
       {/* Fond calme sur l'app connectée (dense) : on réserve le shader animé
@@ -455,6 +450,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
             <MemberWaitingBanner
               organization={organization}
               role={profile?.role}
+            />
+            <SeatReadOnlyBanner
+              organization={organization}
+              hasSeat={profile?.has_sourcing_seat === true}
             />
           </>
         )}
