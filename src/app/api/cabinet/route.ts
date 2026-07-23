@@ -218,7 +218,14 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Empty patch" }, { status: 400 })
   }
 
-  const { error } = await sb
+  // Écriture via le client ADMIN (service-role). L'autorisation est DÉJÀ faite
+  // par les caps ci-dessus, et la RLS `organizations_owner_write` n'autorise
+  // que l'OWNER (`owner_user_id = auth.uid()`). Un délégué passerait la garde
+  // applicative mais son UPDATE via le client RLS ne toucherait AUCUNE ligne
+  // (0 rows, sans erreur) → rien ne se sauvegarderait, en silence. Le patch est
+  // field-allowlisté et scopé à l'org du caller, donc sûr en service-role.
+  const admin = getAdminSupabase()
+  const { error } = await admin
     .from("organizations")
     .update(patch)
     .eq("id", profile.organization_id)

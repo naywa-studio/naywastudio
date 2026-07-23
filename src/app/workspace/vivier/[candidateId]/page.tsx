@@ -13,6 +13,7 @@ import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { showUndoToast } from "@/components/ui/UndoToast"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 import { tierMeta as sharedTierMeta } from "@/lib/criterion-display"
+import { useWorkspace } from "../../layout"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -181,6 +182,12 @@ export default function CandidatePage() {
   const t = copy[lang]
   const { candidateId } = useParams<{ candidateId: string }>()
   const sb = useMemo(() => getSupabase(), [])
+  // Lecture seule (org sans accès actif, OU membre sans siège) : on désactive
+  // toute mutation de cette fiche. Important : les notes et les tags s'écrivent
+  // en DIRECT via le client (RLS org-scopée), donc SANS passer par la garde
+  // serveur requireActiveAccess — sans ce verrou UI, un user en lecture seule
+  // pourrait réellement les modifier.
+  const { isReadOnly } = useWorkspace()
 
   const [candidate, setCandidate] = useState<Candidate | null>(null)
   const [signedUrl, setSignedUrl] = useState<string | null>(null)
@@ -285,6 +292,7 @@ export default function CandidatePage() {
   }, [candidateId, sb])
 
   const saveNotes = async () => {
+    if (isReadOnly) return
     if (!candidate) return
     if ((notesRef.current ?? "") === (candidate.notes ?? "")) return
     setSavingNotes("saving")
@@ -294,6 +302,7 @@ export default function CandidatePage() {
   }
 
   const handleDelete = async () => {
+    if (isReadOnly) return
     if (!candidate) return
     const label = candidate.full_name?.trim() || t.candidateFallback
     // Send the sourcer back to the vivier first so the candidate vanishes
@@ -314,6 +323,7 @@ export default function CandidatePage() {
   }
 
   const saveTags = async (nextCustom: string[]) => {
+    if (isReadOnly) return
     if (!candidate) return
     const systemFlags = (candidate.tags ?? []).filter((t) => SYSTEM_TAGS.has(t))
     const next = [...systemFlags, ...nextCustom]
@@ -392,17 +402,19 @@ export default function CandidatePage() {
                 <ProfileButton href={cv?.portfolio_url ?? null} brand="portfolio" />
               </div>
               <PricingShortcut matches={jobMatches} />
-              <button
-                onClick={handleDelete}
-                style={{
-                  fontSize: 12, fontWeight: 600, color: "var(--nw-danger-strong)",
-                  background: "transparent", border: "1px solid #FCA5A5",
-                  borderRadius: 8, padding: "7px 14px", cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {t.delete}
-              </button>
+              {!isReadOnly && (
+                <button
+                  onClick={handleDelete}
+                  style={{
+                    fontSize: 12, fontWeight: 600, color: "var(--nw-danger-strong)",
+                    background: "transparent", border: "1px solid #FCA5A5",
+                    borderRadius: 8, padding: "7px 14px", cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {t.delete}
+                </button>
+              )}
             </div>
 
             {candidate.parse_status === "error" && (
@@ -588,6 +600,7 @@ export default function CandidatePage() {
               onChange={(e) => setNotes(e.target.value)}
               onBlur={saveNotes}
               placeholder={t.notesPlaceholder}
+              disabled={isReadOnly}
               rows={4}
               style={{
                 width: "100%", boxSizing: "border-box",
