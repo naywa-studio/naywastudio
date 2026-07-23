@@ -99,9 +99,11 @@ export async function POST(req: Request) {
     // Idempotent : réclamer l'état déjà en place n'est pas une erreur (double
     // clic, retry réseau) et ne doit surtout pas créer une 2ᵉ ligne add-on.
     if (enable && addonItem) {
+      await admin.from("organizations").update({ subscription_has_pricing: true }).eq("id", org.id)
       return NextResponse.json({ ok: true, enabled: true, unchanged: true })
     }
     if (!enable && !addonItem) {
+      await admin.from("organizations").update({ subscription_has_pricing: false }).eq("id", org.id)
       return NextResponse.json({ ok: true, enabled: false, unchanged: true })
     }
 
@@ -119,10 +121,10 @@ export async function POST(req: Request) {
       })
     }
 
-    // On ne touche pas à la base : le webhook subscription.updated que Stripe
-    // vient de déclencher dérive subscription_has_pricing de la présence de la
-    // ligne. Écrire ici en plus créerait deux sources de vérité qui peuvent
-    // diverger (ex. si le client modifie aussi son abo au portail).
+    // Réaligne la base sur la valeur confirmée par Stripe (présence de la ligne
+    // add-on = `enable`), sans attendre le webhook (latence + 0 delivery en
+    // preview). Le webhook réécrira la même valeur → aucune divergence.
+    await admin.from("organizations").update({ subscription_has_pricing: enable }).eq("id", org.id)
     return NextResponse.json({ ok: true, enabled: enable })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur Stripe inconnue"

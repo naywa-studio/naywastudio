@@ -122,6 +122,11 @@ export async function POST(req: Request) {
       // (double clic, retry réseau) et ne doit pas générer de proratisation
       // parasite.
       if (seatItem.quantity === seats) {
+        // Idempotent côté Stripe — MAIS la base peut être désynchronisée
+        // (subscription_seats NULL, ex. abo dont le webhook n'a jamais tourné).
+        // On la réaligne quand même sur la valeur confirmée par Stripe, sinon
+        // l'UI continue d'afficher le défaut (1) alors que Stripe est à `seats`.
+        await admin.from("organizations").update({ subscription_seats: seats }).eq("id", org.id)
         return NextResponse.json({ ok: true, seats, unchanged: true })
       }
       await stripe.subscriptionItems.update(seatItem.id, {

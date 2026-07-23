@@ -1504,6 +1504,14 @@ function SeatCountEditor({
   const withPricing = organization.subscription_has_pricing === true
 
   const apply = async () => {
+    // Confirmation explicite : le changement touche la facturation et s'applique
+    // immédiatement (proratisation). On dit clairement le sens (hausse = prélevé
+    // au prorata / baisse = avoir).
+    const goingDown = draft < current
+    const confirmMsg = lang === "en"
+      ? `Change to ${draft} ${draft > 1 ? "people" : "person"}? Billing updates immediately, prorated for the current period${goingDown ? " (a credit is issued)" : ""}.`
+      : `Passer à ${draft} personne${draft > 1 ? "s" : ""} ? La facturation est mise à jour immédiatement, au prorata de la période en cours${goingDown ? " (un avoir est généré)" : ""}.`
+    if (!confirm(confirmMsg)) return
     setBusy(true); setError(null)
     try {
       const res = await fetch("/api/stripe/seats", {
