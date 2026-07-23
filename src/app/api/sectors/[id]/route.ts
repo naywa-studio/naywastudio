@@ -76,7 +76,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .select("id, name, description, created_by, created_at").single()
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "name_taken" }, { status: 409 })
-    return NextResponse.json({ error: "update_failed", detail: error.message }, { status: 500 })
+    console.error("[sectors/:id] update failed:", error.message)
+    return NextResponse.json({ error: "update_failed", detail: "internal_error" }, { status: 500 })
   }
 
   // Cascade le rename sur les candidats + missions.
@@ -103,7 +104,10 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   await renameInCandidates(sb, sector.name, null)
   await renameInJobs(sb, sector.name, null)
   const { error } = await sb.from("sectors").delete().eq("id", id)
-  if (error) return NextResponse.json({ error: "delete_failed", detail: error.message }, { status: 500 })
+  if (error) {
+    console.error("[sectors/:id] delete failed:", error.message)
+    return NextResponse.json({ error: "delete_failed", detail: "internal_error" }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }

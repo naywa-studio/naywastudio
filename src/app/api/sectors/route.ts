@@ -110,7 +110,8 @@ export async function POST(req: NextRequest) {
         .maybeSingle()
       if (existing) return NextResponse.json({ ok: true, sector: existing, existed: true })
     }
-    return NextResponse.json({ error: "create_failed", detail: error.message }, { status: 500 })
+    console.error("[sectors] create failed:", error.message)
+    return NextResponse.json({ error: "create_failed", detail: "internal_error" }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, sector: data })

@@ -34,6 +34,14 @@ import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
+// Garde-fou CLIENT uniquement (UX, rejet rapide avant l'appel réseau) — pas
+// de restriction équivalente côté bucket Storage pour l'instant (aucun accès
+// SQL disponible pour poser storage.buckets.file_size_limit /
+// allowed_mime_types). Un appel direct à l'API Storage en contournant ce
+// contrôle JS n'est donc pas bloqué aujourd'hui.
+const LOGO_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"]
+const LOGO_MAX_BYTES = 2 * 1024 * 1024
+
 const copy = {
   fr: {
     // OrgTabs
@@ -161,6 +169,8 @@ const copy = {
     replaceLogo: "Remplacer",
     uploadLogo: "Téléverser",
     removeLogo: "Retirer",
+    logoInvalidType: "Format non accepté — PNG, JPEG, WebP ou SVG uniquement.",
+    logoTooLarge: "Fichier trop lourd — 2 Mo maximum.",
     brandColorsLabel: "Couleurs de marque",
     brandColorsHint: "Non configurée = rendu en noir sur le PDF anonymisé. Choisissez une couleur de votre logo ou de la palette suggérée.",
     sloganLabel: "Slogan", optionalTag: "(optionnel)",
@@ -393,6 +403,8 @@ const copy = {
     replaceLogo: "Replace",
     uploadLogo: "Upload",
     removeLogo: "Remove",
+    logoInvalidType: "Unsupported format — PNG, JPEG, WebP or SVG only.",
+    logoTooLarge: "File too large — 2 MB maximum.",
     brandColorsLabel: "Brand colors",
     brandColorsHint: "Not configured = rendered black on the anonymized PDF. Choose a color from your logo or the suggested palette.",
     sloganLabel: "Slogan", optionalTag: "(optional)",
@@ -2236,6 +2248,8 @@ function BrandingSection({
 
   const uploadLogo = async (file: File) => {
     if (!isOwner) return
+    if (!LOGO_ALLOWED_TYPES.includes(file.type)) { setError(t.logoInvalidType); return }
+    if (file.size > LOGO_MAX_BYTES) { setError(t.logoTooLarge); return }
     setBusy("uploading"); setError(null)
     const ext = file.name.split(".").pop() || "png"
     const path = `${organization.id}/${Date.now()}.${ext}`
@@ -2701,6 +2715,8 @@ function BrandingChangeRequestModal({
   const emailValid = newEmail === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())
 
   const handleLogoPick = async (file: File) => {
+    if (!LOGO_ALLOWED_TYPES.includes(file.type)) { setError(t.logoInvalidType); return }
+    if (file.size > LOGO_MAX_BYTES) { setError(t.logoTooLarge); return }
     setUploading(true); setError(null)
     try {
       // Path = `{org_id}/pending/{ts}.ext`. La RLS Storage du bucket

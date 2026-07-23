@@ -49,8 +49,9 @@ export async function PATCH(req: NextRequest) {
     .eq("user_id", user.id)
 
   if (error) {
+    console.error("[profile] update failed:", error.message)
     return NextResponse.json(
-      { error: "update_failed", detail: error.message },
+      { error: "update_failed", detail: "internal_error" },
       { status: 500 }
     )
   }

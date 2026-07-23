@@ -296,7 +296,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     pErr = pRes.error
   }
   if (pErr || !previewSigned) {
-    return NextResponse.json({ error: "sign_failed", detail: pErr?.message }, { status: 500 })
+    console.error("[cv/anonymize] sign failed:", pErr?.message)
+    return NextResponse.json({ error: "sign_failed", detail: "internal_error" }, { status: 500 })
   }
   return NextResponse.json({
     url: previewSigned.signedUrl,                       // backward compat: preview

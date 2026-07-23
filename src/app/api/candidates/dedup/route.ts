@@ -65,7 +65,8 @@ export async function POST() {
     .not("tags", "cs", "{ancien}")
 
   if (error) {
-    return NextResponse.json({ error: "db_failed", detail: error.message }, { status: 500 })
+    console.error("[candidates/dedup] db error:", error.message)
+    return NextResponse.json({ error: "db_failed", detail: "internal_error" }, { status: 500 })
   }
   const rows = (rowsRaw ?? []) as unknown as Row[]
 

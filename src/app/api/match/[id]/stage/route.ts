@@ -103,7 +103,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .single()
 
   if (updateErr) {
-    return NextResponse.json({ error: "db_update_failed", detail: updateErr.message }, { status: 500 })
+    console.error("[match/stage] db update failed:", updateErr.message)
+    return NextResponse.json({ error: "db_update_failed", detail: "internal_error" }, { status: 500 })
   }
   return NextResponse.json({ ok: true, assessment: updated })
 }

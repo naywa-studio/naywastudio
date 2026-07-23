@@ -620,6 +620,75 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
+#### Audit sécurité (Amine) — INTÉGRALEMENT CLOS + EN PROD — 2026-07-23
+
+**`main` = `c9de915`, déployé en PRODUCTION (READY sur naywastudio.com).** La
+branche `fix/security-issues` (audit failles d'Amine, 15 points, Lots A→D) est
+**mergée sur main en fast-forward et en prod.** Les 2 commits d'Amine
+(`1a4ab5c` Lots A/B, `31d1158` Lots C/D) **+** mon commit `c9de915` (les
+points restants). Branche `fix/security-issues` laissée telle quelle sur origin
+(porte un commit vide `da470b1` de retrigger Vercel, non mergé — ménage plus
+tard, décision Elyas).
+
+**Vérification des 15 points (faite dans le code réel + la base prod, pas sur
+parole)** — 12 déjà bien poussés par Amine, dont **2 qu'il croyait NON faits** :
+le brief oral disait « 3, 10, 11, 15 non poussés » mais **11** (route
+`migrate-r2-eu` bien supprimée) et **15** (table `extension_search_sessions`
+absente de la base, vérifié via MCP) **étaient faits**. Restaient réellement
+ouverts : **3, 9, 10** (+ résidu du 7).
+
+**Ce que j'ai ajouté (`c9de915`) :**
+- **Point 3** : `next` 16.2.2 → **16.2.10** + `eslint-config-next` idem
+  (`package.json`). Le `npm audit fix` d'Amine n'avait touché QUE les sous-deps
+  (js-yaml/ws/brace-expansion), jamais Next lui-même. `package-lock` NON édité
+  (pas de npm local) → régénéré par Vercel au build (`npm install`). **Build
+  prod vert = version publiée OK.**
+- **Point 10** : **migration 062** — bucket Storage `brand-logos` borné
+  (`file_size_limit=2 Mo` + `allowed_mime_types=[png,jpeg,webp,svg]`, comme
+  `cv-uploads`). La validation type/taille n'existait qu'en JS navigateur ;
+  c'est maintenant au niveau bucket → **s'applique à TOUS les chemins d'upload**
+  (onboarding, édition 24h, ET l'upload `pending` du flow demande admin, même
+  bucket). Taille en dur côté Supabase ; MIME sur content-type déclaré.
+  N'affecte que les nouveaux uploads.
+- **Point 9** : **migration 063** — 2 fonctions Postgres atomiques
+  (`SECURITY DEFINER`, search_path pinné, grant `service_role` only) :
+  `insert_candidate_if_under_cv_quota` (compte CV actifs + insert sous
+  `pg_advisory_xact_lock(hashtext(org))` = sérialise les uploads concurrents
+  d'une même org, verrou xact-scoped compatible pooler) et
+  `consume_org_llm_quota` (`UPDATE … WHERE compteur < limite RETURNING`).
+  Câblées dans `lib/quota.ts` (`atomicInsertCandidateUnderCvQuota` +
+  réécriture de la consommation dans `consumeOrgLlmAction`) et dans
+  `cv/upload/route.ts`. **Fallback anti-régression** : sur erreur d'INFRA de la
+  RPC (≠ dépassement) → retombe sur l'ancien chemin (`checkCvQuota` + insert
+  simple) → un upload ne peut JAMAIS se bloquer à cause du durcissement.
+  **Stockage laissé en check-then-write** délibérément (filet interne jamais
+  montré, race infinitésimale, auto-corrigé par le cron nightly
+  `recompute-storage` ; le retravailler imposait de gérer les retours anticipés
+  sur doublon = risque > bénéfice). Types des 2 RPC ajoutés à
+  `database.types.ts` (section Functions).
+- **Point 7 (résidu)** : 2 dernières fuites `error?.message ?? "insert_failed"`
+  → `"insert_failed" + detail:"internal_error"` + `console.error`
+  (`admin/maj/route.ts`, `cabinet/branding/request/route.ts`).
+
+**Validé** : build preview branche vert (Next 16.2.10 + TS des RPC compilent),
+point 9 testé en vrai par Elyas (upload CV OK), point 10 actif à la source
+(bucket), migrations 062/063 vérifiées en base, prod déployée et servie sur
+naywastudio.com. **Fonctions 062/063 testées en base avant câblage** (accept +
+reject CV + reject LLM, 0 ligne de test résiduelle).
+
+**⚠️ Surveiller Sentry** dans les heures qui suivent : ce déploiement touche le
+chemin d'upload CV (critique GMH). Le fallback est là pour ça, mais vigilance.
+
+**Notes de terrain confirmées ce jour** : `claude/brand-v3` est en fait **déjà
+dans main** (0 commit d'avance ; la charte est en prod — la doc plus bas qui
+dit « pas mergée » est un snapshot périmé). Machine Elyas : pas de `npm` ni
+`gh` local ; `git push` HTTPS passe par **Git Credential Manager** (fenêtre
+« Sign in with your browser » à valider une fois, ensuite en cache). Le webhook
+GitHub→Vercel avait raté le 1er push de la branche → re-déclenché par un commit
+vide (les push sur `main` déclenchent bien, eux).
+
+---
+
 #### Report V2 → V3 de la vitrine — EN COURS — 2026-07-20
 
 **BRANCHE `claude/brand-v3`, poussée, PAS mergée.** Décision Elyas après

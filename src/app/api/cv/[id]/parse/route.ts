@@ -315,7 +315,8 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     .single()
 
   if (updateErr) {
-    return NextResponse.json({ error: "db_update_failed", detail: updateErr.message }, { status: 500 })
+    console.error("[cv/parse] db update failed:", updateErr.message)
+    return NextResponse.json({ error: "db_update_failed", detail: "internal_error" }, { status: 500 })
   }
 
   // PLUS d'auto-matching à l'ajout d'un CV (retour Elyas) : le scoring ne

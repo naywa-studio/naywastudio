@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { r2DeleteByPrefix } from "@/lib/r2-storage"
+import { verifyCronSecret } from "@/lib/cron-auth"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -42,9 +43,7 @@ type BusinessTable = (typeof BUSINESS_TABLES)[number]
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
-  const secret = (process.env.CRON_SECRET ?? "").trim()
-  const provided = req.headers.get("authorization") ?? ""
-  if (!secret || provided !== `Bearer ${secret}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

@@ -75,7 +75,8 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message ?? "insert_failed" }, { status: 500 })
+    console.error("[admin/maj] insert error:", error?.message)
+    return NextResponse.json({ error: "insert_failed", detail: "internal_error" }, { status: 500 })
   }
 
   await logAdminAction({

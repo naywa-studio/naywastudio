@@ -24,7 +24,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { isAdmin } from "@/lib/admin"
-import { consumeQuota, consumeOrgLlmAction, checkCvQuota, checkStorageQuota, incrementStorageUsed } from "@/lib/quota"
+import { consumeQuota, consumeOrgLlmAction, atomicInsertCandidateUnderCvQuota, checkStorageQuota, incrementStorageUsed } from "@/lib/quota"
 import { r2Upload } from "@/lib/r2-storage"
 
 export const runtime = "nodejs"
@@ -138,30 +138,24 @@ export async function POST(req: NextRequest) {
   // Placé APRÈS la détection de doublon — ré-importer un CV déjà présent ne
   // doit jamais être bloqué (il n'ajoute pas de ligne). On ne cape que la
   // création d'un NOUVEAU candidat.
-  const cvCheck = await checkCvQuota(admin, orgId, { isAdmin: isAdminUser })
-  if (!cvCheck.ok) {
-    return NextResponse.json({
-      error: cvCheck.code ?? "cv_quota_exceeded",
-      message: cvCheck.message,
-    }, { status: 413 })
-  }
-
-  const { data: created, error: insertErr } = await admin
-    .from("candidates")
-    .insert({
-      user_id: user.id,
-      cv_file_name: file.name,
-      cv_file_size: file.size,
-      cv_mime_type: file.type || "application/pdf",
-      parse_status: "parsing",
-    })
-    .select("*")
-    .single()
-
-  if (insertErr || !created) {
-    console.error("[cv/upload] insert error:", insertErr?.message)
+  //
+  // Check + insert ATOMIQUES (verrou par-org côté Postgres) : deux uploads
+  // simultanés ne peuvent plus lire "sous la limite" en même temps puis
+  // insérer tous les deux. Fallback interne sur l'ancien chemin si la RPC a
+  // un pépin d'infra (jamais d'upload bloqué).
+  const insert = await atomicInsertCandidateUnderCvQuota(
+    admin,
+    { userId: user.id, orgId, fileName: file.name, fileSize: file.size, mimeType: file.type || "application/pdf" },
+    { isAdmin: isAdminUser },
+  )
+  if (!insert.ok || !insert.candidate) {
+    if (insert.code === "cv_quota_exceeded") {
+      return NextResponse.json({ error: "cv_quota_exceeded", message: insert.message }, { status: 413 })
+    }
+    console.error("[cv/upload] insert error:", insert.message)
     return NextResponse.json({ error: "db_insert_failed" }, { status: 500 })
   }
+  const created = insert.candidate
 
   const arrayBuf = await file.arrayBuffer()
   const buf = Buffer.from(arrayBuf)

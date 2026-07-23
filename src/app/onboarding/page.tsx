@@ -32,6 +32,12 @@ import type { Profile } from "@/lib/database.types"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
+// Garde-fou CLIENT uniquement (UX, rejet rapide) — pas de restriction
+// équivalente côté bucket Storage pour l'instant (nécessiterait un accès SQL
+// non disponible actuellement).
+const LOGO_ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"]
+const LOGO_MAX_BYTES = 2 * 1024 * 1024
+
 const copy = {
   fr: {
     loading: "Chargement…",
@@ -70,6 +76,8 @@ const copy = {
     errLogoSaveFail: "Logo téléversé mais sauvegarde en échec.",
     errLogoUpload: "Erreur upload logo",
     errLogoRemove: "Erreur suppression logo",
+    errLogoInvalidType: "Format non accepté — PNG, JPEG, WebP ou SVG uniquement.",
+    errLogoTooLarge: "Fichier trop lourd — 2 Mo maximum.",
     // Step 3
     inviteTitlePrefix: "Invitez votre ",
     inviteTitleItalic: "équipe",
@@ -139,6 +147,8 @@ const copy = {
     errLogoSaveFail: "Logo uploaded but the save failed.",
     errLogoUpload: "Logo upload error",
     errLogoRemove: "Logo removal error",
+    errLogoInvalidType: "Unsupported format — PNG, JPEG, WebP or SVG only.",
+    errLogoTooLarge: "File too large — 2 MB maximum.",
     // Step 3
     inviteTitlePrefix: "Invite your ",
     inviteTitleItalic: "team",
@@ -307,6 +317,8 @@ export default function OnboardingPage() {
 
   const uploadLogo = async (file: File) => {
     if (!orgId) return
+    if (!LOGO_ALLOWED_TYPES.includes(file.type)) { setError(t.errLogoInvalidType); return }
+    if (file.size > LOGO_MAX_BYTES) { setError(t.errLogoTooLarge); return }
     setUploadingLogo(true); setError(null)
     try {
       const sb = getSupabase()

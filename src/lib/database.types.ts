@@ -847,6 +847,25 @@ export type Database = {
         Args: { p_user: string; p_action: string }
         Returns: number
       }
+      // Insert atomique d'une candidate sous le plafond CV (verrou par-org).
+      // Lève cv_quota_exceeded si la limite est atteinte.
+      insert_candidate_if_under_cv_quota: {
+        Args: {
+          p_user_id: string
+          p_org_id: string
+          p_cv_file_name: string
+          p_cv_file_size: number
+          p_cv_mime_type: string
+          p_cv_limit: number
+        }
+        Returns: Database["public"]["Tables"]["candidates"]["Row"]
+      }
+      // Increment conditionnel atomique du compteur LLM mensuel d'une org.
+      // Retourne le nouveau total, ou null si la limite est déjà atteinte.
+      consume_org_llm_quota: {
+        Args: { p_org_id: string; p_limit: number }
+        Returns: number
+      }
     }
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }
