@@ -174,12 +174,22 @@ export type Database = {
           /** Langue préférée du site (fr/en), choisie via le sélecteur de
            *  langue. Fallback localStorage pour les visiteurs non connectés. */
           preferred_language: 'fr' | 'en'
-          /** Membre autorisé NOMMÉMENT par l'owner à modifier le branding et
-           *  la politique de pricing de son organisation (migration 062).
-           *  N'ouvre RIEN d'autre : ni facturation, ni sièges, ni transfert
-           *  de propriété, ni suppression. Toujours true pour un owner, qui
-           *  tient ces droits de son rôle. */
-          can_manage_org_settings: boolean
+          /** Capacités déléguées NOMMÉMENT par l'owner à un membre (migration
+           *  065). Chacune est accordable indépendamment. Un owner n'a PAS
+           *  besoin de ces colonnes : il tient tous les droits de son rôle
+           *  (cf. getCapabilities). Aucune de ces caps n'ouvre la facturation,
+           *  les sièges payés, le transfert de propriété, la suppression ni
+           *  l'octroi de droits — tout cela reste strictement owner. */
+          /** Gère l'identité & le branding (logo, couleurs, slogan, email de
+           *  contact + demandes de changement des champs verrouillés). */
+          can_manage_branding: boolean
+          /** Gère la politique commerciale (marges, jours facturables, défauts
+           *  TJM/lieu/modalité/avantages). */
+          can_manage_pricing: boolean
+          /** Gère l'équipe (inviter, attribuer un siège DÉJÀ payé, retirer un
+           *  membre). Non exposé en V1 (owner-only en pratique) ; la colonne
+           *  existe pour brancher la délégation plus tard sans migration. */
+          can_manage_team: boolean
           created_at: string
           updated_at: string
         }

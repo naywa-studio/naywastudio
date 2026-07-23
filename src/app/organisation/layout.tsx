@@ -10,6 +10,7 @@ import { TrialBanner } from "@/components/trial/TrialBanner"
 import { SupportButton } from "@/components/support/SupportButton"
 import { getSupabase } from "@/lib/supabase"
 import type { Organization, Profile } from "@/lib/database.types"
+import { getCapabilities, type Capabilities } from "@/lib/capabilities"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const copy = {
@@ -57,9 +58,12 @@ interface CabinetCtx {
   userEmail: string
   emailConfirmed: boolean
   isOwner: boolean
-  /** Owner, OU membre à qui l'owner a délégué la configuration
-   *  (branding + politique pricing). Ne vaut PAS accès à la facturation,
-   *  aux sièges ni à la zone de danger — cf. migration 062. */
+  /** Capacités calculées (source unique getCapabilities) — chaque section de
+   *  la console gate son affichage dessus (branding / pricing / équipe /
+   *  facturation…). */
+  caps: Capabilities
+  /** Rétro-compat : « peut gérer une config » = a au moins une cap de config
+   *  (branding OU pricing). Ne vaut PAS facturation, sièges ni zone de danger. */
   canManageSettings: boolean
   refetch: () => Promise<void>
 }
@@ -103,14 +107,15 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
     // Gate is per-page now: the dashboard (/cabinet) stays owner-only,
     // but /cabinet/parametrage is open to members in read-only so they
     // can consult the cabinet's pricing policy.
+    const caps = getCapabilities(profile)
     setCtx({
       profile,
       organization: org,
       userEmail: user.email ?? "",
       emailConfirmed: !!user.email_confirmed_at,
       isOwner: profile.role === "owner",
-      canManageSettings:
-        profile.role === "owner" || profile.can_manage_org_settings === true,
+      caps,
+      canManageSettings: caps.canBranding || caps.canPricing,
       refetch: fetchAll,
     })
     setReady(true)

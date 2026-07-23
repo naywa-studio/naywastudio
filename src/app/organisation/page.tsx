@@ -534,8 +534,9 @@ interface MemberRow {
   first_name: string | null
   role: "owner" | "member"
   has_sourcing_seat: boolean
-  /** Membre à qui l'owner a délégué le branding + la politique pricing. */
-  can_manage_org_settings?: boolean
+  /** Capacités déléguées par l'owner (migration 065), accordables séparément. */
+  can_manage_branding?: boolean
+  can_manage_pricing?: boolean
 }
 
 interface PendingInvite {
@@ -547,7 +548,7 @@ interface PendingInvite {
 }
 
 export default function CabinetPage() {
-  const { profile, organization, userEmail, emailConfirmed, isOwner, canManageSettings, refetch } = useCabinet()
+  const { profile, organization, userEmail, emailConfirmed, isOwner, canManageSettings, caps, refetch } = useCabinet()
   const router = useRouter()
   const searchParams = useSearchParams()
   const sb = useMemo(() => getSupabase(), [])
@@ -592,7 +593,7 @@ export default function CabinetPage() {
   const loadMembers = async () => {
     const { data } = await sb
       .from("profiles")
-      .select("user_id, first_name, role, has_sourcing_seat, can_manage_org_settings")
+      .select("user_id, first_name, role, has_sourcing_seat, can_manage_branding, can_manage_pricing")
       .eq("organization_id", organization.id)
       .order("role", { ascending: true })
     setMembers((data ?? []) as MemberRow[])
@@ -685,16 +686,19 @@ export default function CabinetPage() {
               isOwner={isOwner}
               onChange={() => { void loadInvites() }}
             />}
-            {/* Row 2 : Branding pleine largeur (la politique pricing
-                vit désormais dans l'onglet "Mes packages"). */}
-            <div style={{ gridColumn: "1 / -1" }}>
-              <BrandingSection
-                organization={organization}
-                logoUrl={logoUrl}
-                isOwner={isOwner}
-                onUpdated={refetch}
-              />
-            </div>
+            {/* Row 2 : Branding pleine largeur (la politique pricing vit dans
+                l'onglet « Mes packages » pour l'owner). Masqué à qui n'a pas la
+                cap branding — un délégué pricing-only ne le voit pas. */}
+            {caps.canBranding && (
+              <div style={{ gridColumn: "1 / -1" }}>
+                <BrandingSection
+                  organization={organization}
+                  logoUrl={logoUrl}
+                  isOwner={caps.canBranding}
+                  onUpdated={refetch}
+                />
+              </div>
+            )}
             {isOwner && (
               <div style={{ gridColumn: "1 / -1" }}>
                 <PreviewToolsCard />
@@ -702,9 +706,9 @@ export default function CabinetPage() {
             )}
             {/* Pour l'owner, la politique pricing reste dans l'onglet
                 « packages », à côté de l'abonnement. Un délégué n'a pas cet
-                onglet : on la lui sert ici, sinon la moitié de sa délégation
-                serait inaccessible. */}
-            {!isOwner && canManageSettings && canUsePricing && (
+                onglet : on la lui sert ici, sinon sa délégation pricing serait
+                inaccessible. */}
+            {!isOwner && caps.canPricing && canUsePricing && (
               <div style={{ gridColumn: "1 / -1" }}>
                 <PricingPolicySectionCollapsible />
               </div>
@@ -3352,7 +3356,10 @@ function MembersSection({
     const res = await fetch("/api/cabinet/delegate-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, allow }),
+      // Toggle bundlé (branding + pricing ensemble) : correspond au besoin
+      // « une personne gère toute la config ». Le backend est granulaire — des
+      // toggles par-capacité pourront s'ajouter sans y retoucher.
+      body: JSON.stringify({ userId, branding: allow, pricing: allow }),
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { message?: string; error?: string }))
@@ -3411,14 +3418,14 @@ function MembersSection({
                     type="button"
                     onClick={() => void toggleDelegate(
                       m.user_id,
-                      !m.can_manage_org_settings,
+                      !(m.can_manage_branding || m.can_manage_pricing),
                       m.first_name ?? t.noFirstName,
                     )}
                     disabled={busy}
-                    title={m.can_manage_org_settings ? t.delegateRemoveHint : t.delegateAddHint}
+                    title={(m.can_manage_branding || m.can_manage_pricing) ? t.delegateRemoveHint : t.delegateAddHint}
                     style={{
                       ...iconBtnStyle,
-                      ...(m.can_manage_org_settings
+                      ...((m.can_manage_branding || m.can_manage_pricing)
                         ? {
                             color: "var(--nw-primary)",
                             borderColor: "var(--nw-primary-200)",
@@ -3427,7 +3434,7 @@ function MembersSection({
                         : null),
                     }}
                   >
-                    {m.can_manage_org_settings ? t.delegateOnLabel : t.delegateOffLabel}
+                    {(m.can_manage_branding || m.can_manage_pricing) ? t.delegateOnLabel : t.delegateOffLabel}
                   </button>
                 )}
                 {canDeallocate && (

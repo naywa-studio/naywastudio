@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { getCapabilities } from "@/lib/capabilities"
 import type { PricingDefaultAvantages } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -57,7 +58,7 @@ export async function PATCH(req: Request) {
 
   const { data: profile } = await sb
     .from("profiles")
-    .select("organization_id, role, can_manage_org_settings")
+    .select("organization_id, role, is_admin, has_sourcing_seat, can_manage_branding, can_manage_pricing, can_manage_team")
     .eq("user_id", user.id)
     .single()
 
@@ -65,48 +66,62 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "No organization" }, { status: 404 })
   }
 
-  // Deux niveaux de droit sur cette route.
-  //
-  //   owner    → tout, y compris l'identité légale et l'e-mail de contact.
-  //   délégué  → UNIQUEMENT l'habillage visuel et la politique de pricing.
-  //
-  // Le drapeau `can_manage_org_settings` est posé nommément par l'owner sur
-  // un membre (cf. migration 062). Il ne donne aucun droit sur la
-  // facturation, les sièges, le transfert de propriété ou la suppression —
-  // ces actions vivent sur d'autres routes, toutes owner-only.
-  const isOwner = profile.role === "owner"
-  const isDelegate = profile.can_manage_org_settings === true
-  if (!isOwner && !isDelegate) {
-    return NextResponse.json({ error: "Only the owner can edit the cabinet" }, { status: 403 })
+  // Droits via la source unique (getCapabilities). Cette route couvre DEUX
+  // domaines — l'identité/branding et la politique de pricing — chacun gardé
+  // par sa propre capacité. On refuse d'emblée qui n'a NI l'une NI l'autre,
+  // puis on vérifie champ par champ plus bas.
+  const caps = getCapabilities(profile)
+  if (!caps.canBranding && !caps.canPricing) {
+    return NextResponse.json(
+      { error: "forbidden", message: "Vous n'avez pas accès à la configuration de l'organisation." },
+      { status: 403 },
+    )
   }
 
   let body: UpdateBody
   try { body = (await req.json()) as UpdateBody }
   catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
 
-  // Champs réservés à l'owner : `name` est l'identité légale de la société,
-  // et les horodatages d'onboarding pilotent des redirections — ils ne se
-  // modifient pas à la main.
-  //
-  // `contact_email` est délégable (décision Elyas) : c'est l'adresse imprimée
-  // sur les documents envoyés aux clients, donc elle fait partie de ce que
-  // gère la personne qui prépare ces documents.
-  const OWNER_ONLY: ReadonlyArray<string> = [
-    "name",
-    "cabinet_onboarded_at",
-    "pricing_onboarded_at",
+  // Enforcement CHAMP PAR CHAMP contre la capacité requise (l'UI masque déjà,
+  // mais un appel direct ne doit pas passer). Chaque champ appartient à un
+  // domaine : owner-strict, branding, ou pricing.
+  const bodyKeys = Object.keys(body as Record<string, unknown>)
+  // `name` = identité légale ; `*_onboarded_at` de cabinet = flux d'onboarding
+  // owner. Owner strict, jamais délégués.
+  const OWNER_ONLY_FIELDS = ["name", "cabinet_onboarded_at"]
+  const BRANDING_FIELDS = ["brand_name", "brand_logo_path", "brand_color", "brand_color_secondary", "brand_slogan", "contact_email"]
+  // `pricing_onboarded_at` suit le domaine PRICING : un délégué pricing qui
+  // termine l'onboarding pricing doit pouvoir l'horodater. C'était la cause du
+  // bug « le délégué ne peut pas configurer le pricing » — le save partait avec
+  // pricing_onboarded_at classé owner-only → 403.
+  const PRICING_FIELDS = [
+    "pricing_billable_days_per_month", "pricing_rtt_days_per_year",
+    "pricing_margin_min_pct", "pricing_margin_target_pct",
+    "pricing_default_lieu", "pricing_default_modalite",
+    "pricing_default_avantages", "pricing_onboarded_at",
   ]
-  if (!isOwner) {
-    const forbidden = OWNER_ONLY.filter((k) => k in (body as Record<string, unknown>))
-    if (forbidden.length > 0) {
-      return NextResponse.json(
-        {
-          error: "owner_only_fields",
-          message: `Ces champs ne sont modifiables que par le propriétaire : ${forbidden.join(", ")}.`,
-        },
-        { status: 403 },
-      )
-    }
+
+  const touchedOwnerOnly = OWNER_ONLY_FIELDS.filter((k) => bodyKeys.includes(k))
+  if (touchedOwnerOnly.length > 0 && !caps.isOrgAdmin) {
+    return NextResponse.json(
+      {
+        error: "owner_only_fields",
+        message: `Ces champs ne sont modifiables que par le propriétaire : ${touchedOwnerOnly.join(", ")}.`,
+      },
+      { status: 403 },
+    )
+  }
+  if (BRANDING_FIELDS.some((k) => bodyKeys.includes(k)) && !caps.canBranding) {
+    return NextResponse.json(
+      { error: "branding_forbidden", message: "Vous n'êtes pas habilité à modifier l'identité & le branding." },
+      { status: 403 },
+    )
+  }
+  if (PRICING_FIELDS.some((k) => bodyKeys.includes(k)) && !caps.canPricing) {
+    return NextResponse.json(
+      { error: "pricing_forbidden", message: "Vous n'êtes pas habilité à modifier la politique de pricing." },
+      { status: 403 },
+    )
   }
 
   // Champs branding fort : verrouillés 24h après onboarding

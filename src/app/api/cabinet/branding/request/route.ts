@@ -38,6 +38,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { getCapabilities } from "@/lib/capabilities"
 import { sendEmail, MAIL_DOMAIN } from "@/lib/resend"
 import type { BrandingChangeField } from "@/lib/database.types"
 
@@ -71,11 +72,17 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await sb
     .from("profiles")
-    .select("organization_id, role")
+    .select("organization_id, role, is_admin, has_sourcing_seat, can_manage_branding, can_manage_pricing, can_manage_team")
     .eq("user_id", user.id)
     .maybeSingle()
-  if (!profile || profile.role !== "owner") {
-    return NextResponse.json({ error: "owner_only" }, { status: 403 })
+  if (!profile?.organization_id) {
+    return NextResponse.json({ error: "no_organization" }, { status: 404 })
+  }
+  // Soumettre une demande de changement des champs branding verrouillés
+  // (nom/logo/contact) relève du domaine BRANDING : owner OU membre habilité.
+  // La demande passe de toute façon par la validation d'un admin Naywa.
+  if (!getCapabilities(profile).canBranding) {
+    return NextResponse.json({ error: "branding_forbidden" }, { status: 403 })
   }
 
   const body = await req.json().catch(() => null) as {

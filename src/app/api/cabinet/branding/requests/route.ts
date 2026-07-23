@@ -18,6 +18,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { getCapabilities } from "@/lib/capabilities"
 import type { BrandingChangeField, BrandingChangeStatus } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -43,11 +44,16 @@ export async function GET() {
 
   const { data: profile } = await sb
     .from("profiles")
-    .select("organization_id, role")
+    .select("organization_id, role, is_admin, has_sourcing_seat, can_manage_branding, can_manage_pricing, can_manage_team")
     .eq("user_id", user.id)
     .maybeSingle()
-  if (!profile || profile.role !== "owner") {
-    return NextResponse.json({ error: "owner_only" }, { status: 403 })
+  if (!profile?.organization_id) {
+    return NextResponse.json({ error: "no_organization" }, { status: 404 })
+  }
+  // Suivre ses demandes de branding relève du domaine BRANDING : visible à
+  // l'owner ET à un membre habilité au branding.
+  if (!getCapabilities(profile).canBranding) {
+    return NextResponse.json({ error: "branding_forbidden" }, { status: 403 })
   }
 
   const admin = getAdminSupabase()

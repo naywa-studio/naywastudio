@@ -5,17 +5,22 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 export const runtime = "nodejs"
 
 /**
- * POST /api/cabinet/delegate-settings  { userId: string, allow: boolean }
+ * POST /api/cabinet/delegate-settings
+ *   { userId: string, branding?: boolean, pricing?: boolean }
  *
- * L'owner délègue (ou retire) à un MEMBRE le droit de gérer la
- * configuration de l'organisation : branding et politique de pricing.
+ * L'owner accorde (ou retire) à un MEMBRE des capacités de gestion de son
+ * organisation, À LA CARTE. Chaque cap fournie dans le body est mise à jour ;
+ * les caps absentes sont laissées telles quelles.
+ *   - branding : identité & image (logo, couleurs, slogan, email de contact)
+ *   - pricing  : politique commerciale (marges, jours facturables, défauts TJM)
  *
- * Ce que la délégation N'OUVRE PAS, et ne doit jamais ouvrir :
+ * Ce que la délégation N'OUVRE JAMAIS, quelle que soit la cap accordée :
  *   - l'abonnement et la facturation,
- *   - l'allocation des sièges et les invitations,
- *   - le transfert de propriété,
- *   - la suppression de l'organisation.
- * Ces actions vivent sur d'autres routes, toutes gardées par `role=owner`.
+ *   - l'achat/réduction de sièges payés,
+ *   - le transfert de propriété, la suppression de l'organisation,
+ *   - l'OCTROI de capacités (cette route elle-même) — sinon un délégué
+ *     pourrait s'auto-promouvoir : c'est la vanne d'escalade, owner strict.
+ * Ces actions vivent sur d'autres routes, toutes gardées owner.
  *
  * Cas d'usage d'origine : un dirigeant est owner pour la facturation mais
  * n'utilise pas l'outil ; c'est son sourceur qui doit régler les marges et
@@ -35,31 +40,41 @@ export async function POST(req: Request) {
   if (!caller?.organization_id) {
     return NextResponse.json({ error: "No organization" }, { status: 404 })
   }
+  // Octroi de capacités = owner STRICT. Ni délégué, ni membre : c'est la vanne
+  // d'escalade de privilèges, elle ne se délègue pas.
   if (caller.role !== "owner") {
     return NextResponse.json(
-      { error: "owner_only", message: "Seul le propriétaire peut déléguer la configuration." },
+      { error: "owner_only", message: "Seul le propriétaire peut déléguer des accès." },
       { status: 403 },
     )
   }
 
-  let body: { userId?: unknown; allow?: unknown }
+  let body: { userId?: unknown; branding?: unknown; pricing?: unknown }
   try { body = await req.json() }
   catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
 
   const targetUserId = typeof body.userId === "string" ? body.userId : ""
-  const allow = body.allow === true
   if (!targetUserId) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 })
   }
 
+  // On ne met à jour QUE les caps explicitement présentes dans le body (bool).
+  // Une cap absente n'est pas touchée — permet des toggles indépendants.
+  const patch: { can_manage_branding?: boolean; can_manage_pricing?: boolean } = {}
+  if (typeof body.branding === "boolean") patch.can_manage_branding = body.branding
+  if (typeof body.pricing === "boolean") patch.can_manage_pricing = body.pricing
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json({ error: "no_caps", message: "Aucune capacité à modifier." }, { status: 400 })
+  }
+
   const admin = getAdminSupabase()
 
-  // Lecture d'abord via une requête SCOPÉE à l'org de l'appelant : si la
-  // cible n'y appartient pas, on renvoie 404 sans jamais révéler qu'elle
-  // existe ailleurs. Même principe que sur les autres routes de mutation.
+  // Lecture d'abord via une requête SCOPÉE à l'org de l'appelant : si la cible
+  // n'y appartient pas, on renvoie 404 sans jamais révéler qu'elle existe
+  // ailleurs. Même principe que sur les autres routes de mutation.
   const { data: target } = await admin
     .from("profiles")
-    .select("user_id, role, first_name")
+    .select("user_id, role")
     .eq("user_id", targetUserId)
     .eq("organization_id", caller.organization_id)
     .single()
@@ -67,9 +82,9 @@ export async function POST(req: Request) {
   if (!target) {
     return NextResponse.json({ error: "Membre introuvable dans cette organisation" }, { status: 404 })
   }
-  // L'owner tient déjà ces droits de son rôle : le drapeau ne le concerne
-  // pas, et le laisser modifiable créerait un état incohérent (un owner
-  // « sans droit » de configurer sa propre organisation).
+  // L'owner tient déjà ces droits de son rôle : les caps ne le concernent pas,
+  // et les rendre modifiables créerait un état incohérent (un owner « sans
+  // droit » de configurer sa propre organisation).
   if (target.role === "owner") {
     return NextResponse.json(
       { error: "owner_always_allowed", message: "Le propriétaire dispose déjà de ces droits." },
@@ -79,7 +94,7 @@ export async function POST(req: Request) {
 
   const { error } = await admin
     .from("profiles")
-    .update({ can_manage_org_settings: allow })
+    .update(patch)
     .eq("user_id", targetUserId)
     .eq("organization_id", caller.organization_id)
 
@@ -88,5 +103,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "DB error" }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, userId: targetUserId, allow })
+  return NextResponse.json({ ok: true, userId: targetUserId, ...patch })
 }

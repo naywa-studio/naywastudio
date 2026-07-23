@@ -13,6 +13,7 @@ import { QuotaWarningBanner } from "@/components/quota/QuotaWarningBanner"
 import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
 import { SupportButton } from "@/components/support/SupportButton"
 import { isWorkspaceReadOnly, hasActiveAccess, graceInfo, hasPricingAccess } from "@/lib/subscription"
+import { getCapabilities } from "@/lib/capabilities"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -232,6 +233,12 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   // lien n'empêche personne de taper l'URL.
   const canPricing = hasPricingAccess(organization, { isAdmin: profile?.is_admin === true })
 
+  // Accès à la console organisation = a une raison d'y aller : owner/admin, ou
+  // membre habilité au branding et/ou au pricing. Source unique = getCapabilities.
+  // (Distinct de `canPricing` ci-dessus, qui est l'ENTITLEMENT Suite Pricing.)
+  const orgCaps = getCapabilities(profile)
+  const canReachOrgConsole = orgCaps.isOrgAdmin || orgCaps.canBranding || orgCaps.canPricing
+
   const tabLinks = TABS[lang].filter((tab) => !tab.requiresPricing || canPricing).map((tab) => {
     const active = isActive(tab.href)
     return (
@@ -317,11 +324,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* Pont vers la console organisation. Ouvert à l'owner, à
-                l'admin, ET au membre à qui l'owner a délégué la configuration
-                (migration 062) — sans ce lien, un délégué n'a AUCUN moyen
-                d'atteindre la page depuis l'interface. */}
-            {(profile?.role === "owner" || profile?.is_admin || profile?.can_manage_org_settings) && (
+            {/* Pont vers la console organisation. Ouvert à l'owner, à l'admin,
+                ET au membre habilité (branding/pricing) — sans ce lien, un
+                délégué n'aurait AUCUN moyen d'atteindre la page depuis l'UI. */}
+            {canReachOrgConsole && (
               <Link
                 href="/organisation"
                 className="ws-org-link"
@@ -388,7 +394,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
                   <Link href="/profil" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
                     {t.myProfile}
                   </Link>
-                  {(profile?.role === "owner" || profile?.can_manage_org_settings) && (
+                  {canReachOrgConsole && (
                     <Link href="/organisation" onClick={() => setMenuOpen(false)} style={MENU_ITEM}>
                       {t.myOrganization}
                     </Link>
