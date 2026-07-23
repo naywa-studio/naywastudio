@@ -128,6 +128,10 @@ export async function POST(req: Request) {
         quantity: seats,
         proration_behavior: "create_prorations",
       })
+      // Écriture immédiate de la valeur DÉJÀ confirmée par Stripe : l'UI reflète
+      // le changement au refresh sans attendre le webhook (latence + 0 delivery
+      // en preview). Le webhook posera la même valeur → aucune divergence.
+      await admin.from("organizations").update({ subscription_seats: seats }).eq("id", org.id)
       return NextResponse.json({ ok: true, seats })
     }
 
@@ -162,6 +166,7 @@ export async function POST(req: Request) {
       proration_behavior: "create_prorations",
     })
 
+    const keepsPricing = hadBundledPricing || addonAlreadyThere
     if (hadBundledPricing && !addonAlreadyThere) {
       const addonPriceId = await getPriceIdByLookupKey(LOOKUP_PRICING_ADDON)
       await stripe.subscriptionItems.create({
@@ -172,6 +177,13 @@ export async function POST(req: Request) {
       })
     }
 
+    // Idem : on reflète tout de suite l'état confirmé par Stripe (sièges, et le
+    // maintien de la Suite Pricing pour les anciennes formules « pro »). Le
+    // webhook réécrira les mêmes valeurs.
+    await admin
+      .from("organizations")
+      .update({ subscription_seats: seats, subscription_has_pricing: keepsPricing })
+      .eq("id", org.id)
     return NextResponse.json({ ok: true, seats, migratedFrom: legacyLookup })
   } catch (err) {
     console.error("[stripe/seats]", err)
