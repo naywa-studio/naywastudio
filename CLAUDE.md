@@ -620,6 +620,96 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
+#### Délégation granulaire + lecture seule + fix abonnement GMH — EN PROD — 2026-07-23
+
+**Branche `claude/fix-gmh-subscription` MERGÉE dans main (fast-forward) et en
+prod.** Elle portait 2 lots : (1) le fix **abonnement GMH** d'origine (Stripe),
+commencé sur le PC d'Elyas, (2) tout le système de **droits/délégation + lecture
+seule** fait cette session. **Migration 065 appliquée en prod.**
+
+**LOT 1 — Abonnement GMH (Stripe) :**
+- Garde anti-**double abonnement** : `/api/stripe/checkout` refuse (409) si un abo
+  existe déjà (avant : 2ᵉ passage = 2ᵉ abo = double prélèvement).
+- **Changement de sièges** : `POST /api/stripe/seats` modifie la ligne « sièges »
+  en place (proratisation), owner-only, refuse de descendre sous les sièges
+  occupés (409), idempotent, gère les anciennes formules (bascule vers
+  `sourcing_seat`, réinjecte la Suite Pricing pour les `sourcing_pro_*`). UI
+  `SeatCountEditor` + confirmation « êtes-vous sûr » (proratisation).
+- **Fix synchro base (ce jour)** : les routes `seats` + `pricing-addon` ne
+  s'appuyaient QUE sur le webhook pour écrire `subscription_seats` /
+  `subscription_has_pricing`. Or le webhook a **0 delivery en preview** et de la
+  latence en prod. Elles **écrivent maintenant la base directement sur TOUS les
+  chemins (y compris idempotent)**, avec la valeur DÉJÀ confirmée par Stripe →
+  aucune divergence (le webhook réécrit la même). Validé sur TEST : 1→2 sièges +
+  Suite Pricing → `subscription_seats=2`, `subscription_has_pricing=true` en base
+  + portail Stripe cohérent (79,98 €/mois). Le « prochain paiement » gonflé
+  (111,48 €) = proratisation NORMALE des changements mi-période (amplifiée par les
+  allers-retours de test), pas un bug.
+
+**LOT 2 — Système de droits (`lib/capabilities.ts`) :**
+- `getCapabilities(profile)` = **SOURCE UNIQUE** de vérité : `{ isAdminNaywa,
+  isOwner, canSourcing, canViewWorkspace, canBranding, canPricing, canTeam,
+  isOrgAdmin }`. Consommé par l'UI ET les routes. **Ne JAMAIS réintroduire de
+  `role === "owner"` épars.**
+- **Migration 065** : `can_manage_org_settings` (drapeau bundlé) éclaté en
+  `can_manage_branding` + `can_manage_pricing` (+ `can_manage_team` réservé, non
+  exposé). Backfill des délégations existantes, ancien drapeau droppé. (La 062 a
+  été renommée **064** dans le repo — collision de nom, pas de collision en base
+  car Supabase versionne par timestamp.)
+- **Délégué = owner MINUS facturation.** L'owner accorde des caps NOMMÉMENT via
+  `POST /api/cabinet/delegate-settings` (owner-only STRICT = vanne anti-escalade).
+  En V1 l'UI est un **toggle bundlé « Config. »** (branding+pricing ensemble) ; le
+  backend est granulaire (cases par-droit = à faire dans la refonte).
+- Routes sur caps : `cabinet` PATCH (enforcement **champ par champ** :
+  branding→canBranding, pricing→canPricing, `name` légal + onboarding = owner ;
+  le délégué ne met à jour que `brand_name`, jamais le `name` légal),
+  `branding/request`+`requests` (→ canBranding). Lien Console + contexte
+  /organisation exposent les caps.
+- **🔴 PIÈGE RLS (fix critique)** : la policy `organizations_owner_write` n'autorise
+  que l'owner (`owner_user_id = auth.uid()`). Le PATCH cabinet écrivait via le
+  client RLS → l'UPDATE d'un délégué touchait **0 ligne SANS erreur** → rien ne se
+  sauvait, en silence (couleur/slogan/pricing du délégué perdus). **Toute écriture
+  d'un délégué sur `organizations` doit passer par le client ADMIN** (autorisation
+  déjà faite par les caps). Vaut pour toute future route délégable.
+
+**LOT 3 — Lecture seule workspace :**
+- Tout membre de l'org SANS siège (owner inclus) entre désormais dans le workspace
+  en **lecture seule** (plus de bounce). `isReadOnly` = pas de siège OU
+  `isWorkspaceReadOnly`. Bannière `SeatReadOnlyBanner`. Lien « Workspace » du header
+  /organisation ouvert à `canViewWorkspace` (sinon owner sans siège = aucun chemin).
+- **Fiche candidat** (`vivier/[candidateId]`) = la SEULE page à faire des
+  **écritures directes client** (notes/tags/supprimer via `sb.from` RLS) qui
+  contournaient `requireActiveAccess` → gardée sur `isReadOnly`. Vérifié : aucune
+  autre écriture directe dans tout `src/app/workspace` + composants.
+- Le **grisage cosmétique complet** du workspace en lecture seule reste incomplet
+  (effort pré-existant connu) : des boutons s'affichent mais échouent serveur.
+  Sans risque données. À finir dans une passe dédiée.
+
+**PROCHAINE BRANCHE (validé Elyas) — 3 chantiers regroupés :**
+1. **Refonte visuelle /organisation** en 6 sections (Vue d'ensemble · Identité &
+   Branding · Politique pricing · Équipe & sièges · Abonnement & facturation ·
+   Avancé). Page de **4170 lignes** → réorganiser en réutilisant les composants
+   existants + les caps déjà posées. Y inclure les **cases à cocher par-droit**
+   (Branding/Pricing) dans Équipe. ⚠️ **Purement présentation, ne touche pas au
+   système de droits.** Validation par **captures Elyas** (aucun compilateur local
+   — le build Vercel est le seul typecheck).
+2. **Preview de proratisation** : appeler l'upcoming-invoice Stripe pour afficher
+   le montant EXACT (« aujourd'hui ~X € au prorata, puis Y €/mois ») dans la
+   confirmation sièges/addon → le client ne se sent jamais lésé.
+3. **Acceptation CGU** : case « J'accepte les CGU » bloquant le bouton Souscrire +
+   **trace légale** (`cgu_accepted_at` + version des CGU, colonne org).
+
+**Notes de terrain :**
+- **Stripe preview** : TEST a un abo en mode test compatible avec les clés test de
+  la preview → les routes Stripe répondent 200 et modifient le VRAI abo test. Mais
+  le webhook ne délivre pas en preview → seule l'écriture directe (fix ci-dessus)
+  reflète le changement. **TEST laissé à 2 sièges + Suite Pricing** (argent
+  fictif ; reset = via l'UI de l'app, JAMAIS en base seule sinon désync Stripe).
+- Pas de `tsc`/`npm` local → chaque push validé par le **build Vercel** (a attrapé
+  1 erreur de narrowing TS ce jour). Push HTTPS via Git Credential Manager.
+
+---
+
 #### Audit sécurité (Amine) — INTÉGRALEMENT CLOS + EN PROD — 2026-07-23
 
 **`main` = `c9de915`, déployé en PRODUCTION (READY sur naywastudio.com).** La
