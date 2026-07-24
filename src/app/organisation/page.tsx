@@ -2276,7 +2276,7 @@ function BrandingSection({
   const { lang } = useLanguage()
   const t = copy[lang]
   const sb = useMemo(() => getSupabase(), [])
-  const [open, setOpen] = useState(true) // pliable, ouvert par défaut
+  const [open] = useState(true) // carte Branding toujours dépliée (repli retiré)
   const [orgName, setOrgName] = useState(organization.brand_name ?? organization.name ?? "")
   const [slogan, setSlogan] = useState(organization.brand_slogan ?? "")
   const [email, setEmail] = useState(organization.contact_email ?? "")
@@ -2317,6 +2317,7 @@ function BrandingSection({
   // l'effet de fetch sans définir un useCallback (qui plante la règle
   // react-hooks/set-state-in-effect).
   const [requestsRefreshTick, setRequestsRefreshTick] = useState(0)
+  const [allRequests, setAllRequests] = useState<BrandingRequestRow[]>([])
   useEffect(() => {
     if (!isOwner) return
     let cancelled = false
@@ -2336,6 +2337,7 @@ function BrandingSection({
         }
         if (cancelled) return
         setRequestsByField(latest)
+        setAllRequests(j.requests ?? [])
       } catch {
         /* silencieux : pas de statut si l'API tombe, l'UI reste utilisable */
       }
@@ -2437,18 +2439,6 @@ function BrandingSection({
               {t.editLockedInfo}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            style={{
-              fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
-              background: "transparent", border: "none",
-              padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
-              display: "inline-flex", alignItems: "center", gap: 4,
-            }}
-          >
-            {open ? t.collapse : t.expand}
-          </button>
         </div>
       }
     >
@@ -2602,6 +2592,8 @@ function BrandingSection({
             )}
           </div>
 
+          <RequestHistory requests={allRequests} />
+
           {requestModalOpen && (
             <BrandingChangeRequestModal
               organizationId={organization.id}
@@ -2659,6 +2651,44 @@ function LockedField({ value }: { value: string }) {
  * soumettant une nouvelle demande sur le même champ) ne sont pas
  * affichées : silence utile.
  */
+/** Historique des demandes de modification branding (en cours + décidées des
+ *  30 derniers jours, servi par GET /api/cabinet/branding/requests). Visible à
+ *  l'owner ET au délégué branding. Masqué s'il n'y a aucune demande. */
+function RequestHistory({ requests }: { requests: BrandingRequestRow[] }) {
+  const { lang } = useLanguage()
+  if (requests.length === 0) return null
+  const L = lang === "en"
+    ? { title: "Change request history", name: "Name", logo: "Logo", email: "Contact email", pending: "Pending", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" }
+    : { title: "Historique des demandes", name: "Nom", logo: "Logo", email: "Email de contact", pending: "En attente", approved: "Approuvée", rejected: "Refusée", cancelled: "Annulée" }
+  const fieldLabel = (f: string) => f === "name" ? L.name : f === "brand_logo_path" ? L.logo : L.email
+  const statusMeta: Record<string, { label: string; bg: string; fg: string }> = {
+    pending: { label: L.pending, bg: "#FEF3C7", fg: "#92400E" },
+    approved: { label: L.approved, bg: "#DCFCE7", fg: "#166534" },
+    rejected: { label: L.rejected, bg: "#FEE2E2", fg: "#991B1B" },
+    cancelled: { label: L.cancelled, bg: "var(--nw-surface-muted)", fg: "var(--nw-text-muted)" },
+  }
+  const locale = lang === "en" ? "en-US" : "fr-FR"
+  return (
+    <div style={{ borderTop: "1px solid var(--nw-border-soft)", paddingTop: 16 }}>
+      <p style={{ margin: "0 0 10px", fontSize: 12.5, fontWeight: 700, color: "var(--nw-text)" }}>{L.title}</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {requests.map((r) => {
+          const s = statusMeta[r.status] ?? statusMeta.pending
+          const when = new Date(r.decided_at ?? r.created_at).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })
+          return (
+            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 }}>
+              <span style={{ color: "var(--nw-text-muted)", minWidth: 92, whiteSpace: "nowrap" }}>{when}</span>
+              <span style={{ fontWeight: 600, color: "var(--nw-text)", whiteSpace: "nowrap" }}>{fieldLabel(r.field)}</span>
+              <span style={{ color: "var(--nw-text-muted)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>→ {r.requested_value}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: s.bg, color: s.fg, whiteSpace: "nowrap" }}>{s.label}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function RequestStatusInline({ request }: { request: BrandingRequestRow | null }) {
   const { lang } = useLanguage()
   const t = copy[lang]
