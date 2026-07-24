@@ -26,6 +26,7 @@ import {
 } from "@/lib/pricing-plan"
 import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
+import PricingPolicyForm from "@/components/organisation/PricingPolicyForm"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
@@ -709,7 +710,7 @@ export default function CabinetPage() {
           {activeSection === "pricing" && caps.canPricing && (
             canUsePricing ? (
               <>
-                <PricingPolicySectionCollapsible />
+                <PricingPolicyForm />
                 <PricingOnboardingGate organization={organization} onDone={refetch} />
               </>
             ) : (
@@ -3195,68 +3196,6 @@ const miniLabel: React.CSSProperties = {
   color: "var(--nw-text-muted)", letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
 }
 
-/**
- * Carte standalone pliable "Politique pricing" — vit dans la grille
- * /organisation à côté de Branding/Identité. Repliée par défaut pour
- * ne pas alourdir la page (le contenu n'est qu'un CTA "Configurer").
- */
-function PricingPolicySectionCollapsible() {
-  const { lang } = useLanguage()
-  const t = copy[lang]
-  const [open, setOpen] = useState(false)
-  return (
-    <Card
-      title={t.pricingPolicyTitle}
-      subtitle={t.pricingPolicySubtitle}
-      headerRight={
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          style={{
-            fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
-            background: "transparent", border: "none",
-            padding: "4px 8px", cursor: "pointer", fontFamily: "inherit",
-          }}
-        >
-          {open ? t.collapse : t.expand}
-        </button>
-      }
-    >
-      {!open ? (
-        <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-muted)" }}>
-          {t.pricingPolicyReused}
-        </p>
-      ) : (
-        <div style={{
-          padding: "12px 14px", borderRadius: 10,
-          background: "rgba(124,99,200,0.06)", border: "1px solid rgba(124,99,200,0.20)",
-          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-          flexWrap: "wrap",
-        }}>
-          <div>
-            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)" }}>
-              {t.marginsBenefitsLocations}
-            </p>
-            <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)" }}>
-              {t.configureDetails}
-            </p>
-          </div>
-          <a
-            href="/organisation/parametrage"
-            style={{
-              padding: "8px 13px", borderRadius: 8,
-              background: "var(--nw-primary)", color: "white",
-              fontSize: 12, fontWeight: 700,
-              textDecoration: "none", whiteSpace: "nowrap",
-            }}
-          >
-            {t.configureArrow}
-          </a>
-        </div>
-      )}
-    </Card>
-  )
-}
 
 /* ────────────────────────────────────────────────────────────────── */
 /* Preview tools — visible UNIQUEMENT sur déploiements preview Vercel  */

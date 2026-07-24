@@ -508,7 +508,7 @@ function CompactHeader({ job }: { job: Job }) {
         </div>
       </div>
       <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-        <Link href="/organisation/parametrage" style={{
+        <Link href="/organisation?tab=pricing" style={{
           fontSize: 12, fontWeight: 700, color: "var(--nw-primary)",
           background: "white", border: "1px solid rgba(124,99,200,0.25)",
           borderRadius: 9, padding: "8px 14px", textDecoration: "none",

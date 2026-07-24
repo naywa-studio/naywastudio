@@ -436,7 +436,7 @@ function Header({ missionCount }: { missionCount: number }) {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/organisation/parametrage" style={linkBtnStyle}>
+          <Link href="/organisation?tab=pricing" style={linkBtnStyle}>
             {t.orgPricingPolicy}
           </Link>
           <Link href="/workspace/pricing/reference" style={linkBtnStyle}>
@@ -487,7 +487,7 @@ function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
       </div>
       {isOwner ? (
         <Link
-          href="/organisation/parametrage"
+          href="/organisation?tab=pricing"
           style={{
             display: "inline-block",
             padding: "8px 14px", borderRadius: 9,
