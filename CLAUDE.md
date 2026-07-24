@@ -620,6 +620,57 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
+#### Refonte visuelle /organisation — EN COURS (branche, PAS mergée) — 2026-07-23
+
+**BRANCHE `claude/organisation-refonte`, poussée, PAS mergée** (partie de `main`
+= `f847f8e`). Build preview vert au dernier commit. **Refonte PUREMENT visuelle**
+de la console `/organisation` : réorganise l'enveloppe, ne touche NI aux droits
+(caps), NI aux routes, NI aux données. Validation par captures Elyas (aucun
+compilateur local — le build Vercel est le seul typecheck).
+
+**FAIT (validé build + captures Elyas)** :
+- **Barre latérale** remplace les 3 onglets serrés → **6 sections** gatées par les
+  caps (`getCapabilities`) : Vue d'ensemble · Identité et branding (canBranding) ·
+  Politique de pricing (canPricing) · Équipe et sièges (owner) · Abonnement
+  (owner) · Avancé (owner). Composant `OrgSidebar` + type `OrgSection`. Rétro-compat
+  des URLs (`?tab=abonnement`→billing, `?tab=securite`→advanced, `?action=subscribe`).
+- **Vue d'ensemble** (`OverviewSection`) : Identité en 1ᵉʳ, puis carte **Package
+  Sourcing** (si `hasActiveAccess`) = KPIs (Équipe=membres, Sièges utilisés,
+  **Missions** — terme retenu vs « opportunités ») + capacité vivier ÉPURÉE + accès
+  workspace ; puis nouveautés. Compte des missions lu à la volée (jobs count,
+  head:true). `MetricCard` = petite carte métrique.
+- **QuotaGauges** : nouveaux props `showPlan` / `showUnlimitedNote` / `title` — dans
+  la Vue d'ensemble on masque le libellé de plan + la ligne « matchings illimités »
+  et on renomme « Capacité de votre vivier ». Les autres usages gardent les défauts.
+- **Équipe et sièges** : le toggle unique « Config. » (bundlé) → **deux cases
+  Branding / Pricing par membre** (`setCap` → delegate-settings avec la seule cap).
+- **Identité et branding** : repli retiré (carte toujours dépliée) + **historique
+  des demandes** (`RequestHistory`, sert `GET /api/cabinet/branding/requests`).
+- Largeur console resserrée 1320 → 1180 (recentrage).
+
+**ANTI-CONTOURNEMENT vérifié** : sections double-gatées (`visibleSections.includes`
++ re-check `caps` au rendu), 7/7 routes sensibles owner-only côté serveur, cabinet
+PATCH field-level. Un délégué qui force `?tab=billing` retombe sur Vue d'ensemble.
+
+**RESTE (2 gros + 1 petit)** :
+1. **Politique pricing — fusionner `/organisation/parametrage`** (validé Elyas) :
+   sortir le formulaire pricing détaillé de la page `/organisation/parametrage` en
+   COMPOSANT, l'afficher INLINE dans l'onglet Politique pricing, et faire de
+   `/parametrage` une **redirection** vers `/organisation?tab=pricing` (ne casser
+   aucun lien). Aujourd'hui l'onglet pricing n'a qu'un teaser `PricingPolicySection
+   Collapsible` avec un bouton « Configurer → » qui pointe vers `/parametrage`.
+2. **Abonnement — restructurer en 3 blocs** : (1) Ton siège (allouer/libérer),
+   (2) Formule (plan + nombre de personnes + option Suite Pricing + prix),
+   (3) Facturation (portail Stripe : factures, moyen de paiement, résiliation).
+3. **Avancé — renommer** (« Compte et données » ou « Zone sensible ») ; contenu déjà
+   bon (transfert de propriété · suppression · export RGPD).
+
+**Puis (lots suivants, hors refonte visuelle)** : **preview de proratisation**
+(upcoming-invoice Stripe → montant exact avant de confirmer sièges/addon) ·
+**acceptation CGU** (case bloquante + `cgu_accepted_at` + version, colonne org).
+
+---
+
 #### Délégation granulaire + lecture seule + fix abonnement GMH — EN PROD — 2026-07-23
 
 **Branche `claude/fix-gmh-subscription` MERGÉE dans main (fast-forward) et en
