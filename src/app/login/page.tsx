@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
 import { getSupabase } from "@/lib/supabase"
 import { resolvePostLoginDestination } from "@/lib/post-login-destination"
+import { CURRENT_CGU_VERSION } from "@/lib/cgu"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 type Mode = "login" | "signup"
@@ -31,6 +32,11 @@ const copy = {
     loginCta: "Se connecter →",
     signupCta: "Créer mon compte →",
     backHome: "← Retour à l'accueil",
+    cguAccept: "J'ai lu et j'accepte les",
+    cguTerms: "CGU",
+    cguAnd: "et la",
+    cguPrivacy: "politique de confidentialité",
+    cguRequired: "Vous devez accepter les CGU pour créer un compte.",
   },
   en: {
     expired: "The confirmation link has expired or was already used. Start the sign-up again to get a new link.",
@@ -52,6 +58,11 @@ const copy = {
     loginCta: "Sign in →",
     signupCta: "Create my account →",
     backHome: "← Back to home",
+    cguAccept: "I have read and accept the",
+    cguTerms: "Terms",
+    cguAnd: "and the",
+    cguPrivacy: "privacy policy",
+    cguRequired: "You must accept the Terms to create an account.",
   },
 }
 
@@ -80,6 +91,9 @@ function LoginInner() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [firstName, setFirstName] = useState("")
+  // Acceptation CGU — obligatoire pour créer un compte (clickwrap). Bloque
+  // la soumission (email + Google) en mode signup tant qu'elle est décochée.
+  const [cguAccepted, setCguAccepted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(() => (expired ? t.expired : null))
   const [success, setSuccess] = useState<string | null>(null)
@@ -115,6 +129,13 @@ function LoginInner() {
         : "/workspace"
       router.replace(dest)
     } else {
+      // Garde-fou serveur : on ne crée jamais de compte sans acceptation CGU
+      // (le bouton est déjà désactivé, ceci couvre tout contournement clavier).
+      if (!cguAccepted) {
+        setError(t.cguRequired)
+        setLoading(false)
+        return
+      }
       const trimmedFirstName = firstName.trim()
       const { data, error: err } = await sb.auth.signUp({
         email,
@@ -125,7 +146,12 @@ function LoginInner() {
           emailRedirectTo: `${window.location.origin}/organisation`,
           // Picked up by handle_new_auth_user() and used to seed the
           // profile's first_name + the "Organisation de {prénom}" org name.
-          data: trimmedFirstName ? { first_name: trimmedFirstName } : undefined,
+          // cgu_version : porteur de l'acceptation à travers la confirmation
+          // email ; CguGate le synchronise vers le profil au 1er chargement.
+          data: {
+            ...(trimmedFirstName ? { first_name: trimmedFirstName } : {}),
+            cgu_version: CURRENT_CGU_VERSION,
+          },
         },
       })
       if (err) {
@@ -149,11 +175,19 @@ function LoginInner() {
   }
 
   const handleGoogle = async () => {
+    // Même garde-fou CGU que l'email pour le signup via Google.
+    if (mode === "signup" && !cguAccepted) {
+      setError(t.cguRequired)
+      return
+    }
     setError(null)
     setLoading(true)
-    // Stash first_name so the /auth/callback page picks it up after redirect
-    if (mode === "signup" && firstName.trim()) {
-      sessionStorage.setItem("nawa_pending_profile", JSON.stringify({ first_name: firstName.trim() }))
+    // Stash first_name + acceptation CGU pour /auth/callback (stamp après OAuth).
+    if (mode === "signup") {
+      sessionStorage.setItem("nawa_pending_profile", JSON.stringify({
+        ...(firstName.trim() ? { first_name: firstName.trim() } : {}),
+        cgu_version: CURRENT_CGU_VERSION,
+      }))
     }
     const { error: err } = await getSupabase().auth.signInWithOAuth({
       provider: "google",
@@ -234,13 +268,14 @@ function LoginInner() {
         <button
           type="button"
           onClick={handleGoogle}
-          disabled={loading}
+          disabled={loading || (mode === "signup" && !cguAccepted)}
           style={{
             width: "100%", padding: "12px",
             borderRadius: 10,
             border: "1.5px solid #E5E7EB", background: "white",
             color: "#374151", fontSize: 14, fontWeight: 600,
-            cursor: loading ? "not-allowed" : "pointer",
+            opacity: mode === "signup" && !cguAccepted ? 0.55 : 1,
+            cursor: loading || (mode === "signup" && !cguAccepted) ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             gap: 10, marginBottom: 14,
             transition: "border-color 150ms, background 150ms",
@@ -332,19 +367,46 @@ function LoginInner() {
             </p>
           )}
 
+          {/* Acceptation CGU — obligatoire au signup, avec CGU consultables
+              AVANT de cocher (liens ouverts dans un nouvel onglet). */}
+          {mode === "signup" && (
+            <label style={{
+              display: "flex", alignItems: "flex-start", gap: 9,
+              fontSize: 12.5, color: "#4B5563", lineHeight: 1.5, cursor: "pointer",
+              fontFamily: "var(--font-inter), sans-serif",
+            }}>
+              <input
+                type="checkbox"
+                checked={cguAccepted}
+                onChange={(e) => setCguAccepted(e.target.checked)}
+                style={{ marginTop: 2, width: 16, height: 16, accentColor: "#7C63C8", cursor: "pointer", flexShrink: 0 }}
+              />
+              <span>
+                {t.cguAccept}{" "}
+                <Link href="/cgu" target="_blank" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "underline" }}>
+                  {t.cguTerms}
+                </Link>{" "}
+                {t.cguAnd}{" "}
+                <Link href="/politique-confidentialite" target="_blank" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "underline" }}>
+                  {t.cguPrivacy}
+                </Link>.
+              </span>
+            </label>
+          )}
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (mode === "signup" && !cguAccepted)}
             style={{
               marginTop: 4,
               padding: "13px",
               borderRadius: 10,
               border: "none",
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor: loading || (mode === "signup" && !cguAccepted) ? "not-allowed" : "pointer",
               fontSize: 14,
               fontWeight: 700,
               color: "white",
-              background: loading
+              background: loading || (mode === "signup" && !cguAccepted)
                 ? "#C4B8E8"
                 : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
               transition: "all 150ms",

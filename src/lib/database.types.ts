@@ -190,6 +190,10 @@ export type Database = {
            *  membre). Non exposé en V1 (owner-only en pratique) ; la colonne
            *  existe pour brancher la délégation plus tard sans migration. */
           can_manage_team: boolean
+          /** Acceptation des CGU (clickwrap). NULL = jamais accepté → bannière
+           *  de rappel. Écrites côté serveur (auditable). Cf. lib/cgu.ts. */
+          cgu_accepted_at: string | null
+          cgu_version: string | null
           created_at: string
           updated_at: string
         }

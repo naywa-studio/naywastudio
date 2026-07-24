@@ -36,13 +36,19 @@ export default function AuthCallbackPage() {
       const pending = sessionStorage.getItem("nawa_pending_profile")
       if (pending) {
         try {
-          const p = JSON.parse(pending) as { first_name?: string }
+          const p = JSON.parse(pending) as { first_name?: string; cgu_version?: string }
           if (p.first_name?.trim()) {
             const { error: profileError } = await getSupabase()
               .from("profiles")
               .update({ first_name: p.first_name.trim() })
               .eq("user_id", session.user.id)
             if (profileError) console.error("Profile save error:", profileError.message)
+          }
+          // Signup Google : l'acceptation CGU cochée avant l'OAuth est stampée
+          // côté serveur (auditable). OAuth ne passe pas par options.data, d'où
+          // le relais via sessionStorage.
+          if (p.cgu_version) {
+            try { await fetch("/api/cgu/accept", { method: "POST" }) } catch { /* CguGate rattrapera */ }
           }
         } catch { /* ignore malformed payload */ }
         sessionStorage.removeItem("nawa_pending_profile")

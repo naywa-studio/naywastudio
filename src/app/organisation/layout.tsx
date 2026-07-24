@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/Logo"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { TrialBanner } from "@/components/trial/TrialBanner"
 import { SupportButton } from "@/components/support/SupportButton"
+import { CguGate } from "@/components/legal/CguGate"
 import { getSupabase } from "@/lib/supabase"
 import type { Organization, Profile } from "@/lib/database.types"
 import { getCapabilities, type Capabilities } from "@/lib/capabilities"
@@ -285,6 +286,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
         <TrialBanner organization={ctx.organization} isOwner={ctx.isOwner} isAdmin={!!ctx.profile.is_admin} />
         {children}
         <UndoToastHost />
+        <CguGate />
       </div>
     </CabinetContext.Provider>
   )

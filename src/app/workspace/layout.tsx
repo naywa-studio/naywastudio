@@ -13,6 +13,7 @@ import { TrialBanner } from "@/components/trial/TrialBanner"
 import { QuotaWarningBanner } from "@/components/quota/QuotaWarningBanner"
 import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
 import { SupportButton } from "@/components/support/SupportButton"
+import { CguGate } from "@/components/legal/CguGate"
 import { isWorkspaceReadOnly, hasActiveAccess, graceInfo, hasPricingAccess } from "@/lib/subscription"
 import { getCapabilities } from "@/lib/capabilities"
 import UndoToastHost from "@/components/ui/UndoToast"
@@ -470,6 +471,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         {children}
 
         <UndoToastHost />
+        <CguGate />
       </div>
     </WorkspaceContext.Provider>
   )
