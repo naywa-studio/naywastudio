@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
-import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import UndoToastHost from "@/components/ui/UndoToast"
 import { TrialBanner } from "@/components/trial/TrialBanner"
 import { SupportButton } from "@/components/support/SupportButton"
@@ -167,8 +166,7 @@ export default function CabinetLayout({ children }: { children: React.ReactNode 
 
   return (
     <CabinetContext.Provider value={ctx}>
-      <ShaderBackground />
-      <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 2, fontFamily: "var(--font-inter), sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: "var(--nw-bg)", position: "relative", zIndex: 2, fontFamily: "var(--font-inter), sans-serif" }}>
         <header style={{
           position: "sticky", top: 0, zIndex: 40,
           height: 60,

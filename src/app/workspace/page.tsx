@@ -377,9 +377,10 @@ export default function WorkspaceHome() {
           </>
         )}
         <ActionTile href="/workspace/pipeline" label={t.trackPipeline} icon={<IconKanban />} />
-        {/* Accès Organisation réservé owner/délégué (getCapabilities). */}
+        {/* Accès Organisation : PAS un onglet du workspace mais un vrai accès
+            admin (owner/délégué). Traitement visuel distinct des raccourcis. */}
         {canReachOrg && (
-          <ActionTile href="/organisation" label={t.orgQuickAccess} icon={<IconBuilding />} />
+          <OrgAccessTile label={t.orgQuickAccess} />
         )}
       </m.div>
 
@@ -590,6 +591,51 @@ function ActionTile({ href, label, icon }: {
       }}>
         {label}
       </span>
+    </Link>
+  )
+}
+
+/**
+ * Accès Organisation — visuellement DISTINCT des raccourcis d'onglet : ce n'est
+ * pas une page du workspace mais la console admin (owner/délégué). Fond teinté
+ * primaire, icône pleine, chevron « on sort du workspace ».
+ */
+function OrgAccessTile({ label }: { label: string }) {
+  return (
+    <Link href="/organisation" style={{
+      display: "flex", alignItems: "center", gap: 10,
+      padding: "12px 14px",
+      background: "linear-gradient(120deg, rgba(124,99,200,0.12) 0%, rgba(124,99,200,0.05) 100%)",
+      border: "1px solid var(--nw-primary-100)", borderRadius: 12,
+      textDecoration: "none",
+      transition: "border-color 160ms, box-shadow 160ms",
+    }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "var(--nw-primary)"
+        e.currentTarget.style.boxShadow = "0 4px 14px -8px rgba(124,99,200,0.35)"
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--nw-primary-100)"
+        e.currentTarget.style.boxShadow = "none"
+      }}
+    >
+      <span style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+        background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+        color: "white",
+      }}>
+        <IconBuilding />
+      </span>
+      <span style={{
+        flex: 1, fontSize: 13, fontWeight: 700, color: "var(--nw-primary)", lineHeight: 1.25,
+      }}>
+        {label}
+      </span>
+      {/* Chevron « sortie » : on quitte le workspace vers l'admin. */}
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden style={{ flexShrink: 0, color: "var(--nw-primary)" }}>
+        <path d="M8 4l6 6-6 6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
     </Link>
   )
 }
