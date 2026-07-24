@@ -96,9 +96,9 @@ export function CguGate() {
         maxWidth: 720, margin: "0 auto",
         display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
         padding: "14px 18px", borderRadius: 14,
-        background: "white",
+        background: "var(--nw-surface)",
         border: "1px solid var(--nw-primary-100)",
-        boxShadow: "0 12px 40px -12px rgba(17,24,39,0.30)",
+        boxShadow: "0 10px 30px -12px rgba(124,99,200,0.28)",
         fontFamily: "var(--font-inter), sans-serif",
       }}
     >

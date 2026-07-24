@@ -277,8 +277,8 @@ export default function PricingPolicyForm() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         gap: 14, flexWrap: "wrap",
         padding: "14px 18px", borderRadius: 14,
-        background: "linear-gradient(120deg, var(--nw-bg) 0%, var(--nw-border-soft) 100%)",
-        border: "1px solid var(--nw-primary-100)",
+        background: "rgba(124,99,200,0.06)",
+        border: "1px solid rgba(124,99,200,0.20)",
       }}>
         <div style={{ minWidth: 0, flex: "1 1 320px" }}>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>

@@ -605,14 +605,14 @@ function OrgAccessTile({ label }: { label: string }) {
     <Link href="/organisation" style={{
       display: "flex", alignItems: "center", gap: 10,
       padding: "12px 14px",
-      background: "linear-gradient(120deg, rgba(124,99,200,0.12) 0%, rgba(124,99,200,0.05) 100%)",
+      background: "var(--nw-primary-50)",
       border: "1px solid var(--nw-primary-100)", borderRadius: 12,
       textDecoration: "none",
       transition: "border-color 160ms, box-shadow 160ms",
     }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = "var(--nw-primary)"
-        e.currentTarget.style.boxShadow = "0 4px 14px -8px rgba(124,99,200,0.35)"
+        e.currentTarget.style.boxShadow = "0 4px 14px -8px rgba(124,99,200,0.30)"
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = "var(--nw-primary-100)"
@@ -622,7 +622,7 @@ function OrgAccessTile({ label }: { label: string }) {
       <span style={{
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-        background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+        background: "var(--nw-primary)",
         color: "white",
       }}>
         <IconBuilding />
