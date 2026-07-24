@@ -19,6 +19,7 @@
  */
 
 import { useCallback, useRef, useState } from "react"
+import Link from "next/link"
 import { m } from "framer-motion"
 import { useCabinet } from "@/app/organisation/layout"
 import type { PricingDefaultAvantages } from "@/lib/database.types"
@@ -35,6 +36,12 @@ const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 const copy = {
   fr: {
+    introTitle: "Politique de pricing",
+    introBody: "Ces réglages alimentent le moteur de chiffrage Syntec : marge plancher et cible, jours payés non facturables et avantages standards appliqués à chacune de vos missions.",
+    syntecDocCta: "Référence Syntec",
+    stepMargins: "Étape 1",
+    stepNonBillable: "Étape 2",
+    stepBenefits: "Étape 3",
     readOnlyBadge: "Lecture seule.",
     readOnlyBody: "Vous consultez ces paramètres pour comprendre comment vos chiffrages sont calculés. Seuls l'owner et les membres habilités au pricing les modifient.",
     marginThresholdsTitle: "Seuils de marge",
@@ -72,6 +79,12 @@ const copy = {
     required: "Obligatoire",
   },
   en: {
+    introTitle: "Pricing policy",
+    introBody: "These settings feed the Syntec pricing engine: floor and target margins, paid non-billable days and standard benefits applied to every mission.",
+    syntecDocCta: "Syntec reference",
+    stepMargins: "Step 1",
+    stepNonBillable: "Step 2",
+    stepBenefits: "Step 3",
     readOnlyBadge: "Read-only.",
     readOnlyBody: "You can review these settings to understand how your pricing is calculated. Only the owner and members granted pricing rights can edit them.",
     marginThresholdsTitle: "Margin thresholds",
@@ -258,24 +271,52 @@ export default function PricingPolicyForm() {
         </div>
       )}
 
+      {/* Intro : à quoi servent ces réglages + accès direct à la doc Syntec.
+          Hors du wrapper désactivé → le lien reste cliquable en lecture seule. */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 14, flexWrap: "wrap",
+        padding: "14px 18px", borderRadius: 14,
+        background: "linear-gradient(120deg, var(--nw-bg) 0%, var(--nw-border-soft) 100%)",
+        border: "1px solid var(--nw-primary-100)",
+      }}>
+        <div style={{ minWidth: 0, flex: "1 1 320px" }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
+            {t.introTitle}
+          </h2>
+          <p style={{ margin: "5px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
+            {t.introBody}
+          </p>
+        </div>
+        <Link
+          href="/workspace/pricing/reference"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 7,
+            padding: "9px 15px", borderRadius: 10,
+            background: "white", border: "1px solid var(--nw-primary-100)",
+            color: "var(--nw-primary)", fontSize: 12.5, fontWeight: 700,
+            textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0,
+          }}
+        >
+          <span aria-hidden>📖</span> {t.syntecDocCta}
+        </Link>
+      </div>
+
       <div style={{
         pointerEvents: canEdit ? "auto" : "none",
         opacity: canEdit ? 1 : 0.75,
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 5fr) minmax(0, 7fr)",
-        gap: 16,
-      }}
-      className="pricing-policy-grid">
+        display: "grid", gap: 16,
+      }}>
 
-      {/* ── Colonne gauche : Marges + Jours non facturables ─────────────── */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Étapes 1 & 2 — Marges + Jours non facturables, compactes côte à côte. */}
+      <div className="pricing-top-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
 
       <m.section
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: EASE }}
         style={sectionStyle}
       >
-        <SectionHeader title={t.marginThresholdsTitle} subtitle={t.marginThresholdsSubtitle} />
+        <SectionHeader step={t.stepMargins} title={t.marginThresholdsTitle} subtitle={t.marginThresholdsSubtitle} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label={t.marginMinLabel} hint={t.marginMinHint}>
             <NumberInput
@@ -311,6 +352,7 @@ export default function PricingPolicyForm() {
         style={sectionStyle}
       >
         <SectionHeader
+          step={t.stepNonBillable}
           title={t.nonBillableTitle}
           subtitle={t.nonBillableSubtitle}
         />
@@ -326,13 +368,13 @@ export default function PricingPolicyForm() {
 
       </div>
 
-      {/* ── Colonne droite : Avantages ──────────────────────────────────── */}
+      {/* Étape 3 — Avantages standards, pleine largeur (liste longue). */}
       <m.section
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: EASE }}
         style={sectionStyle}
       >
-        <SectionHeader title={t.benefitsTitle} subtitle={t.benefitsSubtitle} />
+        <SectionHeader step={t.stepBenefits} title={t.benefitsTitle} subtitle={t.benefitsSubtitle} />
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Obligatoires groupés en tête */}
           {AVANTAGES_CONFIG.filter((c) => c.required).map((cfg) => (
@@ -441,8 +483,8 @@ export default function PricingPolicyForm() {
       )}
 
       <style>{`
-        @media (max-width: 1024px) {
-          .pricing-policy-grid { grid-template-columns: 1fr !important; }
+        @media (max-width: 720px) {
+          .pricing-top-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
@@ -458,14 +500,27 @@ const sectionStyle: React.CSSProperties = {
   padding: 22,
 }
 
-function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+function SectionHeader({ title, subtitle, step }: { title: string; subtitle?: string; step?: string }) {
   return (
     <div style={{ marginBottom: 18 }}>
-      <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
-        {title}
-      </h2>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: subtitle ? 4 : 0 }}>
+        {step && (
+          <span style={{
+            fontSize: 10, fontWeight: 700, color: "var(--nw-primary)",
+            background: "rgba(124,99,200,0.10)", border: "1px solid rgba(124,99,200,0.22)",
+            borderRadius: 100, padding: "2px 9px",
+            letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+            whiteSpace: "nowrap", flexShrink: 0,
+          }}>
+            {step}
+          </span>
+        )}
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
+          {title}
+        </h2>
+      </div>
       {subtitle && (
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>{subtitle}</p>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>{subtitle}</p>
       )}
     </div>
   )
