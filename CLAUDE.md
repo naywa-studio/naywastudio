@@ -679,22 +679,55 @@ PATCH field-level. Un délégué qui force `?tab=billing` retombe sur Vue d'ense
   (Marges · Jours non facturables · Avantages). Layout : Marges + Jours côte à côte
   en haut, Avantages pleine largeur dessous ; 1 colonne < 720px.
 
-**PROCHAIN LOT — Refonte accueil workspace (nouvelle branche à créer)** :
-- **But** : distinguer nettement **Accueil workspace** (/workspace = espace de
-  travail opérationnel : vivier, missions, pricing…) de la **Vue d'ensemble**
-  (/organisation = gérer l'org). L'accueil = « espace commun », tuiles ouvertes
-  **selon l'habilitation** (recâbler sur `getCapabilities`, PAS de nouveau système).
-- **Droits à respecter** : sans siège → **lecture seule** (SeatReadOnlyBanner déjà
-  en place) ; délégué → tuiles selon ses caps ; owner+siège → tout.
-- **Déplacer « Votre siège »** (allouer/libérer, action PERSONNELLE d'accès) de la
-  section Abonnement vers la **Vue d'ensemble**, près du CTA « Ouvrir le workspace »
-  (naturel pour cabinets solo / indépendants). Abonnement redevient Formule +
-  Facturation. Le *nombre de sièges payés* reste dans la Formule.
-- Le wizard `PricingOnboardingGate` reste (ne s'affiche que tant que non configuré).
+---
+
+#### Refonte accueil workspace + CGU — EN COURS (branche `claude/workspace-home-refonte`, PAS mergée) — 2026-07-24
+
+**Branche partie de `main` = `09d33be`. Build preview vert. PAS mergée.**
+
+**FAIT (build vert, validé Elyas en preview) :**
+- **Accueil workspace brandé** (`src/app/workspace/page.tsx`) : hero à teinte de la
+  couleur de marque (`brandRgba` hex→rgba sûr, fallback violet), « Votre espace de
+  travail » — distingue l'accueil (espace DU cabinet) de la Vue d'ensemble (admin).
+  Nouveautés (`UpdatesHeroCard`) dédoublonnées : gardées ici, retirées de l'overview.
+- **KPIs recentrés sourceur** (bornés, fini le cumul qui explose) : **Vivier — X CV**
+  (+cette semaine) · **Missions ouvertes** · **Matchs à qualifier** (forts, en
+  pipeline, stade `identified`). Section **« Vos missions du moment »** (remplace les
+  3 cartes récents) : 2 missions ouvertes les plus récemment actives (`updated_at`),
+  chacune = candidats en pipeline + gros chiffre « à qualifier » + CTA Ouvrir.
+- **Accès Organisation** dans les raccourcis, **gaté owner/délégué** (`getCapabilities`),
+  traitement visuel DISTINCT (fond teinté + icône pleine + chevron) — pas un onglet.
+- **/organisation** : `ShaderBackground` (rubans animés) retiré → fond neutre.
+- **Acceptation CGU (clickwrap)** — commit `d8ba745` :
+  - **Migration 066** (déjà appliquée à la base partagée) : `profiles.cgu_accepted_at`
+    + `cgu_version` (nullable, additif — sans impact tant que non mergé).
+  - `src/lib/cgu.ts` : `CURRENT_CGU_VERSION` (bump = ré-acceptation) + `hasAcceptedCgu`.
+  - **Case obligatoire bloquante au signup** (`/login`, email + Google) avec CGU +
+    confidentialité consultables ; acceptation portée via metadata (email) /
+    sessionStorage→`/auth/callback` (Google).
+  - `POST /api/cgu/accept` : stampe le profil du caller via client admin (auditable).
+  - `CguGate` (`src/components/legal/CguGate.tsx`, monté dans les 2 layouts) : stamp
+    silencieux si accepté au signup, sinon **bannière de rappel NON bloquante** pour
+    les comptes antérieurs (GMH) jusqu'à acceptation.
+
+**RESTE avant merge** : validation Elyas en preview (branding, KPIs, missions du
+moment, case CGU au signup, bannière rappel) → puis tour anti-contournement → merge.
+
+**PROCHAIN GROS CHANTIER — Shortlist par mission + anonymisation (décrit par Elyas) :**
+- **Page Shortlist dans la mission** : aujourd'hui les candidats `in_pipeline` (la vraie
+  shortlist à écarter/accepter) sont MÉLANGÉS aux autres → créer une **vraie page**
+  dédiée dans la mission pour gérer les candidats mis en pipeline (pas un simple filtre).
+- **Anonymisation** : la SORTIR des fiches match pour la piloter dans l'affichage
+  shortlist de la mission → personnaliser l'affichage, **sauvegarder ces paramètres**,
+  **télécharger plusieurs CV anonymisés d'un coup**. Et **désactiver le résumé Nora par
+  défaut** (n'apparaît qu'en cochant la case). Gros lot.
+- **Relances (idée 2, en attente)** : compteur « à relancer » (contacté sans réponse)
+  — MAIS on n'a pas accès aux échanges sourceur↔candidat, donc à cadrer pour que ce ne
+  soit pas une tâche lourde. À revoir après les formulaires missions/candidatures.
+- Autres idées Elyas OK : **recherche globale (Cmd-K)**, **filtres rapides vivier**.
 
 **Puis (lots suivants)** : **preview de proratisation** (upcoming-invoice Stripe →
-montant exact avant de confirmer sièges/addon) · **acceptation CGU** (case bloquante
-+ `cgu_accepted_at` + version, colonne org).
+montant exact avant de confirmer sièges/addon).
 
 ---
 
