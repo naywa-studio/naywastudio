@@ -104,7 +104,19 @@ function useQuota(): QuotaResponse | null {
 export function QuotaGauges({
   variant = "card",
   compact = false,
-}: { variant?: "card" | "inline"; compact?: boolean }) {
+  showPlan = true,
+  showUnlimitedNote = true,
+  title,
+}: {
+  variant?: "card" | "inline"
+  compact?: boolean
+  /** Affiche le libellé du plan (ex. "Package Sourcing — 2 personnes"). */
+  showPlan?: boolean
+  /** Affiche la ligne "Matchings et anonymisations illimités". */
+  showUnlimitedNote?: boolean
+  /** Remplace le titre "Capacité du vivier". */
+  title?: string
+}) {
   const { lang } = useLanguage()
   const t = copy[lang]
   const data = useQuota()
@@ -173,14 +185,16 @@ export function QuotaGauges({
     }}>
       <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
         <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--nw-text)", letterSpacing: "-0.005em" }}>
-          {t.capacityTitle}
+          {title ?? t.capacityTitle}
         </h3>
-        <span style={{
-          fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)",
-          letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
-        }}>
-          {data.plan.label}
-        </span>
+        {showPlan && (
+          <span style={{
+            fontSize: 10.5, fontWeight: 700, color: "var(--nw-primary)",
+            letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+          }}>
+            {data.plan.label}
+          </span>
+        )}
       </header>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -217,16 +231,18 @@ export function QuotaGauges({
         </div>
       </div>
 
-      <p style={{
-        margin: 0, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5,
-        display: "flex", alignItems: "center", gap: 6,
-      }}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22C55E"
-          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M20 6 9 17l-5-5" />
-        </svg>
-        {t.unlimitedMatching}
-      </p>
+      {showUnlimitedNote && (
+        <p style={{
+          margin: 0, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5,
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22C55E"
+            strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+          {t.unlimitedMatching}
+        </p>
+      )}
 
       {detailOpen && (
         <DetailModal used={used} limit={limit} plan={data.plan} onClose={() => setDetailOpen(false)} />

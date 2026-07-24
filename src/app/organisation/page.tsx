@@ -685,8 +685,6 @@ export default function CabinetPage() {
 
         {/* Contenu de la section active */}
         <div style={{ minWidth: 0, display: "grid", gap: 18 }}>
-          <UpdatesHeroCard />
-
           {activeSection === "overview" && (
             <OverviewSection
               organization={organization}
@@ -694,6 +692,7 @@ export default function CabinetPage() {
               membersCount={members.length}
               seatsUsed={seatsUsed}
               seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
+              hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
             />
           )}
 
@@ -900,85 +899,93 @@ function OrgSidebar({
  * entre dans la console (aucun droit particulier requis).
  */
 function OverviewSection({
-  organization, logoUrl, membersCount, seatsUsed, seatsBudget,
+  organization, logoUrl, membersCount, seatsUsed, seatsBudget, hasAccess,
 }: {
   organization: Organization
   logoUrl: string | null
   membersCount: number
   seatsUsed: number
   seatsBudget: number
+  /** L'org a-t-elle un accès actif (essai / abonnement) ? La carte Package
+   *  Sourcing (KPIs + capacité vivier) n'a de sens que dans ce cas. */
+  hasAccess: boolean
 }) {
   const { lang } = useLanguage()
   const sb = useMemo(() => getSupabase(), [])
-  const [cvCount, setCvCount] = useState<number | null>(null)
   const [jobCount, setJobCount] = useState<number | null>(null)
 
-  // Compteurs vivier + missions (org-scopés via RLS ; un délégué sans siège
-  // peut les LIRE). `head: true` = count seul, aucune ligne rapatriée.
+  // Nombre de missions (org-scopé via RLS ; un délégué sans siège peut le LIRE).
+  // `head: true` = count seul, aucune ligne rapatriée.
   useEffect(() => {
     let alive = true
     void (async () => {
-      const [cv, jb] = await Promise.all([
-        sb.from("candidates").select("id", { count: "exact", head: true }).eq("organization_id", organization.id),
-        sb.from("jobs").select("id", { count: "exact", head: true }).eq("organization_id", organization.id),
-      ])
-      if (!alive) return
-      setCvCount(cv.count ?? 0)
-      setJobCount(jb.count ?? 0)
+      const jb = await sb.from("jobs").select("id", { count: "exact", head: true }).eq("organization_id", organization.id)
+      if (alive) setJobCount(jb.count ?? 0)
     })()
     return () => { alive = false }
   }, [sb, organization.id])
 
   const L = lang === "en"
-    ? { members: "Members", seats: "Seats used", cvs: "CVs in pool", missions: "Missions", openWs: "Open the workspace", wsSub: "Sourcing, pool, missions" }
-    : { members: "Membres", seats: "Sièges utilisés", cvs: "CV au vivier", missions: "Missions", openWs: "Ouvrir le workspace", wsSub: "Sourcing, vivier, missions" }
+    ? { team: "Team", seats: "Seats used", missions: "Missions", pkg: "Package Sourcing", capacity: "Your talent pool capacity", openWs: "Open the workspace" }
+    : { team: "Équipe", seats: "Sièges utilisés", missions: "Missions", pkg: "Package Sourcing", capacity: "Capacité de votre vivier", openWs: "Ouvrir le workspace" }
 
   return (
-    <div style={{ display: "grid", gap: 18 }}>
-      <div className="org-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
-        <MetricCard label={L.members} value={membersCount} />
-        <MetricCard label={L.seats} value={`${seatsUsed} / ${seatsBudget}`} />
-        <MetricCard label={L.cvs} value={cvCount === null ? null : cvCount.toLocaleString(lang === "en" ? "en-US" : "fr-FR")} />
-        <MetricCard label={L.missions} value={jobCount} />
-      </div>
+    <div style={{ display: "grid", gap: 18, maxWidth: 860 }}>
+      {/* 1. Identité de l'organisation (en premier) */}
+      <IdentitySection organization={organization} logoUrl={logoUrl} />
 
-      <div className="org-two-col" style={{
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 320px)",
-        gap: 20, alignItems: "start",
-      }}>
-        <div style={{ display: "grid", gap: 18, minWidth: 0 }}>
-          <IdentitySection organization={organization} logoUrl={logoUrl} />
-        </div>
-        <div style={{ display: "grid", gap: 16, position: "sticky", top: 16 }}>
-          <Link href="/workspace" style={{
-            display: "block", textDecoration: "none",
-            background: "var(--nw-primary)", color: "white",
-            borderRadius: 12, padding: "16px 18px",
-          }}>
-            <span style={{ margin: 0, fontSize: 14.5, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+      {/* 2. Package Sourcing — visible seulement si l'org a un accès actif.
+          Regroupe les KPIs, la capacité du vivier et l'accès au workspace. */}
+      {hasAccess && (
+        <div style={{
+          background: "var(--nw-surface-muted)",
+          border: "1px solid var(--nw-border-soft)",
+          borderRadius: 16, padding: 18,
+          display: "grid", gap: 14,
+        }}>
+          <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "var(--nw-text)" }}>{L.pkg}</h3>
+            <Link href="/workspace" style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "8px 14px", borderRadius: 9,
+              background: "var(--nw-primary)", color: "white",
+              fontSize: 12.5, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap",
+            }}>
               {L.openWs}
-              <span aria-hidden style={{ marginLeft: "auto", display: "inline-flex" }}>
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M8 4l6 6-6 6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </span>
-            </span>
-            <span style={{ display: "block", margin: "4px 0 0", fontSize: 12.5, opacity: 0.85 }}>{L.wsSub}</span>
-          </Link>
-          <QuotaGauges />
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden><path d="M8 4l6 6-6 6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </Link>
+          </header>
+
+          <div className="org-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
+            <MetricCard label={L.team} value={membersCount} />
+            <MetricCard label={L.seats} value={`${seatsUsed} / ${seatsBudget}`} />
+            <MetricCard label={L.missions} value={jobCount} />
+          </div>
+
+          {/* Capacité vivier épurée : sans libellé de plan, sans ligne
+              « matchings illimités », titre « Capacité de votre vivier ». */}
+          <QuotaGauges showPlan={false} showUnlimitedNote={false} title={L.capacity} />
         </div>
-      </div>
+      )}
+
+      {/* 3. Nouveautés produit (disparaît si tout est lu) */}
+      <UpdatesHeroCard />
 
       <style>{`
-        @media (max-width: 720px) { .org-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+        @media (max-width: 560px) { .org-kpis { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; } }
       `}</style>
     </div>
   )
 }
 
-/** Petite carte métrique (label + grand nombre) pour la Vue d'ensemble. */
+/** Petite carte métrique (label + grand nombre) pour la Vue d'ensemble.
+ *  Fond blanc pour ressortir sur la carte Package Sourcing (fond sable). */
 function MetricCard({ label, value }: { label: string; value: string | number | null }) {
   return (
-    <div style={{ background: "var(--nw-surface-muted)", borderRadius: 12, padding: "14px 16px" }}>
+    <div style={{
+      background: "white", border: "1px solid var(--nw-border-soft)",
+      borderRadius: 12, padding: "14px 16px",
+    }}>
       <p style={{ margin: 0, fontSize: 12, color: "var(--nw-text-muted)", fontWeight: 600 }}>{label}</p>
       <p style={{ margin: "5px 0 0", fontSize: 23, fontWeight: 700, color: "var(--nw-text)", lineHeight: 1.1 }}>
         {value === null ? "—" : value}
