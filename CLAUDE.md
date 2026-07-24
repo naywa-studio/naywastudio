@@ -681,9 +681,12 @@ PATCH field-level. Un délégué qui force `?tab=billing` retombe sur Vue d'ense
 
 ---
 
-#### Refonte accueil workspace + CGU — EN COURS (branche `claude/workspace-home-refonte`, PAS mergée) — 2026-07-24
+#### Refonte accueil workspace + CGU — EN PROD (mergée) — 2026-07-24
 
-**Branche partie de `main` = `09d33be`. Build preview vert. PAS mergée.**
+**Branche `claude/workspace-home-refonte` MERGÉE dans main (fast-forward) et EN PROD**
+— main = `49b0aca`, déploiement production vert (naywastudio.com). Migration 066
+appliquée. **NB : GMH (et tout compte antérieur) voit désormais la bannière de rappel
+CGU en prod jusqu'à acceptation — comportement voulu.**
 
 **FAIT (build vert, validé Elyas en preview) :**
 - **Accueil workspace brandé** (`src/app/workspace/page.tsx`) : hero à teinte de la
