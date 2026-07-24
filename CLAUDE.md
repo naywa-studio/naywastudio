@@ -647,23 +647,34 @@ compilateur local — le build Vercel est le seul typecheck).
 - **Identité et branding** : repli retiré (carte toujours dépliée) + **historique
   des demandes** (`RequestHistory`, sert `GET /api/cabinet/branding/requests`).
 - Largeur console resserrée 1320 → 1180 (recentrage).
+- **Politique de pricing — fusion `/parametrage`** (build vert, commit `1943297`) :
+  le formulaire pricing (marges, RTT, avantages) vit désormais INLINE dans l'onglet
+  via le composant `src/components/organisation/PricingPolicyForm.tsx` (valeurs
+  initiales lues depuis `organization`, aucun fetch/loader ; **éditable dès
+  `canPricing`** — owner OU délégué habilité, plus seulement owner). `/organisation/
+  parametrage` = **redirection 307** (server component `redirect()`) vers
+  `/organisation?tab=pricing`. Liens workspace/pricing repointés. Teaser
+  `PricingPolicySectionCollapsible` retiré. Le wizard `PricingOnboardingGate`
+  (modale de 1er réglage) reste monté — se retire seul une fois `pricing_onboarded_at`
+  posé ; à surveiller s'il fait doublon visuel avec le form inline.
+- **Abonnement — 3 blocs** (build vert, commit `5a88970`) : quand un abo Stripe est
+  actif, la section billing rend 3 cartes titrées : **Votre siège** (`MySeatBanner`
+  dans une carte), **Votre formule** (`planLabel` + `SeatCountEditor` +
+  `PricingAddonToggle`), **Facturation** (statut paiement + portail Stripe). Les
+  états pré-abonnement (essai à démarrer / en cours / terminé) restent **une carte
+  d'activation unique**. Aucune logique Stripe/route touchée. `CabinetPage` a reçu
+  `lang`/`t` pour les titres. Nouvelles clés copy : `seatBlockTitle/Subtitle`,
+  `planBlockTitle/Subtitle`, `billingBlockTitle/Subtitle`, `billingActiveLabel`,
+  `paymentPastDueLabel`.
+- **Section « Avancé » renommée « Compte et données »** (`SECTION_LABELS.advanced`),
+  contenu inchangé (export RGPD · transfert · suppression).
 
 **ANTI-CONTOURNEMENT vérifié** : sections double-gatées (`visibleSections.includes`
 + re-check `caps` au rendu), 7/7 routes sensibles owner-only côté serveur, cabinet
 PATCH field-level. Un délégué qui force `?tab=billing` retombe sur Vue d'ensemble.
 
-**RESTE (2 gros + 1 petit)** :
-1. **Politique pricing — fusionner `/organisation/parametrage`** (validé Elyas) :
-   sortir le formulaire pricing détaillé de la page `/organisation/parametrage` en
-   COMPOSANT, l'afficher INLINE dans l'onglet Politique pricing, et faire de
-   `/parametrage` une **redirection** vers `/organisation?tab=pricing` (ne casser
-   aucun lien). Aujourd'hui l'onglet pricing n'a qu'un teaser `PricingPolicySection
-   Collapsible` avec un bouton « Configurer → » qui pointe vers `/parametrage`.
-2. **Abonnement — restructurer en 3 blocs** : (1) Ton siège (allouer/libérer),
-   (2) Formule (plan + nombre de personnes + option Suite Pricing + prix),
-   (3) Facturation (portail Stripe : factures, moyen de paiement, résiliation).
-3. **Avancé — renommer** (« Compte et données » ou « Zone sensible ») ; contenu déjà
-   bon (transfert de propriété · suppression · export RGPD).
+**RESTE — à valider par Elyas en preview** (rendu visuel des 3 nouveaux points
+ci-dessus : pricing inline, 3 blocs abonnement, libellé Avancé). Puis merge.
 
 **Puis (lots suivants, hors refonte visuelle)** : **preview de proratisation**
 (upcoming-invoice Stripe → montant exact avant de confirmer sièges/addon) ·
