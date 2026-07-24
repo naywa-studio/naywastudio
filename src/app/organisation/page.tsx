@@ -28,7 +28,6 @@ import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import PricingPolicyForm from "@/components/organisation/PricingPolicyForm"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
-import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { StyledSelect } from "@/components/ui/StyledSelect"
 import { QuotaGauges } from "@/components/quota/QuotaGauges"
@@ -990,8 +989,9 @@ function OverviewSection({
         </div>
       )}
 
-      {/* 3. Nouveautés produit (disparaît si tout est lu) */}
-      <UpdatesHeroCard />
+      {/* Les « Nouveautés produit » vivent désormais UNIQUEMENT sur l'accueil
+          du workspace (usage quotidien) — retirées d'ici pour distinguer la
+          Vue d'ensemble (admin) de l'accueil workspace (espace de travail). */}
 
       <style>{`
         @media (max-width: 560px) { .org-kpis { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; } }

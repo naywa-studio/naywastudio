@@ -17,6 +17,7 @@ const copy = {
   fr: {
     noOrgName: "Organisation sans nom",
     hello: (firstName: string | null) => `Bonjour${firstName ? `, ${firstName}` : ""}`,
+    yourWorkspace: "Votre espace de travail",
     setIdentity: "Définir l'identité de votre organisation",
     identityHint: " · apparaît sur les CV anonymisés",
     addCv: "Ajouter un CV",
@@ -45,6 +46,7 @@ const copy = {
   en: {
     noOrgName: "Unnamed organization",
     hello: (firstName: string | null) => `Hello${firstName ? `, ${firstName}` : ""}`,
+    yourWorkspace: "Your workspace",
     setIdentity: "Set up your organization's identity",
     identityHint: " · appears on anonymized CVs",
     addCv: "Add a CV",
@@ -97,6 +99,21 @@ function timeAgo(iso: string, lang: Lang): string {
  *  complet juste pour ça. */
 function trialStatusActive(org: Organization): boolean {
   return trialStatus(org).state === "active"
+}
+
+/**
+ * Couleur de marque (hex #RRGGBB, posée via le color picker) → rgba() à
+ * l'alpha voulu, pour des accents SÛRS quelle que soit la couleur du client
+ * (fonds très clairs, texte qui reste sur des tons neutres). Renvoie null si
+ * la valeur n'est pas un hex exploitable → l'appelant retombe sur le violet
+ * de l'app. On ne repeint jamais le chrome (boutons, nav) : juste le hero.
+ */
+function brandRgba(hex: string | null | undefined, alpha: number): string | null {
+  if (!hex) return null
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return null
+  const n = parseInt(m[1], 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
 }
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -299,6 +316,22 @@ export default function WorkspaceHome() {
     ? brandName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")
     : null
 
+  // Personnalisation « à vos couleurs » : le hero du workspace prend une teinte
+  // de la marque du cabinet (fond + barre d'accent + anneau du logo). C'est ce
+  // qui distingue l'accueil (l'espace DU cabinet) de la Vue d'ensemble (admin,
+  // neutre). Accents uniquement — le chrome de l'app reste violet.
+  const brandColor = organization?.brand_color ?? null
+  const brandColor2 = organization?.brand_color_secondary ?? null
+  const heroTint1 = brandRgba(brandColor, 0.12)
+  const heroTint2 = brandRgba(brandColor2 ?? brandColor, 0.05)
+  const heroBg = heroTint1
+    ? `linear-gradient(120deg, ${heroTint1} 0%, ${heroTint2 ?? "transparent"} 55%, transparent 100%)`
+    : "linear-gradient(120deg, var(--nw-surface-muted) 0%, white 65%)"
+  const heroBar = brandColor
+    ? `linear-gradient(90deg, ${brandColor} 0%, ${brandColor2 ?? brandColor} 100%)`
+    : "linear-gradient(90deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
+  const avatarRing = brandRgba(brandColor, 0.45) ?? "rgba(124,99,200,0.30)"
+
   return (
     <main style={{
       maxWidth: 1080, margin: "0 auto",
@@ -311,37 +344,51 @@ export default function WorkspaceHome() {
         <StarterChecklist onComplete={() => { void refetchProfile() }} />
       )}
 
-      {/* ── Hero identité ─────────────────────────────────────── */}
+      {/* ── Hero identité — carte BRANDÉE (à vos couleurs) ────────── */}
       <m.section
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, ease: EASE }}
         style={{
-          display: "flex", alignItems: "center", gap: 18,
-          marginBottom: 32,
+          position: "relative", overflow: "hidden",
+          borderRadius: 20, marginBottom: 30,
+          padding: "26px 26px 24px",
+          background: heroBg,
+          border: "1px solid var(--nw-border-soft)",
         }}
       >
-        <BrandAvatar logoUrl={brandLogoUrl} initials={brandInitials} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{
-            margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
-            letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
-          }}>
-            {brandName ?? t.noOrgName}
-          </p>
-          <h1 style={{
-            margin: "4px 0 0", fontSize: "clamp(26px, 3.4vw, 34px)", fontWeight: 800,
-            color: "var(--nw-text)", letterSpacing: "-0.025em", lineHeight: 1.15,
-          }}>
-            {t.hello(firstName)}
-          </h1>
-          {!brandName && (
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--nw-text-muted)" }}>
-              <Link href="/organisation" style={{ color: "var(--nw-primary)", fontWeight: 600, textDecoration: "none" }}>
-                {t.setIdentity}
-              </Link>
-              {t.identityHint}
+        {/* Barre d'accent supérieure aux couleurs de la marque. */}
+        <div aria-hidden style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: 4, background: heroBar,
+        }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <BrandAvatar logoUrl={brandLogoUrl} initials={brandInitials} ring={avatarRing} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{
+              margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
+              letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {brandName ?? t.noOrgName}
             </p>
-          )}
+            <h1 style={{
+              margin: "4px 0 0", fontSize: "clamp(26px, 3.4vw, 34px)", fontWeight: 800,
+              color: "var(--nw-text)", letterSpacing: "-0.025em", lineHeight: 1.15,
+            }}>
+              {t.hello(firstName)}
+            </h1>
+            {brandName ? (
+              <p style={{ margin: "7px 0 0", fontSize: 13, color: "var(--nw-text-muted)" }}>
+                {t.yourWorkspace}
+              </p>
+            ) : (
+              <p style={{ margin: "7px 0 0", fontSize: 13, color: "var(--nw-text-muted)" }}>
+                <Link href="/organisation" style={{ color: "var(--nw-primary)", fontWeight: 600, textDecoration: "none" }}>
+                  {t.setIdentity}
+                </Link>
+                {t.identityHint}
+              </p>
+            )}
+          </div>
         </div>
       </m.section>
 
@@ -506,7 +553,8 @@ export default function WorkspaceHome() {
 
 /* ─── Sub-components ──────────────────────────────────────────── */
 
-function BrandAvatar({ logoUrl, initials }: { logoUrl: string | null; initials: string | null }) {
+function BrandAvatar({ logoUrl, initials, ring }: { logoUrl: string | null; initials: string | null; ring?: string }) {
+  const ringColor = ring ?? "rgba(124,99,200,0.30)"
   if (logoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -514,27 +562,29 @@ function BrandAvatar({ logoUrl, initials }: { logoUrl: string | null; initials: 
         src={logoUrl}
         alt=""
         style={{
-          width: 56, height: 56, borderRadius: 14,
+          width: 60, height: 60, borderRadius: 14, flexShrink: 0,
           // contain plutôt que cover : on respecte le ratio d'aspect
           // d'origine du logo cabinet, même si c'est un format
           // non-carré (rectangulaire, large, etc.). Padding pour
           // que le logo ne touche pas le bord arrondi.
           objectFit: "contain",
-          padding: 4,
-          border: "1px solid var(--nw-border-soft)",
+          padding: 5,
+          border: `1.5px solid ${ringColor}`,
           background: "white",
+          boxShadow: "0 2px 10px -4px rgba(17,24,39,0.15)",
         }}
       />
     )
   }
   return (
     <div style={{
-      width: 56, height: 56, borderRadius: 14,
-      background: "linear-gradient(135deg, var(--nw-border-soft) 0%, var(--nw-primary-100) 100%)",
-      border: "1px solid rgba(124,99,200,0.30)",
+      width: 60, height: 60, borderRadius: 14, flexShrink: 0,
+      background: "linear-gradient(135deg, white 0%, var(--nw-surface-muted) 100%)",
+      border: `1.5px solid ${ringColor}`,
       display: "flex", alignItems: "center", justifyContent: "center",
-      color: "var(--nw-primary)", fontWeight: 800, fontSize: 18,
+      color: "var(--nw-text)", fontWeight: 800, fontSize: 19,
       letterSpacing: "0.02em",
+      boxShadow: "0 2px 10px -4px rgba(17,24,39,0.15)",
     }}>
       {initials ?? "—"}
     </div>
