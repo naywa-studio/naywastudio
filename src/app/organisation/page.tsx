@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { m } from "framer-motion"
 import { useCabinet } from "./layout"
 import { getSupabase } from "@/lib/supabase"
@@ -652,7 +653,7 @@ export default function CabinetPage() {
 
   return (
     <main style={{
-      maxWidth: 1320, margin: "0 auto",
+      maxWidth: 1180, margin: "0 auto",
       padding: "28px 32px 64px",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
@@ -687,7 +688,13 @@ export default function CabinetPage() {
           <UpdatesHeroCard />
 
           {activeSection === "overview" && (
-            <OverviewSection organization={organization} logoUrl={logoUrl} />
+            <OverviewSection
+              organization={organization}
+              logoUrl={logoUrl}
+              membersCount={members.length}
+              seatsUsed={seatsUsed}
+              seatsBudget={organization.subscription_seats ?? Math.max(organization.seats_total, seatsUsed, 1)}
+            />
           )}
 
           {activeSection === "branding" && caps.canBranding && (
@@ -893,23 +900,89 @@ function OrgSidebar({
  * entre dans la console (aucun droit particulier requis).
  */
 function OverviewSection({
-  organization, logoUrl,
+  organization, logoUrl, membersCount, seatsUsed, seatsBudget,
 }: {
   organization: Organization
   logoUrl: string | null
+  membersCount: number
+  seatsUsed: number
+  seatsBudget: number
 }) {
+  const { lang } = useLanguage()
+  const sb = useMemo(() => getSupabase(), [])
+  const [cvCount, setCvCount] = useState<number | null>(null)
+  const [jobCount, setJobCount] = useState<number | null>(null)
+
+  // Compteurs vivier + missions (org-scopés via RLS ; un délégué sans siège
+  // peut les LIRE). `head: true` = count seul, aucune ligne rapatriée.
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const [cv, jb] = await Promise.all([
+        sb.from("candidates").select("id", { count: "exact", head: true }).eq("organization_id", organization.id),
+        sb.from("jobs").select("id", { count: "exact", head: true }).eq("organization_id", organization.id),
+      ])
+      if (!alive) return
+      setCvCount(cv.count ?? 0)
+      setJobCount(jb.count ?? 0)
+    })()
+    return () => { alive = false }
+  }, [sb, organization.id])
+
+  const L = lang === "en"
+    ? { members: "Members", seats: "Seats used", cvs: "CVs in pool", missions: "Missions", openWs: "Open the workspace", wsSub: "Sourcing, pool, missions" }
+    : { members: "Membres", seats: "Sièges utilisés", cvs: "CV au vivier", missions: "Missions", openWs: "Ouvrir le workspace", wsSub: "Sourcing, vivier, missions" }
+
   return (
-    <div className="org-two-col" style={{
-      display: "grid",
-      gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 320px)",
-      gap: 20, alignItems: "start",
-    }}>
-      <div style={{ display: "grid", gap: 18, minWidth: 0 }}>
-        <IdentitySection organization={organization} logoUrl={logoUrl} />
+    <div style={{ display: "grid", gap: 18 }}>
+      <div className="org-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
+        <MetricCard label={L.members} value={membersCount} />
+        <MetricCard label={L.seats} value={`${seatsUsed} / ${seatsBudget}`} />
+        <MetricCard label={L.cvs} value={cvCount === null ? null : cvCount.toLocaleString(lang === "en" ? "en-US" : "fr-FR")} />
+        <MetricCard label={L.missions} value={jobCount} />
       </div>
-      <div style={{ position: "sticky", top: 16 }}>
-        <QuotaGauges />
+
+      <div className="org-two-col" style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 320px)",
+        gap: 20, alignItems: "start",
+      }}>
+        <div style={{ display: "grid", gap: 18, minWidth: 0 }}>
+          <IdentitySection organization={organization} logoUrl={logoUrl} />
+        </div>
+        <div style={{ display: "grid", gap: 16, position: "sticky", top: 16 }}>
+          <Link href="/workspace" style={{
+            display: "block", textDecoration: "none",
+            background: "var(--nw-primary)", color: "white",
+            borderRadius: 12, padding: "16px 18px",
+          }}>
+            <span style={{ margin: 0, fontSize: 14.5, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+              {L.openWs}
+              <span aria-hidden style={{ marginLeft: "auto", display: "inline-flex" }}>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M8 4l6 6-6 6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
+            </span>
+            <span style={{ display: "block", margin: "4px 0 0", fontSize: 12.5, opacity: 0.85 }}>{L.wsSub}</span>
+          </Link>
+          <QuotaGauges />
+        </div>
       </div>
+
+      <style>{`
+        @media (max-width: 720px) { .org-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+      `}</style>
+    </div>
+  )
+}
+
+/** Petite carte métrique (label + grand nombre) pour la Vue d'ensemble. */
+function MetricCard({ label, value }: { label: string; value: string | number | null }) {
+  return (
+    <div style={{ background: "var(--nw-surface-muted)", borderRadius: 12, padding: "14px 16px" }}>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--nw-text-muted)", fontWeight: 600 }}>{label}</p>
+      <p style={{ margin: "5px 0 0", fontSize: 23, fontWeight: 700, color: "var(--nw-text)", lineHeight: 1.1 }}>
+        {value === null ? "—" : value}
+      </p>
     </div>
   )
 }
