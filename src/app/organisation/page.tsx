@@ -80,6 +80,14 @@ const copy = {
     ownerOnlyCancelDeletion: "Seul le propriétaire de l'organisation peut annuler.",
     portalUnavailable: "Portail indisponible",
     subSubtitle: "Package Sourcing : votre essai et votre formule.",
+    seatBlockTitle: "Votre siège",
+    seatBlockSubtitle: "Votre accès personnel au workspace.",
+    planBlockTitle: "Votre formule",
+    planBlockSubtitle: "Sièges, options et montant mensuel.",
+    billingBlockTitle: "Facturation",
+    billingBlockSubtitle: "Statut de paiement et gestion Stripe.",
+    billingActiveLabel: "Abonnement actif",
+    paymentPastDueLabel: "Paiement en échec",
     paymentFailed: "Échec du dernier paiement. Mettez à jour votre moyen de paiement.",
     cancellationScheduled: "Résiliation programmée",
     scheduledCancelBody: (plan: string, endsAt: string, graceDays: number) => (
@@ -318,6 +326,14 @@ const copy = {
     ownerOnlyCancelDeletion: "Only the organization owner can cancel.",
     portalUnavailable: "Portal unavailable",
     subSubtitle: "Sourcing Package: your trial and your plan.",
+    seatBlockTitle: "Your seat",
+    seatBlockSubtitle: "Your personal workspace access.",
+    planBlockTitle: "Your plan",
+    planBlockSubtitle: "Seats, options and monthly amount.",
+    billingBlockTitle: "Billing",
+    billingBlockSubtitle: "Payment status and Stripe management.",
+    billingActiveLabel: "Subscription active",
+    paymentPastDueLabel: "Payment failed",
     paymentFailed: "Last payment failed. Update your payment method.",
     cancellationScheduled: "Cancellation scheduled",
     scheduledCancelBody: (plan: string, endsAt: string, graceDays: number) => (
@@ -551,6 +567,8 @@ interface PendingInvite {
 
 export default function CabinetPage() {
   const { profile, organization, userEmail, emailConfirmed, isOwner, canManageSettings, caps, refetch } = useCabinet()
+  const { lang } = useLanguage()
+  const t = copy[lang]
   const router = useRouter()
   const searchParams = useSearchParams()
   const sb = useMemo(() => getSupabase(), [])
@@ -737,12 +755,15 @@ export default function CabinetPage() {
               gap: 20, alignItems: "start",
             }}>
               <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
-                <MySeatBanner
-                  hasSeat={profile.has_sourcing_seat}
-                  hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
-                  onToggle={refetch}
-                  isOwner={isOwner}
-                />
+                {/* Bloc 1 — Votre siège : accès workspace personnel. */}
+                <Card title={t.seatBlockTitle} subtitle={t.seatBlockSubtitle}>
+                  <MySeatBanner
+                    hasSeat={profile.has_sourcing_seat}
+                    hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
+                    onToggle={refetch}
+                    isOwner={isOwner}
+                  />
+                </Card>
                 <SubscriptionCard
                   organization={organization}
                   onActivated={refetch}
@@ -840,7 +861,7 @@ const SECTION_LABELS: Record<OrgSection, { fr: string; en: string }> = {
   pricing: { fr: "Politique de pricing", en: "Pricing policy" },
   team: { fr: "Équipe et sièges", en: "Team and seats" },
   billing: { fr: "Abonnement", en: "Subscription" },
-  advanced: { fr: "Avancé", en: "Advanced" },
+  advanced: { fr: "Compte et données", en: "Account and data" },
 }
 
 /**
@@ -1376,138 +1397,159 @@ function SubscriptionCard({
 
   return (
     <>
-      <Card title={t.subscription} subtitle={t.subSubtitle}>
-        {/* Stripe sub — affichage prioritaire si présente */}
-        {hasStripeSub && (
-          <Panel tone={scheduledCancel ? "warn" : access.state === "paid" ? "success" : access.state === "trialing" ? "brand" : "warn"}>
-            <p style={panelTitle(scheduledCancel ? "var(--nw-warn)" : access.state === "paid" ? "var(--nw-success)" : access.state === "trialing" ? "var(--nw-primary)" : "var(--nw-danger-strong)")}>
-              {scheduledCancel ? t.cancellationScheduled : planLabel(organization, lang)}
-            </p>
-            <p style={panelBody("var(--nw-text-body)")}>
-              {organization.subscription_status === "past_due"
-                ? t.paymentFailed
-                : scheduledCancel
-                  // Résilié au portail : accès complet jusqu'à la fin de la
-                  // période DÉJÀ payée — surtout pas « prochain prélèvement ».
-                  ? t.scheduledCancelBody(
-                      planLabel(organization, lang),
-                      scheduledCancel.endsAt.toLocaleDateString(locale, { day: "numeric", month: "long" }),
-                      GRACE_DAYS,
-                    )
-                  : access.state === "trialing" && "until" in access
-                    ? t.trialUntil(access.until?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "")
-                    : access.state === "paid" && "until" in access
-                      ? t.nextCharge(access.until?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "")
-                      : null}
-            </p>
-            <button
-              type="button"
-              onClick={openPortal}
-              disabled={busy || !isOwner}
-              style={scheduledCancel ? ctaPrimaryBtn(busy) : ctaSecondaryBtn(busy)}
-            >
-              {busy
-                ? t.openingPortal
-                : scheduledCancel ? t.resumeSubscription : t.manageSubscription}
-            </button>
-            <SeatCountEditor
-              organization={organization}
-              isOwner={isOwner}
-              onChanged={onActivated}
-            />
-            <PricingAddonToggle
-              organization={organization}
-              isOwner={isOwner}
-              onChanged={onActivated}
-            />
-          </Panel>
-        )}
+      {hasStripeSub ? (
+        <>
+          {/* Bloc 2 — Votre formule : plan actuel + sièges + option Pricing. */}
+          <Card title={t.planBlockTitle} subtitle={t.planBlockSubtitle}>
+            <Panel tone={access.state === "paid" ? "success" : access.state === "trialing" ? "brand" : "warn"}>
+              <p style={panelTitle(access.state === "paid" ? "var(--nw-success)" : access.state === "trialing" ? "var(--nw-primary)" : "var(--nw-danger-strong)")}>
+                {planLabel(organization, lang)}
+              </p>
+              <SeatCountEditor
+                organization={organization}
+                isOwner={isOwner}
+                onChanged={onActivated}
+              />
+              <PricingAddonToggle
+                organization={organization}
+                isOwner={isOwner}
+                onChanged={onActivated}
+              />
+            </Panel>
+            <div style={{ marginTop: 12, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
+              {t.seatsAllocated(organization.seats_total)}
+            </div>
+          </Card>
 
-        {/* Pas de Stripe sub — pending : pas encore d'essai activé. */}
-        {!hasStripeSub && trial.state === "pending" && (
-          <Panel tone="brand">
-            <p style={panelTitle("var(--nw-primary)")}>{t.noActiveSubscription}</p>
-            <p style={panelBody("var(--nw-text-body)")}>
-              {t.startTrialBody(TRIAL_DURATION_DAYS, TRIAL_SEAT_CAP)}
-            </p>
-            <button
-              type="button"
-              onClick={activateTrial}
-              disabled={!isOwner || busy}
-              style={ctaPrimaryBtn(busy)}
-            >
-              {busy ? t.activating : t.startFreeTrial(TRIAL_DURATION_DAYS)}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPickerMode("paid")}
-              disabled={!isOwner || busy}
-              style={{ ...ctaSecondaryBtn(false), marginTop: 8 }}
-            >
-              {t.subscribeToPlan}
-            </button>
-          </Panel>
-        )}
+          {/* Bloc 3 — Facturation : statut de paiement + portail Stripe. */}
+          <Card title={t.billingBlockTitle} subtitle={t.billingBlockSubtitle}>
+            <Panel tone={scheduledCancel || organization.subscription_status === "past_due" ? "warn" : access.state === "paid" ? "success" : "brand"}>
+              <p style={panelTitle(scheduledCancel || organization.subscription_status === "past_due" ? "var(--nw-danger-strong)" : access.state === "paid" ? "var(--nw-success)" : "var(--nw-primary)")}>
+                {scheduledCancel
+                  ? t.cancellationScheduled
+                  : organization.subscription_status === "past_due"
+                    ? t.paymentPastDueLabel
+                    : t.billingActiveLabel}
+              </p>
+              <p style={panelBody("var(--nw-text-body)")}>
+                {organization.subscription_status === "past_due"
+                  ? t.paymentFailed
+                  : scheduledCancel
+                    // Résilié au portail : accès complet jusqu'à la fin de la
+                    // période DÉJÀ payée — surtout pas « prochain prélèvement ».
+                    ? t.scheduledCancelBody(
+                        planLabel(organization, lang),
+                        scheduledCancel.endsAt.toLocaleDateString(locale, { day: "numeric", month: "long" }),
+                        GRACE_DAYS,
+                      )
+                    : access.state === "trialing" && "until" in access
+                      ? t.trialUntil(access.until?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "")
+                      : access.state === "paid" && "until" in access
+                        ? t.nextCharge(access.until?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "")
+                        : null}
+              </p>
+              <button
+                type="button"
+                onClick={openPortal}
+                disabled={busy || !isOwner}
+                style={scheduledCancel ? ctaPrimaryBtn(busy) : ctaSecondaryBtn(busy)}
+              >
+                {busy
+                  ? t.openingPortal
+                  : scheduledCancel ? t.resumeSubscription : t.manageSubscription}
+              </button>
+              {error && (
+                <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--nw-danger-strong)" }}>{error}</p>
+              )}
+            </Panel>
+          </Card>
+        </>
+      ) : (
+        // Pas encore d'abonnement Stripe — carte unique d'activation
+        // (essai à démarrer / en cours / terminé). Pas de découpage
+        // formule/facturation tant qu'il n'y a rien à facturer.
+        <Card title={t.subscription} subtitle={t.subSubtitle}>
+          {trial.state === "pending" && (
+            <Panel tone="brand">
+              <p style={panelTitle("var(--nw-primary)")}>{t.noActiveSubscription}</p>
+              <p style={panelBody("var(--nw-text-body)")}>
+                {t.startTrialBody(TRIAL_DURATION_DAYS, TRIAL_SEAT_CAP)}
+              </p>
+              <button
+                type="button"
+                onClick={activateTrial}
+                disabled={!isOwner || busy}
+                style={ctaPrimaryBtn(busy)}
+              >
+                {busy ? t.activating : t.startFreeTrial(TRIAL_DURATION_DAYS)}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPickerMode("paid")}
+                disabled={!isOwner || busy}
+                style={{ ...ctaSecondaryBtn(false), marginTop: 8 }}
+              >
+                {t.subscribeToPlan}
+              </button>
+            </Panel>
+          )}
 
-        {/* Trial actif — l'owner peut souscrire pour passer au paid (et
-            débloquer plus de 2 sièges). */}
-        {!hasStripeSub && trial.state === "active" && (
-          <Panel tone="success">
-            <p style={panelTitle("var(--nw-success)")}>
-              {t.trialActive(trial.daysLeft)}
-            </p>
-            <p style={panelBody("#166534")}>
-              {t.trialEndsOn(trial.endsAt?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "", TRIAL_SEAT_CAP)}
-            </p>
-            <button
-              type="button"
-              onClick={() => setPickerMode("paid")}
-              disabled={!isOwner}
-              style={ctaPrimaryBtn(false)}
-            >
-              {t.subscribeToPlanArrow}
-            </button>
-          </Panel>
-        )}
+          {/* Trial actif — l'owner peut souscrire pour passer au paid (et
+              débloquer plus de 2 sièges). */}
+          {trial.state === "active" && (
+            <Panel tone="success">
+              <p style={panelTitle("var(--nw-success)")}>
+                {t.trialActive(trial.daysLeft)}
+              </p>
+              <p style={panelBody("#166534")}>
+                {t.trialEndsOn(trial.endsAt?.toLocaleDateString(locale, { day: "numeric", month: "long" }) ?? "", TRIAL_SEAT_CAP)}
+              </p>
+              <button
+                type="button"
+                onClick={() => setPickerMode("paid")}
+                disabled={!isOwner}
+                style={ctaPrimaryBtn(false)}
+              >
+                {t.subscribeToPlanArrow}
+              </button>
+            </Panel>
+          )}
 
-        {!hasStripeSub && trial.state === "expired" && isAdmin && (
-          <Panel tone="brand">
-            <p style={panelTitle("var(--nw-primary)")}>{t.adminAccountTitle}</p>
-            <p style={panelBody("var(--nw-text-body)")}>
-              {t.adminAccountBody}
-            </p>
-          </Panel>
-        )}
+          {trial.state === "expired" && isAdmin && (
+            <Panel tone="brand">
+              <p style={panelTitle("var(--nw-primary)")}>{t.adminAccountTitle}</p>
+              <p style={panelBody("var(--nw-text-body)")}>
+                {t.adminAccountBody}
+              </p>
+            </Panel>
+          )}
 
-        {!hasStripeSub && trial.state === "expired" && !isAdmin && (
-          <Panel tone="warn">
-            <p style={panelTitle("var(--nw-danger-strong)")}>{t.trialEndedTitle}</p>
-            <p style={panelBody("#7F1D1D")}>
-              {t.trialEndedBody}
-            </p>
-            <button
-              type="button"
-              onClick={() => setPickerMode("paid")}
-              disabled={!isOwner}
-              style={{
-                ...ctaPrimaryBtn(false),
-                background: "linear-gradient(120deg, var(--nw-danger-strong) 0%, var(--nw-danger-strong) 100%)",
-                boxShadow: "0 6px 16px -4px rgba(220,38,38,0.40)",
-              }}
-            >
-              {t.subscribeArrow}
-            </button>
-          </Panel>
-        )}
+          {trial.state === "expired" && !isAdmin && (
+            <Panel tone="warn">
+              <p style={panelTitle("var(--nw-danger-strong)")}>{t.trialEndedTitle}</p>
+              <p style={panelBody("#7F1D1D")}>
+                {t.trialEndedBody}
+              </p>
+              <button
+                type="button"
+                onClick={() => setPickerMode("paid")}
+                disabled={!isOwner}
+                style={{
+                  ...ctaPrimaryBtn(false),
+                  background: "linear-gradient(120deg, var(--nw-danger-strong) 0%, var(--nw-danger-strong) 100%)",
+                  boxShadow: "0 6px 16px -4px rgba(220,38,38,0.40)",
+                }}
+              >
+                {t.subscribeArrow}
+              </button>
+            </Panel>
+          )}
 
-        {error && (
-          <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--nw-danger-strong)" }}>{error}</p>
-        )}
-
-        <div style={{ marginTop: 14, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
-          {t.seatsAllocated(organization.seats_total)}
-        </div>
-      </Card>
+          {error && (
+            <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--nw-danger-strong)" }}>{error}</p>
+          )}
+        </Card>
+      )}
 
       {pickerMode === "paid" && (
         <PlanPickerModal
