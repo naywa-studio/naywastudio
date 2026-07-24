@@ -620,13 +620,13 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
-#### Refonte visuelle /organisation — EN COURS (branche, PAS mergée) — 2026-07-23
+#### Refonte visuelle /organisation — EN PROD (mergée) — 2026-07-24
 
-**BRANCHE `claude/organisation-refonte`, poussée, PAS mergée** (partie de `main`
-= `f847f8e`). Build preview vert au dernier commit. **Refonte PUREMENT visuelle**
-de la console `/organisation` : réorganise l'enveloppe, ne touche NI aux droits
-(caps), NI aux routes, NI aux données. Validation par captures Elyas (aucun
-compilateur local — le build Vercel est le seul typecheck).
+**Branche `claude/organisation-refonte` MERGÉE dans main (fast-forward) et EN PROD**
+— main = `09d33be`, déploiement production vert (naywastudio.com). **Refonte
+PUREMENT visuelle** de la console `/organisation` : réorganise l'enveloppe, ne
+touche NI aux droits (caps), NI aux routes, NI aux données. Validée par captures
+Elyas (aucun compilateur local — le build Vercel est le seul typecheck).
 
 **FAIT (validé build + captures Elyas)** :
 - **Barre latérale** remplace les 3 onglets serrés → **6 sections** gatées par les
@@ -673,12 +673,28 @@ compilateur local — le build Vercel est le seul typecheck).
 + re-check `caps` au rendu), 7/7 routes sensibles owner-only côté serveur, cabinet
 PATCH field-level. Un délégué qui force `?tab=billing` retombe sur Vue d'ensemble.
 
-**RESTE — à valider par Elyas en preview** (rendu visuel des 3 nouveaux points
-ci-dessus : pricing inline, 3 blocs abonnement, libellé Avancé). Puis merge.
+- **Politique de pricing — clarté** (commit `09d33be`) : bandeau d'intro (à quoi
+  servent ces réglages = moteur Syntec) + bouton **Référence Syntec** →
+  `/workspace/pricing/reference`. En-têtes de carte avec badge **Étape 1/2/3**
+  (Marges · Jours non facturables · Avantages). Layout : Marges + Jours côte à côte
+  en haut, Avantages pleine largeur dessous ; 1 colonne < 720px.
 
-**Puis (lots suivants, hors refonte visuelle)** : **preview de proratisation**
-(upcoming-invoice Stripe → montant exact avant de confirmer sièges/addon) ·
-**acceptation CGU** (case bloquante + `cgu_accepted_at` + version, colonne org).
+**PROCHAIN LOT — Refonte accueil workspace (nouvelle branche à créer)** :
+- **But** : distinguer nettement **Accueil workspace** (/workspace = espace de
+  travail opérationnel : vivier, missions, pricing…) de la **Vue d'ensemble**
+  (/organisation = gérer l'org). L'accueil = « espace commun », tuiles ouvertes
+  **selon l'habilitation** (recâbler sur `getCapabilities`, PAS de nouveau système).
+- **Droits à respecter** : sans siège → **lecture seule** (SeatReadOnlyBanner déjà
+  en place) ; délégué → tuiles selon ses caps ; owner+siège → tout.
+- **Déplacer « Votre siège »** (allouer/libérer, action PERSONNELLE d'accès) de la
+  section Abonnement vers la **Vue d'ensemble**, près du CTA « Ouvrir le workspace »
+  (naturel pour cabinets solo / indépendants). Abonnement redevient Formule +
+  Facturation. Le *nombre de sièges payés* reste dans la Formule.
+- Le wizard `PricingOnboardingGate` reste (ne s'affiche que tant que non configuré).
+
+**Puis (lots suivants)** : **preview de proratisation** (upcoming-invoice Stripe →
+montant exact avant de confirmer sièges/addon) · **acceptation CGU** (case bloquante
++ `cgu_accepted_at` + version, colonne org).
 
 ---
 
