@@ -3462,22 +3462,24 @@ function MembersSection({
    *  politique de pricing. Volontairement SÉPARÉ du siège : un siège donne
    *  accès au workspace, la délégation donne accès à la configuration —
    *  deux choses différentes qu'on ne doit pas confondre. */
-  const toggleDelegate = async (userId: string, allow: boolean, label: string) => {
-    if (allow && !confirm(t.delegateConfirm(label))) return
+  // Octroi/retrait d'UNE capacité (branding ou pricing) à un membre, à la
+  // carte. Le backend (delegate-settings) est granulaire ; on n'envoie que la
+  // cap touchée. Recharge la liste des membres via onChange.
+  const setCap = async (userId: string, cap: "branding" | "pricing", value: boolean, label: string) => {
     setBusy(true); setError(null); setOkMessage(null)
     const res = await fetch("/api/cabinet/delegate-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // Toggle bundlé (branding + pricing ensemble) : correspond au besoin
-      // « une personne gère toute la config ». Le backend est granulaire — des
-      // toggles par-capacité pourront s'ajouter sans y retoucher.
-      body: JSON.stringify({ userId, branding: allow, pricing: allow }),
+      body: JSON.stringify({ userId, [cap]: value }),
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({} as { message?: string; error?: string }))
       setError(j.message ?? j.error ?? t.delegateError)
     } else {
-      setOkMessage(allow ? t.delegateOn(label) : t.delegateOff(label))
+      const capName = cap === "branding" ? "Branding" : "Pricing"
+      setOkMessage(lang === "en"
+        ? `${capName} ${value ? "granted to" : "removed from"} ${label}`
+        : `${capName} ${value ? "accordé à" : "retiré à"} ${label}`)
       onChange()
     }
     setBusy(false)
@@ -3526,28 +3528,45 @@ function MembersSection({
                 </div>
                 <RolePill role={m.role} />
                 {isOwner && m.role !== "owner" && (
-                  <button
-                    type="button"
-                    onClick={() => void toggleDelegate(
-                      m.user_id,
-                      !(m.can_manage_branding || m.can_manage_pricing),
-                      m.first_name ?? t.noFirstName,
-                    )}
-                    disabled={busy}
-                    title={(m.can_manage_branding || m.can_manage_pricing) ? t.delegateRemoveHint : t.delegateAddHint}
-                    style={{
-                      ...iconBtnStyle,
-                      ...((m.can_manage_branding || m.can_manage_pricing)
-                        ? {
-                            color: "var(--nw-primary)",
-                            borderColor: "var(--nw-primary-200)",
-                            background: "var(--nw-primary-50)",
-                          }
-                        : null),
-                    }}
-                  >
-                    {(m.can_manage_branding || m.can_manage_pricing) ? t.delegateOnLabel : t.delegateOffLabel}
-                  </button>
+                  <div style={{ display: "inline-flex", gap: 6 }}>
+                    {(["branding", "pricing"] as const).map((cap) => {
+                      const on = cap === "branding" ? m.can_manage_branding === true : m.can_manage_pricing === true
+                      const label = cap === "branding" ? "Branding" : "Pricing"
+                      return (
+                        <button
+                          key={cap}
+                          type="button"
+                          onClick={() => void setCap(m.user_id, cap, !on, m.first_name ?? t.noFirstName)}
+                          disabled={busy}
+                          aria-pressed={on}
+                          title={lang === "en"
+                            ? (on ? `Remove ${label}` : `Grant ${label}`)
+                            : (on ? `Retirer ${label}` : `Accorder ${label}`)}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            padding: "5px 10px", borderRadius: 999,
+                            fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                            fontFamily: "inherit", whiteSpace: "nowrap",
+                            border: on ? "1px solid var(--nw-primary-200)" : "1px solid var(--nw-border)",
+                            background: on ? "var(--nw-primary-50)" : "white",
+                            color: on ? "var(--nw-primary)" : "var(--nw-text-muted)",
+                          }}
+                        >
+                          <span aria-hidden style={{
+                            width: 13, height: 13, borderRadius: 4, flexShrink: 0,
+                            border: on ? "1px solid var(--nw-primary)" : "1px solid var(--nw-border-strong)",
+                            background: on ? "var(--nw-primary)" : "transparent",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            {on && (
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                            )}
+                          </span>
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
                 )}
                 {canDeallocate && (
                   <button
