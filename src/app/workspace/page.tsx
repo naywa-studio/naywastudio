@@ -10,8 +10,9 @@ import { getSupabase } from "@/lib/supabase"
 import { trialStatus } from "@/lib/trial"
 import { hasPricingAccess } from "@/lib/subscription"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
-import type { MatchTier, Organization } from "@/lib/database.types"
-import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+import { getCapabilities } from "@/lib/capabilities"
+import type { Organization } from "@/lib/database.types"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const copy = {
   fr: {
@@ -25,23 +26,20 @@ const copy = {
     launchMatching: "Lancer un matching",
     priceMission: "Chiffrer une mission",
     trackPipeline: "Suivre le pipeline",
+    orgQuickAccess: "Organisation",
     vivier: "Vivier",
+    vivierUnit: "CV",
     openMissions: "Missions ouvertes",
-    strongMatches: "Matchs pertinents",
-    pricingPool: "Candidats en pricing",
+    toQualify: "Matchs à qualifier",
     deltaThisWeek: (n: number) => `+${n} cette semaine`,
-    recentCandidates: "Récemment ajoutés au vivier",
-    noCandidates: "Aucun CV ajouté pour l'instant.",
-    viewVivier: "Voir le vivier",
-    recentMatches: "Meilleurs matches récents",
-    noMatches: "Aucun match excellent ou bon pour l'instant.",
-    viewPipeline: "Voir le pipeline",
-    missionsToPrice: "Missions à chiffrer",
-    noMissionsToPrice: "Aucun candidat n'attend de chiffrage.",
-    openPricing: "Ouvrir le pricing",
-    noName: "Sans nom",
-    candidateFallback: "Candidat",
-    waitingCandidates: (n: number) => `${n} candidat${n > 1 ? "s" : ""} en attente`,
+    missionsNowTitle: "Vos missions du moment",
+    missionsNowSubtitle: "Reprenez là où vous en étiez.",
+    missionInPipeline: (n: number) => `${n} en pipeline`,
+    toQualifyWord: "à qualifier",
+    openMission: "Ouvrir la mission",
+    noMissionsTitle: "Aucune mission ouverte",
+    noMissionsBody: "Créez une mission pour commencer à sourcer et matcher.",
+    createFirstMission: "Créer une mission",
   },
   en: {
     noOrgName: "Unnamed organization",
@@ -54,45 +52,21 @@ const copy = {
     launchMatching: "Run a matching",
     priceMission: "Price a job opening",
     trackPipeline: "Track the pipeline",
+    orgQuickAccess: "Organization",
     vivier: "Talent pool",
+    vivierUnit: "CVs",
     openMissions: "Open job openings",
-    strongMatches: "Relevant matches",
-    pricingPool: "Candidates in pricing",
+    toQualify: "Matches to qualify",
     deltaThisWeek: (n: number) => `+${n} this week`,
-    recentCandidates: "Recently added to the talent pool",
-    noCandidates: "No CVs added yet.",
-    viewVivier: "View talent pool",
-    recentMatches: "Best recent matches",
-    noMatches: "No excellent or good match yet.",
-    viewPipeline: "View pipeline",
-    missionsToPrice: "Job openings to price",
-    noMissionsToPrice: "No candidate is waiting for pricing.",
-    openPricing: "Open pricing",
-    noName: "No name",
-    candidateFallback: "Candidate",
-    waitingCandidates: (n: number) => `${n} candidate${n > 1 ? "s" : ""} waiting`,
+    missionsNowTitle: "Your active missions",
+    missionsNowSubtitle: "Pick up where you left off.",
+    missionInPipeline: (n: number) => `${n} in pipeline`,
+    toQualifyWord: "to qualify",
+    openMission: "Open the mission",
+    noMissionsTitle: "No open mission",
+    noMissionsBody: "Create a mission to start sourcing and matching.",
+    createFirstMission: "Create a mission",
   },
-}
-
-function timeAgo(iso: string, lang: Lang): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60_000)
-  if (lang === "fr") {
-    if (mins < 60) return `il y a ${mins}min`
-    const h = Math.floor(mins / 60)
-    if (h < 24) return `il y a ${h}h`
-    const d = Math.floor(h / 24)
-    if (d < 30) return `il y a ${d}j`
-    const mo = Math.floor(d / 30)
-    return `il y a ${mo}mois`
-  }
-  if (mins < 60) return `${mins}min ago`
-  const h = Math.floor(mins / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 30) return `${d}d ago`
-  const mo = Math.floor(d / 30)
-  return `${mo}mo ago`
 }
 
 /** Helper local : trial app-side actif. Évite de réimporter le helper
@@ -119,69 +93,53 @@ function brandRgba(hex: string | null | undefined, alpha: number): string | null
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 /**
- * Workspace home — un coup d'œil sur les 4 piliers du cabinet
- * (vivier · missions · pricing · pipeline) avec :
- *   - hero d'identité (logo + nom société + bonjour {prénom})
- *   - 5 raccourcis d'action vers les usages les plus fréquents
- *   - 4 indicateurs avec delta sur 7 jours
- *   - 3 panneaux d'activité récente (candidats / matches / à chiffrer)
+ * Workspace home — cockpit opérationnel du sourceur (distinct de la Vue
+ * d'ensemble admin de /organisation). Structure :
+ *   - hero BRANDÉ (logo + couleurs du cabinet, « votre espace de travail »)
+ *   - raccourcis d'action + accès Organisation (owner/délégué)
+ *   - 3 KPIs bornés : Vivier (CV) · Missions ouvertes · Matchs à qualifier
+ *   - « Vos missions du moment » : 1-2 missions les plus actives, chacune
+ *     avec ses candidats en pipeline et ses matchs à qualifier.
+ *
+ * « À qualifier » = match fort (excellent/bon) DÉJÀ en pipeline mais encore au
+ * premier stade (identified) : le sourceur doit décider de l'avancer ou l'écarter.
  */
 
 interface Stats {
   candidates: number
   candidatesDelta: number
   openJobs: number
-  strongMatches: number
-  strongMatchesDelta: number
-  pricingPool: number
+  /** Matchs forts en pipeline encore au stade « identified » (à qualifier). */
+  toQualify: number
 }
 
-interface RecentCandidate {
-  id: string
-  full_name: string | null
-  current_title: string | null
-  current_company: string | null
-  created_at: string
-}
-
-interface RecentMatch {
-  id: string
-  score: number | null
-  match_tier: MatchTier | null
-  created_at: string
-  candidate: { id: string; full_name: string | null; current_title: string | null } | null
-  job: { id: string; title: string } | null
-}
-
-interface MissionToPrice {
+interface MissionCard {
   id: string
   title: string
-  candidatesCount: number
-}
-
-const TIER_COLOR: Record<MatchTier, { fg: string; bg: string; bd: string }> = {
-  excellent: { fg: "var(--nw-success)", bg: "rgba(34,197,94,0.10)",  bd: "rgba(34,197,94,0.3)" },
-  good:      { fg: "var(--nw-primary)", bg: "rgba(124,99,200,0.08)", bd: "rgba(124,99,200,0.22)" },
-  fair:      { fg: "var(--nw-warn)", bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.3)" },
-  poor:      { fg: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)",               bd: "var(--nw-border)" },
+  /** Candidats suivis dans la pipeline de cette mission. */
+  pipelineCount: number
+  /** Matchs forts à qualifier (in_pipeline + stade identified) sur cette mission. */
+  toQualifyCount: number
 }
 
 export default function WorkspaceHome() {
   const { profile, organization, hasSubscription, isReadOnly, refetchProfile } = useWorkspace()
   const { lang } = useLanguage()
   const t = copy[lang]
-  // L'accueil est une deuxième porte d'entrée vers la Suite Pricing (raccourci,
-  // indicateur, panneau « Missions à chiffrer ») — indépendante de l'onglet de
-  // nav. Sans ça, un client sans l'option voyait encore des liens qui mènent à
-  // un écran d'activation : on lui propose une porte fermée.
+  // L'accueil est une deuxième porte d'entrée vers la Suite Pricing (raccourci
+  // « Chiffrer »). Sans ce gate, un client sans l'option voyait un lien qui mène
+  // à un écran d'activation : on lui propose une porte fermée.
   const canPricing = hasPricingAccess(organization, { isAdmin: profile?.is_admin === true })
+  // Accès rapide à /organisation réservé à ceux qui peuvent la gérer : owner
+  // (isOrgAdmin) ou délégué habilité (branding/pricing). Un simple sourceur ne
+  // le voit pas. Même source de vérité que le reste (getCapabilities).
+  const orgCaps = getCapabilities(profile)
+  const canReachOrg = orgCaps.isOrgAdmin || orgCaps.canBranding || orgCaps.canPricing
   const sb = useMemo(() => getSupabase(), [])
   const granted = useRef(false)
 
   const [stats, setStats] = useState<Stats | null>(null)
-  const [recentCandidates, setRecentCandidates] = useState<RecentCandidate[]>([])
-  const [recentMatches, setRecentMatches] = useState<RecentMatch[]>([])
-  const [missionsToPrice, setMissionsToPrice] = useState<MissionToPrice[]>([])
+  const [missionCards, setMissionCards] = useState<MissionCard[]>([])
   const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -231,7 +189,7 @@ export default function WorkspaceHome() {
     return () => { mounted = false }
   }, [sb, organization?.brand_logo_path])
 
-  // Load stats + recent activity in parallel.
+  // Charge les KPIs + les missions du moment.
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -240,71 +198,71 @@ export default function WorkspaceHome() {
       const [
         candRes, candDeltaRes,
         jobsRes,
-        matchesRes, matchesDeltaRes,
-        pricingPoolRes,
-        recentCandsRes, recentMatchesRes,
-        pricingMissionsRes,
+        toQualifyRes,
+        recentJobsRes,
       ] = await Promise.all([
+        // Vivier — CV actifs (hors « ancien »).
         sb.from("candidates").select("id", { count: "exact", head: true })
           .not("tags", "cs", "{ancien}"),
         sb.from("candidates").select("id", { count: "exact", head: true })
           .not("tags", "cs", "{ancien}")
           .gte("created_at", sevenDaysAgo),
+        // Missions ouvertes.
         sb.from("jobs").select("id", { count: "exact", head: true })
           .eq("status", "open"),
-        sb.from("match_assessments").select("id", { count: "exact", head: true })
-          .in("match_tier", ["excellent", "good"]),
+        // Matchs à qualifier (global) : forts, en pipeline, encore « identified ».
         sb.from("match_assessments").select("id", { count: "exact", head: true })
           .in("match_tier", ["excellent", "good"])
-          .gte("created_at", sevenDaysAgo),
-        sb.from("match_assessments").select("id", { count: "exact", head: true })
-          .eq("in_pipeline", true),
-        sb.from("candidates")
-          .select("id, full_name, current_title, current_company, created_at")
-          .eq("parse_status", "parsed")
-          .not("tags", "cs", "{ancien}")
-          .order("created_at", { ascending: false })
-          .limit(5),
-        sb.from("match_assessments")
-          .select(`
-            id, score, match_tier, created_at,
-            candidate:candidates(id, full_name, current_title),
-            job:jobs(id, title)
-          `)
-          .in("match_tier", ["excellent", "good"])
-          .order("created_at", { ascending: false })
-          .limit(5),
-        sb.from("match_assessments")
-          .select(`job_id, job:jobs(id, title)`)
-          .eq("in_pipeline", true),
+          .eq("in_pipeline", true)
+          .eq("pipeline_stage", "identified"),
+        // Missions du moment : les 2 ouvertes les plus récemment actives.
+        sb.from("jobs")
+          .select("id, title")
+          .eq("status", "open")
+          .order("updated_at", { ascending: false })
+          .limit(2),
       ])
 
       if (!mounted) return
 
-      // Aggregate pricing missions by job.
-      type PricingRow = { job_id: string; job: { id: string; title: string } | null }
-      const byJob = new Map<string, MissionToPrice>()
-      for (const row of (pricingMissionsRes.data ?? []) as unknown as PricingRow[]) {
-        if (!row.job) continue
-        const cur = byJob.get(row.job_id)
-        if (cur) cur.candidatesCount += 1
-        else byJob.set(row.job_id, { id: row.job.id, title: row.job.title, candidatesCount: 1 })
+      // Agrégats par mission (candidats en pipeline + matchs à qualifier) pour
+      // les 1-2 missions affichées : une seule requête filtrée sur leurs ids,
+      // comptée côté client.
+      type RecentJob = { id: string; title: string }
+      const recentJobs = (recentJobsRes.data ?? []) as RecentJob[]
+      const jobIds = recentJobs.map((j) => j.id)
+
+      const cards: MissionCard[] = recentJobs.map((j) => ({
+        id: j.id, title: j.title, pipelineCount: 0, toQualifyCount: 0,
+      }))
+
+      if (jobIds.length > 0) {
+        const { data: matchRows } = await sb.from("match_assessments")
+          .select("job_id, in_pipeline, match_tier, pipeline_stage")
+          .in("job_id", jobIds)
+        if (!mounted) return
+        type MatchRow = { job_id: string; in_pipeline: boolean; match_tier: string | null; pipeline_stage: string }
+        for (const row of (matchRows ?? []) as MatchRow[]) {
+          const card = cards.find((c) => c.id === row.job_id)
+          if (!card) continue
+          if (row.in_pipeline) card.pipelineCount += 1
+          if (
+            row.in_pipeline &&
+            row.pipeline_stage === "identified" &&
+            (row.match_tier === "excellent" || row.match_tier === "good")
+          ) {
+            card.toQualifyCount += 1
+          }
+        }
       }
-      const missionsList = Array.from(byJob.values())
-        .sort((a, b) => b.candidatesCount - a.candidatesCount)
-        .slice(0, 5)
 
       setStats({
         candidates: candRes.count ?? 0,
         candidatesDelta: candDeltaRes.count ?? 0,
         openJobs: jobsRes.count ?? 0,
-        strongMatches: matchesRes.count ?? 0,
-        strongMatchesDelta: matchesDeltaRes.count ?? 0,
-        pricingPool: pricingPoolRes.count ?? 0,
+        toQualify: toQualifyRes.count ?? 0,
       })
-      setRecentCandidates((recentCandsRes.data ?? []) as RecentCandidate[])
-      setRecentMatches((recentMatchesRes.data ?? []) as unknown as RecentMatch[])
-      setMissionsToPrice(missionsList)
+      setMissionCards(cards)
       setLoading(false)
     })()
     return () => { mounted = false }
@@ -419,9 +377,13 @@ export default function WorkspaceHome() {
           </>
         )}
         <ActionTile href="/workspace/pipeline" label={t.trackPipeline} icon={<IconKanban />} />
+        {/* Accès Organisation réservé owner/délégué (getCapabilities). */}
+        {canReachOrg && (
+          <ActionTile href="/organisation" label={t.orgQuickAccess} icon={<IconBuilding />} />
+        )}
       </m.div>
 
-      {/* ── Indicateurs ───────────────────────────────────────── */}
+      {/* ── KPIs (l'état, bornés) ─────────────────────────────── */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
@@ -430,6 +392,7 @@ export default function WorkspaceHome() {
         <StatTile href="/workspace/vivier"
           label={t.vivier}
           value={stats?.candidates ?? null}
+          unit={t.vivierUnit}
           delta={stats?.candidatesDelta ?? null}
           loading={loading}
           deltaLabel={t.deltaThisWeek}
@@ -442,112 +405,112 @@ export default function WorkspaceHome() {
           deltaLabel={t.deltaThisWeek}
         />
         <StatTile href="/workspace/pipeline"
-          label={t.strongMatches}
-          value={stats?.strongMatches ?? null}
-          delta={stats?.strongMatchesDelta ?? null}
+          label={t.toQualify}
+          value={stats?.toQualify ?? null}
+          delta={null}
           loading={loading}
           deltaLabel={t.deltaThisWeek}
         />
-        {canPricing && (
-          <StatTile href="/workspace/pricing"
-            label={t.pricingPool}
-            value={stats?.pricingPool ?? null}
-            delta={null}
-            loading={loading}
-            deltaLabel={t.deltaThisWeek}
-          />
-        )}
       </div>
 
-      {/* ── Activité récente ──────────────────────────────────── */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-        gap: 14, marginBottom: 28,
+      {/* ── Vos missions du moment ─────────────────────────────── */}
+      <section style={{
+        background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16,
+        overflow: "hidden",
       }}>
-        <RecentPanel
-          title={t.recentCandidates}
-          loading={loading}
-          empty={t.noCandidates}
-          actionLabel={t.viewVivier}
-          actionHref="/workspace/vivier"
-        >
-          {recentCandidates.map((c) => (
-            <Link key={c.id} href={`/workspace/vivier/${c.id}`} style={rowLinkStyle}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={rowTitleStyle}>{c.full_name ?? t.noName}</p>
-                <p style={rowSubStyle}>
-                  {c.current_title ?? "—"}
-                  {c.current_company ? ` · ${c.current_company}` : ""}
-                </p>
-              </div>
-              <span style={rowDateStyle}>{timeAgo(c.created_at, lang)}</span>
-            </Link>
-          ))}
-        </RecentPanel>
-
-        <RecentPanel
-          title={t.recentMatches}
-          loading={loading}
-          empty={t.noMatches}
-          actionLabel={t.viewPipeline}
-          actionHref="/workspace/pipeline"
-        >
-          {recentMatches.map((mm) => {
-            const tier = mm.match_tier ? TIER_COLOR[mm.match_tier] : null
-            return (
-              <Link key={mm.id} href={`/workspace/match/${mm.id}`} style={rowLinkStyle}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={rowTitleStyle}>
-                    {mm.candidate?.full_name ?? t.candidateFallback}
-                    <span style={{ color: "var(--nw-text-muted)", fontWeight: 500 }}> · {mm.job?.title ?? "—"}</span>
-                  </p>
-                  <p style={rowSubStyle}>{mm.candidate?.current_title ?? ""}</p>
-                </div>
-                {mm.score != null && tier && (
-                  <span style={{
-                    fontSize: 11, fontWeight: 800, color: tier.fg,
-                    background: tier.bg, border: `1px solid ${tier.bd}`,
-                    borderRadius: 100, padding: "2px 9px", flexShrink: 0,
-                  }}>
-                    {mm.score}
-                  </span>
-                )}
-              </Link>
-            )
-          })}
-        </RecentPanel>
-
-        {canPricing && (
-        <RecentPanel
-          title={t.missionsToPrice}
-          loading={loading}
-          empty={t.noMissionsToPrice}
-          actionLabel={t.openPricing}
-          actionHref="/workspace/pricing"
-        >
-          {missionsToPrice.map((mm) => (
-            <Link key={mm.id} href={`/workspace/pricing/${mm.id}`} style={rowLinkStyle}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={rowTitleStyle}>{mm.title}</p>
-                <p style={rowSubStyle}>
-                  {t.waitingCandidates(mm.candidatesCount)}
-                </p>
-              </div>
-              <span style={{
-                fontSize: 11, fontWeight: 800, color: "#D97706",
-                background: "rgba(217,119,6,0.10)", border: "1px solid rgba(217,119,6,0.25)",
-                borderRadius: 100, padding: "2px 9px", flexShrink: 0,
-              }}>
-                {mm.candidatesCount}
-              </span>
-            </Link>
-          ))}
-        </RecentPanel>
-        )}
-      </div>
+        <div style={{
+          padding: "14px 18px", borderBottom: "1px solid var(--nw-border-soft)",
+        }}>
+          <h2 style={{
+            margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
+            letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+          }}>
+            {t.missionsNowTitle}
+          </h2>
+          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)" }}>
+            {t.missionsNowSubtitle}
+          </p>
+        </div>
+        <div style={{ padding: 12 }}>
+          {loading ? (
+            <div style={{ padding: "20px 12px" }}><NoraLoader inline /></div>
+          ) : missionCards.length === 0 ? (
+            <div style={{ padding: "22px 14px", textAlign: "center" }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-text)" }}>
+                {t.noMissionsTitle}
+              </p>
+              <p style={{ margin: "5px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)" }}>
+                {t.noMissionsBody}
+              </p>
+              {!isReadOnly && (
+                <Link href="/workspace/missions" style={{
+                  display: "inline-block", marginTop: 14,
+                  padding: "9px 16px", borderRadius: 10,
+                  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                  color: "white", fontSize: 13, fontWeight: 700, textDecoration: "none",
+                }}>
+                  {t.createFirstMission}
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {missionCards.map((mc) => (
+                <MissionRow key={mc.id} card={mc} t={t} />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
     </main>
+  )
+}
+
+/** Carte « mission du moment » : titre + candidats en pipeline + gros chiffre
+ *  « à qualifier » (l'action clé) + CTA d'ouverture. */
+function MissionRow({ card, t }: { card: MissionCard; t: (typeof copy)["fr"] }) {
+  return (
+    <Link href={`/workspace/missions/${card.id}`} style={{
+      display: "flex", alignItems: "center", gap: 14,
+      padding: "14px 16px", borderRadius: 12,
+      background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border-soft)",
+      textDecoration: "none",
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{
+          margin: 0, fontSize: 14.5, fontWeight: 700, color: "var(--nw-text)",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {card.title}
+        </p>
+        <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--nw-text-muted)" }}>
+          {t.missionInPipeline(card.pipelineCount)}
+        </p>
+      </div>
+      {/* Gros chiffre actionnable : matchs à qualifier sur cette mission. */}
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
+        <p style={{
+          margin: 0, fontSize: 24, fontWeight: 800, lineHeight: 1,
+          color: card.toQualifyCount > 0 ? "var(--nw-primary)" : "var(--nw-text-muted)",
+          fontVariantNumeric: "tabular-nums",
+        }}>
+          {card.toQualifyCount}
+        </p>
+        <p style={{ margin: "3px 0 0", fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.02em" }}>
+          {t.toQualifyWord}
+        </p>
+      </div>
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+        padding: "8px 13px", borderRadius: 9,
+        background: "white", border: "1px solid var(--nw-primary-100)",
+        color: "var(--nw-primary)", fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap",
+      }}>
+        {t.openMission}
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden><path d="M8 4l6 6-6 6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </span>
+    </Link>
   )
 }
 
@@ -631,10 +594,12 @@ function ActionTile({ href, label, icon }: {
   )
 }
 
-function StatTile({ href, label, value, delta, loading, deltaLabel }: {
+function StatTile({ href, label, value, unit, delta, loading, deltaLabel }: {
   href: string
   label: string
   value: number | null
+  /** Unité affichée en petit après le nombre (ex : « CV »). */
+  unit?: string
   delta: number | null
   loading: boolean
   deltaLabel: (n: number) => string
@@ -667,6 +632,11 @@ function StatTile({ href, label, value, delta, loading, deltaLabel }: {
           letterSpacing: "-0.02em", lineHeight: 1,
         }}>
           {loading ? "—" : value ?? 0}
+          {!loading && unit && (
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--nw-text-muted)", marginLeft: 5 }}>
+              {unit}
+            </span>
+          )}
         </p>
         {/* Delta masqué quand il égale le total (ex : vivier entièrement
             importé cette semaine) — "+77" sous "77" n'apporte rien. */}
@@ -679,54 +649,6 @@ function StatTile({ href, label, value, delta, loading, deltaLabel }: {
         )}
       </div>
     </Link>
-  )
-}
-
-function RecentPanel({
-  title, loading, empty, actionLabel, actionHref, children,
-}: {
-  title: string
-  loading: boolean
-  empty: string
-  actionLabel: string
-  actionHref: string
-  children: React.ReactNode
-}) {
-  const items = Array.isArray(children) ? children : children ? [children] : []
-  return (
-    <section style={{
-      background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16,
-      overflow: "hidden",
-    }}>
-      <div style={{
-        padding: "14px 18px", borderBottom: "1px solid var(--nw-border-soft)",
-        display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-      }}>
-        <h2 style={{
-          margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
-          letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
-        }}>
-          {title}
-        </h2>
-        <Link href={actionHref} style={{
-          fontSize: 11.5, fontWeight: 700, color: "var(--nw-primary)", textDecoration: "none",
-          whiteSpace: "nowrap",
-        }}>
-          {actionLabel}
-        </Link>
-      </div>
-      <div style={{ padding: 6 }}>
-        {loading ? (
-          <div style={{ padding: "20px 12px" }}><NoraLoader inline /></div>
-        ) : items.length === 0 ? (
-          <p style={{ margin: 0, padding: "20px 12px", fontSize: 13, color: "var(--nw-text-muted)" }}>
-            {empty}
-          </p>
-        ) : (
-          children
-        )}
-      </div>
-    </section>
   )
 }
 
@@ -779,22 +701,11 @@ function IconKanban() {
     </svg>
   )
 }
-
-/* ─── Row styles ───────────────────────────────────────────────── */
-
-const rowLinkStyle: React.CSSProperties = {
-  display: "flex", alignItems: "center", gap: 10,
-  padding: "10px 12px", borderRadius: 10,
-  textDecoration: "none",
-}
-const rowTitleStyle: React.CSSProperties = {
-  margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)",
-  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-}
-const rowSubStyle: React.CSSProperties = {
-  margin: "2px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)",
-  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-}
-const rowDateStyle: React.CSSProperties = {
-  fontSize: 11, color: "var(--nw-text-muted)", flexShrink: 0,
+function IconBuilding() {
+  return (
+    <svg {...ICON_PROPS}>
+      <rect x="5" y="3" width="10" height="18" rx="1.4" />
+      <path d="M15 8h4v13H5M8 7h1M11 7h1M8 11h1M11 11h1M8 15h1M11 15h1" />
+    </svg>
+  )
 }
