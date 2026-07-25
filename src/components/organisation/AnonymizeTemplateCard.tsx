@@ -451,9 +451,10 @@ function MiniPreview({
         </span>
       </div>
 
-      {/* Corps (varie selon le template) */}
+      {/* Corps (varie selon le template) + squelette de remplissage */}
       <div style={{ flex: 1, padding: "10px 12px", minHeight: 0, position: "relative", zIndex: 1 }}>
         {body}
+        <PreviewSkeleton accent={accentSecondary} />
       </div>
 
       {/* Pied */}
@@ -479,6 +480,26 @@ const cardStyle: React.CSSProperties = {
 const fieldLabel: React.CSSProperties = {
   fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
   color: "var(--nw-text-muted)", fontFamily: "var(--nw-font-mono)",
+}
+
+/** Squelette de remplissage — barres grises façon placeholder pour donner
+ *  l'impression d'un CV complet (on ne peut pas montrer de vraies infos). */
+function PreviewSkeleton({ accent }: { accent: string }) {
+  const line = (w: string) => (
+    <div style={{ width: w, height: 5, borderRadius: 3, background: "#E5E7EB", marginBottom: 5 }} />
+  )
+  return (
+    <div aria-hidden style={{ marginTop: 16, opacity: 0.7 }}>
+      {[0, 1].map((s) => (
+        <div key={s} style={{ marginBottom: 14 }}>
+          <div style={{ width: 64, height: 6, borderRadius: 3, background: accent, opacity: 0.3, marginBottom: 7 }} />
+          {line("92%")}
+          {line("84%")}
+          {line("70%")}
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function CardHeader({ title, subtitle }: { title: string; subtitle: string }) {
