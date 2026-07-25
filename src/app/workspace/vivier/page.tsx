@@ -700,7 +700,7 @@ export default function VivierPage() {
             title={isReadOnly ? t.readOnlyImport : undefined}
             style={{
               fontSize: 13, fontWeight: 700, color: "white",
-              background: isReadOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              background: isReadOnly ? "var(--nw-primary-200)" : "var(--nw-primary)",
               border: "none", borderRadius: 10, padding: "10px 18px",
               cursor: isReadOnly ? "not-allowed" : "pointer",
               boxShadow: isReadOnly ? "none" : "0 6px 20px -8px rgba(124,99,200,0.55)",
@@ -799,7 +799,7 @@ export default function VivierPage() {
             disabled={dedupRunning}
             style={{
               fontSize: 12.5, fontWeight: 700, color: "white",
-              background: dedupRunning ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              background: dedupRunning ? "var(--nw-primary-200)" : "var(--nw-primary)",
               border: "none", borderRadius: 9, padding: "8px 14px",
               cursor: dedupRunning ? "default" : "pointer",
               fontFamily: "inherit",
@@ -1388,7 +1388,7 @@ function EmptyDropZone({ onPick, readOnly = false }: { onPick: () => void; readO
       <span style={{
         display: "inline-block",
         padding: "11px 22px", borderRadius: 12,
-        background: readOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+        background: readOnly ? "var(--nw-primary-200)" : "var(--nw-primary)",
         color: "white", fontWeight: 700, fontSize: 14,
         boxShadow: readOnly ? "none" : "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
@@ -1545,7 +1545,7 @@ function SectorOverview({
               onClick={onCreate}
               style={{
                 fontSize: 12.5, fontWeight: 700, color: "white",
-                background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                background: "var(--nw-primary)",
                 border: "none", borderRadius: 9, padding: "8px 14px",
                 cursor: "pointer", fontFamily: "inherit",
               }}
@@ -1849,7 +1849,7 @@ function CreateSectorModal({
           <button onClick={onClose} style={{ fontSize: 13, fontWeight: 600, color: "var(--nw-text-muted)", background: "white", border: "1px solid var(--nw-border)", borderRadius: 9, padding: "9px 15px", cursor: "pointer", fontFamily: "inherit" }}>{t.cancel}</button>
           <button
             onClick={create} disabled={!name.trim() || creating}
-            style={{ fontSize: 13, fontWeight: 700, color: "white", background: !name.trim() || creating ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)", border: "none", borderRadius: 9, padding: "9px 18px", cursor: !name.trim() || creating ? "default" : "pointer", fontFamily: "inherit" }}
+            style={{ fontSize: 13, fontWeight: 700, color: "white", background: !name.trim() || creating ? "var(--nw-primary-200)" : "var(--nw-primary)", border: "none", borderRadius: 9, padding: "9px 18px", cursor: !name.trim() || creating ? "default" : "pointer", fontFamily: "inherit" }}
           >
             {creating ? t.creatingSector : t.createSector}
           </button>

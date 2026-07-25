@@ -819,7 +819,7 @@ export function PricingShortcut({ matches }: { matches: JobMatch[] }) {
     fontFamily: "inherit", fontSize: 12, fontWeight: 700,
     color: "white",
     padding: "7px 12px", borderRadius: 9,
-    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+    background: "var(--nw-primary)",
     border: "1px solid rgba(124,99,200,0.40)",
     cursor: "pointer",
     display: "inline-flex", alignItems: "center", gap: 6,

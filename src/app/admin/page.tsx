@@ -260,7 +260,7 @@ function StripeSeedCard() {
         disabled={busy}
         style={{
           padding: "9px 15px", borderRadius: 10, border: "none",
-          background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+          background: "var(--nw-primary)",
           color: "white", fontSize: 12.5, fontWeight: 700,
           cursor: busy ? "wait" : "pointer", opacity: busy ? 0.7 : 1,
           fontFamily: "inherit",

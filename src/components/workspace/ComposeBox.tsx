@@ -209,7 +209,7 @@ export default function ComposeBox({
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <button onClick={generate} disabled={composing} style={{
           padding: "8px 14px", borderRadius: 9, border: "none",
-          background: composing ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+          background: composing ? "var(--nw-primary-200)" : "var(--nw-primary)",
           color: "white", fontSize: 12.5, fontWeight: 700,
           cursor: composing ? "default" : "pointer", fontFamily: "inherit",
         }}>

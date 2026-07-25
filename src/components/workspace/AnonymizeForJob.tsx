@@ -118,7 +118,7 @@ export default function AnonymizeForJob({
             color: (!candidateParsed || !hasJob) ? "var(--nw-text-muted)" : "white",
             background: (!candidateParsed || !hasJob) ? "var(--nw-neutral-100)"
               : state === "working" ? "var(--nw-primary-200)"
-              : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              : "var(--nw-primary)",
             border: "none", borderRadius: 9, padding: "9px 16px",
             cursor: (!candidateParsed || !hasJob || state === "working") ? "default" : "pointer",
             fontFamily: "inherit",

@@ -1574,7 +1574,7 @@ const ctaPrimaryBtn = (busy: boolean): React.CSSProperties => ({
   padding: "10px 16px",
   borderRadius: 10,
   border: "none",
-  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+  background: "var(--nw-primary)",
   color: "white",
   fontSize: 13,
   fontWeight: 700,
@@ -1703,7 +1703,7 @@ function SeatCountEditor({
               disabled={busy || !isOwner}
               style={{
                 padding: "7px 13px", borderRadius: 9, border: "none",
-                background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                background: "var(--nw-primary)",
                 color: "white", fontSize: 12, fontWeight: 700,
                 cursor: busy ? "wait" : "pointer", opacity: busy ? 0.7 : 1,
                 fontFamily: "inherit",
@@ -1804,7 +1804,7 @@ function PricingAddonToggle({
             flexShrink: 0,
             padding: "7px 13px", borderRadius: 9,
             border: active ? "1px solid var(--nw-primary-100)" : "none",
-            background: active ? "white" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+            background: active ? "white" : "var(--nw-primary)",
             color: active ? "var(--nw-text-muted)" : "white",
             fontSize: 12, fontWeight: 700,
             cursor: busy || !isOwner ? "not-allowed" : "pointer",
@@ -2120,7 +2120,7 @@ const ctaModalBtn = (busy: boolean): React.CSSProperties => ({
   padding: "12px 16px",
   borderRadius: 12,
   border: "none",
-  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+  background: "var(--nw-primary)",
   color: "white",
   fontSize: 14,
   fontWeight: 700,
@@ -3138,7 +3138,7 @@ function BrandingChangeRequestModal({
               border: "none", color: "white",
               background: busy || !canSubmit
                 ? "var(--nw-primary-200)"
-                : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                : "var(--nw-primary)",
               fontSize: 13, fontWeight: 700,
               cursor: busy || !canSubmit ? "not-allowed" : "pointer",
               fontFamily: "inherit",

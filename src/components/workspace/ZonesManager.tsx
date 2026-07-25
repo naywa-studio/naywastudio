@@ -359,7 +359,7 @@ function ZoneEditModal({
                 padding: "9px 16px", borderRadius: 9,
                 border: "none", color: "white",
                 background: busy ? "var(--nw-primary-200)"
-                  : canSave ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
+                  : canSave ? "var(--nw-primary)"
                   : "var(--nw-primary-200)",
                 fontSize: 13, fontWeight: 700,
                 cursor: canSave ? "pointer" : "not-allowed",

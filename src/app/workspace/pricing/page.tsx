@@ -232,7 +232,7 @@ export default function PricingPage() {
             style={{
               display: "inline-block", marginTop: 20,
               padding: "11px 20px", borderRadius: 12,
-              background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              background: "var(--nw-primary)",
               color: "white", fontSize: 13.5, fontWeight: 700,
               textDecoration: "none",
               boxShadow: "0 8px 24px -6px rgba(124,99,200,0.55)",
@@ -491,7 +491,7 @@ function NotConfiguredBanner({ isOwner }: { isOwner: boolean }) {
           style={{
             display: "inline-block",
             padding: "8px 14px", borderRadius: 9,
-            background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+            background: "var(--nw-primary)",
             color: "white", fontSize: 12.5, fontWeight: 700,
             textDecoration: "none", whiteSpace: "nowrap",
           }}
@@ -537,7 +537,7 @@ function EmptyState() {
       <Link href="/workspace/missions" style={{
         display: "inline-block",
         padding: "11px 22px", borderRadius: 12,
-        background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+        background: "var(--nw-primary)",
         color: "white", fontWeight: 700, fontSize: 14, textDecoration: "none",
         boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>

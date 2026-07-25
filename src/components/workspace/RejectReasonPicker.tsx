@@ -204,7 +204,7 @@ export default function RejectReasonPicker({
                   style={{
                     fontFamily: "inherit", fontSize: 12.5, fontWeight: 700, color: "white",
                     background: reason
-                      ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
+                      ? "var(--nw-primary)"
                       : "rgba(124,99,200,0.4)",
                     border: "none",
                     borderRadius: 9, padding: "8px 16px",

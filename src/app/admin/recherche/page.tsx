@@ -245,7 +245,7 @@ export default function AdminRecherchePage() {
             border: "none",
             background: loading || q.trim().length < 2
               ? "var(--nw-primary-200)"
-              : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              : "var(--nw-primary)",
             color: "white", fontSize: 13, fontWeight: 700,
             cursor: loading || q.trim().length < 2 ? "not-allowed" : "pointer",
             fontFamily: "inherit",
@@ -653,7 +653,7 @@ function TrialModal({
                     padding: "9px 16px", borderRadius: 9,
                     border: "none", color: "white",
                     background: busy ? "var(--nw-primary-200)"
-                      : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                      : "var(--nw-primary)",
                     fontSize: 13, fontWeight: 700, cursor: busy ? "wait" : "pointer",
                     fontFamily: "inherit", whiteSpace: "nowrap",
                   }}
@@ -928,7 +928,7 @@ function QuotaOverrideModal({
                     padding: "9px 16px", borderRadius: 9,
                     border: "none", color: "white",
                     background: busy ? "var(--nw-primary-200)"
-                      : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                      : "var(--nw-primary)",
                     fontSize: 13, fontWeight: 700, cursor: busy ? "wait" : "pointer",
                     fontFamily: "inherit",
                     opacity: (!cv && !storageGb && !llmMonthly) ? 0.5 : 1,

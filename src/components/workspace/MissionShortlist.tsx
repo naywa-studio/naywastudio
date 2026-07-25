@@ -103,6 +103,9 @@ const copy = {
     viewKanban: "Kanban",
     kanbanHint: "Glissez une carte d'une colonne à l'autre pour faire avancer un candidat.",
     emptyColumn: "—",
+    reactivate: "↩ Remettre à qualifier",
+    terminalEmpty: (label: string) => `Aucun candidat dans « ${label} » pour l'instant.`,
+    chipHint: (label: string) => `${label} — cliquez pour voir, ou glissez une carte ici`,
   },
   en: {
     title: (mission: string) => `Shortlist · ${mission}`,
@@ -146,6 +149,9 @@ const copy = {
     viewKanban: "Kanban",
     kanbanHint: "Drag a card from one column to another to move a candidate forward.",
     emptyColumn: "—",
+    reactivate: "↩ Back to qualify",
+    terminalEmpty: (label: string) => `No candidate in "${label}" yet.`,
+    chipHint: (label: string) => `${label} — click to view, or drop a card here`,
   },
 }
 
@@ -338,6 +344,9 @@ export function MissionShortlist({ job, rows, isReadOnly, onLocalUpdate, lang }:
           isReadOnly={isReadOnly}
           stageLabel={t.stageLabel}
           emptyColumn={t.emptyColumn}
+          reactivateLabel={t.reactivate}
+          terminalEmpty={t.terminalEmpty}
+          chipHint={t.chipHint}
           onMove={(row, stage) => onSelectStage(row, stage)}
         />
       ) : visible.length === 0 ? (
@@ -605,12 +614,24 @@ function StageDropdown({
   )
 }
 
-/* ── Vue Kanban (scopée à la mission) ────────────────────────────────── */
+/* ── Vue Kanban (scopée à la mission, calquée sur /workspace/pipeline) ── */
 
-/** Colonnes du board — 'pricing' est fusionné dans 'identified' à l'affichage
- *  (stade rare, géré dans l'onglet Pricing dédié), comme sur la pipeline. */
-const KANBAN_COLUMNS: PipelineStage[] = [
-  "identified", "contacted", "replied", "interview", "offer", "hired", "rejected",
+type StageMeta = { key: PipelineStage; color: string; bg: string }
+
+// Colonnes actives = le parcours relationnel. 'pricing' est fusionné dans
+// 'identified' (stade rare, géré dans l'onglet Pricing). 'hired'/'rejected'
+// ne sont PAS des colonnes : ce sont des issues, montrées en chips au-dessus.
+const KANBAN_ACTIVE: StageMeta[] = [
+  { key: "identified", color: "var(--nw-text-muted)", bg: "#F9FAFB" },
+  { key: "contacted",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
+  { key: "replied",    color: "var(--nw-primary)", bg: "rgba(124,99,200,0.05)" },
+  { key: "interview",  color: "var(--nw-warn)", bg: "rgba(245,158,11,0.06)" },
+  { key: "offer",      color: "var(--nw-success)", bg: "rgba(34,197,94,0.06)" },
+]
+
+const KANBAN_TERMINAL: StageMeta[] = [
+  { key: "hired",    color: "#0F766E", bg: "rgba(15,118,110,0.08)" },
+  { key: "rejected", color: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)" },
 ]
 
 function kanbanColumnOf(stage: PipelineStage): PipelineStage {
@@ -618,113 +639,201 @@ function kanbanColumnOf(stage: PipelineStage): PipelineStage {
 }
 
 function ShortlistKanban({
-  rows, isReadOnly, stageLabel, emptyColumn, onMove,
+  rows, isReadOnly, stageLabel, emptyColumn, reactivateLabel, terminalEmpty, chipHint, onMove,
 }: {
   rows: AssessmentRow[]
   isReadOnly: boolean
   stageLabel: Record<PipelineStage, string>
   emptyColumn: string
+  reactivateLabel: string
+  terminalEmpty: (label: string) => string
+  chipHint: (label: string) => string
   onMove: (row: AssessmentRow, stage: PipelineStage) => void
 }) {
   const [dragId, setDragId] = useState<string | null>(null)
   const [overCol, setOverCol] = useState<PipelineStage | null>(null)
+  const [overTerminal, setOverTerminal] = useState<PipelineStage | null>(null)
+  // Quand une issue terminale est sélectionnée, le board est remplacé par la
+  // liste de ses candidats (comme /pipeline).
+  const [terminalView, setTerminalView] = useState<PipelineStage | null>(null)
 
   const byColumn = useMemo(() => {
     const map = new Map<PipelineStage, AssessmentRow[]>()
-    for (const c of KANBAN_COLUMNS) map.set(c, [])
-    for (const r of rows) map.get(kanbanColumnOf(r.pipeline_stage))!.push(r)
+    for (const c of KANBAN_ACTIVE) map.set(c.key, [])
+    for (const r of rows) {
+      const col = kanbanColumnOf(r.pipeline_stage)
+      if (map.has(col)) map.get(col)!.push(r)
+    }
     return map
   }, [rows])
+
+  const terminalCounts = useMemo(() => {
+    const c: Record<string, number> = {}
+    for (const s of KANBAN_TERMINAL) c[s.key] = rows.filter((r) => r.pipeline_stage === s.key).length
+    return c
+  }, [rows])
+
+  const terminalRows = useMemo(
+    () => (terminalView ? rows.filter((r) => r.pipeline_stage === terminalView) : []),
+    [rows, terminalView],
+  )
 
   function drop(stage: PipelineStage) {
     if (!dragId) return
     const row = rows.find((r) => r.id === dragId)
-    setDragId(null); setOverCol(null)
-    if (row && kanbanColumnOf(row.pipeline_stage) !== stage) onMove(row, stage)
+    setDragId(null); setOverCol(null); setOverTerminal(null)
+    if (row && row.pipeline_stage !== stage) onMove(row, stage)
   }
 
   return (
-    <div style={{ overflowX: "auto", paddingBottom: 8 }}>
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${KANBAN_COLUMNS.length}, minmax(184px, 1fr))`,
-        gap: 10, minWidth: KANBAN_COLUMNS.length * 184,
-      }}>
-        {KANBAN_COLUMNS.map((col) => {
-          const cards = byColumn.get(col)!
-          const isOver = overCol === col
-          const terminal = col === "hired" || col === "rejected"
+    <div>
+      {/* Chips issues terminales — cliquables + zones de drop */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        {KANBAN_TERMINAL.map((s) => {
+          const active = terminalView === s.key
+          const isOver = overTerminal === s.key
           return (
-            <div
-              key={col}
-              onDragOver={(e) => { if (isReadOnly) return; e.preventDefault(); if (overCol !== col) setOverCol(col) }}
-              onDragLeave={(e) => { if (e.currentTarget === e.target) setOverCol(null) }}
-              onDrop={(e) => { e.preventDefault(); drop(col) }}
+            <button
+              key={s.key}
+              onClick={() => setTerminalView(active ? null : s.key)}
+              onDragOver={(e) => { if (isReadOnly) return; e.preventDefault(); if (overTerminal !== s.key) setOverTerminal(s.key) }}
+              onDragLeave={(e) => { if (e.currentTarget === e.target) setOverTerminal(null) }}
+              onDrop={(e) => { e.preventDefault(); drop(s.key) }}
+              title={chipHint(stageLabel[s.key])}
               style={{
-                background: isOver ? "rgba(124,99,200,0.07)" : terminal ? "var(--nw-neutral-100)" : "var(--nw-surface, #FBFAFF)",
-                border: `1px solid ${isOver ? "var(--nw-primary-200)" : "var(--nw-border)"}`,
-                borderRadius: 12, padding: 8, minHeight: 120,
-                display: "flex", flexDirection: "column", gap: 8,
-                transition: "background 120ms",
+                display: "inline-flex", alignItems: "center", gap: 7,
+                fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+                color: active || isOver ? "white" : s.color,
+                background: active || isOver ? s.color : s.bg,
+                border: `1px solid ${active || isOver ? s.color : "transparent"}`,
+                borderRadius: 9, padding: "7px 12px", cursor: "pointer", transition: "all 120ms",
               }}
             >
-              {/* En-tête colonne */}
-              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "2px 4px 4px" }}>
-                <span style={{ width: 7, height: 7, borderRadius: 999, background: STAGE_DOT[col], flexShrink: 0 }} />
-                <span style={{
-                  fontSize: 10.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
-                  color: "var(--nw-text-muted)", fontFamily: "var(--nw-font-mono)",
-                }}>
-                  {stageLabel[col]}
-                </span>
-                <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)" }}>
-                  {cards.length}
-                </span>
-              </div>
-              {cards.length === 0 ? (
-                <span style={{ fontSize: 11, color: "var(--nw-border-strong, #C4B6E0)", textAlign: "center", padding: "12px 0" }}>
-                  {emptyColumn}
-                </span>
-              ) : (
-                cards.map((row) => (
-                  <KanbanCard
-                    key={row.id}
-                    row={row}
-                    isReadOnly={isReadOnly}
-                    dragging={dragId === row.id}
-                    onDragStart={() => setDragId(row.id)}
-                    onDragEnd={() => { setDragId(null); setOverCol(null) }}
-                  />
-                ))
-              )}
-            </div>
+              {s.key === "hired" ? "✓" : "✕"} {stageLabel[s.key]}
+              <span style={{
+                fontSize: 10.5, fontWeight: 800,
+                color: active || isOver ? "white" : s.color,
+                background: active || isOver ? "rgba(255,255,255,0.22)" : "white",
+                borderRadius: 100, padding: "1px 7px",
+              }}>
+                {terminalCounts[s.key] ?? 0}
+              </span>
+            </button>
           )
         })}
       </div>
+
+      {terminalView ? (
+        /* Liste des candidats d'une issue terminale */
+        terminalRows.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: "var(--nw-text-muted)", padding: "24px 0", textAlign: "center" }}>
+            {terminalEmpty(stageLabel[terminalView])}
+          </p>
+        ) : (
+          <div style={{
+            display: "grid", gap: 12,
+            gridTemplateColumns: "repeat(auto-fill, minmax(258px, 1fr))",
+          }}>
+            {terminalRows.map((row) => (
+              <KanbanCard
+                key={row.id}
+                row={row}
+                isReadOnly={isReadOnly}
+                dragging={false}
+                onDragStart={() => {}}
+                onDragEnd={() => {}}
+                draggable={false}
+                reactivate={isReadOnly ? undefined : { label: reactivateLabel, onClick: () => onMove(row, "identified") }}
+              />
+            ))}
+          </div>
+        )
+      ) : (
+        /* Board : colonnes actives */
+        <div style={{ overflowX: "auto", paddingBottom: 8 }}>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${KANBAN_ACTIVE.length}, minmax(196px, 1fr))`,
+            gap: 10, minWidth: KANBAN_ACTIVE.length * 196,
+          }}>
+            {KANBAN_ACTIVE.map((s) => {
+              const cards = byColumn.get(s.key) ?? []
+              const isOver = overCol === s.key
+              return (
+                <div
+                  key={s.key}
+                  onDragOver={(e) => { if (isReadOnly) return; e.preventDefault(); if (overCol !== s.key) setOverCol(s.key) }}
+                  onDragLeave={(e) => { if (e.currentTarget === e.target) setOverCol(null) }}
+                  onDrop={(e) => { e.preventDefault(); drop(s.key) }}
+                  style={{
+                    background: isOver ? "rgba(124,99,200,0.07)" : s.bg,
+                    border: `1px solid ${isOver ? "var(--nw-primary-200)" : "var(--nw-border)"}`,
+                    borderRadius: 12, padding: 8, minHeight: 140,
+                    display: "flex", flexDirection: "column", gap: 8,
+                    transition: "background 120ms",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "2px 4px 4px" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: s.color, flexShrink: 0 }} />
+                    <span style={{
+                      fontSize: 10.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+                      color: s.color, fontFamily: "var(--nw-font-mono)",
+                    }}>
+                      {stageLabel[s.key]}
+                    </span>
+                    <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)" }}>
+                      {cards.length}
+                    </span>
+                  </div>
+                  {cards.length === 0 ? (
+                    <span style={{ fontSize: 11, color: "var(--nw-border-strong, #C4B6E0)", textAlign: "center", padding: "12px 0" }}>
+                      {emptyColumn}
+                    </span>
+                  ) : (
+                    cards.map((row) => (
+                      <KanbanCard
+                        key={row.id}
+                        row={row}
+                        isReadOnly={isReadOnly}
+                        dragging={dragId === row.id}
+                        onDragStart={() => setDragId(row.id)}
+                        onDragEnd={() => { setDragId(null); setOverCol(null) }}
+                      />
+                    ))
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function KanbanCard({
-  row, isReadOnly, dragging, onDragStart, onDragEnd,
+  row, isReadOnly, dragging, onDragStart, onDragEnd, draggable = true, reactivate,
 }: {
   row: AssessmentRow
   isReadOnly: boolean
   dragging: boolean
   onDragStart: () => void
   onDragEnd: () => void
+  draggable?: boolean
+  reactivate?: { label: string; onClick: () => void }
 }) {
+  const canDrag = draggable && !isReadOnly
   const name = row.candidate?.full_name?.trim() || candidateRefLabel(row.candidate_id)
   const subtitle = row.candidate?.current_title?.trim()
   return (
     <div
-      draggable={!isReadOnly}
-      onDragStart={isReadOnly ? undefined : onDragStart}
-      onDragEnd={isReadOnly ? undefined : onDragEnd}
+      draggable={canDrag}
+      onDragStart={canDrag ? onDragStart : undefined}
+      onDragEnd={canDrag ? onDragEnd : undefined}
       style={{
         background: "white", border: "1px solid var(--nw-border-soft, var(--nw-border))",
         borderRadius: 10, padding: "9px 10px",
-        cursor: isReadOnly ? "default" : "grab", opacity: dragging ? 0.4 : 1,
+        cursor: canDrag ? "grab" : "default", opacity: dragging ? 0.4 : 1,
         boxShadow: dragging ? "none" : "0 1px 2px rgba(17,24,39,0.04)",
         display: "flex", flexDirection: "column", gap: 5,
       }}
@@ -751,6 +860,18 @@ function KanbanCard({
           margin: 0, fontSize: 11, color: "var(--nw-text-muted)",
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>{subtitle}</p>
+      )}
+      {reactivate && (
+        <button
+          onClick={reactivate.onClick}
+          style={{
+            alignSelf: "flex-start", marginTop: 2,
+            fontFamily: "inherit", fontSize: 11, fontWeight: 600, color: "var(--nw-primary)",
+            background: "transparent", border: "none", cursor: "pointer", padding: 0,
+          }}
+        >
+          {reactivate.label}
+        </button>
       )}
     </div>
   )

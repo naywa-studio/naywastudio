@@ -249,7 +249,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                   style={{
                     padding: "10px 16px", borderRadius: 10,
                     border: "none",
-                    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                    background: "var(--nw-primary)",
                     color: "white", fontSize: 13, fontWeight: 700,
                     cursor: "pointer", fontFamily: "inherit",
                   }}
@@ -361,7 +361,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
                     border: "none", color: "white",
                     background: busy || !canSubmit
                       ? "var(--nw-primary-200)"
-                      : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                      : "var(--nw-primary)",
                     fontSize: 13, fontWeight: 700,
                     cursor: busy || !canSubmit ? "not-allowed" : "pointer",
                     fontFamily: "inherit",

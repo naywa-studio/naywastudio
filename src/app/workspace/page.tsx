@@ -287,7 +287,7 @@ export default function WorkspaceHome() {
     : "linear-gradient(120deg, var(--nw-surface-muted) 0%, white 65%)"
   const heroBar = brandColor
     ? `linear-gradient(90deg, ${brandColor} 0%, ${brandColor2 ?? brandColor} 100%)`
-    : "linear-gradient(90deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
+    : "var(--nw-primary)"
   const avatarRing = brandRgba(brandColor, 0.45) ?? "rgba(124,99,200,0.30)"
 
   return (
@@ -447,7 +447,7 @@ export default function WorkspaceHome() {
                 <Link href="/workspace/missions" style={{
                   display: "inline-block", marginTop: 14,
                   padding: "9px 16px", borderRadius: 10,
-                  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                  background: "var(--nw-primary)",
                   color: "white", fontSize: 13, fontWeight: 700, textDecoration: "none",
                 }}>
                   {t.createFirstMission}

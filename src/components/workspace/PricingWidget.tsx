@@ -1082,7 +1082,7 @@ function VerdictHero({
                 padding: "3px 8px", borderRadius: 100, cursor: "pointer",
                 border: seniority === k ? "none" : "1px solid var(--nw-border)",
                 background: seniority === k
-                  ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
+                  ? "var(--nw-primary)"
                   : "white",
                 color: seniority === k ? "white" : "var(--nw-text-muted)",
                 fontFamily: "inherit",
@@ -1240,7 +1240,7 @@ function RecommendationBanner({
       <div style={{
         width: 30, height: 30, flexShrink: 0,
         borderRadius: "50%",
-        background: "linear-gradient(135deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+        background: "var(--nw-primary)",
         color: "white", fontSize: 12, fontWeight: 800,
         display: "flex", alignItems: "center", justifyContent: "center",
         boxShadow: "0 2px 8px rgba(124,99,200,0.25)",

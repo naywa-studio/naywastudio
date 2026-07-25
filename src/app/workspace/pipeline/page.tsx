@@ -828,7 +828,7 @@ function EmptyState() {
       <Link href="/workspace/missions" style={{
         display: "inline-block",
         padding: "11px 22px", borderRadius: 12,
-        background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+        background: "var(--nw-primary)",
         color: "white", fontWeight: 700, fontSize: 14, textDecoration: "none",
         boxShadow: "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>

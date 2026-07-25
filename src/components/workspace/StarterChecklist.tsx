@@ -158,7 +158,7 @@ export function StarterChecklist({ onComplete }: {
       }}>
         <div style={{
           width: `${(doneCount / 4) * 100}%`, height: "100%",
-          background: "linear-gradient(90deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+          background: "var(--nw-primary)",
           borderRadius: 999, transition: "width 400ms ease",
         }} />
       </div>
@@ -207,7 +207,7 @@ export function StarterChecklist({ onComplete }: {
                 <Link href={item.href} style={{
                   fontSize: 12, fontWeight: 700, color: "white",
                   padding: "6px 12px", borderRadius: 8,
-                  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                  background: "var(--nw-primary)",
                   textDecoration: "none", whiteSpace: "nowrap",
                 }}>
                   {item.cta} →

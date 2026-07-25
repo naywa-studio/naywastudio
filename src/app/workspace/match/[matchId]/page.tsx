@@ -48,12 +48,12 @@ const copy = {
     forSuffix: " — pour ",
     noMission: "Sans mission",
     manual: "manuel",
-    removeFromPipeline: "Retirer de la pipeline",
-    followInPipeline: "Suivre ce candidat dans la pipeline",
-    readOnlyPipeline: "Lecture seule — souscrivez pour gérer la pipeline",
+    removeFromPipeline: "Retirer de la shortlist",
+    followInPipeline: "Ajouter ce candidat à la shortlist",
+    readOnlyPipeline: "Lecture seule — souscrivez pour gérer la shortlist",
     readOnlyLabel: "Lecture seule",
-    inPipeline: "✓ Dans le pipeline",
-    addToPipeline: "+ Ajouter à la pipeline",
+    inPipeline: "✓ Dans la shortlist",
+    addToPipeline: "+ Ajouter à la shortlist",
     manuallyAssigned: "Assigné manuellement",
     candidateSheet: "Fiche candidat →",
     criteriaTitle: "✦ Critères de cette mission",
@@ -107,12 +107,12 @@ const copy = {
     forSuffix: " — for ",
     noMission: "No mission",
     manual: "manual",
-    removeFromPipeline: "Remove from pipeline",
-    followInPipeline: "Track this candidate in the pipeline",
-    readOnlyPipeline: "Read-only — subscribe to manage the pipeline",
+    removeFromPipeline: "Remove from shortlist",
+    followInPipeline: "Add this candidate to the shortlist",
+    readOnlyPipeline: "Read-only — subscribe to manage the shortlist",
     readOnlyLabel: "Read-only",
-    inPipeline: "✓ In the pipeline",
-    addToPipeline: "+ Add to pipeline",
+    inPipeline: "✓ In the shortlist",
+    addToPipeline: "+ Add to shortlist",
     manuallyAssigned: "Manually assigned",
     candidateSheet: "Candidate profile →",
     criteriaTitle: "✦ Criteria for this mission",
@@ -159,7 +159,7 @@ function PricingShortcut({ targets, lang }: {
     fontFamily: "inherit", fontSize: 12, fontWeight: 700,
     color: "white",
     padding: "8px 12px", borderRadius: 9,
-    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+    background: "var(--nw-primary)",
     border: "1px solid rgba(124,99,200,0.40)",
     cursor: "pointer",
     display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none",
@@ -556,7 +556,7 @@ export default function MatchPage() {
                 ? { color: "#B8AEDE", background: "#F3F0FA", border: "1px solid #E5E0F0" }
                 : match.in_pipeline
                 ? { color: "var(--nw-success)", background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.35)" }
-                : { color: "white", background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)", border: "none", boxShadow: "0 6px 18px -8px rgba(124,99,200,0.6)" }),
+                : { color: "white", background: "var(--nw-primary)", border: "none", boxShadow: "0 6px 18px -8px rgba(124,99,200,0.6)" }),
             }}
           >
             {match.in_pipeline ? t.inPipeline : t.addToPipeline}

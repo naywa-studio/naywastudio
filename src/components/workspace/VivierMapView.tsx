@@ -103,7 +103,7 @@ export default function VivierMapView({
             padding: "7px 14px", borderRadius: 9,
             background: busy
               ? "rgba(124,99,200,0.5)"
-              : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              : "var(--nw-primary)",
             border: "none",
             cursor: busy ? "wait" : "pointer",
             boxShadow: busy ? "none" : "0 6px 16px -8px rgba(124,99,200,0.5)",

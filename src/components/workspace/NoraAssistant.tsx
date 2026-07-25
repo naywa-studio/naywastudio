@@ -89,7 +89,7 @@ export function NoraAssistant() {
           position: "fixed", right: 22, bottom: 22, zIndex: 60,
           width: 54, height: 54, borderRadius: "50%",
           border: "none", cursor: "pointer",
-          background: "linear-gradient(135deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+          background: "var(--nw-primary)",
           color: "white", fontSize: 22,
           boxShadow: "0 10px 30px -6px rgba(124,99,200,0.6)",
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -147,7 +147,7 @@ export function NoraAssistant() {
                   alignSelf: mm.role === "user" ? "flex-end" : "flex-start",
                   maxWidth: "86%",
                   background: mm.role === "user"
-                    ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
+                    ? "var(--nw-primary)"
                     : "#F4F1FB",
                   color: mm.role === "user" ? "white" : "var(--nw-text-body)",
                   fontSize: 13.5, lineHeight: 1.55,
@@ -193,7 +193,7 @@ export function NoraAssistant() {
               <button onClick={send} disabled={thinking || !input.trim()} style={{
                 flexShrink: 0, padding: "0 14px", borderRadius: 9, border: "none",
                 background: thinking || !input.trim()
-                  ? "var(--nw-primary-100)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                  ? "var(--nw-primary-100)" : "var(--nw-primary)",
                 color: "white", fontSize: 14, fontWeight: 700,
                 cursor: thinking || !input.trim() ? "default" : "pointer", fontFamily: "inherit",
               }}>→</button>

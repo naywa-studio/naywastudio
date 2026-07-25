@@ -465,7 +465,7 @@ export default function PricingPolicyForm() {
                 ? "var(--nw-border)"
                 : onboarded
                   ? "white"
-                  : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                  : "var(--nw-primary)",
               color: confirming || margesInvalid
                 ? "var(--nw-text-muted)"
                 : onboarded ? "var(--nw-primary)" : "white",
@@ -716,7 +716,7 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: (on: bool
       style={{
         width: 20, height: 20, borderRadius: 6, cursor: "pointer",
         border: checked ? "none" : "1.5px solid var(--nw-border)",
-        background: checked ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)" : "white",
+        background: checked ? "var(--nw-primary)" : "white",
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         padding: 0,
       }}

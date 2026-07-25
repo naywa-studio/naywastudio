@@ -288,7 +288,7 @@ export function MatchVivierPanel({
             disabled={loadingProposal}
             style={{
               fontSize: 13, fontWeight: 700, color: "white",
-              background: loadingProposal ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              background: loadingProposal ? "var(--nw-primary-200)" : "var(--nw-primary)",
               border: "none", borderRadius: 9, padding: "9px 18px",
               cursor: loadingProposal ? "default" : "pointer", fontFamily: "inherit",
             }}

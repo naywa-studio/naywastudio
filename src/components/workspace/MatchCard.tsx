@@ -190,7 +190,7 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = fals
         <Link href={`/workspace/match/${row.id}`} style={{
           fontSize: 12, fontWeight: 700, color: "white",
           padding: "6px 14px", borderRadius: 8,
-          background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+          background: "var(--nw-primary)",
           textDecoration: "none",
         }}>
           {t.open}

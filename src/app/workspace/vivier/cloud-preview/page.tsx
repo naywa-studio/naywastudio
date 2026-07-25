@@ -231,7 +231,7 @@ function ViewToggle({ view, onChange }: { view: "list" | "map"; onChange: (v: "l
                 transition={SPRING}
                 style={{
                   position: "absolute", inset: 0, borderRadius: 100,
-                  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                  background: "var(--nw-primary)",
                   zIndex: -1,
                 }}
               />
@@ -778,7 +778,7 @@ function DrawerCandidate({ cand, onClose }: { cand: CvCand | null; onClose: () =
               marginTop: "auto",
               fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: "white",
               padding: "11px 16px", borderRadius: 10,
-              background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              background: "var(--nw-primary)",
               border: "none", cursor: "pointer",
               boxShadow: "0 6px 18px -8px rgba(124,99,200,0.6)",
             }}>

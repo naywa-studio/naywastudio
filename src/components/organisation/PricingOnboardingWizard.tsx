@@ -470,7 +470,7 @@ const listStyle: React.CSSProperties = {
 
 const primaryBtnStyle: React.CSSProperties = {
   padding: "10px 18px", borderRadius: 10,
-  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+  background: "var(--nw-primary)",
   color: "white", fontSize: 13, fontWeight: 700,
   border: "none", cursor: "pointer",
   fontFamily: "inherit",

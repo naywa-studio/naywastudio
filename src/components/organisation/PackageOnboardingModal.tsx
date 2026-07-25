@@ -144,7 +144,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
             <div style={{
               position: "absolute", left: 0, top: 0, bottom: 0,
               width: `${((step + 1) / STEPS.length) * 100}%`,
-              background: "linear-gradient(90deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              background: "var(--nw-primary)",
               transition: "width 320ms cubic-bezier(0.22, 1, 0.36, 1)",
             }} />
           </div>
@@ -258,7 +258,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
                   style={{
                     padding: "9px 16px", borderRadius: 10,
                     border: "none",
-                    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                    background: "var(--nw-primary)",
                     color: "white", fontSize: 13.5, fontWeight: 700,
                     cursor: "pointer",
                     boxShadow: "0 6px 18px -6px rgba(124,99,200,0.55)",
@@ -275,7 +275,7 @@ export function PackageOnboardingModal({ onDone, onDismiss }: Props) {
                   style={{
                     padding: "9px 16px", borderRadius: 10,
                     border: "none",
-                    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                    background: "var(--nw-primary)",
                     color: "white", fontSize: 13.5, fontWeight: 700,
                     cursor: busy ? "wait" : "pointer",
                     boxShadow: "0 6px 18px -6px rgba(124,99,200,0.55)",

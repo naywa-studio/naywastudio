@@ -499,7 +499,7 @@ export default function MissionsPage() {
           title={isReadOnly ? "Lecture seule — souscrivez pour créer une mission" : undefined}
           style={{
             fontSize: 13, fontWeight: 700, color: "white",
-            background: isReadOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+            background: isReadOnly ? "var(--nw-primary-200)" : "var(--nw-primary)",
             border: "none", borderRadius: 10, padding: "10px 18px",
             cursor: isReadOnly ? "not-allowed" : "pointer",
             boxShadow: isReadOnly ? "none" : "0 6px 20px -8px rgba(124,99,200,0.55)", fontFamily: "inherit",
@@ -570,7 +570,7 @@ export default function MissionsPage() {
                     style={{
                       padding: "9px 16px", borderRadius: 9,
                       border: "none", color: "white",
-                      background: isReadOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                      background: isReadOnly ? "var(--nw-primary-200)" : "var(--nw-primary)",
                       fontSize: 13, fontWeight: 700, cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit",
                     }}
                   >
@@ -946,7 +946,7 @@ function EmptyState({ onCreate, readOnly = false }: { onCreate: () => void; read
       <button onClick={onCreate} disabled={readOnly} title={readOnly ? t.readOnlyCreateMission : undefined} style={{
         padding: "11px 22px", borderRadius: 12, border: "none",
         cursor: readOnly ? "not-allowed" : "pointer",
-        background: readOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+        background: readOnly ? "var(--nw-primary-200)" : "var(--nw-primary)",
         color: "white", fontWeight: 700, fontSize: 14, fontFamily: "inherit",
         boxShadow: readOnly ? "none" : "0 8px 24px -8px rgba(124,99,200,0.5)",
       }}>
@@ -1351,7 +1351,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                     padding: "11px 22px", borderRadius: 10, border: "none",
                     background: extracting || !brief.trim()
                       ? "var(--nw-primary-200)"
-                      : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                      : "var(--nw-primary)",
                     color: "white", fontSize: 13, fontWeight: 700,
                     cursor: extracting || !brief.trim() ? "default" : "pointer",
                     fontFamily: "inherit",
@@ -1439,7 +1439,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
               )}
               <button onClick={submitForm} disabled={submitting} style={{
                 padding: "11px 24px", borderRadius: 10, border: "none",
-                background: submitting ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                background: submitting ? "var(--nw-primary-200)" : "var(--nw-primary)",
                 color: "white", fontSize: 13, fontWeight: 700,
                 cursor: submitting ? "default" : "pointer", fontFamily: "inherit",
               }}>

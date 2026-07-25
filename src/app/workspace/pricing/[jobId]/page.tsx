@@ -983,7 +983,7 @@ function MissionConfigWizard({
               color: "white",
               padding: "9px 18px", borderRadius: 9,
               background: canSubmit
-                ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
+                ? "var(--nw-primary)"
                 : "rgba(124,99,200,0.45)",
               border: "none",
               cursor: canSubmit ? "pointer" : "not-allowed",
@@ -1040,7 +1040,7 @@ function WizardToggleRow({
       <span style={{
         width: 20, height: 20, borderRadius: 6,
         border: enabled ? "none" : "1.5px solid var(--nw-border)",
-        background: enabled ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)" : "white",
+        background: enabled ? "var(--nw-primary)" : "white",
         display: "inline-flex", alignItems: "center", justifyContent: "center",
       }}>
         {enabled && (
@@ -1201,7 +1201,7 @@ function CompactCandidatesList({
               padding: "3px 8px", borderRadius: 100,
               color: compareMode ? "white" : "var(--nw-primary)",
               background: compareMode
-                ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)"
+                ? "var(--nw-primary)"
                 : "rgba(124,99,200,0.08)",
               border: compareMode
                 ? "1px solid var(--nw-primary)"
@@ -1278,7 +1278,7 @@ function CompactCandidatesList({
               <span style={{
                 position: "absolute", top: -7, right: -7,
                 width: 18, height: 18, borderRadius: "50%",
-                background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                background: "var(--nw-primary)",
                 color: "white", fontSize: 10, fontWeight: 800,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 boxShadow: "0 2px 6px rgba(124,99,200,0.30)",
@@ -1379,7 +1379,7 @@ function MissionNotConfiguredCta({ onEdit }: { onEdit: () => void }) {
         style={{
           display: "inline-block",
           fontSize: 12.5, fontWeight: 700, color: "white",
-          background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+          background: "var(--nw-primary)",
           border: "none", borderRadius: 10, padding: "9px 18px",
           cursor: "pointer", fontFamily: "inherit",
         }}
@@ -1422,7 +1422,7 @@ function NoCandidatesState({ jobId }: { jobId: string }) {
       <Link href={`/workspace/missions/${jobId}`} style={{
         display: "inline-block",
         fontSize: 12.5, fontWeight: 700, color: "white",
-        background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+        background: "var(--nw-primary)",
         borderRadius: 10, padding: "9px 16px", textDecoration: "none",
       }}>
         {t.missionSheet}
@@ -1578,7 +1578,7 @@ function NoraVerdictBubble({
       <div style={{
         width: 30, height: 30, flexShrink: 0,
         borderRadius: "50%",
-        background: "linear-gradient(135deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+        background: "var(--nw-primary)",
         color: "white", fontSize: 12, fontWeight: 800,
         display: "flex", alignItems: "center", justifyContent: "center",
         boxShadow: "0 2px 8px rgba(124,99,200,0.25)",
@@ -1609,7 +1609,7 @@ function NoraVerdictBubble({
               fontFamily: "inherit", fontSize: 11.5, fontWeight: 700,
               color: "white",
               padding: "6px 12px", borderRadius: 8,
-              background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              background: "var(--nw-primary)",
               border: "1px solid rgba(124,99,200,0.40)",
               cursor: "pointer",
             }}>
@@ -1719,7 +1719,7 @@ function ComparisonCard({
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{
           width: 24, height: 24, borderRadius: "50%",
-          background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+          background: "var(--nw-primary)",
           color: "white", fontSize: 11, fontWeight: 800,
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0,

@@ -517,7 +517,7 @@ export default function JobDetailPage() {
           </span>
           <button onClick={() => setEditCriteriaMode(true)} disabled={isReadOnly} title={isReadOnly ? "Lecture seule" : undefined} style={{
             fontSize: 12.5, fontWeight: 700, color: "white", fontFamily: "inherit",
-            background: isReadOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+            background: isReadOnly ? "var(--nw-primary-200)" : "var(--nw-primary)",
             border: "none", borderRadius: 9, padding: "8px 14px", cursor: isReadOnly ? "not-allowed" : "pointer",
             whiteSpace: "nowrap",
           }}>{t.configureCriteria}</button>
@@ -641,7 +641,7 @@ export default function JobDetailPage() {
               <button onClick={() => setMatchPanelOpen(true)} disabled={isReadOnly} title={isReadOnly ? "Lecture seule" : undefined} style={{
                 fontSize: 12, fontWeight: 700, color: "white",
                 padding: "7px 14px", borderRadius: 9, border: "none",
-                background: isReadOnly ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                background: isReadOnly ? "var(--nw-primary-200)" : "var(--nw-primary)",
                 cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
               }}>
                 {t.rerunMatching}

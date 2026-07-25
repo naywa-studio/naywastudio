@@ -138,7 +138,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             </Link>
             <span style={{
               fontSize: 11, fontWeight: 800, color: "white",
-              background: "linear-gradient(135deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              background: "var(--nw-primary)",
               padding: "4px 10px", borderRadius: 100,
               letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
               marginLeft: 8,

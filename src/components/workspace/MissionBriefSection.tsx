@@ -212,7 +212,7 @@ function BriefBlock({
               disabled={saving}
               style={{
                 fontSize: 12, fontWeight: 700, color: "white",
-                background: saving ? "var(--nw-primary-200)" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                background: saving ? "var(--nw-primary-200)" : "var(--nw-primary)",
                 border: "none", borderRadius: 8, padding: "7px 15px",
                 cursor: saving ? "default" : "pointer", fontFamily: "inherit",
               }}

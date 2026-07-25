@@ -200,7 +200,7 @@ export default function AdminMajPage() {
             style={{
               padding: "10px 16px", borderRadius: 10,
               border: "none",
-              background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+              background: "var(--nw-primary)",
               color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer",
               fontFamily: "inherit",
               boxShadow: "0 6px 18px -8px rgba(124,99,200,0.55)",
@@ -579,7 +579,7 @@ Confirmation positive.
               border: "none", color: "white",
               background: busy
                 ? "var(--nw-primary-200)"
-                : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                : "var(--nw-primary)",
               fontSize: 13, fontWeight: 700, cursor: busy ? "wait" : "pointer",
               fontFamily: "inherit",
               opacity: title.trim() === "" || body.trim() === "" ? 0.5 : 1,

@@ -226,7 +226,7 @@ const btnGhost: React.CSSProperties = {
 }
 const btnPrimary: React.CSSProperties = {
   padding: "8px 14px", borderRadius: 9,
-  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+  background: "var(--nw-primary)",
   border: "none", color: "white",
   fontSize: 12, fontWeight: 700,
   cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",

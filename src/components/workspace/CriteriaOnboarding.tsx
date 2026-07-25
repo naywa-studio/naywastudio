@@ -390,7 +390,7 @@ export function CriteriaOnboarding({ jobId, onDone, initialCriteria, onCancel, e
               padding: "10px 18px", borderRadius: 10, border: "none",
               background: saving || criteria.length === 0 || mainCount === 0
                 ? "#C7BFE4"
-                : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+                : "var(--nw-primary)",
               cursor: saving || criteria.length === 0 || mainCount === 0 ? "default" : "pointer",
               fontFamily: "inherit",
               boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",

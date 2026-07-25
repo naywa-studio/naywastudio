@@ -48,7 +48,7 @@ export const ui = {
   primarySoftBorder: "rgba(124,99,200,0.22)",
   /** Dégradé CTA primaire. */
   primaryGradient:
-    "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
+    "var(--nw-primary)",
 
   // ── Bordures ────────────────────────────────────────────────────────
   border: "var(--nw-border)",
