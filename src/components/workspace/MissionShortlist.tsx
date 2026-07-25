@@ -99,6 +99,10 @@ const copy = {
     rejectedFor: "Écarté :",
     readOnly: "Lecture seule",
     readOnlyHint: "Lecture seule — souscrivez pour qualifier la shortlist",
+    viewGallery: "Galerie",
+    viewKanban: "Kanban",
+    kanbanHint: "Glissez une carte d'une colonne à l'autre pour faire avancer un candidat.",
+    emptyColumn: "—",
   },
   en: {
     title: (mission: string) => `Shortlist · ${mission}`,
@@ -138,6 +142,10 @@ const copy = {
     rejectedFor: "Rejected:",
     readOnly: "Read-only",
     readOnlyHint: "Read-only — subscribe to qualify the shortlist",
+    viewGallery: "Gallery",
+    viewKanban: "Kanban",
+    kanbanHint: "Drag a card from one column to another to move a candidate forward.",
+    emptyColumn: "—",
   },
 }
 
@@ -170,6 +178,7 @@ interface Props {
 export function MissionShortlist({ job, rows, isReadOnly, onLocalUpdate, lang }: Props) {
   const t = copy[lang]
   const [filter, setFilter] = useState<"all" | Group>("all")
+  const [viewMode, setViewMode] = useState<"gallery" | "kanban">("gallery")
   const [saving, setSaving] = useState<Set<string>>(new Set())
   // Écartement en attente de raison : on garde la row ciblée le temps du picker.
   const [rejecting, setRejecting] = useState<AssessmentRow | null>(null)
@@ -237,21 +246,50 @@ export function MissionShortlist({ job, rows, isReadOnly, onLocalUpdate, lang }:
 
   return (
     <section aria-label={t.title(job.title)}>
-      {/* En-tête */}
-      <div style={{ marginBottom: 14 }}>
-        <h2 style={{
-          margin: 0, fontSize: 17, fontWeight: 800, color: "var(--nw-text)",
-          letterSpacing: "-0.01em", fontFamily: "var(--font-inter), sans-serif",
-        }}>
-          {t.title(job.title)}
-        </h2>
-        <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)" }}>
-          {t.subtitle(shortlisted.length)}
-        </p>
+      {/* En-tête + toggle Galerie/Kanban */}
+      <div style={{
+        display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+        gap: 16, marginBottom: 14, flexWrap: "wrap",
+      }}>
+        <div>
+          <h2 style={{
+            margin: 0, fontSize: 17, fontWeight: 800, color: "var(--nw-text)",
+            letterSpacing: "-0.01em", fontFamily: "var(--font-inter), sans-serif",
+          }}>
+            {t.title(job.title)}
+          </h2>
+          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)" }}>
+            {viewMode === "kanban" && shortlisted.length > 0 ? t.kanbanHint : t.subtitle(shortlisted.length)}
+          </p>
+        </div>
+        {shortlisted.length > 0 && (
+          <div style={{
+            display: "inline-flex", background: "var(--nw-neutral-100)", borderRadius: 9, padding: 3, gap: 2,
+          }}>
+            {(["gallery", "kanban"] as const).map((mode) => {
+              const on = viewMode === mode
+              return (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  style={{
+                    fontFamily: "inherit", fontSize: 12, fontWeight: on ? 700 : 600,
+                    color: on ? "var(--nw-primary)" : "var(--nw-text-muted)",
+                    background: on ? "white" : "transparent",
+                    border: "none", borderRadius: 7, padding: "5px 12px", cursor: "pointer",
+                    boxShadow: on ? "0 1px 2px rgba(17,24,39,0.08)" : "none",
+                  }}
+                >
+                  {mode === "gallery" ? t.viewGallery : t.viewKanban}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Filtres par statut */}
-      {shortlisted.length > 0 && (
+      {/* Filtres par statut (galerie uniquement — le kanban montre déjà les stades) */}
+      {viewMode === "gallery" && shortlisted.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
           {(["all", ...GROUP_ORDER] as const).map((key) => {
             const active = filter === key
@@ -294,6 +332,14 @@ export function MissionShortlist({ job, rows, isReadOnly, onLocalUpdate, lang }:
             {t.emptyBody}
           </p>
         </div>
+      ) : viewMode === "kanban" ? (
+        <ShortlistKanban
+          rows={shortlisted}
+          isReadOnly={isReadOnly}
+          stageLabel={t.stageLabel}
+          emptyColumn={t.emptyColumn}
+          onMove={(row, stage) => onSelectStage(row, stage)}
+        />
       ) : visible.length === 0 ? (
         <p style={{ fontSize: 12.5, color: "var(--nw-text-muted)", padding: "20px 0" }}>{t.emptyFiltered}</p>
       ) : (
@@ -554,6 +600,157 @@ function StageDropdown({
             )
           })}
         </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Vue Kanban (scopée à la mission) ────────────────────────────────── */
+
+/** Colonnes du board — 'pricing' est fusionné dans 'identified' à l'affichage
+ *  (stade rare, géré dans l'onglet Pricing dédié), comme sur la pipeline. */
+const KANBAN_COLUMNS: PipelineStage[] = [
+  "identified", "contacted", "replied", "interview", "offer", "hired", "rejected",
+]
+
+function kanbanColumnOf(stage: PipelineStage): PipelineStage {
+  return stage === "pricing" ? "identified" : stage
+}
+
+function ShortlistKanban({
+  rows, isReadOnly, stageLabel, emptyColumn, onMove,
+}: {
+  rows: AssessmentRow[]
+  isReadOnly: boolean
+  stageLabel: Record<PipelineStage, string>
+  emptyColumn: string
+  onMove: (row: AssessmentRow, stage: PipelineStage) => void
+}) {
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [overCol, setOverCol] = useState<PipelineStage | null>(null)
+
+  const byColumn = useMemo(() => {
+    const map = new Map<PipelineStage, AssessmentRow[]>()
+    for (const c of KANBAN_COLUMNS) map.set(c, [])
+    for (const r of rows) map.get(kanbanColumnOf(r.pipeline_stage))!.push(r)
+    return map
+  }, [rows])
+
+  function drop(stage: PipelineStage) {
+    if (!dragId) return
+    const row = rows.find((r) => r.id === dragId)
+    setDragId(null); setOverCol(null)
+    if (row && kanbanColumnOf(row.pipeline_stage) !== stage) onMove(row, stage)
+  }
+
+  return (
+    <div style={{ overflowX: "auto", paddingBottom: 8 }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${KANBAN_COLUMNS.length}, minmax(184px, 1fr))`,
+        gap: 10, minWidth: KANBAN_COLUMNS.length * 184,
+      }}>
+        {KANBAN_COLUMNS.map((col) => {
+          const cards = byColumn.get(col)!
+          const isOver = overCol === col
+          const terminal = col === "hired" || col === "rejected"
+          return (
+            <div
+              key={col}
+              onDragOver={(e) => { if (isReadOnly) return; e.preventDefault(); if (overCol !== col) setOverCol(col) }}
+              onDragLeave={(e) => { if (e.currentTarget === e.target) setOverCol(null) }}
+              onDrop={(e) => { e.preventDefault(); drop(col) }}
+              style={{
+                background: isOver ? "rgba(124,99,200,0.07)" : terminal ? "var(--nw-neutral-100)" : "var(--nw-surface, #FBFAFF)",
+                border: `1px solid ${isOver ? "var(--nw-primary-200)" : "var(--nw-border)"}`,
+                borderRadius: 12, padding: 8, minHeight: 120,
+                display: "flex", flexDirection: "column", gap: 8,
+                transition: "background 120ms",
+              }}
+            >
+              {/* En-tête colonne */}
+              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "2px 4px 4px" }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: STAGE_DOT[col], flexShrink: 0 }} />
+                <span style={{
+                  fontSize: 10.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+                  color: "var(--nw-text-muted)", fontFamily: "var(--nw-font-mono)",
+                }}>
+                  {stageLabel[col]}
+                </span>
+                <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)" }}>
+                  {cards.length}
+                </span>
+              </div>
+              {cards.length === 0 ? (
+                <span style={{ fontSize: 11, color: "var(--nw-border-strong, #C4B6E0)", textAlign: "center", padding: "12px 0" }}>
+                  {emptyColumn}
+                </span>
+              ) : (
+                cards.map((row) => (
+                  <KanbanCard
+                    key={row.id}
+                    row={row}
+                    isReadOnly={isReadOnly}
+                    dragging={dragId === row.id}
+                    onDragStart={() => setDragId(row.id)}
+                    onDragEnd={() => { setDragId(null); setOverCol(null) }}
+                  />
+                ))
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function KanbanCard({
+  row, isReadOnly, dragging, onDragStart, onDragEnd,
+}: {
+  row: AssessmentRow
+  isReadOnly: boolean
+  dragging: boolean
+  onDragStart: () => void
+  onDragEnd: () => void
+}) {
+  const name = row.candidate?.full_name?.trim() || candidateRefLabel(row.candidate_id)
+  const subtitle = row.candidate?.current_title?.trim()
+  return (
+    <div
+      draggable={!isReadOnly}
+      onDragStart={isReadOnly ? undefined : onDragStart}
+      onDragEnd={isReadOnly ? undefined : onDragEnd}
+      style={{
+        background: "white", border: "1px solid var(--nw-border-soft, var(--nw-border))",
+        borderRadius: 10, padding: "9px 10px",
+        cursor: isReadOnly ? "default" : "grab", opacity: dragging ? 0.4 : 1,
+        boxShadow: dragging ? "none" : "0 1px 2px rgba(17,24,39,0.04)",
+        display: "flex", flexDirection: "column", gap: 5,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
+        <Link
+          href={`/workspace/match/${row.id}`}
+          style={{
+            margin: 0, fontSize: 12.5, fontWeight: 700, color: "var(--nw-text)",
+            textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}
+        >
+          {name}
+        </Link>
+        {typeof row.score === "number" && (
+          <span style={{
+            flexShrink: 0, fontSize: 10.5, fontWeight: 800, color: "var(--nw-text-muted)",
+            background: "var(--nw-neutral-100)", borderRadius: 100, padding: "1px 7px",
+          }}>{Math.round(row.score)}</span>
+        )}
+      </div>
+      {subtitle && (
+        <p style={{
+          margin: 0, fontSize: 11, color: "var(--nw-text-muted)",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>{subtitle}</p>
       )}
     </div>
   )
