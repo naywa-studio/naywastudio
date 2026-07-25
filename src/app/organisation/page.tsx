@@ -28,6 +28,7 @@ import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import PricingPolicyForm from "@/components/organisation/PricingPolicyForm"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
+import { AnonymizeTemplateCard } from "@/components/organisation/AnonymizeTemplateCard"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { StyledSelect } from "@/components/ui/StyledSelect"
 import { QuotaGauges } from "@/components/quota/QuotaGauges"
@@ -715,13 +716,21 @@ export default function CabinetPage() {
           )}
 
           {activeSection === "branding" && caps.canBranding && (
-            <BrandingSection
-              organization={organization}
-              logoUrl={logoUrl}
-              isOwner={caps.canBranding}
-              canEditLegalName={isOwner}
-              onUpdated={refetch}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <BrandingSection
+                organization={organization}
+                logoUrl={logoUrl}
+                isOwner={caps.canBranding}
+                canEditLegalName={isOwner}
+                onUpdated={refetch}
+              />
+              <AnonymizeTemplateCard
+                organization={organization}
+                logoUrl={logoUrl}
+                hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
+                onSaved={refetch}
+              />
+            </div>
           )}
 
           {activeSection === "pricing" && caps.canPricing && (
