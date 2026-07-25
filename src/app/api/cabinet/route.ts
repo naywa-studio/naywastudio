@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { getCapabilities } from "@/lib/capabilities"
+import { readOrgDefaults } from "@/components/workspace/anonymize/types"
 import type { PricingDefaultAvantages } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -38,6 +39,8 @@ interface UpdateBody {
   brand_color_secondary?: string | null
   brand_slogan?: string | null
   contact_email?: string | null
+  // Gabarit CV anonymisé du cabinet (template + filigrane) — domaine branding.
+  anonymize_defaults?: { template?: string; watermark?: boolean; watermarkText?: string } | null
   // Cabinet-wide pricing defaults — single source of truth for the
   // pricing engine. Owner-only writes; UI in /workspace/parametrage
   // and the first-time wizard call this route.
@@ -89,7 +92,7 @@ export async function PATCH(req: Request) {
   // `name` = identité légale ; `*_onboarded_at` de cabinet = flux d'onboarding
   // owner. Owner strict, jamais délégués.
   const OWNER_ONLY_FIELDS = ["name", "cabinet_onboarded_at"]
-  const BRANDING_FIELDS = ["brand_name", "brand_logo_path", "brand_color", "brand_color_secondary", "brand_slogan", "contact_email"]
+  const BRANDING_FIELDS = ["brand_name", "brand_logo_path", "brand_color", "brand_color_secondary", "brand_slogan", "contact_email", "anonymize_defaults"]
   // `pricing_onboarded_at` suit le domaine PRICING : un délégué pricing qui
   // termine l'onboarding pricing doit pouvoir l'horodater. C'était la cause du
   // bug « le délégué ne peut pas configurer le pricing » — le save partait avec
@@ -172,6 +175,11 @@ export async function PATCH(req: Request) {
   if ("brand_color_secondary" in body) {
     const raw = typeof body.brand_color_secondary === "string" ? body.brand_color_secondary.trim() : ""
     patch.brand_color_secondary = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw) ? raw : null
+  }
+  if ("anonymize_defaults" in body) {
+    // Normalise via le lecteur partagé (template validé, watermark bool, texte
+    // cappé 40 chars). Jamais de NULL destructeur : on stocke toujours un objet.
+    patch.anonymize_defaults = readOrgDefaults(body.anonymize_defaults)
   }
   if ("brand_slogan" in body) {
     const raw = typeof body.brand_slogan === "string" ? body.brand_slogan.trim() : ""

@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { requireActiveAccess } from "@/lib/access-guard"
 import { normalizeJob } from "@/lib/matching"
+import { readJobOptions } from "@/components/workspace/anonymize/types"
 import type { Database } from "@/lib/database.types"
 
 type JobUpdate = Database["public"]["Tables"]["jobs"]["Update"]
@@ -104,6 +105,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if ("has_grand_deplacement" in body) { update.has_grand_deplacement = Boolean(body.has_grand_deplacement) }
   if ("is_expatriated" in body)        { update.is_expatriated = Boolean(body.is_expatriated) }
   if ("essai_renouvele" in body)       { update.essai_renouvele = Boolean(body.essai_renouvele) }
+  // Options d'anonymisation par mission (résumé Nora + message) — passthrough,
+  // aucun impact matching. Normalisé (bool + texte cappé) par le lecteur partagé.
+  if ("anonymize_options" in body)     { update.anonymize_options = readJobOptions(body.anonymize_options) }
 
   if (matchingInputsChanged) {
     try {

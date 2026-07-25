@@ -295,6 +295,8 @@ export type Database = {
            *  autres restent en filet interne. NULL = quotas dérivés du plan.
            *  Set par admin Naywa. */
           quota_override_json: { cv?: number; storage_gb?: number; llm_monthly?: number } | null
+          /** Gabarit CV anonymisé du cabinet (Branding). NULL = défauts applicatifs. */
+          anonymize_defaults: { template?: string; watermark?: boolean; watermarkText?: string } | null
           created_at: string
           updated_at: string
         }
@@ -443,6 +445,8 @@ export type Database = {
           target_sectors: string[]
           /** Dernier mode de match choisi (mémo pour repartir vite). */
           last_match_mode: 'intelligent' | 'personnalise' | 'complet' | null
+          /** Override anonymisation par mission. NULL = défauts du cabinet. */
+          anonymize_options: { keepNoraSummary?: boolean; customText?: string } | null
           created_at: string
           updated_at: string
         }
@@ -482,6 +486,7 @@ export type Database = {
           criteria_locked_at?: string | null
           target_sectors?: string[]
           last_match_mode?: 'intelligent' | 'personnalise' | 'complet' | null
+          anonymize_options?: { keepNoraSummary?: boolean; customText?: string } | null
           created_at?: string
           updated_at?: string
         }

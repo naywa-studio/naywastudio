@@ -67,13 +67,90 @@ export interface AnonymizeOptions {
   keepNoraSummary: boolean
   customText: string
   watermark: boolean
+  /** Texte du filigrane. Vide → le rendu retombe sur le nom de l'org. */
+  watermarkText: string
 }
 
 export const INITIAL_ANONYMIZE_OPTIONS: AnonymizeOptions = {
   template: "classic",
-  keepNoraSummary: true,
+  // Demande produit (lot Shortlist) : le résumé Nora est MASQUÉ par défaut.
+  // Le sourceur le coche explicitement mission par mission.
+  keepNoraSummary: false,
   customText: "",
   watermark: false,
+  watermarkText: "",
+}
+
+/* ── Persistance en 2 niveaux (migration 067) ─────────────────────────────
+ *
+ *  - Org (Branding) : le GABARIT du cabinet = template + filigrane. Réglé une
+ *    fois, appliqué à tous les CV anonymisés → paquet homogène (lot C).
+ *  - Mission (Shortlist) : le CONTENU éditorial = résumé Nora + message.
+ *    Ajusté par mission avant génération.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+/** Défauts d'anonymisation du cabinet (organizations.anonymize_defaults). */
+export interface OrgAnonymizeDefaults {
+  template: AnonymizeTemplate
+  /** Filigrane activé ? Décoché par défaut. */
+  watermark: boolean
+  /** Texte du filigrane. Vide → nom de l'org au rendu. */
+  watermarkText: string
+}
+
+export const INITIAL_ORG_ANONYMIZE_DEFAULTS: OrgAnonymizeDefaults = {
+  template: "classic",
+  watermark: false,
+  watermarkText: "",
+}
+
+/** Override d'anonymisation par mission (jobs.anonymize_options). */
+export interface JobAnonymizeOptions {
+  keepNoraSummary: boolean
+  customText: string
+}
+
+export const INITIAL_JOB_ANONYMIZE_OPTIONS: JobAnonymizeOptions = {
+  keepNoraSummary: false,
+  customText: "",
+}
+
+/** Normalise un template inconnu vers un template valide (défaut "classic"). */
+export function coerceTemplate(v: unknown): AnonymizeTemplate {
+  return v === "two-column" || v === "executive" || v === "bento" ? v : "classic"
+}
+
+/** Lit les défauts cabinet depuis le jsonb brut (tolère NULL / champs manquants). */
+export function readOrgDefaults(raw: unknown): OrgAnonymizeDefaults {
+  const o = (raw ?? {}) as Record<string, unknown>
+  return {
+    template: coerceTemplate(o.template),
+    watermark: typeof o.watermark === "boolean" ? o.watermark : false,
+    watermarkText: typeof o.watermarkText === "string" ? o.watermarkText.slice(0, 40) : "",
+  }
+}
+
+/** Lit les options mission depuis le jsonb brut (tolère NULL / champs manquants). */
+export function readJobOptions(raw: unknown): JobAnonymizeOptions {
+  const o = (raw ?? {}) as Record<string, unknown>
+  return {
+    keepNoraSummary: typeof o.keepNoraSummary === "boolean" ? o.keepNoraSummary : false,
+    customText: typeof o.customText === "string" ? o.customText.slice(0, CUSTOM_TEXT_MAX) : "",
+  }
+}
+
+/** Fusionne défauts cabinet + options mission → options effectives de rendu. */
+export function resolveAnonymizeOptions(
+  org: OrgAnonymizeDefaults,
+  job: JobAnonymizeOptions,
+): AnonymizeOptions {
+  return {
+    template: org.template,
+    watermark: org.watermark,
+    watermarkText: org.watermarkText,
+    keepNoraSummary: job.keepNoraSummary,
+    customText: job.customText,
+  }
 }
 
 /**

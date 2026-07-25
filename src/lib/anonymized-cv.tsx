@@ -156,6 +156,8 @@ export interface AnonymizedOptions {
   customText?: string
   /** Filigrane diagonal "<NomCabinet>" en fond de toutes les pages. */
   watermark?: boolean
+  /** Texte du filigrane. Vide → retombe sur le nom de marque. */
+  watermarkText?: string
   /** Langue des labels section ("fr" défaut). Le contenu du CV
    *  reste dans sa langue d'origine. */
   language?: "fr" | "en"
@@ -227,9 +229,10 @@ export function AnonymizedCv({
 }) {
   const opts: Required<AnonymizedOptions> = {
     template: options?.template ?? "classic",
-    keepNoraSummary: options?.keepNoraSummary ?? true,
+    keepNoraSummary: options?.keepNoraSummary ?? false,
     customText: (options?.customText ?? "").trim(),
     watermark: options?.watermark ?? false,
+    watermarkText: (options?.watermarkText ?? "").trim(),
     language: options?.language ?? "fr",
   }
   const t = LABELS[opts.language]
@@ -284,7 +287,7 @@ export function AnonymizedCv({
   // Filigrane = juste le nom du cabinet, façon "tampon" discret.
   // Pas de "Réf" devant : la ref est déjà imprimée en clair en haut
   // à droite et dans le footer, inutile de la redoubler en filigrane.
-  const watermarkText = brandName
+  const watermarkText = opts.watermarkText || brandName || ""
 
   // ─── Helpers partagés entre templates ────────────────────────────
   // (Closures qui capturent brand/labels/opts/styles depuis le scope

@@ -17,6 +17,10 @@ import { AnonymizedCv, type AnonymizedJobContext } from "@/lib/anonymized-cv"
 import type { Candidate } from "@/lib/database.types"
 import { openrouterChat } from "@/lib/openrouter"
 import { consumeOrgLlmActionForUser } from "@/lib/quota"
+import {
+  readOrgDefaults, readJobOptions, coerceTemplate,
+  INITIAL_ORG_ANONYMIZE_DEFAULTS, INITIAL_JOB_ANONYMIZE_OPTIONS,
+} from "@/components/workspace/anonymize/types"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -55,21 +59,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   } | null
   const jobId = typeof body?.job_id === "string" ? body.job_id : null
 
-  // Sanitize options : on valide chaque champ, défauts si absent/invalide.
+  // Overrides éventuels passés dans le body (rétro-compat fiche match + appel
+  // ponctuel). La SOURCE DE VÉRITÉ est en base : défauts cabinet
+  // (organizations.anonymize_defaults) + options mission (jobs.anonymize_options),
+  // fusionnés plus bas une fois org + job chargés. Un champ de body non fourni
+  // (undefined) laisse gagner la valeur persistée.
   const optRaw = body?.options ?? {}
-  const template: "classic" | "two-column" | "executive" | "bento" =
-    optRaw.template === "two-column"
-      ? "two-column"
-      : optRaw.template === "executive"
-        ? "executive"
-        : optRaw.template === "bento"
-          ? "bento"
-          : "classic"
-  const keepNoraSummary = typeof optRaw.keep_nora_summary === "boolean" ? optRaw.keep_nora_summary : true
-  const customText =
-    typeof optRaw.custom_text === "string" ? optRaw.custom_text.trim().slice(0, 600) : ""
-  const watermark = typeof optRaw.watermark === "boolean" ? optRaw.watermark : false
+  const bodyTemplate = optRaw.template
+  const bodyKeepNora = typeof optRaw.keep_nora_summary === "boolean" ? optRaw.keep_nora_summary : undefined
+  const bodyCustomText = typeof optRaw.custom_text === "string" ? optRaw.custom_text : undefined
+  const bodyWatermark = typeof optRaw.watermark === "boolean" ? optRaw.watermark : undefined
   const language: "fr" | "en" = optRaw.language === "en" ? "en" : "fr"
+  // Défauts, écrasés par les valeurs DB au chargement org/job.
+  let orgDefaults = INITIAL_ORG_ANONYMIZE_DEFAULTS
+  let jobOptions = INITIAL_JOB_ANONYMIZE_OPTIONS
 
   const { data: candidate, error } = await sb.from("candidates").select("*").eq("id", id).single()
   if (error || !candidate) return NextResponse.json({ error: "not_found" }, { status: 404 })
@@ -95,7 +98,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (profile?.organization_id) {
     const { data: org } = await sb
       .from("organizations")
-      .select("brand_name, brand_logo_path, brand_color, brand_color_secondary, brand_slogan, contact_email, name")
+      .select("brand_name, brand_logo_path, brand_color, brand_color_secondary, brand_slogan, contact_email, name, anonymize_defaults")
       .eq("id", profile.organization_id)
       .maybeSingle()
     brandName = (org?.brand_name?.trim() || org?.name?.trim()) || null
@@ -104,6 +107,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     brandColorSecondary = org?.brand_color_secondary ?? null
     brandSlogan = org?.brand_slogan ?? null
     contactEmail = org?.contact_email ?? null
+    orgDefaults = readOrgDefaults(org?.anonymize_defaults)
   }
 
   let brandLogoUrl: string | null = null
@@ -129,10 +133,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (jobId) {
     const { data: job } = await sb
       .from("jobs")
-      .select("id, title, location, seniority, required_skills, nice_to_have_skills, normalized, briefing")
+      .select("id, title, location, seniority, required_skills, nice_to_have_skills, normalized, briefing, anonymize_options")
       .eq("id", jobId)
       .single()
     if (job) {
+      jobOptions = readJobOptions(job.anonymize_options)
       // Formal title for the client : prefer the LLM-normalised role_family
       // (joined with " / " when there's a FR/EN pair) so the PDF says
       // "Ingénieur data / Data engineer" instead of whatever the sourcer
@@ -152,6 +157,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       }
     }
   }
+
+  // ── Options effectives : DB (org gabarit + mission contenu), un override de
+  //    body non-undefined gagne (rétro-compat fiche match / appel ponctuel). ──
+  const template = coerceTemplate(bodyTemplate ?? orgDefaults.template)
+  const watermark = bodyWatermark ?? orgDefaults.watermark
+  const watermarkText = orgDefaults.watermarkText
+  const keepNoraSummary = bodyKeepNora ?? jobOptions.keepNoraSummary
+  const customText = (bodyCustomText ?? jobOptions.customText).trim().slice(0, 600)
 
   const reference = refFor(candidate.id)
 
@@ -180,6 +193,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
             keepNoraSummary,
             customText,
             watermark,
+            watermarkText,
             language,
           },
         }),
