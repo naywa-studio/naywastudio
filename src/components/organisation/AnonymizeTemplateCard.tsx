@@ -91,6 +91,7 @@ interface Props {
     name: string
     brand_name: string | null
     brand_color: string | null
+    brand_color_secondary: string | null
     brand_slogan: string | null
     contact_email: string | null
     anonymize_defaults: { template?: string; watermark?: boolean; watermarkText?: string } | null
@@ -116,6 +117,10 @@ export function AnonymizeTemplateCard({ organization, logoUrl, hasAccess, onSave
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const accent = organization.brand_color && HEX.test(organization.brand_color) ? organization.brand_color : "#111827"
+  // Couleur secondaire (titres de section, comme dans le PDF). Absente/malformée
+  // → retombe sur l'accent principal pour unifier.
+  const accentSecondary = organization.brand_color_secondary && HEX.test(organization.brand_color_secondary)
+    ? organization.brand_color_secondary : accent
   const effectiveWatermark = (watermarkText.trim() || orgName || "").toUpperCase()
 
   const payload = () => ({ template, watermark, watermarkText: watermarkText.trim().slice(0, 40) })
@@ -186,12 +191,8 @@ export function AnonymizeTemplateCard({ organization, logoUrl, hasAccess, onSave
     <div style={cardStyle}>
       <CardHeader title={t.title} subtitle={t.subtitle} />
 
-      <div style={{
-        display: "grid", gap: 22, marginTop: 16,
-        gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 300px)",
-        alignItems: "start",
-      }} className="anon-tpl-grid">
-        {/* Colonne réglages */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 24, marginTop: 16 }}>
+        {/* Réglages */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
           {/* Modèle */}
           <div>
@@ -288,25 +289,26 @@ export function AnonymizeTemplateCard({ organization, logoUrl, hasAccess, onSave
           </div>
         </div>
 
-        {/* Colonne aperçu */}
-        <div>
+        {/* Aperçu — dessous, centré, grand format */}
+        <div style={{ borderTop: "1px solid var(--nw-border)", paddingTop: 18 }}>
           <label style={fieldLabel}>{t.previewLabel}</label>
-          <MiniPreview
-            accent={accent}
-            logoUrl={logoUrl}
-            orgName={orgName}
-            slogan={organization.brand_slogan}
-            contactEmail={organization.contact_email}
-            watermark={watermark}
-            watermarkText={effectiveWatermark}
-            template={template}
-            t={t}
-          />
-          <p style={{ margin: "8px 0 0", fontSize: 10.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>{t.previewNote}</p>
+          <div style={{ maxWidth: 460, margin: "10px auto 0" }}>
+            <MiniPreview
+              accent={accent}
+              accentSecondary={accentSecondary}
+              logoUrl={logoUrl}
+              orgName={orgName}
+              slogan={organization.brand_slogan}
+              contactEmail={organization.contact_email}
+              watermark={watermark}
+              watermarkText={effectiveWatermark}
+              template={template}
+              t={t}
+            />
+            <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--nw-text-muted)", lineHeight: 1.5, textAlign: "center" }}>{t.previewNote}</p>
+          </div>
         </div>
       </div>
-
-      <style>{`@media (max-width: 720px) { .anon-tpl-grid { grid-template-columns: 1fr !important; } }`}</style>
     </div>
   )
 }
@@ -314,9 +316,10 @@ export function AnonymizeTemplateCard({ organization, logoUrl, hasAccess, onSave
 /* ── Aperçu HTML représentatif (pas le PDF exact) ──────────────────────── */
 
 function MiniPreview({
-  accent, logoUrl, orgName, slogan, contactEmail, watermark, watermarkText, template, t,
+  accent, accentSecondary, logoUrl, orgName, slogan, contactEmail, watermark, watermarkText, template, t,
 }: {
   accent: string
+  accentSecondary: string
   logoUrl: string | null
   orgName: string
   slogan: string | null
@@ -326,8 +329,9 @@ function MiniPreview({
   template: AnonymizeTemplate
   t: (typeof copy)["fr"]
 }) {
+  // Titres de section = couleur secondaire (comme dans le PDF).
   const renderH = (label: string) => (
-    <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
+    <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accentSecondary, textTransform: "uppercase", letterSpacing: 0.5 }}>
       {label}
     </p>
   )
@@ -367,9 +371,9 @@ function MiniPreview({
         <p style={{ margin: "6px 0 0", fontSize: 15, fontWeight: 800, color: "#111827", letterSpacing: -0.3 }}>{t.sampleRole}</p>
         <div style={{ width: 40, height: 2, background: accent, margin: "8px auto" }} />
         <p style={{ margin: "0 0 14px", fontSize: 8.5, color: "#4B5563", lineHeight: 1.6 }}>{t.sampleSummary}</p>
-        <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 1 }}>{t.sampleSkills}</p>
+        <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accentSecondary, textTransform: "uppercase", letterSpacing: 1 }}>{t.sampleSkills}</p>
         <p style={{ margin: "0 0 14px", fontSize: 7.5, color: "#374151" }}>{SAMPLE_SKILLS.join("  ·  ")}</p>
-        <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 1 }}>{t.sampleExp}</p>
+        <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accentSecondary, textTransform: "uppercase", letterSpacing: 1 }}>{t.sampleExp}</p>
         <div style={{ textAlign: "left", maxWidth: 180, margin: "0 auto" }}>{expList}</div>
       </div>
     )
