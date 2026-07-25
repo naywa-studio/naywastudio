@@ -458,7 +458,7 @@ export default function JobDetailPage() {
       {/* Onglets de 1er niveau : Candidats (matching) · Shortlist (retenus).
           Cachés tant que la mission n'est pas configurée (wizard). */}
       {!showWizard && (
-        <div style={{ display: "flex", gap: 4, margin: "8px 0 20px", borderBottom: "1px solid var(--nw-border)" }}>
+        <div style={{ display: "flex", gap: 10, margin: "10px 0 22px", borderBottom: "1.5px solid var(--nw-border)" }}>
           {(["candidats", "shortlist"] as const).map((key) => {
             const on = view === key
             const label = key === "candidats" ? t.viewCandidats : t.viewShortlist
@@ -467,18 +467,23 @@ export default function JobDetailPage() {
                 key={key}
                 onClick={() => setView(key)}
                 style={{
-                  fontFamily: "inherit", fontSize: 13.5, fontWeight: on ? 800 : 600,
+                  fontFamily: "inherit", fontSize: 18, fontWeight: on ? 800 : 600,
+                  letterSpacing: "-0.01em",
                   color: on ? "var(--nw-primary)" : "var(--nw-text-muted)",
                   background: "transparent", border: "none", cursor: "pointer",
-                  padding: "8px 14px", marginBottom: -1,
-                  borderBottom: `2px solid ${on ? "var(--nw-primary)" : "transparent"}`,
+                  padding: "6px 4px 12px", marginBottom: -1.5,
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  borderBottom: `3px solid ${on ? "var(--nw-primary)" : "transparent"}`,
                 }}
               >
                 {label}
                 {key === "shortlist" && shortlistCount > 0 && (
                   <span style={{
-                    marginLeft: 6, fontSize: 11, fontWeight: 700,
-                    color: on ? "var(--nw-primary)" : "var(--nw-text-muted)",
+                    fontSize: 12, fontWeight: 700,
+                    minWidth: 20, height: 20, padding: "0 6px", borderRadius: 999,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    color: on ? "white" : "var(--nw-text-muted)",
+                    background: on ? "var(--nw-primary)" : "var(--nw-neutral-100)",
                   }}>{shortlistCount}</span>
                 )}
               </button>

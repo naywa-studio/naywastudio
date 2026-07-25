@@ -19,7 +19,7 @@
  * `onLocalUpdate` pour un rendu optimiste.
  */
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { m } from "framer-motion"
 import type { Candidate, MatchAssessment, Job, PipelineStage } from "@/lib/database.types"
@@ -146,6 +146,18 @@ const STAGE_OPTIONS: PipelineStage[] = [
   "identified", "pricing", "contacted", "replied", "interview", "offer", "hired", "rejected",
 ]
 
+/** Pastille couleur par étape (discrète) — repère visuel dans le dropdown. */
+const STAGE_DOT: Record<PipelineStage, string> = {
+  identified: "var(--nw-primary)",
+  pricing: "var(--nw-text-muted)",
+  contacted: "#2563EB",
+  replied: "var(--nw-primary)",
+  interview: "var(--nw-warn)",
+  offer: "var(--nw-success)",
+  hired: "#0F766E",
+  rejected: "var(--nw-text-muted)",
+}
+
 interface Props {
   job: Job
   rows: AssessmentRow[]
@@ -252,8 +264,8 @@ export function MissionShortlist({ job, rows, isReadOnly, onLocalUpdate, lang }:
                 style={{
                   fontFamily: "inherit", fontSize: 12, fontWeight: active ? 700 : 600,
                   color: active ? "white" : "var(--nw-text-body)",
-                  background: active ? "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)" : "white",
-                  border: `1px solid ${active ? "transparent" : "var(--nw-border)"}`,
+                  background: active ? "var(--nw-primary)" : "white",
+                  border: `1px solid ${active ? "var(--nw-primary)" : "var(--nw-border)"}`,
                   borderRadius: 999, padding: "6px 13px", cursor: "pointer",
                   display: "inline-flex", alignItems: "center", gap: 6,
                 }}
@@ -419,23 +431,14 @@ function ShortlistCard({
 
       {/* Ligne 3 : étape (sélecteur) + actions */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-        <select
-          aria-label={t.stageAria}
+        <StageDropdown
           value={row.pipeline_stage}
           disabled={isReadOnly || saving}
-          title={isReadOnly ? t.readOnlyHint : undefined}
-          onChange={(e) => onSelectStage(row, e.target.value as PipelineStage)}
-          style={{
-            flex: 1, minWidth: 0, fontFamily: "inherit", fontSize: 12, fontWeight: 600,
-            color: "var(--nw-text-body)", background: "white",
-            border: "1px solid var(--nw-border)", borderRadius: 8, padding: "6px 8px",
-            cursor: isReadOnly ? "not-allowed" : "pointer",
-          }}
-        >
-          {STAGE_OPTIONS.map((s) => (
-            <option key={s} value={s}>{t.stageLabel[s]}</option>
-          ))}
-        </select>
+          readOnlyHint={isReadOnly ? t.readOnlyHint : undefined}
+          ariaLabel={t.stageAria}
+          stageLabel={t.stageLabel}
+          onSelect={(s) => onSelectStage(row, s)}
+        />
         <Link
           href={`/workspace/vivier/${row.candidate_id}`}
           style={{
@@ -456,5 +459,102 @@ function ShortlistCard({
         </Link>
       </div>
     </m.article>
+  )
+}
+
+/* ── Sélecteur d'étape stylisé (remplace le <select> natif) ──────────── */
+
+function StageDropdown({
+  value, disabled, readOnlyHint, ariaLabel, stageLabel, onSelect,
+}: {
+  value: PipelineStage
+  disabled: boolean
+  readOnlyHint?: string
+  ariaLabel: string
+  stageLabel: Record<PipelineStage, string>
+  onSelect: (stage: PipelineStage) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false) }
+    document.addEventListener("mousedown", onDoc)
+    document.addEventListener("keydown", onEsc)
+    return () => {
+      document.removeEventListener("mousedown", onDoc)
+      document.removeEventListener("keydown", onEsc)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: "relative", flex: 1, minWidth: 0 }}>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+        title={readOnlyHint}
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", gap: 7,
+          fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: "var(--nw-text-body)",
+          background: "white", border: "1px solid var(--nw-border)", borderRadius: 8,
+          padding: "7px 10px", cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.6 : 1,
+        }}
+      >
+        <span style={{ width: 7, height: 7, borderRadius: 999, background: STAGE_DOT[value], flexShrink: 0 }} />
+        <span style={{ flex: 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {stageLabel[value]}
+        </span>
+        <svg
+          width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--nw-text-muted)"
+          strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+          style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 40,
+            background: "white", border: "1px solid var(--nw-border)", borderRadius: 10,
+            boxShadow: "0 12px 32px rgba(17,24,39,0.14)", padding: 4,
+            maxHeight: 280, overflowY: "auto",
+          }}
+        >
+          {STAGE_OPTIONS.map((s) => {
+            const sel = s === value
+            return (
+              <button
+                key={s}
+                type="button"
+                role="option"
+                aria-selected={sel}
+                onClick={() => { setOpen(false); if (s !== value) onSelect(s) }}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: 8,
+                  fontFamily: "inherit", fontSize: 12.5, fontWeight: sel ? 700 : 500,
+                  color: sel ? "var(--nw-primary)" : "var(--nw-text-body)",
+                  background: sel ? "var(--nw-primary-50)" : "white",
+                  border: "none", borderRadius: 7, padding: "8px 9px", cursor: "pointer", textAlign: "left",
+                }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: STAGE_DOT[s], flexShrink: 0 }} />
+                {stageLabel[s]}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
