@@ -299,7 +299,7 @@ export function AnonymizeTemplateCard({ organization, logoUrl, hasAccess, onSave
             contactEmail={organization.contact_email}
             watermark={watermark}
             watermarkText={effectiveWatermark}
-            twoColumn={template === "two-column"}
+            template={template}
             t={t}
           />
           <p style={{ margin: "8px 0 0", fontSize: 10.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>{t.previewNote}</p>
@@ -314,7 +314,7 @@ export function AnonymizeTemplateCard({ organization, logoUrl, hasAccess, onSave
 /* ── Aperçu HTML représentatif (pas le PDF exact) ──────────────────────── */
 
 function MiniPreview({
-  accent, logoUrl, orgName, slogan, contactEmail, watermark, watermarkText, twoColumn, t,
+  accent, logoUrl, orgName, slogan, contactEmail, watermark, watermarkText, template, t,
 }: {
   accent: string
   logoUrl: string | null
@@ -323,9 +323,84 @@ function MiniPreview({
   contactEmail: string | null
   watermark: boolean
   watermarkText: string
-  twoColumn: boolean
+  template: AnonymizeTemplate
   t: (typeof copy)["fr"]
 }) {
+  const renderH = (label: string) => (
+    <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
+      {label}
+    </p>
+  )
+  const skillChips = (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+      {SAMPLE_SKILLS.map((s) => (
+        <span key={s} style={{ fontSize: 6.5, padding: "1px 5px", borderRadius: 20, background: "#F3F4F6", color: "#374151" }}>{s}</span>
+      ))}
+    </div>
+  )
+  const expList = SAMPLE_EXP.map((e) => (
+    <div key={e.role} style={{ marginBottom: 5 }}>
+      <p style={{ margin: 0, fontSize: 8, fontWeight: 700, color: "#1F2937" }}>{e.role}</p>
+      <p style={{ margin: 0, fontSize: 7, color: "#6B7280" }}>{e.org} · {e.years}</p>
+    </div>
+  ))
+
+  // Corps distinct par template (aperçu représentatif, pas le PDF exact).
+  let body: React.ReactNode
+  if (template === "two-column") {
+    body = (
+      <>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: "#111827" }}>{t.sampleRole}</p>
+        <p style={{ margin: "6px 0 0", fontSize: 8, color: "#4B5563", lineHeight: 1.5 }}>{t.sampleSummary}</p>
+        <div style={{ display: "grid", gridTemplateColumns: "34% 1fr", gap: 12, marginTop: 10 }}>
+          <div style={{ background: "#FAFAFC", borderRadius: 6, padding: "8px 8px" }}>
+            {renderH(t.sampleSkills)}{skillChips}
+          </div>
+          <div>{renderH(t.sampleExp)}{expList}</div>
+        </div>
+      </>
+    )
+  } else if (template === "executive") {
+    // Aéré, gros titre centré, filet fin, compétences en texte (pas de chips).
+    body = (
+      <div style={{ textAlign: "center" }}>
+        <p style={{ margin: "6px 0 0", fontSize: 15, fontWeight: 800, color: "#111827", letterSpacing: -0.3 }}>{t.sampleRole}</p>
+        <div style={{ width: 40, height: 2, background: accent, margin: "8px auto" }} />
+        <p style={{ margin: "0 0 14px", fontSize: 8.5, color: "#4B5563", lineHeight: 1.6 }}>{t.sampleSummary}</p>
+        <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 1 }}>{t.sampleSkills}</p>
+        <p style={{ margin: "0 0 14px", fontSize: 7.5, color: "#374151" }}>{SAMPLE_SKILLS.join("  ·  ")}</p>
+        <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 1 }}>{t.sampleExp}</p>
+        <div style={{ textAlign: "left", maxWidth: 180, margin: "0 auto" }}>{expList}</div>
+      </div>
+    )
+  } else if (template === "bento") {
+    // Grille de cards distinctes.
+    const cardBox: React.CSSProperties = { border: "1px solid #ECECF1", borderRadius: 8, padding: "8px 9px", background: "white" }
+    body = (
+      <>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: "#111827" }}>{t.sampleRole}</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
+          <div style={{ ...cardBox, gridColumn: "1 / -1" }}>
+            <p style={{ margin: 0, fontSize: 8, color: "#4B5563", lineHeight: 1.5 }}>{t.sampleSummary}</p>
+          </div>
+          <div style={cardBox}>{renderH(t.sampleSkills)}{skillChips}</div>
+          <div style={cardBox}>{renderH(t.sampleExp)}{expList}</div>
+        </div>
+      </>
+    )
+  } else {
+    // classic — mono-colonne linéaire.
+    body = (
+      <>
+        <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: "#111827" }}>{t.sampleRole}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 7, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.5 }}>{t.confidential}</p>
+        <p style={{ margin: "8px 0 0", fontSize: 8, color: "#4B5563", lineHeight: 1.5 }}>{t.sampleSummary}</p>
+        <div style={{ marginTop: 10 }}>{renderH(t.sampleSkills)}{skillChips}</div>
+        <div style={{ marginTop: 10 }}>{renderH(t.sampleExp)}{expList}</div>
+      </>
+    )
+  }
+
   return (
     <div style={{
       position: "relative", overflow: "hidden",
@@ -372,46 +447,9 @@ function MiniPreview({
         </span>
       </div>
 
-      {/* Corps */}
-      <div style={{ flex: 1, padding: "10px 12px", minHeight: 0 }}>
-        <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: "#111827" }}>{t.sampleRole}</p>
-        <p style={{ margin: "2px 0 0", fontSize: 7, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.5 }}>
-          {t.confidential}
-        </p>
-        <p style={{ margin: "8px 0 0", fontSize: 8, color: "#4B5563", lineHeight: 1.5 }}>{t.sampleSummary}</p>
-
-        <div style={{
-          display: twoColumn ? "grid" : "block",
-          gridTemplateColumns: twoColumn ? "34% 1fr" : undefined,
-          gap: 12, marginTop: 10,
-        }}>
-          {/* Compétences */}
-          <div>
-            <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
-              {t.sampleSkills}
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-              {SAMPLE_SKILLS.map((s) => (
-                <span key={s} style={{
-                  fontSize: 6.5, padding: "1px 5px", borderRadius: 20,
-                  background: "#F3F4F6", color: "#374151",
-                }}>{s}</span>
-              ))}
-            </div>
-          </div>
-          {/* Expérience */}
-          <div style={{ marginTop: twoColumn ? 0 : 10 }}>
-            <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
-              {t.sampleExp}
-            </p>
-            {SAMPLE_EXP.map((e) => (
-              <div key={e.role} style={{ marginBottom: 5 }}>
-                <p style={{ margin: 0, fontSize: 8, fontWeight: 700, color: "#1F2937" }}>{e.role}</p>
-                <p style={{ margin: 0, fontSize: 7, color: "#6B7280" }}>{e.org} · {e.years}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Corps (varie selon le template) */}
+      <div style={{ flex: 1, padding: "10px 12px", minHeight: 0, position: "relative", zIndex: 1 }}>
+        {body}
       </div>
 
       {/* Pied */}

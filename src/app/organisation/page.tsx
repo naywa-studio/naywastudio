@@ -604,6 +604,9 @@ export default function CabinetPage() {
   // synchronisée en arrière-plan via history.replaceState dans OrgSidebar —
   // Next 16 fige parfois le render sur un pathname identique).
   const [activeSection, setActiveSection] = useState<OrgSection>(initialSection)
+  // Sous-onglet de la section Branding : identité vs gabarit d'anonymisation
+  // (évite de scroller pour accéder aux réglages CV anonymisés).
+  const [brandingTab, setBrandingTab] = useState<"identity" | "anonymize">("identity")
   useEffect(() => {
     setActiveSection(initialSection)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -717,19 +720,47 @@ export default function CabinetPage() {
 
           {activeSection === "branding" && caps.canBranding && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <BrandingSection
-                organization={organization}
-                logoUrl={logoUrl}
-                isOwner={caps.canBranding}
-                canEditLegalName={isOwner}
-                onUpdated={refetch}
-              />
-              <AnonymizeTemplateCard
-                organization={organization}
-                logoUrl={logoUrl}
-                hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
-                onSaved={refetch}
-              />
+              {/* Sous-onglets : Identité vs gabarit CV anonymisés (pas de scroll). */}
+              <div style={{ display: "flex", gap: 6, borderBottom: "1px solid var(--nw-border)" }}>
+                {([
+                  ["identity", lang === "fr" ? "Identité" : "Identity"],
+                  ["anonymize", lang === "fr" ? "Vos CV anonymisés" : "Your anonymized CVs"],
+                ] as const).map(([key, label]) => {
+                  const on = brandingTab === key
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setBrandingTab(key)}
+                      style={{
+                        fontFamily: "inherit", fontSize: 14, fontWeight: on ? 800 : 600,
+                        color: on ? "var(--nw-primary)" : "var(--nw-text-muted)",
+                        background: "transparent", border: "none", cursor: "pointer",
+                        padding: "8px 12px 12px", marginBottom: -1,
+                        borderBottom: `2.5px solid ${on ? "var(--nw-primary)" : "transparent"}`,
+                      }}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {brandingTab === "identity" ? (
+                <BrandingSection
+                  organization={organization}
+                  logoUrl={logoUrl}
+                  isOwner={caps.canBranding}
+                  canEditLegalName={isOwner}
+                  onUpdated={refetch}
+                />
+              ) : (
+                <AnonymizeTemplateCard
+                  organization={organization}
+                  logoUrl={logoUrl}
+                  hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
+                  onSaved={refetch}
+                />
+              )}
             </div>
           )}
 
