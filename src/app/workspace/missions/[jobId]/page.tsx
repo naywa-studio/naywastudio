@@ -35,6 +35,7 @@ const MATCH_MODE_LABEL: Record<Lang, Record<MatchMode, string>> = {
   },
 }
 import { MatchCard } from "@/components/workspace/MatchCard"
+import { MissionShortlist } from "@/components/workspace/MissionShortlist"
 import { JobForm } from "../page"
 import { useWorkspace } from "../../layout"
 
@@ -70,6 +71,8 @@ const copy = {
     noCandidatesToShow: "Aucun candidat à afficher.",
     noRelevantProfiles: "Aucun profil pertinent sur ce vivier pour cette mission. Les profils ci-dessous sont à faible affinité.",
     weakToggle: (show: boolean, n: number) => `${show ? "▲ Masquer" : "▼ Voir"} les ${n} profil${n > 1 ? "s" : ""} à faible affinité`,
+    viewCandidats: "Candidats",
+    viewShortlist: "Shortlist",
     tabAll: "Tous",
     tabApplied: "Ont postulé",
     tabAppliedHint: "Via le formulaire public",
@@ -129,6 +132,8 @@ const copy = {
     noCandidatesToShow: "No candidate to display.",
     noRelevantProfiles: "No relevant profile in this talent pool for this mission. The profiles below have low affinity.",
     weakToggle: (show: boolean, n: number) => `${show ? "▲ Hide" : "▼ Show"} the ${n} low-affinity profile${n > 1 ? "s" : ""}`,
+    viewCandidats: "Candidates",
+    viewShortlist: "Shortlist",
     tabAll: "All",
     tabApplied: "Applied",
     tabAppliedHint: "Via the public form",
@@ -196,6 +201,10 @@ export default function JobDetailPage() {
   /** Force le wizard à s'afficher (édition manuelle des critères). */
   const [editCriteriaMode, setEditCriteriaMode] = useState(false)
   const [activeTab, setActiveTab] = useState<SourceTab>("all")
+  // Onglet de 1er niveau : « Candidats » (matching brut) vs « Shortlist »
+  // (candidats retenus, in_pipeline). Séparés pour que le client ne mélange
+  // pas la découverte et la sélection à présenter.
+  const [view, setView] = useState<"candidats" | "shortlist">("candidats")
   /** Filtres actifs : Set des critère IDs sur lesquels exiger un "fort match". */
   const [activeCritFilters, setActiveCritFilters] = useState<Set<string>>(new Set())
   /** Déplie les profils à faible affinité (tier "poor", score < 35), masqués
@@ -383,6 +392,7 @@ export default function JobDetailPage() {
     })
 
   const strongCount = rows.filter((r) => (r.score ?? 0) >= 55).length
+  const shortlistCount = rows.filter((r) => r.in_pipeline).length
 
   // Séparation pertinents / faible affinité. Les non-scorés (assignés
   // manuellement, score null) sont toujours pertinents (choix explicite du
@@ -444,6 +454,49 @@ export default function JobDetailPage() {
           onSaved={(patch) => setJob((prev) => prev ? { ...prev, ...patch } : prev)}
         />
       )}
+
+      {/* Onglets de 1er niveau : Candidats (matching) · Shortlist (retenus).
+          Cachés tant que la mission n'est pas configurée (wizard). */}
+      {!showWizard && (
+        <div style={{ display: "flex", gap: 4, margin: "8px 0 20px", borderBottom: "1px solid var(--nw-border)" }}>
+          {(["candidats", "shortlist"] as const).map((key) => {
+            const on = view === key
+            const label = key === "candidats" ? t.viewCandidats : t.viewShortlist
+            return (
+              <button
+                key={key}
+                onClick={() => setView(key)}
+                style={{
+                  fontFamily: "inherit", fontSize: 13.5, fontWeight: on ? 800 : 600,
+                  color: on ? "var(--nw-primary)" : "var(--nw-text-muted)",
+                  background: "transparent", border: "none", cursor: "pointer",
+                  padding: "8px 14px", marginBottom: -1,
+                  borderBottom: `2px solid ${on ? "var(--nw-primary)" : "transparent"}`,
+                }}
+              >
+                {label}
+                {key === "shortlist" && shortlistCount > 0 && (
+                  <span style={{
+                    marginLeft: 6, fontSize: 11, fontWeight: 700,
+                    color: on ? "var(--nw-primary)" : "var(--nw-text-muted)",
+                  }}>{shortlistCount}</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {!showWizard && view === "shortlist" ? (
+        <MissionShortlist
+          job={job}
+          rows={rows}
+          isReadOnly={isReadOnly}
+          onLocalUpdate={(rowId, patch) => setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, ...patch } : r))}
+          lang={lang}
+        />
+      ) : (
+      <>
 
       {/* Mission "legacy" (créée avant les critères flexibles) : matchs
           présents mais aucun critère. On ne masque rien — bannière opt-in. */}
@@ -686,6 +739,8 @@ export default function JobDetailPage() {
             </div>
           )}
         </>
+      )}
+      </>
       )}
 
       {assignOpen && (
