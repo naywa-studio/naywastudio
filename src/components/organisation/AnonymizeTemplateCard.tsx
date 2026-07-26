@@ -47,11 +47,15 @@ const copy = {
     lockedTitle: "Réservé à votre package",
     lockedBody: "La personnalisation des CV anonymisés est disponible avec un abonnement actif ou pendant votre essai.",
     error: "Une erreur est survenue. Réessayez.",
-    sampleRole: "Chef de projet digital",
-    sampleSummary: "Profil orienté pilotage de projets digitaux, à l'aise sur le cadrage et la coordination d'équipes.",
     sampleSkills: "Compétences",
     sampleExp: "Expérience",
-    confidential: "Profil confidentiel",
+    presentedFor: "Présenté pour",
+    missionName: "Nom de la mission",
+    metaSeniority: "Séniorité",
+    metaExperience: "Expérience",
+    metaZone: "Zone",
+    metaLanguages: "Langues",
+    sectionEducation: "Formation",
   },
   en: {
     title: "Your anonymized CVs",
@@ -71,19 +75,17 @@ const copy = {
     lockedTitle: "Part of your package",
     lockedBody: "Customizing anonymized CVs is available with an active subscription or during your trial.",
     error: "Something went wrong. Please try again.",
-    sampleRole: "Digital project manager",
-    sampleSummary: "Profile focused on leading digital projects, comfortable with scoping and coordinating teams.",
     sampleSkills: "Skills",
     sampleExp: "Experience",
-    confidential: "Confidential profile",
+    presentedFor: "Presented for",
+    missionName: "Mission name",
+    metaSeniority: "Seniority",
+    metaExperience: "Experience",
+    metaZone: "Location",
+    metaLanguages: "Languages",
+    sectionEducation: "Education",
   },
 }
-
-const SAMPLE_SKILLS = ["Gestion de projet", "Agile / Scrum", "Analyse de données", "Cadrage produit"]
-const SAMPLE_EXP = [
-  { role: "Chef de projet digital", org: "Groupe agroalimentaire", years: "2021 – présent" },
-  { role: "Consultant junior", org: "Cabinet de conseil", years: "2019 – 2021" },
-]
 
 interface Props {
   organization: {
@@ -313,7 +315,16 @@ export function AnonymizeTemplateCard({ organization, logoUrl, hasAccess, onSave
   )
 }
 
-/* ── Aperçu HTML représentatif (pas le PDF exact) ──────────────────────── */
+/* ── Aperçu HTML représentatif (pas le PDF exact) ──────────────────────────
+ *
+ * Vraie STRUCTURE de CV, remplie comme un squelette : on affiche les infos
+ * qu'on possède réellement (logo, nom d'org, email, filigrane) + des LIBELLÉS
+ * génériques ("Nom de la mission", "Compétences", "Expérience", "Formation") ;
+ * tout le reste = barres grises placeholder (aucune donnée inventée).
+ * ─────────────────────────────────────────────────────────────────────────*/
+
+const SKEL = "#E5E7EB"
+const CHIP_WIDTHS = [42, 56, 34, 48, 40, 30]
 
 function MiniPreview({
   accent, accentSecondary, logoUrl, orgName, slogan, contactEmail, watermark, watermarkText, template, t,
@@ -329,78 +340,113 @@ function MiniPreview({
   template: AnonymizeTemplate
   t: (typeof copy)["fr"]
 }) {
-  // Titres de section = couleur secondaire (comme dans le PDF).
-  const renderH = (label: string) => (
-    <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accentSecondary, textTransform: "uppercase", letterSpacing: 0.5 }}>
-      {label}
-    </p>
+  // Helpers de rendu (fonctions, pas des composants → pas de re-création).
+  const bar = (w: number | string, h = 5, mb = 5, color = SKEL) => (
+    <div style={{ width: typeof w === "number" ? `${w}%` : w, height: h, borderRadius: 3, background: color, marginBottom: mb }} />
   )
-  const skillChips = (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-      {SAMPLE_SKILLS.map((s) => (
-        <span key={s} style={{ fontSize: 6.5, padding: "1px 5px", borderRadius: 20, background: "#F3F4F6", color: "#374151" }}>{s}</span>
+  const secLabel = (label: string) => (
+    <p style={{ margin: "0 0 5px", fontSize: 7.5, fontWeight: 800, color: accentSecondary, textTransform: "uppercase", letterSpacing: 0.6 }}>{label}</p>
+  )
+  const chips = () => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+      {CHIP_WIDTHS.map((w, i) => (
+        <div key={i} style={{ width: w, height: 9, borderRadius: 20, background: "#F0F1F4" }} />
       ))}
     </div>
   )
-  const expList = SAMPLE_EXP.map((e) => (
-    <div key={e.role} style={{ marginBottom: 5 }}>
-      <p style={{ margin: 0, fontSize: 8, fontWeight: 700, color: "#1F2937" }}>{e.role}</p>
-      <p style={{ margin: 0, fontSize: 7, color: "#6B7280" }}>{e.org} · {e.years}</p>
+  // Une entrée d'expérience : intitulé (barre foncée) + société/dates + 2 lignes.
+  const expEntry = (key: number) => (
+    <div key={key} style={{ marginBottom: 9 }}>
+      {bar(52, 6, 4, "#D1D5DB")}
+      {bar(38, 4, 5, "#E9EAEE")}
+      {bar(94, 4, 3)}
+      {bar(80, 4, 0)}
     </div>
-  ))
+  )
+  const eduEntry = (key: number) => (
+    <div key={key} style={{ marginBottom: 7 }}>
+      {bar(46, 5, 4, "#D1D5DB")}
+      {bar(30, 4, 0, "#E9EAEE")}
+    </div>
+  )
+  const metaField = (label: string) => (
+    <div style={{ minWidth: 0 }}>
+      <p style={{ margin: "0 0 3px", fontSize: 6, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</p>
+      {bar("70%", 5, 0, "#D1D5DB")}
+    </div>
+  )
+  // Le titre de la mission = libellé générique (jamais inventé), grisé.
+  const missionTitle = (size: number, center = false) => (
+    <>
+      <p style={{ margin: 0, fontSize: 6.5, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.6 }}>{t.presentedFor}</p>
+      <p style={{ margin: "3px 0 0", fontSize: size, fontWeight: 800, color: "#9CA3AF", fontStyle: "italic", textAlign: center ? "center" : "left" }}>
+        {t.missionName}
+      </p>
+    </>
+  )
+  const metaRow = () => (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 8 }}>
+      {metaField(t.metaSeniority)}{metaField(t.metaExperience)}{metaField(t.metaZone)}{metaField(t.metaLanguages)}
+    </div>
+  )
 
-  // Corps distinct par template (aperçu représentatif, pas le PDF exact).
+  // Corps distinct par template.
   let body: React.ReactNode
   if (template === "two-column") {
     body = (
       <>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: "#111827" }}>{t.sampleRole}</p>
-        <p style={{ margin: "6px 0 0", fontSize: 8, color: "#4B5563", lineHeight: 1.5 }}>{t.sampleSummary}</p>
-        <div style={{ display: "grid", gridTemplateColumns: "34% 1fr", gap: 12, marginTop: 10 }}>
-          <div style={{ background: "#FAFAFC", borderRadius: 6, padding: "8px 8px" }}>
-            {renderH(t.sampleSkills)}{skillChips}
+        {missionTitle(12)}
+        <div style={{ display: "grid", gridTemplateColumns: "36% 1fr", gap: 12, marginTop: 10 }}>
+          <div style={{ background: "#FAFAFC", borderRadius: 6, padding: "8px 9px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+              {metaField(t.metaSeniority)}{metaField(t.metaExperience)}{metaField(t.metaLanguages)}
+            </div>
+            {secLabel(t.sampleSkills)}{chips()}
           </div>
-          <div>{renderH(t.sampleExp)}{expList}</div>
+          <div>
+            {secLabel(t.sampleExp)}{[0, 1, 2].map(expEntry)}
+            <div style={{ marginTop: 4 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
+          </div>
         </div>
       </>
     )
   } else if (template === "executive") {
-    // Aéré, gros titre centré, filet fin, compétences en texte (pas de chips).
     body = (
-      <div style={{ textAlign: "center" }}>
-        <p style={{ margin: "6px 0 0", fontSize: 15, fontWeight: 800, color: "#111827", letterSpacing: -0.3 }}>{t.sampleRole}</p>
-        <div style={{ width: 40, height: 2, background: accent, margin: "8px auto" }} />
-        <p style={{ margin: "0 0 14px", fontSize: 8.5, color: "#4B5563", lineHeight: 1.6 }}>{t.sampleSummary}</p>
-        <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accentSecondary, textTransform: "uppercase", letterSpacing: 1 }}>{t.sampleSkills}</p>
-        <p style={{ margin: "0 0 14px", fontSize: 7.5, color: "#374151" }}>{SAMPLE_SKILLS.join("  ·  ")}</p>
-        <p style={{ margin: "0 0 4px", fontSize: 7.5, fontWeight: 800, color: accentSecondary, textTransform: "uppercase", letterSpacing: 1 }}>{t.sampleExp}</p>
-        <div style={{ textAlign: "left", maxWidth: 180, margin: "0 auto" }}>{expList}</div>
+      <div>
+        <div style={{ textAlign: "center" }}>
+          {missionTitle(15, true)}
+          <div style={{ width: 44, height: 2, background: accent, margin: "9px auto" }} />
+        </div>
+        <div style={{ maxWidth: 220, margin: "0 auto" }}>
+          {metaRow()}
+          <div style={{ marginTop: 14 }}>{secLabel(t.sampleSkills)}{chips()}</div>
+          <div style={{ marginTop: 14 }}>{secLabel(t.sampleExp)}{[0, 1, 2].map(expEntry)}</div>
+          <div style={{ marginTop: 8 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
+        </div>
       </div>
     )
   } else if (template === "bento") {
-    // Grille de cards distinctes.
-    const cardBox: React.CSSProperties = { border: "1px solid #ECECF1", borderRadius: 8, padding: "8px 9px", background: "white" }
+    const cardBox: React.CSSProperties = { border: "1px solid #ECECF1", borderRadius: 8, padding: "9px 10px", background: "white" }
     body = (
       <>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: "#111827" }}>{t.sampleRole}</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
-          <div style={{ ...cardBox, gridColumn: "1 / -1" }}>
-            <p style={{ margin: 0, fontSize: 8, color: "#4B5563", lineHeight: 1.5 }}>{t.sampleSummary}</p>
-          </div>
-          <div style={cardBox}>{renderH(t.sampleSkills)}{skillChips}</div>
-          <div style={cardBox}>{renderH(t.sampleExp)}{expList}</div>
+        {missionTitle(12)}
+        {metaRow()}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 10 }}>
+          <div style={cardBox}>{secLabel(t.sampleSkills)}{chips()}</div>
+          <div style={cardBox}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
+          <div style={{ ...cardBox, gridColumn: "1 / -1" }}>{secLabel(t.sampleExp)}{[0, 1, 2].map(expEntry)}</div>
         </div>
       </>
     )
   } else {
-    // classic — mono-colonne linéaire.
+    // classic — mono-colonne linéaire (référence).
     body = (
       <>
-        <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: "#111827" }}>{t.sampleRole}</p>
-        <p style={{ margin: "2px 0 0", fontSize: 7, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.5 }}>{t.confidential}</p>
-        <p style={{ margin: "8px 0 0", fontSize: 8, color: "#4B5563", lineHeight: 1.5 }}>{t.sampleSummary}</p>
-        <div style={{ marginTop: 10 }}>{renderH(t.sampleSkills)}{skillChips}</div>
-        <div style={{ marginTop: 10 }}>{renderH(t.sampleExp)}{expList}</div>
+        {missionTitle(13)}
+        {metaRow()}
+        <div style={{ marginTop: 12 }}>{secLabel(t.sampleSkills)}{chips()}</div>
+        <div style={{ marginTop: 12 }}>{secLabel(t.sampleExp)}{[0, 1, 2, 3].map(expEntry)}</div>
+        <div style={{ marginTop: 8 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
       </>
     )
   }
@@ -451,10 +497,9 @@ function MiniPreview({
         </span>
       </div>
 
-      {/* Corps (varie selon le template) + squelette de remplissage */}
-      <div style={{ flex: 1, padding: "10px 12px", minHeight: 0, position: "relative", zIndex: 1 }}>
+      {/* Corps (structure de CV squelette, varie selon le template) */}
+      <div style={{ flex: 1, padding: "12px 14px", minHeight: 0, position: "relative", zIndex: 1 }}>
         {body}
-        <PreviewSkeleton accent={accentSecondary} />
       </div>
 
       {/* Pied */}
@@ -480,26 +525,6 @@ const cardStyle: React.CSSProperties = {
 const fieldLabel: React.CSSProperties = {
   fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
   color: "var(--nw-text-muted)", fontFamily: "var(--nw-font-mono)",
-}
-
-/** Squelette de remplissage — barres grises façon placeholder pour donner
- *  l'impression d'un CV complet (on ne peut pas montrer de vraies infos). */
-function PreviewSkeleton({ accent }: { accent: string }) {
-  const line = (w: string) => (
-    <div style={{ width: w, height: 5, borderRadius: 3, background: "#E5E7EB", marginBottom: 5 }} />
-  )
-  return (
-    <div aria-hidden style={{ marginTop: 16, opacity: 0.7 }}>
-      {[0, 1].map((s) => (
-        <div key={s} style={{ marginBottom: 14 }}>
-          <div style={{ width: 64, height: 6, borderRadius: 3, background: accent, opacity: 0.3, marginBottom: 7 }} />
-          {line("92%")}
-          {line("84%")}
-          {line("70%")}
-        </div>
-      ))}
-    </div>
-  )
 }
 
 function CardHeader({ title, subtitle }: { title: string; subtitle: string }) {
