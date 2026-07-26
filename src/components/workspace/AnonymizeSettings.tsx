@@ -363,17 +363,17 @@ function MiniPreview({
     </div>
   )
   const expEntry = (key: number) => (
-    <div key={key} style={{ marginBottom: 18 }}>
-      {bar(56, 10, 6, "#CBD0D8")}
-      {bar(40, 7, 9, "#E5E7EB")}
-      {bar(96, 7, 6)}
-      {bar(84, 7, 0)}
+    <div key={key} style={{ marginBottom: 12 }}>
+      {bar(56, 9, 5, "#CBD0D8")}
+      {bar(40, 6, 7, "#E5E7EB")}
+      {bar(96, 6, 5)}
+      {bar(84, 6, 0)}
     </div>
   )
   const eduEntry = (key: number) => (
-    <div key={key} style={{ marginBottom: 14 }}>
-      {bar(52, 9, 6, "#CBD0D8")}
-      {bar(34, 7, 0, "#E5E7EB")}
+    <div key={key} style={{ marginBottom: 10 }}>
+      {bar(52, 8, 5, "#CBD0D8")}
+      {bar(34, 6, 0, "#E5E7EB")}
     </div>
   )
   const metaField = (label: string) => (
@@ -409,8 +409,8 @@ function MiniPreview({
             {secLabel(t.sampleSkills)}{chips()}
           </div>
           <div>
-            {secLabel(t.sampleExp)}{[0, 1, 2, 3, 4].map(expEntry)}
-            <div style={{ marginTop: 6 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
+            {secLabel(t.sampleExp)}{[0, 1, 2, 3].map(expEntry)}
+            <div style={{ marginTop: 4 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
           </div>
         </div>
       </>
@@ -419,27 +419,27 @@ function MiniPreview({
     body = (
       <div>
         <div style={{ textAlign: "center" }}>
-          {missionTitle(26, true)}
-          <div style={{ width: 54, height: 3, background: accent, margin: "12px auto" }} />
+          {missionTitle(24, true)}
+          <div style={{ width: 54, height: 3, background: accent, margin: "10px auto" }} />
         </div>
         <div style={{ maxWidth: 280, margin: "0 auto" }}>
           {metaRow()}
-          <div style={{ marginTop: 22 }}>{secLabel(t.sampleSkills)}{chips()}</div>
-          <div style={{ marginTop: 22 }}>{secLabel(t.sampleExp)}{[0, 1, 2, 3, 4].map(expEntry)}</div>
-          <div style={{ marginTop: 14 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
+          <div style={{ marginTop: 16 }}>{secLabel(t.sampleSkills)}{chips()}</div>
+          <div style={{ marginTop: 16 }}>{secLabel(t.sampleExp)}{[0, 1, 2].map(expEntry)}</div>
+          <div style={{ marginTop: 12 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
         </div>
       </div>
     )
   } else if (template === "bento") {
-    const cardBox: React.CSSProperties = { border: "1px solid #ECECF1", borderRadius: 8, padding: "12px 13px", background: "white" }
+    const cardBox: React.CSSProperties = { border: "1px solid #ECECF1", borderRadius: 8, padding: "11px 12px", background: "white" }
     body = (
       <>
         {missionTitle(18)}
         {metaRow()}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
           <div style={cardBox}>{secLabel(t.sampleSkills)}{chips()}</div>
           <div style={cardBox}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
-          <div style={{ ...cardBox, gridColumn: "1 / -1" }}>{secLabel(t.sampleExp)}{[0, 1, 2, 3, 4].map(expEntry)}</div>
+          <div style={{ ...cardBox, gridColumn: "1 / -1" }}>{secLabel(t.sampleExp)}{[0, 1, 2, 3].map(expEntry)}</div>
         </div>
       </>
     )
@@ -448,9 +448,9 @@ function MiniPreview({
       <>
         {missionTitle(20)}
         {metaRow()}
-        <div style={{ marginTop: 18 }}>{secLabel(t.sampleSkills)}{chips()}</div>
-        <div style={{ marginTop: 18 }}>{secLabel(t.sampleExp)}{[0, 1, 2, 3, 4, 5].map(expEntry)}</div>
-        <div style={{ marginTop: 10 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
+        <div style={{ marginTop: 14 }}>{secLabel(t.sampleSkills)}{chips()}</div>
+        <div style={{ marginTop: 14 }}>{secLabel(t.sampleExp)}{[0, 1, 2, 3].map(expEntry)}</div>
+        <div style={{ marginTop: 8 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
       </>
     )
   }
