@@ -324,7 +324,7 @@ export function AnonymizeTemplateCard({ organization, logoUrl, hasAccess, onSave
  * ─────────────────────────────────────────────────────────────────────────*/
 
 const SKEL = "#E5E7EB"
-const CHIP_WIDTHS = [42, 56, 34, 48, 40, 30]
+const CHIP_WIDTHS = [62, 82, 48, 68, 56, 44]
 
 function MiniPreview({
   accent, accentSecondary, logoUrl, orgName, slogan, contactEmail, watermark, watermarkText, template, t,
@@ -341,71 +341,72 @@ function MiniPreview({
   t: (typeof copy)["fr"]
 }) {
   // Helpers de rendu (fonctions, pas des composants → pas de re-création).
-  const bar = (w: number | string, h = 5, mb = 5, color = SKEL) => (
+  // Échelle volontairement grande pour remplir toute la feuille d'aperçu.
+  const bar = (w: number | string, h = 7, mb = 7, color = SKEL) => (
     <div style={{ width: typeof w === "number" ? `${w}%` : w, height: h, borderRadius: 3, background: color, marginBottom: mb }} />
   )
   const secLabel = (label: string) => (
-    <p style={{ margin: "0 0 5px", fontSize: 7.5, fontWeight: 800, color: accentSecondary, textTransform: "uppercase", letterSpacing: 0.6 }}>{label}</p>
+    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: accentSecondary, textTransform: "uppercase", letterSpacing: 0.8 }}>{label}</p>
   )
   const chips = () => (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
       {CHIP_WIDTHS.map((w, i) => (
-        <div key={i} style={{ width: w, height: 9, borderRadius: 20, background: "#F0F1F4" }} />
+        <div key={i} style={{ width: w, height: 15, borderRadius: 20, background: "#F0F1F4" }} />
       ))}
     </div>
   )
   // Une entrée d'expérience : intitulé (barre foncée) + société/dates + 2 lignes.
   const expEntry = (key: number) => (
-    <div key={key} style={{ marginBottom: 9 }}>
-      {bar(52, 6, 4, "#D1D5DB")}
-      {bar(38, 4, 5, "#E9EAEE")}
-      {bar(94, 4, 3)}
-      {bar(80, 4, 0)}
+    <div key={key} style={{ marginBottom: 18 }}>
+      {bar(56, 10, 6, "#CBD0D8")}
+      {bar(40, 7, 9, "#E5E7EB")}
+      {bar(96, 7, 6)}
+      {bar(84, 7, 0)}
     </div>
   )
   const eduEntry = (key: number) => (
-    <div key={key} style={{ marginBottom: 7 }}>
-      {bar(46, 5, 4, "#D1D5DB")}
-      {bar(30, 4, 0, "#E9EAEE")}
+    <div key={key} style={{ marginBottom: 14 }}>
+      {bar(52, 9, 6, "#CBD0D8")}
+      {bar(34, 7, 0, "#E5E7EB")}
     </div>
   )
   const metaField = (label: string) => (
     <div style={{ minWidth: 0 }}>
-      <p style={{ margin: "0 0 3px", fontSize: 6, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</p>
-      {bar("70%", 5, 0, "#D1D5DB")}
+      <p style={{ margin: "0 0 5px", fontSize: 8.5, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</p>
+      {bar("74%", 8, 0, "#CBD0D8")}
     </div>
   )
   // Le titre de la mission = libellé générique (jamais inventé), grisé.
   const missionTitle = (size: number, center = false) => (
     <>
-      <p style={{ margin: 0, fontSize: 6.5, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.6 }}>{t.presentedFor}</p>
-      <p style={{ margin: "3px 0 0", fontSize: size, fontWeight: 800, color: "#9CA3AF", fontStyle: "italic", textAlign: center ? "center" : "left" }}>
+      <p style={{ margin: 0, fontSize: 9.5, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, textAlign: center ? "center" : "left" }}>{t.presentedFor}</p>
+      <p style={{ margin: "5px 0 0", fontSize: size, fontWeight: 800, color: "#9CA3AF", fontStyle: "italic", textAlign: center ? "center" : "left" }}>
         {t.missionName}
       </p>
     </>
   )
   const metaRow = () => (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 8 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 14 }}>
       {metaField(t.metaSeniority)}{metaField(t.metaExperience)}{metaField(t.metaZone)}{metaField(t.metaLanguages)}
     </div>
   )
 
-  // Corps distinct par template.
+  // Corps distinct par template. Nombre d'entrées calibré pour remplir l'A4.
   let body: React.ReactNode
   if (template === "two-column") {
     body = (
       <>
-        {missionTitle(12)}
-        <div style={{ display: "grid", gridTemplateColumns: "36% 1fr", gap: 12, marginTop: 10 }}>
-          <div style={{ background: "#FAFAFC", borderRadius: 6, padding: "8px 9px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+        {missionTitle(18)}
+        <div style={{ display: "grid", gridTemplateColumns: "36% 1fr", gap: 14, marginTop: 14 }}>
+          <div style={{ background: "#FAFAFC", borderRadius: 6, padding: "11px 11px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
               {metaField(t.metaSeniority)}{metaField(t.metaExperience)}{metaField(t.metaLanguages)}
             </div>
             {secLabel(t.sampleSkills)}{chips()}
           </div>
           <div>
-            {secLabel(t.sampleExp)}{[0, 1, 2].map(expEntry)}
-            <div style={{ marginTop: 4 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
+            {secLabel(t.sampleExp)}{[0, 1, 2, 3, 4].map(expEntry)}
+            <div style={{ marginTop: 6 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
           </div>
         </div>
       </>
@@ -414,27 +415,27 @@ function MiniPreview({
     body = (
       <div>
         <div style={{ textAlign: "center" }}>
-          {missionTitle(15, true)}
-          <div style={{ width: 44, height: 2, background: accent, margin: "9px auto" }} />
+          {missionTitle(26, true)}
+          <div style={{ width: 54, height: 3, background: accent, margin: "12px auto" }} />
         </div>
-        <div style={{ maxWidth: 220, margin: "0 auto" }}>
+        <div style={{ maxWidth: 280, margin: "0 auto" }}>
           {metaRow()}
-          <div style={{ marginTop: 14 }}>{secLabel(t.sampleSkills)}{chips()}</div>
-          <div style={{ marginTop: 14 }}>{secLabel(t.sampleExp)}{[0, 1, 2].map(expEntry)}</div>
-          <div style={{ marginTop: 8 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
+          <div style={{ marginTop: 22 }}>{secLabel(t.sampleSkills)}{chips()}</div>
+          <div style={{ marginTop: 22 }}>{secLabel(t.sampleExp)}{[0, 1, 2, 3, 4].map(expEntry)}</div>
+          <div style={{ marginTop: 14 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
         </div>
       </div>
     )
   } else if (template === "bento") {
-    const cardBox: React.CSSProperties = { border: "1px solid #ECECF1", borderRadius: 8, padding: "9px 10px", background: "white" }
+    const cardBox: React.CSSProperties = { border: "1px solid #ECECF1", borderRadius: 8, padding: "12px 13px", background: "white" }
     body = (
       <>
-        {missionTitle(12)}
+        {missionTitle(18)}
         {metaRow()}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
           <div style={cardBox}>{secLabel(t.sampleSkills)}{chips()}</div>
           <div style={cardBox}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
-          <div style={{ ...cardBox, gridColumn: "1 / -1" }}>{secLabel(t.sampleExp)}{[0, 1, 2].map(expEntry)}</div>
+          <div style={{ ...cardBox, gridColumn: "1 / -1" }}>{secLabel(t.sampleExp)}{[0, 1, 2, 3, 4].map(expEntry)}</div>
         </div>
       </>
     )
@@ -442,11 +443,11 @@ function MiniPreview({
     // classic — mono-colonne linéaire (référence).
     body = (
       <>
-        {missionTitle(13)}
+        {missionTitle(20)}
         {metaRow()}
-        <div style={{ marginTop: 12 }}>{secLabel(t.sampleSkills)}{chips()}</div>
-        <div style={{ marginTop: 12 }}>{secLabel(t.sampleExp)}{[0, 1, 2, 3].map(expEntry)}</div>
-        <div style={{ marginTop: 8 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
+        <div style={{ marginTop: 18 }}>{secLabel(t.sampleSkills)}{chips()}</div>
+        <div style={{ marginTop: 18 }}>{secLabel(t.sampleExp)}{[0, 1, 2, 3, 4, 5].map(expEntry)}</div>
+        <div style={{ marginTop: 10 }}>{secLabel(t.sectionEducation)}{[0, 1].map(eduEntry)}</div>
       </>
     )
   }
