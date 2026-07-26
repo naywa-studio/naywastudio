@@ -28,7 +28,6 @@ import type { Organization } from "@/lib/database.types"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import PricingPolicyForm from "@/components/organisation/PricingPolicyForm"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
-import { AnonymizeTemplateCard } from "@/components/organisation/AnonymizeTemplateCard"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { StyledSelect } from "@/components/ui/StyledSelect"
 import { QuotaGauges } from "@/components/quota/QuotaGauges"
@@ -606,7 +605,6 @@ export default function CabinetPage() {
   const [activeSection, setActiveSection] = useState<OrgSection>(initialSection)
   // Sous-onglet de la section Branding : identité vs gabarit d'anonymisation
   // (évite de scroller pour accéder aux réglages CV anonymisés).
-  const [brandingTab, setBrandingTab] = useState<"identity" | "anonymize">("identity")
   useEffect(() => {
     setActiveSection(initialSection)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -719,49 +717,13 @@ export default function CabinetPage() {
           )}
 
           {activeSection === "branding" && caps.canBranding && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Sous-onglets : Identité vs gabarit CV anonymisés (pas de scroll). */}
-              <div style={{ display: "flex", gap: 6, borderBottom: "1px solid var(--nw-border)" }}>
-                {([
-                  ["identity", lang === "fr" ? "Identité" : "Identity"],
-                  ["anonymize", lang === "fr" ? "Vos CV anonymisés" : "Your anonymized CVs"],
-                ] as const).map(([key, label]) => {
-                  const on = brandingTab === key
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => setBrandingTab(key)}
-                      style={{
-                        fontFamily: "inherit", fontSize: 14, fontWeight: on ? 800 : 600,
-                        color: on ? "var(--nw-primary)" : "var(--nw-text-muted)",
-                        background: "transparent", border: "none", cursor: "pointer",
-                        padding: "8px 12px 12px", marginBottom: -1,
-                        borderBottom: `2.5px solid ${on ? "var(--nw-primary)" : "transparent"}`,
-                      }}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {brandingTab === "identity" ? (
-                <BrandingSection
-                  organization={organization}
-                  logoUrl={logoUrl}
-                  isOwner={caps.canBranding}
-                  canEditLegalName={isOwner}
-                  onUpdated={refetch}
-                />
-              ) : (
-                <AnonymizeTemplateCard
-                  organization={organization}
-                  logoUrl={logoUrl}
-                  hasAccess={hasActiveAccess(organization, { isAdmin: profile.is_admin === true })}
-                  onSaved={refetch}
-                />
-              )}
-            </div>
+            <BrandingSection
+              organization={organization}
+              logoUrl={logoUrl}
+              isOwner={caps.canBranding}
+              canEditLegalName={isOwner}
+              onUpdated={refetch}
+            />
           )}
 
           {activeSection === "pricing" && caps.canPricing && (

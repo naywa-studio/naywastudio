@@ -38,6 +38,7 @@ import { MatchCard } from "@/components/workspace/MatchCard"
 import { MissionShortlist } from "@/components/workspace/MissionShortlist"
 import { JobForm } from "../page"
 import { useWorkspace } from "../../layout"
+import { getCapabilities } from "@/lib/capabilities"
 
 const copy = {
   fr: {
@@ -185,7 +186,8 @@ export default function JobDetailPage() {
   const sb = useMemo(() => getSupabase(), [])
   // Lecture seule (lockdown / accès suspendu) : toute mutation est bloquée côté
   // serveur (requireActiveAccess). On grise l'UI pour éviter les 403 déroutants.
-  const { isReadOnly } = useWorkspace()
+  const { isReadOnly, organization, profile } = useWorkspace()
+  const canBranding = profile ? getCapabilities(profile).canBranding : false
 
   const [job, setJob] = useState<Job | null>(null)
   const [rows, setRows] = useState<AssessmentRow[]>([])
@@ -497,6 +499,16 @@ export default function JobDetailPage() {
           job={job}
           rows={rows}
           isReadOnly={isReadOnly}
+          organization={{
+            name: organization?.name ?? "",
+            brand_name: organization?.brand_name ?? null,
+            brand_color: organization?.brand_color ?? null,
+            brand_color_secondary: organization?.brand_color_secondary ?? null,
+            brand_slogan: organization?.brand_slogan ?? null,
+            contact_email: organization?.contact_email ?? null,
+            anonymize_defaults: organization?.anonymize_defaults ?? null,
+          }}
+          brandingHref={canBranding ? "/organisation?tab=branding" : null}
           onLocalUpdate={(rowId, patch) => setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, ...patch } : r))}
           lang={lang}
         />

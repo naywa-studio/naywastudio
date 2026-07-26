@@ -17,7 +17,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { requireActiveAccess } from "@/lib/access-guard"
-import { getCapabilities } from "@/lib/capabilities"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { AnonymizedCv } from "@/lib/anonymized-cv"
 import { readOrgDefaults } from "@/components/workspace/anonymize/types"
@@ -77,15 +76,12 @@ export async function POST(req: NextRequest) {
   if (!gate.ok) return gate.response
 
   const { data: profile } = await sb
-    .from("profiles").select("*").eq("user_id", user.id).maybeSingle()
+    .from("profiles").select("organization_id").eq("user_id", user.id).maybeSingle()
   if (!profile?.organization_id) {
     return NextResponse.json({ error: "no_organization" }, { status: 400 })
   }
-  // Gabarit d'anonymisation = domaine branding : owner ou délégué habilité.
-  const caps = getCapabilities(profile)
-  if (!caps.canBranding) {
-    return NextResponse.json({ error: "branding_forbidden" }, { status: 403 })
-  }
+  // L'anonymisation est ouverte à tout siège actif (refonte) — un exemple ne
+  // consomme ni quota ni stockage, aucune raison de le réserver à l'owner.
 
   const body = await req.json().catch(() => null) as { anonymize_defaults?: unknown } | null
 

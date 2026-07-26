@@ -45,7 +45,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const gate = await requireActiveAccess()
   if (!gate.ok) return gate.response
 
-  const body = await req.json().catch(() => null) as { candidate_ids?: unknown } | null
+  const body = await req.json().catch(() => null) as {
+    candidate_ids?: unknown
+    options?: { template?: unknown; watermark?: unknown; watermarkText?: unknown; keepNoraSummary?: unknown; customText?: unknown }
+  } | null
   const ids = Array.isArray(body?.candidate_ids)
     ? Array.from(new Set(body.candidate_ids.filter((x): x is string => typeof x === "string"))).slice(0, MAX_BATCH)
     : []
@@ -88,7 +91,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .single()
   if (!job) return NextResponse.json({ error: "job_not_found" }, { status: 404 })
 
-  const jobOptions = readJobOptions(job.anonymize_options)
+  // Options effectives = défauts org + options mission, avec surcharge live
+  // depuis le panneau (le sourceur voit == télécharge, même sans « Enregistrer »).
+  const ov = body?.options ?? {}
+  const template = coerceTemplate("template" in ov ? ov.template : orgDefaults.template)
+  const watermark = typeof ov.watermark === "boolean" ? ov.watermark : orgDefaults.watermark
+  const watermarkText = typeof ov.watermarkText === "string" ? ov.watermarkText.slice(0, 40) : orgDefaults.watermarkText
+  const jobOptionsBase = readJobOptions(job.anonymize_options)
+  const keepNoraSummary = typeof ov.keepNoraSummary === "boolean" ? ov.keepNoraSummary : jobOptionsBase.keepNoraSummary
+  const customText = typeof ov.customText === "string" ? ov.customText.slice(0, 600) : jobOptionsBase.customText
+  const jobOptions = { keepNoraSummary, customText }
   const rf = job.normalized?.role_family ?? []
   const formalTitle = rf.length > 0 ? rf.slice(0, 2).join(" / ") : job.title
   const jobContext: AnonymizedJobContext = {
@@ -100,15 +112,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     must_have_skills: job.normalized?.must_have_skills ?? [],
     role_family: rf[0] ?? null,
   }
-  const template = coerceTemplate(orgDefaults.template)
   const missionSafe = safeName(job.title || "mission")
 
   const { r2Upload } = await import("@/lib/r2-storage")
   const { incrementStorageUsed } = await import("@/lib/quota")
 
+  // Un seul candidat = téléchargement direct du PDF (pas de zip à un fichier).
+  const single = ids.length === 1
+
   const zip = new JSZip()
   const folder = zip.folder(missionSafe) ?? zip
   let generated = 0
+  let singleBuffer: Buffer | null = null
+  let singleName = ""
   const skipped: string[] = []
 
   for (const candidateId of ids) {
@@ -140,8 +156,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
             template,
             keepNoraSummary: jobOptions.keepNoraSummary,
             customText: jobOptions.customText,
-            watermark: orgDefaults.watermark,
-            watermarkText: orgDefaults.watermarkText,
+            watermark,
+            watermarkText,
             language: "fr",
           },
         }),
@@ -162,12 +178,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       // Le stockage a échoué mais le PDF est bon : on le met quand même au zip.
     }
 
-    folder.file(`C-${candidateRefSlug(candidate.id)} · ${missionSafe}.pdf`, buffer)
+    const baseName = `C-${candidateRefSlug(candidate.id)} · ${missionSafe}`
+    folder.file(`${baseName}.pdf`, buffer)
+    if (single) { singleBuffer = buffer; singleName = baseName }
     generated++
   }
 
   if (generated === 0) {
     return NextResponse.json({ error: "nothing_generated", message: "Aucun CV n'a pu être généré." }, { status: 422 })
+  }
+
+  // Réponse PDF directe pour un candidat unique.
+  if (single && singleBuffer) {
+    return new NextResponse(new Uint8Array(singleBuffer), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${safeName(singleName)}.pdf"`,
+        "Cache-Control": "no-store",
+      },
+    })
   }
 
   const zipBuffer = await zip.generateAsync({ type: "nodebuffer" })

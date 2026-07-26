@@ -83,6 +83,7 @@ const copy = {
     unreadableServerResponse: "Réponse serveur illisible.",
     anonymizeFailed: "Échec de l'anonymisation.",
     networkError: "Erreur réseau.",
+    anonymizeJump: "Personnaliser et télécharger le CV anonymisé",
   },
   en: {
     chooseMission: "Choose the mission",
@@ -142,6 +143,7 @@ const copy = {
     unreadableServerResponse: "Unreadable server response.",
     anonymizeFailed: "Anonymization failed.",
     networkError: "Network error.",
+    anonymizeJump: "Customize and download the anonymized CV",
   },
 }
 
@@ -280,7 +282,7 @@ export default function MatchPage() {
   // MatchPage qui orchestre.
   const [anonymizeStatus, setAnonymizeStatus] = useState<AnonymizeStatus>(INITIAL_ANONYMIZE_STATUS)
   const [anonymizeOptions, setAnonymizeOptions] = useState<AnonymizeOptions>(INITIAL_ANONYMIZE_OPTIONS)
-  const previewSectionRef = useRef<HTMLElement | null>(null)
+  const previewSectionRef = useRef<HTMLDivElement | null>(null)
   const scrollToPreview = () => {
     previewSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
@@ -601,22 +603,25 @@ export default function MatchPage() {
         </div>
       </m.section>
 
-      {/* Bloc anonymisation — contrôles juste sous l'identité candidat.
-          La carte d'aperçu du PDF reste en bas pour pas pousser les
-          autres cartes ; un bouton "Voir le PDF ↓" apparaît ici une
-          fois la génération terminée. */}
-      <AnonymizeControls
-        candidateId={candidate.id}
-        jobId={job?.id ?? null}
-        jobTitle={job?.title ?? null}
-        candidateParsed={candidate.parse_status === "parsed"}
-        status={anonymizeStatus}
-        options={anonymizeOptions}
-        onOptionsChange={setAnonymizeOptions}
-        onGenerate={generateAnonymized}
-        onScrollToPreview={scrollToPreview}
-        readOnly={isReadOnly}
-      />
+      {/* Anonymisation déplacée en bas de fiche (personnaliser + générer +
+          télécharger tout au même endroit, discret). Bouton d'accès rapide. */}
+      {candidate.parse_status === "parsed" && !isReadOnly && (
+        <button
+          type="button"
+          onClick={scrollToPreview}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8, alignSelf: "flex-start",
+            fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, color: "var(--nw-primary)",
+            background: "white", border: "1px solid rgba(124,99,200,0.25)", borderRadius: 9,
+            padding: "8px 13px", cursor: "pointer",
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+          </svg>
+          {t.anonymizeJump}
+        </button>
+      )}
 
       {/* Three-column layout:
          - left : résumé candidat, pourquoi ça matche, CV anonymisé
@@ -871,9 +876,20 @@ export default function MatchPage() {
             n'a été généré, ou l'iframe sinon. L'utilisateur déclenche
             la génération via les contrôles tout en haut (sous le
             bandeau d'identité). */}
-        <div className="match-cv" style={{ gridColumn: "1 / 3", gridRow: "2" }}>
+        <div ref={previewSectionRef} className="match-cv" style={{ gridColumn: "1 / 3", gridRow: "2", display: "flex", flexDirection: "column", gap: 16 }}>
+          <AnonymizeControls
+            candidateId={candidate.id}
+            jobId={job?.id ?? null}
+            jobTitle={job?.title ?? null}
+            candidateParsed={candidate.parse_status === "parsed"}
+            status={anonymizeStatus}
+            options={anonymizeOptions}
+            onOptionsChange={setAnonymizeOptions}
+            onGenerate={generateAnonymized}
+            onScrollToPreview={scrollToPreview}
+            readOnly={isReadOnly}
+          />
           <AnonymizePreview
-            ref={previewSectionRef}
             status={anonymizeStatus}
           />
         </div>
