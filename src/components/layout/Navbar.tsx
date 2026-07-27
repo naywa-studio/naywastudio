@@ -16,12 +16,14 @@ const navLinks = {
     { label: "Produit",  href: "/solutions" },
     { label: "Tarifs",   href: "/tarifs" },
     { label: "À propos", href: "/a-propos" },
+    { label: "Nous rencontrer", href: "/nous-rencontrer" },
     { label: "Contact",  href: "/contact" },
   ],
   en: [
     { label: "Product", href: "/solutions" },
     { label: "Pricing", href: "/tarifs" },
     { label: "About",   href: "/a-propos" },
+    { label: "Meet the team", href: "/nous-rencontrer" },
     { label: "Contact", href: "/contact" },
   ],
 }
