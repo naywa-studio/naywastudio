@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { m } from "framer-motion"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
@@ -18,7 +19,8 @@ const content = {
     titlePre: "Parlons de votre ",
     titleItalic: "structure",
     titleSuffix: ".",
-    intro: "Une question, un essai à organiser, un retour à nous faire ? Écrivez-nous directement, nous revenons vers vous sous 48h ouvrées.",
+    intro: "Une question, un essai à organiser, un retour à nous faire ? Écrivez-nous directement, nous revenons vers vous sous 48h ouvrées. Vous préférez de vive voix ? Réservez un créneau avec l'équipe.",
+    book: "Réserver un créneau",
     nameLabel: "Votre nom",
     namePlaceholder: "Jean Dupont",
     emailLabel: "Votre email",
@@ -39,7 +41,8 @@ const content = {
     titlePre: "Let's talk about your ",
     titleItalic: "team",
     titleSuffix: ".",
-    intro: "A question, a trial to set up, feedback to share? Write to us directly, we'll get back to you within 48 business hours.",
+    intro: "A question, a trial to set up, feedback to share? Write to us directly, we'll get back to you within 48 business hours. Prefer to talk it through? Book a slot with the team.",
+    book: "Book a slot",
     nameLabel: "Your name",
     namePlaceholder: "Jane Smith",
     emailLabel: "Your email",
@@ -170,38 +173,70 @@ export default function ContactPage() {
                 {t.intro}
               </p>
 
-              <a
-                href="mailto:contact@naywastudio.com"
-                style={{
-                  display: "inline-flex",
-                  alignSelf: "flex-start",
-                  alignItems: "center",
-                  gap: 8,
-                  marginTop: 8,
-                  padding: "10px 16px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(124,99,200,0.25)",
-                  background: "rgba(124,99,200,0.05)",
-                  color: "#7C63C8",
-                  fontFamily: "var(--font-inter), sans-serif",
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  textDecoration: "none",
-                  transition: "background 150ms",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(124,99,200,0.10)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(124,99,200,0.05)"
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
-                contact@naywastudio.com
-              </a>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 8 }}>
+                <Link
+                  href="/nous-rencontrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "11px 18px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(124,99,200,0.9)",
+                    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    color: "#FFFFFF",
+                    fontFamily: "var(--font-inter), sans-serif",
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55)",
+                    transition: "transform 150ms ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-1px)"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)"
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
+                    <path d="M3 9h18M8 3v3M16 3v3" />
+                  </svg>
+                  {t.book}
+                </Link>
+
+                <a
+                  href="mailto:contact@naywastudio.com"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 16px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(124,99,200,0.25)",
+                    background: "rgba(124,99,200,0.05)",
+                    color: "#7C63C8",
+                    fontFamily: "var(--font-inter), sans-serif",
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    transition: "background 150ms",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(124,99,200,0.10)"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(124,99,200,0.05)"
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                  contact@naywastudio.com
+                </a>
+              </div>
             </m.div>
 
             <m.form
