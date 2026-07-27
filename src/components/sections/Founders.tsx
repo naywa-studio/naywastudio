@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { m } from "framer-motion"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { Eyebrow } from "@/components/brand/Eyebrow"
@@ -124,8 +125,10 @@ const copy = {
     titleItalic: "à taille humaine",
     titleSuffix: ".",
     desc:
-      "Naywa Studio est un projet porté par ses fondateurs. Vous échangez directement avec les personnes qui conçoivent le produit, le développent et le font évoluer — pas avec un support de niveau 1.",
+      "Derrière Naywa Studio, une équipe à taille humaine. Vous échangez directement avec les personnes qui conçoivent le produit, le développent et le font évoluer — jamais avec un support de niveau 1.",
     linkedin: "Voir sur LinkedIn",
+    cta: "Nous rencontrer",
+    ctaHint: "20 minutes avec l'équipe, en visio.",
   },
   en: {
     badge: "Who we are",
@@ -133,8 +136,10 @@ const copy = {
     titleItalic: "hands-on",
     titleSuffix: " team.",
     desc:
-      "Naywa Studio is a project led by its founders. You talk directly with the people who design the product, build it, and evolve it — not with tier-1 support.",
+      "Behind Naywa Studio, a small, hands-on team. You talk directly with the people who design the product, build it, and evolve it — never with tier-1 support.",
     linkedin: "View on LinkedIn",
+    cta: "Meet the team",
+    ctaHint: "20 minutes with the team, over video.",
   },
 }
 
@@ -207,11 +212,15 @@ export function Founders() {
           </p>
         </m.div>
 
-        {/* Founders grid */}
+        {/* Équipe — flex + wrap centré : la dernière rangée incomplète (2 cartes
+            sur 3, ou 1 sur 2) se centre au lieu de rester collée à gauche. La
+            largeur des cartes est pilotée en CSS (.founder-card) pour rester
+            identique d'une rangée à l'autre. */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
             gap: 24,
           }}
           className="founders-grid"
@@ -219,8 +228,10 @@ export function Founders() {
           {founders.map((founder, i) => (
             <m.article
               key={founder.name}
+              className="founder-card"
               {...fu(0.10 + i * 0.08)}
               style={{
+                boxSizing: "border-box",
                 background: brand.surface,
                 border: `1px solid ${brand.border}`,
                 borderRadius: 20,
@@ -334,17 +345,80 @@ export function Founders() {
             </m.article>
           ))}
         </div>
+
+        {/* CTA — prise de rendez-vous (embed Lark sur /nous-rencontrer). Bouton
+            violet plat de la charte vitrine (jamais de dégradé sur surface). */}
+        <m.div
+          {...fu(0.10 + founders.length * 0.08 + 0.05)}
+          style={{
+            marginTop: 48,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <Link
+            href="/nous-rencontrer"
+            style={{
+              background: brand.violet,
+              color: brand.white,
+              borderRadius: brand.radiusMd,
+              padding: "14px 30px",
+              fontSize: 15,
+              fontWeight: 700,
+              textDecoration: "none",
+              fontFamily: brand.fontBody,
+              letterSpacing: "-0.01em",
+              boxShadow: brand.shadowViolet,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              transition: "all 200ms cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)"
+              e.currentTarget.style.background = brand.violetDeep
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)"
+              e.currentTarget.style.background = brand.violet
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <rect x="3" y="4.5" width="18" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M3 9h18M8 3v3M16 3v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+            {t.cta}
+          </Link>
+          <p
+            style={{
+              margin: 0,
+              fontFamily: brand.fontBody,
+              fontSize: 12.5,
+              color: brand.textMuted,
+            }}
+          >
+            {t.ctaHint}
+          </p>
+        </m.div>
       </div>
 
       <style>{`
+        .founder-card {
+          flex: 0 0 calc((100% - 48px) / 3);
+          max-width: calc((100% - 48px) / 3);
+        }
         @media (max-width: 980px) {
-          .founders-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          .founder-card {
+            flex-basis: calc((100% - 24px) / 2);
+            max-width: calc((100% - 24px) / 2);
           }
         }
         @media (max-width: 640px) {
-          .founders-grid {
-            grid-template-columns: 1fr !important;
+          .founder-card {
+            flex-basis: 100%;
+            max-width: 100%;
           }
         }
       `}</style>
