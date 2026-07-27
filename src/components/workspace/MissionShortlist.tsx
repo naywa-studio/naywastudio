@@ -105,8 +105,7 @@ const copy = {
       rejected: "Écarté",
     } as Record<PipelineStage, string>,
     stageAria: "Changer l'étape",
-    open: "Ouvrir",
-    profile: "Fiche",
+    profile: "Fiche match",
     score: "Score",
     noName: "Sans nom",
     rejectedFor: "Écarté :",
@@ -161,8 +160,7 @@ const copy = {
       rejected: "Rejected",
     } as Record<PipelineStage, string>,
     stageAria: "Change stage",
-    open: "Open",
-    profile: "Match",
+    profile: "Match sheet",
     score: "Score",
     noName: "No name",
     rejectedFor: "Rejected:",
@@ -745,18 +743,9 @@ function ShortlistCard({
           onSelect={(s) => onSelectStage(row, s)}
         />
         <Link
-          href={`/workspace/vivier/${row.candidate_id}`}
-          style={{
-            fontFamily: "inherit", fontSize: 11.5, fontWeight: 600, color: "var(--nw-primary)",
-            textDecoration: "none", whiteSpace: "nowrap",
-          }}
-        >
-          {t.open}
-        </Link>
-        <Link
           href={`/workspace/match/${row.id}`}
           style={{
-            fontFamily: "inherit", fontSize: 11.5, fontWeight: 600, color: "var(--nw-text-muted)",
+            fontFamily: "inherit", fontSize: 11.5, fontWeight: 600, color: "var(--nw-primary)",
             textDecoration: "none", whiteSpace: "nowrap",
           }}
         >
