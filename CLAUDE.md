@@ -620,6 +620,63 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ## 20. État des chantiers (juin 2026)
 
+#### Shortlist par mission + refonte anonymisation — EN PROD (mergée) — 2026-07-27
+
+**Branche `claude/mission-shortlist-anonymisation` MERGÉE dans main (fast-forward)
+et EN PROD** — main = `37de514`, déploiement production déclenché
+(naywastudio.com). Migration **067** (additive/nullable) déjà en base :
+`organizations.anonymize_defaults` + `jobs.anonymize_options`. Spec de départ :
+`docs/chantier-shortlist-anonymisation.md`.
+
+**FAIT (lots A/A.2/B/C, build vert, validé Elyas) :**
+- **Onglet Shortlist par mission** (`MissionShortlist.tsx`) : 1er niveau
+  « Candidats » (matching brut) vs « Shortlist » (candidats `in_pipeline`). Galerie
+  de cartes groupées par stade (À qualifier · En cours · Recruté · Écarté),
+  qualification via dropdown d'étape maison → `PATCH /api/match/:id/stage`,
+  écartement via `RejectReasonPicker`. Traitement couleur sobre (anti arc-en-ciel).
+- **Toggle Galerie/Kanban** (lot A.2) : kanban scopé mission calqué sur
+  `/workspace/pipeline` (colonnes actives identified→offer + Recruté/Écarté en
+  chips terminaux drag-and-drop). Les **téléchargements ne sont qu'en Galerie**
+  (choix produit : galerie = vue de présentation).
+- **Anonymisation OUVERTE À TOUS LES SIÈGES**, sortie de Branding. Composant
+  partagé `AnonymizeSettings.tsx` au point d'usage (shortlist) :
+  - **Gabarit org** (template + filigrane) = présentation commune, réglable par
+    **tout siège actif** via `POST /api/organization/anonymize-defaults`
+    (`requireActiveAccess`, écrit via client admin car UPDATE org owner-only en RLS).
+  - **Options mission** (résumé Nora **décoché par défaut** + message) persistées
+    par mission (`jobs.anonymize_options`).
+  - Aperçu HTML « squelette de CV » (libellés génériques, jamais de fausses
+    données ; infos réelles = logo/nom/email/filigrane) calibré pour tenir l'A4
+    sur les 4 templates. « Télécharger un exemple » = vrai PDF (candidat fictif,
+    zéro quota). Lien « Gérer l'identité de l'organisation » gaté `canBranding`.
+- **Téléchargements 3 niveaux** : un CV (bouton par carte → PDF direct) · sélection
+  (mode « Sélectionner » → cases → zip) · tous (bouton principal → zip). Route
+  `POST /api/jobs/:id/anonymize-batch` : renvoie un **PDF pour 1 candidat, sinon un
+  zip** (dossier = mission, fichiers `C-XXXX`), accepte des **options live**
+  (voir == télécharger avant « Enregistrer »). Cap **25/lot** (note UI au-delà),
+  quota LLM consommé **seulement si résumé Nora**. `lib/anonymized-summary.ts` =
+  résumé exécutif partagé route unitaire + batch. `jszip` ajouté.
+- **Fiche match** : anonymisation solo **conservée mais déplacée en bas**
+  (personnaliser + générer + télécharger au même endroit) + bouton discret d'accès
+  rapide en tête. `AnonymizeControls`/`AnonymizePreview` inchangés.
+- **Charte** : sweep dégradé primaire → **violet PLAT** `var(--nw-primary)` sur ~33
+  fichiers produit + `ui-tokens` (vitrine non touchée). Vocab **« pipeline » →
+  « shortlist »** sur les libellés d'appartenance (MatchCard + fiche match), nav
+  Pipeline globale conservée. Cartes shortlist épurées (retrait du lien fiche
+  vivier redondant → reste qualification + « Fiche match » + télécharger).
+- **Cleanup** : capacité morte `anonymize_defaults` retirée de la liste blanche
+  `PATCH /api/cabinet` (plus aucun appelant).
+
+**Sécurité vérifiée** : 3 routes gardées `requireActiveAccess` ; job + candidats
+lus via client **RLS** (org-scopés → un ID d'une autre org est ignoré) ; path R2
+`{orgId}/{cand}` + `assertOrgScopedPath` ; lien Branding double-gaté (`!isReadOnly`
+= siège actif + `canBranding`).
+
+**Reste (non bloquant)** : re-télécharger « tous » ré-incrémente `storage_used_bytes`
+à chaque fois (pré-existant, corrigé par le cron nightly `recompute-storage`).
+**⚠️ Non validé en live par Claude** (navigateur bloqué sur domaine preview + login
+impossible) → rendu visuel validé par Elyas sur preview avant merge.
+
 #### Refonte visuelle /organisation — EN PROD (mergée) — 2026-07-24
 
 **Branche `claude/organisation-refonte` MERGÉE dans main (fast-forward) et EN PROD**
