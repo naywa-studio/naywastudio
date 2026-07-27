@@ -21,6 +21,7 @@
  */
 
 import { useRef, useState } from "react"
+import Link from "next/link"
 import {
   type AnonymizeTemplate, TEMPLATE_META, TEMPLATE_META_EN,
 } from "@/components/workspace/anonymize/types"
@@ -293,7 +294,7 @@ export function AnonymizeSettings(props: Props) {
               />
             </div>
             {brandingHref && (
-              <a href={brandingHref} style={{
+              <Link href={brandingHref} style={{
                 display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14,
                 fontSize: 12, fontWeight: 600, color: "var(--nw-primary)", textDecoration: "none",
               }}>
@@ -301,7 +302,7 @@ export function AnonymizeSettings(props: Props) {
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M5 12h14M13 6l6 6-6 6" />
                 </svg>
-              </a>
+              </Link>
             )}
           </div>
         </div>

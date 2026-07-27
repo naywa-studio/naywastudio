@@ -128,6 +128,7 @@ const copy = {
     downloadOne: "Télécharger le CV anonymisé",
     downloading: "Génération…",
     anonError: "La génération a échoué. Réessayez.",
+    downloadCapNote: (max: number) => `Téléchargement groupé limité à ${max} CV à la fois — utilisez « Sélectionner » pour les autres.`,
   },
   en: {
     title: (mission: string) => `Shortlist · ${mission}`,
@@ -183,8 +184,12 @@ const copy = {
     downloadOne: "Download anonymized CV",
     downloading: "Generating…",
     anonError: "Generation failed. Please try again.",
+    downloadCapNote: (max: number) => `Batch download is limited to ${max} CVs at a time — use “Select” for the rest.`,
   },
 }
+
+/** Plafond serveur du téléchargement groupé (doit rester = MAX_BATCH de la route). */
+const MAX_DOWNLOAD_BATCH = 25
 
 /** Étapes proposées dans le sélecteur, dans l'ordre du tunnel. */
 const STAGE_OPTIONS: PipelineStage[] = [
@@ -494,6 +499,12 @@ export function MissionShortlist({ job, rows, isReadOnly, organization, branding
             </button>
             {anonErr && <span style={{ fontSize: 12, color: "var(--nw-danger-strong, #B91C1C)" }}>{anonErr}</span>}
           </div>
+
+          {shortlisted.length > MAX_DOWNLOAD_BATCH && (
+            <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)" }}>
+              {t.downloadCapNote(MAX_DOWNLOAD_BATCH)}
+            </p>
+          )}
 
           {showPanel && (
             <div style={{ marginTop: 12 }}>
