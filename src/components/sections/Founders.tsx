@@ -67,6 +67,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       initials: "MM",
       name: "Maryia Malki",
       role: "Technical Lead",
+      linkedinUrl: "https://www.linkedin.com/in/maryia-malki-a0489a39b/",
       avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
     },
     {
@@ -106,6 +107,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       initials: "MM",
       name: "Maryia Malki",
       role: "Technical Lead",
+      linkedinUrl: "https://www.linkedin.com/in/maryia-malki-a0489a39b/",
       avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
     },
     {
