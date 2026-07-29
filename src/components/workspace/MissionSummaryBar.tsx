@@ -60,10 +60,12 @@ interface Props {
   matching: boolean
   /** Lecture seule (lockdown / accès suspendu) : actions de mutation grisées. */
   readOnly?: boolean
+  /** Nom du client rattaché (cabinet/ESN). Null = mission sans client. */
+  clientName?: string | null
 }
 
 export function MissionSummaryBar({
-  job, criteria, onEditCriteria, onImportCvs, onMatchVivier, onAssignFromVivier, onCreateForm, matching, readOnly = false,
+  job, criteria, onEditCriteria, onImportCvs, onMatchVivier, onAssignFromVivier, onCreateForm, matching, readOnly = false, clientName = null,
 }: Props) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -98,9 +100,24 @@ export function MissionSummaryBar({
           {open ? "▾" : "▸"}
         </button>
         <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 2 }}>
-          <h1 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
-            {job.role_name?.trim() || job.title}
-          </h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
+              {job.role_name?.trim() || job.title}
+            </h1>
+            {clientName && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "3px 9px", borderRadius: 100,
+                background: "var(--nw-primary-50)", color: "var(--nw-primary)",
+                fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
+              }}>
+                <svg width="11" height="11" viewBox="0 0 16 16" style={{ flexShrink: 0 }} aria-hidden="true">
+                  <path d="M2 13V6l6-3.5L14 6v7M2 13h12M2 13H1m13 0h1M6 13V9.5h4V13" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {clientName}
+              </span>
+            )}
+          </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11.5, color: "var(--nw-text-muted)" }}>
             {job.location && <span>{job.location}</span>}
             {job.contract_type && <span>· {job.contract_type}</span>}

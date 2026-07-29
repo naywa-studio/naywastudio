@@ -190,6 +190,7 @@ export default function JobDetailPage() {
   const canBranding = profile ? getCapabilities(profile).canBranding : false
 
   const [job, setJob] = useState<Job | null>(null)
+  const [clientName, setClientName] = useState<string | null>(null)
   const [rows, setRows] = useState<AssessmentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -224,6 +225,23 @@ export default function JobDetailPage() {
     setRows((data.assessments ?? []) as AssessmentRow[])
     setLoading(false)
   }, [jobId])
+
+  // Résout le nom du client rattaché (l'API jobs ne renvoie que client_id).
+  const clientId = job?.client_id ?? null
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      if (!clientId) { if (!cancelled) setClientName(null); return }
+      try {
+        const res = await fetch("/api/clients")
+        const j = await res.json().catch(() => ({}))
+        if (cancelled || !res.ok) return
+        const found = (j.clients ?? []).find((c: { id: string; name: string }) => c.id === clientId)
+        setClientName(found?.name ?? null)
+      } catch { /* silencieux — la pastille client est non critique */ }
+    })()
+    return () => { cancelled = true }
+  }, [clientId])
 
   useEffect(() => {
     let mounted = true
@@ -438,6 +456,7 @@ export default function JobDetailPage() {
       {!showWizard && (
         <MissionSummaryBar
           job={job}
+          clientName={clientName}
           criteria={criteria}
           onEditCriteria={() => setEditCriteriaMode(true)}
           onImportCvs={() => setUploadOpen(true)}
