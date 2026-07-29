@@ -86,6 +86,7 @@ const copy = {
     clientStepTitle: "Pour quel client ?",
     clientStepIntro: "Rattachez cette mission à un client (facultatif). Vous pourrez le changer plus tard depuis la mission.",
     clientStepContinue: "Continuer",
+    clientStepNone: "Pas de client pour cette mission",
     giveNoraBrief: "Donnez votre brief à Nora",
     manualEntry: "Saisie manuelle",
     matchingCriteria: "Critères de matching",
@@ -215,6 +216,7 @@ const copy = {
     clientStepTitle: "For which client?",
     clientStepIntro: "Link this mission to a client (optional). You can change it later from the mission.",
     clientStepContinue: "Continue",
+    clientStepNone: "No client for this mission",
     giveNoraBrief: "Give Nora your brief",
     manualEntry: "Manual entry",
     matchingCriteria: "Matching criteria",
@@ -1308,17 +1310,31 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
               </p>
               <ClientPicker value={clientId} onChange={setClientId} lang={lang} />
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", marginTop: 4 }}>
-                <button
-                  type="button"
-                  onClick={() => setStage("brief")}
-                  style={{
-                    padding: "11px 22px", borderRadius: 10, border: "none",
-                    background: "var(--nw-primary)", color: "white", fontSize: 13, fontWeight: 700,
-                    cursor: "pointer", fontFamily: "inherit",
-                  }}
-                >
-                  {t.clientStepContinue}
-                </button>
+                {clientId ? (
+                  <button
+                    type="button"
+                    onClick={() => setStage("brief")}
+                    style={{
+                      padding: "11px 22px", borderRadius: 10, border: "none",
+                      background: "var(--nw-primary)", color: "white", fontSize: 13, fontWeight: 700,
+                      cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    {t.clientStepContinue}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setStage("brief")}
+                    style={{
+                      padding: "11px 22px", borderRadius: 10, border: "none",
+                      background: "var(--nw-neutral-100)", color: "var(--nw-text-muted)",
+                      fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    {t.clientStepNone}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1620,21 +1636,18 @@ function ClientPicker({ value, onChange, lang }: {
     }
   }
 
-  const selectStyle: React.CSSProperties = {
-    ...inputStyle, flex: 1, cursor: "pointer",
-    appearance: "auto" as React.CSSProperties["appearance"],
-  }
-
   return (
     <Field label={t.label} hint={t.hint}>
       {!creating ? (
         <div style={{ display: "flex", gap: 8 }}>
-          <select value={value ?? ""} onChange={(e) => onChange(e.target.value || null)} style={selectStyle}>
-            <option value="">{t.none}</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <Select
+            value={value ?? ""}
+            onChange={(v) => onChange(v || null)}
+            options={[{ value: "", label: t.none }, ...clients.map((c) => ({ value: c.id, label: c.name }))]}
+            placeholder={t.none}
+            ariaLabel={t.label}
+            style={{ flex: 1 }}
+          />
           <button type="button" onClick={() => { setCreating(true); setError(null) }}
             style={{
               padding: "8px 14px", borderRadius: 8, border: "1px solid var(--nw-primary)",
