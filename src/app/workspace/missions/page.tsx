@@ -13,6 +13,7 @@ import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
 import { useWorkspace } from "../layout"
 import { hasPricingAccess } from "@/lib/subscription"
+import { orgUsesClients } from "@/lib/org-type"
 import { seniorityIntervalLabel } from "@/lib/seniority"
 import { hsl } from "@/lib/vivier-clusters"
 import { sectorHue } from "@/lib/sector-color"
@@ -1046,6 +1047,9 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
   const [tjmMax, setTjmMax] = useState(j?.client_tjm_max != null ? String(j.client_tjm_max) : "")
   const [targetBrut, setTargetBrut] = useState(j?.target_gross_salary != null ? String(j.target_gross_salary) : "")
   const [description, setDescription] = useState(j?.description ?? "")
+  // Client concerné (cabinet/ESN). Null = sans client.
+  const [clientId, setClientId] = useState<string | null>(j?.client_id ?? null)
+  const showClients = organization ? orgUsesClients(organization.org_type) : false
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -1128,6 +1132,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
     const payload = {
       role_name: roleName,
       title: roleName,                            // on ne demande plus d'intitulé
+      client_id: showClients ? clientId : null,
       location,
       pricing_lieu: pricingLieu || null,
       contract_type: contractType || null,
@@ -1390,6 +1395,10 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                 </details>
               )}
 
+              {showClients && (
+                <ClientPicker value={clientId} onChange={setClientId} lang={lang} />
+              )}
+
               <FormFieldGrid
                 roleName={roleName} setRoleName={setRoleName}
                 contractType={contractType} setContractType={setContractType}
@@ -1498,6 +1507,142 @@ interface FormFieldGridProps {
   /** L'org a la Suite Pricing → affiche le bloc pricing (zone/TJM/brut). */
   hasPricing: boolean
 }
+/* ClientPicker — sélecteur « Client concerné » + création 2 clics au brief.
+   Rendu seulement pour les orgs cabinet/ESN (orgUsesClients). */
+interface ClientOption { id: string; name: string; domain: string | null }
+
+const CLIENT_PICKER_COPY = {
+  fr: {
+    label: "Client concerné",
+    hint: "Optionnel — le client pour qui vous recrutez.",
+    none: "— Sans client —",
+    add: "+ Nouveau client",
+    namePh: "Nom du client (ex : ENGIE)",
+    domainPh: "Domaine (optionnel)",
+    create: "Créer",
+    cancel: "Annuler",
+    err: "Création impossible.",
+  },
+  en: {
+    label: "Client",
+    hint: "Optional — the client you are recruiting for.",
+    none: "— No client —",
+    add: "+ New client",
+    namePh: "Client name (e.g. ENGIE)",
+    domainPh: "Domain (optional)",
+    create: "Create",
+    cancel: "Cancel",
+    err: "Could not create.",
+  },
+} as const
+
+function ClientPicker({ value, onChange, lang }: {
+  value: string | null
+  onChange: (v: string | null) => void
+  lang: Lang
+}) {
+  const t = CLIENT_PICKER_COPY[lang]
+  const [clients, setClients] = useState<ClientOption[]>([])
+  const [creating, setCreating] = useState(false)
+  const [name, setName] = useState("")
+  const [domain, setDomain] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/clients")
+        const j = await res.json().catch(() => ({}))
+        if (!cancelled && res.ok) {
+          setClients(((j.clients ?? []) as ClientOption[]).map((c) => ({ id: c.id, name: c.name, domain: c.domain })))
+        }
+      } catch { /* silencieux — le picker reste utilisable vide */ }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const create = async () => {
+    const nm = name.trim()
+    if (!nm || saving) return
+    setSaving(true); setError(null)
+    try {
+      const res = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nm, domain: domain.trim() || null }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || !j.client) { setError(t.err); return }
+      const c = j.client as ClientOption
+      setClients((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, { id: c.id, name: c.name, domain: c.domain }].sort((a, b) => a.name.localeCompare(b.name)))
+      onChange(c.id)
+      setCreating(false); setName(""); setDomain("")
+    } catch {
+      setError(t.err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const selectStyle: React.CSSProperties = {
+    ...inputStyle, flex: 1, cursor: "pointer",
+    appearance: "auto" as React.CSSProperties["appearance"],
+  }
+
+  return (
+    <Field label={t.label} hint={t.hint}>
+      {!creating ? (
+        <div style={{ display: "flex", gap: 8 }}>
+          <select value={value ?? ""} onChange={(e) => onChange(e.target.value || null)} style={selectStyle}>
+            <option value="">{t.none}</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <button type="button" onClick={() => { setCreating(true); setError(null) }}
+            style={{
+              padding: "8px 14px", borderRadius: 8, border: "1px solid var(--nw-primary)",
+              background: "white", color: "var(--nw-primary)", fontSize: 12.5, fontWeight: 700,
+              cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
+            }}>
+            {t.add}
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
+              placeholder={t.namePh} maxLength={160} style={inputStyle}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void create() } }} />
+            <input value={domain} onChange={(e) => setDomain(e.target.value)}
+              placeholder={t.domainPh} maxLength={120} style={inputStyle} />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={create} disabled={!name.trim() || saving}
+              style={{
+                padding: "8px 14px", borderRadius: 8, border: "none",
+                background: "var(--nw-primary)", color: "white", fontSize: 12.5, fontWeight: 700,
+                cursor: "pointer", opacity: !name.trim() || saving ? 0.5 : 1,
+              }}>
+              {saving ? "…" : t.create}
+            </button>
+            <button type="button" onClick={() => { setCreating(false); setName(""); setDomain(""); setError(null) }}
+              style={{
+                padding: "8px 14px", borderRadius: 8, border: "1px solid var(--nw-border)",
+                background: "white", color: "var(--nw-text-body)", fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              }}>
+              {t.cancel}
+            </button>
+          </div>
+          {error && <span style={{ fontSize: 12, color: "var(--nw-danger, #EF4444)" }}>{error}</span>}
+        </div>
+      )}
+    </Field>
+  )
+}
+
 function FormFieldGrid(p: FormFieldGridProps) {
   const { lang } = useLanguage()
   const t = copy[lang]

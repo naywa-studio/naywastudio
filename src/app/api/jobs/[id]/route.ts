@@ -95,6 +95,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if ("duration_months" in body)     { update.duration_months = cleanNumber(body.duration_months) }
   if ("target_gross_salary" in body) { update.target_gross_salary = cleanNumber(body.target_gross_salary) }
   if ("start_date" in body)          { update.start_date = clean(body.start_date) }
+  // Client concerné : null si vide, sinon vérifié dans l'org du caller (RLS)
+  // pour empêcher de rattacher une mission au client d'une autre org.
+  if ("client_id" in body) {
+    const raw = clean(body.client_id)
+    if (!raw) {
+      update.client_id = null
+    } else {
+      const { data: cli } = await sb.from("clients").select("id").eq("id", raw).maybeSingle()
+      update.client_id = cli?.id ?? null
+    }
+  }
   // Pricing mission — lieu typé + flags d'activation des tarifs cabinet.
   if ("pricing_lieu" in body) {
     const lieu = clean(body.pricing_lieu)

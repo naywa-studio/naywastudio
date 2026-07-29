@@ -460,6 +460,7 @@ export type Database = {
           user_id: string
           organization_id?: string
           title: string
+          client_id?: string | null
           role_name?: string | null
           location?: string | null
           seniority?: string | null

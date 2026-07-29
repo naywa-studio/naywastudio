@@ -90,10 +90,21 @@ export async function POST(req: NextRequest) {
   const pricingLieu: PricingLieu | null = pricingLieuRaw && (ALLOWED_LIEUX as readonly string[]).includes(pricingLieuRaw)
     ? pricingLieuRaw as PricingLieu
     : null
+  // Client concerné (annuaire). On VÉRIFIE qu'il appartient à l'org du caller
+  // via le client RLS (la FK seule ne garantit pas le scope org → un id d'une
+  // autre org y passerait). Non trouvé / non fourni → null.
+  const clientIdRaw = clean(body?.client_id)
+  let clientId: string | null = null
+  if (clientIdRaw) {
+    const { data: cli } = await sb.from("clients").select("id").eq("id", clientIdRaw).maybeSingle()
+    clientId = cli?.id ?? null
+  }
+
   const payload = {
     user_id: user.id,
     title: title ?? roleName ?? "Sans titre",
     role_name: roleName,
+    client_id: clientId,
     location: clean(body?.location),
     // Séniorité dérivée de l'intervalle. Fallback sur une valeur libre legacy.
     seniority: derivedSeniority ?? clean(body?.seniority),
