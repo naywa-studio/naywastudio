@@ -4544,24 +4544,48 @@ function ClientsSection() {
       ) : clients.length === 0 && !formOpen ? (
         <p style={{ fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>{t.empty}</p>
       ) : (
-        <div style={{ display: "grid", gap: 8 }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+          gap: 12,
+        }}>
           {clients.map((c) => (
             <div key={c.id} style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 12px", borderRadius: 10,
+              display: "flex", flexDirection: "column", gap: 8,
+              padding: "14px 15px", borderRadius: 12,
               border: "1px solid var(--nw-border-soft)", background: "white",
+              minHeight: 108,
             }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--nw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {/* Pastille initiale + nom */}
+              <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                  background: "var(--nw-primary-50)", color: "var(--nw-primary)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 14, fontWeight: 800,
+                }}>
+                  {c.name.trim().charAt(0).toUpperCase() || "?"}
+                </div>
+                <div style={{
+                  fontSize: 14, fontWeight: 700, color: "var(--nw-text)", minWidth: 0,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
                   {c.name}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--nw-text-muted)", marginTop: 1 }}>
-                  {c.domain ? c.domain + " · " : ""}{t.missions(c.mission_count)}
-                </div>
               </div>
-              <button type="button" onClick={() => openEdit(c)} style={iconBtnStyle}>{t.edit}</button>
-              <button type="button" onClick={() => remove(c)}
-                style={{ ...iconBtnStyle, color: "var(--nw-danger, #EF4444)" }}>{t.del}</button>
+
+              <div style={{ fontSize: 12, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
+                {c.domain && (
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.domain}</div>
+                )}
+                <div>{t.missions(c.mission_count)}</div>
+              </div>
+
+              <div style={{ display: "flex", gap: 6, marginTop: "auto" }}>
+                <button type="button" onClick={() => openEdit(c)} style={{ ...iconBtnStyle, flex: 1 }}>{t.edit}</button>
+                <button type="button" onClick={() => remove(c)}
+                  style={{ ...iconBtnStyle, color: "var(--nw-danger, #EF4444)" }}>{t.del}</button>
+              </div>
             </div>
           ))}
         </div>

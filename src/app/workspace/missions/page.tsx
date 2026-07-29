@@ -83,6 +83,9 @@ const copy = {
     editMissionBadge: "Modifier la mission",
     newMissionBadge: "Nouvelle mission",
     editingMission: "Édition de la mission",
+    clientStepTitle: "Pour quel client ?",
+    clientStepIntro: "Rattachez cette mission à un client (facultatif). Vous pourrez le changer plus tard depuis la mission.",
+    clientStepContinue: "Continuer",
     giveNoraBrief: "Donnez votre brief à Nora",
     manualEntry: "Saisie manuelle",
     matchingCriteria: "Critères de matching",
@@ -209,6 +212,9 @@ const copy = {
     editMissionBadge: "Edit mission",
     newMissionBadge: "New mission",
     editingMission: "Editing the mission",
+    clientStepTitle: "For which client?",
+    clientStepIntro: "Link this mission to a client (optional). You can change it later from the mission.",
+    clientStepContinue: "Continue",
     giveNoraBrief: "Give Nora your brief",
     manualEntry: "Manual entry",
     matchingCriteria: "Matching criteria",
@@ -1014,12 +1020,17 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
   // cible du poste, lui, reste UNIVERSEL (affiché pour tous les sourceurs).
   const { organization, profile } = useWorkspace()
   const hasPricing = hasPricingAccess(organization, { isAdmin: !!profile?.is_admin })
+  // Rattachement client : uniquement pour les orgs cabinet/ESN.
+  const showClients = organization ? orgUsesClients(organization.org_type) : false
   // Stage 1 : brief texte. Stage 2 : form pré-rempli.
   const editMode = !!initialJob
-  // "criteria" = 3ᵉ étape (création only) : les critères de matching sont
-  // définis DANS le flow de création, pas comme un 2ᵉ wizard sur la page
-  // mission. La page mission devient un pur cockpit.
-  const [stage, setStage] = useState<"brief" | "form" | "manual" | "criteria">(editMode ? "form" : "brief")
+  // "client" = étape 0 (création cabinet/ESN, facultative) : à quel client
+  // rattacher la mission, AVANT le brief. "criteria" = 3ᵉ étape (création) :
+  // les critères de matching sont définis DANS le flow de création. La page
+  // mission devient un pur cockpit.
+  const [stage, setStage] = useState<"client" | "brief" | "form" | "manual" | "criteria">(
+    editMode ? "form" : (showClients ? "client" : "brief"),
+  )
   const [createdJob, setCreatedJob] = useState<Job | null>(null)
   const [brief, setBrief] = useState(initialJob?.briefing ?? "")
   const [extracting, setExtracting] = useState(false)
@@ -1049,7 +1060,6 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
   const [description, setDescription] = useState(j?.description ?? "")
   // Client concerné (cabinet/ESN). Null = sans client.
   const [clientId, setClientId] = useState<string | null>(j?.client_id ?? null)
-  const showClients = organization ? orgUsesClients(organization.org_type) : false
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -1246,13 +1256,14 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
               <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.02em" }}>
                 {editMode
                   ? t.editingMission
+                  : stage === "client" ? t.clientStepTitle
                   : stage === "brief" ? t.giveNoraBrief
                   : stage === "manual" ? t.manualEntry
                   : stage === "criteria" ? t.matchingCriteria
                   : t.reviewAndComplete}
               </h2>
-              {/* Stepper création (3 étapes) — masqué en édition/manuel. */}
-              {!editMode && stage !== "manual" && (
+              {/* Stepper création (3 étapes) — masqué en édition/manuel/client. */}
+              {!editMode && stage !== "manual" && stage !== "client" && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
                   {[
                     { k: "brief", n: 1, label: t.stepBrief },
@@ -1288,6 +1299,29 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
               fontSize: 22, color: "var(--nw-text-muted)", lineHeight: 1, padding: 4,
             }}>✕</button>
           </div>
+
+          {/* ─── STAGE 0 : client concerné (création cabinet/ESN, facultatif) ─── */}
+          {stage === "client" && (
+            <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 18 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
+                {t.clientStepIntro}
+              </p>
+              <ClientPicker value={clientId} onChange={setClientId} lang={lang} />
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => setStage("brief")}
+                  style={{
+                    padding: "11px 22px", borderRadius: 10, border: "none",
+                    background: "var(--nw-primary)", color: "white", fontSize: 13, fontWeight: 700,
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  {t.clientStepContinue}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ─── STAGE 1 : brief texte ─── */}
           {stage === "brief" && (
@@ -1395,7 +1429,7 @@ export function JobForm({ onClose, onCreated, initialJob, variant = "modal" }: {
                 </details>
               )}
 
-              {showClients && (
+              {showClients && editMode && (
                 <ClientPicker value={clientId} onChange={setClientId} lang={lang} />
               )}
 
