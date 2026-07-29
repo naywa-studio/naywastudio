@@ -206,6 +206,9 @@ export type Database = {
           id: string
           name: string
           owner_user_id: string | null
+          /** Type de structure choisi à l'onboarding. Pilote l'affichage
+           *  clients + pricing. NULL = org pré-migration non backfillée. */
+          org_type: 'cabinet_recrutement' | 'esn_conseil' | 'equipe_interne' | null
           brand_name: string | null
           brand_logo_path: string | null
           /** Couleur primaire hex (#RRGGBB) du cabinet pour le PDF

@@ -13,11 +13,13 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
+import { ORG_TYPES, type OrgType } from "@/lib/org-type"
 
 export const runtime = "nodejs"
 
 interface OnboardingBody {
   cabinetName?: string
+  orgType?: string
 }
 
 export async function POST(req: Request) {
@@ -52,6 +54,12 @@ export async function POST(req: Request) {
 
   const trimmedName = (body.cabinetName ?? "").trim()
   const cabinetName = trimmedName.slice(0, 120)
+  // Type d'org : validé contre l'allowlist. Une valeur inconnue est ignorée
+  // (le backfill migration garde `cabinet_recrutement` par défaut).
+  const orgType: OrgType | null =
+    body.orgType && (ORG_TYPES as string[]).includes(body.orgType)
+      ? (body.orgType as OrgType)
+      : null
 
   // Read existing onboarded_at so we don't overwrite the original
   // completion stamp.
@@ -65,7 +73,11 @@ export async function POST(req: Request) {
     cabinet_onboarded_at?: string
     branding_locked_at?: string
     name?: string
+    org_type?: OrgType
   } = {}
+  if (orgType) {
+    updatePayload.org_type = orgType
+  }
   if (!org?.cabinet_onboarded_at) {
     const nowIso = new Date().toISOString()
     updatePayload.cabinet_onboarded_at = nowIso

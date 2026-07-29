@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -25,6 +25,7 @@ import {
   formatEur,
 } from "@/lib/pricing-plan"
 import type { Organization } from "@/lib/database.types"
+import { orgUsesPricing } from "@/lib/org-type"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import PricingPolicyForm from "@/components/organisation/PricingPolicyForm"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
@@ -575,14 +576,27 @@ export default function CabinetPage() {
   const rawTab = searchParams.get("tab")
   const action = searchParams.get("action")
 
+  // La politique de pricing n'a de sens que pour une org qui FACTURE des
+  // clients (cabinet en placement / ESN en régie). Une équipe interne ne
+  // facture personne → section masquée. Admin Naywa : bypass (voit tout).
+  const showPricingSection = caps.canPricing
+    && (orgUsesPricing(organization.org_type) || caps.isAdminNaywa)
+
   // Sections visibles selon les caps (source unique), dans l'ordre d'affichage
   // de la barre latérale. Un délégué ne voit que ce qu'il peut gérer.
   const visibleSections = useMemo<OrgSection[]>(() => [
     "overview" as OrgSection,
     ...(caps.canBranding ? (["branding"] as OrgSection[]) : []),
-    ...(caps.canPricing ? (["pricing"] as OrgSection[]) : []),
+    ...(showPricingSection ? (["pricing"] as OrgSection[]) : []),
     ...(caps.isOrgAdmin ? (["team", "billing", "advanced"] as OrgSection[]) : []),
-  ], [caps.canBranding, caps.canPricing, caps.isOrgAdmin])
+  ], [caps.canBranding, showPricingSection, caps.isOrgAdmin])
+
+  // Sous-sections regroupées sous l'entrée « Mon organisation » (onglets
+  // horizontaux) — dans l'ordre voulu, filtrées par ce qui est visible.
+  const orgSubTabs = useMemo<OrgSection[]>(
+    () => (["branding", "pricing", "team"] as OrgSection[]).filter((s) => visibleSections.includes(s)),
+    [visibleSections],
+  )
 
   const initialSection: OrgSection = (() => {
     // ?action=subscribe (mail Stripe / bannière lockdown) → Abonnement (owner).
@@ -603,12 +617,21 @@ export default function CabinetPage() {
   // synchronisée en arrière-plan via history.replaceState dans OrgSidebar —
   // Next 16 fige parfois le render sur un pathname identique).
   const [activeSection, setActiveSection] = useState<OrgSection>(initialSection)
-  // Sous-onglet de la section Branding : identité vs gabarit d'anonymisation
-  // (évite de scroller pour accéder aux réglages CV anonymisés).
   useEffect(() => {
     setActiveSection(initialSection)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawTab, action])
+
+  // Navigation de section : state local (réactivité instantanée) + sync URL en
+  // arrière-plan (deep-links / partage). Partagé par la barre latérale ET les
+  // onglets horizontaux du groupe « Mon organisation ».
+  const goToSection = useCallback((id: OrgSection) => {
+    setActiveSection(id)
+    if (typeof window !== "undefined") {
+      const href = id === "overview" ? "/organisation" : `/organisation?tab=${id}`
+      window.history.replaceState(null, "", href)
+    }
+  }, [])
 
   // Un membre sans AUCUNE cap de configuration (ni branding ni pricing) n'a rien
   // à faire ici → workspace. (Owner et délégué habilité passent.)
@@ -699,12 +722,18 @@ export default function CabinetPage() {
           <OrgSidebar
             activeSection={activeSection}
             sections={visibleSections}
-            onChange={setActiveSection}
+            orgSubTabs={orgSubTabs}
+            onChange={goToSection}
           />
         </aside>
 
         {/* Contenu de la section active */}
         <div style={{ minWidth: 0, display: "grid", gap: 18 }}>
+          {/* Onglets horizontaux du groupe « Mon organisation » */}
+          {orgSubTabs.includes(activeSection) && orgSubTabs.length > 1 && (
+            <OrgSubTabsBar active={activeSection} tabs={orgSubTabs} onChange={goToSection} />
+          )}
+
           {activeSection === "overview" && (
             <OverviewSection
               organization={organization}
@@ -865,54 +894,124 @@ const SECTION_LABELS: Record<OrgSection, { fr: string; en: string }> = {
   advanced: { fr: "Compte et données", en: "Account and data" },
 }
 
+// Onglets horizontaux du groupe « Mon organisation » (libellés courts, la
+// section porte déjà le contexte). Distincts des libellés longs de la sidebar.
+const SUBTAB_LABELS: Record<"branding" | "pricing" | "team", { fr: string; en: string }> = {
+  branding: { fr: "Identité", en: "Identity" },
+  pricing: { fr: "Pricing", en: "Pricing" },
+  team: { fr: "Équipe", en: "Team" },
+}
+
+const ORG_GROUP_LABEL = { fr: "Mon organisation", en: "My organization" }
+
 /**
- * Barre latérale de la console. Ne rend QUE les sections passées en prop
- * (déjà filtrées par les caps côté parent) — un délégué ne voit donc jamais
- * Abonnement / Avancé. L'URL est synchronisée via history.replaceState (comme
- * l'ancienne barre d'onglets) pour garder deep-links et partage de lien sans
- * déclencher un re-render Next 16 qui figerait la vue.
+ * Barre latérale de la console. Regroupe Identité / Pricing / Équipe sous une
+ * seule entrée « Mon organisation » (les onglets horizontaux vivent dans le
+ * contenu, cf. OrgSubTabsBar). Ne rend QUE ce qui est passé en prop (déjà
+ * filtré par les caps + le type d'org). Un délégué ne voit jamais Abonnement /
+ * Compte. La sync URL est gérée par `onChange` (goToSection) côté parent.
  */
 function OrgSidebar({
-  activeSection, sections, onChange,
+  activeSection, sections, orgSubTabs, onChange,
 }: {
   activeSection: OrgSection
   sections: OrgSection[]
+  orgSubTabs: OrgSection[]
   onChange: (next: OrgSection) => void
 }) {
   const { lang } = useLanguage()
-  const goTo = (id: OrgSection) => {
-    onChange(id)
-    if (typeof window !== "undefined") {
-      const href = id === "overview" ? "/organisation" : `/organisation?tab=${id}`
-      window.history.replaceState(null, "", href)
-    }
-  }
+
+  const itemStyle = (active: boolean): CSSProperties => ({
+    display: "block", width: "100%", textAlign: "left",
+    padding: "9px 12px", borderRadius: 9,
+    fontSize: 13.5, fontWeight: active ? 700 : 500,
+    color: active ? "var(--nw-primary)" : "var(--nw-text-muted)",
+    background: active ? "var(--nw-primary-50)" : "transparent",
+    border: active ? "1px solid var(--nw-primary-200)" : "1px solid transparent",
+    cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+    transition: "background 140ms, color 140ms",
+  })
+
+  const groupActive = orgSubTabs.includes(activeSection)
+
   return (
     <nav aria-label="Sections de l'organisation" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {sections.map((id) => {
-        const active = activeSection === id
+      {sections.includes("overview") && (
+        <button type="button" aria-current={activeSection === "overview" ? "page" : undefined}
+          onClick={() => onChange("overview")} style={itemStyle(activeSection === "overview")}>
+          {SECTION_LABELS.overview[lang]}
+        </button>
+      )}
+
+      {orgSubTabs.length > 0 && (
+        <button type="button" aria-current={groupActive ? "page" : undefined}
+          onClick={() => { if (!groupActive) onChange(orgSubTabs[0]) }} style={itemStyle(groupActive)}>
+          {ORG_GROUP_LABEL[lang]}
+        </button>
+      )}
+
+      {sections.includes("billing") && (
+        <button type="button" aria-current={activeSection === "billing" ? "page" : undefined}
+          onClick={() => onChange("billing")} style={itemStyle(activeSection === "billing")}>
+          {SECTION_LABELS.billing[lang]}
+        </button>
+      )}
+
+      {sections.includes("advanced") && (
+        <button type="button" aria-current={activeSection === "advanced" ? "page" : undefined}
+          onClick={() => onChange("advanced")} style={itemStyle(activeSection === "advanced")}>
+          {SECTION_LABELS.advanced[lang]}
+        </button>
+      )}
+    </nav>
+  )
+}
+
+/**
+ * Onglets horizontaux du groupe « Mon organisation » — Identité / Pricing /
+ * Équipe. Rendu en tête du contenu quand la section active appartient au
+ * groupe. Sync URL via `onChange` (goToSection).
+ */
+function OrgSubTabsBar({
+  active, tabs, onChange,
+}: {
+  active: OrgSection
+  tabs: OrgSection[]
+  onChange: (next: OrgSection) => void
+}) {
+  const { lang } = useLanguage()
+  return (
+    <div role="tablist" aria-label="Mon organisation" style={{
+      display: "flex", gap: 4, borderBottom: "1px solid var(--nw-border, #ECE8F6)",
+      paddingBottom: 0, marginBottom: 2,
+    }}>
+      {tabs.map((id) => {
+        const isActive = active === id
+        const label = SUBTAB_LABELS[id as "branding" | "pricing" | "team"][lang]
         return (
           <button
             key={id}
             type="button"
-            aria-current={active ? "page" : undefined}
-            onClick={() => goTo(id)}
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(id)}
             style={{
-              display: "block", width: "100%", textAlign: "left",
-              padding: "9px 12px", borderRadius: 9,
-              fontSize: 13.5, fontWeight: active ? 700 : 500,
-              color: active ? "var(--nw-primary)" : "var(--nw-text-muted)",
-              background: active ? "var(--nw-primary-50)" : "transparent",
-              border: active ? "1px solid var(--nw-primary-200)" : "1px solid transparent",
+              padding: "8px 14px", borderRadius: "8px 8px 0 0",
+              fontSize: 13.5, fontWeight: isActive ? 700 : 500,
+              color: isActive ? "var(--nw-primary)" : "var(--nw-text-muted)",
+              background: "transparent",
+              border: "none",
+              borderBottom: isActive ? "2px solid var(--nw-primary)" : "2px solid transparent",
               cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
-              transition: "background 140ms, color 140ms",
+              marginBottom: -1,
+              transition: "color 140ms, border-color 140ms",
             }}
           >
-            {SECTION_LABELS[id][lang]}
+            {label}
           </button>
         )
       })}
-    </nav>
+    </div>
   )
 }
 

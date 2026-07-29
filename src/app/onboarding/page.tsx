@@ -10,6 +10,7 @@ import { getSupabase } from "@/lib/supabase"
 import { TRIAL_DURATION_DAYS } from "@/lib/trial"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { ORG_TYPES, ORG_TYPE_META, type OrgType } from "@/lib/org-type"
 import type { Profile } from "@/lib/database.types"
 
 /**
@@ -49,6 +50,9 @@ const copy = {
     orgNamePlaceholderWithName: (name: string) => `Organisation de ${name}`,
     orgNamePlaceholder: "Organisation Dupont",
     orgNameHint: "Vous pourrez le modifier à tout moment depuis votre console.",
+    orgTypeLabel: "Quel type de structure êtes-vous ?",
+    orgTypeHint: "Cela adapte votre espace : gestion de clients et chiffrage pour les cabinets et ESN, interface simplifiée pour une équipe interne.",
+    errNoOrgType: "Choisissez un type de structure.",
     continueBtn: "Continuer",
     errNoOrgName: "Donnez un nom à votre organisation pour continuer.",
     // Step 2
@@ -120,6 +124,9 @@ const copy = {
     orgNamePlaceholderWithName: (name: string) => `${name}'s Organization`,
     orgNamePlaceholder: "Dupont Organization",
     orgNameHint: "You can change it at any time from your console.",
+    orgTypeLabel: "What kind of structure are you?",
+    orgTypeHint: "This tailors your workspace: client management and pricing for agencies and consulting firms, a simpler interface for an in-house team.",
+    errNoOrgType: "Choose a type of structure.",
     continueBtn: "Continue",
     errNoOrgName: "Give your organization a name to continue.",
     // Step 2
@@ -200,6 +207,7 @@ export default function OnboardingPage() {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [cabinetName, setCabinetName] = useState("")
+  const [orgType, setOrgType] = useState<OrgType | null>(null)
   // Step 2 branding — tous optionnels. Couleurs null = noir par défaut
   // côté rendu PDF, conformément à la décision produit "défaut off".
   const [brandColor, setBrandColor] = useState<string | null>(null)
@@ -254,6 +262,10 @@ export default function OnboardingPage() {
     setError(null)
     if (!cabinetName.trim()) {
       setError(t.errNoOrgName)
+      return
+    }
+    if (!orgType) {
+      setError(t.errNoOrgType)
       return
     }
     setStep(2)
@@ -415,7 +427,7 @@ export default function OnboardingPage() {
       const res = await fetch("/api/cabinet/onboarding-done", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cabinetName: cabinetName.trim() }),
+        body: JSON.stringify({ cabinetName: cabinetName.trim(), orgType }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
@@ -531,6 +543,45 @@ export default function OnboardingPage() {
                   {t.orgNameHint}
                 </span>
               </label>
+
+              {/* Type de structure — pilote clients + pricing dans tout l'espace */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 20 }}>
+                <span style={fieldLabelStyle}>{t.orgTypeLabel}</span>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {ORG_TYPES.map((ot) => {
+                    const active = orgType === ot
+                    return (
+                      <button
+                        key={ot}
+                        type="button"
+                        onClick={() => { setOrgType(ot); setError(null) }}
+                        aria-pressed={active}
+                        style={{
+                          textAlign: "left",
+                          padding: "12px 14px",
+                          borderRadius: 12,
+                          border: active ? "1.5px solid var(--nw-primary)" : "1.5px solid #E2DAF6",
+                          background: active ? "var(--nw-primary-50)" : "white",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          transition: "border-color 140ms, background 140ms",
+                        }}
+                      >
+                        <span style={{
+                          display: "block", fontSize: 14, fontWeight: 700,
+                          color: active ? "var(--nw-primary)" : "var(--nw-text)",
+                        }}>
+                          {ORG_TYPE_META[ot].label[lang]}
+                        </span>
+                        <span style={{ display: "block", fontSize: 12.5, color: "#6B7280", marginTop: 3 }}>
+                          {ORG_TYPE_META[ot].hint[lang]}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <span style={fieldHintStyle}>{t.orgTypeHint}</span>
+              </div>
 
               {error && <ErrorBox text={error} />}
               <button onClick={finishStep1} style={primaryBtn(false)}>{t.continueBtn}</button>
