@@ -392,6 +392,8 @@ export type Database = {
           /** FK → organizations.id. Set automatically on insert. */
           organization_id: string
           title: string
+          /** Client concerné par la mission (annuaire org). NULL = sans client. */
+          client_id: string | null
           role_name: string | null
           location: string | null
           seniority: string | null
@@ -585,6 +587,35 @@ export type Database = {
           consulted_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['candidates']['Insert']>
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          /** Domaine principal (ex "engie.com"), optionnel. Signal off-limits. */
+          domain: string | null
+          /** Variantes de nom connues pour la détection off-limits. */
+          aliases: string[]
+          notes: string | null
+          /** auth.users id de l'auteur. Pas de FK (auto-discovery Supabase). */
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id?: string
+          name: string
+          domain?: string | null
+          aliases?: string[]
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['clients']['Insert']>
         Relationships: []
       }
       sectors: {
@@ -918,6 +949,7 @@ export type Job = Database['public']['Tables']['jobs']['Row']
 export type Candidate = Database['public']['Tables']['candidates']['Row']
 export type Sector = Database['public']['Tables']['sectors']['Row']
 export type SectorStatus = Candidate['sector_status']
+export type Client = Database['public']['Tables']['clients']['Row']
 export type MatchAssessment = Database['public']['Tables']['match_assessments']['Row']
 export type EmailMessage = Database['public']['Tables']['email_messages']['Row']
 export type AppUpdate = Database['public']['Tables']['app_updates']['Row']

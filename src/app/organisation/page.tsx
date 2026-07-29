@@ -25,7 +25,7 @@ import {
   formatEur,
 } from "@/lib/pricing-plan"
 import type { Organization } from "@/lib/database.types"
-import { orgUsesPricing } from "@/lib/org-type"
+import { orgUsesPricing, orgUsesClients } from "@/lib/org-type"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import PricingPolicyForm from "@/components/organisation/PricingPolicyForm"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
@@ -582,14 +582,22 @@ export default function CabinetPage() {
   const showPricingSection = caps.canPricing
     && (orgUsesPricing(organization.org_type) || caps.isAdminNaywa)
 
+  // L'annuaire clients n'existe que pour les orgs qui travaillent POUR des
+  // clients (cabinet/ESN). Réservé à l'admin de l'org (owner) en V1 ; le
+  // sourceur, lui, crée + sélectionne un client à la volée à la mission.
+  const showClientsSection = caps.isOrgAdmin
+    && (orgUsesClients(organization.org_type) || caps.isAdminNaywa)
+
   // Sections visibles selon les caps (source unique), dans l'ordre d'affichage
   // de la barre latérale. Un délégué ne voit que ce qu'il peut gérer.
   const visibleSections = useMemo<OrgSection[]>(() => [
     "overview" as OrgSection,
     ...(caps.canBranding ? (["branding"] as OrgSection[]) : []),
     ...(showPricingSection ? (["pricing"] as OrgSection[]) : []),
-    ...(caps.isOrgAdmin ? (["team", "billing", "advanced"] as OrgSection[]) : []),
-  ], [caps.canBranding, showPricingSection, caps.isOrgAdmin])
+    ...(caps.isOrgAdmin ? (["team"] as OrgSection[]) : []),
+    ...(showClientsSection ? (["clients"] as OrgSection[]) : []),
+    ...(caps.isOrgAdmin ? (["billing", "advanced"] as OrgSection[]) : []),
+  ], [caps.canBranding, showPricingSection, caps.isOrgAdmin, showClientsSection])
 
   // Sous-sections regroupées sous l'entrée « Mon organisation » (onglets
   // horizontaux) — dans l'ordre voulu, filtrées par ce qui est visible.
@@ -606,7 +614,7 @@ export default function CabinetPage() {
     let target: OrgSection | null = null
     if (rawTab === "abonnement") target = "billing"
     else if (rawTab === "securite") target = "advanced"
-    else if (rawTab && (["overview", "branding", "pricing", "team", "billing", "advanced"] as string[]).includes(rawTab)) {
+    else if (rawTab && (["overview", "branding", "pricing", "team", "clients", "billing", "advanced"] as string[]).includes(rawTab)) {
       target = rawTab as OrgSection
     }
     if (target && visibleSections.includes(target)) return target
@@ -778,6 +786,10 @@ export default function CabinetPage() {
             />
           )}
 
+          {activeSection === "clients" && showClientsSection && (
+            <ClientsSection />
+          )}
+
           {activeSection === "billing" && caps.isOrgAdmin && (
             <div className="org-two-col" style={{
               display: "grid",
@@ -883,13 +895,14 @@ function PricingOnboardingGate({
 /* OrgSidebar — navigation latérale de la console (6 sections gatées)   */
 /* ────────────────────────────────────────────────────────────────── */
 
-type OrgSection = "overview" | "branding" | "pricing" | "team" | "billing" | "advanced"
+type OrgSection = "overview" | "branding" | "pricing" | "team" | "clients" | "billing" | "advanced"
 
 const SECTION_LABELS: Record<OrgSection, { fr: string; en: string }> = {
   overview: { fr: "Vue d'ensemble", en: "Overview" },
   branding: { fr: "Identité et branding", en: "Identity and branding" },
   pricing: { fr: "Politique de pricing", en: "Pricing policy" },
   team: { fr: "Équipe et sièges", en: "Team and seats" },
+  clients: { fr: "Clients", en: "Clients" },
   billing: { fr: "Abonnement", en: "Subscription" },
   advanced: { fr: "Compte et données", en: "Account and data" },
 }
@@ -947,6 +960,13 @@ function OrgSidebar({
         <button type="button" aria-current={groupActive ? "page" : undefined}
           onClick={() => { if (!groupActive) onChange(orgSubTabs[0]) }} style={itemStyle(groupActive)}>
           {ORG_GROUP_LABEL[lang]}
+        </button>
+      )}
+
+      {sections.includes("clients") && (
+        <button type="button" aria-current={activeSection === "clients" ? "page" : undefined}
+          onClick={() => onChange("clients")} style={itemStyle(activeSection === "clients")}>
+          {SECTION_LABELS.clients[lang]}
         </button>
       )}
 
@@ -4316,6 +4336,239 @@ function ExportDataCard() {
 /* ────────────────────────────────────────────────────────────────── */
 /* Shared building blocks                                              */
 /* ────────────────────────────────────────────────────────────────── */
+
+/* ────────────────────────────────────────────────────────────────── */
+/* ClientsSection — annuaire des clients de l'org (cabinet/ESN)          */
+/* ────────────────────────────────────────────────────────────────── */
+
+interface ClientRow {
+  id: string
+  name: string
+  domain: string | null
+  aliases: string[]
+  notes: string | null
+  created_at: string
+  updated_at: string
+  mission_count: number
+}
+
+const CLIENTS_COPY = {
+  fr: {
+    title: "Vos clients",
+    subtitle: "L'annuaire des clients pour qui vous recrutez. Chaque mission peut être rattachée à un client — base des futures alertes de conflit (off-limits) et des retours client.",
+    add: "Ajouter un client",
+    empty: "Aucun client pour l'instant. Ajoutez-en un, ou créez-le à la volée en créant une mission.",
+    name: "Nom du client",
+    namePh: "ex : ENGIE",
+    domain: "Domaine (optionnel)",
+    domainPh: "ex : engie.com",
+    notes: "Notes (optionnel)",
+    notesPh: "Contexte, contact, préférences…",
+    save: "Enregistrer",
+    cancel: "Annuler",
+    edit: "Modifier",
+    del: "Supprimer",
+    delConfirm: (n: string) => `Supprimer le client « ${n} » ? Les missions rattachées seront détachées (aucune donnée candidat n'est perdue).`,
+    missions: (n: number) => n === 0 ? "Aucune mission" : n === 1 ? "1 mission" : `${n} missions`,
+    loadErr: "Chargement impossible.",
+    saveErr: "Enregistrement impossible.",
+    dupErr: "Un client porte déjà ce nom.",
+    loading: "Chargement…",
+  },
+  en: {
+    title: "Your clients",
+    subtitle: "The directory of clients you recruit for. Each mission can be linked to a client — the basis for upcoming conflict alerts (off-limits) and client feedback.",
+    add: "Add a client",
+    empty: "No client yet. Add one, or create it on the fly when creating a mission.",
+    name: "Client name",
+    namePh: "e.g. ENGIE",
+    domain: "Domain (optional)",
+    domainPh: "e.g. engie.com",
+    notes: "Notes (optional)",
+    notesPh: "Context, contact, preferences…",
+    save: "Save",
+    cancel: "Cancel",
+    edit: "Edit",
+    del: "Delete",
+    delConfirm: (n: string) => `Delete client "${n}"? Linked missions will be detached (no candidate data is lost).`,
+    missions: (n: number) => n === 0 ? "No mission" : n === 1 ? "1 mission" : `${n} missions`,
+    loadErr: "Could not load.",
+    saveErr: "Could not save.",
+    dupErr: "A client already has this name.",
+    loading: "Loading…",
+  },
+} as const
+
+function ClientsSection() {
+  const { lang } = useLanguage()
+  const t = CLIENTS_COPY[lang]
+
+  const [clients, setClients] = useState<ClientRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Formulaire (création OU édition). editingId null = création.
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [fName, setFName] = useState("")
+  const [fDomain, setFDomain] = useState("")
+  const [fNotes, setFNotes] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      try {
+        const res = await fetch("/api/clients")
+        const j = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error()
+        if (!cancelled) setClients((j.clients ?? []) as ClientRow[])
+      } catch {
+        if (!cancelled) setError(t.loadErr)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const openCreate = () => {
+    setEditingId(null); setFName(""); setFDomain(""); setFNotes("")
+    setError(null); setFormOpen(true)
+  }
+  const openEdit = (c: ClientRow) => {
+    setEditingId(c.id); setFName(c.name); setFDomain(c.domain ?? ""); setFNotes(c.notes ?? "")
+    setError(null); setFormOpen(true)
+  }
+  const closeForm = () => { setFormOpen(false); setEditingId(null) }
+
+  const save = async () => {
+    const name = fName.trim()
+    if (!name || saving) return
+    setSaving(true); setError(null)
+    try {
+      const isEdit = editingId !== null
+      const res = await fetch(isEdit ? `/api/clients/${editingId}` : "/api/clients", {
+        method: isEdit ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, domain: fDomain.trim() || null, notes: fNotes.trim() || null }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(j.error === "duplicate_name" ? t.dupErr : t.saveErr); return }
+      const saved = j.client as ClientRow
+      setClients((prev) => {
+        if (isEdit) {
+          return prev.map((c) => c.id === saved.id ? { ...c, ...saved } : c)
+            .sort((a, b) => a.name.localeCompare(b.name))
+        }
+        // Création : évite le doublon si l'API renvoie un existant.
+        if (prev.some((c) => c.id === saved.id)) {
+          return prev.map((c) => c.id === saved.id ? { ...c, ...saved } : c)
+        }
+        return [...prev, { ...saved, mission_count: saved.mission_count ?? 0 }]
+          .sort((a, b) => a.name.localeCompare(b.name))
+      })
+      closeForm()
+    } catch {
+      setError(t.saveErr)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const remove = async (c: ClientRow) => {
+    if (!window.confirm(t.delConfirm(c.name))) return
+    const prev = clients
+    setClients((list) => list.filter((x) => x.id !== c.id))
+    try {
+      const res = await fetch(`/api/clients/${c.id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error()
+    } catch {
+      setClients(prev) // rollback
+      setError(t.saveErr)
+    }
+  }
+
+  return (
+    <Card
+      title={t.title}
+      subtitle={t.subtitle}
+      headerRight={
+        !formOpen ? (
+          <button type="button" onClick={openCreate} style={smallBtnPrimary}>+ {t.add}</button>
+        ) : undefined
+      }
+    >
+      {error && (
+        <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--nw-danger, #EF4444)" }}>{error}</p>
+      )}
+
+      {formOpen && (
+        <div style={{
+          border: "1px solid var(--nw-border)", borderRadius: 12,
+          padding: 14, marginBottom: 14, background: "var(--nw-surface-muted, #FCFAF5)",
+          display: "grid", gap: 10,
+        }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <Label>{t.name}</Label>
+              <input autoFocus value={fName} onChange={(e) => setFName(e.target.value)}
+                placeholder={t.namePh} maxLength={160} style={inputStyle} />
+            </div>
+            <div>
+              <Label>{t.domain}</Label>
+              <input value={fDomain} onChange={(e) => setFDomain(e.target.value)}
+                placeholder={t.domainPh} maxLength={120} style={inputStyle} />
+            </div>
+          </div>
+          <div>
+            <Label>{t.notes}</Label>
+            <textarea value={fNotes} onChange={(e) => setFNotes(e.target.value)}
+              placeholder={t.notesPh} maxLength={2000} rows={2}
+              style={{ ...inputStyle, resize: "vertical", minHeight: 40 }} />
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button type="button" onClick={closeForm} style={smallBtnGhost}>{t.cancel}</button>
+            <button type="button" onClick={save} disabled={!fName.trim() || saving}
+              style={{ ...smallBtnPrimary, opacity: !fName.trim() || saving ? 0.5 : 1 }}>
+              {saving ? "…" : t.save}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <p style={{ fontSize: 13, color: "var(--nw-text-muted)" }}>{t.loading}</p>
+      ) : clients.length === 0 && !formOpen ? (
+        <p style={{ fontSize: 13, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>{t.empty}</p>
+      ) : (
+        <div style={{ display: "grid", gap: 8 }}>
+          {clients.map((c) => (
+            <div key={c.id} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 12px", borderRadius: 10,
+              border: "1px solid var(--nw-border-soft)", background: "white",
+            }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--nw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {c.name}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--nw-text-muted)", marginTop: 1 }}>
+                  {c.domain ? c.domain + " · " : ""}{t.missions(c.mission_count)}
+                </div>
+              </div>
+              <button type="button" onClick={() => openEdit(c)} style={iconBtnStyle}>{t.edit}</button>
+              <button type="button" onClick={() => remove(c)}
+                style={{ ...iconBtnStyle, color: "var(--nw-danger, #EF4444)" }}>{t.del}</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
 
 function Card({ title, subtitle, children, headerRight }: {
   title: string
