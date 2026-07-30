@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       score, score_dimensions, criteria_eval, justification, match_tier, source,
       pipeline_stage, in_pipeline, contacted_at, replied_at, interview_at,
       salary_expectation_brut,
-      client_status, client_feedback_note, client_feedback_at,
+      client_feedback_note, client_feedback_at,
       booking_token, created_at, updated_at,
       job:jobs(*)
     `)
@@ -52,11 +52,11 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
  *
  * Met à jour des champs UNIVERSELS du match (indépendants de la Suite
  * Pricing) : prétention salariale + retour client (segment cabinet/ESN).
+ * Le VERDICT client (présenté/recruté/écarté) vit dans pipeline_stage
+ * (route /stage) ; ici on ne gère que le retour libre du client.
  * Field-allowlist stricte + RLS-scoped (le client Supabase server est
  * org-scopé → un match d'une autre org ne matchera pas).
  */
-const CLIENT_STATUSES = new Set(["presented", "retained", "rejected", "to_adjust"])
-
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
   const sb = await createSupabaseServerClient()
@@ -69,10 +69,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   // Allowlist stricte : prétention salariale + retour client. On ignore tout
   // autre champ du body.
-  type ClientStatus = 'presented' | 'retained' | 'rejected' | 'to_adjust'
   const update: {
     salary_expectation_brut?: number | null
-    client_status?: ClientStatus | null
     client_feedback_note?: string | null
     client_feedback_at?: string | null
   } = {}
@@ -90,27 +88,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
   }
 
-  // Retour client : statut (validé contre l'allowlist) + horodatage auto.
-  if (body && "client_status" in body) {
-    const v = body.client_status
-    if (v === null || v === "") {
-      update.client_status = null
-      update.client_feedback_at = null
-    } else if (typeof v === "string" && CLIENT_STATUSES.has(v)) {
-      update.client_status = v as ClientStatus
-      update.client_feedback_at = new Date().toISOString()
-    } else {
-      return NextResponse.json({ error: "invalid_client_status" }, { status: 400 })
-    }
-  }
-
-  // Motif / retour libre du client (borné, ou null pour effacer).
+  // Retour / motif libre du client (borné, ou null pour effacer). Horodatage
+  // auto à chaque changement.
   if (body && "client_feedback_note" in body) {
     const v = body.client_feedback_note
     if (v === null || v === "") {
       update.client_feedback_note = null
+      update.client_feedback_at = null
     } else if (typeof v === "string") {
       update.client_feedback_note = v.slice(0, 2000)
+      update.client_feedback_at = new Date().toISOString()
     } else {
       return NextResponse.json({ error: "invalid_note" }, { status: 400 })
     }
@@ -124,7 +111,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .from("match_assessments")
     .update(update)
     .eq("id", id)
-    .select("id, salary_expectation_brut, client_status, client_feedback_note, client_feedback_at")
+    .select("id, salary_expectation_brut, client_feedback_note, client_feedback_at")
     .single()
   if (error || !data) return NextResponse.json({ error: "not_found" }, { status: 404 })
 

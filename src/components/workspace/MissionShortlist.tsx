@@ -55,19 +55,6 @@ const OFF_LIMITS_LABEL = {
   },
 } as const
 
-// Retour client (segment cabinet/ESN) — pastille de statut sur la carte.
-type ClientStatus = "presented" | "retained" | "rejected" | "to_adjust"
-const CLIENT_STATUS_META: Record<ClientStatus, { fg: string; bg: string; bd: string }> = {
-  presented: { fg: "var(--nw-primary)", bg: "rgba(124,99,200,0.10)", bd: "rgba(124,99,200,0.30)" },
-  retained:  { fg: "#1A7F44",           bg: "rgba(34,197,94,0.10)",  bd: "rgba(34,197,94,0.30)" },
-  rejected:  { fg: "#B42318",           bg: "rgba(217,45,32,0.08)",  bd: "rgba(217,45,32,0.28)" },
-  to_adjust: { fg: "#B54708",           bg: "rgba(245,158,11,0.10)", bd: "rgba(245,158,11,0.32)" },
-}
-const CLIENT_STATUS_LABEL: Record<Lang, Record<ClientStatus, string>> = {
-  fr: { presented: "Présenté au client", retained: "Retenu par le client", rejected: "Rejeté par le client", to_adjust: "Client — à ajuster" },
-  en: { presented: "Presented to client", retained: "Retained by client", rejected: "Rejected by client", to_adjust: "Client — to adjust" },
-}
-
 /** Branding minimal de l'org nécessaire à l'anonymisation (gabarit + aperçu). */
 export interface ShortlistOrg {
   name: string
@@ -136,7 +123,7 @@ const copy = {
       contacted: "Contacté",
       replied: "Réponse",
       interview: "Entretien",
-      offer: "Offre",
+      offer: "Présenté au client",
       hired: "Recruté",
       rejected: "Écarté",
     } as Record<PipelineStage, string>,
@@ -192,7 +179,7 @@ const copy = {
       contacted: "Contacted",
       replied: "Replied",
       interview: "Interview",
-      offer: "Offer",
+      offer: "Presented to client",
       hired: "Hired",
       rejected: "Rejected",
     } as Record<PipelineStage, string>,
@@ -790,24 +777,12 @@ function ShortlistCard({
         )}
       </div>
 
-      {/* Ligne 2 : score + réf + retour client */}
+      {/* Ligne 2 : score + réf */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11.5, color: "var(--nw-text-muted)", flexWrap: "wrap" }}>
         {typeof row.score === "number" && (
           <span><strong style={{ color: "var(--nw-text)", fontSize: 13 }}>{Math.round(row.score)}</strong> · {t.score}</span>
         )}
         <span style={{ fontFamily: "var(--nw-font-mono)", fontSize: 10.5 }}>{ref}</span>
-        {row.client_status && (
-          <span style={{
-            display: "inline-flex", alignItems: "center",
-            padding: "2px 8px", borderRadius: 99,
-            fontSize: 10, fontWeight: 700, letterSpacing: "0.02em",
-            color: CLIENT_STATUS_META[row.client_status].fg,
-            background: CLIENT_STATUS_META[row.client_status].bg,
-            border: `1px solid ${CLIENT_STATUS_META[row.client_status].bd}`,
-          }}>
-            {CLIENT_STATUS_LABEL[lang][row.client_status]}
-          </span>
-        )}
       </div>
 
       {/* Raison d'écart si écarté */}

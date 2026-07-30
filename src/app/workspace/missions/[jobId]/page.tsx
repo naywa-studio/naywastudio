@@ -36,6 +36,7 @@ const MATCH_MODE_LABEL: Record<Lang, Record<MatchMode, string>> = {
 }
 import { MatchCard } from "@/components/workspace/MatchCard"
 import { MissionShortlist } from "@/components/workspace/MissionShortlist"
+import { ClientReview } from "@/components/workspace/ClientReview"
 import { JobForm } from "../page"
 import { useWorkspace } from "../../layout"
 import { getCapabilities } from "@/lib/capabilities"
@@ -76,6 +77,7 @@ const copy = {
     weakToggle: (show: boolean, n: number) => `${show ? "▲ Masquer" : "▼ Voir"} les ${n} profil${n > 1 ? "s" : ""} à faible affinité`,
     viewCandidats: "Candidats",
     viewShortlist: "Shortlist",
+    viewRevue: "Revue client",
     tabAll: "Tous",
     tabApplied: "Ont postulé",
     tabAppliedHint: "Via le formulaire public",
@@ -137,6 +139,7 @@ const copy = {
     weakToggle: (show: boolean, n: number) => `${show ? "▲ Hide" : "▼ Show"} the ${n} low-affinity profile${n > 1 ? "s" : ""}`,
     viewCandidats: "Candidates",
     viewShortlist: "Shortlist",
+    viewRevue: "Client review",
     tabAll: "All",
     tabApplied: "Applied",
     tabAppliedHint: "Via the public form",
@@ -211,7 +214,7 @@ export default function JobDetailPage() {
   // Onglet de 1er niveau : « Candidats » (matching brut) vs « Shortlist »
   // (candidats retenus, in_pipeline). Séparés pour que le client ne mélange
   // pas la découverte et la sélection à présenter.
-  const [view, setView] = useState<"candidats" | "shortlist">("candidats")
+  const [view, setView] = useState<"candidats" | "shortlist" | "revue">("candidats")
   /** Filtres actifs : Set des critère IDs sur lesquels exiger un "fort match". */
   const [activeCritFilters, setActiveCritFilters] = useState<Set<string>>(new Set())
   /** Déplie les profils à faible affinité (tier "poor", score < 35), masqués
@@ -443,6 +446,11 @@ export default function JobDetailPage() {
 
   const strongCount = rows.filter((r) => (r.score ?? 0) >= 55).length
   const shortlistCount = rows.filter((r) => r.in_pipeline).length
+  // Candidats ayant atteint le client (présenté / recruté / écarté).
+  const revueCount = rows.filter((r) => ["offer", "hired", "rejected"].includes(r.pipeline_stage)).length
+  // Onglet Revue client visible uniquement pour une org qui utilise les
+  // clients ET une mission rattachée à un client.
+  const showRevue = usesClients && !!job?.client_id
 
   // Séparation pertinents / faible affinité. Les non-scorés (assignés
   // manuellement, score null) sont toujours pertinents (choix explicite du
@@ -510,9 +518,10 @@ export default function JobDetailPage() {
           Cachés tant que la mission n'est pas configurée (wizard). */}
       {!showWizard && (
         <div style={{ display: "flex", gap: 10, margin: "10px 0 22px", borderBottom: "1.5px solid var(--nw-border)" }}>
-          {(["candidats", "shortlist"] as const).map((key) => {
+          {(["candidats", "shortlist", ...(showRevue ? ["revue" as const] : [])] as const).map((key) => {
             const on = view === key
-            const label = key === "candidats" ? t.viewCandidats : t.viewShortlist
+            const label = key === "candidats" ? t.viewCandidats : key === "shortlist" ? t.viewShortlist : t.viewRevue
+            const count = key === "shortlist" ? shortlistCount : key === "revue" ? revueCount : 0
             return (
               <button
                 key={key}
@@ -528,14 +537,14 @@ export default function JobDetailPage() {
                 }}
               >
                 {label}
-                {key === "shortlist" && shortlistCount > 0 && (
+                {count > 0 && (
                   <span style={{
                     fontSize: 12, fontWeight: 700,
                     minWidth: 20, height: 20, padding: "0 6px", borderRadius: 999,
                     display: "inline-flex", alignItems: "center", justifyContent: "center",
                     color: on ? "white" : "var(--nw-text-muted)",
                     background: on ? "var(--nw-primary)" : "var(--nw-neutral-100)",
-                  }}>{shortlistCount}</span>
+                  }}>{count}</span>
                 )}
               </button>
             )
@@ -559,6 +568,14 @@ export default function JobDetailPage() {
             anonymize_defaults: organization?.anonymize_defaults ?? null,
           }}
           brandingHref={canBranding ? "/organisation?tab=branding" : null}
+          onLocalUpdate={(rowId, patch) => setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, ...patch } : r))}
+          lang={lang}
+        />
+      ) : !showWizard && view === "revue" && showRevue ? (
+        <ClientReview
+          clientName={clientName ?? job?.title ?? ""}
+          rows={rows}
+          isReadOnly={isReadOnly}
           onLocalUpdate={(rowId, patch) => setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, ...patch } : r))}
           lang={lang}
         />

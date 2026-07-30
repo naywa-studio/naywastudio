@@ -681,13 +681,11 @@ export type Database = {
           reject_reason: 'too_expensive' | 'not_available' | 'wrong_stack' | 'seniority_mismatch' | 'location_mismatch' | 'other' | null
           /** Note libre du sourceur, optionnelle (utile quand reject_reason=other). */
           reject_reason_note: string | null
-          /** Retour CLIENT une fois le candidat présenté (segment cabinet/ESN,
-           *  dimension orthogonale au pipeline interne). NULL = pas encore
-           *  présenté. Voir migration 070. */
-          client_status: 'presented' | 'retained' | 'rejected' | 'to_adjust' | null
-          /** Motif / retour libre du client, saisi par le sourceur. */
+          /** Retour / motif libre du client une fois le candidat présenté
+           *  (segment cabinet/ESN). Le verdict, lui, vit dans pipeline_stage
+           *  (offer=présenté, hired=recruté, rejected=écarté). Voir 070/071. */
           client_feedback_note: string | null
-          /** Horodatage du dernier changement de client_status. */
+          /** Horodatage du dernier retour client. */
           client_feedback_at: string | null
           contacted_at: string | null
           replied_at: string | null

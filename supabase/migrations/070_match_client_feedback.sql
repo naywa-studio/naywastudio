@@ -1,16 +1,10 @@
--- 070 — Retour client sur un match (segment cabinet/ESN, lot 3a)
+-- 070 — Retour client sur un match (segment cabinet/ESN, lot 3)
 --
--- Dimension CLIENT, orthogonale au pipeline interne (`pipeline_stage`) :
--- une fois un candidat PRÉSENTÉ à un client, quel est son verdict ?
---   - presented  : présenté au client, en attente de retour
---   - retained   : retenu par le client (avance)
---   - rejected   : rejeté par le client
---   - to_adjust  : le client veut ajuster (le sourceur réoriente le brief)
--- NULL = pas encore présenté au client (défaut).
---
--- `client_feedback_note` = motif / retour libre du client (saisi par le
--- sourceur, pas de portail client en V1). `client_feedback_at` = horodatage
--- du dernier changement de statut, pour l'affichage.
+-- Champs de suivi du process client une fois un candidat présenté :
+--   - client_status      : verdict client (retiré en 071 au profit du kanban)
+--   - client_feedback_note : retour / motif libre du client (saisi par le
+--     sourceur, pas de portail client en V1)
+--   - client_feedback_at : horodatage du dernier retour, pour l'affichage
 --
 -- Additif + nullable : aucun impact sur l'existant tant que non renseigné.
 

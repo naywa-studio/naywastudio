@@ -26,17 +26,6 @@ import { useWorkspace } from "../../layout"
 import { orgUsesClients } from "@/lib/org-type"
 import { detectOffLimitsForCandidate, type OffLimitsClientRef } from "@/lib/off-limits"
 
-type ClientStatus = "presented" | "retained" | "rejected" | "to_adjust"
-
-// Ordre + couleurs des statuts de retour client (dimension cabinet/ESN).
-const CLIENT_STATUS_ORDER: ClientStatus[] = ["presented", "retained", "rejected", "to_adjust"]
-const CLIENT_STATUS_META: Record<ClientStatus, { fg: string; bg: string; bd: string }> = {
-  presented: { fg: "var(--nw-primary)", bg: "rgba(124,99,200,0.10)", bd: "rgba(124,99,200,0.30)" },
-  retained:  { fg: "var(--nw-success)", bg: "rgba(34,197,94,0.10)",  bd: "rgba(34,197,94,0.30)" },
-  rejected:  { fg: "#912018",           bg: "rgba(217,45,32,0.08)",   bd: "rgba(217,45,32,0.28)" },
-  to_adjust: { fg: "#93370D",           bg: "rgba(245,158,11,0.10)",  bd: "rgba(245,158,11,0.32)" },
-}
-
 const copy = {
   fr: {
     chooseMission: "Choisir la mission",
@@ -99,17 +88,10 @@ const copy = {
     anonymizeJump: "Personnaliser et télécharger le CV anonymisé",
     clientFeedbackTitle: "Retour client",
     clientFeedbackFor: (name: string) => `Mission pour ${name}`,
-    clientFeedbackHint: "Une fois le candidat présenté au client, notez son verdict. Privé — aucun message n'est envoyé.",
-    clientStatusLabels: {
-      presented: "Présenté",
-      retained: "Retenu",
-      rejected: "Rejeté",
-      to_adjust: "À ajuster",
-    } as Record<ClientStatus, string>,
+    clientFeedbackHint: "Notez ici le retour du client sur ce candidat. Le verdict (présenté / recruté / écarté) se gère via l'étape de la shortlist. Privé — aucun message n'est envoyé.",
     clientNotePlaceholder: "Retour du client (optionnel) — ex : profil trop junior, revoir la fourchette…",
     clientNoteSaving: "Enregistrement…",
     clientFeedbackAtLabel: (date: string) => `Mis à jour le ${date}`,
-    clientFeedbackClear: "Effacer le retour",
   },
   en: {
     chooseMission: "Choose the mission",
@@ -172,17 +154,10 @@ const copy = {
     anonymizeJump: "Customize and download the anonymized CV",
     clientFeedbackTitle: "Client feedback",
     clientFeedbackFor: (name: string) => `Mission for ${name}`,
-    clientFeedbackHint: "Once the candidate is presented to the client, record their verdict. Private — no message is sent.",
-    clientStatusLabels: {
-      presented: "Presented",
-      retained: "Retained",
-      rejected: "Rejected",
-      to_adjust: "To adjust",
-    } as Record<ClientStatus, string>,
+    clientFeedbackHint: "Record the client's feedback on this candidate here. The verdict (presented / recruited / dropped) is managed via the shortlist stage. Private — no message is sent.",
     clientNotePlaceholder: "Client's feedback (optional) — e.g. profile too junior, revise the range…",
     clientNoteSaving: "Saving…",
     clientFeedbackAtLabel: (date: string) => `Updated on ${date}`,
-    clientFeedbackClear: "Clear feedback",
   },
 }
 
@@ -523,28 +498,6 @@ export default function MatchPage() {
     if (res.ok) setMatch((prev) => prev ? { ...prev, salary_expectation_brut: val } : prev)
   }
 
-  // Retour client : bascule le statut (reclic sur le statut actif = efface).
-  // Optimiste, horodatage géré côté serveur.
-  const saveClientStatus = async (next: ClientStatus) => {
-    if (isReadOnly) return
-    const target: ClientStatus | null = match.client_status === next ? null : next
-    const prevStatus = match.client_status ?? null
-    setMatch((prev) => prev ? { ...prev, client_status: target } : prev)
-    const res = await fetch(`/api/match/${match.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ client_status: target }),
-    })
-    if (!res.ok) {
-      setMatch((prev) => prev ? { ...prev, client_status: prevStatus } : prev)
-    } else {
-      const data = await res.json().catch(() => null)
-      if (data?.match) {
-        setMatch((prev) => prev ? { ...prev, client_feedback_at: data.match.client_feedback_at ?? null } : prev)
-      }
-    }
-  }
-
   // Sauvegarde le motif / retour libre du client. No-op si inchangé.
   const saveClientNote = async () => {
     if (isReadOnly) return
@@ -557,7 +510,10 @@ export default function MatchPage() {
       body: JSON.stringify({ client_feedback_note: val }),
     })
     setClientSaving(false)
-    if (res.ok) setMatch((prev) => prev ? { ...prev, client_feedback_note: val } : prev)
+    if (res.ok) {
+      const data = await res.json().catch(() => null)
+      setMatch((prev) => prev ? { ...prev, client_feedback_note: val, client_feedback_at: data?.match?.client_feedback_at ?? prev.client_feedback_at } : prev)
+    }
   }
 
   // Client rattaché à la mission (cabinet/ESN). Affiché seulement si l'org
@@ -912,34 +868,9 @@ export default function MatchPage() {
                   {t.clientFeedbackFor(missionClient.name)}
                 </span>
               </div>
-              <p style={{ margin: "0 0 12px", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
+              <p style={{ margin: "0 0 10px", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
                 {t.clientFeedbackHint}
               </p>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {CLIENT_STATUS_ORDER.map((st) => {
-                  const active = match.client_status === st
-                  const m = CLIENT_STATUS_META[st]
-                  return (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() => saveClientStatus(st)}
-                      disabled={isReadOnly}
-                      title={isReadOnly ? t.readOnlyLabel : undefined}
-                      style={{
-                        fontSize: 12.5, fontWeight: 700, padding: "7px 14px", borderRadius: 99,
-                        cursor: isReadOnly ? "not-allowed" : "pointer",
-                        color: active ? m.fg : "var(--nw-text-muted)",
-                        background: active ? m.bg : "white",
-                        border: `1px solid ${active ? m.bd : "var(--nw-border)"}`,
-                        fontFamily: "inherit", transition: "all 0.12s ease",
-                      }}
-                    >
-                      {t.clientStatusLabels[st]}
-                    </button>
-                  )
-                })}
-              </div>
               <textarea
                 value={clientNote}
                 onChange={(e) => setClientNote(e.target.value)}
@@ -947,32 +878,21 @@ export default function MatchPage() {
                 readOnly={isReadOnly}
                 disabled={isReadOnly}
                 placeholder={t.clientNotePlaceholder}
-                rows={2}
+                rows={3}
                 style={{
-                  width: "100%", marginTop: 12, padding: "9px 12px", fontSize: 13,
+                  width: "100%", padding: "9px 12px", fontSize: 13,
                   borderRadius: 9, border: "1px solid var(--nw-primary-100)", outline: "none",
                   fontFamily: "inherit", resize: "vertical", boxSizing: "border-box",
                   background: isReadOnly ? "#F3F0FA" : "white", cursor: isReadOnly ? "not-allowed" : "text",
                 }}
               />
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 11, color: "var(--nw-text-muted)" }}>
-                  {clientSaving
-                    ? t.clientNoteSaving
-                    : match.client_feedback_at
-                      ? t.clientFeedbackAtLabel(new Date(match.client_feedback_at).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US"))
-                      : ""}
-                </span>
-                {match.client_status && !isReadOnly && (
-                  <button
-                    type="button"
-                    onClick={() => saveClientStatus(match.client_status as ClientStatus)}
-                    style={{ fontSize: 11, color: "var(--nw-text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "inherit", padding: 0 }}
-                  >
-                    {t.clientFeedbackClear}
-                  </button>
-                )}
-              </div>
+              <span style={{ display: "block", marginTop: 6, fontSize: 11, color: "var(--nw-text-muted)" }}>
+                {clientSaving
+                  ? t.clientNoteSaving
+                  : match.client_feedback_at
+                    ? t.clientFeedbackAtLabel(new Date(match.client_feedback_at).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US"))
+                    : ""}
+              </span>
             </section>
           )}
 
