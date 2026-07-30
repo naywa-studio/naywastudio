@@ -681,6 +681,14 @@ export type Database = {
           reject_reason: 'too_expensive' | 'not_available' | 'wrong_stack' | 'seniority_mismatch' | 'location_mismatch' | 'other' | null
           /** Note libre du sourceur, optionnelle (utile quand reject_reason=other). */
           reject_reason_note: string | null
+          /** Retour CLIENT une fois le candidat présenté (segment cabinet/ESN,
+           *  dimension orthogonale au pipeline interne). NULL = pas encore
+           *  présenté. Voir migration 070. */
+          client_status: 'presented' | 'retained' | 'rejected' | 'to_adjust' | null
+          /** Motif / retour libre du client, saisi par le sourceur. */
+          client_feedback_note: string | null
+          /** Horodatage du dernier changement de client_status. */
+          client_feedback_at: string | null
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -708,6 +716,9 @@ export type Database = {
           pricing_avantages_override?: PricingDefaultAvantages | null
           reject_reason?: 'too_expensive' | 'not_available' | 'wrong_stack' | 'seniority_mismatch' | 'location_mismatch' | 'other' | null
           reject_reason_note?: string | null
+          client_status?: 'presented' | 'retained' | 'rejected' | 'to_adjust' | null
+          client_feedback_note?: string | null
+          client_feedback_at?: string | null
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null
