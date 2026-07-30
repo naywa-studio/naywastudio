@@ -61,6 +61,12 @@ function significantTokens(normalized: string): string[] {
   return normalized.split(" ").filter((tk) => tk.length > 0 && !LEGAL_TOKENS.has(tk))
 }
 
+/** Forme « collée » (tokens signifiants sans espace) — rapproche « SwissLife »
+ *  de « Swiss Life ». */
+function collapsed(tokens: string[]): string {
+  return tokens.join("")
+}
+
 /** Nettoie un domaine (retire protocole / www / chemin, minuscule). */
 export function normalizeDomain(raw: string | null | undefined): string {
   if (!raw) return ""
@@ -99,7 +105,9 @@ export function detectOffLimits(
   const candDomain = normalizeDomain(emailDomain)
   if (!normCompany && !candDomain) return { verdict: "none", client: null }
 
-  const compTokens = new Set(significantTokens(normCompany))
+  const compTokenList = significantTokens(normCompany)
+  const compTokens = new Set(compTokenList)
+  const compCollapsed = collapsed(compTokenList)
 
   let best: OffLimitsResult = { verdict: "none", client: null }
   const consider = (verdict: OffLimitsVerdict, client: OffLimitsClientRef) => {
@@ -126,11 +134,23 @@ export function detectOffLimits(
       if (!normName) continue
       if (normName === normCompany) { consider("confirmed", client); break }
 
-      const nameTokens = new Set(significantTokens(normName))
+      const nameTokenList = significantTokens(normName)
+      const nameTokens = new Set(nameTokenList)
+      const nameCollapsed = collapsed(nameTokenList)
       if (nameTokens.size === 0 || compTokens.size === 0) continue
 
+      // Forme collée identique (« SwissLife » == « Swiss Life ») → confirmé.
+      if (compCollapsed && nameCollapsed && compCollapsed === nameCollapsed) {
+        consider("confirmed", client); break
+      }
       // Sous-ensemble de tokens (« engie » ⊂ « engie solutions ») → possible.
       if (isSubset(nameTokens, compTokens) || isSubset(compTokens, nameTokens)) {
+        consider("possible", client)
+        continue
+      }
+      // Forme collée : l'une contient l'autre (assez longue) → possible.
+      if (compCollapsed.length >= 5 && nameCollapsed.length >= 5
+          && (compCollapsed.includes(nameCollapsed) || nameCollapsed.includes(compCollapsed))) {
         consider("possible", client)
         continue
       }
