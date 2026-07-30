@@ -39,6 +39,8 @@ import { MissionShortlist } from "@/components/workspace/MissionShortlist"
 import { JobForm } from "../page"
 import { useWorkspace } from "../../layout"
 import { getCapabilities } from "@/lib/capabilities"
+import { orgUsesClients } from "@/lib/org-type"
+import { detectOffLimits, type OffLimitsClientRef, type OffLimitsVerdict } from "@/lib/off-limits"
 
 const copy = {
   fr: {
@@ -191,6 +193,8 @@ export default function JobDetailPage() {
 
   const [job, setJob] = useState<Job | null>(null)
   const [clientName, setClientName] = useState<string | null>(null)
+  // Annuaire complet (nom + alias + domaine) pour la détection off-limits.
+  const [clientDirectory, setClientDirectory] = useState<OffLimitsClientRef[]>([])
   const [rows, setRows] = useState<AssessmentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -242,6 +246,30 @@ export default function JobDetailPage() {
     })()
     return () => { cancelled = true }
   }, [clientId])
+
+  // Annuaire clients (cabinet/ESN) pour l'off-limits : employeur actuel d'un
+  // candidat ∈ un de nos clients → alerte de conflit. RLS org-scopée.
+  const usesClients = organization ? orgUsesClients(organization.org_type) : false
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      if (!usesClients) { if (!cancelled) setClientDirectory([]); return }
+      const sb = getSupabase()
+      const { data } = await sb.from("clients").select("id, name, aliases, domain")
+      if (!cancelled && data) setClientDirectory(data as OffLimitsClientRef[])
+    })()
+    return () => { cancelled = true }
+  }, [usesClients])
+
+  const offLimitsFor = useCallback(
+    (r: AssessmentRow): { verdict: Exclude<OffLimitsVerdict, "none">; clientName: string } | null => {
+      if (clientDirectory.length === 0) return null
+      const res = detectOffLimits(r.candidate?.current_company, null, clientDirectory)
+      if (res.verdict === "none" || !res.client) return null
+      return { verdict: res.verdict, clientName: res.client.name }
+    },
+    [clientDirectory],
+  )
 
   useEffect(() => {
     let mounted = true
@@ -518,6 +546,7 @@ export default function JobDetailPage() {
           job={job}
           rows={rows}
           isReadOnly={isReadOnly}
+          clientDirectory={clientDirectory}
           organization={{
             name: organization?.name ?? "",
             brand_name: organization?.brand_name ?? null,
@@ -729,6 +758,7 @@ export default function JobDetailPage() {
                   mainCriteria={mainCriteria}
                   onTogglePipeline={togglePipeline}
                   readOnly={isReadOnly}
+                  offLimits={offLimitsFor(r)}
                 />
               ))}
 
@@ -766,6 +796,7 @@ export default function JobDetailPage() {
                           mainCriteria={mainCriteria}
                           onTogglePipeline={togglePipeline}
                           readOnly={isReadOnly}
+                          offLimits={offLimitsFor(r)}
                         />
                       ))}
                     </div>

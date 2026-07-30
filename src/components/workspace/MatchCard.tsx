@@ -72,9 +72,22 @@ interface Props {
   onTogglePipeline: (id: string, next: boolean) => void
   /** Lecture seule : le toggle pipeline est grisé (mutation bloquée serveur). */
   readOnly?: boolean
+  /** Conflit off-limits : le candidat travaille chez un de nos clients. */
+  offLimits?: { verdict: "possible" | "confirmed"; clientName: string } | null
 }
 
-export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = false }: Props) {
+const OFF_LIMITS_COPY = {
+  fr: {
+    confirmed: (c: string) => `Off-limits — en poste chez ${c}`,
+    possible: (c: string) => `Conflit possible — proche de ${c}`,
+  },
+  en: {
+    confirmed: (c: string) => `Off-limits — currently at ${c}`,
+    possible: (c: string) => `Possible conflict — close to ${c}`,
+  },
+} as const
+
+export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = false, offLimits = null }: Props) {
   const { lang } = useLanguage()
   const t = copy[lang]
   const c = row.candidate
@@ -121,6 +134,28 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = fals
             <p style={{ margin: "2px 0 0", fontSize: 11.5, color: ui.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {c.current_title}{c.current_company ? ` · ${c.current_company}` : ""}
             </p>
+          )}
+          {offLimits && (
+            <span
+              title={OFF_LIMITS_COPY[lang][offLimits.verdict](offLimits.clientName)}
+              style={{
+                marginTop: 4,
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "2px 8px", borderRadius: 99, maxWidth: "100%",
+                fontSize: 10.5, fontWeight: 700, letterSpacing: "0.02em",
+                color: offLimits.verdict === "confirmed" ? "#B42318" : "#B54708",
+                background: offLimits.verdict === "confirmed" ? "rgba(217,45,32,0.08)" : "rgba(245,158,11,0.10)",
+                border: `1px solid ${offLimits.verdict === "confirmed" ? "rgba(217,45,32,0.28)" : "rgba(245,158,11,0.32)"}`,
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 16 16" style={{ flexShrink: 0 }} aria-hidden="true">
+                <path d="M8 1.5L15 14H1L8 1.5Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                <path d="M8 6.2v3.2M8 11.4h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {OFF_LIMITS_COPY[lang][offLimits.verdict](offLimits.clientName)}
+              </span>
+            </span>
           )}
         </div>
         {/* Score = héros de la carte : gros chiffre + tier en dessous. */}

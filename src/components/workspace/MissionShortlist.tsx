@@ -31,6 +31,28 @@ import { rejectReasonLabel } from "@/lib/reject-reasons"
 import type { Lang } from "@/lib/i18n/LanguageContext"
 import { AnonymizeSettings, type AnonymizeBranding } from "@/components/workspace/AnonymizeSettings"
 import { type AnonymizeTemplate, readOrgDefaults } from "@/components/workspace/anonymize/types"
+import { detectOffLimits, type OffLimitsClientRef } from "@/lib/off-limits"
+
+type OffLimitsBadge = { verdict: "possible" | "confirmed"; clientName: string } | null
+
+/** Off-limits d'un candidat vs l'annuaire clients (helper pur, réutilisé par carte). */
+function offLimitsFor(company: string | null | undefined, dir: OffLimitsClientRef[]): OffLimitsBadge {
+  if (dir.length === 0) return null
+  const res = detectOffLimits(company, null, dir)
+  if (res.verdict === "none" || !res.client) return null
+  return { verdict: res.verdict, clientName: res.client.name }
+}
+
+const OFF_LIMITS_LABEL = {
+  fr: {
+    confirmed: (c: string) => `Off-limits — en poste chez ${c}`,
+    possible: (c: string) => `Conflit possible — proche de ${c}`,
+  },
+  en: {
+    confirmed: (c: string) => `Off-limits — currently at ${c}`,
+    possible: (c: string) => `Possible conflict — close to ${c}`,
+  },
+} as const
 
 /** Branding minimal de l'org nécessaire à l'anonymisation (gabarit + aperçu). */
 export interface ShortlistOrg {
@@ -217,10 +239,12 @@ interface Props {
   brandingHref?: string | null
   /** Rendu optimiste : la page mission met à jour sa propre liste `rows`. */
   onLocalUpdate: (rowId: string, patch: Partial<MatchAssessment>) => void
+  /** Annuaire clients (cabinet/ESN) pour l'alerte off-limits. */
+  clientDirectory?: OffLimitsClientRef[]
   lang: Lang
 }
 
-export function MissionShortlist({ job, rows, isReadOnly, organization, brandingHref, onLocalUpdate, lang }: Props) {
+export function MissionShortlist({ job, rows, isReadOnly, organization, brandingHref, onLocalUpdate, clientDirectory = [], lang }: Props) {
   const t = copy[lang]
   const [filter, setFilter] = useState<"all" | Group>("all")
   const [viewMode, setViewMode] = useState<"gallery" | "kanban">("gallery")
@@ -589,6 +613,7 @@ export function MissionShortlist({ job, rows, isReadOnly, organization, branding
                     canDownload={!isReadOnly}
                     downloadingOne={downloading === row.candidate_id}
                     onDownloadOne={() => void download([row.candidate_id], row.candidate_id)}
+                    offLimits={offLimitsFor(row.candidate?.current_company, clientDirectory)}
                     lang={lang}
                     t={t}
                   />
@@ -652,7 +677,7 @@ export function MissionShortlist({ job, rows, isReadOnly, organization, branding
 
 function ShortlistCard({
   row, isReadOnly, saving, onSelectStage, selectMode, isSelected, onToggleSelect,
-  canDownload, downloadingOne, onDownloadOne, lang, t,
+  canDownload, downloadingOne, onDownloadOne, offLimits, lang, t,
 }: {
   row: AssessmentRow
   isReadOnly: boolean
@@ -664,6 +689,7 @@ function ShortlistCard({
   canDownload: boolean
   downloadingOne: boolean
   onDownloadOne: () => void
+  offLimits: OffLimitsBadge
   lang: Lang
   t: (typeof copy)[Lang]
 }) {
@@ -715,6 +741,28 @@ function ShortlistCard({
           }}>
             {subtitle}
           </p>
+          {offLimits && (
+            <span
+              title={OFF_LIMITS_LABEL[lang][offLimits.verdict](offLimits.clientName)}
+              style={{
+                marginTop: 5,
+                display: "inline-flex", alignItems: "center", gap: 5, maxWidth: "100%",
+                padding: "2px 8px", borderRadius: 99,
+                fontSize: 10, fontWeight: 700, letterSpacing: "0.02em",
+                color: offLimits.verdict === "confirmed" ? "#B42318" : "#B54708",
+                background: offLimits.verdict === "confirmed" ? "rgba(217,45,32,0.08)" : "rgba(245,158,11,0.10)",
+                border: `1px solid ${offLimits.verdict === "confirmed" ? "rgba(217,45,32,0.28)" : "rgba(245,158,11,0.32)"}`,
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 16 16" style={{ flexShrink: 0 }} aria-hidden="true">
+                <path d="M8 1.5L15 14H1L8 1.5Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                <path d="M8 6.2v3.2M8 11.4h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {OFF_LIMITS_LABEL[lang][offLimits.verdict](offLimits.clientName)}
+              </span>
+            </span>
+          )}
           </div>
         </div>
         {row.match_tier && (
