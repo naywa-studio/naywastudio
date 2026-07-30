@@ -6,7 +6,7 @@
 --   * off-limits (comparer l'employeur actuel d'un candidat à cet annuaire)
 --   * feedback client + préférences récurrentes par client
 --
--- `aliases` stocke les variantes de nom (ENGIE / Engie Solutions / GDF Suez)
+-- `aliases` stocke les variantes de nom (Acme / Acme Solutions / Groupe Acme)
 -- pour fiabiliser la détection off-limits sans LLM au runtime.
 --
 -- Accès : org-scopé par RLS (comme sectors/jobs). Tout membre de l'org y a
@@ -17,8 +17,8 @@ create table if not exists public.clients (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations (id) on delete cascade,
   name text not null,
-  -- Domaine principal du client (ex "engie.com"), optionnel. Sert de signal
-  -- fort pour l'off-limits (email candidat @engie.com ↔ client engie.com).
+  -- Domaine principal du client (ex "acme.com"), optionnel. Sert de signal
+  -- fort pour l'off-limits (email candidat @acme.com ↔ client acme.com).
   domain text,
   -- Variantes de nom connues, pour la détection off-limits (lot 2).
   aliases text[] not null default '{}',
@@ -40,7 +40,7 @@ create policy clients_org_all on public.clients
 
 create index if not exists clients_org_idx on public.clients (organization_id);
 
--- Unicité insensible à la casse par org : évite « Engie » vs « engie ».
+-- Unicité insensible à la casse par org : évite « Acme » vs « acme ».
 create unique index if not exists clients_org_name_lower_idx
   on public.clients (organization_id, lower(name));
 
@@ -53,7 +53,7 @@ alter table public.jobs
 create index if not exists jobs_client_idx on public.jobs (client_id);
 
 comment on table public.clients is 'Annuaire des clients d''une org (cabinet/ESN). Org-scopé RLS. Base off-limits + feedback client.';
-comment on column public.clients.aliases is 'Variantes de nom pour la détection off-limits (ENGIE / Engie Solutions).';
+comment on column public.clients.aliases is 'Variantes de nom pour la détection off-limits (Acme / Acme Solutions).';
 comment on column public.jobs.client_id is 'Client concerné par la mission. NULL = sans client.';
 
 -- Garde updated_at à jour sur UPDATE (réutilise le trigger générique si présent,

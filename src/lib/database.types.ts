@@ -595,7 +595,7 @@ export type Database = {
           id: string
           organization_id: string
           name: string
-          /** Domaine principal (ex "engie.com"), optionnel. Signal off-limits. */
+          /** Domaine principal (ex "acme.com"), optionnel. Signal off-limits. */
           domain: string | null
           /** Variantes de nom connues pour la détection off-limits. */
           aliases: string[]

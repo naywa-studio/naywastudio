@@ -314,7 +314,7 @@ export default function MissionsPage() {
   const router = useRouter()
   const { lang } = useLanguage()
   const t = copy[lang]
-  const { isReadOnly } = useWorkspace()
+  const { isReadOnly, organization } = useWorkspace()
   const sb = useMemo(() => getSupabase(), [])
   const [jobs, setJobs] = useState<Job[]>([])
   const [visuals, setVisuals] = useState<Record<string, MissionVisual>>({})
@@ -323,6 +323,8 @@ export default function MissionsPage() {
   const [query, setQuery] = useState("")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [members, setMembers] = useState<Map<string, string>>(new Map())
+  const [clientsById, setClientsById] = useState<Map<string, string>>(new Map())
+  const showClients = organization ? orgUsesClients(organization.org_type) : false
 
   useEffect(() => {
     let mounted = true
@@ -435,6 +437,21 @@ export default function MissionsPage() {
     return () => { mounted = false; if (channel) sb.removeChannel(channel) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sb])
+
+  // Clients de l'org (cabinet/ESN) → map id→nom pour les pastilles des cartes.
+  // Effet dédié : se déclenche quand `organization` (donc showClients) est prêt.
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      if (!showClients) { if (mounted) setClientsById(new Map()); return }
+      const { data } = await sb.from("clients").select("id, name")
+      if (!mounted || !data) return
+      const cm = new Map<string, string>()
+      for (const c of data as Array<{ id: string; name: string }>) cm.set(c.id, c.name)
+      setClientsById(cm)
+    })()
+    return () => { mounted = false }
+  }, [sb, showClients])
 
   const filteredJobs = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -595,6 +612,7 @@ export default function MissionsPage() {
                     isMine
                     jobs={groupedJobs.mine}
                     visuals={visuals}
+                    clientsById={clientsById}
                   />
                 )}
                 {groupedJobs.others.map((g) => (
@@ -603,6 +621,7 @@ export default function MissionsPage() {
                     title={t.missionsOf(g.firstName)}
                     jobs={g.missions}
                     visuals={visuals}
+                    clientsById={clientsById}
                   />
                 ))}
               </div>
@@ -618,6 +637,7 @@ export default function MissionsPage() {
                     key={j.id}
                     job={j}
                     visual={visuals[j.id]}
+                    clientName={j.client_id ? clientsById.get(j.client_id) ?? null : null}
                     delay={Math.min(i * 0.03, 0.2)}
                   />
                 ))}
@@ -633,12 +653,13 @@ export default function MissionsPage() {
 /* ─── Group de missions par créateur ──────────────────────────────── */
 
 function MissionGroup({
-  title, jobs, visuals, isMine,
+  title, jobs, visuals, isMine, clientsById,
 }: {
   title: string
   jobs: Job[]
   visuals: Record<string, MissionVisual>
   isMine?: boolean
+  clientsById: Map<string, string>
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -677,6 +698,7 @@ function MissionGroup({
             key={j.id}
             job={j}
             visual={visuals[j.id]}
+            clientName={j.client_id ? clientsById.get(j.client_id) ?? null : null}
             delay={Math.min(i * 0.03, 0.2)}
           />
         ))}
@@ -802,10 +824,11 @@ function seniorityLabel(job: Job, lang: Lang): string | null {
 
 /* ─── Job card ─────────────────────────────────────────────────── */
 
-function JobCard({ job, visual, delay }: {
+function JobCard({ job, visual, delay, clientName = null }: {
   job: Job
   visual: MissionVisual | undefined
   delay: number
+  clientName?: string | null
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -851,6 +874,21 @@ function JobCard({ job, visual, delay }: {
         </div>
         <StatusChip status={job.status} />
       </div>
+
+      {clientName && (
+        <span style={{
+          alignSelf: "flex-start",
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "2.5px 9px", borderRadius: 100,
+          background: "var(--nw-primary-50)", color: "var(--nw-primary)",
+          fontSize: 10.5, fontWeight: 700, maxWidth: "100%",
+        }}>
+          <svg width="10" height="10" viewBox="0 0 16 16" style={{ flexShrink: 0 }} aria-hidden="true">
+            <path d="M2 13V6l6-3.5L14 6v7M2 13h12M2 13H1m13 0h1M6 13V9.5h4V13" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clientName}</span>
+        </span>
+      )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, fontSize: 11, color: "var(--nw-text-muted)" }}>
         {job.location && <Meta>{job.location}</Meta>}
@@ -1567,7 +1605,7 @@ const CLIENT_PICKER_COPY = {
     hint: "Optionnel — le client pour qui vous recrutez.",
     none: "— Sans client —",
     add: "+ Nouveau client",
-    namePh: "Nom du client (ex : ENGIE)",
+    namePh: "Nom de l'entreprise cliente",
     domainPh: "Domaine (optionnel)",
     create: "Créer",
     cancel: "Annuler",
@@ -1578,7 +1616,7 @@ const CLIENT_PICKER_COPY = {
     hint: "Optional — the client you are recruiting for.",
     none: "— No client —",
     add: "+ New client",
-    namePh: "Client name (e.g. ENGIE)",
+    namePh: "Client company name",
     domainPh: "Domain (optional)",
     create: "Create",
     cancel: "Cancel",
