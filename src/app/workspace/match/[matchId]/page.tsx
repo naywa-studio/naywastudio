@@ -23,6 +23,8 @@ import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 import { useWorkspace } from "../../layout"
+import { orgUsesClients } from "@/lib/org-type"
+import { detectOffLimitsForCandidate, type OffLimitsClientRef } from "@/lib/off-limits"
 
 const copy = {
   fr: {
@@ -264,10 +266,11 @@ export default function MatchPage() {
   const sb = useMemo(() => getSupabase(), [])
   // Lecture seule : anonymisation, compose/envoi, pipeline et prétention
   // salariale sont bloqués côté serveur (requireActiveAccess). On grise l'UI.
-  const { isReadOnly } = useWorkspace()
+  const { isReadOnly, organization } = useWorkspace()
 
   const [match, setMatch] = useState<LoadedMatch | null>(null)
   const [candidate, setCandidate] = useState<Candidate | null>(null)
+  const [clientDirectory, setClientDirectory] = useState<OffLimitsClientRef[]>([])
   const [siblingMatches, setSiblingMatches] = useState<MatchSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -301,6 +304,18 @@ export default function MatchPage() {
     })()
     return () => { mounted = false }
   }, [matchId])
+
+  // Annuaire clients (cabinet/ESN) pour l'alerte off-limits.
+  const usesClients = organization ? orgUsesClients(organization.org_type) : false
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      if (!usesClients) { if (mounted) setClientDirectory([]); return }
+      const { data } = await sb.from("clients").select("id, name, aliases, domain")
+      if (mounted && data) setClientDirectory(data as OffLimitsClientRef[])
+    })()
+    return () => { mounted = false }
+  }, [sb, usesClients])
 
   // Once we know who the candidate is, fetch all their matches so the
   // header dropdown can list every job they're paired with.
@@ -479,6 +494,14 @@ export default function MatchPage() {
   const dimEntries = Object.entries(dims).filter(([, v]) => typeof v === "number") as [keyof ScoreDimensions, number][]
   const isManual = match.score == null
 
+  const offLimits = (() => {
+    if (clientDirectory.length === 0) return null
+    const res = detectOffLimitsForCandidate(candidate.parsed_cv, candidate.current_company, clientDirectory)
+    return res.verdict === "none" || !res.client
+      ? null
+      : { verdict: res.verdict, clientName: res.client.name }
+  })()
+
   return (
     <main style={{
       padding: "32px 24px 80px",
@@ -497,6 +520,36 @@ export default function MatchPage() {
           {t.pipelineArrow}
         </Link>
       </div>
+
+      {offLimits && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 14, padding: "12px 16px", borderRadius: 12,
+            display: "flex", alignItems: "flex-start", gap: 11,
+            color: offLimits.verdict === "confirmed" ? "#912018" : "#93370D",
+            background: offLimits.verdict === "confirmed" ? "rgba(217,45,32,0.07)" : "rgba(245,158,11,0.09)",
+            border: `1px solid ${offLimits.verdict === "confirmed" ? "rgba(217,45,32,0.28)" : "rgba(245,158,11,0.32)"}`,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 16 16" style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true">
+            <path d="M8 1.5L15 14H1L8 1.5Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+            <path d="M8 6.2v3.2M8 11.4h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+            <strong style={{ fontWeight: 800 }}>
+              {offLimits.verdict === "confirmed"
+                ? (lang === "fr" ? "Off-limits — conflit d'intérêt" : "Off-limits — conflict of interest")
+                : (lang === "fr" ? "Conflit possible — à vérifier" : "Possible conflict — to verify")}
+            </strong>
+            <span style={{ display: "block", marginTop: 2 }}>
+              {lang === "fr"
+                ? `Ce candidat est actuellement en poste chez ${offLimits.clientName}, un de vos clients. Le présenter à un autre client peut poser un problème d'off-limits.`
+                : `This candidate currently works at ${offLimits.clientName}, one of your clients. Presenting them to another client may raise an off-limits issue.`}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Header band — one fiche match per candidate. The job picker
           replaces the static title: switching jobs navigates to the

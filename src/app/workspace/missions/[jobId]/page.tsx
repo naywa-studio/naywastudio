@@ -40,7 +40,7 @@ import { JobForm } from "../page"
 import { useWorkspace } from "../../layout"
 import { getCapabilities } from "@/lib/capabilities"
 import { orgUsesClients } from "@/lib/org-type"
-import { detectOffLimits, type OffLimitsClientRef, type OffLimitsVerdict } from "@/lib/off-limits"
+import { detectOffLimitsForCandidate, type OffLimitsClientRef, type OffLimitsVerdict } from "@/lib/off-limits"
 
 const copy = {
   fr: {
@@ -264,7 +264,9 @@ export default function JobDetailPage() {
   const offLimitsFor = useCallback(
     (r: AssessmentRow): { verdict: Exclude<OffLimitsVerdict, "none">; clientName: string } | null => {
       if (clientDirectory.length === 0) return null
-      const res = detectOffLimits(r.candidate?.current_company, null, clientDirectory)
+      const res = detectOffLimitsForCandidate(
+        r.candidate?.parsed_cv, r.candidate?.current_company, clientDirectory,
+      )
       if (res.verdict === "none" || !res.client) return null
       return { verdict: res.verdict, clientName: res.client.name }
     },

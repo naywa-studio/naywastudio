@@ -20,6 +20,8 @@
  * décideur. On préfère un « à confirmer » de trop qu'un conflit manqué.
  */
 
+import type { ParsedCv } from "./database.types"
+
 export type OffLimitsVerdict = "none" | "possible" | "confirmed"
 
 export interface OffLimitsClientRef {
@@ -159,5 +161,68 @@ export function detectOffLimits(
     if (best.verdict === "confirmed") break
   }
 
+  return best
+}
+
+/** Une date de fin « vide » ou marquée en cours = poste ACTUEL. */
+function isOngoingEnd(end: string | null | undefined): boolean {
+  if (end === null || end === undefined) return true
+  const e = end.trim().toLowerCase()
+  if (e === "") return true
+  return /present|présent|aujourd|actuel|current|now|en cours|ongoing/.test(e)
+}
+
+/**
+ * Employeurs ACTUELS d'un candidat = expériences SANS date de fin (poste en
+ * cours). C'est la base fiable de l'off-limits : on ne veut PAS taguer un
+ * candidat qui a QUITTÉ un client.
+ *
+ * Fallback : si l'historique structuré est absent, on retombe sur
+ * `fallbackCompany` (current_company) — best effort. Mais si l'historique
+ * existe et qu'AUCUN poste n'est en cours, on renvoie [] (parti de partout →
+ * pas d'off-limits, même si current_company pointe un ancien poste).
+ */
+export function currentEmployers(
+  cv: ParsedCv | null | undefined,
+  fallbackCompany: string | null | undefined,
+): string[] {
+  const exp = cv?.experience ?? []
+  if (exp.length > 0) {
+    const ongoing = exp
+      .filter((e) => e && isOngoingEnd(e.end) && (e.company ?? "").trim().length > 0)
+      .map((e) => e.company.trim())
+    // dédoublonne en préservant l'ordre
+    return [...new Set(ongoing)]
+  }
+  const fb = (fallbackCompany ?? "").trim()
+  return fb ? [fb] : []
+}
+
+/**
+ * Off-limits d'un candidat (tenure-aware) : ne considère que ses employeurs
+ * ACTUELS + son domaine email. Renvoie le conflit le plus fort trouvé.
+ */
+export function detectOffLimitsForCandidate(
+  cv: ParsedCv | null | undefined,
+  fallbackCompany: string | null | undefined,
+  clients: OffLimitsClientRef[],
+): OffLimitsResult {
+  if (clients.length === 0) return { verdict: "none", client: null }
+  // Domaine de l'email (partie après @) — signal de CONFIRMATION à côté d'un
+  // employeur actuel nommé, pas un déclencheur seul (un email ne prouve pas
+  // qu'on est TOUJOURS en poste).
+  const rawEmail = (cv?.email ?? "").trim()
+  const at = rawEmail.lastIndexOf("@")
+  const domain = at >= 0 ? normalizeDomain(rawEmail.slice(at + 1)) : ""
+  const employers = currentEmployers(cv, fallbackCompany)
+
+  let best: OffLimitsResult = { verdict: "none", client: null }
+  const rank = (r: OffLimitsResult) => VERDICT_RANK[r.verdict]
+
+  for (const co of employers) {
+    const r = detectOffLimits(co, domain, clients)
+    if (rank(r) > rank(best)) best = r
+    if (best.verdict === "confirmed") return best
+  }
   return best
 }

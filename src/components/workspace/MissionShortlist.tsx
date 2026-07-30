@@ -31,14 +31,15 @@ import { rejectReasonLabel } from "@/lib/reject-reasons"
 import type { Lang } from "@/lib/i18n/LanguageContext"
 import { AnonymizeSettings, type AnonymizeBranding } from "@/components/workspace/AnonymizeSettings"
 import { type AnonymizeTemplate, readOrgDefaults } from "@/components/workspace/anonymize/types"
-import { detectOffLimits, type OffLimitsClientRef } from "@/lib/off-limits"
+import { detectOffLimitsForCandidate, type OffLimitsClientRef } from "@/lib/off-limits"
 
 type OffLimitsBadge = { verdict: "possible" | "confirmed"; clientName: string } | null
 
-/** Off-limits d'un candidat vs l'annuaire clients (helper pur, réutilisé par carte). */
-function offLimitsFor(company: string | null | undefined, dir: OffLimitsClientRef[]): OffLimitsBadge {
-  if (dir.length === 0) return null
-  const res = detectOffLimits(company, null, dir)
+/** Off-limits d'un candidat vs l'annuaire clients (tenure-aware : employeurs
+ *  ACTUELS seulement). Helper pur, réutilisé par carte. */
+function offLimitsFor(candidate: Candidate | null, dir: OffLimitsClientRef[]): OffLimitsBadge {
+  if (dir.length === 0 || !candidate) return null
+  const res = detectOffLimitsForCandidate(candidate.parsed_cv, candidate.current_company, dir)
   if (res.verdict === "none" || !res.client) return null
   return { verdict: res.verdict, clientName: res.client.name }
 }
@@ -613,7 +614,7 @@ export function MissionShortlist({ job, rows, isReadOnly, organization, branding
                     canDownload={!isReadOnly}
                     downloadingOne={downloading === row.candidate_id}
                     onDownloadOne={() => void download([row.candidate_id], row.candidate_id)}
-                    offLimits={offLimitsFor(row.candidate?.current_company, clientDirectory)}
+                    offLimits={offLimitsFor(row.candidate, clientDirectory)}
                     lang={lang}
                     t={t}
                   />
