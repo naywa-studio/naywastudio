@@ -236,6 +236,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     anonymized_at: new Date().toISOString(),
   }).eq("id", candidate.id)
 
+  // Marqueur « présenté au client » par (candidat × mission) quand
+  // l'anonymisation vise une mission (fiche match) → Revue client. Première
+  // anonymisation seulement (on ne réécrit pas la date).
+  if (jobId) {
+    await admin.from("match_assessments")
+      .update({ anonymized_at: new Date().toISOString() })
+      .eq("job_id", jobId).eq("candidate_id", candidate.id).is("anonymized_at", null)
+  }
+
   // Two signed URLs : preview inline + download forcé.
   const [previewUrl, downloadUrl] = await Promise.all([
     r2SignedUrl({ bucket: "cv", path, callerOrgId: orgId, ttlSeconds: TTL_SECONDS }),

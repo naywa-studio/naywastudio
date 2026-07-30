@@ -4,63 +4,69 @@
  * Revue client — 3ᵉ niveau de l'entonnoir (segment cabinet/ESN).
  *
  * Candidats > Shortlist > Revue client. Vue focalisée sur les candidats qui
- * ont atteint le client : présentés, recrutés, écartés — avec le retour du
- * client et les motifs, pour une vision globale exploitable.
+ * ont atteint le client, avec une vision globale exploitable : présentés,
+ * recrutés, écartés + les motifs.
  *
- * Le VERDICT est le stade kanban (un seul entonnoir) :
- *   - Présenté au client = `offer`
- *   - Recruté            = `hired`
- *   - Écarté             = `rejected`
- * Le RETOUR libre du client vit dans `client_feedback_note` (indépendant du
- * verdict : un candidat « à ajuster » reste Présenté + une note).
+ * ENTRÉE SANS FRICTION : anonymiser un CV = le préparer pour le client. Dès
+ * qu'un candidat est anonymisé (batch shortlist ou fiche match), il apparaît
+ * ici dans « Anonymisés » — pas de bouton manuel « présenter ».
+ *
+ * ISSUES (verdict) = stade kanban : Recruté (`hired`) / Écarté (`rejected`,
+ * avec motif via le picker partagé). Un candidat sans issue reste dans
+ * « Anonymisés ». Le retour libre du client vit dans `client_feedback_note`.
  */
 
 import { useState } from "react"
 import Link from "next/link"
-import type { MatchAssessment, Candidate } from "@/lib/database.types"
+import type { MatchAssessment, Candidate, PipelineStage } from "@/lib/database.types"
 import { candidateRefLabel } from "@/lib/candidate-ref"
+import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
+import RejectReasonPicker from "@/components/workspace/RejectReasonPicker"
 
 type Lang = "fr" | "en"
 type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
 
-/** Les 3 stades « côté client » de l'entonnoir. */
-type ClientStage = "offer" | "hired" | "rejected"
-const CLIENT_STAGES: ClientStage[] = ["offer", "hired", "rejected"]
+type Section = "anonymises" | "hired" | "rejected"
+const SECTIONS: Section[] = ["anonymises", "hired", "rejected"]
 
-const STAGE_META: Record<ClientStage, { accent: string; bg: string; bd: string }> = {
-  offer:    { accent: "var(--nw-primary)", bg: "rgba(124,99,200,0.06)", bd: "rgba(124,99,200,0.22)" },
-  hired:    { accent: "#0F766E",           bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.24)" },
-  rejected: { accent: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)", bd: "var(--nw-border)" },
+const SECTION_META: Record<Section, { accent: string; bg: string; bd: string }> = {
+  anonymises: { accent: "var(--nw-primary)", bg: "rgba(124,99,200,0.06)", bd: "rgba(124,99,200,0.22)" },
+  hired:      { accent: "#0F766E",           bg: "rgba(34,197,94,0.06)",  bd: "rgba(34,197,94,0.24)" },
+  rejected:   { accent: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)", bd: "var(--nw-border)" },
 }
 
 const copy = {
   fr: {
     header: (client: string) => `Suivi du process client — ${client}`,
-    intro: "Les candidats présentés au client et leur issue. Passez un candidat au stade « Présenté au client » depuis la Shortlist pour l'afficher ici.",
-    stageLabels: { offer: "Présenté au client", hired: "Recruté", rejected: "Écarté" } as Record<ClientStage, string>,
+    intro: "Un candidat apparaît ici dès que son CV est anonymisé (depuis la Shortlist ou une fiche match) — l'anonymisation vaut présentation. Marquez ensuite l'issue.",
+    sectionLabels: { anonymises: "Anonymisés · à présenter", hired: "Recrutés", rejected: "Écartés" } as Record<Section, string>,
     emptyTitle: "Aucun candidat présenté au client",
-    emptyBody: "Dans la Shortlist, faites passer un candidat au stade « Présenté au client » pour le suivre ici.",
+    emptyBody: "Anonymisez un CV depuis la Shortlist ou une fiche match : le candidat apparaîtra ici automatiquement.",
     score: "Score",
     matchSheet: "Fiche match",
-    notePlaceholder: "Retour du client (optionnel) — ex : profil trop junior, à ajuster, revoir la fourchette…",
-    noteLabel: "Retour du client",
+    recruited: "Recruté",
+    dropped: "Écarté",
+    notePlaceholder: "Retour du client (optionnel) — ex : à ajuster, revoir la fourchette…",
     saving: "Enregistrement…",
     readOnly: "Lecture seule",
     noName: "Candidat sans nom",
+    droppedFor: "Motif :",
   },
   en: {
     header: (client: string) => `Client process tracking — ${client}`,
-    intro: "Candidates presented to the client and their outcome. Move a candidate to the “Presented to client” stage from the Shortlist to show them here.",
-    stageLabels: { offer: "Presented to client", hired: "Recruited", rejected: "Dropped" } as Record<ClientStage, string>,
+    intro: "A candidate shows up here as soon as their CV is anonymized (from the Shortlist or a match sheet) — anonymizing means presenting. Then record the outcome.",
+    sectionLabels: { anonymises: "Anonymized · to present", hired: "Recruited", rejected: "Dropped" } as Record<Section, string>,
     emptyTitle: "No candidate presented to the client",
-    emptyBody: "In the Shortlist, move a candidate to the “Presented to client” stage to track them here.",
+    emptyBody: "Anonymize a CV from the Shortlist or a match sheet: the candidate will appear here automatically.",
     score: "Score",
     matchSheet: "Match sheet",
-    notePlaceholder: "Client's feedback (optional) — e.g. too junior, to adjust, revise the range…",
-    noteLabel: "Client feedback",
+    recruited: "Recruited",
+    dropped: "Dropped",
+    notePlaceholder: "Client's feedback (optional) — e.g. to adjust, revise the range…",
     saving: "Saving…",
     readOnly: "Read-only",
     noName: "Unnamed candidate",
+    droppedFor: "Reason:",
   },
 }
 
@@ -72,11 +78,46 @@ interface Props {
   lang: Lang
 }
 
+function sectionOf(row: AssessmentRow): Section {
+  if (row.pipeline_stage === "hired") return "hired"
+  if (row.pipeline_stage === "rejected") return "rejected"
+  return "anonymises"
+}
+
 export function ClientReview({ clientName, rows, isReadOnly, onLocalUpdate, lang }: Props) {
   const t = copy[lang]
+  const [rejecting, setRejecting] = useState<AssessmentRow | null>(null)
 
-  // Candidats ayant atteint le client = stades présenté / recruté / écarté.
-  const clientRows = rows.filter((r) => CLIENT_STAGES.includes(r.pipeline_stage as ClientStage))
+  // Candidats ayant atteint le client = anonymisés, OU déjà tranchés
+  // (recruté/écarté) même sans anonymisation formelle.
+  const clientRows = rows.filter(
+    (r) => r.anonymized_at != null || r.pipeline_stage === "hired" || r.pipeline_stage === "rejected",
+  )
+
+  // Passe un candidat à un stade (issue). Optimiste.
+  const patchStage = async (row: AssessmentRow, stage: PipelineStage, reason?: RejectReason | null, note?: string | null) => {
+    if (isReadOnly) return
+    const prev = row.pipeline_stage
+    onLocalUpdate(row.id, {
+      pipeline_stage: stage,
+      ...(stage === "rejected" ? { reject_reason: reason ?? null, reject_reason_note: note ?? null } : {}),
+    })
+    const res = await fetch(`/api/match/${row.id}/stage`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pipeline_stage: stage, ...(stage === "rejected" ? { reject_reason: reason, reject_reason_note: note } : {}) }),
+    })
+    if (!res.ok) onLocalUpdate(row.id, { pipeline_stage: prev })
+  }
+
+  // Bascule une issue : Recruté / Écarté (picker) ; reclic sur l'issue active
+  // = retour dans « Anonymisés » (stade en cours).
+  const toggleOutcome = (row: AssessmentRow, outcome: "hired" | "rejected") => {
+    if (isReadOnly) return
+    if (row.pipeline_stage === outcome) { void patchStage(row, "interview"); return }
+    if (outcome === "rejected") { setRejecting(row); return }
+    void patchStage(row, "hired")
+  }
 
   if (clientRows.length === 0) {
     return (
@@ -95,15 +136,15 @@ export function ClientReview({ clientName, rows, isReadOnly, onLocalUpdate, lang
         {t.intro}
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
-        {CLIENT_STAGES.map((stage) => {
-          const meta = STAGE_META[stage]
-          const list = clientRows.filter((r) => r.pipeline_stage === stage)
+        {SECTIONS.map((section) => {
+          const meta = SECTION_META[section]
+          const list = clientRows.filter((r) => sectionOf(r) === section)
           return (
-            <section key={stage} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <section key={section} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 4 }}>
                 <span style={{ width: 8, height: 8, borderRadius: 99, background: meta.accent }} />
                 <h3 style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "0.03em", textTransform: "uppercase", fontFamily: "var(--nw-font-mono)" }}>
-                  {t.stageLabels[stage]}
+                  {t.sectionLabels[section]}
                 </h3>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)" }}>{list.length}</span>
               </div>
@@ -111,24 +152,37 @@ export function ClientReview({ clientName, rows, isReadOnly, onLocalUpdate, lang
                 <div style={{ padding: "18px 12px", borderRadius: 12, border: "1px dashed var(--nw-border)", textAlign: "center", fontSize: 12, color: "var(--nw-text-muted)" }}>—</div>
               ) : (
                 list.map((row) => (
-                  <ReviewCard key={row.id} row={row} meta={meta} isReadOnly={isReadOnly} onLocalUpdate={onLocalUpdate} t={t} />
+                  <ReviewCard key={row.id} row={row} meta={meta} isReadOnly={isReadOnly} onLocalUpdate={onLocalUpdate} onToggle={toggleOutcome} lang={lang} t={t} />
                 ))
               )}
             </section>
           )
         })}
       </div>
+
+      <RejectReasonPicker
+        open={rejecting != null}
+        candidateName={rejecting?.candidate?.full_name?.trim() || t.noName}
+        onConfirm={(reason, note) => {
+          const row = rejecting
+          setRejecting(null)
+          if (row) void patchStage(row, "rejected", reason, note)
+        }}
+        onCancel={() => setRejecting(null)}
+      />
     </div>
   )
 }
 
 function ReviewCard({
-  row, meta, isReadOnly, onLocalUpdate, t,
+  row, meta, isReadOnly, onLocalUpdate, onToggle, lang, t,
 }: {
   row: AssessmentRow
   meta: { accent: string; bg: string; bd: string }
   isReadOnly: boolean
   onLocalUpdate: (rowId: string, patch: Partial<MatchAssessment>) => void
+  onToggle: (row: AssessmentRow, outcome: "hired" | "rejected") => void
+  lang: Lang
   t: (typeof copy)[Lang]
 }) {
   const [note, setNote] = useState(row.client_feedback_note ?? "")
@@ -136,19 +190,8 @@ function ReviewCard({
   const name = row.candidate?.full_name?.trim() || t.noName
   const subtitle = row.candidate?.current_title?.trim() || ""
   const ref = candidateRefLabel(row.candidate_id)
-
-  // Change de stade (verdict client = kanban). Optimiste.
-  const moveStage = async (stage: ClientStage) => {
-    if (isReadOnly || row.pipeline_stage === stage) return
-    const prev = row.pipeline_stage
-    onLocalUpdate(row.id, { pipeline_stage: stage })
-    const res = await fetch(`/api/match/${row.id}/stage`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pipeline_stage: stage }),
-    })
-    if (!res.ok) onLocalUpdate(row.id, { pipeline_stage: prev })
-  }
+  const isHired = row.pipeline_stage === "hired"
+  const isRejected = row.pipeline_stage === "rejected"
 
   // Sauvegarde le retour libre du client. No-op si inchangé.
   const saveNote = async () => {
@@ -167,6 +210,25 @@ function ReviewCard({
       onLocalUpdate(row.id, { client_feedback_note: val, client_feedback_at: data?.match?.client_feedback_at ?? null })
     }
   }
+
+  const outcomeBtn = (outcome: "hired" | "rejected", label: string, active: boolean) => (
+    <button
+      type="button"
+      onClick={() => onToggle(row, outcome)}
+      disabled={isReadOnly}
+      title={isReadOnly ? t.readOnly : undefined}
+      style={{
+        flex: 1, fontSize: 11.5, fontWeight: 700, padding: "6px 6px", borderRadius: 8,
+        cursor: isReadOnly ? "not-allowed" : "pointer",
+        color: active ? "white" : "var(--nw-text-muted)",
+        background: active ? (outcome === "hired" ? "#0F766E" : "var(--nw-text-muted)") : "white",
+        border: `1px solid ${active ? (outcome === "hired" ? "#0F766E" : "var(--nw-text-muted)") : "var(--nw-border)"}`,
+        fontFamily: "inherit", transition: "all 0.12s ease", lineHeight: 1.2,
+      }}
+    >
+      {label}
+    </button>
+  )
 
   return (
     <article style={{
@@ -188,32 +250,19 @@ function ReviewCard({
         )}
       </div>
 
-      {/* Sélecteur de verdict = stade kanban */}
+      {/* Issue : Recruté / Écarté (reclic = retour dans Anonymisés) */}
       <div style={{ display: "flex", gap: 6 }}>
-        {CLIENT_STAGES.map((st) => {
-          const active = row.pipeline_stage === st
-          const m = STAGE_META[st]
-          return (
-            <button
-              key={st}
-              type="button"
-              onClick={() => moveStage(st)}
-              disabled={isReadOnly}
-              title={isReadOnly ? t.readOnly : undefined}
-              style={{
-                flex: 1, fontSize: 11, fontWeight: 700, padding: "6px 4px", borderRadius: 8,
-                cursor: isReadOnly ? "not-allowed" : "pointer",
-                color: active ? "white" : "var(--nw-text-muted)",
-                background: active ? m.accent : "white",
-                border: `1px solid ${active ? m.accent : "var(--nw-border)"}`,
-                fontFamily: "inherit", transition: "all 0.12s ease", lineHeight: 1.2,
-              }}
-            >
-              {t.stageLabels[st]}
-            </button>
-          )
-        })}
+        {outcomeBtn("hired", t.recruited, isHired)}
+        {outcomeBtn("rejected", t.dropped, isRejected)}
       </div>
+
+      {/* Motif d'écart (picker partagé) */}
+      {isRejected && row.reject_reason && (
+        <p style={{ margin: 0, fontSize: 11.5, color: "var(--nw-text-muted)", fontStyle: "italic" }}>
+          {t.droppedFor} {rejectReasonLabel(row.reject_reason, lang)}
+          {row.reject_reason_note ? ` — ${row.reject_reason_note}` : ""}
+        </p>
+      )}
 
       {/* Retour libre du client */}
       <textarea

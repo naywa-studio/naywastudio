@@ -683,10 +683,14 @@ export type Database = {
           reject_reason_note: string | null
           /** Retour / motif libre du client une fois le candidat présenté
            *  (segment cabinet/ESN). Le verdict, lui, vit dans pipeline_stage
-           *  (offer=présenté, hired=recruté, rejected=écarté). Voir 070/071. */
+           *  (hired=recruté, rejected=écarté). Voir 070/071. */
           client_feedback_note: string | null
           /** Horodatage du dernier retour client. */
           client_feedback_at: string | null
+          /** Anonymisation du CV DANS LE CONTEXTE de cette mission = signal
+           *  « présenté au client ». Alimente la section Anonymisés de la
+           *  Revue client. Voir migration 072. */
+          anonymized_at: string | null
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -717,6 +721,7 @@ export type Database = {
           client_status?: 'presented' | 'retained' | 'rejected' | 'to_adjust' | null
           client_feedback_note?: string | null
           client_feedback_at?: string | null
+          anonymized_at?: string | null
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null

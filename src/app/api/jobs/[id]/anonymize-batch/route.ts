@@ -174,6 +174,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       await admin.from("candidates").update({
         anonymized_pdf_path: path, anonymized_at: new Date().toISOString(),
       }).eq("id", candidate.id)
+      // Marqueur « présenté au client » par (candidat × mission) → Revue
+      // client. Première anonymisation seulement (ne pas écraser la date).
+      await admin.from("match_assessments")
+        .update({ anonymized_at: new Date().toISOString() })
+        .eq("job_id", jobId).eq("candidate_id", candidate.id).is("anonymized_at", null)
     } catch {
       // Le stockage a échoué mais le PDF est bon : on le met quand même au zip.
     }

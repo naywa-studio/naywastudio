@@ -446,8 +446,8 @@ export default function JobDetailPage() {
 
   const strongCount = rows.filter((r) => (r.score ?? 0) >= 55).length
   const shortlistCount = rows.filter((r) => r.in_pipeline).length
-  // Candidats ayant atteint le client (présenté / recruté / écarté).
-  const revueCount = rows.filter((r) => ["offer", "hired", "rejected"].includes(r.pipeline_stage)).length
+  // Candidats ayant atteint le client (anonymisés = présentés, ou tranchés).
+  const revueCount = rows.filter((r) => r.anonymized_at != null || ["hired", "rejected"].includes(r.pipeline_stage)).length
   // Onglet Revue client visible uniquement pour une org qui utilise les
   // clients ET une mission rattachée à un client.
   const showRevue = usesClients && !!job?.client_id

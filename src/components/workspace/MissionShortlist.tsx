@@ -214,9 +214,14 @@ const copy = {
 /** Plafond serveur du téléchargement groupé (doit rester = MAX_BATCH de la route). */
 const MAX_DOWNLOAD_BATCH = 25
 
-/** Étapes proposées dans le sélecteur, dans l'ordre du tunnel. */
+/** Étapes proposées dans le sélecteur, dans l'ordre du tunnel INTERNE.
+ *  'pricing' (Chiffrage) est retiré : il vit dans l'onglet Pricing, pas dans
+ *  le tunnel candidat. 'offer' (Présenté au client) est retiré aussi : la
+ *  présentation au client se pilote dans la Revue client (auto à
+ *  l'anonymisation). Ne restent que les étapes de qualification interne + les
+ *  2 issues (recruté / écarté). */
 const STAGE_OPTIONS: PipelineStage[] = [
-  "identified", "pricing", "contacted", "replied", "interview", "offer", "hired", "rejected",
+  "identified", "contacted", "replied", "interview", "hired", "rejected",
 ]
 
 /** Pastille couleur par étape (discrète) — repère visuel dans le dropdown. */
@@ -963,7 +968,6 @@ const KANBAN_ACTIVE: StageMeta[] = [
   { key: "contacted",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
   { key: "replied",    color: "var(--nw-primary)", bg: "rgba(124,99,200,0.05)" },
   { key: "interview",  color: "var(--nw-warn)", bg: "rgba(245,158,11,0.06)" },
-  { key: "offer",      color: "var(--nw-success)", bg: "rgba(34,197,94,0.06)" },
 ]
 
 const KANBAN_TERMINAL: StageMeta[] = [
@@ -972,7 +976,11 @@ const KANBAN_TERMINAL: StageMeta[] = [
 ]
 
 function kanbanColumnOf(stage: PipelineStage): PipelineStage {
-  return stage === "pricing" ? "identified" : stage
+  // 'pricing' (Chiffrage) et 'offer' (ancien « Présenté ») ne sont plus des
+  // colonnes → on rattache les cartes historiques à une colonne existante.
+  if (stage === "pricing") return "identified"
+  if (stage === "offer") return "interview"
+  return stage
 }
 
 function ShortlistKanban({
