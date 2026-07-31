@@ -63,7 +63,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // RLS-scoped read confirms ownership.
   const { data: row, error: fetchErr } = await sb
     .from("match_assessments")
-    .select("id, contacted_at, replied_at, interview_at")
+    .select("id, contacted_at, replied_at, interview_at, anonymized_at")
     .eq("id", id)
     .single()
   if (fetchErr || !row) return NextResponse.json({ error: "not_found" }, { status: 404 })
@@ -72,14 +72,23 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // Déplacer une carte dans le kanban implique qu'elle est suivie.
   const update: MatchUpdate = { pipeline_stage: stage as PipelineStage, in_pipeline: true }
 
-  // Persiste la raison quand on passe à 'rejected', et la nettoie sinon
-  // (ressortir un rejet → on jette la raison pour éviter un fossile).
+  // Persiste la raison de sourcing quand on passe à 'rejected', et la nettoie
+  // sinon (ressortir un rejet → on jette la raison pour éviter un fossile).
+  // Les motifs CLIENT (client_reject_reasons) sont gérés à part (route
+  // /api/match/[id]) et nettoyés ici quand on quitte 'rejected'.
   if (stage === "rejected") {
     update.reject_reason = rejectReason
     update.reject_reason_note = rejectReasonNote
   } else {
     update.reject_reason = null
     update.reject_reason_note = null
+    update.client_reject_reasons = null
+  }
+
+  // Passer à 'offer' (= Présenté au client) fait entrer le candidat dans la
+  // Revue client : on stampe le marqueur d'appartenance s'il ne l'est pas déjà.
+  if (stage === "offer" && !row.anonymized_at) {
+    update.anonymized_at = now
   }
 
   // Stamp the milestone the first time a stage is reached. Reaching a later

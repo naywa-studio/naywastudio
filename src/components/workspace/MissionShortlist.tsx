@@ -129,6 +129,7 @@ const copy = {
     } as Record<PipelineStage, string>,
     stageAria: "Changer l'étape",
     profile: "Fiche match",
+    presentToClient: "Présenter au client",
     score: "Score",
     noName: "Sans nom",
     rejectedFor: "Écarté :",
@@ -185,6 +186,7 @@ const copy = {
     } as Record<PipelineStage, string>,
     stageAria: "Change stage",
     profile: "Match sheet",
+    presentToClient: "Present to client",
     score: "Score",
     noName: "No name",
     rejectedFor: "Rejected:",
@@ -247,10 +249,13 @@ interface Props {
   onLocalUpdate: (rowId: string, patch: Partial<MatchAssessment>) => void
   /** Annuaire clients (cabinet/ESN) pour l'alerte off-limits. */
   clientDirectory?: OffLimitsClientRef[]
+  /** Mission rattachée à un client (cabinet/ESN) → bouton « Présenter au
+   *  client » sur les cartes (1 clic vers la Revue client). */
+  clientReviewEnabled?: boolean
   lang: Lang
 }
 
-export function MissionShortlist({ job, rows, isReadOnly, organization, brandingHref, onLocalUpdate, clientDirectory = [], lang }: Props) {
+export function MissionShortlist({ job, rows, isReadOnly, organization, brandingHref, onLocalUpdate, clientDirectory = [], clientReviewEnabled = false, lang }: Props) {
   const t = copy[lang]
   const [filter, setFilter] = useState<"all" | Group>("all")
   const [viewMode, setViewMode] = useState<"gallery" | "kanban">("gallery")
@@ -620,6 +625,7 @@ export function MissionShortlist({ job, rows, isReadOnly, organization, branding
                     downloadingOne={downloading === row.candidate_id}
                     onDownloadOne={() => void download([row.candidate_id], row.candidate_id)}
                     offLimits={offLimitsFor(row.candidate, clientDirectory)}
+                    clientReviewEnabled={clientReviewEnabled}
                     lang={lang}
                     t={t}
                   />
@@ -683,7 +689,7 @@ export function MissionShortlist({ job, rows, isReadOnly, organization, branding
 
 function ShortlistCard({
   row, isReadOnly, saving, onSelectStage, selectMode, isSelected, onToggleSelect,
-  canDownload, downloadingOne, onDownloadOne, offLimits, lang, t,
+  canDownload, downloadingOne, onDownloadOne, offLimits, clientReviewEnabled, lang, t,
 }: {
   row: AssessmentRow
   isReadOnly: boolean
@@ -696,6 +702,7 @@ function ShortlistCard({
   downloadingOne: boolean
   onDownloadOne: () => void
   offLimits: OffLimitsBadge
+  clientReviewEnabled: boolean
   lang: Lang
   t: (typeof copy)[Lang]
 }) {
@@ -816,6 +823,22 @@ function ShortlistCard({
         >
           {t.profile}
         </Link>
+        {clientReviewEnabled && !isReadOnly && row.anonymized_at == null
+          && !["offer", "hired", "rejected"].includes(row.pipeline_stage) && (
+          <button
+            type="button"
+            onClick={() => onSelectStage(row, "offer")}
+            title={t.presentToClient}
+            style={{
+              fontFamily: "inherit", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
+              color: "var(--nw-primary)", background: "rgba(124,99,200,0.08)",
+              border: "1px solid rgba(124,99,200,0.28)", borderRadius: 8, padding: "5px 9px",
+              cursor: "pointer",
+            }}
+          >
+            {t.presentToClient}
+          </button>
+        )}
         {canDownload && (
           <button
             type="button"

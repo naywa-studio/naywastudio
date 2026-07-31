@@ -446,8 +446,9 @@ export default function JobDetailPage() {
 
   const strongCount = rows.filter((r) => (r.score ?? 0) >= 55).length
   const shortlistCount = rows.filter((r) => r.in_pipeline).length
-  // Candidats ayant atteint le client (anonymisés = présentés, ou tranchés).
-  const revueCount = rows.filter((r) => r.anonymized_at != null || ["hired", "rejected"].includes(r.pipeline_stage)).length
+  // Appartenance à la Revue client = marqueur anonymized_at posé (anonymisation
+  // OU bouton « Présenter au client »).
+  const revueCount = rows.filter((r) => r.anonymized_at != null).length
   // Onglet Revue client visible uniquement pour une org qui utilise les
   // clients ET une mission rattachée à un client.
   const showRevue = usesClients && !!job?.client_id
@@ -558,6 +559,7 @@ export default function JobDetailPage() {
           rows={rows}
           isReadOnly={isReadOnly}
           clientDirectory={clientDirectory}
+          clientReviewEnabled={showRevue}
           organization={{
             name: organization?.name ?? "",
             brand_name: organization?.brand_name ?? null,

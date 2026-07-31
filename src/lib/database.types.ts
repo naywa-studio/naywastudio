@@ -688,9 +688,12 @@ export type Database = {
           /** Horodatage du dernier retour client. */
           client_feedback_at: string | null
           /** Anonymisation du CV DANS LE CONTEXTE de cette mission = signal
-           *  « présenté au client ». Alimente la section Anonymisés de la
-           *  Revue client. Voir migration 072. */
+           *  « entré dans le process client ». Alimente la Revue client (marqueur
+           *  d'appartenance). Voir migration 072. */
           anonymized_at: string | null
+          /** Motifs d'écart CLIENT (multi, universels). Distinct de reject_reason
+           *  (sourcing). Voir migration 073 + lib/client-reject-reasons. */
+          client_reject_reasons: string[] | null
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -722,6 +725,7 @@ export type Database = {
           client_feedback_note?: string | null
           client_feedback_at?: string | null
           anonymized_at?: string | null
+          client_reject_reasons?: string[] | null
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null

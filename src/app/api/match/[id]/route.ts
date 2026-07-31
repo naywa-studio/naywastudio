@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { requireActiveAccess } from "@/lib/access-guard"
 import { CANDIDATE_COLUMNS } from "@/lib/database.types"
+import { sanitizeClientRejectReasons } from "@/lib/client-reject-reasons"
 
 export const runtime = "nodejs"
 
@@ -73,6 +74,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     salary_expectation_brut?: number | null
     client_feedback_note?: string | null
     client_feedback_at?: string | null
+    client_reject_reasons?: string[] | null
+    anonymized_at?: string | null
   } = {}
 
   if (body && "salary_expectation_brut" in body) {
@@ -103,6 +106,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
   }
 
+  // Motifs d'écart CLIENT (multi, universels). Validés contre le catalogue.
+  if (body && "client_reject_reasons" in body) {
+    const v = body.client_reject_reasons
+    update.client_reject_reasons = v == null ? null : sanitizeClientRejectReasons(v)
+  }
+
+  // Retrait de la Revue client : on efface le marqueur d'appartenance.
+  if (body && body.clear_review === true) {
+    update.anonymized_at = null
+  }
+
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "no_op" }, { status: 400 })
   }
@@ -111,7 +125,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .from("match_assessments")
     .update(update)
     .eq("id", id)
-    .select("id, salary_expectation_brut, client_feedback_note, client_feedback_at")
+    .select("id, salary_expectation_brut, client_feedback_note, client_feedback_at, client_reject_reasons, anonymized_at")
     .single()
   if (error || !data) return NextResponse.json({ error: "not_found" }, { status: 404 })
 
