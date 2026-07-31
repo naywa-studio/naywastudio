@@ -205,6 +205,7 @@ export type Database = {
         Row: {
           id: string
           name: string
+          is_test: boolean
           owner_user_id: string | null
           /** Type de structure choisi à l'onboarding. Pilote l'affichage
            *  clients + pricing. NULL = org pré-migration non backfillée. */
