@@ -408,7 +408,7 @@ const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "11px 14px",
   borderRadius: 10,
-  border: "1px solid #E2DAF6",
+  border: "1px solid #E9E1CB",
   background: "white",
   fontSize: 14,
   fontFamily: "var(--font-inter), sans-serif",

@@ -234,7 +234,7 @@ export default function TarifsPage() {
               style={{
                 display: "inline-flex",
                 background: "white",
-                border: "1px solid #E2DAF6",
+                border: "1px solid #E9E1CB",
                 borderRadius: 14,
                 padding: 4,
                 boxShadow: "0 4px 16px rgba(123,99,200,0.08)",
@@ -345,7 +345,7 @@ export default function TarifsPage() {
                   key={q.q}
                   style={{
                     background: "white",
-                    border: "1px solid #F0ECF8",
+                    border: "1px solid #E9E1CB",
                     borderRadius: 12,
                     padding: "14px 18px",
                     fontFamily: "var(--font-inter), sans-serif",

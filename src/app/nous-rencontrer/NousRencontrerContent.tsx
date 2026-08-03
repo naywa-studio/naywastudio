@@ -126,8 +126,8 @@ export function NousRencontrerContent() {
             style={{
               maxWidth: 900,
               margin: "0 auto",
-              background: "#F8F6FF",
-              border: "1px solid #E2DAF6",
+              background: "#EEE9FB",
+              border: "1px solid #E9E1CB",
               borderRadius: 20,
               padding: 12,
               boxShadow: "0 12px 40px -16px rgba(123,99,200,0.28)",

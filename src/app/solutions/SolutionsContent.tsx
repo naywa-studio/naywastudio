@@ -191,7 +191,7 @@ export function SolutionsContent() {
                 key={s.n}
                 style={{
                   background: "white",
-                  border: "1px solid #F0ECF8",
+                  border: "1px solid #E9E1CB",
                   borderRadius: 18,
                   padding: "22px 22px 24px",
                   display: "flex",
@@ -308,7 +308,7 @@ export function SolutionsContent() {
           <div
             style={{
               background: "rgba(248,246,255,0.55)",
-              border: "1px solid #F0ECF8",
+              border: "1px solid #E9E1CB",
               borderRadius: 18,
               padding: "26px 28px",
               marginBottom: 40,
@@ -405,7 +405,7 @@ export function SolutionsContent() {
               style={{
                 borderRadius: 12,
                 padding: "14px 24px",
-                border: "1px solid #E2DAF6",
+                border: "1px solid #E9E1CB",
                 background: "white",
                 color: "#4B4C5E",
                 fontFamily: "var(--font-inter), sans-serif",
@@ -471,7 +471,7 @@ export function SolutionsContent() {
       </section>
 
       {/* ── CTA Contact ────────────────────────────────────── */}
-      <section style={{ padding: "96px 24px 112px", background: "white", borderTop: "1px solid #F0ECF8" }}>
+      <section style={{ padding: "96px 24px 112px", background: "white", borderTop: "1px solid #E9E1CB" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
           <h2
             style={{

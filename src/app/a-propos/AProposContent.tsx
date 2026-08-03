@@ -148,7 +148,7 @@ export function AProposContent() {
                 key={p.title}
                 style={{
                   background: "white",
-                  border: "1px solid #F0ECF8",
+                  border: "1px solid #E9E1CB",
                   borderRadius: 18,
                   padding: "26px 22px",
                   display: "flex",
@@ -163,7 +163,7 @@ export function AProposContent() {
                     width: 38,
                     height: 38,
                     borderRadius: 11,
-                    background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
+                    background: "#EEE9FB",
                     border: "1px solid rgba(123,99,200,0.30)",
                     display: "flex",
                     alignItems: "center",
@@ -217,7 +217,7 @@ export function AProposContent() {
       <Founders />
 
       {/* Final CTA */}
-      <section style={{ padding: "96px 24px 112px", background: "white", borderTop: "1px solid #F0ECF8" }}>
+      <section style={{ padding: "96px 24px 112px", background: "white", borderTop: "1px solid #E9E1CB" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
           <h2
             style={{
@@ -278,7 +278,7 @@ export function AProposContent() {
                 gap: 6,
                 borderRadius: 12,
                 padding: "13px 24px",
-                border: "1px solid #E2DAF6",
+                border: "1px solid #E9E1CB",
                 background: "white",
                 color: "#4B4C5E",
                 fontFamily: "var(--font-inter), sans-serif",

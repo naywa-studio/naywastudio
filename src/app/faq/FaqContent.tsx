@@ -326,7 +326,7 @@ export function FaqContent() {
               {cat.questions.map((q) => (
                 <details key={q.q} style={{
                   background: "white", borderRadius: 14,
-                  border: "1px solid #F0ECF8",
+                  border: "1px solid #E9E1CB",
                   padding: "16px 20px",
                   fontFamily: "var(--font-inter), sans-serif",
                 }}>
@@ -352,7 +352,7 @@ export function FaqContent() {
 
         <div style={{
           marginTop: 30, paddingTop: 26,
-          borderTop: "1px solid #F0ECF8",
+          borderTop: "1px solid #E9E1CB",
           display: "flex", flexWrap: "wrap", gap: 14,
           fontFamily: "var(--font-inter), sans-serif",
         }}>
