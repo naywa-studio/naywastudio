@@ -15,50 +15,60 @@ const fu = (delay: number) => ({
 
 const content = {
   fr: {
-    badge: "Notre proposition de valeur",
-    titleLine1: "L'IA traite,",
-    titleAccent: "vous décidez.",
-    intro:
-      "Une IA clé en main, pensée pour votre métier — pas un chatbot de plus. Vous n'avez pas à devenir expert du prompt : l'outil fait le travail d'exécution, vous gardez le jugement et la décision.",
+    badge: "Notre parti pris",
+    titleLine1: "Clé en main, avec vous.",
+    titleAccent: "Jamais à votre place.",
+    intro: [
+      { t: "Un métier, c'est d'abord une expertise humaine : un jugement, une relation, une responsabilité. Notre conviction : l'IA ne remplace pas cette expertise, " },
+      { t: "elle la libère", emph: true },
+      { t: ". Elle absorbe la friction, clé en main, sans que vous ayez à devenir expert du prompt. Vous gardez " },
+      { t: "ce qui ne se délègue pas", emph: true },
+      { t: "." },
+    ],
     metrics: [
       {
         value: "Vous",
-        title: "La décision reste vôtre",
-        desc: "L'IA ne travaille jamais à votre place — elle travaille pour vous. Aucun envoi, aucun classement, aucune action automatique : Nora propose, vous tranchez. Vos process, votre style, vos clients.",
+        title: "La décision reste humaine",
+        desc: "L'IA propose, vous tranchez. Aucun envoi, aucun classement, aucune action automatique. Vos process, votre style, vos clients.",
       },
       {
         value: "L'outil",
         title: "Clé en main, pas un chatbot",
-        desc: "Rien à prompter, rien à paramétrer. Nora lit les CV, les range, les note, les anonymise, calcule la marge. Le métier n'a pas à devenir expert de l'IA — l'IA se met au service du métier.",
+        desc: "Rien à prompter, rien à paramétrer. Le métier n'a pas à s'adapter à l'IA : c'est l'IA qui s'adapte au métier. Nora lit les CV, les range, les note, les anonymise, calcule la marge.",
       },
       {
         value: "Métier",
-        title: "Conçu pour le métier",
-        desc: "Un métier ne se pilote pas avec une IA générique. Nous bâtissons un outil par métier, en profondeur, avec les structures qui le vivent au quotidien.",
+        title: "Une expertise, pas un algorithme",
+        desc: "On ne remplace pas un savoir-faire, on l'outille. Un outil par métier, en profondeur, avec ceux qui le vivent au quotidien.",
       },
     ],
   },
   en: {
-    badge: "Our value proposition",
-    titleLine1: "AI does the work,",
-    titleAccent: "you decide.",
-    intro:
-      "A turnkey AI, built for your profession — not just another chatbot. You don't have to become a prompt expert: the tool handles the execution, you keep the judgement and the decision.",
+    badge: "Where we stand",
+    titleLine1: "Turnkey, with you.",
+    titleAccent: "Never in your place.",
+    intro: [
+      { t: "A profession is, first, human expertise: judgement, a relationship, responsibility. Our conviction: AI doesn't replace that expertise, " },
+      { t: "it frees it", emph: true },
+      { t: ". It absorbs the friction, turnkey, without you ever becoming a prompt expert. You keep " },
+      { t: "what can't be delegated", emph: true },
+      { t: "." },
+    ],
     metrics: [
       {
         value: "You",
-        title: "The decision stays yours",
-        desc: "AI never works in your place — it works for you. No sending, no ranking, no automatic action: Nora suggests, you decide. Your process, your style, your clients.",
+        title: "The decision stays human",
+        desc: "AI suggests, you decide. No sending, no ranking, no automatic action. Your process, your style, your clients.",
       },
       {
         value: "The tool",
         title: "Turnkey, not a chatbot",
-        desc: "Nothing to prompt, nothing to configure. Nora reads CVs, files them, scores them, anonymizes them, works out the margin. The profession shouldn't have to master AI — AI puts itself at the service of the craft.",
+        desc: "Nothing to prompt, nothing to configure. The profession doesn't adapt to the AI: the AI adapts to the profession. Nora reads CVs, files them, scores them, anonymizes them, works out the margin.",
       },
       {
         value: "Craft",
-        title: "Built for the craft",
-        desc: "A profession isn't run with a generic AI. We build one tool per profession, in depth, with the teams who live it every day.",
+        title: "Expertise, not an algorithm",
+        desc: "We don't replace craft, we equip it. One tool per profession, in depth, with the people who live it every day.",
       },
     ],
   },
@@ -119,7 +129,11 @@ export function WhyNawa() {
               maxWidth: "50ch",
             }}
           >
-            {c.intro}
+            {(c.intro as { t: string; emph?: boolean }[]).map((seg, i) =>
+              seg.emph
+                ? <span key={i} style={accentItalic}>{seg.t}</span>
+                : <span key={i}>{seg.t}</span>
+            )}
           </p>
         </m.div>
 
