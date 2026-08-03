@@ -150,7 +150,7 @@ export default function ContactPage() {
                 {t.titlePre}
                 <span
                   style={{
-                    fontFamily: "var(--font-instrument-serif), serif",
+                    fontFamily: "var(--font-fraunces), serif",
                     fontWeight: 400,
                     fontStyle: "italic",
                     color: "#7C63C8",

@@ -114,7 +114,7 @@ export function SolutionsContent() {
             {c.heroTitlePre}
             <span
               style={{
-                fontFamily: "var(--font-instrument-serif), serif",
+                fontFamily: "var(--font-fraunces), serif",
                 fontWeight: 400,
                 fontStyle: "italic",
                 color: "#7C63C8",
@@ -202,7 +202,7 @@ export function SolutionsContent() {
               >
                 <span
                   style={{
-                    fontFamily: "var(--font-instrument-serif), serif",
+                    fontFamily: "var(--font-fraunces), serif",
                     fontStyle: "italic",
                     fontSize: 44,
                     lineHeight: 0.9,

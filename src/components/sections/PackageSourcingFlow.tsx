@@ -219,7 +219,7 @@ export function PackageSourcingFlow() {
             {c.titlePre}
             <span
               style={{
-                fontFamily: "var(--font-instrument-serif), serif",
+                fontFamily: "var(--font-fraunces), serif",
                 fontWeight: 400,
                 fontStyle: "italic",
                 color: "#7C63C8",
@@ -391,7 +391,7 @@ export function PackageSourcingFlow() {
               {/* Big numeral */}
               <div
                 style={{
-                  fontFamily: "var(--font-instrument-serif), serif",
+                  fontFamily: "var(--font-fraunces), serif",
                   fontStyle: "italic",
                   fontWeight: 400,
                   fontSize: "clamp(64px, 7vw, 96px)",
