@@ -33,6 +33,23 @@ type Filter = "all" | "to_contact" | "in_progress" | "presented" | "hired" | "re
 const PRIMARY = "#7C63C8"
 const PRIMARY_DK = "#5b4aa8"
 
+type Step = "identified" | "contacted" | "interview" | "offer" | "hired" | "rejected"
+
+// Couleur par stade du process de recrutement (harmonisée : froid → chaud →
+// violet client → vert recruté ; gris pour écarté). La barre d'une carte se
+// remplit dans la couleur de son stade courant → différenciation immédiate
+// sans arc-en-ciel (une carte = une couleur).
+const STAGE_COLOR: Record<Step, string> = {
+  identified: "#8A8FA3", // À contacter — slate neutre
+  contacted:  "#2563EB", // Contacté — bleu (prise de contact)
+  interview:  "#D97706", // Entretien — ambre (échange en cours)
+  offer:      "#7C63C8", // Présenté au client — violet (moment clé)
+  hired:      "#0F766E", // Recruté — teal (succès)
+  rejected:   "#9AA1AE", // Écarté — gris (sorti du process)
+}
+// Teinte douce (fond d'avatar) : la couleur du stade à ~12 % d'opacité.
+function softTint(hex: string): string { return `${hex}1F` }
+
 const STAGE_LABELS: Record<Lang, Record<"identified" | "contacted" | "interview" | "offer" | "hired" | "rejected", string>> = {
   fr: { identified: "À contacter", contacted: "Contacté", interview: "Entretien", offer: "Présenté au client", hired: "Recruté", rejected: "Écarté" },
   en: { identified: "To contact", contacted: "Contacted", interview: "Interview", offer: "Presented to client", hired: "Recruited", rejected: "Dropped" },
@@ -284,8 +301,8 @@ function PipelineCard({
   const activeIdx = isHired ? steps.length : isRejected ? -1 : steps.indexOf(step as PipelineStage)
   const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?"
 
-  const stageLabel = isHired ? STAGE_LABELS[lang].hired : isRejected ? STAGE_LABELS[lang].rejected : STAGE_LABELS[lang][step]
-  const stageColor = isHired ? "#0F766E" : isRejected ? "var(--nw-text-muted)" : PRIMARY_DK
+  const stageLabel = STAGE_LABELS[lang][step]
+  const stageColor = STAGE_COLOR[step]
 
   const patchStage = async (stage: PipelineStage, reasons?: string[] | null) => {
     if (isReadOnly) return
@@ -325,12 +342,18 @@ function PipelineCard({
   const stageBtns: PipelineStage[] = [...steps, "hired", "rejected"]
 
   return (
-    <div style={{ background: "white", border: `1px solid ${step === "offer" ? "#c9bff0" : "var(--nw-border)"}`, borderRadius: 12, padding: "11px 13px" }}>
+    <div style={{
+      background: isRejected ? "var(--nw-neutral-100)" : "white",
+      border: `1px solid ${step === "offer" ? "#c9bff0" : "var(--nw-border)"}`,
+      borderLeft: `3px solid ${stageColor}`,
+      borderRadius: "0 12px 12px 0", padding: "11px 13px",
+      transition: "background 0.2s ease, border-color 0.2s ease",
+    }}>
       <button
         type="button" onClick={onToggleExpand}
         style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", background: "transparent", border: "none", cursor: "pointer", padding: 0, textAlign: "left", fontFamily: "inherit" }}
       >
-        <span style={{ width: 34, height: 34, borderRadius: "50%", background: step === "offer" || isHired ? PRIMARY : "#EEEBF8", color: step === "offer" || isHired ? "white" : PRIMARY_DK, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{initials}</span>
+        <span style={{ width: 34, height: 34, borderRadius: "50%", background: softTint(stageColor), color: stageColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, transition: "background 0.2s ease, color 0.2s ease" }}>{initials}</span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
             <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -347,7 +370,7 @@ function PipelineCard({
           <span style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7 }}>
             <span style={{ flex: 1, display: "flex", gap: 3 }}>
               {steps.map((_, i) => (
-                <span key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: (!isRejected && (isHired || i <= activeIdx)) ? PRIMARY : "var(--nw-border)" }} />
+                <span key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: (!isRejected && (isHired || i <= activeIdx)) ? stageColor : "var(--nw-border)", transition: "background 0.25s ease" }} />
               ))}
             </span>
             <span style={{ fontSize: 11, color: stageColor, fontWeight: 600, whiteSpace: "nowrap" }}>{stageLabel}</span>
@@ -361,11 +384,11 @@ function PipelineCard({
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {stageBtns.map((s) => {
                 const active = stepOf(row.pipeline_stage) === stepOf(s)
-                const tone = s === "hired" ? "#0F766E" : s === "rejected" ? "var(--nw-text-muted)" : PRIMARY
+                const tone = STAGE_COLOR[stepOf(s)]
                 return (
                   <button
                     key={s} type="button" onClick={() => void patchStage(s)}
-                    style={{ fontSize: 11.5, fontWeight: active ? 700 : 500, padding: "5px 11px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", color: active ? "white" : "var(--nw-text-secondary)", background: active ? tone : "white", border: `1px solid ${active ? tone : "var(--nw-border)"}` }}
+                    style={{ fontSize: 11.5, fontWeight: active ? 700 : 500, padding: "5px 11px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", color: active ? "white" : "var(--nw-text-secondary)", background: active ? tone : "white", border: `1px solid ${active ? tone : "var(--nw-border)"}`, transition: "all 0.15s ease" }}
                   >{STAGE_LABELS[lang][stepOf(s)]}</button>
                 )
               })}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { AnimatePresence } from "framer-motion"
@@ -75,7 +75,7 @@ const copy = {
     noRelevantProfiles: "Aucun profil pertinent sur ce vivier pour cette mission. Les profils ci-dessous sont à faible affinité.",
     weakToggle: (show: boolean, n: number) => `${show ? "▲ Masquer" : "▼ Voir"} les ${n} profil${n > 1 ? "s" : ""} à faible affinité`,
     viewCandidats: "Candidats",
-    viewSuivi: "Suivi",
+    viewSuivi: "Shortlist",
     tabAll: "Tous",
     tabApplied: "Ont postulé",
     tabAppliedHint: "Via le formulaire public",
@@ -136,7 +136,7 @@ const copy = {
     noRelevantProfiles: "No relevant profile in this talent pool for this mission. The profiles below have low affinity.",
     weakToggle: (show: boolean, n: number) => `${show ? "▲ Hide" : "▼ Show"} the ${n} low-affinity profile${n > 1 ? "s" : ""}`,
     viewCandidats: "Candidates",
-    viewSuivi: "Tracking",
+    viewSuivi: "Shortlist",
     tabAll: "All",
     tabApplied: "Applied",
     tabAppliedHint: "Via the public form",
@@ -218,6 +218,8 @@ export default function JobDetailPage() {
    *  par défaut : le matching score tout le vivier pour ne rien rater, mais on
    *  ne remonte que les profils pertinents. */
   const [showWeak, setShowWeak] = useState(false)
+  // Timer de debounce du refetch temps-réel (voir souscription plus bas).
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const loadAll = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`)
@@ -288,11 +290,18 @@ export default function JobDetailPage() {
       maCh = sb.channel(`ma:${jobId}`)
         .on("postgres_changes",
           { event: "*", schema: "public", table: "match_assessments", filter: `job_id=eq.${jobId}` },
-          () => { loadAll() },
+          () => {
+            // Débounce : les mutations locales (changement d'étape, retour
+            // client) sont déjà optimistes ; on ne refetch qu'après une accalmie
+            // pour ne pas faire clignoter la liste à chaque clic.
+            if (reloadTimer.current) clearTimeout(reloadTimer.current)
+            reloadTimer.current = setTimeout(() => { loadAll() }, 900)
+          },
         ).subscribe()
     })()
     return () => {
       mounted = false
+      if (reloadTimer.current) clearTimeout(reloadTimer.current)
       if (jobCh) sb.removeChannel(jobCh)
       if (maCh) sb.removeChannel(maCh)
     }
