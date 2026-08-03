@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
-import { SignatureBands } from "@/components/ui/SignatureBands"
+import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import { FaqContent } from "./FaqContent"
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function FAQPage() {
   return (
     <div style={{ background: "transparent", minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
-      <SignatureBands />
+      <ShaderBackground />
       <Navbar />
       <FaqContent />
       <Footer />

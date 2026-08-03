@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
-import { SignatureBands } from "@/components/ui/SignatureBands"
+import { ShaderBackground } from "@/components/ui/ShaderBackground"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 import {
   priceForSeats,
@@ -169,7 +169,7 @@ export default function TarifsPage() {
 
   return (
     <>
-      <SignatureBands />
+      <ShaderBackground />
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>

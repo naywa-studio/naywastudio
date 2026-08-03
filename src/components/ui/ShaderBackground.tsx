@@ -20,7 +20,6 @@ export function ShaderBackground() {
       antialias: false,
       alpha: true,
       premultipliedAlpha: true,
-      powerPreference: 'high-performance',
     })
     if (!gl) return
 
@@ -65,7 +64,7 @@ export function ShaderBackground() {
       float fbm(vec2 p) {
         float v = 0.0;
         float a = 0.5;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 4; i++) {
           v += a * snoise(p);
           p = p * 2.02 + vec2(1.7, 9.2);
           a *= 0.5;
@@ -165,8 +164,10 @@ export function ShaderBackground() {
     const uScroll = gl.getUniformLocation(prog, 'uScroll')
     const uDpr    = gl.getUniformLocation(prog, 'uDpr')
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.75)
-    const state = { w: 0, h: 0, scroll: 0, scrollY: 0 }
+    // Fond d'ambiance : rendu à 0.7× de la résolution CSS. Le marbre est flou,
+    // aucune perte visible, mais ~2× moins de pixels pour le shader de bruit.
+    const dpr = 0.7
+    const state = { w: 0, h: 0 }
 
     const resize = () => {
       state.w = window.innerWidth
@@ -178,26 +179,24 @@ export function ShaderBackground() {
       gl.viewport(0, 0, canvas.width, canvas.height)
     }
 
-    const onScroll = () => {
-      const max = Math.max(1, document.documentElement.scrollHeight - state.h)
-      state.scrollY = window.scrollY
-      state.scroll  = window.scrollY / max
-    }
-
     resize()
-    onScroll()
     window.addEventListener('resize', resize)
-    window.addEventListener('scroll', onScroll, { passive: true })
 
     const start = performance.now()
     let raf = 0
+    let last = 0
+    // Plafond ~30 fps : un fond lent n'a pas besoin de 60, moitié moins de
+    // travail GPU, imperceptible à l'œil.
+    const FRAME = 1000 / 30
 
-    const tick = () => {
+    const tick = (now: number) => {
       raf = requestAnimationFrame(tick)
+      if (now - last < FRAME) return
+      last = now
       const time = (performance.now() - start) / 1000
       gl.uniform2f(uRes, canvas.width, canvas.height)
       gl.uniform1f(uTime, time)
-      gl.uniform1f(uScroll, state.scroll)
+      gl.uniform1f(uScroll, 0)
       gl.uniform1f(uDpr, dpr)
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     }
@@ -206,7 +205,6 @@ export function ShaderBackground() {
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('resize', resize)
-      window.removeEventListener('scroll', onScroll)
       gl.deleteBuffer(buf)
       gl.deleteProgram(prog)
       gl.deleteShader(vs)
