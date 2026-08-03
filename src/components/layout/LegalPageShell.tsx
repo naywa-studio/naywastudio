@@ -64,7 +64,7 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
           position: "sticky", top: 0, zIndex: 40,
           background: "rgba(255,255,255,0.92)",
           backdropFilter: "blur(12px)",
-          borderBottom: "1px solid #F0ECF8",
+          borderBottom: "1px solid #E9E1CB",
           padding: "0 24px", height: 64,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}
@@ -73,7 +73,7 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
           <Logo size="md" />
         </Link>
         <Link href="/" style={{
-          fontSize: 13, color: "#6B7280", textDecoration: "none",
+          fontSize: 13, color: "#6B6C7F", textDecoration: "none",
           fontFamily: "var(--font-inter), sans-serif",
         }}>
           {t.backHome}
@@ -88,7 +88,7 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
             display: "inline-block",
             fontSize: 11, fontWeight: 700,
             letterSpacing: 1.5, textTransform: "uppercase",
-            color: "#7C63C8", background: "#F0ECF8",
+            color: "#7B63C8", background: "#EEE9FB",
             padding: "5px 14px", borderRadius: 100, marginBottom: 20,
             fontFamily: "var(--font-inter), sans-serif",
           }}>
@@ -96,21 +96,21 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
           </span>
           <h1 style={{
             fontSize: "clamp(26px, 4vw, 38px)",
-            fontWeight: 800, color: "#111827",
+            fontWeight: 800, color: "#1A1B2E",
             margin: "0 0 12px", letterSpacing: -0.3,
             fontFamily: "var(--font-fraunces), sans-serif",
           }}>
             {title}
           </h1>
           <p style={{
-            fontSize: 14, color: "#6B7280", margin: 0,
+            fontSize: 14, color: "#6B6C7F", margin: 0,
             fontFamily: "var(--font-inter), sans-serif",
           }}>
             {t.lastUpdated} {lastUpdated}
           </p>
           {intro && (
             <p style={{
-              marginTop: 22, fontSize: 14.5, color: "#4B5563", lineHeight: 1.7,
+              marginTop: 22, fontSize: 14.5, color: "#4B4C5E", lineHeight: 1.7,
               fontFamily: "var(--font-inter), sans-serif",
             }}>
               {intro}
@@ -133,10 +133,10 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
           {sections.map((section) => (
             <section key={section.title}>
               <h2 style={{
-                fontSize: 17, fontWeight: 700, color: "#111827",
+                fontSize: 17, fontWeight: 700, color: "#1A1B2E",
                 margin: "0 0 16px",
                 fontFamily: "var(--font-fraunces), sans-serif",
-                paddingBottom: 12, borderBottom: "1px solid #F0ECF8",
+                paddingBottom: 12, borderBottom: "1px solid #E9E1CB",
               }}>
                 {section.title}
               </h2>
@@ -147,7 +147,7 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
                   return (
                     <p key={i} style={{
                       margin: 0, fontSize: 14, lineHeight: 1.7,
-                      color: isBold ? "#111827" : "#4B5563",
+                      color: isBold ? "#1A1B2E" : "#4B4C5E",
                       fontWeight: isBold ? 600 : 400,
                       fontFamily: "var(--font-inter), sans-serif",
                     }}>
@@ -163,24 +163,24 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
         {/* Contact — recentré comme le hero pour clore la page proprement. */}
         <div style={{
           maxWidth: 720, margin: "56px auto 0",
-          background: "#F8F6FF",
+          background: "#EEE9FB",
           borderRadius: 16, padding: "28px 24px",
-          border: "1px solid #E2DAF6",
+          border: "1px solid #E9E1CB",
         }}>
           <p style={{
-            margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "#111827",
+            margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "#1A1B2E",
             fontFamily: "var(--font-fraunces), sans-serif",
           }}>
             {t.questionTitle}
           </p>
           <p style={{
-            margin: "0 0 16px", fontSize: 14, color: "#6B7280",
+            margin: "0 0 16px", fontSize: 14, color: "#6B6C7F",
             fontFamily: "var(--font-inter), sans-serif",
           }}>
             {t.questionDesc}
           </p>
           <a href="mailto:contact@naywastudio.com" style={{
-            fontSize: 14, fontWeight: 600, color: "#7C63C8", textDecoration: "none",
+            fontSize: 14, fontWeight: 600, color: "#7B63C8", textDecoration: "none",
             fontFamily: "var(--font-inter), sans-serif",
           }}>
             contact@naywastudio.com →
@@ -190,12 +190,12 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
 
       {/* Footer */}
       <footer style={{
-        padding: 24, borderTop: "1px solid #F0ECF8",
+        padding: 24, borderTop: "1px solid #E9E1CB",
         display: "flex", alignItems: "center", justifyContent: "center",
         gap: 16, flexWrap: "wrap",
       }}>
         <Logo size="sm" />
-        <span style={{ fontSize: 12, color: "#6B7280", fontFamily: "var(--font-inter), sans-serif" }}>
+        <span style={{ fontSize: 12, color: "#6B6C7F", fontFamily: "var(--font-inter), sans-serif" }}>
           © 2026 Naywa Studio
         </span>
         <FooterLink href="/mentions-legales">{t.footerLegal}</FooterLink>
@@ -215,6 +215,6 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
 }
 
 const footerLinkStyle: React.CSSProperties = {
-  fontSize: 12, color: "#6B7280", textDecoration: "none",
+  fontSize: 12, color: "#6B6C7F", textDecoration: "none",
   fontFamily: "var(--font-inter), sans-serif",
 }

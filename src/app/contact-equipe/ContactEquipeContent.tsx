@@ -25,7 +25,7 @@ const copy = {
     noscript: (
       <>
         La prise de rendez-vous nécessite JavaScript. Écrivez-nous à{" "}
-        <a href="mailto:contact@naywastudio.com" style={{ color: "#7C63C8", fontWeight: 600 }}>
+        <a href="mailto:contact@naywastudio.com" style={{ color: "#7B63C8", fontWeight: 600 }}>
           contact@naywastudio.com
         </a>
         .
@@ -34,7 +34,7 @@ const copy = {
     fallback: (
       <>
         Le créneau ne vous convient pas ? Écrivez-nous à{" "}
-        <a href="mailto:contact@naywastudio.com" style={{ color: "#7C63C8", fontWeight: 600 }}>
+        <a href="mailto:contact@naywastudio.com" style={{ color: "#7B63C8", fontWeight: 600 }}>
           contact@naywastudio.com
         </a>
         .
@@ -48,7 +48,7 @@ const copy = {
     noscript: (
       <>
         Booking a slot requires JavaScript. Email us at{" "}
-        <a href="mailto:contact@naywastudio.com" style={{ color: "#7C63C8", fontWeight: 600 }}>
+        <a href="mailto:contact@naywastudio.com" style={{ color: "#7B63C8", fontWeight: 600 }}>
           contact@naywastudio.com
         </a>
         .
@@ -57,7 +57,7 @@ const copy = {
     fallback: (
       <>
         This slot doesn&apos;t work for you? Email us at{" "}
-        <a href="mailto:contact@naywastudio.com" style={{ color: "#7C63C8", fontWeight: 600 }}>
+        <a href="mailto:contact@naywastudio.com" style={{ color: "#7B63C8", fontWeight: 600 }}>
           contact@naywastudio.com
         </a>
         .
@@ -88,7 +88,7 @@ export function ContactEquipeContent() {
                 margin: 0,
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#7C63C8",
+                color: "#7B63C8",
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
               }}
@@ -102,7 +102,7 @@ export function ContactEquipeContent() {
                 fontSize: 38,
                 lineHeight: 1.15,
                 fontWeight: 800,
-                color: "#111827",
+                color: "#1A1B2E",
                 letterSpacing: "-0.03em",
               }}
             >
@@ -114,7 +114,7 @@ export function ContactEquipeContent() {
                 maxWidth: 520,
                 fontSize: 15,
                 lineHeight: 1.65,
-                color: "#4B5563",
+                color: "#4B4C5E",
               }}
             >
               {t.body}
@@ -131,7 +131,7 @@ export function ContactEquipeContent() {
               border: "1px solid #E2DAF6",
               borderRadius: 20,
               padding: 12,
-              boxShadow: "0 12px 40px -16px rgba(124,99,200,0.28)",
+              boxShadow: "0 12px 40px -16px rgba(123,99,200,0.28)",
             }}
           >
             {/* 626px (la valeur par défaut de l'embed Lark) coupait le
@@ -144,7 +144,7 @@ export function ContactEquipeContent() {
               style={{ width: "100%", height: 900 }}
             />
             <noscript>
-              <p style={{ padding: 24, textAlign: "center", fontSize: 14, color: "#4B5563" }}>
+              <p style={{ padding: 24, textAlign: "center", fontSize: 14, color: "#4B4C5E" }}>
                 {t.noscript}
               </p>
             </noscript>
@@ -156,7 +156,7 @@ export function ContactEquipeContent() {
               margin: "16px auto 0",
               textAlign: "center",
               fontSize: 12.5,
-              color: "#6B7280",
+              color: "#6B6C7F",
             }}
           >
             {t.fallback}

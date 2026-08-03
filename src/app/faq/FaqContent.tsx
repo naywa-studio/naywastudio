@@ -280,10 +280,10 @@ export function FaqContent() {
         {/* Hero */}
         <span style={{
           display: "inline-flex", alignItems: "center", gap: 7,
-          background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.18)",
+          background: "rgba(123,99,200,0.08)", border: "1px solid rgba(123,99,200,0.18)",
           borderRadius: 999, padding: "5px 13px",
           marginBottom: 22,
-          fontSize: 11, fontWeight: 700, color: "#7C63C8",
+          fontSize: 11, fontWeight: 700, color: "#7B63C8",
           letterSpacing: "0.07em", textTransform: "uppercase",
           fontFamily: "var(--font-inter), sans-serif",
         }}>
@@ -291,7 +291,7 @@ export function FaqContent() {
         </span>
 
         <h1 style={{
-          fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, color: "#111827",
+          fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, color: "#1A1B2E",
           letterSpacing: "-0.03em", lineHeight: 1.08,
           margin: "0 0 18px",
           maxWidth: "22ch",
@@ -300,12 +300,12 @@ export function FaqContent() {
           {t.title}
         </h1>
         <p style={{
-          fontSize: "clamp(15px, 1.1vw, 17px)", color: "#4B5563", lineHeight: 1.7,
+          fontSize: "clamp(15px, 1.1vw, 17px)", color: "#4B4C5E", lineHeight: 1.7,
           margin: "0 0 56px", maxWidth: "60ch",
           fontFamily: "var(--font-inter), sans-serif",
         }}>
           {t.introPre}
-          <a href="mailto:contact@naywastudio.com" style={{ color: "#7C63C8", fontWeight: 600 }}>
+          <a href="mailto:contact@naywastudio.com" style={{ color: "#7B63C8", fontWeight: 600 }}>
             {t.introLink}
           </a>
           {t.introPost}
@@ -316,7 +316,7 @@ export function FaqContent() {
             <h2 style={{
               margin: "0 0 18px",
               fontSize: "clamp(20px, 2.2vw, 26px)",
-              fontWeight: 800, color: "#111827",
+              fontWeight: 800, color: "#1A1B2E",
               letterSpacing: "-0.02em",
               fontFamily: "var(--font-fraunces), serif",
             }}>
@@ -332,15 +332,15 @@ export function FaqContent() {
                 }}>
                   <summary style={{
                     cursor: "pointer", listStyle: "none",
-                    fontSize: 15, fontWeight: 700, color: "#111827",
+                    fontSize: 15, fontWeight: 700, color: "#1A1B2E",
                     display: "flex", alignItems: "center", gap: 10,
                   }}>
-                    <span style={{ fontSize: 13, color: "#7C63C8" }}>›</span>
+                    <span style={{ fontSize: 13, color: "#7B63C8" }}>›</span>
                     {q.q}
                   </summary>
                   <p style={{
                     margin: "10px 0 0 22px",
-                    fontSize: 14, color: "#4B5563", lineHeight: 1.7,
+                    fontSize: 14, color: "#4B4C5E", lineHeight: 1.7,
                   }}>
                     {q.a}
                   </p>
@@ -356,13 +356,13 @@ export function FaqContent() {
           display: "flex", flexWrap: "wrap", gap: 14,
           fontFamily: "var(--font-inter), sans-serif",
         }}>
-          <Link href="/solutions" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+          <Link href="/solutions" style={{ color: "#7B63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
             {t.linkSolutions}
           </Link>
-          <Link href="/tarifs" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+          <Link href="/tarifs" style={{ color: "#7B63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
             {t.linkPricing}
           </Link>
-          <Link href="/login?mode=signup" style={{ color: "#7C63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+          <Link href="/login?mode=signup" style={{ color: "#7B63C8", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
             {t.linkTrial}
           </Link>
         </div>

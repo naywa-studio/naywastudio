@@ -128,7 +128,7 @@ export default function ContactPage() {
                 style={{
                   fontSize: 11,
                   fontWeight: 700,
-                  color: "#7C63C8",
+                  color: "#7B63C8",
                   letterSpacing: "0.10em",
                   textTransform: "uppercase",
                   fontFamily: "var(--font-inter), sans-serif",
@@ -141,7 +141,7 @@ export default function ContactPage() {
                   fontFamily: "var(--font-fraunces), serif",
                   fontSize: "clamp(34px, 4.5vw, 52px)",
                   fontWeight: 800,
-                  color: "#111827",
+                  color: "#1A1B2E",
                   margin: 0,
                   lineHeight: 1.05,
                   letterSpacing: "-0.025em",
@@ -150,10 +150,10 @@ export default function ContactPage() {
                 {t.titlePre}
                 <span
                   style={{
-                    fontFamily: "var(--font-instrument-serif), serif",
+                    fontFamily: "var(--font-fraunces), serif",
                     fontWeight: 400,
                     fontStyle: "italic",
-                    color: "#7C63C8",
+                    color: "#7B63C8",
                   }}
                 >
                   {t.titleItalic}
@@ -164,7 +164,7 @@ export default function ContactPage() {
                 style={{
                   fontFamily: "var(--font-inter), sans-serif",
                   fontSize: 16,
-                  color: "#4B5563",
+                  color: "#4B4C5E",
                   lineHeight: 1.7,
                   maxWidth: "55ch",
                   margin: 0,
@@ -182,14 +182,14 @@ export default function ContactPage() {
                     gap: 8,
                     padding: "11px 18px",
                     borderRadius: 999,
-                    border: "1px solid rgba(124,99,200,0.9)",
-                    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    border: "1px solid rgba(123,99,200,0.9)",
+                    background: "#7B63C8",
                     color: "#FFFFFF",
                     fontFamily: "var(--font-inter), sans-serif",
                     fontSize: 13.5,
                     fontWeight: 700,
                     textDecoration: "none",
-                    boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55)",
+                    boxShadow: "0 6px 20px -6px rgba(123,99,200,0.55)",
                     transition: "transform 150ms ease",
                   }}
                   onMouseEnter={(e) => {
@@ -214,9 +214,9 @@ export default function ContactPage() {
                     gap: 8,
                     padding: "10px 16px",
                     borderRadius: 999,
-                    border: "1px solid rgba(124,99,200,0.25)",
-                    background: "rgba(124,99,200,0.05)",
-                    color: "#7C63C8",
+                    border: "1px solid rgba(123,99,200,0.25)",
+                    background: "rgba(123,99,200,0.05)",
+                    color: "#7B63C8",
                     fontFamily: "var(--font-inter), sans-serif",
                     fontSize: 13.5,
                     fontWeight: 600,
@@ -224,10 +224,10 @@ export default function ContactPage() {
                     transition: "background 150ms",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(124,99,200,0.10)"
+                    e.currentTarget.style.background = "rgba(123,99,200,0.10)"
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "rgba(124,99,200,0.05)"
+                    e.currentTarget.style.background = "rgba(123,99,200,0.05)"
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -248,10 +248,10 @@ export default function ContactPage() {
                 background: "rgba(255,255,255,0.72)",
                 backdropFilter: "blur(14px)",
                 WebkitBackdropFilter: "blur(14px)",
-                border: "1px solid rgba(226,218,246,0.7)",
+                border: "1px solid rgba(233,225,203,0.7)",
                 borderRadius: 20,
                 padding: 32,
-                boxShadow: "0 4px 24px rgba(124,99,200,0.06)",
+                boxShadow: "0 4px 24px rgba(123,99,200,0.06)",
                 display: "flex",
                 flexDirection: "column",
                 gap: 18,
@@ -343,7 +343,7 @@ export default function ContactPage() {
                 disabled={disabled}
                 style={{
                   marginTop: 6,
-                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  background: "#7B63C8",
                   color: "white",
                   border: "none",
                   borderRadius: 12,
@@ -352,7 +352,7 @@ export default function ContactPage() {
                   fontWeight: 700,
                   cursor: disabled ? "wait" : "pointer",
                   opacity: disabled ? 0.7 : 1,
-                  boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55)",
+                  boxShadow: "0 6px 20px -6px rgba(123,99,200,0.55)",
                   fontFamily: "var(--font-inter), sans-serif",
                   letterSpacing: "-0.005em",
                   transition: "transform 150ms ease",
@@ -392,7 +392,7 @@ function Field({
           fontFamily: "var(--font-inter), sans-serif",
           fontSize: 12,
           fontWeight: 600,
-          color: "#374151",
+          color: "#4B4C5E",
           letterSpacing: "0.01em",
         }}
       >
@@ -412,7 +412,7 @@ const inputStyle: React.CSSProperties = {
   background: "white",
   fontSize: 14,
   fontFamily: "var(--font-inter), sans-serif",
-  color: "#111827",
+  color: "#1A1B2E",
   outline: "none",
   transition: "border-color 150ms ease, box-shadow 150ms ease",
 }

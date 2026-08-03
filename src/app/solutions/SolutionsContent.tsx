@@ -93,7 +93,7 @@ export function SolutionsContent() {
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 11,
               fontWeight: 700,
-              color: "#7C63C8",
+              color: "#7B63C8",
               letterSpacing: "0.10em",
               textTransform: "uppercase",
             }}
@@ -105,7 +105,7 @@ export function SolutionsContent() {
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(34px, 5vw, 56px)",
               fontWeight: 800,
-              color: "#111827",
+              color: "#1A1B2E",
               margin: "14px 0 20px",
               lineHeight: 1.05,
               letterSpacing: "-0.025em",
@@ -114,10 +114,10 @@ export function SolutionsContent() {
             {c.heroTitlePre}
             <span
               style={{
-                fontFamily: "var(--font-instrument-serif), serif",
+                fontFamily: "var(--font-fraunces), serif",
                 fontWeight: 400,
                 fontStyle: "italic",
-                color: "#7C63C8",
+                color: "#7B63C8",
               }}
             >
               {c.heroTitleItalic}
@@ -128,7 +128,7 @@ export function SolutionsContent() {
             style={{
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 17,
-              color: "#4B5563",
+              color: "#4B4C5E",
               lineHeight: 1.7,
               margin: "0 auto",
               maxWidth: "55ch",
@@ -144,7 +144,7 @@ export function SolutionsContent() {
         style={{
           background: "rgba(248,246,255,0.4)",
           padding: "96px 24px",
-          borderTop: "1px solid rgba(240,236,248,0.6)",
+          borderTop: "1px solid rgba(233,225,203,0.6)",
         }}
       >
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
@@ -154,7 +154,7 @@ export function SolutionsContent() {
                 fontFamily: "var(--font-inter), sans-serif",
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#7C63C8",
+                color: "#7B63C8",
                 letterSpacing: "0.10em",
                 textTransform: "uppercase",
               }}
@@ -166,7 +166,7 @@ export function SolutionsContent() {
                 fontFamily: "var(--font-fraunces), serif",
                 fontSize: "clamp(28px, 3.8vw, 40px)",
                 fontWeight: 800,
-                color: "#111827",
+                color: "#1A1B2E",
                 margin: "12px 0 0",
                 lineHeight: 1.1,
                 letterSpacing: "-0.02em",
@@ -197,16 +197,16 @@ export function SolutionsContent() {
                   display: "flex",
                   flexDirection: "column",
                   gap: 10,
-                  boxShadow: "0 4px 16px rgba(124,99,200,0.05)",
+                  boxShadow: "0 4px 16px rgba(123,99,200,0.05)",
                 }}
               >
                 <span
                   style={{
-                    fontFamily: "var(--font-instrument-serif), serif",
+                    fontFamily: "var(--font-fraunces), serif",
                     fontStyle: "italic",
                     fontSize: 44,
                     lineHeight: 0.9,
-                    color: "#7C63C8",
+                    color: "#7B63C8",
                     letterSpacing: "-0.03em",
                   }}
                 >
@@ -218,7 +218,7 @@ export function SolutionsContent() {
                     fontFamily: "var(--font-fraunces), serif",
                     fontSize: 16,
                     fontWeight: 700,
-                    color: "#111827",
+                    color: "#1A1B2E",
                     letterSpacing: "-0.01em",
                   }}
                 >
@@ -229,7 +229,7 @@ export function SolutionsContent() {
                     margin: 0,
                     fontFamily: "var(--font-inter), sans-serif",
                     fontSize: 14,
-                    color: "#4B5563",
+                    color: "#4B4C5E",
                     lineHeight: 1.65,
                   }}
                 >
@@ -253,7 +253,7 @@ export function SolutionsContent() {
                 fontFamily: "var(--font-inter), sans-serif",
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#7C63C8",
+                color: "#7B63C8",
                 letterSpacing: "0.10em",
                 textTransform: "uppercase",
               }}
@@ -275,7 +275,7 @@ export function SolutionsContent() {
                 fontFamily: "var(--font-fraunces), serif",
                 fontSize: "clamp(32px, 4.4vw, 48px)",
                 fontWeight: 800,
-                color: "#111827",
+                color: "#1A1B2E",
                 margin: "14px 0 16px",
                 lineHeight: 1.05,
                 letterSpacing: "-0.025em",
@@ -287,7 +287,7 @@ export function SolutionsContent() {
               style={{
                 fontFamily: "var(--font-inter), sans-serif",
                 fontSize: 16,
-                color: "#4B5563",
+                color: "#4B4C5E",
                 lineHeight: 1.7,
                 margin: "0 auto 22px",
                 maxWidth: "60ch",
@@ -319,7 +319,7 @@ export function SolutionsContent() {
                 fontFamily: "var(--font-inter), sans-serif",
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#7C63C8",
+                color: "#7B63C8",
                 letterSpacing: "0.10em",
                 textTransform: "uppercase",
                 margin: "0 0 14px",
@@ -345,7 +345,7 @@ export function SolutionsContent() {
                     alignItems: "flex-start",
                     fontFamily: "var(--font-inter), sans-serif",
                     fontSize: 14,
-                    color: "#374151",
+                    color: "#4B4C5E",
                     lineHeight: 1.65,
                   }}
                 >
@@ -355,8 +355,8 @@ export function SolutionsContent() {
                       width: 18,
                       height: 18,
                       borderRadius: 5,
-                      background: "rgba(124,99,200,0.10)",
-                      border: "1px solid rgba(124,99,200,0.22)",
+                      background: "rgba(123,99,200,0.10)",
+                      border: "1px solid rgba(123,99,200,0.22)",
                       flexShrink: 0,
                       marginTop: 2,
                       display: "inline-flex",
@@ -364,7 +364,7 @@ export function SolutionsContent() {
                       justifyContent: "center",
                     }}
                   >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#7B63C8" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12l5 5L20 7" />
                     </svg>
                   </span>
@@ -386,7 +386,7 @@ export function SolutionsContent() {
             <Link
               href="/login?mode=signup"
               style={{
-                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                background: "#7B63C8",
                 color: "white",
                 borderRadius: 12,
                 padding: "14px 28px",
@@ -394,7 +394,7 @@ export function SolutionsContent() {
                 fontSize: 15,
                 fontWeight: 700,
                 textDecoration: "none",
-                boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55)",
+                boxShadow: "0 6px 20px -6px rgba(123,99,200,0.55)",
                 letterSpacing: "-0.01em",
               }}
             >
@@ -407,7 +407,7 @@ export function SolutionsContent() {
                 padding: "14px 24px",
                 border: "1px solid #E2DAF6",
                 background: "white",
-                color: "#4B5563",
+                color: "#4B4C5E",
                 fontFamily: "var(--font-inter), sans-serif",
                 fontSize: 15,
                 fontWeight: 600,
@@ -426,7 +426,7 @@ export function SolutionsContent() {
         style={{
           background: "rgba(248,246,255,0.4)",
           padding: "96px 24px",
-          borderTop: "1px solid rgba(240,236,248,0.6)",
+          borderTop: "1px solid rgba(233,225,203,0.6)",
           textAlign: "center",
         }}
       >
@@ -436,7 +436,7 @@ export function SolutionsContent() {
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 11,
               fontWeight: 700,
-              color: "#7C63C8",
+              color: "#7B63C8",
               letterSpacing: "0.10em",
               textTransform: "uppercase",
             }}
@@ -448,7 +448,7 @@ export function SolutionsContent() {
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(26px, 3.5vw, 36px)",
               fontWeight: 800,
-              color: "#111827",
+              color: "#1A1B2E",
               margin: "12px 0 16px",
               lineHeight: 1.1,
               letterSpacing: "-0.02em",
@@ -460,7 +460,7 @@ export function SolutionsContent() {
             style={{
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 15.5,
-              color: "#4B5563",
+              color: "#4B4C5E",
               lineHeight: 1.75,
               margin: 0,
             }}
@@ -478,7 +478,7 @@ export function SolutionsContent() {
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(26px, 3.5vw, 36px)",
               fontWeight: 800,
-              color: "#111827",
+              color: "#1A1B2E",
               margin: "0 0 14px",
               lineHeight: 1.1,
               letterSpacing: "-0.02em",
@@ -490,7 +490,7 @@ export function SolutionsContent() {
             style={{
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 15.5,
-              color: "#4B5563",
+              color: "#4B4C5E",
               lineHeight: 1.75,
               margin: "0 0 26px",
             }}
@@ -503,7 +503,7 @@ export function SolutionsContent() {
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: "#7B63C8",
               color: "white",
               borderRadius: 12,
               padding: "13px 26px",
@@ -511,7 +511,7 @@ export function SolutionsContent() {
               fontSize: 14.5,
               fontWeight: 700,
               textDecoration: "none",
-              boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55)",
+              boxShadow: "0 6px 20px -6px rgba(123,99,200,0.55)",
               letterSpacing: "-0.01em",
             }}
           >

@@ -211,7 +211,7 @@ export function PackageSourcingFlow() {
               fontSize: "clamp(22px, 2.8vw, 30px)",
               fontWeight: 800,
               letterSpacing: "-0.02em",
-              color: "#111827",
+              color: "#1A1B2E",
               margin: 0,
               lineHeight: 1.15,
             }}
@@ -219,10 +219,10 @@ export function PackageSourcingFlow() {
             {c.titlePre}
             <span
               style={{
-                fontFamily: "var(--font-instrument-serif), serif",
+                fontFamily: "var(--font-fraunces), serif",
                 fontWeight: 400,
                 fontStyle: "italic",
-                color: "#7C63C8",
+                color: "#7B63C8",
               }}
             >
               {c.titleItalic}
@@ -232,7 +232,7 @@ export function PackageSourcingFlow() {
             style={{
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 14.5,
-              color: "#4B5563",
+              color: "#4B4C5E",
               lineHeight: 1.65,
               maxWidth: "58ch",
               margin: 0,
@@ -263,7 +263,7 @@ export function PackageSourcingFlow() {
             <defs>
               <linearGradient id="threadGradient" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%"   stopColor="#B8AEDE" />
-                <stop offset="50%"  stopColor="#7C63C8" />
+                <stop offset="50%"  stopColor="#7B63C8" />
                 <stop offset="100%" stopColor="#B8AEDE" />
               </linearGradient>
               <filter id="threadGlow" x="-10%" y="-50%" width="120%" height="200%">
@@ -297,7 +297,7 @@ export function PackageSourcingFlow() {
                       cx={s.x}
                       cy={s.y}
                       r={26}
-                      fill="rgba(124,99,200,0.15)"
+                      fill="rgba(123,99,200,0.15)"
                     />
                   )}
                   {/* Node */}
@@ -305,8 +305,8 @@ export function PackageSourcingFlow() {
                     cx={s.x}
                     cy={s.y}
                     r={isActive ? 22 : 18}
-                    fill={isActive ? "#7C63C8" : "#FFFFFF"}
-                    stroke={isActive ? "#6B54B2" : "#7C63C8"}
+                    fill={isActive ? "#7B63C8" : "#FFFFFF"}
+                    stroke={isActive ? "#4B3A8F" : "#7B63C8"}
                     strokeWidth={isActive ? 0 : 2.5}
                     style={{ transition: "all 200ms cubic-bezier(0.22, 1, 0.36, 1)" }}
                   />
@@ -318,7 +318,7 @@ export function PackageSourcingFlow() {
                     fontFamily="var(--font-inter), sans-serif"
                     fontSize="14"
                     fontWeight="700"
-                    fill={isActive ? "#FFFFFF" : "#7C63C8"}
+                    fill={isActive ? "#FFFFFF" : "#7B63C8"}
                     style={{ pointerEvents: "none", userSelect: "none" }}
                   >
                     {s.number}
@@ -353,7 +353,7 @@ export function PackageSourcingFlow() {
                     fontFamily: "var(--font-inter), sans-serif",
                     fontSize: 12.5,
                     fontWeight: isActive ? 700 : 600,
-                    color: isActive ? "#7C63C8" : "#6B7280",
+                    color: isActive ? "#7B63C8" : "#6B6C7F",
                     textAlign: "center" as const,
                     letterSpacing: "-0.005em",
                     transition: "color 180ms ease",
@@ -377,10 +377,10 @@ export function PackageSourcingFlow() {
               transition={{ duration: 0.35, ease: EASE }}
               style={{
                 background: "white",
-                border: "1px solid #F0ECF8",
+                border: "1px solid #E9E1CB",
                 borderRadius: 20,
                 padding: "28px 32px",
-                boxShadow: "0 4px 24px rgba(124,99,200,0.06)",
+                boxShadow: "0 4px 24px rgba(123,99,200,0.06)",
                 display: "grid",
                 gridTemplateColumns: "auto 1fr",
                 gap: "0 24px",
@@ -391,11 +391,11 @@ export function PackageSourcingFlow() {
               {/* Big numeral */}
               <div
                 style={{
-                  fontFamily: "var(--font-instrument-serif), serif",
+                  fontFamily: "var(--font-fraunces), serif",
                   fontStyle: "italic",
                   fontWeight: 400,
                   fontSize: "clamp(64px, 7vw, 96px)",
-                  color: "#7C63C8",
+                  color: "#7B63C8",
                   lineHeight: 0.9,
                   letterSpacing: "-0.03em",
                   alignSelf: "start",
@@ -414,7 +414,7 @@ export function PackageSourcingFlow() {
                       fontFamily: "var(--font-fraunces), serif",
                       fontSize: 22,
                       fontWeight: 800,
-                      color: "#111827",
+                      color: "#1A1B2E",
                       letterSpacing: "-0.015em",
                     }}
                   >
@@ -425,7 +425,7 @@ export function PackageSourcingFlow() {
                       margin: 0,
                       fontFamily: "var(--font-inter), sans-serif",
                       fontSize: 13,
-                      color: "#7C63C8",
+                      color: "#7B63C8",
                       fontWeight: 600,
                       letterSpacing: "-0.005em",
                     }}
@@ -440,7 +440,7 @@ export function PackageSourcingFlow() {
                     fontFamily: "var(--font-inter), sans-serif",
                     fontSize: 14.5,
                     lineHeight: 1.7,
-                    color: "#374151",
+                    color: "#4B4C5E",
                   }}
                 >
                   {step.body}
@@ -454,7 +454,7 @@ export function PackageSourcingFlow() {
                     gap: 8,
                     fontFamily: "var(--font-inter), sans-serif",
                     fontSize: 12.5,
-                    color: "#6B7280",
+                    color: "#6B6C7F",
                     fontWeight: 500,
                   }}
                 >
@@ -467,9 +467,9 @@ export function PackageSourcingFlow() {
                       width: 18,
                       height: 18,
                       borderRadius: 5,
-                      background: "rgba(124,99,200,0.10)",
-                      border: "1px solid rgba(124,99,200,0.22)",
-                      color: "#7C63C8",
+                      background: "rgba(123,99,200,0.10)",
+                      border: "1px solid rgba(123,99,200,0.22)",
+                      color: "#7B63C8",
                       flexShrink: 0,
                     }}
                   >
@@ -479,7 +479,7 @@ export function PackageSourcingFlow() {
                     </svg>
                   </span>
                   <span>
-                    <strong style={{ color: "#374151", fontWeight: 600 }}>{c.inTool}</strong>{" "}
+                    <strong style={{ color: "#4B4C5E", fontWeight: 600 }}>{c.inTool}</strong>{" "}
                     {step.hint}
                   </span>
                 </p>

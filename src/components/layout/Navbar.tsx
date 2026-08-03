@@ -133,12 +133,12 @@ export function Navbar() {
           background: scrolled
             ? "rgba(255,255,255,0.48)"
             : "rgba(255,255,255,0.28)",
-          border: "1px solid rgba(226,218,246,0.55)",
+          border: "1px solid rgba(233,225,203,0.55)",
           backdropFilter: "blur(18px) saturate(160%)",
           WebkitBackdropFilter: "blur(18px) saturate(160%)",
           boxShadow: scrolled
-            ? "0 10px 40px -12px rgba(124,99,200,0.18), inset 0 1px 0 rgba(255,255,255,0.6)"
-            : "0 6px 28px -10px rgba(124,99,200,0.12), inset 0 1px 0 rgba(255,255,255,0.5)",
+            ? "0 10px 40px -12px rgba(123,99,200,0.18), inset 0 1px 0 rgba(255,255,255,0.6)"
+            : "0 6px 28px -10px rgba(123,99,200,0.12), inset 0 1px 0 rgba(255,255,255,0.5)",
           transition: "background 300ms ease, box-shadow 300ms ease",
         }}
       >
@@ -167,7 +167,7 @@ export function Navbar() {
                   style={{
                     fontSize: 13.5,
                     fontWeight: 500,
-                    color: "#4B5563",
+                    color: "#4B4C5E",
                     textDecoration: "none",
                     padding: "8px 14px",
                     borderRadius: 999,
@@ -175,11 +175,11 @@ export function Navbar() {
                     fontFamily: "var(--font-inter), sans-serif",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "#111827"
-                    e.currentTarget.style.background = "rgba(124,99,200,0.06)"
+                    e.currentTarget.style.color = "#1A1B2E"
+                    e.currentTarget.style.background = "rgba(123,99,200,0.06)"
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "#4B5563"
+                    e.currentTarget.style.color = "#4B4C5E"
                     e.currentTarget.style.background = "transparent"
                   }}
                 >
@@ -207,13 +207,13 @@ export function Navbar() {
                   color: "#FFFFFF",
                   padding: "10px 20px",
                   borderRadius: 999,
-                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                  border: "1px solid rgba(124,99,200,0.9)",
+                  background: "#7B63C8",
+                  border: "1px solid rgba(123,99,200,0.9)",
                   textDecoration: "none",
                   transition: "transform 160ms ease, box-shadow 160ms ease",
                   fontFamily: "var(--font-inter), sans-serif",
                   letterSpacing: "-0.005em",
-                  boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55), inset 0 1px 0 rgba(255,255,255,0.35)",
+                  boxShadow: "0 6px 20px -6px rgba(123,99,200,0.55), inset 0 1px 0 rgba(255,255,255,0.35)",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)" }}
@@ -227,17 +227,17 @@ export function Navbar() {
                   aria-label={t.profile}
                   style={{
                     width: 38, height: 38, borderRadius: "50%",
-                    border: "1px solid rgba(124,99,200,0.30)",
-                    background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-                    color: "#7C63C8",
+                    border: "1px solid rgba(123,99,200,0.30)",
+                    background: "#EEE9FB",
+                    color: "#7B63C8",
                     fontSize: 14, fontWeight: 700,
                     cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontFamily: "var(--font-inter), sans-serif",
                     transition: "border-color 150ms",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(124,99,200,0.55)" }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(124,99,200,0.30)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(123,99,200,0.55)" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(123,99,200,0.30)" }}
                 >
                   {auth.initial}
                 </button>
@@ -249,23 +249,23 @@ export function Navbar() {
                       right: 0,
                       minWidth: 220,
                       background: "white",
-                      border: "1px solid #F0ECF8",
+                      border: "1px solid #E9E1CB",
                       borderRadius: 12,
-                      boxShadow: "0 12px 32px rgba(124,99,200,0.18)",
+                      boxShadow: "0 12px 32px rgba(123,99,200,0.18)",
                       padding: 6,
                       fontFamily: "var(--font-inter), sans-serif",
                     }}
                   >
                     <div style={{
                       padding: "10px 12px 10px",
-                      borderBottom: "1px solid #F0ECF8",
+                      borderBottom: "1px solid #E9E1CB",
                       marginBottom: 4,
                     }}>
-                      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#6B6C7F", textTransform: "uppercase", letterSpacing: "0.07em" }}>
                         {t.loggedInAs}
                       </p>
                       <p style={{
-                        margin: "2px 0 0", fontSize: 13, fontWeight: 600, color: "#111827",
+                        margin: "2px 0 0", fontSize: 13, fontWeight: 600, color: "#1A1B2E",
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>
                         {auth.email}
@@ -274,8 +274,8 @@ export function Navbar() {
                     <Link
                       href="/workspace"
                       onClick={() => setProfileOpen(false)}
-                      style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: "#374151", textDecoration: "none", transition: "background 150ms" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "#F8F6FF" }}
+                      style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: "#4B4C5E", textDecoration: "none", transition: "background 150ms" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#EEE9FB" }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
                     >
                       {t.myWorkspaceShort}
@@ -283,8 +283,8 @@ export function Navbar() {
                     <Link
                       href="/profil"
                       onClick={() => setProfileOpen(false)}
-                      style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: "#374151", textDecoration: "none", transition: "background 150ms" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "#F8F6FF" }}
+                      style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, color: "#4B4C5E", textDecoration: "none", transition: "background 150ms" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#EEE9FB" }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
                     >
                       {t.myProfile}
@@ -314,10 +314,10 @@ export function Navbar() {
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
-                  color: "#7C63C8",
+                  color: "#7B63C8",
                   padding: "9px 18px",
                   borderRadius: 999,
-                  border: "1px solid rgba(124,99,200,0.25)",
+                  border: "1px solid rgba(123,99,200,0.25)",
                   background: "rgba(255,255,255,0.4)",
                   textDecoration: "none",
                   transition: "all 160ms ease",
@@ -325,12 +325,12 @@ export function Navbar() {
                   letterSpacing: "-0.005em",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(124,99,200,0.08)"
-                  e.currentTarget.style.borderColor = "rgba(124,99,200,0.45)"
+                  e.currentTarget.style.background = "rgba(123,99,200,0.08)"
+                  e.currentTarget.style.borderColor = "rgba(123,99,200,0.45)"
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "rgba(255,255,255,0.4)"
-                  e.currentTarget.style.borderColor = "rgba(124,99,200,0.25)"
+                  e.currentTarget.style.borderColor = "rgba(123,99,200,0.25)"
                 }}
               >
                 {t.login}
@@ -344,13 +344,13 @@ export function Navbar() {
                   color: "#FFFFFF",
                   padding: "10px 20px",
                   borderRadius: 999,
-                  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-                  border: "1px solid rgba(124,99,200,0.9)",
+                  background: "#7B63C8",
+                  border: "1px solid rgba(123,99,200,0.9)",
                   textDecoration: "none",
                   transition: "transform 160ms ease, box-shadow 160ms ease",
                   fontFamily: "var(--font-inter), sans-serif",
                   letterSpacing: "-0.005em",
-                  boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55), inset 0 1px 0 rgba(255,255,255,0.35)",
+                  boxShadow: "0 6px 20px -6px rgba(123,99,200,0.55), inset 0 1px 0 rgba(255,255,255,0.35)",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)" }}
@@ -367,8 +367,8 @@ export function Navbar() {
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label={t.menu}
           style={{
-            background: "rgba(124,99,200,0.08)",
-            border: "1px solid rgba(124,99,200,0.2)",
+            background: "rgba(123,99,200,0.08)",
+            border: "1px solid rgba(123,99,200,0.2)",
             cursor: "pointer",
             padding: 8,
             borderRadius: 999,
@@ -382,7 +382,7 @@ export function Navbar() {
             height="20"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#4B5563"
+            stroke="#4B4C5E"
             strokeWidth="2"
             strokeLinecap="round"
           >
@@ -403,13 +403,13 @@ export function Navbar() {
               background: "rgba(255,255,255,0.85)",
               backdropFilter: "blur(18px) saturate(160%)",
               WebkitBackdropFilter: "blur(18px) saturate(160%)",
-              border: "1px solid rgba(226,218,246,0.6)",
+              border: "1px solid rgba(233,225,203,0.6)",
               borderRadius: 24,
               padding: "14px",
               display: "flex",
               flexDirection: "column",
               gap: 6,
-              boxShadow: "0 20px 60px -20px rgba(124,99,200,0.25)",
+              boxShadow: "0 20px 60px -20px rgba(123,99,200,0.25)",
             }}
           >
             {links.map((link) => (
@@ -420,7 +420,7 @@ export function Navbar() {
                 style={{
                   fontSize: 14,
                   fontWeight: 500,
-                  color: "#4B5563",
+                  color: "#4B4C5E",
                   textDecoration: "none",
                   padding: "11px 14px",
                   borderRadius: 12,
@@ -432,13 +432,13 @@ export function Navbar() {
             ))}
             {!isAuthed && (
               <>
-                <div style={{ height: 1, background: "rgba(240,236,248,0.8)", margin: "6px 4px" }} />
+                <div style={{ height: 1, background: "rgba(233,225,203,0.8)", margin: "6px 4px" }} />
                 <div style={{ padding: "2px 4px 4px" }}>
                   <LanguageSwitcher />
                 </div>
               </>
             )}
-            <div style={{ height: 1, background: "rgba(240,236,248,0.8)", margin: "6px 4px" }} />
+            <div style={{ height: 1, background: "rgba(233,225,203,0.8)", margin: "6px 4px" }} />
 
             {isAuthed ? (
               <>
@@ -450,21 +450,21 @@ export function Navbar() {
                     fontSize: 13.5,
                     fontWeight: 700,
                     color: "white",
-                    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    background: "#7B63C8",
                     padding: "12px",
                     borderRadius: 12,
                     textDecoration: "none",
                     fontFamily: "var(--font-inter), sans-serif",
-                    boxShadow: "0 6px 20px -6px rgba(124,99,200,0.5)",
+                    boxShadow: "0 6px 20px -6px rgba(123,99,200,0.5)",
                   }}
                 >
                   {t.myWorkspace}
                 </Link>
                 <p style={{
-                  margin: "8px 4px 0", fontSize: 11, color: "#6B7280",
+                  margin: "8px 4px 0", fontSize: 11, color: "#6B6C7F",
                   fontFamily: "var(--font-inter), sans-serif",
                 }}>
-                  {t.loggedInAs} <strong style={{ color: "#374151" }}>{auth.email}</strong>
+                  {t.loggedInAs} <strong style={{ color: "#4B4C5E" }}>{auth.email}</strong>
                 </p>
                 <button
                   onClick={() => { setMobileOpen(false); handleLogout() }}
@@ -493,11 +493,11 @@ export function Navbar() {
                     textAlign: "center",
                     fontSize: 13.5,
                     fontWeight: 600,
-                    color: "#7C63C8",
+                    color: "#7B63C8",
                     padding: "12px",
                     borderRadius: 12,
-                    border: "1px solid rgba(124,99,200,0.25)",
-                    background: "rgba(124,99,200,0.04)",
+                    border: "1px solid rgba(123,99,200,0.25)",
+                    background: "rgba(123,99,200,0.04)",
                     textDecoration: "none",
                     fontFamily: "var(--font-inter), sans-serif",
                   }}
@@ -512,12 +512,12 @@ export function Navbar() {
                     fontSize: 13.5,
                     fontWeight: 700,
                     color: "white",
-                    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                    background: "#7B63C8",
                     padding: "12px",
                     borderRadius: 12,
                     textDecoration: "none",
                     fontFamily: "var(--font-inter), sans-serif",
-                    boxShadow: "0 6px 20px -6px rgba(124,99,200,0.5)",
+                    boxShadow: "0 6px 20px -6px rgba(123,99,200,0.5)",
                   }}
                 >
                   {t.signup}

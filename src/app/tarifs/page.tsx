@@ -180,7 +180,7 @@ export default function TarifsPage() {
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#7C63C8",
+                color: "#7B63C8",
                 letterSpacing: "0.10em",
                 textTransform: "uppercase",
                 fontFamily: "var(--font-inter), sans-serif",
@@ -193,7 +193,7 @@ export default function TarifsPage() {
                 fontFamily: "var(--font-fraunces), serif",
                 fontSize: "clamp(34px, 5vw, 56px)",
                 fontWeight: 800,
-                color: "#111827",
+                color: "#1A1B2E",
                 margin: "14px 0 18px",
                 lineHeight: 1.05,
                 letterSpacing: "-0.025em",
@@ -202,10 +202,10 @@ export default function TarifsPage() {
               {t.heroTitlePrefix}
               <span
                 style={{
-                  fontFamily: "var(--font-instrument-serif), serif",
+                  fontFamily: "var(--font-fraunces), serif",
                   fontWeight: 400,
                   fontStyle: "italic",
-                  color: "#7C63C8",
+                  color: "#7B63C8",
                 }}
               >
                 {t.heroTitleItalic}
@@ -216,7 +216,7 @@ export default function TarifsPage() {
               style={{
                 fontFamily: "var(--font-inter), sans-serif",
                 fontSize: 16,
-                color: "#4B5563",
+                color: "#4B4C5E",
                 lineHeight: 1.7,
                 margin: "0 auto",
                 maxWidth: "55ch",
@@ -237,7 +237,7 @@ export default function TarifsPage() {
                 border: "1px solid #E2DAF6",
                 borderRadius: 14,
                 padding: 4,
-                boxShadow: "0 4px 16px rgba(124,99,200,0.08)",
+                boxShadow: "0 4px 16px rgba(123,99,200,0.08)",
                 fontFamily: "var(--font-inter), sans-serif",
               }}
             >
@@ -249,8 +249,8 @@ export default function TarifsPage() {
                     padding: "10px 18px",
                     borderRadius: 10,
                     border: "none",
-                    background: seats === n ? "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)" : "transparent",
-                    color: seats === n ? "white" : "#4B5563",
+                    background: seats === n ? "#7B63C8" : "transparent",
+                    color: seats === n ? "white" : "#4B4C5E",
                     fontSize: 14,
                     fontWeight: 700,
                     cursor: "pointer",
@@ -268,13 +268,13 @@ export default function TarifsPage() {
             style={{
               textAlign: "center",
               fontSize: 12.5,
-              color: "#6B7280",
+              color: "#6B6C7F",
               margin: "12px 0 0",
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >
             {t.seatHint(MAX_SELF_SERVE_SEATS)}
-            <Link href="/contact-equipe" style={{ color: "#7C63C8", fontWeight: 600 }}>
+            <Link href="/contact-equipe" style={{ color: "#7B63C8", fontWeight: 600 }}>
               {t.talkAboutIt}
             </Link>
             .
@@ -332,7 +332,7 @@ export default function TarifsPage() {
                 fontFamily: "var(--font-fraunces), serif",
                 fontSize: 18,
                 fontWeight: 700,
-                color: "#111827",
+                color: "#1A1B2E",
                 margin: "0 0 18px",
                 letterSpacing: "-0.01em",
               }}
@@ -355,7 +355,7 @@ export default function TarifsPage() {
                     style={{
                       fontSize: 14,
                       fontWeight: 600,
-                      color: "#111827",
+                      color: "#1A1B2E",
                       cursor: "pointer",
                       listStyle: "none",
                     }}
@@ -366,7 +366,7 @@ export default function TarifsPage() {
                     style={{
                       margin: "10px 0 0",
                       fontSize: 13.5,
-                      color: "#4B5563",
+                      color: "#4B4C5E",
                       lineHeight: 1.65,
                     }}
                   >
@@ -380,14 +380,14 @@ export default function TarifsPage() {
                 margin: "24px 0 0",
                 fontFamily: "var(--font-inter), sans-serif",
                 fontSize: 13.5,
-                color: "#6B7280",
+                color: "#6B6C7F",
                 textAlign: "center",
               }}
             >
               {t.otherQuestion}
               <Link
                 href="/contact"
-                style={{ color: "#7C63C8", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
+                style={{ color: "#7B63C8", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 2 }}
               >
                 {t.writeToUs}
               </Link>
@@ -425,11 +425,11 @@ function PriceCard({
         position: "relative",
         background: "white",
         borderRadius: 24,
-        border: recommended ? "1.5px solid rgba(124,99,200,0.40)" : "1.5px solid rgba(124,99,200,0.18)",
+        border: recommended ? "1.5px solid rgba(123,99,200,0.40)" : "1.5px solid rgba(123,99,200,0.18)",
         padding: "44px 32px 32px",
         boxShadow: recommended
-          ? "0 24px 56px -18px rgba(124,99,200,0.28)"
-          : "0 12px 32px -16px rgba(124,99,200,0.14)",
+          ? "0 24px 56px -18px rgba(123,99,200,0.28)"
+          : "0 12px 32px -16px rgba(123,99,200,0.14)",
         display: "flex",
         flexDirection: "column",
       }}
@@ -441,7 +441,7 @@ function PriceCard({
             top: -14,
             left: "50%",
             transform: "translateX(-50%)",
-            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            background: "#7B63C8",
             color: "white",
             fontFamily: "var(--font-inter), sans-serif",
             fontSize: 11,
@@ -450,7 +450,7 @@ function PriceCard({
             borderRadius: 999,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            boxShadow: "0 8px 20px -6px rgba(124,99,200,0.55)",
+            boxShadow: "0 8px 20px -6px rgba(123,99,200,0.55)",
           }}
         >
           {t.recommended}
@@ -464,7 +464,7 @@ function PriceCard({
             margin: "0 0 6px",
             fontSize: 11.5,
             fontWeight: 700,
-            color: "#7C63C8",
+            color: "#7B63C8",
             letterSpacing: "0.10em",
             textTransform: "uppercase",
           }}
@@ -477,7 +477,7 @@ function PriceCard({
             margin: 0,
             fontSize: 24,
             fontWeight: 800,
-            color: "#111827",
+            color: "#1A1B2E",
             letterSpacing: "-0.02em",
             lineHeight: 1.15,
           }}
@@ -489,7 +489,7 @@ function PriceCard({
             fontFamily: "var(--font-inter), sans-serif",
             margin: "6px 0 0",
             fontSize: 13.5,
-            color: "#6B7280",
+            color: "#6B6C7F",
             lineHeight: 1.5,
           }}
         >
@@ -499,8 +499,8 @@ function PriceCard({
 
       <div
         style={{
-          borderTop: "1px solid rgba(124,99,200,0.18)",
-          borderBottom: "1px solid rgba(124,99,200,0.18)",
+          borderTop: "1px solid rgba(123,99,200,0.18)",
+          borderBottom: "1px solid rgba(123,99,200,0.18)",
           padding: "20px 0",
           marginBottom: 20,
         }}
@@ -511,7 +511,7 @@ function PriceCard({
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 38,
               fontWeight: 800,
-              color: "#111827",
+              color: "#1A1B2E",
               lineHeight: 1,
               letterSpacing: "-0.025em",
             }}
@@ -522,7 +522,7 @@ function PriceCard({
             style={{
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 13.5,
-              color: "#6B7280",
+              color: "#6B6C7F",
               paddingBottom: 4,
               fontWeight: 500,
             }}
@@ -534,7 +534,7 @@ function PriceCard({
           style={{
             margin: "6px 0 0",
             fontSize: 12.5,
-            color: "#6B7280",
+            color: "#6B6C7F",
             fontFamily: "var(--font-inter), sans-serif",
           }}
         >
@@ -546,8 +546,8 @@ function PriceCard({
               marginTop: 14,
               padding: "10px 12px",
               borderRadius: 10,
-              background: "rgba(124,99,200,0.06)",
-              border: "1px solid rgba(124,99,200,0.18)",
+              background: "rgba(123,99,200,0.06)",
+              border: "1px solid rgba(123,99,200,0.18)",
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 12.5,
               color: "#5C46A0",
@@ -556,7 +556,7 @@ function PriceCard({
               gap: 4,
             }}
           >
-            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7C63C8" }}>
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7B63C8" }}>
               {t.included}
             </span>
             <span style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
@@ -590,7 +590,7 @@ function PriceCard({
               alignItems: "flex-start",
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 13.5,
-              color: "#374151",
+              color: "#4B4C5E",
               lineHeight: 1.55,
             }}
           >
@@ -603,8 +603,8 @@ function PriceCard({
                 width: 18,
                 height: 18,
                 borderRadius: "50%",
-                background: "rgba(124,99,200,0.10)",
-                color: "#7C63C8",
+                background: "rgba(123,99,200,0.10)",
+                color: "#7B63C8",
                 flexShrink: 0,
                 marginTop: 2,
               }}
@@ -627,9 +627,9 @@ function PriceCard({
           gap: 6,
           background: accentSoft
             ? "white"
-            : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
-          color: accentSoft ? "#7C63C8" : "white",
-          border: accentSoft ? "1.5px solid #7C63C8" : "none",
+            : "#7B63C8",
+          color: accentSoft ? "#7B63C8" : "white",
+          border: accentSoft ? "1.5px solid #7B63C8" : "none",
           fontFamily: "var(--font-inter), sans-serif",
           fontSize: 14.5,
           fontWeight: 700,
@@ -638,7 +638,7 @@ function PriceCard({
           textDecoration: "none",
           boxShadow: accentSoft
             ? "none"
-            : "0 8px 24px -6px rgba(124,99,200,0.55)",
+            : "0 8px 24px -6px rgba(123,99,200,0.55)",
           width: "100%",
           boxSizing: "border-box",
         }}
@@ -650,7 +650,7 @@ function PriceCard({
           margin: "10px 0 0",
           fontFamily: "var(--font-inter), sans-serif",
           fontSize: 11.5,
-          color: "#6B7280",
+          color: "#6B6C7F",
           textAlign: "center",
         }}
       >

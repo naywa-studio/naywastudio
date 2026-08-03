@@ -75,8 +75,8 @@ export function Footer() {
   return (
     <footer
       style={{
-        background: '#F8F6FF',
-        borderTop: '1px solid #E2DAF6',
+        background: '#FAF7F0',
+        borderTop: '1px solid #E9E1CB',
         position: 'relative',
         zIndex: 2,
       }}
@@ -101,7 +101,7 @@ export function Footer() {
               margin: 0,
               fontFamily: 'var(--font-inter), sans-serif',
               fontSize: 13,
-              color: '#6B7280',
+              color: '#6B6C7F',
               lineHeight: 1.65,
               maxWidth: '28ch',
             }}
@@ -119,7 +119,7 @@ export function Footer() {
                 fontFamily: 'var(--font-inter), sans-serif',
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#111827',
+                color: '#1A1B2E',
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
               }}
@@ -136,12 +136,12 @@ export function Footer() {
                   style={{
                     fontFamily: 'var(--font-inter), sans-serif',
                     fontSize: 13,
-                    color: '#6B7280',
+                    color: '#6B6C7F',
                     textDecoration: 'none',
                     transition: 'color 150ms',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#7C63C8')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#7B63C8')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#6B6C7F')}
                 >
                   {label}
                 </a>
@@ -152,12 +152,12 @@ export function Footer() {
                   style={{
                     fontFamily: 'var(--font-inter), sans-serif',
                     fontSize: 13,
-                    color: '#6B7280',
+                    color: '#6B6C7F',
                     textDecoration: 'none',
                     transition: 'color 150ms',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#7C63C8')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#7B63C8')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#6B6C7F')}
                 >
                   {label}
                 </Link>
@@ -173,7 +173,7 @@ export function Footer() {
           maxWidth: 1040,
           margin: '0 auto',
           padding: '20px 24px',
-          borderTop: '1px solid #E2DAF6',
+          borderTop: '1px solid #E9E1CB',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -185,7 +185,7 @@ export function Footer() {
           style={{
             fontFamily: 'var(--font-inter), sans-serif',
             fontSize: 12,
-            color: '#6B7280',
+            color: '#6B6C7F',
           }}
         >
           {t.rights}
@@ -194,7 +194,7 @@ export function Footer() {
           style={{
             fontFamily: 'var(--font-inter), sans-serif',
             fontSize: 12,
-            color: '#6B7280',
+            color: '#6B6C7F',
           }}
         >
           {t.madeWith}

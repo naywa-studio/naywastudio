@@ -35,22 +35,22 @@ export function LanguageSwitcher() {
           gap: 6,
           fontSize: 13,
           fontWeight: 600,
-          color: '#4B5563',
+          color: '#4B4C5E',
           padding: '9px 14px',
           borderRadius: 999,
-          border: '1px solid rgba(124,99,200,0.20)',
+          border: '1px solid rgba(123,99,200,0.20)',
           background: 'rgba(255,255,255,0.4)',
           cursor: 'pointer',
           fontFamily: 'var(--font-inter), sans-serif',
           transition: 'all 160ms ease',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(124,99,200,0.08)'
-          e.currentTarget.style.borderColor = 'rgba(124,99,200,0.4)'
+          e.currentTarget.style.background = 'rgba(123,99,200,0.08)'
+          e.currentTarget.style.borderColor = 'rgba(123,99,200,0.4)'
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = 'rgba(255,255,255,0.4)'
-          e.currentTarget.style.borderColor = 'rgba(124,99,200,0.20)'
+          e.currentTarget.style.borderColor = 'rgba(123,99,200,0.20)'
         }}
       >
         {current.label}
@@ -59,7 +59,7 @@ export function LanguageSwitcher() {
           height="10"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="#7C63C8"
+          stroke="#7B63C8"
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -77,9 +77,9 @@ export function LanguageSwitcher() {
             right: 0,
             minWidth: 140,
             background: 'white',
-            border: '1px solid #F0ECF8',
+            border: '1px solid #E9E1CB',
             borderRadius: 12,
-            boxShadow: '0 12px 32px rgba(124,99,200,0.18)',
+            boxShadow: '0 12px 32px rgba(123,99,200,0.18)',
             padding: 6,
             fontFamily: 'var(--font-inter), sans-serif',
             zIndex: 20,
@@ -102,15 +102,15 @@ export function LanguageSwitcher() {
                 borderRadius: 8,
                 fontSize: 13,
                 fontWeight: l.value === lang ? 700 : 500,
-                color: l.value === lang ? '#7C63C8' : '#374151',
-                background: l.value === lang ? 'rgba(124,99,200,0.08)' : 'transparent',
+                color: l.value === lang ? '#7B63C8' : '#4B4C5E',
+                background: l.value === lang ? 'rgba(123,99,200,0.08)' : 'transparent',
                 border: 'none',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 transition: 'background 150ms',
               }}
               onMouseEnter={(e) => {
-                if (l.value !== lang) e.currentTarget.style.background = '#F8F6FF'
+                if (l.value !== lang) e.currentTarget.style.background = '#EEE9FB'
               }}
               onMouseLeave={(e) => {
                 if (l.value !== lang) e.currentTarget.style.background = 'transparent'

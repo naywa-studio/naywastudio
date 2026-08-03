@@ -44,7 +44,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       name: "Elyas Malki",
       role: "Fondateur — Produit & Tech",
       linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
-      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+      avatarGradient: "linear-gradient(135deg, #7B63C8 0%, #B8AEDE 100%)",
       photoUrl: "/founders/elyas.png",
     },
     {
@@ -52,7 +52,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       name: "Hussein Malki",
       role: "Direction artistique & Marque",
       linkedinUrl: "https://www.linkedin.com/in/hussein-malki/",
-      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7B63C8 100%)",
       photoUrl: "/founders/hussein.png",
     },
     {
@@ -60,7 +60,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       name: "Raphael Bredin",
       role: "Business Developer",
       linkedinUrl: "https://www.linkedin.com/in/raphaelbredin/",
-      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+      avatarGradient: "linear-gradient(135deg, #7B63C8 0%, #B8AEDE 100%)",
       photoUrl: "/founders/raphael.png",
     },
     {
@@ -68,14 +68,14 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       name: "Maryia Malki",
       role: "Technical Lead",
       linkedinUrl: "https://www.linkedin.com/in/maryia-malki-a0489a39b/",
-      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7B63C8 100%)",
     },
     {
       initials: "AE",
       name: "Amine Errabih",
       role: "Technical Lead",
       linkedinUrl: "https://www.linkedin.com/in/amine-errabih/",
-      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+      avatarGradient: "linear-gradient(135deg, #7B63C8 0%, #B8AEDE 100%)",
     },
   ],
   en: [
@@ -84,7 +84,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       name: "Elyas Malki",
       role: "Founder — Product & Tech",
       linkedinUrl: "https://www.linkedin.com/in/elyas-malki-2a6b7933a/",
-      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+      avatarGradient: "linear-gradient(135deg, #7B63C8 0%, #B8AEDE 100%)",
       photoUrl: "/founders/elyas.png",
     },
     {
@@ -92,7 +92,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       name: "Hussein Malki",
       role: "Art Direction & Brand",
       linkedinUrl: "https://www.linkedin.com/in/hussein-malki/",
-      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7B63C8 100%)",
       photoUrl: "/founders/hussein.png",
     },
     {
@@ -100,7 +100,7 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       name: "Raphael Bredin",
       role: "Business Developer",
       linkedinUrl: "https://www.linkedin.com/in/raphaelbredin/",
-      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+      avatarGradient: "linear-gradient(135deg, #7B63C8 0%, #B8AEDE 100%)",
       photoUrl: "/founders/raphael.png",
     },
     {
@@ -108,14 +108,14 @@ const FOUNDERS: Record<'fr' | 'en', Founder[]> = {
       name: "Maryia Malki",
       role: "Technical Lead",
       linkedinUrl: "https://www.linkedin.com/in/maryia-malki-a0489a39b/",
-      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7C63C8 100%)",
+      avatarGradient: "linear-gradient(135deg, #B8AEDE 0%, #7B63C8 100%)",
     },
     {
       initials: "AE",
       name: "Amine Errabih",
       role: "Technical Lead",
       linkedinUrl: "https://www.linkedin.com/in/amine-errabih/",
-      avatarGradient: "linear-gradient(135deg, #7C63C8 0%, #B8AEDE 100%)",
+      avatarGradient: "linear-gradient(135deg, #7B63C8 0%, #B8AEDE 100%)",
     },
   ],
 }
@@ -190,10 +190,10 @@ export function Founders() {
             {t.titlePre}
             <span
               style={{
-                fontFamily: "var(--font-instrument-serif), serif",
+                fontFamily: "var(--font-fraunces), serif",
                 fontWeight: 400,
                 fontStyle: "italic",
-                color: "#7C63C8",
+                color: "#7B63C8",
               }}
             >
               {t.titleItalic}
@@ -241,7 +241,7 @@ export function Founders() {
                 display: "flex",
                 flexDirection: "column",
                 gap: 18,
-                boxShadow: "0 4px 24px rgba(124,99,200,0.06)",
+                boxShadow: "0 4px 24px rgba(123,99,200,0.06)",
                 transition: "transform 200ms ease, box-shadow 200ms ease",
               }}
               whileHover={{ y: -4 }}
@@ -274,7 +274,7 @@ export function Founders() {
                     letterSpacing: "-0.02em",
                     boxShadow: founder.photoUrl
                       ? "0 2px 10px rgba(26,27,46,0.06)"
-                      : "0 4px 12px rgba(124,99,200,0.25)",
+                      : "0 4px 12px rgba(123,99,200,0.25)",
                     flexShrink: 0,
                   }}
                 >
@@ -297,7 +297,7 @@ export function Founders() {
                     style={{
                       fontFamily: "var(--font-inter), sans-serif",
                       fontSize: 13,
-                      color: "#7C63C8",
+                      color: "#7B63C8",
                       margin: "3px 0 0",
                       fontWeight: 600,
                     }}
@@ -317,7 +317,7 @@ export function Founders() {
                     fontFamily: "var(--font-inter), sans-serif",
                     fontSize: 13,
                     fontWeight: 600,
-                    color: "#7C63C8",
+                    color: "#7B63C8",
                     textDecoration: "none",
                     display: "inline-flex",
                     alignItems: "center",
@@ -326,10 +326,10 @@ export function Founders() {
                     transition: "color 150ms ease",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "#6B54B2"
+                    e.currentTarget.style.color = "#4B3A8F"
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "#7C63C8"
+                    e.currentTarget.style.color = "#7B63C8"
                   }}
                 >
                   <svg
