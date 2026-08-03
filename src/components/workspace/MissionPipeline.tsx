@@ -35,20 +35,26 @@ const PRIMARY_DK = "#5b4aa8"
 
 type Step = "identified" | "contacted" | "interview" | "offer" | "hired" | "rejected"
 
-// Couleur par stade du process de recrutement (harmonisée : froid → chaud →
-// violet client → vert recruté ; gris pour écarté). La barre d'une carte se
-// remplit dans la couleur de son stade courant → différenciation immédiate
-// sans arc-en-ciel (une carte = une couleur).
+// Progression de VIOLETS (charte) le long du funnel : la barre se remplit
+// dans un violet de plus en plus profond au fur et à mesure que le candidat
+// avance. Doux, harmonieux, sans arc-en-ciel. Seuls les terminaux prennent
+// une teinte distincte : vert (recruté), gris (écarté).
 const STAGE_COLOR: Record<Step, string> = {
-  identified: "#8A8FA3", // À contacter — slate neutre
-  contacted:  "#2563EB", // Contacté — bleu (prise de contact)
-  interview:  "#D97706", // Entretien — ambre (échange en cours)
-  offer:      "#7C63C8", // Présenté au client — violet (moment clé)
-  hired:      "#0F766E", // Recruté — teal (succès)
-  rejected:   "#9AA1AE", // Écarté — gris (sorti du process)
+  identified: "#C3B9E6", // À contacter — violet clair
+  contacted:  "#A594DA", // Contacté
+  interview:  "#8A76CE", // Entretien
+  offer:      "#7059BE", // Présenté au client — violet profond
+  hired:      "#3F9C86", // Recruté — vert doux
+  rejected:   "#C2C6D0", // Écarté — gris doux
 }
-// Teinte douce (fond d'avatar) : la couleur du stade à ~12 % d'opacité.
-function softTint(hex: string): string { return `${hex}1F` }
+// Couleur du LIBELLÉ (lisible sur blanc) — les stades violets partagent un
+// même violet foncé, les terminaux gardent leur teinte.
+const STAGE_TEXT: Record<Step, string> = {
+  identified: "#5b4aa8", contacted: "#5b4aa8", interview: "#5b4aa8", offer: "#4a3a85",
+  hired: "#0F766E", rejected: "#6B7280",
+}
+// Teinte douce (fond d'avatar) : la couleur du stade à ~14 % d'opacité.
+function softTint(hex: string): string { return `${hex}24` }
 
 const STAGE_LABELS: Record<Lang, Record<"identified" | "contacted" | "interview" | "offer" | "hired" | "rejected", string>> = {
   fr: { identified: "À contacter", contacted: "Contacté", interview: "Entretien", offer: "Présenté au client", hired: "Recruté", rejected: "Écarté" },
@@ -303,6 +309,7 @@ function PipelineCard({
 
   const stageLabel = STAGE_LABELS[lang][step]
   const stageColor = STAGE_COLOR[step]
+  const stageText = STAGE_TEXT[step]
 
   const patchStage = async (stage: PipelineStage, reasons?: string[] | null) => {
     if (isReadOnly) return
@@ -344,16 +351,15 @@ function PipelineCard({
   return (
     <div style={{
       background: isRejected ? "var(--nw-neutral-100)" : "white",
-      border: `1px solid ${step === "offer" ? "#c9bff0" : "var(--nw-border)"}`,
-      borderLeft: `3px solid ${stageColor}`,
-      borderRadius: "0 12px 12px 0", padding: "11px 13px",
+      border: `1px solid ${step === "offer" ? "#E1DAF4" : "var(--nw-border)"}`,
+      borderRadius: 14, padding: "13px 15px",
       transition: "background 0.2s ease, border-color 0.2s ease",
     }}>
       <button
         type="button" onClick={onToggleExpand}
-        style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", background: "transparent", border: "none", cursor: "pointer", padding: 0, textAlign: "left", fontFamily: "inherit" }}
+        style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", background: "transparent", border: "none", cursor: "pointer", padding: 0, textAlign: "left", fontFamily: "inherit" }}
       >
-        <span style={{ width: 34, height: 34, borderRadius: "50%", background: softTint(stageColor), color: stageColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, transition: "background 0.2s ease, color 0.2s ease" }}>{initials}</span>
+        <span style={{ width: 36, height: 36, borderRadius: "50%", background: softTint(stageColor), color: stageText, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, transition: "background 0.2s ease, color 0.2s ease" }}>{initials}</span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
             <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--nw-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -373,7 +379,7 @@ function PipelineCard({
                 <span key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: (!isRejected && (isHired || i <= activeIdx)) ? stageColor : "var(--nw-border)", transition: "background 0.25s ease" }} />
               ))}
             </span>
-            <span style={{ fontSize: 11, color: stageColor, fontWeight: 600, whiteSpace: "nowrap" }}>{stageLabel}</span>
+            <span style={{ fontSize: 11, color: stageText, fontWeight: 600, whiteSpace: "nowrap" }}>{stageLabel}</span>
           </span>
         </span>
       </button>
@@ -384,7 +390,7 @@ function PipelineCard({
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {stageBtns.map((s) => {
                 const active = stepOf(row.pipeline_stage) === stepOf(s)
-                const tone = STAGE_COLOR[stepOf(s)]
+                const tone = STAGE_TEXT[stepOf(s)]
                 return (
                   <button
                     key={s} type="button" onClick={() => void patchStage(s)}

@@ -23,12 +23,15 @@ type StageMeta = { key: PipelineStage; color: string; bg: string }
 
 // Active board columns — the relational journey. Pricing was removed (handled
 // in the dedicated Pricing tab) and the terminal states live outside the board.
+// Dégradé de violets (charte) le long du funnel — harmonisé avec la Shortlist
+// de mission. Doux, sur la couleur de marque ; les terminaux gardent leur
+// teinte (vert recruté, gris écarté).
 const ACTIVE_STAGES: StageMeta[] = [
-  { key: "identified", color: "var(--nw-text-muted)", bg: "#F9FAFB" },
-  { key: "contacted",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
-  { key: "replied",    color: "var(--nw-primary)", bg: "rgba(124,99,200,0.05)" },
-  { key: "interview",  color: "var(--nw-warn)", bg: "rgba(245,158,11,0.06)" },
-  { key: "offer",      color: "var(--nw-success)", bg: "rgba(34,197,94,0.06)" },
+  { key: "identified", color: "#8E86B8", bg: "rgba(124,99,200,0.04)" },
+  { key: "contacted",  color: "#7C70C0", bg: "rgba(124,99,200,0.05)" },
+  { key: "replied",    color: "#6E5FBB", bg: "rgba(124,99,200,0.06)" },
+  { key: "interview",  color: "#6151AE", bg: "rgba(124,99,200,0.07)" },
+  { key: "offer",      color: "#5b4aa8", bg: "rgba(124,99,200,0.09)" },
 ]
 
 // Terminal states — outcomes, not steps. Shown as clickable + droppable chips
@@ -41,8 +44,8 @@ const TERMINAL_STAGES: StageMeta[] = [
 const copy = {
   fr: {
     stageLabels: {
-      identified: "Identifié", contacted: "Contacté", replied: "Réponse",
-      interview: "Entretien", offer: "Offre", hired: "Recruté", rejected: "Écarté",
+      identified: "À contacter", contacted: "Contacté", replied: "A répondu",
+      interview: "Entretien", offer: "Présenté au client", hired: "Recruté", rejected: "Écarté",
     } as Record<PipelineStage, string>,
     title: "Suivi candidat",
     subtitleEmpty: "Ajoutez des candidats à la pipeline depuis vos missions — vous les suivrez ici, étape par étape.",
@@ -84,8 +87,8 @@ const copy = {
   },
   en: {
     stageLabels: {
-      identified: "Identified", contacted: "Contacted", replied: "Replied",
-      interview: "Interview", offer: "Offer", hired: "Hired", rejected: "Rejected",
+      identified: "To contact", contacted: "Contacted", replied: "Replied",
+      interview: "Interview", offer: "Presented to client", hired: "Recruited", rejected: "Dropped",
     } as Record<PipelineStage, string>,
     title: "Candidate tracking",
     subtitleEmpty: "Add candidates to the pipeline from your missions — you'll track them here, stage by stage.",
