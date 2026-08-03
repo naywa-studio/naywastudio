@@ -2,6 +2,7 @@
 import { m } from "framer-motion"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { Eyebrow } from "@/components/brand/Eyebrow"
+import { accentItalic } from "@/lib/brand"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -30,7 +31,8 @@ const content = {
   fr: {
     badge: "Comment ça marche",
     titleLine1: "De la mission",
-    titleLine2: "à la shortlist",
+    titleLine2Pre: "à la ",
+    titleLine2Accent: "shortlist",
     intro: "Trois étapes entre le besoin de votre client et des candidats prêts à présenter.",
     stepLabel: "Étape",
     steps: [
@@ -57,7 +59,8 @@ const content = {
   en: {
     badge: "How it works",
     titleLine1: "From the role",
-    titleLine2: "to the shortlist",
+    titleLine2Pre: "to the ",
+    titleLine2Accent: "shortlist",
     intro: "Three steps between your client's need and candidates ready to present.",
     stepLabel: "Step",
     steps: [
@@ -124,7 +127,7 @@ export function HowItWorks() {
             }}
           >
             {c.titleLine1}<br />
-            {c.titleLine2}
+            {c.titleLine2Pre}<span style={accentItalic}>{c.titleLine2Accent}</span>
           </h2>
 
           <p

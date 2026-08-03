@@ -2,6 +2,7 @@
 import { m } from "framer-motion"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { Eyebrow } from "@/components/brand/Eyebrow"
+import { accentItalic } from "@/lib/brand"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -15,49 +16,49 @@ const fu = (delay: number) => ({
 const content = {
   fr: {
     badge: "Notre proposition de valeur",
-    titleLine1: "Trois principes,",
-    titleLine2: "aucune fausse promesse.",
+    titleLine1: "L'IA traite,",
+    titleAccent: "vous décidez.",
     intro:
-      "Naywa n'automatise pas votre métier. Nous l'outillons pour que vous gardiez la main là où ça compte, et que la machine absorbe ce qui n'aurait jamais dû être à votre charge.",
+      "Une IA clé en main, pensée pour votre métier — pas un chatbot de plus. Vous n'avez pas à devenir expert du prompt : l'outil fait le travail d'exécution, vous gardez le jugement et la décision.",
     metrics: [
       {
         value: "Vous",
-        title: "Vous gardez la décision",
-        desc: "Aucun envoi, aucun classement, aucune action automatique. Nora propose, vous tranchez. Vos process, votre style, vos clients.",
+        title: "La décision reste vôtre",
+        desc: "L'IA ne travaille jamais à votre place — elle travaille pour vous. Aucun envoi, aucun classement, aucune action automatique : Nora propose, vous tranchez. Vos process, votre style, vos clients.",
       },
       {
-        value: "IA",
-        title: "L'IA absorbe la friction",
-        desc: "Lire les CV, les ranger, les noter, les anonymiser, calculer la marge : tout ce qui vous prenait des heures se fait pendant que vous lisez ce paragraphe.",
+        value: "L'outil",
+        title: "Clé en main, pas un chatbot",
+        desc: "Rien à prompter, rien à paramétrer. Nora lit les CV, les range, les note, les anonymise, calcule la marge. Le métier n'a pas à devenir expert de l'IA — l'IA se met au service du métier.",
       },
       {
         value: "Métier",
         title: "Conçu pour le métier",
-        desc: "Naywa ne cherche pas à tout faire. Nous bâtissons un outil par métier, en profondeur, avec les structures qui le vivent au quotidien.",
+        desc: "Un métier ne se pilote pas avec une IA générique. Nous bâtissons un outil par métier, en profondeur, avec les structures qui le vivent au quotidien.",
       },
     ],
   },
   en: {
     badge: "Our value proposition",
-    titleLine1: "Three principles,",
-    titleLine2: "no false promises.",
+    titleLine1: "AI does the work,",
+    titleAccent: "you decide.",
     intro:
-      "Naywa doesn't automate your job. We equip you to stay in control where it matters, while the machine absorbs what should never have been your burden.",
+      "A turnkey AI, built for your profession — not just another chatbot. You don't have to become a prompt expert: the tool handles the execution, you keep the judgement and the decision.",
     metrics: [
       {
         value: "You",
-        title: "You keep the decision",
-        desc: "No sending, no sorting, no automatic action. Nora suggests, you decide. Your process, your style, your clients.",
+        title: "The decision stays yours",
+        desc: "AI never works in your place — it works for you. No sending, no ranking, no automatic action: Nora suggests, you decide. Your process, your style, your clients.",
       },
       {
-        value: "AI",
-        title: "AI absorbs the friction",
-        desc: "Reading CVs, filing them, scoring them, anonymizing them, working out the margin: everything that used to take you hours happens while you read this paragraph.",
+        value: "The tool",
+        title: "Turnkey, not a chatbot",
+        desc: "Nothing to prompt, nothing to configure. Nora reads CVs, files them, scores them, anonymizes them, works out the margin. The profession shouldn't have to master AI — AI puts itself at the service of the craft.",
       },
       {
         value: "Craft",
         title: "Built for the craft",
-        desc: "Naywa isn't trying to do everything. We build one tool per profession, in depth, with the teams who live it every day.",
+        desc: "A profession isn't run with a generic AI. We build one tool per profession, in depth, with the teams who live it every day.",
       },
     ],
   },
@@ -105,7 +106,7 @@ export function WhyNawa() {
             }}
           >
             {c.titleLine1}<br />
-            {c.titleLine2}
+            <span style={accentItalic}>{c.titleAccent}</span>
           </h2>
 
           <p
