@@ -291,7 +291,7 @@ export function FaqContent() {
         </span>
 
         <h1 style={{
-          fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, color: "#1A1B2E",
+          fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 500, color: "#1A1B2E",
           letterSpacing: "-0.03em", lineHeight: 1.08,
           margin: "0 0 18px",
           maxWidth: "22ch",
@@ -316,7 +316,7 @@ export function FaqContent() {
             <h2 style={{
               margin: "0 0 18px",
               fontSize: "clamp(20px, 2.2vw, 26px)",
-              fontWeight: 800, color: "#1A1B2E",
+              fontWeight: 500, color: "#1A1B2E",
               letterSpacing: "-0.02em",
               fontFamily: "var(--font-fraunces), serif",
             }}>

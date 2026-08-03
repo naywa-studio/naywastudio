@@ -96,7 +96,7 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
           </span>
           <h1 style={{
             fontSize: "clamp(26px, 4vw, 38px)",
-            fontWeight: 800, color: "#1A1B2E",
+            fontWeight: 500, color: "#1A1B2E",
             margin: "0 0 12px", letterSpacing: -0.3,
             fontFamily: "var(--font-fraunces), sans-serif",
           }}>
@@ -133,7 +133,7 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
           {sections.map((section) => (
             <section key={section.title}>
               <h2 style={{
-                fontSize: 17, fontWeight: 700, color: "#1A1B2E",
+                fontSize: 17, fontWeight: 600, color: "#1A1B2E",
                 margin: "0 0 16px",
                 fontFamily: "var(--font-fraunces), sans-serif",
                 paddingBottom: 12, borderBottom: "1px solid #E9E1CB",

@@ -209,7 +209,7 @@ export function PackageSourcingFlow() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(22px, 2.8vw, 30px)",
-              fontWeight: 800,
+              fontWeight: 500,
               letterSpacing: "-0.02em",
               color: "#1A1B2E",
               margin: 0,
@@ -413,7 +413,7 @@ export function PackageSourcingFlow() {
                       margin: 0,
                       fontFamily: "var(--font-fraunces), serif",
                       fontSize: 22,
-                      fontWeight: 800,
+                      fontWeight: 600,
                       color: "#1A1B2E",
                       letterSpacing: "-0.015em",
                     }}

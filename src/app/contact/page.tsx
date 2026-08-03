@@ -140,7 +140,7 @@ export default function ContactPage() {
                 style={{
                   fontFamily: "var(--font-fraunces), serif",
                   fontSize: "clamp(34px, 4.5vw, 52px)",
-                  fontWeight: 800,
+                  fontWeight: 500,
                   color: "#1A1B2E",
                   margin: 0,
                   lineHeight: 1.05,

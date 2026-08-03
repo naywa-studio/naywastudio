@@ -104,7 +104,7 @@ export function SolutionsContent() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(34px, 5vw, 56px)",
-              fontWeight: 800,
+              fontWeight: 500,
               color: "#1A1B2E",
               margin: "14px 0 20px",
               lineHeight: 1.05,
@@ -165,7 +165,7 @@ export function SolutionsContent() {
               style={{
                 fontFamily: "var(--font-fraunces), serif",
                 fontSize: "clamp(28px, 3.8vw, 40px)",
-                fontWeight: 800,
+                fontWeight: 500,
                 color: "#1A1B2E",
                 margin: "12px 0 0",
                 lineHeight: 1.1,
@@ -217,7 +217,7 @@ export function SolutionsContent() {
                     margin: 0,
                     fontFamily: "var(--font-fraunces), serif",
                     fontSize: 16,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: "#1A1B2E",
                     letterSpacing: "-0.01em",
                   }}
@@ -274,7 +274,7 @@ export function SolutionsContent() {
               style={{
                 fontFamily: "var(--font-fraunces), serif",
                 fontSize: "clamp(32px, 4.4vw, 48px)",
-                fontWeight: 800,
+                fontWeight: 500,
                 color: "#1A1B2E",
                 margin: "14px 0 16px",
                 lineHeight: 1.05,
@@ -447,7 +447,7 @@ export function SolutionsContent() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(26px, 3.5vw, 36px)",
-              fontWeight: 800,
+              fontWeight: 500,
               color: "#1A1B2E",
               margin: "12px 0 16px",
               lineHeight: 1.1,
@@ -477,7 +477,7 @@ export function SolutionsContent() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(26px, 3.5vw, 36px)",
-              fontWeight: 800,
+              fontWeight: 500,
               color: "#1A1B2E",
               margin: "0 0 14px",
               lineHeight: 1.1,

@@ -107,7 +107,7 @@ export function WhyNawa() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
-              fontWeight: 800,
+              fontWeight: 500,
               color: "#1A1B2E",
               letterSpacing: "-0.025em",
               lineHeight: 1.12,
@@ -176,7 +176,7 @@ export function WhyNawa() {
                 style={{
                   fontFamily: "var(--font-fraunces), serif",
                   fontSize: "clamp(56px, 6.5vw, 80px)",
-                  fontWeight: 800,
+                  fontWeight: 500,
                   color: "#7B63C8",
                   lineHeight: 1,
                   letterSpacing: "-0.04em",
@@ -191,7 +191,7 @@ export function WhyNawa() {
                   margin: 0,
                   fontFamily: "var(--font-fraunces), serif",
                   fontSize: 17,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: "#1A1B2E",
                   letterSpacing: "-0.01em",
                 }}

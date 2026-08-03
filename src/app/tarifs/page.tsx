@@ -192,7 +192,7 @@ export default function TarifsPage() {
               style={{
                 fontFamily: "var(--font-fraunces), serif",
                 fontSize: "clamp(34px, 5vw, 56px)",
-                fontWeight: 800,
+                fontWeight: 500,
                 color: "#1A1B2E",
                 margin: "14px 0 18px",
                 lineHeight: 1.05,
@@ -331,7 +331,7 @@ export default function TarifsPage() {
               style={{
                 fontFamily: "var(--font-fraunces), serif",
                 fontSize: 18,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "#1A1B2E",
                 margin: "0 0 18px",
                 letterSpacing: "-0.01em",
@@ -476,7 +476,7 @@ function PriceCard({
             fontFamily: "var(--font-fraunces), serif",
             margin: 0,
             fontSize: 24,
-            fontWeight: 800,
+            fontWeight: 600,
             color: "#1A1B2E",
             letterSpacing: "-0.02em",
             lineHeight: 1.15,

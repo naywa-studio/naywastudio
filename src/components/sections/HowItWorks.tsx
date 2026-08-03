@@ -119,7 +119,7 @@ export function HowItWorks() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
-              fontWeight: 800,
+              fontWeight: 500,
               color: "#1A1B2E",
               letterSpacing: "-0.025em",
               lineHeight: 1.12,
@@ -244,7 +244,7 @@ export function HowItWorks() {
                     margin: 0,
                     fontFamily: "var(--font-fraunces), serif",
                     fontSize: 19,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: "#1A1B2E",
                     letterSpacing: "-0.015em",
                     lineHeight: 1.25,

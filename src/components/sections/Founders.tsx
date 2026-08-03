@@ -180,7 +180,7 @@ export function Founders() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 4vw, 44px)",
-              fontWeight: 800,
+              fontWeight: 500,
               letterSpacing: "-0.02em",
               color: brand.ink,
               margin: 0,

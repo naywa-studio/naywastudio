@@ -100,7 +100,7 @@ export function NousRencontrerContent() {
                 fontFamily: "var(--font-fraunces), serif",
                 fontSize: 38,
                 lineHeight: 1.15,
-                fontWeight: 800,
+                fontWeight: 500,
                 color: "#1A1B2E",
                 letterSpacing: "-0.03em",
               }}

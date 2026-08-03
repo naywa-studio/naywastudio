@@ -93,7 +93,7 @@ export function AProposContent() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(32px, 4.6vw, 52px)",
-              fontWeight: 800,
+              fontWeight: 500,
               color: "#1A1B2E",
               margin: "12px 0 18px",
               lineHeight: 1.05,
@@ -180,7 +180,7 @@ export function AProposContent() {
                     fontFamily: "var(--font-fraunces), serif",
                     margin: 0,
                     fontSize: 16,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: "#1A1B2E",
                     letterSpacing: "-0.01em",
                   }}
@@ -223,7 +223,7 @@ export function AProposContent() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(24px, 3.4vw, 36px)",
-              fontWeight: 800,
+              fontWeight: 500,
               color: "#1A1B2E",
               margin: "0 0 16px",
               lineHeight: 1.15,
