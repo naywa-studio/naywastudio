@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Logo } from "@/components/ui/Logo"
-import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { SignatureBands } from "@/components/ui/SignatureBands"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 const copy = {
@@ -56,7 +56,7 @@ export function LegalPageShell({ badge, title, lastUpdated, intro, sections }: P
   const resolvedBadge = badge ?? (lang === "fr" ? "Légal" : "Legal")
   return (
     <div style={{ background: "transparent", minHeight: "100vh", position: "relative" }}>
-      <ShaderBackground />
+      <SignatureBands />
       <div style={{ position: "relative", zIndex: 2 }}>
       {/* Header */}
       <header

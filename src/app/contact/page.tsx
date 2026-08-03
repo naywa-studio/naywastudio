@@ -5,7 +5,7 @@ import Link from "next/link"
 import { m } from "framer-motion"
 import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
-import { ShaderBackground } from "@/components/ui/ShaderBackground"
+import { SignatureBands } from "@/components/ui/SignatureBands"
 import { getSupabase } from "@/lib/supabase"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
@@ -107,7 +107,7 @@ export default function ContactPage() {
 
   return (
     <>
-      <ShaderBackground />
+      <SignatureBands />
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1, paddingTop: 120 }}>
