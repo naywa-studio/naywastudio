@@ -35,8 +35,7 @@ const MATCH_MODE_LABEL: Record<Lang, Record<MatchMode, string>> = {
   },
 }
 import { MatchCard } from "@/components/workspace/MatchCard"
-import { MissionShortlist } from "@/components/workspace/MissionShortlist"
-import { ClientReview } from "@/components/workspace/ClientReview"
+import { MissionPipeline } from "@/components/workspace/MissionPipeline"
 import { JobForm } from "../page"
 import { useWorkspace } from "../../layout"
 import { getCapabilities } from "@/lib/capabilities"
@@ -76,8 +75,7 @@ const copy = {
     noRelevantProfiles: "Aucun profil pertinent sur ce vivier pour cette mission. Les profils ci-dessous sont à faible affinité.",
     weakToggle: (show: boolean, n: number) => `${show ? "▲ Masquer" : "▼ Voir"} les ${n} profil${n > 1 ? "s" : ""} à faible affinité`,
     viewCandidats: "Candidats",
-    viewShortlist: "Shortlist",
-    viewRevue: "Revue client",
+    viewSuivi: "Suivi",
     tabAll: "Tous",
     tabApplied: "Ont postulé",
     tabAppliedHint: "Via le formulaire public",
@@ -138,8 +136,7 @@ const copy = {
     noRelevantProfiles: "No relevant profile in this talent pool for this mission. The profiles below have low affinity.",
     weakToggle: (show: boolean, n: number) => `${show ? "▲ Hide" : "▼ Show"} the ${n} low-affinity profile${n > 1 ? "s" : ""}`,
     viewCandidats: "Candidates",
-    viewShortlist: "Shortlist",
-    viewRevue: "Client review",
+    viewSuivi: "Tracking",
     tabAll: "All",
     tabApplied: "Applied",
     tabAppliedHint: "Via the public form",
@@ -214,7 +211,7 @@ export default function JobDetailPage() {
   // Onglet de 1er niveau : « Candidats » (matching brut) vs « Shortlist »
   // (candidats retenus, in_pipeline). Séparés pour que le client ne mélange
   // pas la découverte et la sélection à présenter.
-  const [view, setView] = useState<"candidats" | "shortlist" | "revue">("candidats")
+  const [view, setView] = useState<"candidats" | "suivi">("candidats")
   /** Filtres actifs : Set des critère IDs sur lesquels exiger un "fort match". */
   const [activeCritFilters, setActiveCritFilters] = useState<Set<string>>(new Set())
   /** Déplie les profils à faible affinité (tier "poor", score < 35), masqués
@@ -446,11 +443,8 @@ export default function JobDetailPage() {
 
   const strongCount = rows.filter((r) => (r.score ?? 0) >= 55).length
   const shortlistCount = rows.filter((r) => r.in_pipeline).length
-  // Appartenance à la Revue client = marqueur anonymized_at posé (anonymisation
-  // OU bouton « Présenter au client »).
-  const revueCount = rows.filter((r) => r.anonymized_at != null).length
-  // Onglet Revue client visible uniquement pour une org qui utilise les
-  // clients ET une mission rattachée à un client.
+  // Étape « Présenté au client » + retours client dans le Suivi : uniquement
+  // pour une org qui utilise les clients ET une mission rattachée à un client.
   const showRevue = usesClients && !!job?.client_id
 
   // Séparation pertinents / faible affinité. Les non-scorés (assignés
@@ -519,10 +513,10 @@ export default function JobDetailPage() {
           Cachés tant que la mission n'est pas configurée (wizard). */}
       {!showWizard && (
         <div style={{ display: "flex", gap: 10, margin: "10px 0 22px", borderBottom: "1.5px solid var(--nw-border)" }}>
-          {(["candidats", "shortlist", ...(showRevue ? ["revue" as const] : [])] as const).map((key) => {
+          {(["candidats", "suivi"] as const).map((key) => {
             const on = view === key
-            const label = key === "candidats" ? t.viewCandidats : key === "shortlist" ? t.viewShortlist : t.viewRevue
-            const count = key === "shortlist" ? shortlistCount : key === "revue" ? revueCount : 0
+            const label = key === "candidats" ? t.viewCandidats : t.viewSuivi
+            const count = key === "suivi" ? shortlistCount : 0
             return (
               <button
                 key={key}
@@ -553,8 +547,8 @@ export default function JobDetailPage() {
         </div>
       )}
 
-      {!showWizard && view === "shortlist" ? (
-        <MissionShortlist
+      {!showWizard && view === "suivi" ? (
+        <MissionPipeline
           job={job}
           rows={rows}
           isReadOnly={isReadOnly}
@@ -570,14 +564,6 @@ export default function JobDetailPage() {
             anonymize_defaults: organization?.anonymize_defaults ?? null,
           }}
           brandingHref={canBranding ? "/organisation?tab=branding" : null}
-          onLocalUpdate={(rowId, patch) => setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, ...patch } : r))}
-          lang={lang}
-        />
-      ) : !showWizard && view === "revue" && showRevue ? (
-        <ClientReview
-          clientName={clientName ?? job?.title ?? ""}
-          rows={rows}
-          isReadOnly={isReadOnly}
           onLocalUpdate={(rowId, patch) => setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, ...patch } : r))}
           lang={lang}
         />
