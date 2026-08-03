@@ -65,10 +65,8 @@ export const brand = {
   fontDisplay: "var(--font-fraunces), ui-serif, Georgia, serif",
   fontBody: "var(--font-inter), ui-sans-serif, system-ui, sans-serif",
   fontMono: "var(--font-jetbrains-mono), ui-monospace, monospace",
-  /** Italique d'accent pour un mot dans un titre (« décidez »). Fraunces
-   *  italique — même serif haut-contraste que les titres, conforme à la
-   *  charte v2.0 (l'accent n'est PAS une autre police). */
-  fontSerifAccent: "var(--font-fraunces), ui-serif, Georgia, serif",
+  /** Italique romantique pour un mot d'accent (« décidez »). */
+  fontSerifAccent: "var(--font-instrument-serif), ui-serif, Georgia, serif",
 
   // ── Rayons ──────────────────────────────────────────────────────────
   radiusSm: 8,
@@ -166,7 +164,7 @@ export const type = {
   },
 } as const
 
-/** Accent italique (Fraunces italique) pour un mot dans un titre. */
+/** Accent italique (Instrument Serif) pour un mot dans un titre. */
 export const accentItalic = {
   fontFamily: brand.fontSerifAccent,
   fontStyle: 'italic' as const,
