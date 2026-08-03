@@ -57,8 +57,8 @@ const STAGE_TEXT: Record<Step, string> = {
 function softTint(hex: string): string { return `${hex}24` }
 
 const STAGE_LABELS: Record<Lang, Record<"identified" | "contacted" | "interview" | "offer" | "hired" | "rejected", string>> = {
-  fr: { identified: "À contacter", contacted: "Contacté", interview: "Entretien", offer: "Présenté au client", hired: "Recruté", rejected: "Écarté" },
-  en: { identified: "To contact", contacted: "Contacted", interview: "Interview", offer: "Presented to client", hired: "Recruited", rejected: "Dropped" },
+  fr: { identified: "À contacter", contacted: "Contacté", interview: "Entretien", offer: "Présenté", hired: "Recruté", rejected: "Écarté" },
+  en: { identified: "To contact", contacted: "Contacted", interview: "Interview", offer: "Presented", hired: "Recruited", rejected: "Dropped" },
 }
 
 const copy = {

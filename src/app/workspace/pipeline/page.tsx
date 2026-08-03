@@ -28,10 +28,9 @@ type StageMeta = { key: PipelineStage; color: string; bg: string }
 // teinte (vert recruté, gris écarté).
 const ACTIVE_STAGES: StageMeta[] = [
   { key: "identified", color: "#8E86B8", bg: "rgba(124,99,200,0.04)" },
-  { key: "contacted",  color: "#7C70C0", bg: "rgba(124,99,200,0.05)" },
-  { key: "replied",    color: "#6E5FBB", bg: "rgba(124,99,200,0.06)" },
-  { key: "interview",  color: "#6151AE", bg: "rgba(124,99,200,0.07)" },
-  { key: "offer",      color: "#5b4aa8", bg: "rgba(124,99,200,0.09)" },
+  { key: "contacted",  color: "#7C70C0", bg: "rgba(124,99,200,0.06)" },
+  { key: "interview",  color: "#6151AE", bg: "rgba(124,99,200,0.08)" },
+  { key: "offer",      color: "#5b4aa8", bg: "rgba(124,99,200,0.10)" },
 ]
 
 // Terminal states — outcomes, not steps. Shown as clickable + droppable chips
@@ -44,8 +43,8 @@ const TERMINAL_STAGES: StageMeta[] = [
 const copy = {
   fr: {
     stageLabels: {
-      identified: "À contacter", contacted: "Contacté", replied: "A répondu",
-      interview: "Entretien", offer: "Présenté au client", hired: "Recruté", rejected: "Écarté",
+      identified: "À contacter", contacted: "Contacté", replied: "Contacté",
+      interview: "Entretien", offer: "Présenté", hired: "Recruté", rejected: "Écarté",
     } as Record<PipelineStage, string>,
     title: "Suivi candidat",
     subtitleEmpty: "Ajoutez des candidats à la pipeline depuis vos missions — vous les suivrez ici, étape par étape.",
@@ -87,8 +86,8 @@ const copy = {
   },
   en: {
     stageLabels: {
-      identified: "To contact", contacted: "Contacted", replied: "Replied",
-      interview: "Interview", offer: "Presented to client", hired: "Recruited", rejected: "Dropped",
+      identified: "To contact", contacted: "Contacted", replied: "Contacted",
+      interview: "Interview", offer: "Presented", hired: "Recruited", rejected: "Dropped",
     } as Record<PipelineStage, string>,
     title: "Candidate tracking",
     subtitleEmpty: "Add candidates to the pipeline from your missions — you'll track them here, stage by stage.",
@@ -130,9 +129,12 @@ const copy = {
   },
 }
 
-/** Legacy 'pricing' rows (column removed) are shown in 'identified'. */
+/** Colonnes retirées : 'pricing' → 'identified', 'replied' → 'contacted'
+ *  (le funnel se limite à À contacter · Contacté · Entretien · Présenté). */
 function displayStage(s: PipelineStage): PipelineStage {
-  return s === "pricing" ? "identified" : s
+  if (s === "pricing") return "identified"
+  if (s === "replied") return "contacted"
+  return s
 }
 
 /** Sticky header cell shared by the "Mission" label and the stage columns. */

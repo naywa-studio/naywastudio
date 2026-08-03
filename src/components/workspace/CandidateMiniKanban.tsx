@@ -29,11 +29,10 @@ type Row = Pick<MatchAssessment, "id" | "job_id" | "score" | "match_tier" | "pip
 // 'rejected' sont conservés ici pour qu'un candidat à une issue terminale
 // reste visible dans ce mini-kanban contextuel.
 const STAGES: { key: PipelineStage; color: string; bg: string }[] = [
-  { key: "identified", color: "var(--nw-text-muted)", bg: "#F9FAFB" },
-  { key: "contacted",  color: "#2563EB", bg: "rgba(37,99,235,0.05)" },
-  { key: "replied",    color: "var(--nw-primary)", bg: "rgba(124,99,200,0.05)" },
-  { key: "interview",  color: "var(--nw-warn)", bg: "rgba(245,158,11,0.06)" },
-  { key: "offer",      color: "var(--nw-success)", bg: "rgba(34,197,94,0.06)" },
+  { key: "identified", color: "#8E86B8", bg: "rgba(124,99,200,0.04)" },
+  { key: "contacted",  color: "#7C70C0", bg: "rgba(124,99,200,0.06)" },
+  { key: "interview",  color: "#6151AE", bg: "rgba(124,99,200,0.08)" },
+  { key: "offer",      color: "#5b4aa8", bg: "rgba(124,99,200,0.10)" },
   { key: "hired",      color: "#0F766E", bg: "rgba(15,118,110,0.06)" },
   { key: "rejected",   color: "var(--nw-text-muted)", bg: "var(--nw-neutral-100)" },
 ]
@@ -41,8 +40,8 @@ const STAGES: { key: PipelineStage; color: string; bg: string }[] = [
 const copy = {
   fr: {
     stageLabels: {
-      identified: "Identifié", contacted: "Contacté", replied: "Réponse",
-      interview: "Entretien", offer: "Offre", hired: "Recruté", rejected: "Écarté",
+      identified: "À contacter", contacted: "Contacté", replied: "Contacté",
+      interview: "Entretien", offer: "Présenté", hired: "Recruté", rejected: "Écarté",
     } as Record<PipelineStage, string>,
     loading: "Chargement du pipeline…",
     thisMatchPipeline: "Pipeline de ce match",
@@ -57,8 +56,8 @@ const copy = {
   },
   en: {
     stageLabels: {
-      identified: "Identified", contacted: "Contacted", replied: "Replied",
-      interview: "Interview", offer: "Offer", hired: "Hired", rejected: "Rejected",
+      identified: "To contact", contacted: "Contacted", replied: "Contacted",
+      interview: "Interview", offer: "Presented", hired: "Recruited", rejected: "Dropped",
     } as Record<PipelineStage, string>,
     loading: "Loading pipeline…",
     thisMatchPipeline: "Pipeline for this match",
@@ -75,7 +74,9 @@ const copy = {
 
 /** Legacy 'pricing' rows (colonne supprimée) → rangées dans 'identified'. */
 function displayStage(s: PipelineStage): PipelineStage {
-  return s === "pricing" ? "identified" : s
+  if (s === "pricing") return "identified"
+  if (s === "replied") return "contacted"
+  return s
 }
 
 export default function CandidateMiniKanban({
