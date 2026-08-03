@@ -11,33 +11,33 @@ export default function NotFound() {
         minHeight: "100vh",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        background: "#F8F6FF", padding: 24, textAlign: "center",
+        background: "#FDFCF9", padding: 24, textAlign: "center",
         fontFamily: "var(--font-inter), ui-sans-serif, system-ui, sans-serif",
       }}
     >
       <span
         style={{
-          fontFamily: "var(--font-space-grotesk), ui-sans-serif, sans-serif",
-          fontSize: 22, fontWeight: 700, color: "#111827",
+          fontFamily: "var(--font-fraunces), ui-serif, Georgia, serif",
+          fontSize: 22, fontWeight: 600, color: "#1A1B2E",
           letterSpacing: "-0.02em", marginBottom: 26,
         }}
       >
-        Naywa<span style={{ color: "#7C63C8" }}> Studio</span>
+        Naywa<span style={{ color: "#7B63C8" }}> Studio</span>
       </span>
 
       <p
         style={{
-          margin: 0, fontSize: 64, fontWeight: 800, lineHeight: 1,
-          color: "#7C63C8", letterSpacing: "-0.03em",
-          fontFamily: "var(--font-space-grotesk), ui-sans-serif, sans-serif",
+          margin: 0, fontSize: 64, fontWeight: 600, lineHeight: 1,
+          color: "#7B63C8", letterSpacing: "-0.03em",
+          fontFamily: "var(--font-fraunces), ui-serif, Georgia, serif",
         }}
       >
         404
       </p>
-      <h1 style={{ margin: "14px 0 8px", fontSize: 20, fontWeight: 800, color: "#111827" }}>
+      <h1 style={{ margin: "14px 0 8px", fontSize: 20, fontWeight: 800, color: "#1A1B2E" }}>
         Cette page n&apos;existe pas
       </h1>
-      <p style={{ margin: "0 0 26px", fontSize: 14, color: "#6B7280", maxWidth: 380, lineHeight: 1.6 }}>
+      <p style={{ margin: "0 0 26px", fontSize: 14, color: "#6B6C7F", maxWidth: 380, lineHeight: 1.6 }}>
         Le lien est peut-être expiré ou l&apos;adresse a changé.
       </p>
 
@@ -46,10 +46,10 @@ export default function NotFound() {
           href="/"
           style={{
             padding: "11px 20px", borderRadius: 10,
-            background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+            background: "#7B63C8",
             color: "white", fontSize: 13.5, fontWeight: 700,
             textDecoration: "none",
-            boxShadow: "0 6px 20px -8px rgba(124,99,200,0.55)",
+            boxShadow: "0 6px 20px -8px rgba(123,99,200,0.55)",
           }}
         >
           Retour à l&apos;accueil
@@ -58,8 +58,8 @@ export default function NotFound() {
           href="/workspace"
           style={{
             padding: "11px 20px", borderRadius: 10,
-            border: "1px solid rgba(124,99,200,0.30)", background: "white",
-            color: "#7C63C8", fontSize: 13.5, fontWeight: 700,
+            border: "1px solid rgba(123,99,200,0.30)", background: "white",
+            color: "#7B63C8", fontSize: 13.5, fontWeight: 700,
             textDecoration: "none",
           }}
         >

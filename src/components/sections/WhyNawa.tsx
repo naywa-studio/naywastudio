@@ -2,6 +2,7 @@
 import { m } from "framer-motion"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { Eyebrow } from "@/components/brand/Eyebrow"
+import { accentItalic } from "@/lib/brand"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -14,50 +15,60 @@ const fu = (delay: number) => ({
 
 const content = {
   fr: {
-    badge: "Notre proposition de valeur",
-    titleLine1: "Trois principes,",
-    titleLine2: "aucune fausse promesse.",
-    intro:
-      "Naywa n'automatise pas votre métier. Nous l'outillons pour que vous gardiez la main là où ça compte, et que la machine absorbe ce qui n'aurait jamais dû être à votre charge.",
+    badge: "Notre parti pris",
+    titleLine1: "Clé en main, avec vous.",
+    titleAccent: "Jamais à votre place.",
+    intro: [
+      { t: "Un métier, c'est d'abord une expertise humaine : un jugement, une relation, une responsabilité. Notre conviction : l'IA ne remplace pas cette expertise, " },
+      { t: "elle la libère", emph: true },
+      { t: ". Elle absorbe la friction, clé en main, sans que vous ayez à devenir expert du prompt. Vous gardez " },
+      { t: "ce qui ne se délègue pas", emph: true },
+      { t: "." },
+    ],
     metrics: [
       {
         value: "Vous",
-        title: "Vous gardez la décision",
-        desc: "Aucun envoi, aucun classement, aucune action automatique. Nora propose, vous tranchez. Vos process, votre style, vos clients.",
+        title: "La décision reste humaine",
+        desc: "L'IA propose, vous tranchez. Aucun envoi, aucun classement, aucune action automatique. Vos process, votre style, vos clients.",
       },
       {
-        value: "IA",
-        title: "L'IA absorbe la friction",
-        desc: "Lire les CV, les ranger, les noter, les anonymiser, calculer la marge : tout ce qui vous prenait des heures se fait pendant que vous lisez ce paragraphe.",
+        value: "L'outil",
+        title: "Clé en main, pas un chatbot",
+        desc: "Rien à prompter, rien à paramétrer. Le métier n'a pas à s'adapter à l'IA : c'est l'IA qui s'adapte au métier. Nora lit les CV, les range, les note, les anonymise, calcule la marge.",
       },
       {
         value: "Métier",
-        title: "Conçu pour le métier",
-        desc: "Naywa ne cherche pas à tout faire. Nous bâtissons un outil par métier, en profondeur, avec les structures qui le vivent au quotidien.",
+        title: "Une expertise, pas un algorithme",
+        desc: "On ne remplace pas un savoir-faire, on l'outille. Un outil par métier, en profondeur, avec ceux qui le vivent au quotidien.",
       },
     ],
   },
   en: {
-    badge: "Our value proposition",
-    titleLine1: "Three principles,",
-    titleLine2: "no false promises.",
-    intro:
-      "Naywa doesn't automate your job. We equip you to stay in control where it matters, while the machine absorbs what should never have been your burden.",
+    badge: "Where we stand",
+    titleLine1: "Turnkey, with you.",
+    titleAccent: "Never in your place.",
+    intro: [
+      { t: "A profession is, first, human expertise: judgement, a relationship, responsibility. Our conviction: AI doesn't replace that expertise, " },
+      { t: "it frees it", emph: true },
+      { t: ". It absorbs the friction, turnkey, without you ever becoming a prompt expert. You keep " },
+      { t: "what can't be delegated", emph: true },
+      { t: "." },
+    ],
     metrics: [
       {
         value: "You",
-        title: "You keep the decision",
-        desc: "No sending, no sorting, no automatic action. Nora suggests, you decide. Your process, your style, your clients.",
+        title: "The decision stays human",
+        desc: "AI suggests, you decide. No sending, no ranking, no automatic action. Your process, your style, your clients.",
       },
       {
-        value: "AI",
-        title: "AI absorbs the friction",
-        desc: "Reading CVs, filing them, scoring them, anonymizing them, working out the margin: everything that used to take you hours happens while you read this paragraph.",
+        value: "The tool",
+        title: "Turnkey, not a chatbot",
+        desc: "Nothing to prompt, nothing to configure. The profession doesn't adapt to the AI: the AI adapts to the profession. Nora reads CVs, files them, scores them, anonymizes them, works out the margin.",
       },
       {
         value: "Craft",
-        title: "Built for the craft",
-        desc: "Naywa isn't trying to do everything. We build one tool per profession, in depth, with the teams who live it every day.",
+        title: "Expertise, not an algorithm",
+        desc: "We don't replace craft, we equip it. One tool per profession, in depth, with the people who live it every day.",
       },
     ],
   },
@@ -72,7 +83,7 @@ export function WhyNawa() {
       style={{
         background: "transparent",
         padding: "112px 24px",
-        borderTop: "1px solid rgba(240,236,248,0.6)",
+        borderTop: "1px solid rgba(233,225,203,0.6)",
         position: "relative",
       }}
     >
@@ -96,8 +107,8 @@ export function WhyNawa() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
-              fontWeight: 800,
-              color: "#111827",
+              fontWeight: 500,
+              color: "#1A1B2E",
               letterSpacing: "-0.025em",
               lineHeight: 1.12,
               margin: 0,
@@ -105,20 +116,24 @@ export function WhyNawa() {
             }}
           >
             {c.titleLine1}<br />
-            {c.titleLine2}
+            <span style={accentItalic}>{c.titleAccent}</span>
           </h2>
 
           <p
             style={{
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 15,
-              color: "#6B7280",
+              color: "#6B6C7F",
               lineHeight: 1.7,
               margin: 0,
               maxWidth: "50ch",
             }}
           >
-            {c.intro}
+            {(c.intro as { t: string; emph?: boolean }[]).map((seg, i) =>
+              seg.emph
+                ? <span key={i} style={accentItalic}>{seg.t}</span>
+                : <span key={i}>{seg.t}</span>
+            )}
           </p>
         </m.div>
 
@@ -135,8 +150,7 @@ export function WhyNawa() {
               {...fu(0.1 + i * 0.1)}
               style={{
                 padding: "44px 40px",
-                borderTop: "3px solid transparent",
-                borderImage: "linear-gradient(90deg, #7C63C8, #B8AEDE) 1",
+                borderTop: "3px solid #7B63C8",
                 display: "flex",
                 flexDirection: "column",
                 gap: 14,
@@ -152,7 +166,7 @@ export function WhyNawa() {
                     right: 0,
                     width: 1,
                     height: "100%",
-                    background: "linear-gradient(to bottom, transparent, #E2DAF6 30%, #E2DAF6 70%, transparent)",
+                    background: "linear-gradient(to bottom, transparent, #B8AEDE 30%, #B8AEDE 70%, transparent)",
                   }}
                 />
               )}
@@ -162,8 +176,8 @@ export function WhyNawa() {
                 style={{
                   fontFamily: "var(--font-fraunces), serif",
                   fontSize: "clamp(56px, 6.5vw, 80px)",
-                  fontWeight: 800,
-                  color: "#7C63C8",
+                  fontWeight: 500,
+                  color: "#7B63C8",
                   lineHeight: 1,
                   letterSpacing: "-0.04em",
                 }}
@@ -177,8 +191,8 @@ export function WhyNawa() {
                   margin: 0,
                   fontFamily: "var(--font-fraunces), serif",
                   fontSize: 17,
-                  fontWeight: 700,
-                  color: "#111827",
+                  fontWeight: 600,
+                  color: "#1A1B2E",
                   letterSpacing: "-0.01em",
                 }}
               >
@@ -191,7 +205,7 @@ export function WhyNawa() {
                   margin: 0,
                   fontFamily: "var(--font-inter), sans-serif",
                   fontSize: 14,
-                  color: "#6B7280",
+                  color: "#6B6C7F",
                   lineHeight: 1.7,
                 }}
               >

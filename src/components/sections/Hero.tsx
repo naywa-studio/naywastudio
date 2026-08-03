@@ -76,7 +76,7 @@ export function Hero() {
           position: 'absolute',
           inset: 0,
           background:
-            'radial-gradient(ellipse 65% 55% at 85% 10%, rgba(124,99,200,0.06) 0%, transparent 65%),' +
+            'radial-gradient(ellipse 65% 55% at 85% 10%, rgba(123,99,200,0.06) 0%, transparent 65%),' +
             'radial-gradient(ellipse 50% 40% at 10% 90%, rgba(184,174,222,0.05) 0%, transparent 60%)',
           pointerEvents: 'none',
         }}

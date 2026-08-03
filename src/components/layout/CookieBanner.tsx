@@ -100,7 +100,7 @@ export function CookieBanner() {
         type="button"
         onClick={ack}
         style={{
-          background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+          background: "#7B63C8",
           color: "#FFFFFF",
           border: "none",
           borderRadius: 10,

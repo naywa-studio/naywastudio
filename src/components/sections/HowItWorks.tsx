@@ -2,6 +2,7 @@
 import { m } from "framer-motion"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { Eyebrow } from "@/components/brand/Eyebrow"
+import { accentItalic } from "@/lib/brand"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -14,13 +15,13 @@ const fu = (delay: number) => ({
 
 const icons = [
   <svg key="0" width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 11h-6M19 8v6" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 11h-6M19 8v6" stroke="#7B63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
   </svg>,
   <svg key="1" width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="#7B63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
   </svg>,
   <svg key="2" width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="#7C63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="#7B63C8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
   </svg>,
 ]
 
@@ -30,7 +31,8 @@ const content = {
   fr: {
     badge: "Comment ça marche",
     titleLine1: "De la mission",
-    titleLine2: "à la shortlist",
+    titleLine2Pre: "à la ",
+    titleLine2Accent: "shortlist",
     intro: "Trois étapes entre le besoin de votre client et des candidats prêts à présenter.",
     stepLabel: "Étape",
     steps: [
@@ -57,7 +59,8 @@ const content = {
   en: {
     badge: "How it works",
     titleLine1: "From the role",
-    titleLine2: "to the shortlist",
+    titleLine2Pre: "to the ",
+    titleLine2Accent: "shortlist",
     intro: "Three steps between your client's need and candidates ready to present.",
     stepLabel: "Step",
     steps: [
@@ -92,7 +95,7 @@ export function HowItWorks() {
       style={{
         background: "transparent",
         padding: "112px 24px",
-        borderTop: "1px solid rgba(240,236,248,0.6)",
+        borderTop: "1px solid rgba(233,225,203,0.6)",
         position: "relative",
       }}
     >
@@ -116,22 +119,22 @@ export function HowItWorks() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(28px, 3.8vw, 46px)",
-              fontWeight: 800,
-              color: "#111827",
+              fontWeight: 500,
+              color: "#1A1B2E",
               letterSpacing: "-0.025em",
               lineHeight: 1.12,
               margin: 0,
             }}
           >
             {c.titleLine1}<br />
-            {c.titleLine2}
+            {c.titleLine2Pre}<span style={accentItalic}>{c.titleLine2Accent}</span>
           </h2>
 
           <p
             style={{
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 15,
-              color: "#6B7280",
+              color: "#6B6C7F",
               lineHeight: 1.7,
               margin: 0,
               maxWidth: "46ch",
@@ -172,7 +175,7 @@ export function HowItWorks() {
                     right: -1,
                     width: 1,
                     height: 60,
-                    background: "linear-gradient(to bottom, #E2DAF6, transparent)",
+                    background: "linear-gradient(to bottom, #B8AEDE, transparent)",
                   }}
                 />
               )}
@@ -184,8 +187,8 @@ export function HowItWorks() {
                     width: 52,
                     height: 52,
                     borderRadius: 14,
-                    background: "rgba(124,99,200,0.07)",
-                    border: "1px solid rgba(124,99,200,0.16)",
+                    background: "rgba(123,99,200,0.07)",
+                    border: "1px solid rgba(123,99,200,0.16)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -202,7 +205,7 @@ export function HowItWorks() {
                       fontFamily: "var(--font-fraunces), serif",
                       fontSize: 11,
                       fontWeight: 600,
-                      color: "#6B7280",
+                      color: "#6B6C7F",
                       letterSpacing: "0.08em",
                       textTransform: "uppercase" as const,
                     }}
@@ -215,8 +218,8 @@ export function HowItWorks() {
                         width: 6,
                         height: 6,
                         borderRadius: "50%",
-                        background: "#7C63C8",
-                        boxShadow: "0 0 6px rgba(124,99,200,0.7)",
+                        background: "#7B63C8",
+                        boxShadow: "0 0 6px rgba(123,99,200,0.7)",
                         flexShrink: 0,
                       }}
                     />
@@ -225,7 +228,7 @@ export function HowItWorks() {
                         fontFamily: "var(--font-inter), sans-serif",
                         fontSize: 12,
                         fontWeight: 600,
-                        color: "#7C63C8",
+                        color: "#7B63C8",
                       }}
                     >
                       {subtitle}
@@ -241,8 +244,8 @@ export function HowItWorks() {
                     margin: 0,
                     fontFamily: "var(--font-fraunces), serif",
                     fontSize: 19,
-                    fontWeight: 700,
-                    color: "#111827",
+                    fontWeight: 600,
+                    color: "#1A1B2E",
                     letterSpacing: "-0.015em",
                     lineHeight: 1.25,
                   }}
@@ -254,7 +257,7 @@ export function HowItWorks() {
                     margin: 0,
                     fontFamily: "var(--font-inter), sans-serif",
                     fontSize: 14,
-                    color: "#6B7280",
+                    color: "#6B6C7F",
                     lineHeight: 1.7,
                   }}
                 >

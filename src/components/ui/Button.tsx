@@ -17,18 +17,18 @@ interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
 
 const variantStyles: Record<Variant, string> = {
   primary: [
-    'bg-[#7C63C8] text-white border border-[#7C63C8]',
-    'hover:bg-[#6B54B2] hover:border-[#6B54B2]',
-    'shadow-[0_1px_2px_rgba(0,0,0,0.06),0_6px_20px_rgba(124,99,200,0.22)]',
-    'hover:shadow-[0_2px_4px_rgba(0,0,0,0.08),0_12px_32px_rgba(124,99,200,0.36)]',
+    'bg-[#7B63C8] text-white border border-[#7B63C8]',
+    'hover:bg-[#4B3A8F] hover:border-[#4B3A8F]',
+    'shadow-[0_1px_2px_rgba(0,0,0,0.06),0_6px_20px_rgba(123,99,200,0.22)]',
+    'hover:shadow-[0_2px_4px_rgba(0,0,0,0.08),0_12px_32px_rgba(123,99,200,0.36)]',
   ].join(' '),
   ghost: [
-    'bg-transparent text-[#4B5563] border border-transparent',
-    'hover:bg-[#F8F6FF] hover:text-[#7C63C8]',
+    'bg-transparent text-[#4B4C5E] border border-transparent',
+    'hover:bg-[#EEE9FB] hover:text-[#7B63C8]',
   ].join(' '),
   outline: [
-    'bg-transparent text-[#4B5563] border border-[#E2DAF6]',
-    'hover:border-[#7C63C8] hover:text-[#7C63C8] hover:bg-[rgba(124,99,200,0.04)]',
+    'bg-transparent text-[#4B4C5E] border border-[#E9E1CB]',
+    'hover:border-[#7B63C8] hover:text-[#7B63C8] hover:bg-[rgba(123,99,200,0.04)]',
   ].join(' '),
 }
 
@@ -49,7 +49,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(
           'inline-flex items-center justify-center font-medium',
           'cursor-pointer select-none outline-none',
-          'focus-visible:ring-2 focus-visible:ring-[#7C63C8] focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+          'focus-visible:ring-2 focus-visible:ring-[#7B63C8] focus-visible:ring-offset-2 focus-visible:ring-offset-white',
           'disabled:opacity-40 disabled:pointer-events-none',
           'transition-all duration-200',
           variantStyles[variant],

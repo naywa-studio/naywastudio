@@ -93,8 +93,8 @@ export function AProposContent() {
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(32px, 4.6vw, 52px)",
-              fontWeight: 800,
-              color: "#111827",
+              fontWeight: 500,
+              color: "#1A1B2E",
               margin: "12px 0 18px",
               lineHeight: 1.05,
               letterSpacing: "-0.025em",
@@ -103,10 +103,10 @@ export function AProposContent() {
             {c.titlePre}
             <span
               style={{
-                fontFamily: "var(--font-instrument-serif), serif",
+                fontFamily: "var(--font-fraunces), serif",
                 fontWeight: 400,
                 fontStyle: "italic",
-                color: "#7C63C8",
+                color: "#7B63C8",
               }}
             >
               {c.titleItalic}
@@ -117,7 +117,7 @@ export function AProposContent() {
             style={{
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 17,
-              color: "#4B5563",
+              color: "#4B4C5E",
               lineHeight: 1.7,
               margin: 0,
               maxWidth: "60ch",
@@ -148,13 +148,13 @@ export function AProposContent() {
                 key={p.title}
                 style={{
                   background: "white",
-                  border: "1px solid #F0ECF8",
+                  border: "1px solid #E9E1CB",
                   borderRadius: 18,
                   padding: "26px 22px",
                   display: "flex",
                   flexDirection: "column",
                   gap: 12,
-                  boxShadow: "0 4px 16px rgba(124,99,200,0.05)",
+                  boxShadow: "0 4px 16px rgba(123,99,200,0.05)",
                 }}
               >
                 <div
@@ -163,12 +163,12 @@ export function AProposContent() {
                     width: 38,
                     height: 38,
                     borderRadius: 11,
-                    background: "linear-gradient(135deg, #F0ECF8 0%, #E2DAF6 100%)",
-                    border: "1px solid rgba(124,99,200,0.30)",
+                    background: "#EEE9FB",
+                    border: "1px solid rgba(123,99,200,0.30)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "#7C63C8",
+                    color: "#7B63C8",
                   }}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -180,8 +180,8 @@ export function AProposContent() {
                     fontFamily: "var(--font-fraunces), serif",
                     margin: 0,
                     fontSize: 16,
-                    fontWeight: 700,
-                    color: "#111827",
+                    fontWeight: 600,
+                    color: "#1A1B2E",
                     letterSpacing: "-0.01em",
                   }}
                 >
@@ -192,7 +192,7 @@ export function AProposContent() {
                     fontFamily: "var(--font-inter), sans-serif",
                     margin: 0,
                     fontSize: 14,
-                    color: "#4B5563",
+                    color: "#4B4C5E",
                     lineHeight: 1.6,
                   }}
                 >
@@ -217,14 +217,14 @@ export function AProposContent() {
       <Founders />
 
       {/* Final CTA */}
-      <section style={{ padding: "96px 24px 112px", background: "white", borderTop: "1px solid #F0ECF8" }}>
+      <section style={{ padding: "96px 24px 112px", background: "white", borderTop: "1px solid #E9E1CB" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
           <h2
             style={{
               fontFamily: "var(--font-fraunces), serif",
               fontSize: "clamp(24px, 3.4vw, 36px)",
-              fontWeight: 800,
-              color: "#111827",
+              fontWeight: 500,
+              color: "#1A1B2E",
               margin: "0 0 16px",
               lineHeight: 1.15,
               letterSpacing: "-0.02em",
@@ -236,7 +236,7 @@ export function AProposContent() {
             style={{
               fontFamily: "var(--font-inter), sans-serif",
               fontSize: 15.5,
-              color: "#4B5563",
+              color: "#4B4C5E",
               lineHeight: 1.7,
               margin: "0 0 28px",
             }}
@@ -257,7 +257,7 @@ export function AProposContent() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
-                background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                background: "#7B63C8",
                 color: "white",
                 borderRadius: 12,
                 padding: "13px 26px",
@@ -265,7 +265,7 @@ export function AProposContent() {
                 fontSize: 14.5,
                 fontWeight: 700,
                 textDecoration: "none",
-                boxShadow: "0 6px 20px -6px rgba(124,99,200,0.55)",
+                boxShadow: "0 6px 20px -6px rgba(123,99,200,0.55)",
               }}
             >
               {c.ctaPrimary}
@@ -278,9 +278,9 @@ export function AProposContent() {
                 gap: 6,
                 borderRadius: 12,
                 padding: "13px 24px",
-                border: "1px solid #E2DAF6",
+                border: "1px solid #E9E1CB",
                 background: "white",
-                color: "#4B5563",
+                color: "#4B4C5E",
                 fontFamily: "var(--font-inter), sans-serif",
                 fontSize: 14.5,
                 fontWeight: 600,

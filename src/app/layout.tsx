@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
-import { spaceGrotesk, inter, instrumentSerif, fraunces, jetbrainsMono } from '@/lib/fonts'
+import { spaceGrotesk, inter, fraunces, jetbrainsMono } from '@/lib/fonts'
 import { MotionProvider } from '@/components/providers/MotionProvider'
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import { CookieBanner } from '@/components/layout/CookieBanner'
@@ -130,7 +130,8 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${spaceGrotesk.variable} ${inter.variable} ${instrumentSerif.variable} ${fraunces.variable} ${jetbrainsMono.variable} h-full`}
+      className={`${spaceGrotesk.variable} ${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable} h-full`}
+      style={{ fontOpticalSizing: 'auto' }}
     >
       <body className="min-h-full flex flex-col">
         <LanguageProvider>
