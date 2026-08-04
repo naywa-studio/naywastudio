@@ -61,7 +61,7 @@ const copy = {
     fromBarAbove: (
       <>Depuis le bandeau ci-dessus : <strong>Matcher le vivier</strong>, <strong>Importer des CVs</strong> ou <strong>Assigner</strong> un candidat.</>
     ),
-    relevantRecap: (n: number) => `${n} candidat${n > 1 ? "s" : ""} pertinent${n > 1 ? "s" : ""}`,
+    relevantRecap: (n: number) => `candidat${n > 1 ? "s" : ""} pertinent${n > 1 ? "s" : ""}`,
     totalRecap: (n: number) => ` · ${n} au total`,
     lastMatching: "Dernier matching : ",
     modePrefix: " · mode ",
@@ -122,7 +122,7 @@ const copy = {
     fromBarAbove: (
       <>From the bar above: <strong>Match the talent pool</strong>, <strong>Import CVs</strong>, or <strong>Assign</strong> a candidate.</>
     ),
-    relevantRecap: (n: number) => `${n} relevant candidate${n > 1 ? "s" : ""}`,
+    relevantRecap: (n: number) => `relevant candidate${n > 1 ? "s" : ""}`,
     totalRecap: (n: number) => ` · ${n} total`,
     lastMatching: "Last matching: ",
     modePrefix: " · mode ",
