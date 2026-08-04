@@ -24,6 +24,7 @@ import { detectOffLimitsForCandidate, type OffLimitsClientRef } from "@/lib/off-
 import { AnonymizeSettings, type AnonymizeBranding } from "@/components/workspace/AnonymizeSettings"
 import { readOrgDefaults, type AnonymizeTemplate } from "@/components/workspace/anonymize/types"
 import type { ShortlistOrg } from "@/components/workspace/MissionShortlist"
+import { useEscapeKey } from "@/components/ui/useEscapeKey"
 
 type Lang = "fr" | "en"
 type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
@@ -77,6 +78,14 @@ const copy = {
     clientFeedbackPh: "ex : profil intéressant mais à revoir sur l'expérience terrain…",
     noraTeaser: "Nora peut réajuster la mission d'après ces retours",
     noraCta: "Voir la proposition",
+    noraBanner: (n: number) => `Nora peut réajuster la mission d'après ${n} retour${n > 1 ? "s" : ""} client`,
+    noraModalTitle: "Proposition de Nora",
+    noraLoading: "Nora analyse les retours client…",
+    noraChangesTitle: "Ajustements proposés",
+    noraApply: "Appliquer et relancer le matching",
+    noraDismiss: "Ignorer",
+    noraErr: "Nora n'a pas pu générer de proposition. Réessayez.",
+    noraNoFeedback: "Pas encore assez de retours pour proposer un ajustement.",
     cvReady: "CV anonymisé prêt",
     salary: "Prétention",
     matchSheet: "Fiche match complète",
@@ -101,6 +110,14 @@ const copy = {
     clientFeedbackPh: "e.g. interesting profile but needs more field experience…",
     noraTeaser: "Nora can adjust the mission based on this feedback",
     noraCta: "See the suggestion",
+    noraBanner: (n: number) => `Nora can adjust the mission based on ${n} client ${n > 1 ? "responses" : "response"}`,
+    noraModalTitle: "Nora's suggestion",
+    noraLoading: "Nora is analyzing the client feedback…",
+    noraChangesTitle: "Proposed adjustments",
+    noraApply: "Apply and re-run matching",
+    noraDismiss: "Dismiss",
+    noraErr: "Nora couldn't generate a suggestion. Try again.",
+    noraNoFeedback: "Not enough feedback yet to suggest an adjustment.",
     cvReady: "Anonymized CV ready",
     salary: "Expectation",
     matchSheet: "Full match sheet",
@@ -156,6 +173,7 @@ export function MissionPipeline({ job, rows, isReadOnly, organization, brandingH
   const [showSettings, setShowSettings] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [anonErr, setAnonErr] = useState<string | null>(null)
+  const [noraOpen, setNoraOpen] = useState(false)
 
   const anonBranding: AnonymizeBranding = useMemo(() => ({
     orgName: (organization.brand_name?.trim() || organization.name?.trim()) || "",
@@ -191,6 +209,14 @@ export function MissionPipeline({ job, rows, isReadOnly, organization, brandingH
     for (const r of shortlisted) c[filterOf(r.pipeline_stage)]++
     return c
   }, [shortlisted])
+
+  // Retours client exploitables (écartés avec motif ou commentaire) → Nora
+  // peut proposer un réajustement de la mission.
+  const feedbackCount = useMemo(
+    () => shortlisted.filter((r) => r.pipeline_stage === "rejected"
+      && ((r.client_reject_reasons?.length ?? 0) > 0 || (r.client_feedback_note ?? "").trim() !== "")).length,
+    [shortlisted],
+  )
 
   async function downloadAll() {
     const ids = shortlisted.map((r) => r.candidate_id)
@@ -256,6 +282,19 @@ export function MissionPipeline({ job, rows, isReadOnly, organization, brandingH
             brandingHref={brandingHref} lang={lang}
           />
         </div>
+      )}
+
+      {clientReviewEnabled && !isReadOnly && feedbackCount > 0 && (
+        <div style={{ marginBottom: 14, padding: "11px 14px", borderRadius: 12, background: "rgba(124,99,200,0.06)", border: "1px solid #E1DAF4", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12.5, color: PRIMARY_DK }}>
+            <span style={{ fontSize: 14 }}>✦</span> {t.noraBanner(feedbackCount)}
+          </span>
+          <button type="button" onClick={() => setNoraOpen(true)} style={{ fontSize: 12.5, fontWeight: 700, padding: "6px 13px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", color: "white", background: PRIMARY, border: "none" }}>{t.noraCta} →</button>
+        </div>
+      )}
+
+      {noraOpen && (
+        <NoraAdjustModal jobId={job.id} t={t} onClose={() => setNoraOpen(false)} />
       )}
 
       {visible.length === 0 ? (
@@ -431,16 +470,94 @@ function PipelineCard({
               <p style={{ margin: "0 0 5px", fontSize: 11, color: "var(--nw-text-secondary)" }}>{t.clientFeedback}</p>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} onBlur={saveNote} readOnly={isReadOnly} disabled={isReadOnly} placeholder={t.clientFeedbackPh} rows={2}
                 style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", fontSize: 12.5, borderRadius: 8, border: "1px solid var(--nw-primary-100)", outline: "none", fontFamily: "inherit", resize: "vertical" }} />
-              {(reasons.size > 0 || note.trim() !== "") && (
-                <div style={{ marginTop: 8, background: "rgba(124,99,200,0.06)", border: "1px solid #d8d0f0", borderRadius: 8, padding: "9px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 12, color: PRIMARY_DK }}>{t.noraTeaser}</span>
-                  <button type="button" disabled title="Bientôt" style={{ fontSize: 12, fontWeight: 600, padding: "5px 11px", borderRadius: 8, color: PRIMARY_DK, background: "white", border: `1px solid ${PRIMARY}`, cursor: "not-allowed", opacity: 0.7, fontFamily: "inherit" }}>{t.noraCta} ↗</button>
-                </div>
-              )}
             </div>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function NoraAdjustModal({
+  jobId, t, onClose,
+}: {
+  jobId: string
+  t: (typeof copy)[Lang]
+  onClose: () => void
+}) {
+  useEscapeKey(onClose)
+  const [state, setState] = useState<
+    | { kind: "loading" }
+    | { kind: "error" }
+    | { kind: "empty" }
+    | { kind: "ready"; summary: string; changes: string[]; criteria: unknown[] }
+  >({ kind: "loading" })
+  const [applying, setApplying] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}/feedback-adjust`, { method: "POST" })
+        const data = await res.json().catch(() => null)
+        if (cancelled) return
+        if (!res.ok || !data?.ok) { setState({ kind: "error" }); return }
+        if (data.no_feedback || !Array.isArray(data.criteria) || data.criteria.length === 0) { setState({ kind: "empty" }); return }
+        setState({ kind: "ready", summary: data.summary ?? "", changes: Array.isArray(data.changes) ? data.changes : [], criteria: data.criteria })
+      } catch { if (!cancelled) setState({ kind: "error" }) }
+    })()
+    return () => { cancelled = true }
+  }, [jobId])
+
+  const apply = async () => {
+    if (state.kind !== "ready" || applying) return
+    setApplying(true)
+    const res = await fetch(`/api/jobs/${jobId}/criteria`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ criteria: state.criteria }),
+    })
+    setApplying(false)
+    if (res.ok) onClose()
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(17,24,39,0.40)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, background: "white", borderRadius: 16, padding: 22, boxShadow: "0 20px 60px rgba(17,24,39,0.25)" }}>
+        <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 800, color: "var(--nw-text)", display: "flex", alignItems: "center", gap: 7 }}>
+          <span style={{ color: PRIMARY }}>✦</span> {t.noraModalTitle}
+        </h3>
+
+        {state.kind === "loading" && (
+          <p style={{ margin: "18px 0", fontSize: 13, color: "var(--nw-text-muted)", textAlign: "center" }}>{t.noraLoading}</p>
+        )}
+        {state.kind === "error" && (
+          <p style={{ margin: "18px 0", fontSize: 13, color: "#B42318" }}>{t.noraErr}</p>
+        )}
+        {state.kind === "empty" && (
+          <p style={{ margin: "18px 0", fontSize: 13, color: "var(--nw-text-muted)" }}>{t.noraNoFeedback}</p>
+        )}
+        {state.kind === "ready" && (
+          <>
+            {state.summary && (
+              <p style={{ margin: "0 0 14px", fontSize: 13.5, color: "var(--nw-text-body)", lineHeight: 1.6 }}>{state.summary}</p>
+            )}
+            {state.changes.length > 0 && (
+              <>
+                <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.03em" }}>{t.noraChangesTitle}</p>
+                <ul style={{ margin: "0 0 16px", paddingLeft: 18, display: "flex", flexDirection: "column", gap: 5 }}>
+                  {state.changes.map((c, i) => (
+                    <li key={i} style={{ fontSize: 12.5, color: "var(--nw-text-body)", lineHeight: 1.5 }}>{c}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+              <button type="button" onClick={onClose} style={{ fontSize: 13, fontWeight: 600, padding: "8px 16px", borderRadius: 9, border: "1px solid var(--nw-border)", background: "white", color: "var(--nw-text-secondary)", cursor: "pointer", fontFamily: "inherit" }}>{t.noraDismiss}</button>
+              <button type="button" onClick={apply} disabled={applying} style={{ fontSize: 13, fontWeight: 700, padding: "8px 16px", borderRadius: 9, border: "none", background: PRIMARY, color: "white", cursor: applying ? "wait" : "pointer", fontFamily: "inherit" }}>{applying ? "…" : t.noraApply}</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
