@@ -132,7 +132,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         .map(([reason, n]) => ({ motif: clientRejectReasonLabel(reason as never, "fr"), occurrences: n })),
       commentaires: notes.slice(0, 20),
     }
-    userContent = `MISSION :\n${JSON.stringify(missionPayload, null, 2)}\n\nHISTORIQUE DES AJUSTEMENTS (déjà appliqués — ne les refais pas) :\n${JSON.stringify(historyPayload, null, 2)}\n\nNOUVEAUX RETOURS DU CLIENT (candidats écartés, non encore traités) :\n${JSON.stringify(feedbackPayload, null, 2)}`
+    // Précision optionnelle du sourceur (affiner depuis la Shortlist).
+    const precision = instruction ? `\n\nPRÉCISION DU SOURCEUR (à prendre en compte en plus) :\n${JSON.stringify({ instruction }, null, 2)}` : ""
+    userContent = `MISSION :\n${JSON.stringify(missionPayload, null, 2)}\n\nHISTORIQUE DES AJUSTEMENTS (déjà appliqués — ne les refais pas) :\n${JSON.stringify(historyPayload, null, 2)}\n\nNOUVEAUX RETOURS DU CLIENT (candidats écartés, non encore traités) :\n${JSON.stringify(feedbackPayload, null, 2)}${precision}`
   } else {
     userContent = `MISSION :\n${JSON.stringify(missionPayload, null, 2)}\n\nHISTORIQUE DES AJUSTEMENTS (déjà appliqués — ne les refais pas) :\n${JSON.stringify(historyPayload, null, 2)}\n\nCONSIGNE DU SOURCEUR :\n${JSON.stringify({ instruction }, null, 2)}`
   }
@@ -173,13 +175,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const changes = Array.isArray(parsed?.changes)
     ? parsed!.changes.filter((c): c is string => typeof c === "string").map((c) => c.slice(0, 160)).slice(0, 6)
     : []
+  const criteria = capCriteria(proposed)
+
+  // Persiste la proposition EN ATTENTE (survit au reload / changement d'onglet).
+  // Effacée à l'application (PATCH /criteria) ou à l'abandon (feedback-dismiss).
+  const pending = {
+    source,
+    summary,
+    changes,
+    criteria,
+    ...(source === "feedback" ? { feedbackWatermark } : {}),
+    ...(source === "general" && instruction ? { instruction } : {}),
+  }
+  await getAdminSupabase().from("jobs").update({ pending_adjustment: pending }).eq("id", id)
 
   return NextResponse.json({
     ok: true,
     source,
     summary,
     changes,
-    criteria: capCriteria(proposed),
+    criteria,
     ...(source === "feedback" ? { feedback_watermark: feedbackWatermark } : {}),
     ...(source === "general" ? { instruction } : {}),
   })

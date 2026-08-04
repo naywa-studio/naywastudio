@@ -91,6 +91,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     criteria_locked_at: string
     criteria_adjustments?: CriteriaAdjustment[]
     feedback_consumed_until?: string | null
+    pending_adjustment?: null
   } = {
     criteria: finalCriteria,
     criteria_locked_at: new Date().toISOString(),
@@ -99,6 +100,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const prev = Array.isArray(jobRow.criteria_adjustments) ? jobRow.criteria_adjustments : []
     // Cap dur à 20 entrées (on garde les plus récentes).
     update.criteria_adjustments = [...prev, adjustment].slice(-20)
+    // Appliquer un ajustement solde la proposition en attente.
+    update.pending_adjustment = null
   }
   // Filigrane feedback : avance-le quand le client applique (ou « écarte ») un
   // ajustement issu de retours client, pour que Nora ne re-propose plus ces

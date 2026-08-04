@@ -1,12 +1,12 @@
 /**
- * POST /api/jobs/:id/feedback-dismiss   (lot 3c v3)
+ * POST /api/jobs/:id/feedback-dismiss   (lot 3c v3/v4)
  *
- * Avance le filigrane `feedback_consumed_until` SANS toucher aux critères :
- * quand Nora ne recommande aucun changement pour des retours client, le
- * sourceur clique « OK, ne plus me le proposer » → on marque ces retours comme
- * traités pour qu'ils ne re-déclenchent plus la bannière. Aucun re-matching,
- * aucune modification de critères (donc pas de fausse bannière « critères
- * modifiés »).
+ * Abandonne la proposition Nora EN ATTENTE (efface `pending_adjustment`) et,
+ * si un `watermark` est fourni (retours client sans changement recommandé),
+ * avance le filigrane `feedback_consumed_until` pour ne plus re-proposer ces
+ * retours. Ne touche JAMAIS aux critères (pas de re-matching, pas de fausse
+ * bannière « critères modifiés »). Sert les 2 boutons « Ignorer » et « OK, ne
+ * plus me le proposer ».
  */
 
 import { NextRequest, NextResponse } from "next/server"
@@ -32,7 +32,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const body = await req.json().catch(() => null) as { watermark?: unknown } | null
   const watermark = sanitizeIso(body?.watermark)
-  if (!watermark) return NextResponse.json({ error: "bad_request" }, { status: 400 })
 
   // RLS-scoped ownership + filigrane courant (ne jamais reculer).
   const { data: jobRow } = await sb
@@ -42,16 +41,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .maybeSingle()
   if (!jobRow) return NextResponse.json({ error: "not_found" }, { status: 404 })
 
+  // Toujours effacer la proposition en attente. Avancer le filigrane seulement
+  // si le watermark fourni est plus récent que l'existant.
+  const update: { pending_adjustment: null; feedback_consumed_until?: string } = { pending_adjustment: null }
   const prevMs = jobRow.feedback_consumed_until ? new Date(jobRow.feedback_consumed_until).getTime() : 0
-  if (new Date(watermark).getTime() <= prevMs) {
-    return NextResponse.json({ ok: true, feedback_consumed_until: jobRow.feedback_consumed_until })
+  if (watermark && new Date(watermark).getTime() > prevMs) {
+    update.feedback_consumed_until = watermark
   }
 
   const admin = getAdminSupabase()
-  const { error } = await admin.from("jobs").update({ feedback_consumed_until: watermark }).eq("id", id)
+  const { error } = await admin.from("jobs").update(update).eq("id", id)
   if (error) {
     console.error("[jobs/:id/feedback-dismiss] update failed:", error.message)
     return NextResponse.json({ error: "update_failed", detail: "internal_error" }, { status: 500 })
   }
-  return NextResponse.json({ ok: true, feedback_consumed_until: watermark })
+  return NextResponse.json({ ok: true, feedback_consumed_until: update.feedback_consumed_until ?? jobRow.feedback_consumed_until })
 }

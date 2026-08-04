@@ -50,6 +50,19 @@ export type CriteriaAdjustment = {
   instruction?: string
 }
 
+/** Proposition d'ajustement Nora générée mais pas encore appliquée (lot 3c),
+ *  persistée dans jobs.pending_adjustment pour survivre au reload. */
+export type PendingAdjustment = {
+  source: "feedback" | "general"
+  summary: string
+  changes: string[]
+  criteria: Criterion[]
+  /** source "general" : consigne du sourceur. */
+  instruction?: string
+  /** source "feedback" : filigrane capturé à la génération. */
+  feedbackWatermark?: string | null
+}
+
 /** Un critère configuré sur une mission (stocké dans jobs.criteria). */
 export type Criterion = {
   id: string

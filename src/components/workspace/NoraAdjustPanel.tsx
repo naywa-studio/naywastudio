@@ -41,6 +41,9 @@ const copy = {
     dismiss: "Ignorer",
     emptyPick: "Gardez au moins un changement pour appliquer.",
     whyTitle: "Pourquoi",
+    refineLabel: "Affiner avec Nora",
+    refinePlaceholder: "ex : ajoute aussi l'anglais, retire le diplôme…",
+    refineSend: "Redemander",
   },
   en: {
     titleFeedback: "Nora's suggestion",
@@ -62,29 +65,38 @@ const copy = {
     dismiss: "Dismiss",
     emptyPick: "Keep at least one change to apply.",
     whyTitle: "Why",
+    refineLabel: "Refine with Nora",
+    refinePlaceholder: "e.g. also add English, drop the diploma…",
+    refineSend: "Re-ask",
   },
 }
 
 export function NoraAdjustPanel({
-  proposal, before, source, applying, lang,
-  onApply, onDismiss, onRegenerate, onDismissFeedback,
+  proposal, before, source, applying, lang, collapsible = false,
+  onApply, onDismiss, onRegenerate, onDismissFeedback, onRefine,
 }: {
   proposal: { summary: string; changes: string[]; criteria: Criterion[] }
   before: Criterion[]
   source: "feedback" | "general"
   applying: boolean
   lang: Lang
+  /** Rend l'en-tête pliable (chevron) — utile en Shortlist. */
+  collapsible?: boolean
   onApply: (criteria: Criterion[]) => void
   onDismiss: () => void
   onRegenerate: () => void
   /** Feedback uniquement : avance le filigrane quand Nora ne change rien. */
   onDismissFeedback?: () => void
+  /** Affiner avec une consigne libre (ajout/modif/retrait). */
+  onRefine?: (instruction: string) => void
 }) {
   const t = copy[lang]
   const diff = useMemo(() => computeCriteriaDiff(before, proposal.criteria), [before, proposal.criteria])
   // Changements acceptés (tous cochés par défaut). Remount via `key` parent au
   // changement de proposition → pas de setState-in-effect.
   const [accepted, setAccepted] = useState<Set<string>>(() => new Set(diff.map((d) => d.key)))
+  const [open, setOpen] = useState(true)
+  const [refine, setRefine] = useState("")
   const toggle = (k: string) => setAccepted((prev) => {
     const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n
   })
@@ -92,18 +104,31 @@ export function NoraAdjustPanel({
   const hasChanges = diff.length > 0
   const finalCriteria = applyCriteriaChanges(before, diff, accepted)
   const canApply = hasChanges && accepted.size > 0 && !applying
+  const refineTrim = refine.trim()
 
   return (
     <div style={{ marginBottom: 16, borderRadius: 16, background: "white", border: "1px solid #E1DAF4", overflow: "hidden", boxShadow: "0 6px 22px rgba(124,99,200,0.10)" }}>
-      {/* En-tête */}
-      <div style={{ padding: "14px 16px 12px", background: "rgba(124,99,200,0.05)", borderBottom: "1px solid #ECE6F8" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {/* En-tête (pliable si collapsible) */}
+      {collapsible ? (
+        <button type="button" onClick={() => setOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "13px 16px", background: "rgba(124,99,200,0.05)", borderBottom: open ? "1px solid #ECE6F8" : "none", border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
           <span style={{ fontSize: 15, color: PRIMARY }} aria-hidden="true">✦</span>
-          <span style={{ fontSize: 14.5, fontWeight: 800, color: "var(--nw-text)" }}>{source === "feedback" ? t.titleFeedback : t.titleGeneral}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 14.5, fontWeight: 800, color: "var(--nw-text)" }}>{source === "feedback" ? t.titleFeedback : t.titleGeneral}</span>
+            <span style={{ display: "block", fontSize: 11.5, color: "var(--nw-text-muted)" }}>{source === "feedback" ? t.subFeedback : t.subGeneral}</span>
+          </span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nw-text-muted)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        </button>
+      ) : (
+        <div style={{ padding: "14px 16px 12px", background: "rgba(124,99,200,0.05)", borderBottom: "1px solid #ECE6F8" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 15, color: PRIMARY }} aria-hidden="true">✦</span>
+            <span style={{ fontSize: 14.5, fontWeight: 800, color: "var(--nw-text)" }}>{source === "feedback" ? t.titleFeedback : t.titleGeneral}</span>
+          </div>
+          <p style={{ margin: "4px 0 0 23px", fontSize: 11.5, color: "var(--nw-text-muted)" }}>{source === "feedback" ? t.subFeedback : t.subGeneral}</p>
         </div>
-        <p style={{ margin: "4px 0 0 23px", fontSize: 11.5, color: "var(--nw-text-muted)" }}>{source === "feedback" ? t.subFeedback : t.subGeneral}</p>
-      </div>
+      )}
 
+      {collapsible && !open ? null : (
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
         {proposal.summary && (
           <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-body)", lineHeight: 1.6 }}>{proposal.summary}</p>
@@ -156,7 +181,27 @@ export function NoraAdjustPanel({
             </>
           )}
         </div>
+
+        {/* Affiner avec Nora : ajout / modif / retrait via consigne libre. */}
+        {onRefine && (
+          <div style={{ borderTop: "1px solid var(--nw-border-soft)", paddingTop: 12 }}>
+            <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.03em", textTransform: "uppercase" }}>{t.refineLabel}</p>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <input
+                type="text"
+                value={refine}
+                onChange={(e) => setRefine(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && refineTrim && !applying) { onRefine(refineTrim); setRefine("") } }}
+                placeholder={t.refinePlaceholder}
+                disabled={applying}
+                style={{ flex: 1, minWidth: 0, boxSizing: "border-box", padding: "8px 11px", fontSize: 12.5, borderRadius: 9, border: "1px solid var(--nw-primary-100)", background: "#FBFAFE", outline: "none", fontFamily: "inherit" }}
+              />
+              <button type="button" onClick={() => { if (refineTrim) { onRefine(refineTrim); setRefine("") } }} disabled={applying || refineTrim.length === 0} style={btnPrimary(!applying && refineTrim.length > 0)}>{t.refineSend}</button>
+            </div>
+          </div>
+        )}
       </div>
+      )}
     </div>
   )
 }

@@ -177,6 +177,8 @@ interface Props {
   onDismissAdjust?: () => void
   /** Feedback : Nora ne change rien → avance le filigrane sans re-matcher. */
   onDismissFeedback?: () => void
+  /** Affiner la proposition avec une consigne libre (add/modif/retrait). */
+  onRefineAdjust?: (instruction: string) => void
 }
 
 function stepOf(stage: PipelineStage): "identified" | "contacted" | "interview" | "offer" | "hired" | "rejected" {
@@ -200,7 +202,7 @@ function filterOf(stage: PipelineStage): Filter {
 export function MissionPipeline({
   job, rows, isReadOnly, organization, brandingHref, clientDirectory = [], clientReviewEnabled = false, onLocalUpdate, lang,
   adjust = null, adjustLoading = false, adjustError = null, applyingAdjust = false,
-  onGenerateAdjust, onApplyAdjust, onDismissAdjust, onDismissFeedback,
+  onGenerateAdjust, onApplyAdjust, onDismissAdjust, onDismissFeedback, onRefineAdjust,
 }: Props) {
   const t = copy[lang]
   const [filter, setFilter] = useState<Filter>("all")
@@ -382,10 +384,12 @@ export function MissionPipeline({
               source="feedback"
               applying={applyingAdjust}
               lang={lang}
+              collapsible
               onApply={(criteria) => onApplyAdjust?.(criteria, adjust.summary, adjust.changes)}
               onDismiss={() => onDismissAdjust?.()}
               onRegenerate={() => onGenerateAdjust?.()}
               onDismissFeedback={onDismissFeedback}
+              onRefine={onRefineAdjust}
             />
           )}
         </>

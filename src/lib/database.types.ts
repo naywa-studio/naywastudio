@@ -1,7 +1,7 @@
 // Generated-style type definition compatible with @supabase/supabase-js v2
 // Sprint 1 — CV CRM (Naywa Studio / Nora)
 
-import type { Criterion, CriterionEval, CriteriaAdjustment } from "./job-criteria-catalog"
+import type { Criterion, CriterionEval, CriteriaAdjustment, PendingAdjustment } from "./job-criteria-catalog"
 
 // ── Parsed CV structure (LLM output) ──────────────────────────────────────────
 export type ExperienceSeniority = 'stage' | 'junior' | 'mid' | 'senior' | 'lead' | 'principal'
@@ -452,6 +452,9 @@ export type Database = {
            *  type feedback (lot 3c). Nora ne re-propose que sur du retour plus
            *  récent. NULL = aucun ajustement feedback appliqué. */
           feedback_consumed_until: string | null
+          /** Proposition Nora générée mais pas encore appliquée (lot 3c).
+           *  Persistée pour survivre au reload. NULL = aucune en attente. */
+          pending_adjustment: PendingAdjustment | null
           /** Secteurs cibles de la mission (par nom), définis à l'onboarding.
            *  Gate le "Matcher le vivier" en mode Intelligent. */
           target_sectors: string[]
@@ -499,6 +502,7 @@ export type Database = {
           criteria_locked_at?: string | null
           criteria_adjustments?: CriteriaAdjustment[]
           feedback_consumed_until?: string | null
+          pending_adjustment?: PendingAdjustment | null
           target_sectors?: string[]
           last_match_mode?: 'intelligent' | 'personnalise' | 'complet' | null
           anonymize_options?: { keepNoraSummary?: boolean; customText?: string } | null

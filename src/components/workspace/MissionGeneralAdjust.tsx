@@ -104,6 +104,7 @@ export function MissionGeneralAdjust({
                 onApply={(criteria) => onApply(criteria, proposal.summary, proposal.changes)}
                 onDismiss={onDismiss}
                 onRegenerate={() => onGenerate(trimmed || text)}
+                onRefine={(instruction) => onGenerate(instruction)}
               />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

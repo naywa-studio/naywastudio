@@ -20,20 +20,8 @@ import { MatchVivierPanel } from "@/components/workspace/MatchVivierPanel"
 import type { MatchMode } from "@/lib/sector-gate"
 import { sectorColors } from "@/lib/sector-color"
 import { sectorDisplayName } from "@/lib/sector-i18n"
-import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
-const MATCH_MODE_LABEL: Record<Lang, Record<MatchMode, string>> = {
-  fr: {
-    intelligent: "Intelligent",
-    personnalise: "Personnalisé",
-    complet: "Complet",
-  },
-  en: {
-    intelligent: "Smart",
-    personnalise: "Custom",
-    complet: "Full",
-  },
-}
 import { MatchCard } from "@/components/workspace/MatchCard"
 import { MissionPipeline, type AdjustProposal } from "@/components/workspace/MissionPipeline"
 import { MissionGeneralAdjust } from "@/components/workspace/MissionGeneralAdjust"
@@ -232,15 +220,16 @@ export default function JobDetailPage() {
   // Timer de debounce du refetch temps-réel (voir souscription plus bas).
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const loadAll = useCallback(async () => {
+  const loadAll = useCallback(async (): Promise<Job | null> => {
     const res = await fetch(`/api/jobs/${jobId}`)
-    if (res.status === 404) { setNotFound(true); setLoading(false); return }
-    if (!res.ok) { setLoading(false); return }
+    if (res.status === 404) { setNotFound(true); setLoading(false); return null }
+    if (!res.ok) { setLoading(false); return null }
     const data = await res.json()
     const j = data.job as Job
     setJob(j)
     setRows((data.assessments ?? []) as AssessmentRow[])
     setLoading(false)
+    return j
   }, [jobId])
 
   // Résout le nom du client rattaché (l'API jobs ne renvoie que client_id).
@@ -291,8 +280,22 @@ export default function JobDetailPage() {
     let jobCh: ReturnType<typeof sb.channel> | null = null
     let maCh: ReturnType<typeof sb.channel> | null = null
     ;(async () => {
-      await loadAll()
+      const j = await loadAll()
       if (!mounted) return
+      // Ré-hydrate une proposition Nora en attente (persistée) → ne disparaît
+      // pas au reload / changement d'onglet.
+      const p = j?.pending_adjustment
+      if (p && (p.source === "feedback" || p.source === "general")) {
+        setAdjust({
+          source: p.source,
+          summary: p.summary ?? "",
+          changes: Array.isArray(p.changes) ? p.changes : [],
+          criteria: Array.isArray(p.criteria) ? p.criteria : [],
+          feedbackWatermark: p.feedbackWatermark ?? null,
+          instruction: p.instruction,
+        })
+        setAdjustOpSource(p.source)
+      }
       jobCh = sb.channel(`job:${jobId}`)
         .on("postgres_changes",
           { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${jobId}` },
@@ -426,6 +429,7 @@ export default function JobDetailPage() {
         criteria: applied ?? criteria,
         criteria_locked_at: new Date().toISOString(),
         criteria_adjustments: [...(prev.criteria_adjustments ?? []), entry],
+        pending_adjustment: null,
         ...(source === "feedback" && watermark ? { feedback_consumed_until: watermark } : {}),
       } : prev)
       setAdjust(null); setAdjustError(null)
@@ -437,19 +441,25 @@ export default function JobDetailPage() {
     }
   }, [job, isReadOnly, applyingAdjust, adjust, runMatch])
 
-  // Nora ne recommande rien pour ces retours → on avance le filigrane sans
-  // re-matcher, pour ne plus les re-proposer.
-  const dismissFeedback = useCallback(async () => {
-    if (!job || isReadOnly || !adjust || adjust.source !== "feedback") { setAdjust(null); return }
-    const watermark = adjust.feedbackWatermark ?? null
+  // Abandonne la proposition en attente (efface pending_adjustment côté serveur).
+  // Si un watermark est fourni (retours client sans changement), avance aussi le
+  // filigrane pour ne plus les re-proposer. Aucun re-matching.
+  const clearPending = useCallback(async (watermark?: string | null) => {
     setAdjust(null); setAdjustError(null)
-    if (!watermark) return
-    setJob((prev) => prev ? { ...prev, feedback_consumed_until: watermark } : prev)
+    if (!job) return
+    setJob((prev) => prev ? { ...prev, pending_adjustment: null, ...(watermark ? { feedback_consumed_until: watermark } : {}) } : prev)
     await fetch(`/api/jobs/${job.id}/feedback-dismiss`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ watermark }),
+      body: JSON.stringify(watermark ? { watermark } : {}),
     }).catch(() => {})
-  }, [job, isReadOnly, adjust])
+  }, [job])
+
+  // Affiner la proposition en cours avec une consigne libre (depuis le panneau,
+  // Shortlist ou Candidats) → régénère en gardant la source + la précision.
+  const refineAdjust = useCallback((instruction: string) => {
+    const src = adjust?.source ?? "feedback"
+    void generateAdjust(src, instruction)
+  }, [adjust, generateAdjust])
 
   const handleDelete = async () => {
     if (!job) return
@@ -680,8 +690,9 @@ export default function JobDetailPage() {
           applyingAdjust={applyingAdjust}
           onGenerateAdjust={() => generateAdjust("feedback")}
           onApplyAdjust={applyAdjust}
-          onDismissAdjust={() => { setAdjust(null); setAdjustError(null) }}
-          onDismissFeedback={dismissFeedback}
+          onDismissAdjust={() => clearPending()}
+          onDismissFeedback={() => clearPending(adjust?.feedbackWatermark ?? null)}
+          onRefineAdjust={refineAdjust}
         />
       ) : (
       <>
@@ -700,7 +711,7 @@ export default function JobDetailPage() {
           lang={lang}
           onGenerate={(instruction) => generateAdjust("general", instruction)}
           onApply={applyAdjust}
-          onDismiss={() => { setAdjust(null); setAdjustError(null) }}
+          onDismiss={() => clearPending()}
         />
       )}
 
@@ -797,37 +808,36 @@ export default function JobDetailPage() {
         </div>
       ) : (
         <>
-          {/* Récap rapide */}
-          <div style={{ marginBottom: 8, fontSize: 13, color: "var(--nw-text-muted)" }}>
-            <strong style={{ color: "var(--nw-text)" }}>{strongCount}</strong> {t.relevantRecap(strongCount)}
-            <span style={{ color: "var(--nw-text-muted)" }}>{t.totalRecap(rows.length)}</span>
+          {/* Récap compact sur UNE ligne : pertinents/total + rappel du dernier
+              matching (date + secteurs ciblés). Le « mode » interne est retiré
+              (jargon). La liste des candidats vient juste après. */}
+          <div style={{
+            marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+            fontSize: 12, color: "var(--nw-text-muted)",
+          }}>
+            <span>
+              <strong style={{ color: "var(--nw-text)" }}>{strongCount}</strong> {t.relevantRecap(strongCount)}{t.totalRecap(rows.length)}
+            </span>
+            {job.matched_at && !matching && (
+              <>
+                <span aria-hidden="true" style={{ opacity: 0.5 }}>·</span>
+                <span>{t.lastMatching}{new Date(job.matched_at).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short", year: "numeric" })}</span>
+                {job.last_match_mode !== "complet" && (job.target_sectors ?? []).length > 0 && (
+                  <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
+                    {t.sectorsPrefix}
+                    {(job.target_sectors ?? []).map((s) => (
+                      <span key={s} style={{
+                        fontSize: 10.5, fontWeight: 600,
+                        color: sectorColors(s).text, background: sectorColors(s).bg,
+                        border: `1px solid ${sectorColors(s).border}`,
+                        borderRadius: 99, padding: "1px 7px",
+                      }}>{sectorDisplayName(s, lang)}</span>
+                    ))}
+                  </span>
+                )}
+              </>
+            )}
           </div>
-
-          {/* Rappel du dernier matching : date + mode + secteurs ciblés. */}
-          {job.matched_at && !matching && (
-            <div style={{
-              marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-              fontSize: 11.5, color: "var(--nw-text-muted)",
-            }}>
-              <span>
-                {t.lastMatching}{new Date(job.matched_at).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short", year: "numeric" })}
-                {job.last_match_mode && <>{t.modePrefix}{MATCH_MODE_LABEL[lang][job.last_match_mode] ?? job.last_match_mode}</>}
-              </span>
-              {job.last_match_mode !== "complet" && (job.target_sectors ?? []).length > 0 && (
-                <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
-                  {t.sectorsPrefix}
-                  {(job.target_sectors ?? []).map((s) => (
-                    <span key={s} style={{
-                      fontSize: 10.5, fontWeight: 600,
-                      color: sectorColors(s).text, background: sectorColors(s).bg,
-                      border: `1px solid ${sectorColors(s).border}`,
-                      borderRadius: 99, padding: "1px 7px",
-                    }}>{sectorDisplayName(s, lang)}</span>
-                  ))}
-                </span>
-              )}
-            </div>
-          )}
 
           {criteriaStale && !matching && (
             <div style={{
