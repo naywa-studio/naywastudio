@@ -109,7 +109,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // Motifs d'écart CLIENT (multi, universels). Validés contre le catalogue.
   if (body && "client_reject_reasons" in body) {
     const v = body.client_reject_reasons
-    update.client_reject_reasons = v == null ? null : sanitizeClientRejectReasons(v)
+    const reasons = v == null ? null : sanitizeClientRejectReasons(v)
+    update.client_reject_reasons = reasons
+    // Horodate le retour client dès qu'un motif est posé (au même titre que le
+    // commentaire libre) — sert à Nora pour ne re-proposer un réajustement que
+    // sur du retour PLUS RÉCENT que le dernier appliqué. On ne l'écrase pas si
+    // le commentaire l'a déjà posé dans le même PATCH.
+    if (reasons && reasons.length > 0 && update.client_feedback_at === undefined) {
+      update.client_feedback_at = new Date().toISOString()
+    }
   }
 
   // Retrait de la Revue client : on efface le marqueur d'appartenance.

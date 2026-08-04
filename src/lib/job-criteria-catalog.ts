@@ -32,6 +32,18 @@ export type CriterionEval = {
   evidence?: string
 }
 
+/** Un réajustement de critères proposé par Nora d'après les retours client,
+ *  puis appliqué par le sourceur (lot 3c). Historisé dans
+ *  jobs.criteria_adjustments, affiché sous le brief dans l'onglet Candidats. */
+export type CriteriaAdjustment = {
+  /** ISO timestamp de l'application. */
+  at: string
+  /** Phrase de synthèse rédigée par Nora ("ce que j'ajuste et pourquoi"). */
+  summary: string
+  /** Puces courtes décrivant chaque changement. */
+  changes: string[]
+}
+
 /** Un critère configuré sur une mission (stocké dans jobs.criteria). */
 export type Criterion = {
   id: string

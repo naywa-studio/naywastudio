@@ -35,7 +35,8 @@ const MATCH_MODE_LABEL: Record<Lang, Record<MatchMode, string>> = {
   },
 }
 import { MatchCard } from "@/components/workspace/MatchCard"
-import { MissionPipeline } from "@/components/workspace/MissionPipeline"
+import { MissionPipeline, type AdjustProposal } from "@/components/workspace/MissionPipeline"
+import { MissionAdjustmentsHistory } from "@/components/workspace/MissionAdjustmentsHistory"
 import { JobForm } from "../page"
 import { useWorkspace } from "../../layout"
 import { getCapabilities } from "@/lib/capabilities"
@@ -218,6 +219,13 @@ export default function JobDetailPage() {
    *  par défaut : le matching score tout le vivier pour ne rien rater, mais on
    *  ne remonte que les profils pertinents. */
   const [showWeak, setShowWeak] = useState(false)
+  // Réajustement Nora (lot 3c) — proposition portée par la PAGE pour survivre
+  // au changement d'onglet + piloter le redirect vers Candidats + relance du
+  // matching. INLINE dans la Shortlist (jamais en modale).
+  const [adjust, setAdjust] = useState<AdjustProposal | null>(null)
+  const [adjustLoading, setAdjustLoading] = useState(false)
+  const [adjustError, setAdjustError] = useState<string | null>(null)
+  const [applyingAdjust, setApplyingAdjust] = useState(false)
   // Timer de debounce du refetch temps-réel (voir souscription plus bas).
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -285,7 +293,15 @@ export default function JobDetailPage() {
       jobCh = sb.channel(`job:${jobId}`)
         .on("postgres_changes",
           { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${jobId}` },
-          (payload) => setJob(payload.new as Job),
+          () => {
+            // NE PAS faire setJob(payload.new) : la réplication logique Postgres
+            // OMET les colonnes TOAST inchangées (briefing, client_brief,
+            // criteria jsonb) → payload.new les renvoie à null → le brief
+            // "disparaissait" après un re-matching. On refetch la ligne
+            // complète via l'API (debounce partagé avec match_assessments).
+            if (reloadTimer.current) clearTimeout(reloadTimer.current)
+            reloadTimer.current = setTimeout(() => { loadAll() }, 900)
+          },
         ).subscribe()
       maCh = sb.channel(`ma:${jobId}`)
         .on("postgres_changes",
@@ -320,7 +336,6 @@ export default function JobDetailPage() {
     if (!isMatching || !job?.updated_at) return
     const ageMs = Date.now() - new Date(job.updated_at).getTime()
     if (ageMs > 90_000) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setJob((prev) => prev ? { ...prev, match_status: "error" } : prev)
     }
   }, [isMatching, job?.updated_at])
@@ -329,7 +344,9 @@ export default function JobDetailPage() {
     if (!job || isReadOnly) return
     setMatchError(null)
     setCanaryHits(0)
-    setJob({ ...job, match_status: "matching", updated_at: new Date().toISOString() })
+    // Updater fonctionnel : ne pas écraser un setJob optimiste juste avant
+    // (ex : append d'historique d'ajustement dans applyAdjust).
+    setJob((prev) => prev ? { ...prev, match_status: "matching", updated_at: new Date().toISOString() } : prev)
     const qs = opts?.force ? "?force=1" : ""
     const res = await fetch(`/api/jobs/${job.id}/match${qs}`, {
       method: "POST",
@@ -351,6 +368,56 @@ export default function JobDetailPage() {
     }
     await loadAll()
   }, [job, loadAll, t, lang, isReadOnly])
+
+  // ─── Réajustement Nora (lot 3c) ────────────────────────────────────
+  // Génère une proposition de critères révisés d'après les retours client.
+  const generateAdjust = useCallback(async () => {
+    if (!job || isReadOnly || adjustLoading) return
+    setAdjustLoading(true); setAdjustError(null); setAdjust(null)
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/feedback-adjust`, { method: "POST" })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.ok) { setAdjustError("error"); return }
+      if (data.no_feedback || !Array.isArray(data.criteria) || data.criteria.length === 0) {
+        setAdjustError("empty"); return
+      }
+      setAdjust({
+        summary: typeof data.summary === "string" ? data.summary : "",
+        changes: Array.isArray(data.changes) ? data.changes.filter((c: unknown): c is string => typeof c === "string") : [],
+        criteria: data.criteria as Criterion[],
+      })
+    } catch { setAdjustError("error") } finally { setAdjustLoading(false) }
+  }, [job, isReadOnly, adjustLoading])
+
+  // Applique les critères choisis → historise → bascule sur Candidats →
+  // RELANCE le matching (avec le dernier mode/secteurs mémorisés).
+  const applyAdjust = useCallback(async (criteria: Criterion[], summary: string, changes: string[]) => {
+    if (!job || isReadOnly || applyingAdjust) return
+    setApplyingAdjust(true)
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/criteria`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ criteria, adjustment: { summary, changes } }),
+      })
+      if (!res.ok) return
+      // Reflète immédiatement les nouveaux critères + l'entrée d'historique
+      // (le refetch suivant confirmera).
+      const applied = (await res.json().catch(() => null))?.criteria as Criterion[] | undefined
+      const entry = { at: new Date().toISOString(), summary, changes }
+      setJob((prev) => prev ? {
+        ...prev,
+        criteria: applied ?? criteria,
+        criteria_locked_at: new Date().toISOString(),
+        criteria_adjustments: [...(prev.criteria_adjustments ?? []), entry],
+      } : prev)
+      setAdjust(null); setAdjustError(null)
+      // Redirige vers l'onglet Candidats puis relance le matching.
+      setView("candidats")
+      await runMatch({ mode: job.last_match_mode ?? undefined, sectors: job.target_sectors ?? [] })
+    } finally {
+      setApplyingAdjust(false)
+    }
+  }, [job, isReadOnly, applyingAdjust, runMatch])
 
   const handleDelete = async () => {
     if (!job) return
@@ -575,9 +642,23 @@ export default function JobDetailPage() {
           brandingHref={canBranding ? "/organisation?tab=branding" : null}
           onLocalUpdate={(rowId, patch) => setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, ...patch } : r))}
           lang={lang}
+          adjust={adjust}
+          adjustLoading={adjustLoading}
+          adjustError={adjustError}
+          applyingAdjust={applyingAdjust}
+          onGenerateAdjust={generateAdjust}
+          onApplyAdjust={applyAdjust}
+          onDismissAdjust={() => { setAdjust(null); setAdjustError(null) }}
         />
       ) : (
       <>
+
+      {/* Historique des réajustements Nora appliqués (lot 3c) — sous le brief,
+          onglet Candidats. Le brief original ne bouge jamais ; ici on montre
+          ce que Nora a ajusté d'après les retours client. */}
+      {(job.criteria_adjustments?.length ?? 0) > 0 && (
+        <MissionAdjustmentsHistory adjustments={job.criteria_adjustments} lang={lang} />
+      )}
 
       {/* Mission "legacy" (créée avant les critères flexibles) : matchs
           présents mais aucun critère. On ne masque rien — bannière opt-in. */}

@@ -1,7 +1,7 @@
 // Generated-style type definition compatible with @supabase/supabase-js v2
 // Sprint 1 — CV CRM (Naywa Studio / Nora)
 
-import type { Criterion, CriterionEval } from "./job-criteria-catalog"
+import type { Criterion, CriterionEval, CriteriaAdjustment } from "./job-criteria-catalog"
 
 // ── Parsed CV structure (LLM output) ──────────────────────────────────────────
 export type ExperienceSeniority = 'stage' | 'junior' | 'mid' | 'senior' | 'lead' | 'principal'
@@ -445,6 +445,9 @@ export type Database = {
           /** Timestamp de validation des critères par le sourceur. NULL = onboarding
            *  pas fait, l'UI montre le wizard. */
           criteria_locked_at: string | null
+          /** Historique des réajustements Nora appliqués d'après les retours
+           *  client (lot 3c). Affiché sous le brief dans l'onglet Candidats. */
+          criteria_adjustments: CriteriaAdjustment[]
           /** Secteurs cibles de la mission (par nom), définis à l'onboarding.
            *  Gate le "Matcher le vivier" en mode Intelligent. */
           target_sectors: string[]
@@ -490,6 +493,7 @@ export type Database = {
           essai_renouvele?: boolean
           criteria?: Criterion[] | null
           criteria_locked_at?: string | null
+          criteria_adjustments?: CriteriaAdjustment[]
           target_sectors?: string[]
           last_match_mode?: 'intelligent' | 'personnalise' | 'complet' | null
           anonymize_options?: { keepNoraSummary?: boolean; customText?: string } | null
