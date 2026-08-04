@@ -16,7 +16,9 @@
  * main : décocher un changement = garder l'ancienne valeur pour ce critère.
  */
 
-import type { Criterion } from "./job-criteria-catalog"
+import type { Criterion, CriterionType } from "./job-criteria-catalog"
+import { shortCriterionName, criterionValueLabel } from "./criterion-display"
+import type { Lang } from "./i18n/LanguageContext"
 
 export type CriterionChangeKind = "add" | "remove" | "modify"
 
@@ -95,6 +97,71 @@ export function computeCriteriaDiff(before: Criterion[], after: Criterion[]): Cr
     }
   }
   return changes
+}
+
+/** Description LISIBLE d'un changement, pour l'affichage du diff. Les types à
+ *  liste (compétences / contrat / secteurs) sont décrits en DELTA (items
+ *  ajoutés / retirés) — c'est le seul moyen de voir « + Closing » ou « + CDI ».
+ *  Les autres en valeur scalaire avant → après ("≥ 3 ans" → "≥ 5 ans"). */
+export type ChangeDescription = {
+  /** Nom court du critère concerné ("Compétences", "Contrat", "Anglais"…). */
+  name: string
+  /** Items ajoutés (types à liste). */
+  addedItems?: string[]
+  /** Items retirés (types à liste). */
+  removedItems?: string[]
+  /** Valeur scalaire avant (types non-liste). */
+  beforeValue?: string | null
+  /** Valeur scalaire après (types non-liste). */
+  afterValue?: string | null
+}
+
+/** Clé de params portant la liste, par type. */
+const LIST_PARAM: Partial<Record<CriterionType, string>> = {
+  skills: "must",
+  contract_preference: "kinds",
+  domain_fit: "domains",
+}
+
+function listValues(c: Criterion): string[] | null {
+  const key = LIST_PARAM[c.type]
+  if (!key) return null
+  const v = (c.params as Record<string, unknown>)[key]
+  if (!Array.isArray(v)) return []
+  return v.map((x) => String(x).trim()).filter(Boolean)
+}
+
+/** Cosmétique : capitalise les items de contrat ("cdi" → "CDI", "alternance"
+ *  → "Alternance"). Laisse les compétences telles quelles. */
+function prettyItem(type: CriterionType, item: string): string {
+  if (type === "contract_preference") {
+    return item.length <= 4 ? item.toUpperCase() : item.charAt(0).toUpperCase() + item.slice(1)
+  }
+  return item
+}
+
+export function describeChange(ch: CriterionChange, lang: Lang): ChangeDescription {
+  const ref = ch.after ?? ch.before
+  if (!ref) return { name: "" }
+  const name = shortCriterionName(ref, lang)
+
+  const beforeList = ch.before ? listValues(ch.before) : null
+  const afterList = ch.after ? listValues(ch.after) : null
+  const isList = beforeList !== null || afterList !== null
+
+  if (isList) {
+    const b = new Set((beforeList ?? []).map((s) => s.toLowerCase()))
+    const a = new Set((afterList ?? []).map((s) => s.toLowerCase()))
+    const added = (afterList ?? []).filter((s) => !b.has(s.toLowerCase())).map((s) => prettyItem(ref.type, s))
+    const removed = (beforeList ?? []).filter((s) => !a.has(s.toLowerCase())).map((s) => prettyItem(ref.type, s))
+    return { name, addedItems: added, removedItems: removed }
+  }
+
+  return {
+    name,
+    beforeValue: ch.before ? criterionValueLabel(ch.before, lang) : null,
+    afterValue: ch.after ? criterionValueLabel(ch.after, lang) : null,
+  }
 }
 
 /** Reconstruit la liste finale de critères à partir de l'état ACTUEL + des

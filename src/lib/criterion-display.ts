@@ -111,6 +111,22 @@ export function criterionLevelHint(c: Criterion, lang: Lang = "fr"): string | nu
   }
 }
 
+/** Valeur SCALAIRE parlante d'un critère (le seuil/cible qui le caractérise),
+ *  pour un diff d'ajustement ("≥ 5 ans", "C1", "senior"…). null si le critère
+ *  n'a pas de valeur scalaire (types à liste : skills/contrat/secteurs → gérés
+ *  à part comme deltas). */
+export function criterionValueLabel(c: Criterion, lang: Lang = "fr"): string | null {
+  const p = c.params as Record<string, unknown>
+  switch (c.type) {
+    case "role_fit":
+      return p.role ? String(p.role) : null
+    case "seniority_fit":
+      return p.target ? String(p.target) : null
+    default:
+      return criterionLevelHint(c, lang)
+  }
+}
+
 /** Nom court + éventuel niveau attendu, pour l'en-tête d'un critère sur les
  *  cartes/fiche match ("Anglais C1", "TOEIC ≥ 800", "Compétences"). */
 export function criterionHeaderLabel(c: Criterion, lang: Lang = "fr"): string {

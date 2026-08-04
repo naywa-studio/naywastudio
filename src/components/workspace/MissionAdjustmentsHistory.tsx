@@ -37,7 +37,15 @@ const copy = {
   },
 }
 
-export function MissionAdjustmentsHistory({ adjustments, lang }: { adjustments: CriteriaAdjustment[]; lang?: "fr" | "en" }) {
+export function MissionAdjustmentsHistory({
+  adjustments, lang, bare = false,
+}: {
+  adjustments: CriteriaAdjustment[]
+  lang?: "fr" | "en"
+  /** Imbriqué dans une autre carte : pas de carte propre ni de repli, juste
+   *  un intitulé léger + la timeline. */
+  bare?: boolean
+}) {
   const ctx = useLanguage()
   const l = lang ?? ctx.lang
   const t = copy[l]
@@ -47,33 +55,9 @@ export function MissionAdjustmentsHistory({ adjustments, lang }: { adjustments: 
   // Plus récent en premier.
   const ordered = [...adjustments].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 
-  return (
-    <section style={{
-      marginBottom: 16, background: "rgba(124,99,200,0.035)",
-      border: "1px solid #E6E0F4", borderRadius: 14, overflow: "hidden",
-    }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          display: "flex", alignItems: "center", gap: 10, width: "100%",
-          padding: "12px 16px", background: "transparent", border: "none",
-          cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-        }}
-      >
-        <span style={{ fontSize: 14, color: "#7C63C8", flexShrink: 0 }} aria-hidden="true">✦</span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: "block", fontSize: 13, fontWeight: 800, color: "var(--nw-text)" }}>{t.title}</span>
-          <span style={{ display: "block", fontSize: 11, color: "var(--nw-text-muted)" }}>{t.subtitle(ordered.length)}</span>
-        </span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nw-text-muted)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} aria-hidden="true">
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-
-      {open && (
-        <div style={{ padding: "0 16px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-          {ordered.map((adj, i) => (
+  const timeline = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {ordered.map((adj, i) => (
             <div key={`${adj.at}-${i}`} style={{
               position: "relative", paddingLeft: 16,
               borderLeft: "2px solid #D9CFF0",
@@ -111,8 +95,47 @@ export function MissionAdjustmentsHistory({ adjustments, lang }: { adjustments: 
                 </ul>
               )}
             </div>
-          ))}
-        </div>
+      ))}
+    </div>
+  )
+
+  // Mode imbriqué : intitulé léger + timeline, sans carte ni repli.
+  if (bare) {
+    return (
+      <div>
+        <p style={{ margin: "0 0 10px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          {t.title} · {ordered.length}
+        </p>
+        {timeline}
+      </div>
+    )
+  }
+
+  return (
+    <section style={{
+      marginBottom: 16, background: "rgba(124,99,200,0.035)",
+      border: "1px solid #E6E0F4", borderRadius: 14, overflow: "hidden",
+    }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex", alignItems: "center", gap: 10, width: "100%",
+          padding: "12px 16px", background: "transparent", border: "none",
+          cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+        }}
+      >
+        <span style={{ fontSize: 14, color: "#7C63C8", flexShrink: 0 }} aria-hidden="true">✦</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "block", fontSize: 13, fontWeight: 800, color: "var(--nw-text)" }}>{t.title}</span>
+          <span style={{ display: "block", fontSize: 11, color: "var(--nw-text-muted)" }}>{t.subtitle(ordered.length)}</span>
+        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nw-text-muted)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div style={{ padding: "0 16px 14px" }}>{timeline}</div>
       )}
     </section>
   )

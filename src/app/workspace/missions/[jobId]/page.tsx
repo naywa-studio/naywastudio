@@ -36,7 +36,6 @@ const MATCH_MODE_LABEL: Record<Lang, Record<MatchMode, string>> = {
 }
 import { MatchCard } from "@/components/workspace/MatchCard"
 import { MissionPipeline, type AdjustProposal } from "@/components/workspace/MissionPipeline"
-import { MissionAdjustmentsHistory } from "@/components/workspace/MissionAdjustmentsHistory"
 import { MissionGeneralAdjust } from "@/components/workspace/MissionGeneralAdjust"
 import { JobForm } from "../page"
 import { useWorkspace } from "../../layout"
@@ -687,18 +686,12 @@ export default function JobDetailPage() {
       ) : (
       <>
 
-      {/* Historique des réajustements Nora appliqués (lot 3c) — sous le brief,
-          onglet Candidats. Le brief original ne bouge jamais ; ici on montre
-          ce que Nora a ajusté d'après les retours client. */}
-      {(job.criteria_adjustments?.length ?? 0) > 0 && (
-        <MissionAdjustmentsHistory adjustments={job.criteria_adjustments} lang={lang} />
-      )}
-
-      {/* Ajuster la mission avec Nora (consigne libre). Réutilise le panneau
-          diff. Indépendant des retours client. */}
-      {!matching && (job.criteria_locked_at != null) && (
+      {/* Une seule carte Nora (lot 3c) sous le brief : consigne libre + panneau
+          diff + historique fusionné des ajustements (feedback + manuels). */}
+      {!matching && ((job.criteria_locked_at != null) || (job.criteria_adjustments?.length ?? 0) > 0) && (
         <MissionGeneralAdjust
           jobCriteria={criteria}
+          adjustments={job.criteria_adjustments ?? []}
           proposal={adjust?.source === "general" ? adjust : null}
           loading={adjustLoading && adjustOpSource === "general"}
           error={adjustOpSource === "general" ? adjustError : null}

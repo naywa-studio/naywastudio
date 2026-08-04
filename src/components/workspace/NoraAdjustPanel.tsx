@@ -11,8 +11,7 @@
 
 import { useState, useMemo } from "react"
 import type { Criterion } from "@/lib/job-criteria-catalog"
-import { criterionHeaderLabel } from "@/lib/criterion-display"
-import { computeCriteriaDiff, applyCriteriaChanges, type CriterionChange } from "@/lib/criteria-diff"
+import { computeCriteriaDiff, applyCriteriaChanges, describeChange, type CriterionChange } from "@/lib/criteria-diff"
 
 type Lang = "fr" | "en"
 
@@ -30,6 +29,8 @@ const copy = {
     changesTitle: "Modifications",
     add: "Nouveau",
     remove: "Retiré",
+    reqValue: "requis",
+    adjusted: "ajusté",
     pickHint: "Décochez un changement pour le laisser tel quel.",
     noChange: "Nora ne recommande aucun changement : les critères actuels restent adaptés.",
     dismissFeedback: "OK, ne plus me le proposer",
@@ -49,6 +50,8 @@ const copy = {
     changesTitle: "Changes",
     add: "New",
     remove: "Removed",
+    reqValue: "required",
+    adjusted: "adjusted",
     pickHint: "Uncheck a change to leave it as is.",
     noChange: "Nora recommends no change: the current criteria still fit.",
     dismissFeedback: "OK, stop suggesting this",
@@ -168,30 +171,35 @@ function ChangeRow({
   t: (typeof copy)[Lang]
   lang: Lang
 }) {
-  const beforeLabel = change.before ? criterionHeaderLabel(change.before, lang) : null
-  const afterLabel = change.after ? criterionHeaderLabel(change.after, lang) : null
+  const d = describeChange(change, lang)
+  const isList = d.addedItems !== undefined || d.removedItems !== undefined
+  const added = d.addedItems ?? []
+  const removed = d.removedItems ?? []
 
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 9, cursor: disabled ? "default" : "pointer", opacity: on ? 1 : 0.5 }}>
-      <input type="checkbox" checked={on} disabled={disabled} onChange={onToggle} style={{ accentColor: PRIMARY, width: 14, height: 14, flexShrink: 0, cursor: disabled ? "default" : "pointer" }} />
+    <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: disabled ? "default" : "pointer", opacity: on ? 1 : 0.5 }}>
+      <input type="checkbox" checked={on} disabled={disabled} onChange={onToggle} style={{ accentColor: PRIMARY, width: 14, height: 14, flexShrink: 0, marginTop: 3, cursor: disabled ? "default" : "pointer" }} />
       <span style={{ display: "inline-flex", alignItems: "center", gap: 7, flexWrap: "wrap", fontSize: 12.5 }}>
-        {change.kind === "modify" && (
+        {/* Nom du critère concerné */}
+        <span style={{ fontWeight: 700, color: "var(--nw-text)" }}>{d.name}</span>
+
+        {isList ? (
           <>
-            <Pill text={beforeLabel ?? "—"} tone="red" strike />
+            {removed.map((it) => <Pill key={`r-${it}`} text={`− ${it}`} tone="red" strike />)}
+            {added.map((it) => <Pill key={`a-${it}`} text={`+ ${it}`} tone="green" />)}
+            {added.length === 0 && removed.length === 0 && (
+              <Pill text={t.adjusted} tone="green" />
+            )}
+          </>
+        ) : change.kind === "add" ? (
+          <Pill text={d.afterValue ?? t.reqValue} tone="green" />
+        ) : change.kind === "remove" ? (
+          <Pill text={d.beforeValue ?? t.reqValue} tone="red" strike />
+        ) : (
+          <>
+            <Pill text={d.beforeValue ?? t.reqValue} tone="red" strike />
             <Arrow />
-            <Pill text={afterLabel ?? "—"} tone="green" />
-          </>
-        )}
-        {change.kind === "add" && (
-          <>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: GREEN }}>+ {t.add}</span>
-            <Pill text={afterLabel ?? "—"} tone="green" />
-          </>
-        )}
-        {change.kind === "remove" && (
-          <>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: RED }}>− {t.remove}</span>
-            <Pill text={beforeLabel ?? "—"} tone="red" strike />
+            <Pill text={d.afterValue ?? t.reqValue} tone="green" />
           </>
         )}
       </span>
