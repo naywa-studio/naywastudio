@@ -32,9 +32,11 @@ export type CriterionEval = {
   evidence?: string
 }
 
-/** Un réajustement de critères proposé par Nora d'après les retours client,
- *  puis appliqué par le sourceur (lot 3c). Historisé dans
- *  jobs.criteria_adjustments, affiché sous le brief dans l'onglet Candidats. */
+/** Un réajustement de critères proposé par Nora puis appliqué par le sourceur
+ *  (lot 3c). Historisé dans jobs.criteria_adjustments, affiché sous le brief
+ *  dans l'onglet Candidats.
+ *  - `source: "feedback"` = déclenché par les retours client sur les écartés.
+ *  - `source: "general"`  = consigne libre du sourceur (`instruction`). */
 export type CriteriaAdjustment = {
   /** ISO timestamp de l'application. */
   at: string
@@ -42,6 +44,10 @@ export type CriteriaAdjustment = {
   summary: string
   /** Puces courtes décrivant chaque changement. */
   changes: string[]
+  /** Origine de l'ajustement. Ancien historique sans champ = "feedback". */
+  source?: "feedback" | "general"
+  /** Consigne libre du sourceur (uniquement source "general"). */
+  instruction?: string
 }
 
 /** Un critère configuré sur une mission (stocké dans jobs.criteria). */

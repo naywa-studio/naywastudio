@@ -25,8 +25,9 @@ import {
 export const runtime = "nodejs"
 
 /** Sanitize l'entrée d'historique (réajustement Nora appliqué). Le client
- *  fournit summary + changes issus de la proposition ; on borne longueurs et
- *  cardinalité, le timestamp est posé serveur. Retourne null si vide. */
+ *  fournit summary + changes + source (+ instruction pour un ajustement
+ *  manuel) issus de la proposition ; on borne longueurs et cardinalité, le
+ *  timestamp est posé serveur. Retourne null si vide. */
 function sanitizeAdjustment(raw: unknown): CriteriaAdjustment | null {
   if (!raw || typeof raw !== "object") return null
   const r = raw as Record<string, unknown>
@@ -35,7 +36,22 @@ function sanitizeAdjustment(raw: unknown): CriteriaAdjustment | null {
     ? r.changes.filter((c): c is string => typeof c === "string").map((c) => c.trim().slice(0, 160)).filter(Boolean).slice(0, 8)
     : []
   if (!summary && changes.length === 0) return null
-  return { at: new Date().toISOString(), summary, changes }
+  const source: "feedback" | "general" = r.source === "general" ? "general" : "feedback"
+  const instruction = typeof r.instruction === "string" ? r.instruction.trim().slice(0, 600) : ""
+  return {
+    at: new Date().toISOString(),
+    summary,
+    changes,
+    source,
+    ...(source === "general" && instruction ? { instruction } : {}),
+  }
+}
+
+/** Valide un ISO timestamp fourni par le client (filigrane feedback). */
+function sanitizeIso(raw: unknown): string | null {
+  if (typeof raw !== "string") return null
+  const t = new Date(raw).getTime()
+  return Number.isFinite(t) ? new Date(t).toISOString() : null
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -46,7 +62,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const gate = await requireActiveAccess()
   if (!gate.ok) return gate.response
 
-  const body = await req.json().catch(() => null) as { criteria?: unknown; adjustment?: unknown } | null
+  const body = await req.json().catch(() => null) as {
+    criteria?: unknown; adjustment?: unknown; feedback_watermark?: unknown
+  } | null
   if (!body || !Array.isArray(body.criteria)) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 })
   }
@@ -54,7 +72,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // RLS-scoped ownership check + lecture de l'historique existant (pour append).
   const { data: jobRow } = await sb
     .from("jobs")
-    .select("id, criteria_adjustments")
+    .select("id, criteria_adjustments, feedback_consumed_until")
     .eq("id", id)
     .maybeSingle()
   if (!jobRow) return NextResponse.json({ error: "not_found" }, { status: 404 })
@@ -72,6 +90,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     criteria: Criterion[]
     criteria_locked_at: string
     criteria_adjustments?: CriteriaAdjustment[]
+    feedback_consumed_until?: string | null
   } = {
     criteria: finalCriteria,
     criteria_locked_at: new Date().toISOString(),
@@ -80,6 +99,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const prev = Array.isArray(jobRow.criteria_adjustments) ? jobRow.criteria_adjustments : []
     // Cap dur à 20 entrées (on garde les plus récentes).
     update.criteria_adjustments = [...prev, adjustment].slice(-20)
+  }
+  // Filigrane feedback : avance-le quand le client applique (ou « écarte ») un
+  // ajustement issu de retours client, pour que Nora ne re-propose plus ces
+  // retours-là. On ne recule jamais (max avec l'existant). Fourni tel quel par
+  // le client (capturé à la génération → pas de perte si un retour arrive après).
+  const watermark = sanitizeIso(body.feedback_watermark)
+  if (watermark) {
+    const prevMs = jobRow.feedback_consumed_until ? new Date(jobRow.feedback_consumed_until).getTime() : 0
+    if (new Date(watermark).getTime() > prevMs) update.feedback_consumed_until = watermark
   }
 
   const admin = getAdminSupabase()

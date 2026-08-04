@@ -37,6 +37,7 @@ const MATCH_MODE_LABEL: Record<Lang, Record<MatchMode, string>> = {
 import { MatchCard } from "@/components/workspace/MatchCard"
 import { MissionPipeline, type AdjustProposal } from "@/components/workspace/MissionPipeline"
 import { MissionAdjustmentsHistory } from "@/components/workspace/MissionAdjustmentsHistory"
+import { MissionGeneralAdjust } from "@/components/workspace/MissionGeneralAdjust"
 import { JobForm } from "../page"
 import { useWorkspace } from "../../layout"
 import { getCapabilities } from "@/lib/capabilities"
@@ -226,6 +227,9 @@ export default function JobDetailPage() {
   const [adjustLoading, setAdjustLoading] = useState(false)
   const [adjustError, setAdjustError] = useState<string | null>(null)
   const [applyingAdjust, setApplyingAdjust] = useState(false)
+  // Quelle source (feedback/général) est en cours de génération → route le
+  // spinner/erreur vers le bon onglet (Shortlist vs Candidats).
+  const [adjustOpSource, setAdjustOpSource] = useState<"feedback" | "general" | null>(null)
   // Timer de debounce du refetch temps-réel (voir souscription plus bas).
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -370,45 +374,60 @@ export default function JobDetailPage() {
   }, [job, loadAll, t, lang, isReadOnly])
 
   // ─── Réajustement Nora (lot 3c) ────────────────────────────────────
-  // Génère une proposition de critères révisés d'après les retours client.
-  const generateAdjust = useCallback(async () => {
+  // Génère une proposition de critères révisés. source "feedback" = d'après
+  // les retours client non encore traités ; source "general" = d'après une
+  // consigne libre du sourceur.
+  const generateAdjust = useCallback(async (source: "feedback" | "general", instruction?: string) => {
     if (!job || isReadOnly || adjustLoading) return
+    setAdjustOpSource(source)
     setAdjustLoading(true); setAdjustError(null); setAdjust(null)
     try {
-      const res = await fetch(`/api/jobs/${job.id}/feedback-adjust`, { method: "POST" })
+      const res = await fetch(`/api/jobs/${job.id}/adjust`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source, ...(instruction ? { instruction } : {}) }),
+      })
       const data = await res.json().catch(() => null)
       if (!res.ok || !data?.ok) { setAdjustError("error"); return }
       if (data.no_feedback || !Array.isArray(data.criteria) || data.criteria.length === 0) {
         setAdjustError("empty"); return
       }
       setAdjust({
+        source,
         summary: typeof data.summary === "string" ? data.summary : "",
         changes: Array.isArray(data.changes) ? data.changes.filter((c: unknown): c is string => typeof c === "string") : [],
         criteria: data.criteria as Criterion[],
+        feedbackWatermark: typeof data.feedback_watermark === "string" ? data.feedback_watermark : null,
+        instruction: source === "general" ? (instruction ?? "") : undefined,
       })
     } catch { setAdjustError("error") } finally { setAdjustLoading(false) }
   }, [job, isReadOnly, adjustLoading])
 
-  // Applique les critères choisis → historise → bascule sur Candidats →
-  // RELANCE le matching (avec le dernier mode/secteurs mémorisés).
+  // Applique les critères choisis → historise (source) → pose le filigrane
+  // feedback → bascule sur Candidats → RELANCE le matching.
   const applyAdjust = useCallback(async (criteria: Criterion[], summary: string, changes: string[]) => {
-    if (!job || isReadOnly || applyingAdjust) return
+    if (!job || isReadOnly || applyingAdjust || !adjust) return
     setApplyingAdjust(true)
+    const source = adjust.source
+    const instruction = adjust.instruction
+    const watermark = adjust.feedbackWatermark ?? null
     try {
       const res = await fetch(`/api/jobs/${job.id}/criteria`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ criteria, adjustment: { summary, changes } }),
+        body: JSON.stringify({
+          criteria,
+          adjustment: { summary, changes, source, ...(instruction ? { instruction } : {}) },
+          ...(source === "feedback" && watermark ? { feedback_watermark: watermark } : {}),
+        }),
       })
       if (!res.ok) return
-      // Reflète immédiatement les nouveaux critères + l'entrée d'historique
-      // (le refetch suivant confirmera).
       const applied = (await res.json().catch(() => null))?.criteria as Criterion[] | undefined
-      const entry = { at: new Date().toISOString(), summary, changes }
+      const entry = { at: new Date().toISOString(), summary, changes, source, ...(instruction ? { instruction } : {}) }
       setJob((prev) => prev ? {
         ...prev,
         criteria: applied ?? criteria,
         criteria_locked_at: new Date().toISOString(),
         criteria_adjustments: [...(prev.criteria_adjustments ?? []), entry],
+        ...(source === "feedback" && watermark ? { feedback_consumed_until: watermark } : {}),
       } : prev)
       setAdjust(null); setAdjustError(null)
       // Redirige vers l'onglet Candidats puis relance le matching.
@@ -417,7 +436,21 @@ export default function JobDetailPage() {
     } finally {
       setApplyingAdjust(false)
     }
-  }, [job, isReadOnly, applyingAdjust, runMatch])
+  }, [job, isReadOnly, applyingAdjust, adjust, runMatch])
+
+  // Nora ne recommande rien pour ces retours → on avance le filigrane sans
+  // re-matcher, pour ne plus les re-proposer.
+  const dismissFeedback = useCallback(async () => {
+    if (!job || isReadOnly || !adjust || adjust.source !== "feedback") { setAdjust(null); return }
+    const watermark = adjust.feedbackWatermark ?? null
+    setAdjust(null); setAdjustError(null)
+    if (!watermark) return
+    setJob((prev) => prev ? { ...prev, feedback_consumed_until: watermark } : prev)
+    await fetch(`/api/jobs/${job.id}/feedback-dismiss`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ watermark }),
+    }).catch(() => {})
+  }, [job, isReadOnly, adjust])
 
   const handleDelete = async () => {
     if (!job) return
@@ -642,13 +675,14 @@ export default function JobDetailPage() {
           brandingHref={canBranding ? "/organisation?tab=branding" : null}
           onLocalUpdate={(rowId, patch) => setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, ...patch } : r))}
           lang={lang}
-          adjust={adjust}
-          adjustLoading={adjustLoading}
-          adjustError={adjustError}
+          adjust={adjust?.source === "feedback" ? adjust : null}
+          adjustLoading={adjustLoading && adjustOpSource === "feedback"}
+          adjustError={adjustOpSource === "feedback" ? adjustError : null}
           applyingAdjust={applyingAdjust}
-          onGenerateAdjust={generateAdjust}
+          onGenerateAdjust={() => generateAdjust("feedback")}
           onApplyAdjust={applyAdjust}
           onDismissAdjust={() => { setAdjust(null); setAdjustError(null) }}
+          onDismissFeedback={dismissFeedback}
         />
       ) : (
       <>
@@ -658,6 +692,23 @@ export default function JobDetailPage() {
           ce que Nora a ajusté d'après les retours client. */}
       {(job.criteria_adjustments?.length ?? 0) > 0 && (
         <MissionAdjustmentsHistory adjustments={job.criteria_adjustments} lang={lang} />
+      )}
+
+      {/* Ajuster la mission avec Nora (consigne libre). Réutilise le panneau
+          diff. Indépendant des retours client. */}
+      {!matching && (job.criteria_locked_at != null) && (
+        <MissionGeneralAdjust
+          jobCriteria={criteria}
+          proposal={adjust?.source === "general" ? adjust : null}
+          loading={adjustLoading && adjustOpSource === "general"}
+          error={adjustOpSource === "general" ? adjustError : null}
+          applying={applyingAdjust}
+          readOnly={isReadOnly}
+          lang={lang}
+          onGenerate={(instruction) => generateAdjust("general", instruction)}
+          onApply={applyAdjust}
+          onDismiss={() => { setAdjust(null); setAdjustError(null) }}
+        />
       )}
 
       {/* Mission "legacy" (créée avant les critères flexibles) : matchs

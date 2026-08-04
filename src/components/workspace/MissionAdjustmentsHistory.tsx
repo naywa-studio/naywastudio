@@ -19,13 +19,19 @@ import { useLanguage } from "@/lib/i18n/LanguageContext"
 const copy = {
   fr: {
     title: "Ajustements de Nora",
-    subtitle: (n: number) => `${n} réajustement${n > 1 ? "s" : ""} d'après les retours client`,
+    subtitle: (n: number) => `${n} réajustement${n > 1 ? "s" : ""} de la mission`,
+    tagFeedback: "Retour client",
+    tagGeneral: "Ajustement manuel",
+    instructionPrefix: "Votre consigne : ",
     collapse: "Replier",
     expand: "Voir",
   },
   en: {
     title: "Nora's adjustments",
-    subtitle: (n: number) => `${n} adjustment${n > 1 ? "s" : ""} from client feedback`,
+    subtitle: (n: number) => `${n} mission adjustment${n > 1 ? "s" : ""}`,
+    tagFeedback: "Client feedback",
+    tagGeneral: "Manual adjustment",
+    instructionPrefix: "Your instruction: ",
     collapse: "Collapse",
     expand: "View",
   },
@@ -76,11 +82,24 @@ export function MissionAdjustmentsHistory({ adjustments, lang }: { adjustments: 
                 position: "absolute", left: -5, top: 3, width: 8, height: 8,
                 borderRadius: "50%", background: "#7C63C8",
               }} />
-              <p style={{ margin: "0 0 3px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.02em", fontVariantNumeric: "tabular-nums" }}>
-                {new Date(adj.at).toLocaleDateString(l === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short", year: "numeric" })}
-                {" · "}
-                {new Date(adj.at).toLocaleTimeString(l === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+              <p style={{ margin: "0 0 3px", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.02em", fontVariantNumeric: "tabular-nums" }}>
+                <span style={{
+                  fontWeight: 700, padding: "1px 7px", borderRadius: 99, letterSpacing: "0.02em",
+                  color: (adj.source ?? "feedback") === "general" ? "#5b4aa8" : "#0F766E",
+                  background: (adj.source ?? "feedback") === "general" ? "rgba(124,99,200,0.10)" : "rgba(15,118,110,0.09)",
+                  border: `1px solid ${(adj.source ?? "feedback") === "general" ? "rgba(124,99,200,0.22)" : "rgba(15,118,110,0.22)"}`,
+                }}>{(adj.source ?? "feedback") === "general" ? t.tagGeneral : t.tagFeedback}</span>
+                <span>
+                  {new Date(adj.at).toLocaleDateString(l === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short", year: "numeric" })}
+                  {" · "}
+                  {new Date(adj.at).toLocaleTimeString(l === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+                </span>
               </p>
+              {adj.source === "general" && adj.instruction && (
+                <p style={{ margin: "0 0 4px", fontSize: 11.5, color: "var(--nw-text-muted)", fontStyle: "italic", lineHeight: 1.5 }}>
+                  {t.instructionPrefix}« {adj.instruction} »
+                </p>
+              )}
               {adj.summary && (
                 <p style={{ margin: "0 0 5px", fontSize: 12.5, color: "var(--nw-text-body)", lineHeight: 1.55 }}>{adj.summary}</p>
               )}

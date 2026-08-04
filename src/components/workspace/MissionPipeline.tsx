@@ -19,18 +19,27 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import type { MatchAssessment, Candidate, Job, PipelineStage } from "@/lib/database.types"
 import type { Criterion } from "@/lib/job-criteria-catalog"
-import { criterionHeaderLabel } from "@/lib/criterion-display"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 import { CLIENT_REJECT_REASONS, clientRejectReasonLabel, type ClientRejectReason } from "@/lib/client-reject-reasons"
 import { detectOffLimitsForCandidate, type OffLimitsClientRef } from "@/lib/off-limits"
 import { AnonymizeSettings, type AnonymizeBranding } from "@/components/workspace/AnonymizeSettings"
 import { readOrgDefaults, type AnonymizeTemplate } from "@/components/workspace/anonymize/types"
 import type { ShortlistOrg } from "@/components/workspace/MissionShortlist"
+import { NoraAdjustPanel } from "@/components/workspace/NoraAdjustPanel"
 
 /** Proposition de réajustement de mission par Nora (lot 3c). Vit dans l'état
- *  de la page (persiste tant que non appliquée/ignorée), rendue INLINE dans la
- *  Shortlist — jamais en modale. */
-export type AdjustProposal = { summary: string; changes: string[]; criteria: Criterion[] }
+ *  de la page (persiste tant que non appliquée/ignorée), rendue INLINE — jamais
+ *  en modale. `source` distingue retours client vs consigne libre du sourceur. */
+export type AdjustProposal = {
+  summary: string
+  changes: string[]
+  criteria: Criterion[]
+  source: "feedback" | "general"
+  /** Feedback : filigrane capturé à la génération (max client_feedback_at). */
+  feedbackWatermark?: string | null
+  /** General : consigne libre du sourceur. */
+  instruction?: string
+}
 
 type Lang = "fr" | "en"
 type AssessmentRow = MatchAssessment & { candidate: Candidate | null }
@@ -166,6 +175,8 @@ interface Props {
   onGenerateAdjust?: () => void
   onApplyAdjust?: (criteria: Criterion[], summary: string, changes: string[]) => void
   onDismissAdjust?: () => void
+  /** Feedback : Nora ne change rien → avance le filigrane sans re-matcher. */
+  onDismissFeedback?: () => void
 }
 
 function stepOf(stage: PipelineStage): "identified" | "contacted" | "interview" | "offer" | "hired" | "rejected" {
@@ -189,7 +200,7 @@ function filterOf(stage: PipelineStage): Filter {
 export function MissionPipeline({
   job, rows, isReadOnly, organization, brandingHref, clientDirectory = [], clientReviewEnabled = false, onLocalUpdate, lang,
   adjust = null, adjustLoading = false, adjustError = null, applyingAdjust = false,
-  onGenerateAdjust, onApplyAdjust, onDismissAdjust,
+  onGenerateAdjust, onApplyAdjust, onDismissAdjust, onDismissFeedback,
 }: Props) {
   const t = copy[lang]
   const [filter, setFilter] = useState<Filter>("all")
@@ -248,20 +259,20 @@ export function MissionPipeline({
     [shortlisted],
   )
   const feedbackCount = feedbackRows.length
-  // Ne re-proposer que s'il y a du retour PLUS RÉCENT que le dernier
-  // réajustement appliqué (sinon on nag après chaque application).
-  const lastAdjustAt = useMemo(() => {
-    const hist = job.criteria_adjustments ?? []
-    if (hist.length === 0) return 0
-    return Math.max(...hist.map((a) => new Date(a.at).getTime()))
-  }, [job.criteria_adjustments])
+  // Ne re-proposer que s'il y a du retour PLUS RÉCENT que le filigrane
+  // `feedback_consumed_until` (retours déjà absorbés par un ajustement, ou
+  // écartés via « OK ne plus proposer »). Évite de re-proposer en boucle et de
+  // brider le matching.
+  const consumedUntil = useMemo(
+    () => job.feedback_consumed_until ? new Date(job.feedback_consumed_until).getTime() : 0,
+    [job.feedback_consumed_until],
+  )
   const hasNewFeedback = useMemo(
     () => feedbackRows.some((r) => {
-      if (!lastAdjustAt) return true
       const at = r.client_feedback_at ? new Date(r.client_feedback_at).getTime() : 0
-      return at === 0 || at > lastAdjustAt
+      return at === 0 || at > consumedUntil
     }),
-    [feedbackRows, lastAdjustAt],
+    [feedbackRows, consumedUntil],
   )
 
   async function downloadAll() {
@@ -368,11 +379,13 @@ export function MissionPipeline({
               key={adjust.criteria.map((c) => c.id).join("|")}
               proposal={adjust}
               before={(job.criteria ?? []) as Criterion[]}
+              source="feedback"
               applying={applyingAdjust}
+              lang={lang}
               onApply={(criteria) => onApplyAdjust?.(criteria, adjust.summary, adjust.changes)}
               onDismiss={() => onDismissAdjust?.()}
               onRegenerate={() => onGenerateAdjust?.()}
-              t={t} lang={lang}
+              onDismissFeedback={onDismissFeedback}
             />
           )}
         </>
@@ -555,117 +568,6 @@ function PipelineCard({
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-/** Panneau INLINE de proposition Nora (lot 3c v2). Affiche les critères
- *  ACTUELS vs les critères PROPOSÉS (avant/après) + la synthèse et les puces
- *  de changement. Le sourceur garde la main : il peut décocher un critère
- *  proposé pour l'exclure avant d'appliquer. Appliquer = redirige vers
- *  Candidats + relance le matching (géré par la page). */
-function NoraAdjustPanel({
-  proposal, before, applying, onApply, onDismiss, onRegenerate, t, lang,
-}: {
-  proposal: AdjustProposal
-  before: Criterion[]
-  applying: boolean
-  onApply: (criteria: Criterion[]) => void
-  onDismiss: () => void
-  onRegenerate: () => void
-  t: (typeof copy)[Lang]
-  lang: Lang
-}) {
-  // Critères proposés inclus dans l'application (tous cochés par défaut).
-  // La réinit à une nouvelle proposition se fait via le `key` de remount côté
-  // parent — pas de setState-in-effect.
-  const [included, setIncluded] = useState<Set<string>>(() => new Set(proposal.criteria.map((c) => c.id)))
-
-  const toggle = (id: string) => setIncluded((prev) => {
-    const n = new Set(prev)
-    if (n.has(id)) n.delete(id); else n.add(id)
-    return n
-  })
-  const finalCriteria = proposal.criteria.filter((c) => included.has(c.id))
-  const canApply = finalCriteria.length > 0 && !applying
-
-  return (
-    <div style={{ marginBottom: 16, borderRadius: 16, background: "white", border: "1px solid #E1DAF4", overflow: "hidden", boxShadow: "0 6px 22px rgba(124,99,200,0.10)" }}>
-      {/* En-tête */}
-      <div style={{ padding: "14px 16px 12px", background: "rgba(124,99,200,0.05)", borderBottom: "1px solid #ECE6F8" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 15, color: PRIMARY }} aria-hidden="true">✦</span>
-          <span style={{ fontSize: 14.5, fontWeight: 800, color: "var(--nw-text)" }}>{t.noraPanelTitle}</span>
-        </div>
-        <p style={{ margin: "4px 0 0 23px", fontSize: 11.5, color: "var(--nw-text-muted)" }}>{t.noraPanelSubtitle}</p>
-      </div>
-
-      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-        {proposal.summary && (
-          <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-body)", lineHeight: 1.6 }}>{proposal.summary}</p>
-        )}
-
-        {/* Avant / Après — le sourceur voit par quoi Nora remplace. */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          {/* Actuels (avant) */}
-          <div style={{ background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)", borderRadius: 12, padding: "11px 12px" }}>
-            <p style={{ margin: "0 0 8px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>{t.noraBefore}</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              {before.length === 0 ? (
-                <span style={{ fontSize: 12, color: "var(--nw-text-muted)" }}>—</span>
-              ) : before.map((c) => (
-                <span key={c.id} style={{ fontSize: 12, color: "var(--nw-text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--nw-border)", flexShrink: 0 }} />
-                  {criterionHeaderLabel(c, lang)}
-                  {c.weight === "bonus" && <span style={{ fontSize: 9.5, color: "var(--nw-text-muted)", opacity: 0.7 }}>·bonus</span>}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Proposés (après) — cochables */}
-          <div style={{ background: "rgba(124,99,200,0.04)", border: "1px solid #E6E0F4", borderRadius: 12, padding: "11px 12px" }}>
-            <p style={{ margin: "0 0 8px", fontSize: 10.5, fontWeight: 700, color: PRIMARY_DK, letterSpacing: "0.04em", textTransform: "uppercase" }}>{t.noraAfter}</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {proposal.criteria.map((c) => {
-                const on = included.has(c.id)
-                return (
-                  <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 7, cursor: applying ? "default" : "pointer", fontSize: 12, color: on ? "var(--nw-text-body)" : "var(--nw-text-muted)", opacity: on ? 1 : 0.55 }}>
-                    <input type="checkbox" checked={on} disabled={applying} onChange={() => toggle(c.id)} style={{ accentColor: PRIMARY, width: 13, height: 13, flexShrink: 0, cursor: applying ? "default" : "pointer" }} />
-                    <span style={{ textDecoration: on ? "none" : "line-through" }}>
-                      {criterionHeaderLabel(c, lang)}
-                      {c.weight === "bonus" && <span style={{ fontSize: 9.5, color: "var(--nw-text-muted)", opacity: 0.7 }}> ·bonus</span>}
-                    </span>
-                  </label>
-                )
-              })}
-            </div>
-            <p style={{ margin: "8px 0 0", fontSize: 10.5, color: "var(--nw-text-muted)", lineHeight: 1.4 }}>{t.noraPickHint}</p>
-          </div>
-        </div>
-
-        {/* Puces de changement (rationnel) */}
-        {proposal.changes.length > 0 && (
-          <div>
-            <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.03em" }}>{t.noraChangesTitle}</p>
-            <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
-              {proposal.changes.map((c, i) => (
-                <li key={i} style={{ fontSize: 12.5, color: "var(--nw-text-body)", lineHeight: 1.5 }}>{c}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end", paddingTop: 2 }}>
-          {finalCriteria.length === 0 && (
-            <span style={{ marginRight: "auto", fontSize: 11.5, color: "var(--nw-warn, #B45309)" }}>{t.noraEmptyPick}</span>
-          )}
-          <button type="button" onClick={onRegenerate} disabled={applying} style={{ fontSize: 12.5, fontWeight: 600, padding: "8px 13px", borderRadius: 9, border: "1px solid var(--nw-border)", background: "white", color: "var(--nw-text-secondary)", cursor: applying ? "default" : "pointer", fontFamily: "inherit" }}>{t.noraRegenerate}</button>
-          <button type="button" onClick={onDismiss} disabled={applying} style={{ fontSize: 12.5, fontWeight: 600, padding: "8px 13px", borderRadius: 9, border: "1px solid var(--nw-border)", background: "white", color: "var(--nw-text-secondary)", cursor: applying ? "default" : "pointer", fontFamily: "inherit" }}>{t.noraDismiss}</button>
-          <button type="button" onClick={() => canApply && onApply(finalCriteria)} disabled={!canApply} style={{ fontSize: 12.5, fontWeight: 700, padding: "8px 16px", borderRadius: 9, border: "none", background: canApply ? PRIMARY : "var(--nw-primary-200, #C9BEEA)", color: "white", cursor: canApply ? "pointer" : "not-allowed", fontFamily: "inherit" }}>{applying ? t.noraApplying : t.noraApply}</button>
-        </div>
-      </div>
     </div>
   )
 }
