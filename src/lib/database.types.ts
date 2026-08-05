@@ -707,6 +707,13 @@ export type Database = {
           /** Motifs d'écart CLIENT (multi, universels). Distinct de reject_reason
            *  (sourcing). Voir migration 073 + lib/client-reject-reasons. */
           client_reject_reasons: string[] | null
+          /** Ce qui a PLU au client sur un candidat retenu (multi, universel).
+           *  Miroir de client_reject_reasons. Voir 077 + lib/client-liked-reasons. */
+          client_liked_reasons: string[] | null
+          /** Commentaire libre du client sur ce qui a plu (candidat retenu). */
+          client_positive_note: string | null
+          /** Horodatage du dernier retour positif client. */
+          client_positive_at: string | null
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -739,6 +746,9 @@ export type Database = {
           client_feedback_at?: string | null
           anonymized_at?: string | null
           client_reject_reasons?: string[] | null
+          client_liked_reasons?: string[] | null
+          client_positive_note?: string | null
+          client_positive_at?: string | null
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null
