@@ -328,7 +328,8 @@ RÉPONDS UNIQUEMENT EN JSON, pas de markdown :
         { "id": "criterion_id", "score": 0-100 }              // pour QUANTITATIFS
         // OU
         { "id": "criterion_id", "status": "yes"|"no"|"unknown", "evidence": "..." }  // pour QUALITATIFS
-      ]
+      ],
+      "exclusion_hit": false   // true UNIQUEMENT si une section "À PROSCRIRE" est fournie ET que ce candidat correspond à l'un de ses points ; sinon false
     }
   ]
 }`
