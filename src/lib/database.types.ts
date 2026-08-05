@@ -455,6 +455,9 @@ export type Database = {
           /** Proposition Nora générée mais pas encore appliquée (lot 3c).
            *  Persistée pour survivre au reload. NULL = aucune en attente. */
           pending_adjustment: PendingAdjustment | null
+          /** Critères à PROSCRIRE (Partie B, Option A) : points rédhibitoires
+           *  libres injectés dans le prompt de matching. NULL/[] = aucun. */
+          exclusions: string[] | null
           /** Secteurs cibles de la mission (par nom), définis à l'onboarding.
            *  Gate le "Matcher le vivier" en mode Intelligent. */
           target_sectors: string[]
@@ -503,6 +506,7 @@ export type Database = {
           criteria_adjustments?: CriteriaAdjustment[]
           feedback_consumed_until?: string | null
           pending_adjustment?: PendingAdjustment | null
+          exclusions?: string[] | null
           target_sectors?: string[]
           last_match_mode?: 'intelligent' | 'personnalise' | 'complet' | null
           anonymize_options?: { keepNoraSummary?: boolean; customText?: string } | null

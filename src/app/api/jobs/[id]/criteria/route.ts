@@ -21,6 +21,7 @@ import {
   type Criterion,
   type CriteriaAdjustment,
 } from "@/lib/job-criteria-catalog"
+import { sanitizeExclusions } from "@/lib/job-exclusions"
 
 export const runtime = "nodejs"
 
@@ -63,7 +64,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (!gate.ok) return gate.response
 
   const body = await req.json().catch(() => null) as {
-    criteria?: unknown; adjustment?: unknown; feedback_watermark?: unknown
+    criteria?: unknown; adjustment?: unknown; feedback_watermark?: unknown; exclusions?: unknown
   } | null
   if (!body || !Array.isArray(body.criteria)) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 })
@@ -92,9 +93,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     criteria_adjustments?: CriteriaAdjustment[]
     feedback_consumed_until?: string | null
     pending_adjustment?: null
+    exclusions?: string[] | null
   } = {
     criteria: finalCriteria,
     criteria_locked_at: new Date().toISOString(),
+  }
+
+  // Critères « à proscrire » (Option A). Présents dans le body seulement si le
+  // sourceur/Nora en a défini → on ne les touche pas si absents. null pour vider.
+  if (body && "exclusions" in body) {
+    update.exclusions = body.exclusions == null ? null : sanitizeExclusions(body.exclusions)
   }
   if (adjustment) {
     const prev = Array.isArray(jobRow.criteria_adjustments) ? jobRow.criteria_adjustments : []
