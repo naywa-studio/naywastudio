@@ -26,6 +26,7 @@ import {
   type Criterion, type CriterionType, type CriteriaAdjustment,
 } from "@/lib/job-criteria-catalog"
 import { clientRejectReasonLabel, isClientRejectReason } from "@/lib/client-reject-reasons"
+import { clientLikedReasonLabel, isClientLikedReason } from "@/lib/client-liked-reasons"
 import type { Job } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -45,6 +46,7 @@ RÈGLES CLÉS
 - Pars des critères actuels et ajuste au MINIMUM nécessaire. Ne repars jamais de zéro.
 - Si une demande/retour RÉINSISTE sur un point déjà ajusté, RENFORCE le critère existant (monte le seuil / durcis params) — n'ajoute PAS un doublon.
 - Tu peux aussi ASSOUPLIR un critère si le signal indique qu'on manque de profils.
+- RETOURS POSITIFS (si fournis) : des candidats ont PLU au client (retenus). RENFORCE ou CONSERVE les critères qu'ils satisfont ; n'assouplis JAMAIS un critère qu'un candidat retenu remplit bien, même si un écarté pousse dans l'autre sens. En cas de conflit écarté ↔ retenu, le signal POSITIF l'emporte sur l'assouplissement.
 - Garde UN SEUL critère "skills". 4-5 critères "main" max + quelques "bonus".
 - Chaque changement doit répondre à un signal concret (un motif client, un commentaire, ou la consigne du sourceur).
 - Si RIEN ne justifie de changer par rapport aux critères actuels, renvoie criteria = critères actuels À L'IDENTIQUE et changes = [] avec un summary l'expliquant.
@@ -132,9 +134,39 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         .map(([reason, n]) => ({ motif: clientRejectReasonLabel(reason as never, "fr"), occurrences: n })),
       commentaires: notes.slice(0, 20),
     }
+
+    // Signal POSITIF : candidats RETENUS (interview/présenté/recruté). Contexte
+    // stable → PAS de filigrane, on le passe à chaque génération pour que Nora
+    // contrebalance l'assouplissement suggéré par les écartés.
+    const { data: retained } = await sb
+      .from("match_assessments")
+      .select("client_liked_reasons, client_positive_note")
+      .eq("job_id", id)
+      .in("pipeline_stage", ["interview", "offer", "hired"])
+
+    const likedCounts = new Map<string, number>()
+    const posNotes: string[] = []
+    let retainedCount = 0
+    for (const r of retained ?? []) {
+      let hasSignal = false
+      for (const raw of (r.client_liked_reasons ?? [])) {
+        if (isClientLikedReason(raw)) { likedCounts.set(raw, (likedCounts.get(raw) ?? 0) + 1); hasSignal = true }
+      }
+      const pn = (r.client_positive_note ?? "").trim()
+      if (pn) { posNotes.push(pn); hasSignal = true }
+      if (hasSignal) retainedCount++
+    }
+    const positiveSection = (likedCounts.size > 0 || posNotes.length > 0)
+      ? `\n\nRETOURS POSITIFS DU CLIENT (candidats RETENUS — ce qui a plu, à RENFORCER/CONSERVER) :\n${JSON.stringify({
+          nb_retenus_avec_retour: retainedCount,
+          points_forts: [...likedCounts.entries()].sort((a, b) => b[1] - a[1]).map(([reason, n]) => ({ point: clientLikedReasonLabel(reason as never, "fr"), occurrences: n })),
+          commentaires_positifs: posNotes.slice(0, 20),
+        }, null, 2)}`
+      : ""
+
     // Précision optionnelle du sourceur (affiner depuis la Shortlist).
     const precision = instruction ? `\n\nPRÉCISION DU SOURCEUR (à prendre en compte en plus) :\n${JSON.stringify({ instruction }, null, 2)}` : ""
-    userContent = `MISSION :\n${JSON.stringify(missionPayload, null, 2)}\n\nHISTORIQUE DES AJUSTEMENTS (déjà appliqués — ne les refais pas) :\n${JSON.stringify(historyPayload, null, 2)}\n\nNOUVEAUX RETOURS DU CLIENT (candidats écartés, non encore traités) :\n${JSON.stringify(feedbackPayload, null, 2)}${precision}`
+    userContent = `MISSION :\n${JSON.stringify(missionPayload, null, 2)}\n\nHISTORIQUE DES AJUSTEMENTS (déjà appliqués — ne les refais pas) :\n${JSON.stringify(historyPayload, null, 2)}\n\nNOUVEAUX RETOURS DU CLIENT (candidats écartés, non encore traités) :\n${JSON.stringify(feedbackPayload, null, 2)}${positiveSection}${precision}`
   } else {
     userContent = `MISSION :\n${JSON.stringify(missionPayload, null, 2)}\n\nHISTORIQUE DES AJUSTEMENTS (déjà appliqués — ne les refais pas) :\n${JSON.stringify(historyPayload, null, 2)}\n\nCONSIGNE DU SOURCEUR :\n${JSON.stringify({ instruction }, null, 2)}`
   }
