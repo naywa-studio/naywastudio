@@ -185,7 +185,7 @@ export default function Select({
             position: "absolute", right: 12, top: "50%",
             transform: `translateY(-50%) rotate(${open ? 180 : 0}deg)`,
             transition: "transform 160ms",
-            color: "#7C63C8",
+            color: "var(--nw-primary)",
           }}
         >
           <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
@@ -237,7 +237,7 @@ export default function Select({
                   border: "none",
                   cursor: "pointer", fontFamily: "inherit",
                   fontSize: 13,
-                  color: isSelected ? "#7C63C8" : "#111827",
+                  color: isSelected ? "var(--nw-primary)" : "#111827",
                   fontWeight: isSelected ? 700 : 500,
                 }}
               >
@@ -250,7 +250,7 @@ export default function Select({
                   )}
                 </span>
                 {isSelected && (
-                  <svg width="13" height="13" viewBox="0 0 16 16" style={{ color: "#7C63C8", flexShrink: 0 }}>
+                  <svg width="13" height="13" viewBox="0 0 16 16" style={{ color: "var(--nw-primary)", flexShrink: 0 }}>
                     <path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                   </svg>
                 )}

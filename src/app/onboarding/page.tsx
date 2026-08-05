@@ -510,7 +510,7 @@ export default function OnboardingPage() {
                   {!isLast && (
                     <div style={{
                       flex: 1, height: 1,
-                      background: step > stepNumber ? "#7C63C8" : "#E2DAF6",
+                      background: step > stepNumber ? "var(--nw-primary)" : "#E2DAF6",
                     }} />
                   )}
                 </React.Fragment>
@@ -787,13 +787,13 @@ export default function OnboardingPage() {
                     <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
                       {t.packageName}
                     </p>
-                    <p style={{ margin: 0, fontSize: 12, color: "#7C63C8", fontWeight: 600 }}>
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--nw-primary)", fontWeight: 600 }}>
                       {t.packageTagline}
                     </p>
                   </div>
                   <span style={{
                     background: "white", border: "1px solid rgba(124,99,200,0.30)",
-                    color: "#7C63C8", fontSize: 11, fontWeight: 700,
+                    color: "var(--nw-primary)", fontSize: 11, fontWeight: 700,
                     padding: "5px 10px", borderRadius: 999,
                     letterSpacing: "0.04em", textTransform: "uppercase",
                   }}>
@@ -804,7 +804,7 @@ export default function OnboardingPage() {
                 <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 9 }}>
                   {t.features.map((feat) => (
                     <li key={feat} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13.5, color: "#374151", lineHeight: 1.5 }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 3 }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--nw-primary)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 3 }}>
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                       <span>{feat}</span>
@@ -861,7 +861,7 @@ const subtitleStyle: React.CSSProperties = {
 const kickerStyle: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 700,
-  color: "#7C63C8",
+  color: "var(--nw-primary)",
   letterSpacing: "0.10em",
   textTransform: "uppercase",
 }
@@ -869,7 +869,7 @@ const italicAccentStyle: React.CSSProperties = {
   fontFamily: "var(--font-instrument-serif), serif",
   fontWeight: 400,
   fontStyle: "italic",
-  color: "#7C63C8",
+  color: "var(--nw-primary)",
 }
 const fieldLabelStyle: React.CSSProperties = {
   fontSize: 12, fontWeight: 600, color: "#374151", letterSpacing: "0.01em",
@@ -891,7 +891,7 @@ const linkBtnStyle: React.CSSProperties = {
   marginTop: 4,
   background: "transparent",
   border: "none",
-  color: "#7C63C8",
+  color: "var(--nw-primary)",
   fontSize: 13,
   fontWeight: 600,
   cursor: "pointer",
@@ -925,8 +925,8 @@ function skipBtnStyle(disabled: boolean): React.CSSProperties {
 }
 
 function StepDot({ active, done }: { active: boolean; done: boolean }) {
-  const bg = done ? "#7C63C8" : "white"
-  const border = done || active ? "#7C63C8" : "#E2DAF6"
+  const bg = done ? "var(--nw-primary)" : "white"
+  const border = done || active ? "var(--nw-primary)" : "#E2DAF6"
   return (
     <span aria-hidden style={{
       width: 22, height: 22, borderRadius: "50%",
@@ -964,7 +964,7 @@ function brandingSmallBtn(ghost: boolean): React.CSSProperties {
     padding: "8px 14px",
     borderRadius: 8,
     border: ghost ? "1px solid #E2DAF6" : "1px solid transparent",
-    background: ghost ? "white" : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+    background: ghost ? "white" : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
     color: ghost ? "#6B7280" : "white",
     fontSize: 12.5,
     fontWeight: 600,
@@ -981,7 +981,7 @@ function primaryBtn(disabled: boolean): React.CSSProperties {
     padding: "14px 24px",
     borderRadius: 12,
     border: "none",
-    background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+    background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
     color: "white",
     fontSize: 15,
     fontWeight: 700,

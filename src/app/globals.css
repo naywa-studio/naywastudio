@@ -8,7 +8,7 @@
   --text-primary:        #111827;
   --text-secondary:      #4B5563;
   --text-muted:          #9CA3AF;
-  --accent-blue:         #7C63C8;
+  --accent-blue:         var(--nw-primary);
   --accent-blue-light:   #EEE9FB;
   --accent-violet:       #B8AEDE;
   --accent-violet-light: #DDD8F5;
@@ -159,7 +159,7 @@ body {
 ::-webkit-scrollbar-thumb { background: #E2DAF6; border-radius: 4px; }
 
 /* ── Selection ── */
-::selection { background: #DDD8F5; color: #7C63C8; }
+::selection { background: #DDD8F5; color: var(--nw-primary); }
 
 /* ── Native form controls — unified styling across the app.
    Inline `style={{}}` on individual inputs already handles colors/padding;
@@ -192,7 +192,7 @@ select:focus, input:focus, textarea:focus {
 /* The native option list can't be fully restyled cross-browser, but we
    can at least tone down the highlight color on browsers that respect it. */
 option { color: #111827; background: white; padding: 8px; }
-option:checked { background: rgba(124, 99, 200, 0.10); color: #7C63C8; }
+option:checked { background: rgba(124, 99, 200, 0.10); color: var(--nw-primary); }
 
 /* ── Boutons charte v2.0 (vitrine) — hover en CSS pour rester server-safe ── */
 .nw-btn {

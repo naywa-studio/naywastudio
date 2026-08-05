@@ -97,7 +97,7 @@ const copy = {
 function TemplatePreview({ template }: { template: AnonymizeTemplate }) {
   const bg = "#F8F6FF"
   const block = "#C4B6E0"
-  const accent = "#7C63C8"
+  const accent = "var(--nw-primary)"
   if (template === "two-column") {
     return (
       <svg viewBox="0 0 100 70" width="100%" height="64" style={{ display: "block", borderRadius: 6 }} aria-hidden>
@@ -339,7 +339,7 @@ export function AnonymizeControls({
             {hasOverrides && (
               <span aria-hidden style={{
                 display: "inline-block", width: 7, height: 7, borderRadius: "50%",
-                background: customizeOpen ? "#FBBF24" : "#7C63C8",
+                background: customizeOpen ? "#FBBF24" : "var(--nw-primary)",
               }} />
             )}
             <span style={{ fontSize: 10, opacity: 0.6 }}>{customizeOpen ? "▴" : "▾"}</span>
@@ -357,7 +357,7 @@ export function AnonymizeControls({
                 ? "#F3F4F6"
                 : status.state === "working"
                   ? "#C4B6E0"
-                  : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               border: "none", borderRadius: 10, padding: "10px 18px",
               cursor: disabled ? "default" : "pointer",
               fontFamily: "inherit",
@@ -377,7 +377,7 @@ export function AnonymizeControls({
               type="button"
               onClick={onScrollToPreview}
               style={{
-                fontSize: 12.5, fontWeight: 700, color: "#7C63C8",
+                fontSize: 12.5, fontWeight: 700, color: "var(--nw-primary)",
                 background: "white", border: "1px solid rgba(124,99,200,0.25)",
                 borderRadius: 10, padding: "10px 14px",
                 cursor: "pointer", fontFamily: "inherit",
@@ -467,7 +467,7 @@ export function AnonymizeControls({
                     style={{
                       display: "flex", flexDirection: "column", gap: 8,
                       padding: 10, borderRadius: 10,
-                      border: `1.5px solid ${active ? "#7C63C8" : "#E5E7EB"}`,
+                      border: `1.5px solid ${active ? "var(--nw-primary)" : "#E5E7EB"}`,
                       background: active ? "white" : "white",
                       boxShadow: active ? "0 6px 18px -10px rgba(124,99,200,0.55)" : "none",
                       cursor: "pointer", fontFamily: "inherit",
@@ -478,7 +478,7 @@ export function AnonymizeControls({
                     <div>
                       <span style={{
                         display: "block", fontSize: 12.5,
-                        fontWeight: 700, color: active ? "#7C63C8" : "#111827",
+                        fontWeight: 700, color: active ? "var(--nw-primary)" : "#111827",
                       }}>
                         {meta.label}
                       </span>
@@ -502,7 +502,7 @@ export function AnonymizeControls({
               type="checkbox"
               checked={options.keepNoraSummary}
               onChange={(e) => setOption("keepNoraSummary", e.target.checked)}
-              style={{ marginTop: 2, accentColor: "#7C63C8" }}
+              style={{ marginTop: 2, accentColor: "var(--nw-primary)" }}
             />
             <span style={{ minWidth: 0, flex: 1 }}>
               <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827" }}>
@@ -524,7 +524,7 @@ export function AnonymizeControls({
               type="checkbox"
               checked={options.watermark}
               onChange={(e) => setOption("watermark", e.target.checked)}
-              style={{ marginTop: 2, accentColor: "#7C63C8" }}
+              style={{ marginTop: 2, accentColor: "var(--nw-primary)" }}
             />
             <span style={{ minWidth: 0, flex: 1 }}>
               <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827" }}>

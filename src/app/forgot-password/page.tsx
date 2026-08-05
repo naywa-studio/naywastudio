@@ -129,7 +129,7 @@ export default function ForgotPasswordPage() {
                 color: "white",
                 background: busy
                   ? "#C4B8E8"
-                  : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                 fontFamily: "var(--font-inter), sans-serif",
               }}
             >

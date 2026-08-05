@@ -117,7 +117,7 @@ export default function ResetPasswordPage() {
             <Link href="/forgot-password" style={{
               display: "block", textAlign: "center",
               padding: "11px", borderRadius: 10,
-              background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+              background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               color: "white", fontSize: 13, fontWeight: 700,
               textDecoration: "none",
               fontFamily: "var(--font-inter), sans-serif",
@@ -199,7 +199,7 @@ export default function ResetPasswordPage() {
                 fontSize: 14, fontWeight: 700, color: "white",
                 background: busy
                   ? "#C4B8E8"
-                  : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                  : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
                 fontFamily: "var(--font-inter), sans-serif",
               }}
             >

@@ -139,7 +139,7 @@ export default function DatePicker({
           opacity: disabled ? 0.6 : 1,
         }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7C63C8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--nw-primary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
           <rect x="3" y="5" width="18" height="16" rx="2" />
           <path d="M3 10h18M8 3v4M16 3v4" />
         </svg>
@@ -161,7 +161,7 @@ export default function DatePicker({
               aria-label={t.prevMonth}
               style={{
                 width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
-                border: "none", background: "transparent", borderRadius: 6, cursor: "pointer", color: "#7C63C8",
+                border: "none", background: "transparent", borderRadius: 6, cursor: "pointer", color: "var(--nw-primary)",
               }}
             >
               <svg width="10" height="10" viewBox="0 0 12 12"><path d="M8 1.5L3 6l5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
@@ -175,7 +175,7 @@ export default function DatePicker({
               aria-label={t.nextMonth}
               style={{
                 width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
-                border: "none", background: "transparent", borderRadius: 6, cursor: "pointer", color: "#7C63C8",
+                border: "none", background: "transparent", borderRadius: 6, cursor: "pointer", color: "var(--nw-primary)",
               }}
             >
               <svg width="10" height="10" viewBox="0 0 12 12"><path d="M4 1.5L9 6l-5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
@@ -205,8 +205,8 @@ export default function DatePicker({
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: 11.5, fontWeight: isSelected ? 700 : 500,
                     color: isSelected ? "white" : inMonth ? "#111827" : "#D1D5DB",
-                    background: isSelected ? "#7C63C8" : "transparent",
-                    border: isToday && !isSelected ? "1px solid #7C63C8" : "1px solid transparent",
+                    background: isSelected ? "var(--nw-primary)" : "transparent",
+                    border: isToday && !isSelected ? "1px solid var(--nw-primary)" : "1px solid transparent",
                     borderRadius: 7, cursor: "pointer", fontFamily: "inherit",
                     padding: 0,
                   }}
@@ -232,7 +232,7 @@ export default function DatePicker({
               type="button"
               onClick={() => { onChange(toIso(today)); setCursor(today); setOpen(false) }}
               style={{
-                fontSize: 11.5, fontWeight: 700, color: "#7C63C8",
+                fontSize: 11.5, fontWeight: 700, color: "var(--nw-primary)",
                 background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0,
               }}
             >

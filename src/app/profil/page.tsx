@@ -209,7 +209,7 @@ export default function ProfilPage() {
           <header style={{ marginBottom: 40 }}>
             <span style={{
               fontFamily: "var(--font-inter), sans-serif",
-              fontSize: 11, fontWeight: 700, color: "#7C63C8",
+              fontSize: 11, fontWeight: 700, color: "var(--nw-primary)",
               letterSpacing: "0.10em", textTransform: "uppercase",
             }}>
               {t.badge}
@@ -240,9 +240,9 @@ export default function ProfilPage() {
                         onClick={() => setLang(option)}
                         style={{
                           padding: "9px 18px", borderRadius: 10,
-                          border: active ? "1.5px solid #7C63C8" : "1px solid #E2DAF6",
+                          border: active ? "1.5px solid var(--nw-primary)" : "1px solid #E2DAF6",
                           background: active ? "rgba(124,99,200,0.08)" : "white",
-                          color: active ? "#7C63C8" : "#374151",
+                          color: active ? "var(--nw-primary)" : "#374151",
                           fontSize: 13.5, fontWeight: active ? 700 : 500,
                           cursor: "pointer",
                           fontFamily: "var(--font-inter), sans-serif",
@@ -316,7 +316,7 @@ export default function ProfilPage() {
                       padding: "5px 12px", borderRadius: 999,
                       background: profile?.role === "owner" ? "rgba(124,99,200,0.10)" : "rgba(34,197,94,0.10)",
                       border: profile?.role === "owner" ? "1px solid rgba(124,99,200,0.30)" : "1px solid rgba(34,197,94,0.30)",
-                      color: profile?.role === "owner" ? "#7C63C8" : "#15803d",
+                      color: profile?.role === "owner" ? "var(--nw-primary)" : "#15803d",
                       fontSize: 12, fontWeight: 700,
                       letterSpacing: "0.04em", textTransform: "uppercase",
                       fontFamily: "var(--font-inter), sans-serif",
@@ -324,7 +324,7 @@ export default function ProfilPage() {
                       {profile?.role === "owner" ? t.owner : t.member}
                     </span>
                     {profile?.role === "owner" && (
-                      <Link href="/organisation" style={{ fontSize: 13, color: "#7C63C8", textDecoration: "none", fontWeight: 600 }}>
+                      <Link href="/organisation" style={{ fontSize: 13, color: "var(--nw-primary)", textDecoration: "none", fontWeight: 600 }}>
                         {t.manageOrg}
                       </Link>
                     )}
@@ -576,7 +576,7 @@ const INPUT_STYLE: React.CSSProperties = {
 }
 
 const PRIMARY_BUTTON: React.CSSProperties = {
-  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
   color: "white",
   borderRadius: 10,
   padding: "10px 20px",

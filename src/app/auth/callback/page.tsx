@@ -87,7 +87,7 @@ export default function AuthCallbackPage() {
           letterSpacing: "-0.02em", marginBottom: 10,
         }}
       >
-        Naywa<span style={{ color: "#7C63C8" }}> Studio</span>
+        Naywa<span style={{ color: "var(--nw-primary)" }}> Studio</span>
       </span>
 
       {status === "loading" && (
@@ -127,7 +127,7 @@ export default function AuthCallbackPage() {
           <button
             onClick={() => router.push("/login")}
             style={{
-              color: "#7C63C8", background: "none", border: "none",
+              color: "var(--nw-primary)", background: "none", border: "none",
               cursor: "pointer", fontSize: 14, textDecoration: "underline",
               fontFamily: "inherit",
             }}
@@ -148,7 +148,7 @@ function Spinner() {
       aria-label="Chargement"
     >
       <circle cx="12" cy="12" r="10" stroke="#E2DAF6" strokeWidth="3" fill="none" />
-      <path d="M12 2a10 10 0 0 1 10 10" stroke="#7C63C8" strokeWidth="3" fill="none" strokeLinecap="round" />
+      <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--nw-primary)" strokeWidth="3" fill="none" strokeLinecap="round" />
     </svg>
   )
 }

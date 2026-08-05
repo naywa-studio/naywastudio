@@ -88,7 +88,7 @@ export function StyledSelect({
         onFocus={(e) => {
           if (!disabled) {
             e.currentTarget.style.boxShadow = "0 0 0 3px rgba(124,99,200,0.15)"
-            e.currentTarget.style.borderColor = "#7C63C8"
+            e.currentTarget.style.borderColor = "var(--nw-primary)"
           }
         }}
         onBlur={(e) => {

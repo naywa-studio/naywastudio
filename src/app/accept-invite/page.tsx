@@ -353,7 +353,7 @@ const btnPrimary: React.CSSProperties = {
   display: "inline-block",
   padding: "11px 18px", borderRadius: 10,
   border: "none", color: "white",
-  background: "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+  background: "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
   fontSize: 13.5, fontWeight: 700,
   cursor: "pointer", textDecoration: "none",
   fontFamily: "var(--font-inter), sans-serif",
@@ -373,7 +373,7 @@ function Spinner() {
     <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}>
       <svg width="28" height="28" viewBox="0 0 24 24" style={{ animation: "spin 0.8s linear infinite" }}>
         <circle cx="12" cy="12" r="10" stroke="#E2DAF6" strokeWidth="3" fill="none" />
-        <path d="M12 2a10 10 0 0 1 10 10" stroke="#7C63C8" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--nw-primary)" strokeWidth="3" fill="none" strokeLinecap="round" />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </svg>
     </div>

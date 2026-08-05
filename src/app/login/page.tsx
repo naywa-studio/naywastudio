@@ -255,7 +255,7 @@ function LoginInner() {
                 transition: "all 150ms",
                 fontFamily: "var(--font-inter), sans-serif",
                 background: mode === m ? "white" : "transparent",
-                color: mode === m ? "#7C63C8" : "#6B7280",
+                color: mode === m ? "var(--nw-primary)" : "#6B7280",
                 boxShadow: mode === m ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
               }}
             >
@@ -281,7 +281,7 @@ function LoginInner() {
             transition: "border-color 150ms, background 150ms",
             fontFamily: "var(--font-inter), sans-serif",
           }}
-          onMouseEnter={(e) => { if (!loading) e.currentTarget.style.borderColor = "#7C63C8" }}
+          onMouseEnter={(e) => { if (!loading) e.currentTarget.style.borderColor = "var(--nw-primary)" }}
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E7EB" }}
         >
           <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -336,7 +336,7 @@ function LoginInner() {
                   href="/forgot-password"
                   style={{
                     fontSize: 11.5, fontWeight: 600,
-                    color: "#7C63C8", textDecoration: "none",
+                    color: "var(--nw-primary)", textDecoration: "none",
                     fontFamily: "var(--font-inter), sans-serif",
                   }}
                 >
@@ -379,15 +379,15 @@ function LoginInner() {
                 type="checkbox"
                 checked={cguAccepted}
                 onChange={(e) => setCguAccepted(e.target.checked)}
-                style={{ marginTop: 2, width: 16, height: 16, accentColor: "#7C63C8", cursor: "pointer", flexShrink: 0 }}
+                style={{ marginTop: 2, width: 16, height: 16, accentColor: "var(--nw-primary)", cursor: "pointer", flexShrink: 0 }}
               />
               <span>
                 {t.cguAccept}{" "}
-                <Link href="/cgu" target="_blank" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "underline" }}>
+                <Link href="/cgu" target="_blank" style={{ color: "var(--nw-primary)", fontWeight: 600, textDecoration: "underline" }}>
                   {t.cguTerms}
                 </Link>{" "}
                 {t.cguAnd}{" "}
-                <Link href="/politique-confidentialite" target="_blank" style={{ color: "#7C63C8", fontWeight: 600, textDecoration: "underline" }}>
+                <Link href="/politique-confidentialite" target="_blank" style={{ color: "var(--nw-primary)", fontWeight: 600, textDecoration: "underline" }}>
                   {t.cguPrivacy}
                 </Link>.
               </span>
@@ -408,7 +408,7 @@ function LoginInner() {
               color: "white",
               background: loading || (mode === "signup" && !cguAccepted)
                 ? "#C4B8E8"
-                : "linear-gradient(120deg, #7C63C8 0%, #6B54B2 100%)",
+                : "linear-gradient(120deg, var(--nw-primary) 0%, var(--nw-primary-dark) 100%)",
               transition: "all 150ms",
               fontFamily: "var(--font-inter), sans-serif",
             }}
