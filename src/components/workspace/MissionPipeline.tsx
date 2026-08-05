@@ -21,6 +21,7 @@ import type { MatchAssessment, Candidate, Job, PipelineStage } from "@/lib/datab
 import type { Criterion } from "@/lib/job-criteria-catalog"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 import { CLIENT_REJECT_REASONS, clientRejectReasonLabel, type ClientRejectReason } from "@/lib/client-reject-reasons"
+import { CLIENT_LIKED_REASONS, clientLikedReasonLabel, type ClientLikedReason } from "@/lib/client-liked-reasons"
 import { detectOffLimitsForCandidate, type OffLimitsClientRef } from "@/lib/off-limits"
 import { AnonymizeSettings, type AnonymizeBranding } from "@/components/workspace/AnonymizeSettings"
 import { readOrgDefaults, type AnonymizeTemplate } from "@/components/workspace/anonymize/types"
@@ -91,6 +92,9 @@ const copy = {
     reasonsTitle: "Motifs de l'écart (facultatif, plusieurs possibles)",
     clientFeedback: "Retour du client",
     clientFeedbackPh: "ex : profil intéressant mais à revoir sur l'expérience terrain…",
+    likedTitle: "Ce qui a plu au client (facultatif, plusieurs possibles)",
+    clientPositive: "Retour positif du client",
+    clientPositivePh: "ex : très bon relationnel, exactement la séniorité recherchée…",
     noraCta: "Voir la proposition de Nora",
     noraBanner: (n: number) => `Nora peut réajuster la mission d'après ${n} retour${n > 1 ? "s" : ""} client`,
     noraPanelTitle: "Proposition de Nora",
@@ -129,6 +133,9 @@ const copy = {
     reasonsTitle: "Drop reasons (optional, multiple allowed)",
     clientFeedback: "Client feedback",
     clientFeedbackPh: "e.g. interesting profile but needs more field experience…",
+    likedTitle: "What the client liked (optional, multiple allowed)",
+    clientPositive: "Positive client feedback",
+    clientPositivePh: "e.g. great interpersonal skills, exactly the seniority we wanted…",
     noraCta: "See Nora's suggestion",
     noraBanner: (n: number) => `Nora can adjust the mission based on ${n} client ${n > 1 ? "responses" : "response"}`,
     noraPanelTitle: "Nora's suggestion",
@@ -431,6 +438,7 @@ function PipelineCard({
   t: (typeof copy)[Lang]
 }) {
   const [note, setNote] = useState(row.client_feedback_note ?? "")
+  const [posNote, setPosNote] = useState(row.client_positive_note ?? "")
   const name = row.candidate?.full_name?.trim() || t.noName
   const subtitle = row.candidate?.current_title?.trim() || candidateRefLabel(row.candidate_id)
   const step = stepOf(row.pipeline_stage)
@@ -484,6 +492,28 @@ function PipelineCard({
 
   const reasons = new Set((row.client_reject_reasons ?? []).filter((r): r is ClientRejectReason => (CLIENT_REJECT_REASONS as string[]).includes(r)))
   const stageBtns: PipelineStage[] = [...steps, "hired", "rejected"]
+
+  // Candidat RETENU (avance dans le funnel) = signal positif. Symétrique de
+  // l'écart : Nora RENFORCE les critères que ces candidats satisfont.
+  const isRetained = step === "interview" || step === "offer" || isHired
+
+  const saveLiked = async (arr: string[] | null) => {
+    onLocalUpdate(row.id, { client_liked_reasons: arr })
+    await fetch(`/api/match/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_liked_reasons: arr }) })
+  }
+  const toggleLiked = (reason: ClientLikedReason) => {
+    const cur = new Set((row.client_liked_reasons ?? []).filter((r): r is ClientLikedReason => (CLIENT_LIKED_REASONS as string[]).includes(r)))
+    if (cur.has(reason)) cur.delete(reason); else cur.add(reason)
+    void saveLiked([...cur])
+  }
+  const savePosNote = async () => {
+    if (isReadOnly) return
+    const val = posNote.trim() === "" ? null : posNote.trim()
+    if ((row.client_positive_note ?? null) === val) return
+    const res = await fetch(`/api/match/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_positive_note: val }) })
+    if (res.ok) onLocalUpdate(row.id, { client_positive_note: val })
+  }
+  const liked = new Set((row.client_liked_reasons ?? []).filter((r): r is ClientLikedReason => (CLIENT_LIKED_REASONS as string[]).includes(r)))
 
   return (
     <div style={{
@@ -549,25 +579,39 @@ function PipelineCard({
             )}
           </div>
 
-          {clientReviewEnabled && (step === "offer" || isHired || isRejected) && (
+          {clientReviewEnabled && isRejected && (
             <div>
-              {isRejected && (
-                <>
-                  <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)" }}>{t.reasonsTitle}</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
-                    {CLIENT_REJECT_REASONS.map((reason) => {
-                      const on = reasons.has(reason)
-                      return (
-                        <button key={reason} type="button" onClick={() => toggleReason(reason)} disabled={isReadOnly}
-                          style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 99, cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit", color: on ? "white" : "var(--nw-text-secondary)", background: on ? PRIMARY : "white", border: `1px solid ${on ? PRIMARY : "var(--nw-border)"}` }}>{clientRejectReasonLabel(reason, lang)}</button>
-                      )
-                    })}
-                  </div>
-                </>
-              )}
+              <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)" }}>{t.reasonsTitle}</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+                {CLIENT_REJECT_REASONS.map((reason) => {
+                  const on = reasons.has(reason)
+                  return (
+                    <button key={reason} type="button" onClick={() => toggleReason(reason)} disabled={isReadOnly}
+                      style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 99, cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit", color: on ? "white" : "var(--nw-text-secondary)", background: on ? PRIMARY : "white", border: `1px solid ${on ? PRIMARY : "var(--nw-border)"}` }}>{clientRejectReasonLabel(reason, lang)}</button>
+                  )
+                })}
+              </div>
               <p style={{ margin: "0 0 5px", fontSize: 11, color: "var(--nw-text-secondary)" }}>{t.clientFeedback}</p>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} onBlur={saveNote} readOnly={isReadOnly} disabled={isReadOnly} placeholder={t.clientFeedbackPh} rows={2}
                 style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", fontSize: 12.5, borderRadius: 8, border: "1px solid var(--nw-primary-100)", outline: "none", fontFamily: "inherit", resize: "vertical" }} />
+            </div>
+          )}
+
+          {clientReviewEnabled && isRetained && (
+            <div>
+              <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)" }}>{t.likedTitle}</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+                {CLIENT_LIKED_REASONS.map((reason) => {
+                  const on = liked.has(reason)
+                  return (
+                    <button key={reason} type="button" onClick={() => toggleLiked(reason)} disabled={isReadOnly}
+                      style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 99, cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit", color: on ? "white" : "var(--nw-text-secondary)", background: on ? "var(--nw-success)" : "white", border: `1px solid ${on ? "var(--nw-success)" : "var(--nw-border)"}` }}>{clientLikedReasonLabel(reason, lang)}</button>
+                  )
+                })}
+              </div>
+              <p style={{ margin: "0 0 5px", fontSize: 11, color: "var(--nw-text-secondary)" }}>{t.clientPositive}</p>
+              <textarea value={posNote} onChange={(e) => setPosNote(e.target.value)} onBlur={savePosNote} readOnly={isReadOnly} disabled={isReadOnly} placeholder={t.clientPositivePh} rows={2}
+                style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", fontSize: 12.5, borderRadius: 8, border: "1px solid var(--nw-success-bg)", outline: "none", fontFamily: "inherit", resize: "vertical" }} />
             </div>
           )}
         </div>
