@@ -40,6 +40,8 @@ export type AdjustProposal = {
   feedbackWatermark?: string | null
   /** General : consigne libre du sourceur. */
   instruction?: string
+  /** Critères à PROSCRIRE proposés (Partie B). Liste complète révisée. */
+  exclusions?: string[]
 }
 
 type Lang = "fr" | "en"
@@ -388,6 +390,7 @@ export function MissionPipeline({
               key={adjust.criteria.map((c) => c.id).join("|")}
               proposal={adjust}
               before={(job.criteria ?? []) as Criterion[]}
+              beforeExclusions={(job.exclusions ?? []) as string[]}
               source="feedback"
               applying={applyingAdjust}
               lang={lang}

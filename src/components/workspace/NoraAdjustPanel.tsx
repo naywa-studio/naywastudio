@@ -27,6 +27,7 @@ const copy = {
     subFeedback: "D'après les retours de votre client sur les candidats écartés.",
     subGeneral: "D'après votre consigne.",
     changesTitle: "Modifications",
+    exclusionsTitle: "À proscrire",
     add: "Nouveau",
     remove: "Retiré",
     reqValue: "requis",
@@ -51,6 +52,7 @@ const copy = {
     subFeedback: "Based on your client's feedback on the dropped candidates.",
     subGeneral: "Based on your instruction.",
     changesTitle: "Changes",
+    exclusionsTitle: "To exclude",
     add: "New",
     remove: "Removed",
     reqValue: "required",
@@ -72,11 +74,13 @@ const copy = {
 }
 
 export function NoraAdjustPanel({
-  proposal, before, source, applying, lang, collapsible = false,
+  proposal, before, beforeExclusions = [], source, applying, lang, collapsible = false,
   onApply, onDismiss, onRegenerate, onDismissFeedback, onRefine,
 }: {
-  proposal: { summary: string; changes: string[]; criteria: Criterion[] }
+  proposal: { summary: string; changes: string[]; criteria: Criterion[]; exclusions?: string[] }
   before: Criterion[]
+  /** Exclusions actuelles de la mission (pour détecter un changement). */
+  beforeExclusions?: string[]
   source: "feedback" | "general"
   applying: boolean
   lang: Lang
@@ -102,8 +106,14 @@ export function NoraAdjustPanel({
   })
 
   const hasChanges = diff.length > 0
+  // Exclusions proposées (Partie B) : liste complète révisée. Un changement de
+  // la seule liste d'exclusions doit aussi rendre la proposition applicable.
+  const proposedExclusions = proposal.exclusions
+  const exclusionsChanged = proposedExclusions !== undefined
+    && JSON.stringify([...proposedExclusions].sort()) !== JSON.stringify([...beforeExclusions].sort())
+  const hasAnyChange = hasChanges || exclusionsChanged
   const finalCriteria = applyCriteriaChanges(before, diff, accepted)
-  const canApply = hasChanges && accepted.size > 0 && !applying
+  const canApply = hasAnyChange && !applying && (!hasChanges || accepted.size > 0)
   const refineTrim = refine.trim()
 
   return (
@@ -134,11 +144,7 @@ export function NoraAdjustPanel({
           <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-body)", lineHeight: 1.6 }}>{proposal.summary}</p>
         )}
 
-        {!hasChanges ? (
-          <div style={{ padding: "12px 14px", borderRadius: 12, background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)" }}>
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-secondary)", lineHeight: 1.5 }}>{t.noChange}</p>
-          </div>
-        ) : (
+        {hasChanges && (
           <div>
             <p style={{ margin: "0 0 8px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>{t.changesTitle}</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -147,6 +153,22 @@ export function NoraAdjustPanel({
               ))}
             </div>
             <p style={{ margin: "8px 0 0", fontSize: 10.5, color: "var(--nw-text-muted)" }}>{t.pickHint}</p>
+          </div>
+        )}
+
+        {/* Critères à proscrire proposés (Partie B) — appliqués en bloc avec la propale. */}
+        {proposedExclusions && proposedExclusions.length > 0 && (
+          <div>
+            <p style={{ margin: "0 0 8px", fontSize: 10.5, fontWeight: 700, color: RED, letterSpacing: "0.04em", textTransform: "uppercase" }}>{t.exclusionsTitle}</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {proposedExclusions.map((ex, i) => <Pill key={i} text={ex} tone="red" />)}
+            </div>
+          </div>
+        )}
+
+        {!hasAnyChange && (
+          <div style={{ padding: "12px 14px", borderRadius: 12, background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)" }}>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-secondary)", lineHeight: 1.5 }}>{t.noChange}</p>
           </div>
         )}
 
@@ -168,7 +190,7 @@ export function NoraAdjustPanel({
             <span style={{ marginRight: "auto", fontSize: 11.5, color: "var(--nw-warn, #B45309)" }}>{t.emptyPick}</span>
           )}
           <button type="button" onClick={onRegenerate} disabled={applying} style={btnGhost(applying)}>{t.regenerate}</button>
-          {!hasChanges ? (
+          {!hasAnyChange ? (
             source === "feedback" && onDismissFeedback ? (
               <button type="button" onClick={onDismissFeedback} disabled={applying} style={btnPrimary(!applying)}>{t.dismissFeedback}</button>
             ) : (

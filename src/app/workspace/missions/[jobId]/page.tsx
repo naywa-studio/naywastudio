@@ -293,6 +293,7 @@ export default function JobDetailPage() {
           criteria: Array.isArray(p.criteria) ? p.criteria : [],
           feedbackWatermark: p.feedbackWatermark ?? null,
           instruction: p.instruction,
+          exclusions: Array.isArray(p.exclusions) ? p.exclusions : undefined,
         })
         setAdjustOpSource(p.source)
       }
@@ -400,6 +401,7 @@ export default function JobDetailPage() {
         criteria: data.criteria as Criterion[],
         feedbackWatermark: typeof data.feedback_watermark === "string" ? data.feedback_watermark : null,
         instruction: source === "general" ? (instruction ?? "") : undefined,
+        exclusions: Array.isArray(data.exclusions) ? data.exclusions.filter((e: unknown): e is string => typeof e === "string") : undefined,
       })
     } catch { setAdjustError("error") } finally { setAdjustLoading(false) }
   }, [job, isReadOnly, adjustLoading])
@@ -412,6 +414,8 @@ export default function JobDetailPage() {
     const source = adjust.source
     const instruction = adjust.instruction
     const watermark = adjust.feedbackWatermark ?? null
+    // Exclusions proposées par Nora (Partie B) → persistées avec les critères.
+    const exclusions = Array.isArray(adjust.exclusions) ? adjust.exclusions : null
     try {
       const res = await fetch(`/api/jobs/${job.id}/criteria`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -419,6 +423,7 @@ export default function JobDetailPage() {
           criteria,
           adjustment: { summary, changes, source, ...(instruction ? { instruction } : {}) },
           ...(source === "feedback" && watermark ? { feedback_watermark: watermark } : {}),
+          ...(exclusions ? { exclusions } : {}),
         }),
       })
       if (!res.ok) return
@@ -430,6 +435,7 @@ export default function JobDetailPage() {
         criteria_locked_at: new Date().toISOString(),
         criteria_adjustments: [...(prev.criteria_adjustments ?? []), entry],
         pending_adjustment: null,
+        ...(exclusions ? { exclusions } : {}),
         ...(source === "feedback" && watermark ? { feedback_consumed_until: watermark } : {}),
       } : prev)
       setAdjust(null); setAdjustError(null)
@@ -702,6 +708,7 @@ export default function JobDetailPage() {
       {!matching && ((job.criteria_locked_at != null) || (job.criteria_adjustments?.length ?? 0) > 0) && (
         <MissionGeneralAdjust
           jobCriteria={criteria}
+          jobExclusions={job.exclusions ?? []}
           adjustments={job.criteria_adjustments ?? []}
           proposal={adjust?.source === "general" ? adjust : null}
           loading={adjustLoading && adjustOpSource === "general"}

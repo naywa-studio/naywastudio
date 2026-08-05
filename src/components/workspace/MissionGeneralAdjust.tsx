@@ -41,14 +41,16 @@ const copy = {
 }
 
 export function MissionGeneralAdjust({
-  jobCriteria, adjustments, proposal, loading, error, applying, readOnly, lang,
+  jobCriteria, jobExclusions = [], adjustments, proposal, loading, error, applying, readOnly, lang,
   onGenerate, onApply, onDismiss,
 }: {
   jobCriteria: Criterion[]
+  /** Exclusions actuelles de la mission (pour le diff du panneau, Partie B). */
+  jobExclusions?: string[]
   /** Historique des ajustements déjà appliqués (feedback + manuels). */
   adjustments: CriteriaAdjustment[]
   /** Proposition générale en cours (null sinon). */
-  proposal: { summary: string; changes: string[]; criteria: Criterion[] } | null
+  proposal: { summary: string; changes: string[]; criteria: Criterion[]; exclusions?: string[] } | null
   loading: boolean
   error: string | null
   applying: boolean
@@ -98,6 +100,7 @@ export function MissionGeneralAdjust({
                 key={proposal.criteria.map((c) => c.id).join("|")}
                 proposal={proposal}
                 before={jobCriteria}
+                beforeExclusions={jobExclusions}
                 source="general"
                 applying={applying}
                 lang={lang}
