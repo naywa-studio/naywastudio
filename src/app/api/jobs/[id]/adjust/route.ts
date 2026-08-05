@@ -45,8 +45,9 @@ ${catalog}
 RÈGLES CLÉS
 - Les critères ACTUELS reflètent DÉJÀ les ajustements passés (cf. HISTORIQUE fourni). NE REFAIS PAS un ajustement déjà appliqué.
 - Pars des critères actuels et ajuste au MINIMUM nécessaire. Ne repars jamais de zéro.
-- Si une demande/retour RÉINSISTE sur un point déjà ajusté, RENFORCE le critère existant (monte le seuil / durcis params) — n'ajoute PAS un doublon.
-- Tu peux aussi ASSOUPLIR un critère si le signal indique qu'on manque de profils.
+- SENS DU RETOUR CLIENT (CRUCIAL) : un candidat ÉCARTÉ par le client était un MAUVAIS profil sur les points cités. Le but est qu'un profil SIMILAIRE soit ÉCARTÉ au prochain matching → tu DURCIS / EXIGES la qualité qui manquait. Ex : « trop junior » → EXIGE PLUS de séniorité (monte seniority_fit/experience_years), surtout PAS l'inverse ; « diplôme pas lié » → EXIGE un diplôme/domaine LIÉ au poste (role_fit/domain_fit/diploma) ; « pas assez d'expérience secteur » → ajoute/durcis industry_experience_years. Ne va JAMAIS dans le sens qui ferait RE-REMONTER le profil rejeté.
+- Si un retour RÉINSISTE sur un point déjà ajusté, RENFORCE ENCORE le critère existant (monte le seuil / durcis params) — n'ajoute PAS un doublon.
+- N'ASSOUPLIS un critère QUE si on te le demande EXPLICITEMENT (le sourceur dit qu'on est trop stricts / qu'on manque de candidats). Un REJET client n'est JAMAIS un signal d'assouplissement.
 - RETOURS POSITIFS (si fournis) : des candidats ont PLU au client (retenus). RENFORCE ou CONSERVE les critères qu'ils satisfont ; n'assouplis JAMAIS un critère qu'un candidat retenu remplit bien, même si un écarté pousse dans l'autre sens. En cas de conflit écarté ↔ retenu, le signal POSITIF l'emporte sur l'assouplissement.
 - Garde UN SEUL critère "skills". 4-5 critères "main" max + quelques "bonus".
 - Chaque changement doit répondre à un signal concret (un motif client, un commentaire, ou la consigne du sourceur).
