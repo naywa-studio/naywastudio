@@ -14,6 +14,7 @@
  */
 
 import { openrouterChat, safeJsonParse } from "./openrouter"
+import { sanitizeExclusions } from "./job-exclusions"
 import type {
   Candidate,
   Job,
@@ -412,6 +413,14 @@ async function scoreBatchCriteriaOnce(
   const candPayload = candidates.map(compactCandidateForCriteria)
   const seed = deterministicSeed(job.id, candidates.map((c) => c.id))
 
+  // Critères « à proscrire » (Option A) : liste rédhibitoire injectée à part.
+  // Si vide → section absente + pénalité jamais appliquée → comportement
+  // strictement identique à avant pour une mission sans exclusions.
+  const exclusions = sanitizeExclusions(job.exclusions)
+  const exclusionsBlock = exclusions.length
+    ? `\n\nÀ PROSCRIRE (rédhibitoire) : un candidat qui correspond à L'UN de ces points est à écarter. Pour CHAQUE candidat concerné, ajoute "exclusion_hit": true dans sa réponse (sinon false).\n${JSON.stringify(exclusions)}`
+    : ""
+
   const result = await openrouterChat({
     model: "openai/gpt-4o-mini",
     temperature: 0,
@@ -423,7 +432,7 @@ async function scoreBatchCriteriaOnce(
     maxTokens: Math.min(8000, 400 + candidates.length * criteria.length * 45),
     messages: [
       { role: "system", content: criteriaScoreSystemPrompt(lang) },
-      { role: "user", content: `POSTE :\n${JSON.stringify(jobPayload)}\n\nCANDIDATS :\n${JSON.stringify(candPayload)}` },
+      { role: "user", content: `POSTE :\n${JSON.stringify(jobPayload)}${exclusionsBlock}\n\nCANDIDATS :\n${JSON.stringify(candPayload)}` },
     ],
   })
 
@@ -457,7 +466,12 @@ async function scoreBatchCriteriaOnce(
       }
       evals.push(item)
     }
-    const score = computeGlobalScore(criteria, evals)
+    let score = computeGlobalScore(criteria, evals)
+    // Exclusion rédhibitoire confirmée par le LLM → forte pénalité (plafonne le
+    // score en zone « faible »). Seulement si la mission a des exclusions.
+    if (exclusions.length > 0 && o.exclusion_hit === true) {
+      score = Math.min(score, 20)
+    }
     out.push({
       candidate_id: candidateId,
       score,
