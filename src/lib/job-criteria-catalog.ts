@@ -61,6 +61,8 @@ export type PendingAdjustment = {
   instruction?: string
   /** source "feedback" : filigrane capturé à la génération. */
   feedbackWatermark?: string | null
+  /** Critères à PROSCRIRE proposés (Partie B, Option A). Liste complète révisée. */
+  exclusions?: string[]
 }
 
 /** Un critère configuré sur une mission (stocké dans jobs.criteria). */

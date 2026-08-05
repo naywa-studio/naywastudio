@@ -27,6 +27,7 @@ import {
 } from "@/lib/job-criteria-catalog"
 import { clientRejectReasonLabel, isClientRejectReason } from "@/lib/client-reject-reasons"
 import { clientLikedReasonLabel, isClientLikedReason } from "@/lib/client-liked-reasons"
+import { sanitizeExclusions } from "@/lib/job-exclusions"
 import type { Job } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -50,12 +51,14 @@ RÈGLES CLÉS
 - Garde UN SEUL critère "skills". 4-5 critères "main" max + quelques "bonus".
 - Chaque changement doit répondre à un signal concret (un motif client, un commentaire, ou la consigne du sourceur).
 - Si RIEN ne justifie de changer par rapport aux critères actuels, renvoie criteria = critères actuels À L'IDENTIQUE et changes = [] avec un summary l'expliquant.
+- EXCLUSIONS (à proscrire) : si un retour/consigne indique un point RÉDHIBITOIRE (ex : « pas de juniors », « refuse le secteur bancaire »), ajoute-le à "exclusions" (phrases courtes). Tu vois les exclusions_actuelles : renvoie la LISTE COMPLÈTE révisée. Si rien à proscrire, renvoie [].
 
 RÉPONDS EN JSON STRICT :
 {
   "summary": "1-2 phrases en français : ce que tu ajustes et pourquoi (ton posé, factuel). Si rien ne bouge, dis-le.",
   "changes": ["puce courte décrivant un changement", "..."],
-  "criteria": [ /* liste COMPLÈTE révisée des critères, format catalogue */ ]
+  "criteria": [ /* liste COMPLÈTE révisée des critères, format catalogue */ ],
+  "exclusions": ["point rédhibitoire court", "..."]  /* critères À PROSCRIRE, [] si aucun */
 }`
 }
 
@@ -92,6 +95,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     role: job.role_name?.trim() || job.title,
     seniority: job.seniority ?? job.normalized?.seniority ?? null,
     criteres_actuels: job.criteria ?? [],
+    exclusions_actuelles: job.exclusions ?? [],
   }
 
   // ── Payload spécifique à la source ────────────────────────────────
@@ -192,7 +196,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: "llm_failed", detail: (err as Error).message }, { status: 502 })
   }
 
-  const parsed = safeJsonParse<{ summary?: unknown; changes?: unknown; criteria?: unknown[] }>(raw.content)
+  const parsed = safeJsonParse<{ summary?: unknown; changes?: unknown; criteria?: unknown[]; exclusions?: unknown }>(raw.content)
   const knownTypes = new Set(Object.keys(CRITERION_CATALOG))
   const proposed: Criterion[] = []
   for (const item of Array.isArray(parsed?.criteria) ? parsed!.criteria! : []) {
@@ -209,6 +213,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     : []
   const criteria = capCriteria(proposed)
 
+  // Exclusions proposées (Partie B) : liste COMPLÈTE révisée. Si Nora n'en
+  // renvoie pas, on conserve les exclusions actuelles (aucun changement).
+  const exclusions = Array.isArray(parsed?.exclusions)
+    ? sanitizeExclusions(parsed.exclusions)
+    : sanitizeExclusions(job.exclusions)
+
   // Persiste la proposition EN ATTENTE (survit au reload / changement d'onglet).
   // Effacée à l'application (PATCH /criteria) ou à l'abandon (feedback-dismiss).
   const pending = {
@@ -216,6 +226,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     summary,
     changes,
     criteria,
+    exclusions,
     ...(source === "feedback" ? { feedbackWatermark } : {}),
     ...(source === "general" && instruction ? { instruction } : {}),
   }
@@ -227,6 +238,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     summary,
     changes,
     criteria,
+    exclusions,
     ...(source === "feedback" ? { feedback_watermark: feedbackWatermark } : {}),
     ...(source === "general" ? { instruction } : {}),
   })
