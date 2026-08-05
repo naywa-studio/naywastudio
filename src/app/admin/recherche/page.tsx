@@ -225,7 +225,7 @@ const maskEmail = (email: string) => {
     return `${name[0]}***@${domain}`;
   }
 
-  return `${name.slice(0, 2)}${"•".repeat(
+  return `${name.slice(0, 2)}${"*".repeat(
     Math.max(name.length - 2, 4)
   )}@${domain}`;
 };
@@ -334,7 +334,7 @@ const maskEmail = (email: string) => {
             </thead>
             <tbody>
               {results.map((r) => (
-                <tr key={r.user_id} style={{ borderTop: "1px solid var(--nw-border-soft)" }}>
+                <tr key={r.user_id} style={{ minWidth: 260, borderTop: "1px solid var(--nw-border-soft)" }}>
                   <Td>
                     <div style={{ fontWeight: 600, color: "var(--nw-text)" }}>
                       {r.first_name ?? <em style={{ color: "var(--nw-text-muted)" }}>{t.noName}</em>}
