@@ -97,6 +97,9 @@ const copy = {
     likedTitle: "Ce qui a plu au client (facultatif, plusieurs possibles)",
     clientPositive: "Retour positif du client",
     clientPositivePh: "ex : très bon relationnel, exactement la séniorité recherchée…",
+    recapPlu: "Ce qui a plu",
+    recapBloque: "Ce qui a bloqué",
+    recapNone: "—",
     noraCta: "Voir la proposition de Nora",
     noraBanner: (n: number) => `Nora peut réajuster la mission d'après ${n} retour${n > 1 ? "s" : ""} client`,
     noraPanelTitle: "Proposition de Nora",
@@ -138,6 +141,9 @@ const copy = {
     likedTitle: "What the client liked (optional, multiple allowed)",
     clientPositive: "Positive client feedback",
     clientPositivePh: "e.g. great interpersonal skills, exactly the seniority we wanted…",
+    recapPlu: "What worked",
+    recapBloque: "What blocked",
+    recapNone: "—",
     noraCta: "See Nora's suggestion",
     noraBanner: (n: number) => `Nora can adjust the mission based on ${n} client ${n > 1 ? "responses" : "response"}`,
     noraPanelTitle: "Nora's suggestion",
@@ -286,6 +292,35 @@ export function MissionPipeline({
     [feedbackRows, consumedUntil],
   )
 
+  // Récap 2 colonnes (positifs / négatifs) — de quoi Nora part. Agrège les
+  // motifs des candidats retenus (ce qui a plu) et écartés (ce qui a bloqué).
+  const feedbackRecap = useMemo(() => {
+    const liked = new Map<ClientLikedReason, number>()
+    const blocked = new Map<ClientRejectReason, number>()
+    for (const r of shortlisted) {
+      const step = stepOf(r.pipeline_stage)
+      if (step === "rejected") {
+        for (const raw of (r.client_reject_reasons ?? [])) {
+          if ((CLIENT_REJECT_REASONS as string[]).includes(raw)) {
+            const k = raw as ClientRejectReason
+            blocked.set(k, (blocked.get(k) ?? 0) + 1)
+          }
+        }
+      } else if (step === "interview" || step === "offer" || step === "hired") {
+        for (const raw of (r.client_liked_reasons ?? [])) {
+          if ((CLIENT_LIKED_REASONS as string[]).includes(raw)) {
+            const k = raw as ClientLikedReason
+            liked.set(k, (liked.get(k) ?? 0) + 1)
+          }
+        }
+      }
+    }
+    return {
+      liked: [...liked.entries()].sort((a, b) => b[1] - a[1]),
+      blocked: [...blocked.entries()].sort((a, b) => b[1] - a[1]),
+    }
+  }, [shortlisted])
+
   async function downloadAll() {
     const ids = shortlisted.map((r) => r.candidate_id)
     if (ids.length === 0 || downloading) return
@@ -355,6 +390,28 @@ export function MissionPipeline({
       {/* Nora réajuste la mission (lot 3c) — INLINE, jamais en modale. */}
       {clientReviewEnabled && !isReadOnly && (
         <>
+          {/* Récap 2 colonnes : de quoi Nora part (ce qui a plu / ce qui a bloqué). */}
+          {(feedbackRecap.liked.length > 0 || feedbackRecap.blocked.length > 0) && (
+            <div style={{ marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+              <div style={{ padding: "11px 13px", borderRadius: 12, background: "var(--nw-success-bg, #E4EFE1)", border: "1px solid rgba(47,107,51,0.18)" }}>
+                <p style={{ margin: "0 0 7px", fontSize: 10.5, fontWeight: 700, color: "var(--nw-success, #2F6B33)", letterSpacing: "0.04em", textTransform: "uppercase" }}>{t.recapPlu}</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {feedbackRecap.liked.length > 0 ? feedbackRecap.liked.map(([r, n]) => (
+                    <span key={r} style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 99, color: "var(--nw-success, #2F6B33)", background: "white", border: "1px solid rgba(47,107,51,0.25)" }}>{clientLikedReasonLabel(r, lang)}{n > 1 ? ` · ${n}` : ""}</span>
+                  )) : <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)" }}>{t.recapNone}</span>}
+                </div>
+              </div>
+              <div style={{ padding: "11px 13px", borderRadius: 12, background: "rgba(217,45,32,0.05)", border: "1px solid rgba(217,45,32,0.16)" }}>
+                <p style={{ margin: "0 0 7px", fontSize: 10.5, fontWeight: 700, color: "#B42318", letterSpacing: "0.04em", textTransform: "uppercase" }}>{t.recapBloque}</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {feedbackRecap.blocked.length > 0 ? feedbackRecap.blocked.map(([r, n]) => (
+                    <span key={r} style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 99, color: "#B42318", background: "white", border: "1px solid rgba(217,45,32,0.22)" }}>{clientRejectReasonLabel(r, lang)}{n > 1 ? ` · ${n}` : ""}</span>
+                  )) : <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)" }}>{t.recapNone}</span>}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Bannière : proposer un réajustement quand du retour récent existe
               et qu'aucune proposition n'est déjà à l'écran. */}
           {!adjust && !adjustLoading && !adjustError && hasNewFeedback && (

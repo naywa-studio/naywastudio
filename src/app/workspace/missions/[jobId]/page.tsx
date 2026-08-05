@@ -43,8 +43,9 @@ const copy = {
     oldAssessment: "Ancienne évaluation.",
     legacyBanner: (n: number) => `Configurez les critères de matching pour une analyse enrichie — la position pipeline de vos ${n} candidat${n > 1 ? "s" : ""} sera conservée.`,
     configureCriteria: "Configurer les critères",
-    canaryBanner: (n: number) => `${n} profil${n > 1 ? "s" : ""} hors périmètre ${n > 1 ? "sont ressortis" : "est ressorti"} pertinent${n > 1 ? "s" : ""}. Élargissez peut-être la recherche.`,
+    canaryBanner: (n: number, sectors: string) => `${n} bon${n > 1 ? "s" : ""} profil${n > 1 ? "s" : ""} hors des secteurs ciblés${sectors ? ` (${sectors})` : ""} ${n > 1 ? "sont ressortis" : "est ressorti"} pertinent${n > 1 ? "s" : ""}. Élargir le matching pour ${n > 1 ? "les inclure" : "l'inclure"} ?`,
     broaden: "Élargir",
+    ignore: "Ignorer",
     criteriaValidated: "Critères validés — à vous de jouer",
     fromBarAbove: (
       <>Depuis le bandeau ci-dessus : <strong>Matcher le vivier</strong>, <strong>Importer des CVs</strong> ou <strong>Assigner</strong> un candidat.</>
@@ -104,8 +105,9 @@ const copy = {
     oldAssessment: "Old assessment.",
     legacyBanner: (n: number) => `Configure the matching criteria for a richer analysis — the pipeline position of your ${n} candidate${n > 1 ? "s" : ""} will be preserved.`,
     configureCriteria: "Configure the criteria",
-    canaryBanner: (n: number) => `${n} out-of-scope profile${n > 1 ? "s" : ""} came back relevant. You might want to broaden the search.`,
+    canaryBanner: (n: number, sectors: string) => `${n} good profile${n > 1 ? "s" : ""} outside the targeted sectors${sectors ? ` (${sectors})` : ""} came back relevant. Broaden the matching to include ${n > 1 ? "them" : "it"}?`,
     broaden: "Broaden",
+    ignore: "Dismiss",
     criteriaValidated: "Criteria validated — your move",
     fromBarAbove: (
       <>From the bar above: <strong>Match the talent pool</strong>, <strong>Import CVs</strong>, or <strong>Assign</strong> a candidate.</>
@@ -772,9 +774,17 @@ export default function JobDetailPage() {
           borderRadius: 11, fontSize: 12.5, color: "var(--nw-text-body)",
         }}>
           <span style={{ flex: 1, minWidth: 220 }}>
-            {t.canaryBanner(canaryHits)}
+            {t.canaryBanner(canaryHits, (job?.target_sectors ?? []).join(", "))}
           </span>
-          <button onClick={() => { setCanaryHits(0); setMatchPanelOpen(true) }} disabled={isReadOnly} title={isReadOnly ? "Lecture seule" : undefined} style={{
+          {/* Ignorer efface l'alerte ; Élargir ouvre le panneau SANS l'effacer
+              (elle reste tant qu'un nouveau matching n'a pas tourné). */}
+          <button onClick={() => setCanaryHits(0)} style={{
+            fontSize: 12, fontWeight: 600, color: "var(--nw-text-muted)",
+            background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+          }}>
+            {t.ignore}
+          </button>
+          <button onClick={() => setMatchPanelOpen(true)} disabled={isReadOnly} title={isReadOnly ? "Lecture seule" : undefined} style={{
             fontSize: 12, fontWeight: 700, color: isReadOnly ? "#B8AEDE" : "var(--nw-warn)",
             background: isReadOnly ? "#F3F0FA" : "white", border: isReadOnly ? "1px solid #E5E0F0" : "1px solid rgba(217,119,6,0.35)",
             borderRadius: 8, padding: "6px 12px", cursor: isReadOnly ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
