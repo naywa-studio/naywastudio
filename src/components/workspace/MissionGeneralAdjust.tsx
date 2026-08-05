@@ -50,7 +50,7 @@ export function MissionGeneralAdjust({
   /** Historique des ajustements déjà appliqués (feedback + manuels). */
   adjustments: CriteriaAdjustment[]
   /** Proposition générale en cours (null sinon). */
-  proposal: { summary: string; changes: string[]; criteria: Criterion[]; exclusions?: string[] } | null
+  proposal: { summary: string; changes: string[]; criteria: Criterion[]; exclusions?: string[]; instruction?: string } | null
   loading: boolean
   error: string | null
   applying: boolean

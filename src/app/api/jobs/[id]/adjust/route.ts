@@ -50,6 +50,8 @@ RÈGLES CLÉS
 - RETOURS POSITIFS (si fournis) : des candidats ont PLU au client (retenus). RENFORCE ou CONSERVE les critères qu'ils satisfont ; n'assouplis JAMAIS un critère qu'un candidat retenu remplit bien, même si un écarté pousse dans l'autre sens. En cas de conflit écarté ↔ retenu, le signal POSITIF l'emporte sur l'assouplissement.
 - Garde UN SEUL critère "skills". 4-5 critères "main" max + quelques "bonus".
 - Chaque changement doit répondre à un signal concret (un motif client, un commentaire, ou la consigne du sourceur).
+- TRAITE CHAQUE POINT distinct des retours (motifs ET phrases des commentaires), pas seulement le principal. Un commentaire peut porter PLUSIEURS signaux : ex « trop junior ET diplôme pas lié » = DEUX ajustements (la séniorité ET un critère métier/diplôme). Si un signal vise un aspect non couvert par un critère existant, AJOUTE/AJUSTE le critère pertinent (role_fit, domain_fit, diploma, industry_experience_years…).
+- COHÉRENCE STRICTE résumé ↔ critères : tout changement décrit dans summary/changes DOIT se retrouver dans les params de "criteria". Ne renvoie JAMAIS un critère avec des params IDENTIQUES à l'actuel en prétendant l'avoir modifié (ex : dire « j'assouplis à Bac+3 » tout en laissant level = Bac+5 est INTERDIT). Si tu ne peux pas appliquer un changement via le catalogue, ne le mentionne pas dans summary/changes.
 - Si RIEN ne justifie de changer par rapport aux critères actuels, renvoie criteria = critères actuels À L'IDENTIQUE et changes = [] avec un summary l'expliquant.
 - EXCLUSIONS (à proscrire) : si un retour/consigne indique un point RÉDHIBITOIRE (ex : « pas de juniors », « refuse le secteur bancaire »), ajoute-le à "exclusions" (phrases courtes). Tu vois les exclusions_actuelles : renvoie la LISTE COMPLÈTE révisée. Si rien à proscrire, renvoie [].
 
@@ -228,7 +230,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     criteria,
     exclusions,
     ...(source === "feedback" ? { feedbackWatermark } : {}),
-    ...(source === "general" && instruction ? { instruction } : {}),
+    // Consigne du sourceur : conservée pour LES DEUX sources (affinage feedback
+    // ET ajustement général) afin de la ré-afficher (« Votre demande »).
+    ...(instruction ? { instruction } : {}),
   }
   await getAdminSupabase().from("jobs").update({ pending_adjustment: pending }).eq("id", id)
 
@@ -240,6 +244,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     criteria,
     exclusions,
     ...(source === "feedback" ? { feedback_watermark: feedbackWatermark } : {}),
-    ...(source === "general" ? { instruction } : {}),
+    ...(instruction ? { instruction } : {}),
   })
 }

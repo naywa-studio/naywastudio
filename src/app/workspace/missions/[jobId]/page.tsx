@@ -400,7 +400,9 @@ export default function JobDetailPage() {
         changes: Array.isArray(data.changes) ? data.changes.filter((c: unknown): c is string => typeof c === "string") : [],
         criteria: data.criteria as Criterion[],
         feedbackWatermark: typeof data.feedback_watermark === "string" ? data.feedback_watermark : null,
-        instruction: source === "general" ? (instruction ?? "") : undefined,
+        // Consigne conservée pour les deux sources (affinage feedback + général)
+        // → ré-affichée « Votre demande » dans le panneau.
+        instruction: typeof data.instruction === "string" && data.instruction ? data.instruction : (instruction || undefined),
         exclusions: Array.isArray(data.exclusions) ? data.exclusions.filter((e: unknown): e is string => typeof e === "string") : undefined,
       })
     } catch { setAdjustError("error") } finally { setAdjustLoading(false) }

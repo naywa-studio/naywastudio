@@ -157,11 +157,22 @@ export function describeChange(ch: CriterionChange, lang: Lang): ChangeDescripti
     return { name, addedItems: added, removedItems: removed }
   }
 
-  return {
-    name,
-    beforeValue: ch.before ? criterionValueLabel(ch.before, lang) : null,
-    afterValue: ch.after ? criterionValueLabel(ch.after, lang) : null,
+  let beforeValue = ch.before ? criterionValueLabel(ch.before, lang) : null
+  let afterValue = ch.after ? criterionValueLabel(ch.after, lang) : null
+
+  // Un changement de POIDS seul (obligatoire ↔ souhaité) fait diverger la
+  // signature sans toucher la valeur affichée → on le reflète explicitement
+  // pour ne pas montrer un « X → X » trompeur.
+  if (ch.before && ch.after && ch.before.weight !== ch.after.weight) {
+    const wl = (w: Criterion["weight"]) =>
+      w === "main"
+        ? (lang === "fr" ? "obligatoire" : "required")
+        : (lang === "fr" ? "souhaité" : "nice-to-have")
+    beforeValue = [beforeValue, wl(ch.before.weight)].filter(Boolean).join(" · ")
+    afterValue = [afterValue, wl(ch.after.weight)].filter(Boolean).join(" · ")
   }
+
+  return { name, beforeValue, afterValue }
 }
 
 /** Reconstruit la liste finale de critères à partir de l'état ACTUEL + des

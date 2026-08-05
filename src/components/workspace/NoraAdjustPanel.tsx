@@ -28,6 +28,7 @@ const copy = {
     subGeneral: "D'après votre consigne.",
     changesTitle: "Modifications",
     exclusionsTitle: "À proscrire",
+    yourRequest: "Votre demande",
     add: "Nouveau",
     remove: "Retiré",
     reqValue: "requis",
@@ -53,6 +54,7 @@ const copy = {
     subGeneral: "Based on your instruction.",
     changesTitle: "Changes",
     exclusionsTitle: "To exclude",
+    yourRequest: "Your request",
     add: "New",
     remove: "Removed",
     reqValue: "required",
@@ -77,7 +79,7 @@ export function NoraAdjustPanel({
   proposal, before, beforeExclusions = [], source, applying, lang, collapsible = false,
   onApply, onDismiss, onRegenerate, onDismissFeedback, onRefine,
 }: {
-  proposal: { summary: string; changes: string[]; criteria: Criterion[]; exclusions?: string[] }
+  proposal: { summary: string; changes: string[]; criteria: Criterion[]; exclusions?: string[]; instruction?: string }
   before: Criterion[]
   /** Exclusions actuelles de la mission (pour détecter un changement). */
   beforeExclusions?: string[]
@@ -140,6 +142,12 @@ export function NoraAdjustPanel({
 
       {collapsible && !open ? null : (
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+        {proposal.instruction && (
+          <div style={{ padding: "9px 12px", borderRadius: 10, background: "var(--nw-surface-muted, #FCFAF5)", borderLeft: "3px solid var(--nw-primary-200, #C4B6E0)" }}>
+            <span style={{ display: "block", fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 2 }}>{t.yourRequest}</span>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--nw-text-body)", fontStyle: "italic", lineHeight: 1.5 }}>« {proposal.instruction} »</p>
+          </div>
+        )}
         {proposal.summary && (
           <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-body)", lineHeight: 1.6 }}>{proposal.summary}</p>
         )}
@@ -262,6 +270,10 @@ function ChangeRow({
           <Pill text={d.afterValue ?? t.reqValue} tone="green" />
         ) : change.kind === "remove" ? (
           <Pill text={d.beforeValue ?? t.reqValue} tone="red" strike />
+        ) : d.beforeValue === d.afterValue ? (
+          // Modif dont la valeur affichée n'a pas bougé (ex : param interne) →
+          // on ne montre pas un « X → X » trompeur.
+          <Pill text={t.adjusted} tone="green" />
         ) : (
           <>
             <Pill text={d.beforeValue ?? t.reqValue} tone="red" strike />

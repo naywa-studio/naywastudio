@@ -120,8 +120,23 @@ export function criterionValueLabel(c: Criterion, lang: Lang = "fr"): string | n
   switch (c.type) {
     case "role_fit":
       return p.role ? String(p.role) : null
-    case "seniority_fit":
-      return p.target ? String(p.target) : null
+    case "seniority_fit": {
+      // Cible + fourchette min/max si présentes → un changement de min/max
+      // devient visible (avant : seul `target` était montré → « junior → junior »).
+      const target = p.target ? String(p.target) : ""
+      const min = p.min ? String(p.min) : ""
+      const max = p.max ? String(p.max) : ""
+      const range = (min || max) ? `${min || "…"}–${max || "…"}` : ""
+      const label = [target, range && `(${range})`].filter(Boolean).join(" ")
+      return label || null
+    }
+    case "diploma": {
+      // Niveau + domaine/école → un changement de l'un des deux devient visible.
+      const lvl = p.level ? String(p.level).toUpperCase() : ""
+      const school = p.school ? String(p.school) : ""
+      const label = [lvl, school].filter(Boolean).join(" · ")
+      return label || null
+    }
     default:
       return criterionLevelHint(c, lang)
   }
