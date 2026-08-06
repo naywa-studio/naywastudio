@@ -23,6 +23,7 @@ import { sectorDisplayName } from "@/lib/sector-i18n"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 import { MatchCard } from "@/components/workspace/MatchCard"
+import { MissionCarousel, type MissionSection } from "@/components/workspace/MissionCarousel"
 import { MissionPipeline, type AdjustProposal } from "@/components/workspace/MissionPipeline"
 import { MissionGeneralAdjust } from "@/components/workspace/MissionGeneralAdjust"
 import { JobForm } from "../page"
@@ -66,6 +67,10 @@ const copy = {
     weakToggle: (show: boolean, n: number) => `${show ? "▲ Masquer" : "▼ Voir"} les ${n} profil${n > 1 ? "s" : ""} à faible affinité`,
     viewCandidats: "Candidats",
     viewSuivi: "Shortlist",
+    actionMatch: "↻ Matcher le vivier",
+    actionImport: "+ Importer des CVs",
+    actionAssign: "+ Assigner",
+    roTitle: "Lecture seule — souscrivez pour reprendre la main",
     tabAll: "Tous",
     tabApplied: "Ont postulé",
     tabAppliedHint: "Via le formulaire public",
@@ -128,6 +133,10 @@ const copy = {
     weakToggle: (show: boolean, n: number) => `${show ? "▲ Hide" : "▼ Show"} the ${n} low-affinity profile${n > 1 ? "s" : ""}`,
     viewCandidats: "Candidates",
     viewSuivi: "Shortlist",
+    actionMatch: "↻ Match talent pool",
+    actionImport: "+ Import CVs",
+    actionAssign: "+ Assign",
+    roTitle: "Read-only — subscribe to regain control",
     tabAll: "All",
     tabApplied: "Applied",
     tabAppliedHint: "Via the public form",
@@ -171,6 +180,23 @@ function sourcesForTab(tab: SourceTab): Set<MatchSource> {
   return new Set(["vivier_matched", "vivier_assigned"])
 }
 
+/* Boutons d'action du panneau Candidats (Matcher / Importer / Assigner). */
+const actionBtnGhost: React.CSSProperties = {
+  padding: "8px 13px", borderRadius: 9,
+  background: "white", border: "1px solid rgba(124,99,200,0.30)",
+  color: "var(--nw-primary)", fontSize: 12.5, fontWeight: 700,
+  cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+}
+const actionBtnPrimary: React.CSSProperties = {
+  ...actionBtnGhost,
+  background: "var(--nw-primary)", border: "none", color: "white",
+}
+const actionBtnDisabled: React.CSSProperties = {
+  ...actionBtnGhost,
+  background: "#F3F0FA", border: "1px solid #E5E0F0",
+  color: "#B8AEDE", cursor: "not-allowed",
+}
+
 export default function JobDetailPage() {
   const router = useRouter()
   const { lang } = useLanguage()
@@ -199,10 +225,10 @@ export default function JobDetailPage() {
   /** Force le wizard à s'afficher (édition manuelle des critères). */
   const [editCriteriaMode, setEditCriteriaMode] = useState(false)
   const [activeTab, setActiveTab] = useState<SourceTab>("all")
-  // Onglet de 1er niveau : « Candidats » (matching brut) vs « Shortlist »
-  // (candidats retenus, in_pipeline). Séparés pour que le client ne mélange
-  // pas la découverte et la sélection à présenter.
-  const [view, setView] = useState<"candidats" | "suivi">("candidats")
+  // Section active du carrousel : Mission (définition) · Candidats (matching
+  // brut) · Shortlist (retenus, in_pipeline). Portée par la PAGE pour survivre
+  // à un re-matching / une proposition Nora qui renvoie vers Candidats.
+  const [active, setActive] = useState<MissionSection>("candidats")
   /** Filtres actifs : Set des critère IDs sur lesquels exiger un "fort match". */
   const [activeCritFilters, setActiveCritFilters] = useState<Set<string>>(new Set())
   /** Déplie les profils à faible affinité (tier "poor", score < 35), masqués
@@ -443,8 +469,8 @@ export default function JobDetailPage() {
         ...(source === "feedback" && watermark ? { feedback_consumed_until: watermark } : {}),
       } : prev)
       setAdjust(null); setAdjustError(null)
-      // Redirige vers l'onglet Candidats puis relance le matching.
-      setView("candidats")
+      // Redirige vers la section Candidats puis relance le matching.
+      setActive("candidats")
       await runMatch({ mode: job.last_match_mode ?? undefined, sectors: job.target_sectors ?? [] })
     } finally {
       setApplyingAdjust(false)
@@ -587,144 +613,121 @@ export default function JobDetailPage() {
       padding: "32px 24px 80px", maxWidth: 1100, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
-      {/* Lien retour + bouton supprimer */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        gap: 16, marginBottom: 18, flexWrap: "wrap",
-      }}>
-        <Link href="/workspace/missions" style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
-          fontSize: 13, color: "var(--nw-primary)", textDecoration: "none",
-        }}>{t.backToMissions}</Link>
-        {/* Actions de mutation masquées en lecture seule (consultation only). */}
-        {!isReadOnly && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setShowEdit(true)} title={t.editMission} style={{
-              fontSize: 12, fontWeight: 600, color: "var(--nw-primary)",
-              background: "white", border: "1px solid rgba(124,99,200,0.30)",
-              borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
-            }}>{t.editMission}</button>
-            <button onClick={handleDelete} title={t.delete} style={{
-              fontSize: 12, fontWeight: 600, color: "var(--nw-danger-strong)",
-              background: "transparent", border: "1px solid #FCA5A5",
-              borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit",
-            }}>{t.delete}</button>
+      {showWizard ? (
+        <>
+          <div style={{ marginBottom: 18 }}>
+            <Link href="/workspace/missions" style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              fontSize: 13, color: "var(--nw-primary)", textDecoration: "none",
+            }}>{t.backToMissions}</Link>
           </div>
-        )}
-      </div>
-
-      {/* Bandeau résumé (visible une fois critères configurés). */}
-      {!showWizard && (
-        <MissionSummaryBar
-          job={job}
+          <CriteriaOnboarding
+            jobId={job.id}
+            initialCriteria={editCriteriaMode && criteria.length > 0 ? criteria : null}
+            onCancel={editCriteriaMode ? () => setEditCriteriaMode(false) : undefined}
+            onDone={(updated) => {
+              setJob((prev) => prev ? { ...prev, criteria: updated, criteria_locked_at: new Date().toISOString() } : prev)
+              setEditCriteriaMode(false)
+            }}
+          />
+        </>
+      ) : (
+        <MissionCarousel
+          lang={lang}
+          backHref="/workspace/missions"
+          title={job.role_name?.trim() || job.title}
           clientName={clientName}
-          criteria={criteria}
-          onEditCriteria={() => setEditCriteriaMode(true)}
-          onImportCvs={() => setUploadOpen(true)}
-          onMatchVivier={() => setMatchPanelOpen(true)}
-          onAssignFromVivier={() => setAssignOpen(true)}
-          onCreateForm={undefined}
+          meta={<>
+            {job.location && <span>{job.location}</span>}
+            {job.contract_type && <span>· {job.contract_type}</span>}
+            {job.seniority && <span>· {job.seniority}</span>}
+          </>}
+          relevantCount={strongCount}
+          shortlistCount={shortlistCount}
           matching={matching}
           readOnly={isReadOnly}
-        />
-      )}
-
-      {/* Brief de la mission — brief original + brief client (appel d'offre). */}
-      {!showWizard && (
-        <MissionBriefSection
-          job={job}
-          onSaved={(patch) => setJob((prev) => prev ? { ...prev, ...patch } : prev)}
-        />
-      )}
-
-      {/* Onglets de 1er niveau : Candidats (matching) · Shortlist (retenus).
-          Cachés tant que la mission n'est pas configurée (wizard). */}
-      {!showWizard && (
-        <div style={{ display: "flex", gap: 10, margin: "10px 0 22px", borderBottom: "1.5px solid var(--nw-border)" }}>
-          {(["candidats", "suivi"] as const).map((key) => {
-            const on = view === key
-            const label = key === "candidats" ? t.viewCandidats : t.viewSuivi
-            const count = key === "suivi" ? shortlistCount : 0
-            return (
-              <button
-                key={key}
-                onClick={() => setView(key)}
-                style={{
-                  fontFamily: "inherit", fontSize: 18, fontWeight: on ? 800 : 600,
-                  letterSpacing: "-0.01em",
-                  color: on ? "var(--nw-primary)" : "var(--nw-text-muted)",
-                  background: "transparent", border: "none", cursor: "pointer",
-                  padding: "6px 4px 12px", marginBottom: -1.5,
-                  display: "inline-flex", alignItems: "center", gap: 8,
-                  borderBottom: `3px solid ${on ? "var(--nw-primary)" : "transparent"}`,
-                }}
-              >
-                {label}
-                {count > 0 && (
-                  <span style={{
-                    fontSize: 12, fontWeight: 700,
-                    minWidth: 20, height: 20, padding: "0 6px", borderRadius: 999,
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    color: on ? "white" : "var(--nw-text-muted)",
-                    background: on ? "var(--nw-primary)" : "var(--nw-neutral-100)",
-                  }}>{count}</span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      {!showWizard && view === "suivi" ? (
-        <MissionPipeline
-          job={job}
-          rows={rows}
-          isReadOnly={isReadOnly}
-          clientDirectory={clientDirectory}
-          clientReviewEnabled={showRevue}
-          organization={{
-            name: organization?.name ?? "",
-            brand_name: organization?.brand_name ?? null,
-            brand_color: organization?.brand_color ?? null,
-            brand_color_secondary: organization?.brand_color_secondary ?? null,
-            brand_slogan: organization?.brand_slogan ?? null,
-            contact_email: organization?.contact_email ?? null,
-            anonymize_defaults: organization?.anonymize_defaults ?? null,
-          }}
-          brandingHref={canBranding ? "/organisation?tab=branding" : null}
-          onLocalUpdate={(rowId, patch) => setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, ...patch } : r))}
-          lang={lang}
-          adjust={adjust?.source === "feedback" ? adjust : null}
-          adjustLoading={adjustLoading && adjustOpSource === "feedback"}
-          adjustError={adjustOpSource === "feedback" ? adjustError : null}
-          applyingAdjust={applyingAdjust}
-          onGenerateAdjust={() => generateAdjust("feedback")}
-          onApplyAdjust={applyAdjust}
-          onDismissAdjust={() => clearPending()}
-          onDismissFeedback={() => clearPending(adjust?.feedbackWatermark ?? null)}
-          onRefineAdjust={refineAdjust}
-        />
-      ) : (
-      <>
-
-      {/* Une seule carte Nora (lot 3c) sous le brief : consigne libre + panneau
-          diff + historique fusionné des ajustements (feedback + manuels). */}
-      {!matching && ((job.criteria_locked_at != null) || (job.criteria_adjustments?.length ?? 0) > 0) && (
-        <MissionGeneralAdjust
-          jobCriteria={criteria}
-          jobExclusions={job.exclusions ?? []}
-          adjustments={job.criteria_adjustments ?? []}
-          proposal={adjust?.source === "general" ? adjust : null}
-          loading={adjustLoading && adjustOpSource === "general"}
-          error={adjustOpSource === "general" ? adjustError : null}
-          applying={applyingAdjust}
-          readOnly={isReadOnly}
-          lang={lang}
-          onGenerate={(instruction) => generateAdjust("general", instruction)}
-          onApply={applyAdjust}
-          onDismiss={() => clearPending()}
-        />
-      )}
+          onEdit={() => setShowEdit(true)}
+          onDelete={handleDelete}
+          active={active}
+          onActiveChange={setActive}
+          mission={
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <MissionSummaryBar
+                job={job}
+                clientName={clientName}
+                criteria={criteria}
+                showIdentity={false}
+                showActions={false}
+                defaultOpen
+                onEditCriteria={() => setEditCriteriaMode(true)}
+                onImportCvs={() => setUploadOpen(true)}
+                onMatchVivier={() => setMatchPanelOpen(true)}
+                onAssignFromVivier={() => setAssignOpen(true)}
+                onCreateForm={undefined}
+                matching={matching}
+                readOnly={isReadOnly}
+              />
+              <MissionBriefSection
+                job={job}
+                onSaved={(patch) => setJob((prev) => prev ? { ...prev, ...patch } : prev)}
+              />
+              {!matching && ((job.criteria_locked_at != null) || (job.criteria_adjustments?.length ?? 0) > 0) && (
+                <MissionGeneralAdjust
+                  jobCriteria={criteria}
+                  jobExclusions={job.exclusions ?? []}
+                  adjustments={job.criteria_adjustments ?? []}
+                  proposal={adjust?.source === "general" ? adjust : null}
+                  loading={adjustLoading && adjustOpSource === "general"}
+                  error={adjustOpSource === "general" ? adjustError : null}
+                  applying={applyingAdjust}
+                  readOnly={isReadOnly}
+                  lang={lang}
+                  onGenerate={(instruction) => generateAdjust("general", instruction)}
+                  onApply={applyAdjust}
+                  onDismiss={() => clearPending()}
+                />
+              )}
+            </div>
+          }
+          shortlist={
+            <MissionPipeline
+              job={job}
+              rows={rows}
+              isReadOnly={isReadOnly}
+              clientDirectory={clientDirectory}
+              clientReviewEnabled={showRevue}
+              organization={{
+                name: organization?.name ?? "",
+                brand_name: organization?.brand_name ?? null,
+                brand_color: organization?.brand_color ?? null,
+                brand_color_secondary: organization?.brand_color_secondary ?? null,
+                brand_slogan: organization?.brand_slogan ?? null,
+                contact_email: organization?.contact_email ?? null,
+                anonymize_defaults: organization?.anonymize_defaults ?? null,
+              }}
+              brandingHref={canBranding ? "/organisation?tab=branding" : null}
+              onLocalUpdate={(rowId, patch) => setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, ...patch } : r))}
+              lang={lang}
+              adjust={adjust?.source === "feedback" ? adjust : null}
+              adjustLoading={adjustLoading && adjustOpSource === "feedback"}
+              adjustError={adjustOpSource === "feedback" ? adjustError : null}
+              applyingAdjust={applyingAdjust}
+              onGenerateAdjust={() => generateAdjust("feedback")}
+              onApplyAdjust={applyAdjust}
+              onDismissAdjust={() => clearPending()}
+              onDismissFeedback={() => clearPending(adjust?.feedbackWatermark ?? null)}
+              onRefineAdjust={refineAdjust}
+            />
+          }
+          candidats={
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {!matching && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                  <button onClick={() => setMatchPanelOpen(true)} disabled={isReadOnly} title={isReadOnly ? t.roTitle : undefined} style={isReadOnly ? actionBtnDisabled : actionBtnPrimary}>{t.actionMatch}</button>
+                  <button onClick={() => setUploadOpen(true)} disabled={isReadOnly} title={isReadOnly ? t.roTitle : undefined} style={isReadOnly ? actionBtnDisabled : actionBtnGhost}>{t.actionImport}</button>
+                  <button onClick={() => setAssignOpen(true)} disabled={isReadOnly} title={isReadOnly ? t.roTitle : undefined} style={isReadOnly ? actionBtnDisabled : actionBtnGhost}>{t.actionAssign}</button>
+                </div>
+              )}
 
       {/* Mission "legacy" (créée avant les critères flexibles) : matchs
           présents mais aucun critère. On ne masque rien — bannière opt-in. */}
@@ -794,24 +797,9 @@ export default function JobDetailPage() {
         </div>
       )}
 
-      {/* Wizard onboarding OU contenu principal */}
-      {showWizard ? (
-        <CriteriaOnboarding
-          jobId={job.id}
-          initialCriteria={editCriteriaMode && criteria.length > 0 ? criteria : null}
-          // Bouton "Annuler" seulement en mode édition (au 1ᵉʳ onboarding il
-          // FAUT configurer les critères avant de pouvoir matcher).
-          onCancel={editCriteriaMode ? () => setEditCriteriaMode(false) : undefined}
-          onDone={(updated) => {
-            // On NE lance PAS le matching automatiquement (retour sourceur) :
-            // après validation des critères, le sourceur choisit lui-même
-            // l'action (Matcher le vivier / Importer des CVs / Assigner /
-            // formulaire). On atterrit sur l'empty state avec les boutons.
-            setJob((prev) => prev ? { ...prev, criteria: updated, criteria_locked_at: new Date().toISOString() } : prev)
-            setEditCriteriaMode(false)
-          }}
-        />
-      ) : rows.length === 0 ? (
+      {/* Contenu principal (le wizard d'onboarding est géré au niveau du
+          carrousel — voir plus haut). */}
+      {rows.length === 0 ? (
         <div style={{
           padding: "56px 24px", textAlign: "center",
           background: "white", border: "1px dashed var(--nw-primary-100)", borderRadius: 16,
@@ -879,16 +867,10 @@ export default function JobDetailPage() {
             </div>
           )}
 
-          {/* Onglets + filtres collés en haut pendant le scroll de la liste
-              (top: 60 = hauteur du header sticky). Fond opaque + blur pour
-              que les cartes ne transparaissent pas dessous. */}
-          <div style={{
-            position: "sticky", top: 60, zIndex: 30,
-            background: "rgba(248,246,255,0.92)",
-            backdropFilter: "blur(10px)",
-            margin: "0 -8px", padding: "8px 8px 2px",
-            borderRadius: "0 0 12px 12px",
-          }}>
+          {/* Onglets par source + filtres par critère. (Le sticky d'antan est
+              retiré : dans le carrousel, le défilement vertical appartient à la
+              page, pas au conteneur horizontal — un sticky y colle mal.) */}
+          <div style={{ margin: "0 -8px", padding: "8px 8px 2px" }}>
             <SourceTabs active={activeTab} counts={tabCounts} onChange={setActiveTab} />
 
             {mainCriteria.length > 0 && (
@@ -977,7 +959,9 @@ export default function JobDetailPage() {
           )}
         </>
       )}
-      </>
+            </div>
+          }
+        />
       )}
 
       {assignOpen && (

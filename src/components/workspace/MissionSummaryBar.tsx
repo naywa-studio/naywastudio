@@ -31,6 +31,7 @@ const copy = {
     bonus: "Bonus",
     pricingLink: "Chiffrer dans le pricing →",
     roTitle: "Lecture seule — souscrivez pour reprendre la main",
+    definitionTitle: "Définition de la mission",
   },
   en: {
     collapse: "Collapse mission",
@@ -46,6 +47,7 @@ const copy = {
     bonus: "Bonus",
     pricingLink: "Price it in pricing →",
     roTitle: "Read-only — subscribe to regain control",
+    definitionTitle: "Mission definition",
   },
 }
 
@@ -62,14 +64,21 @@ interface Props {
   readOnly?: boolean
   /** Nom du client rattaché (cabinet/ESN). Null = mission sans client. */
   clientName?: string | null
+  /** Masque le titre + pastille client (repris par le bandeau du carrousel). */
+  showIdentity?: boolean
+  /** Masque les actions vivier (import/match/assign) — vivent dans Candidats. */
+  showActions?: boolean
+  /** État déplié initial (variante « définition » du panneau Mission). */
+  defaultOpen?: boolean
 }
 
 export function MissionSummaryBar({
   job, criteria, onEditCriteria, onImportCvs, onMatchVivier, onAssignFromVivier, onCreateForm, matching, readOnly = false, clientName = null,
+  showIdentity = true, showActions = true, defaultOpen = false,
 }: Props) {
   const { lang } = useLanguage()
   const t = copy[lang]
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
 
   const mainCriteria  = criteria.filter((c) => c.weight === "main")
   const bonusCriteria = criteria.filter((c) => c.weight === "bonus")
@@ -100,45 +109,58 @@ export function MissionSummaryBar({
           {open ? "▾" : "▸"}
         </button>
         <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 2 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
-            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
-              {job.role_name?.trim() || job.title}
-            </h1>
-            {clientName && (
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                padding: "3px 9px", borderRadius: 100,
-                background: "var(--nw-primary-50)", color: "var(--nw-primary)",
-                fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
-              }}>
-                <svg width="11" height="11" viewBox="0 0 16 16" style={{ flexShrink: 0 }} aria-hidden="true">
-                  <path d="M2 13V6l6-3.5L14 6v7M2 13h12M2 13H1m13 0h1M6 13V9.5h4V13" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                {clientName}
-              </span>
-            )}
-          </div>
+          {showIdentity ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+              <h1 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--nw-text)", letterSpacing: "-0.01em" }}>
+                {job.role_name?.trim() || job.title}
+              </h1>
+              {clientName && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "3px 9px", borderRadius: 100,
+                  background: "var(--nw-primary-50)", color: "var(--nw-primary)",
+                  fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
+                }}>
+                  <svg width="11" height="11" viewBox="0 0 16 16" style={{ flexShrink: 0 }} aria-hidden="true">
+                    <path d="M2 13V6l6-3.5L14 6v7M2 13h12M2 13H1m13 0h1M6 13V9.5h4V13" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {clientName}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span style={{
+              fontSize: 10.5, fontWeight: 800, color: "var(--nw-text-muted)",
+              letterSpacing: "0.07em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+            }}>
+              {t.definitionTitle}
+            </span>
+          )}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11.5, color: "var(--nw-text-muted)" }}>
-            {job.location && <span>{job.location}</span>}
-            {job.contract_type && <span>· {job.contract_type}</span>}
-            {job.seniority && <span>· {job.seniority}</span>}
+            {showIdentity && job.location && <span>{job.location}</span>}
+            {showIdentity && job.contract_type && <span>· {job.contract_type}</span>}
+            {showIdentity && job.seniority && <span>· {job.seniority}</span>}
             {mainCriteria.length > 0 && (
-              <span>· <strong style={{ color: "var(--nw-success)", fontWeight: 700 }}>{mainCriteria.length}</strong> {t.mainCriteriaSuffix(mainCriteria.length)}</span>
+              <span>{showIdentity ? "· " : ""}<strong style={{ color: "var(--nw-success)", fontWeight: 700 }}>{mainCriteria.length}</strong> {t.mainCriteriaSuffix(mainCriteria.length)}</span>
             )}
           </div>
         </div>
         {!matching && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={onImportCvs} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>{t.importCvs}</button>
-            <button onClick={onMatchVivier} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>{t.matchVivier}</button>
-            <button onClick={onAssignFromVivier} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>{t.assignFromVivier}</button>
-            {/* Formulaire public (E2) : masqué tant que la feature n'est pas
-                livrée — un bouton grisé "bientôt" fait produit inachevé. Il
-                réapparaîtra dès que le parent passera onCreateForm. */}
-            {onCreateForm && (
-              <button onClick={onCreateForm} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>
-                {t.createForm}
-              </button>
+            {showActions && (
+              <>
+                <button onClick={onImportCvs} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>{t.importCvs}</button>
+                <button onClick={onMatchVivier} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>{t.matchVivier}</button>
+                <button onClick={onAssignFromVivier} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>{t.assignFromVivier}</button>
+                {/* Formulaire public (E2) : masqué tant que la feature n'est pas
+                    livrée — un bouton grisé "bientôt" fait produit inachevé. Il
+                    réapparaîtra dès que le parent passera onCreateForm. */}
+                {onCreateForm && (
+                  <button onClick={onCreateForm} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnGhostDisabled : btnGhost}>
+                    {t.createForm}
+                  </button>
+                )}
+              </>
             )}
             <button onClick={onEditCriteria} disabled={readOnly} title={readOnly ? t.roTitle : undefined} style={readOnly ? btnPrimaryDisabled : btnPrimary}>
               {t.editCriteria}
