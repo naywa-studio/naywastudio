@@ -226,7 +226,7 @@ export function MissionCarousel({
       {/* ── Bandeau persistant ─────────────────────────────────────── */}
       <div style={{
         background: "white", border: "1px solid var(--nw-border-soft)",
-        borderRadius: 14, padding: "12px 16px", marginBottom: 12,
+        borderRadius: 14, padding: "10px 16px", marginBottom: 12,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <Link href={backHref} style={{
@@ -252,81 +252,81 @@ export function MissionCarousel({
             </span>
           )}
 
-          {(onEdit || onDelete) && !readOnly && (
-            <div style={{ marginLeft: "auto", position: "relative" }}>
-              <button
-                type="button"
-                aria-label={t.menu}
-                onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }}
-                style={{
-                  background: "transparent", border: "1px solid var(--nw-border)",
-                  borderRadius: 8, width: 30, height: 30, cursor: "pointer",
-                  color: "var(--nw-text-muted)", display: "inline-flex",
-                  alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" />
-                </svg>
-              </button>
-              {menuOpen && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    position: "absolute", top: 36, right: 0, zIndex: 40,
-                    background: "white", border: "1px solid var(--nw-border)",
-                    borderRadius: 10, boxShadow: "0 10px 30px rgba(17,24,39,0.14)",
-                    padding: 5, minWidth: 180,
-                  }}
-                >
-                  {onEdit && (
-                    <button type="button" onClick={() => { setMenuOpen(false); onEdit() }} style={menuItem}>
-                      {t.edit}
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button type="button" onClick={() => { setMenuOpen(false); onDelete() }} style={{ ...menuItem, color: "var(--nw-danger-strong)" }}>
-                      {t.delete}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Grandes lignes + compteurs + puce matching. */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-          marginTop: 5, fontSize: 12, color: "var(--nw-text-muted)",
-        }}>
-          {meta && <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>{meta}</span>}
-          {meta && <span aria-hidden="true" style={{ opacity: 0.4 }}>·</span>}
-          <span><strong style={{ color: "var(--nw-text)", fontWeight: 700 }}>{relevantCount}</strong> {t.relevant(relevantCount)}</span>
-          <span aria-hidden="true" style={{ opacity: 0.4 }}>·</span>
-          <span><strong style={{ color: "var(--nw-text)", fontWeight: 700 }}>{shortlistCount}</strong> {t.shortlisted(shortlistCount)}</span>
-          {matching && (
+          {meta && (
             <span style={{
-              marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6,
-              color: "var(--nw-warn)", background: "rgba(217,119,6,0.08)",
-              border: "1px solid rgba(217,119,6,0.22)", borderRadius: 100,
-              padding: "2px 10px", fontSize: 11, fontWeight: 700,
+              fontSize: 12, color: "var(--nw-text-muted)", minWidth: 0,
+              display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap",
             }}>
-              <span style={{
-                width: 10, height: 10, borderRadius: "50%",
-                border: "2px solid rgba(217,119,6,0.3)", borderTopColor: "var(--nw-warn)",
-                animation: reduceMotion() ? "none" : "nw-carousel-spin 0.9s linear infinite",
-                display: "inline-block",
-              }} />
-              {t.matching}
+              <span aria-hidden="true" style={{ opacity: 0.4 }}>·</span>
+              {meta}
             </span>
           )}
+
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {matching && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                color: "var(--nw-warn)", background: "rgba(217,119,6,0.08)",
+                border: "1px solid rgba(217,119,6,0.22)", borderRadius: 100,
+                padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
+              }}>
+                <span style={{
+                  width: 10, height: 10, borderRadius: "50%",
+                  border: "2px solid rgba(217,119,6,0.3)", borderTopColor: "var(--nw-warn)",
+                  animation: reduceMotion() ? "none" : "nw-carousel-spin 0.9s linear infinite",
+                  display: "inline-block",
+                }} />
+                {t.matching}
+              </span>
+            )}
+            {(onEdit || onDelete) && !readOnly && (
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  aria-label={t.menu}
+                  onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }}
+                  style={{
+                    background: "transparent", border: "1px solid var(--nw-border)",
+                    borderRadius: 8, width: 30, height: 30, cursor: "pointer",
+                    color: "var(--nw-text-muted)", display: "inline-flex",
+                    alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" />
+                  </svg>
+                </button>
+                {menuOpen && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: "absolute", top: 36, right: 0, zIndex: 40,
+                      background: "white", border: "1px solid var(--nw-border)",
+                      borderRadius: 10, boxShadow: "0 10px 30px rgba(17,24,39,0.14)",
+                      padding: 5, minWidth: 180,
+                    }}
+                  >
+                    {onEdit && (
+                      <button type="button" onClick={() => { setMenuOpen(false); onEdit() }} style={menuItem}>
+                        {t.edit}
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button type="button" onClick={() => { setMenuOpen(false); onDelete() }} style={{ ...menuItem, color: "var(--nw-danger-strong)" }}>
+                        {t.delete}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Navigation des 3 sections : flèches + onglets. */}
         <div style={{
-          display: "flex", alignItems: "center", gap: 6, marginTop: 12,
-          borderTop: "1px solid #F0EDF8", paddingTop: 10,
+          display: "flex", alignItems: "center", gap: 6, marginTop: 9,
+          borderTop: "1px solid #F0EDF8", paddingTop: 8,
         }}>
           <button type="button" aria-label={t.prev} onClick={() => goTo(idx - 1)} disabled={idx === 0} style={navBtn(idx === 0)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
@@ -379,6 +379,11 @@ export function MissionCarousel({
           overflowX: "auto", overflowY: "hidden", width: "100%",
           scrollSnapType: "x mandatory", overscrollBehaviorX: "contain",
           scrollbarWidth: "none", msOverflowStyle: "none",
+          // Fondu des bords : le peek des sections voisines s'estompe au lieu
+          // d'être coupé net (la zone de fondu < peek → le panneau actif,
+          // centré à PEEK px du bord, reste parfaitement net).
+          WebkitMaskImage: "linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%)",
+          maskImage: "linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%)",
         }}
         className="nw-carousel-mask"
       >
