@@ -104,8 +104,8 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = fals
       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
       style={{
         background: ui.surface, border: `1px solid ${ui.borderSoft}`, borderRadius: ui.radiusMd,
-        padding: "14px 16px", boxShadow: ui.shadowSm,
-        display: "flex", flexDirection: "column", gap: 10,
+        padding: "11px 14px", boxShadow: ui.shadowSm,
+        display: "flex", flexDirection: "column", gap: 8,
       }}
     >
       {/* Header — identité + provenance + avis + actions */}
@@ -178,15 +178,12 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = fals
         )}
       </header>
 
-      {/* Critères main — rendu compact, chaque critère = jauge ou badge Y/N/? */}
+      {/* Critères main — rangée compacte de mini-pastilles (coup d'œil de tri).
+          Le détail encadré des jauges vit sur la fiche match. */}
       {mainCriteria.length > 0 && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 8,
-        }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {mainCriteria.map((crit) => (
-            <CriterionEvalRow key={crit.id} criterion={crit} ev={evalById.get(crit.id)} />
+            <CriterionEvalChip key={crit.id} criterion={crit} ev={evalById.get(crit.id)} />
           ))}
         </div>
       )}
@@ -238,9 +235,9 @@ export function MatchCard({ row, mainCriteria, onTogglePipeline, readOnly = fals
   )
 }
 
-/** Une ligne critère = nom court + jauge remplie (quant) ou badge ✓/✗/? (qual).
- *  Le tooltip garde le label complet + l'evidence pour le détail. */
-function CriterionEvalRow({ criterion, ev }: { criterion: Criterion; ev: CriterionEval | undefined }) {
+/** Mini-pastille critère = nom court + valeur (quant : score coloré + micro-jauge ;
+ *  qual : ✓/✗/?). Rangée compacte pour le tri. Le tooltip garde label + evidence. */
+function CriterionEvalChip({ criterion, ev }: { criterion: Criterion; ev: CriterionEval | undefined }) {
   const { lang } = useLanguage()
   const isQuant = kindOf(criterion.type) === "quantitative"
   const score = isQuant ? (ev?.score ?? null) : null
@@ -253,64 +250,50 @@ function CriterionEvalRow({ criterion, ev }: { criterion: Criterion; ev: Criteri
     const p = dimColor(score)
     const pct = score != null ? Math.max(0, Math.min(100, score)) : 0
     return (
-      <div title={tooltip} style={{
-        padding: "7px 10px",
+      <span title={tooltip} style={{
+        display: "inline-flex", alignItems: "center", gap: 7,
+        padding: "3px 9px", borderRadius: 99, maxWidth: "100%",
         background: "#FAFAFB", border: "1px solid var(--nw-border-soft)",
-        borderRadius: 8, minWidth: 0,
       }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6, marginBottom: 5 }}>
-          <span style={{
-            fontSize: 11, color: "var(--nw-text-muted)", fontWeight: 600,
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0,
-          }}>
-            {name}
-          </span>
-          <span style={{
-            fontSize: 12, fontWeight: 800, color: p.color,
-            fontVariantNumeric: "tabular-nums", flexShrink: 0,
-          }}>
-            {score != null ? score : "—"}
-          </span>
-        </div>
-        {/* Jauge remplie proportionnelle au score */}
-        <div style={{ height: 5, borderRadius: 99, background: "#EFEBF8", overflow: "hidden" }}>
-          <div style={{
-            width: `${pct}%`, height: "100%", borderRadius: 99,
-            background: p.color,
-            transition: "width 400ms cubic-bezier(0.22,1,0.36,1)",
-          }} />
-        </div>
-      </div>
+        <span style={{
+          fontSize: 11, color: "var(--nw-text-muted)", fontWeight: 600,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130,
+        }}>
+          {name}
+        </span>
+        {/* Micro-jauge (24px) pour lire le niveau sans occuper de hauteur. */}
+        <span style={{ width: 24, height: 4, borderRadius: 99, background: "#EFEBF8", overflow: "hidden", flexShrink: 0 }}>
+          <span style={{ display: "block", width: `${pct}%`, height: "100%", background: p.color }} />
+        </span>
+        <span style={{ fontSize: 11.5, fontWeight: 800, color: p.color, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+          {score != null ? score : "—"}
+        </span>
+      </span>
     )
   }
 
-  // Qualitatif → conteneur identique (hauteur alignée) : nom + ✓/✗/?
+  // Qualitatif → nom + pastille ✓/✗/?
   const p = statusColor(status)
   return (
-    <div
-      title={tooltip}
-      style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "7px 10px",
-        background: p.bg, border: `1px solid ${p.bd}`,
-        borderRadius: 8, minWidth: 0,
-      }}
-    >
+    <span title={tooltip} style={{
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "3px 9px", borderRadius: 99, maxWidth: "100%",
+      background: p.bg, border: `1px solid ${p.bd}`,
+    }}>
       <span style={{
         fontSize: 11, color: "var(--nw-text-muted)", fontWeight: 600,
-        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        flex: 1, minWidth: 0,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130,
       }}>
         {name}
       </span>
       <span style={{
-        fontSize: 12, fontWeight: 800, color: p.color,
-        width: 18, height: 18, borderRadius: "50%",
+        fontSize: 11, fontWeight: 800, color: p.color,
+        width: 16, height: 16, borderRadius: "50%",
         background: "white", border: `1px solid ${p.bd}`,
         display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
       }}>
         {p.icon}
       </span>
-    </div>
+    </span>
   )
 }

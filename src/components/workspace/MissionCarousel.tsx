@@ -221,6 +221,11 @@ export function MissionCarousel({
     { key: "shortlist", node: shortlist },
   ]
 
+  // Masque de fondu : fond uniquement le bord qui a un voisin.
+  const fadeLeft = idx > 0 ? "transparent 0" : "#000 0"
+  const fadeRight = idx < SECTIONS.length - 1 ? "transparent 100%" : "#000 100%"
+  const edgeFade = `linear-gradient(to right, ${fadeLeft}, #000 44px, #000 calc(100% - 44px), ${fadeRight})`
+
   return (
     <div style={{ position: "relative" }}>
       {/* ── Bandeau persistant ─────────────────────────────────────── */}
@@ -379,11 +384,13 @@ export function MissionCarousel({
           overflowX: "auto", overflowY: "hidden", width: "100%",
           scrollSnapType: "x mandatory", overscrollBehaviorX: "contain",
           scrollbarWidth: "none", msOverflowStyle: "none",
-          // Fondu des bords : le peek des sections voisines s'estompe au lieu
-          // d'être coupé net (la zone de fondu < peek → le panneau actif,
-          // centré à PEEK px du bord, reste parfaitement net).
-          WebkitMaskImage: "linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%)",
-          maskImage: "linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%)",
+          // Fondu des bords : le peek d'une section VOISINE s'estompe au lieu
+          // d'être coupé net. On ne fond QUE le côté où il y a un voisin —
+          // pas de fondu à gauche de Mission ni à droite de Shortlist (sinon
+          // on estomperait le panneau de bord pour rien). Zone de fondu < peek
+          // → le panneau actif (centré à PEEK px du bord) reste net.
+          WebkitMaskImage: edgeFade,
+          maskImage: edgeFade,
         }}
         className="nw-carousel-mask"
       >
