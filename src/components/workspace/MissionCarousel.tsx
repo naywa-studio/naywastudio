@@ -401,7 +401,6 @@ export function MissionCarousel({
               <div
                 key={p.key}
                 ref={(el) => { panelsRef.current[i] = el }}
-                aria-hidden={isActive ? undefined : "true"}
                 // Clic sur un panneau NON actif (= son peek) → on y va, sans
                 // laisser le clic atteindre les boutons internes du voisin.
                 onClickCapture={(e) => {
