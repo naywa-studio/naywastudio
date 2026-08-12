@@ -393,14 +393,28 @@ export default function VivierPage() {
   // The route is idempotent (it resets parse_status="parsing" at the start
   // and writes the final state at the end), so this is safe.
   const retryAttemptedRef = useRef<Set<string>>(new Set())
+  // Date à laquelle on a vu ce candidat entrer en parsing. On ne peut PAS se
+  // fier à `created_at` : il date de l'import, pas du parsing en cours. Sur un
+  // re-parsing (bouton « Relancer », ou ré-import d'un CV déjà présent), il
+  // remonte souvent à plusieurs jours — la relance automatique se déclenchait
+  // alors dès le premier tick, doublant inutilement l'appel LLM sur un parsing
+  // parfaitement sain.
+  const parsingSinceRef = useRef<Map<string, number>>(new Map())
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now()
       for (const c of candidates) {
-        if (c.parse_status !== "parsing" && c.parse_status !== "pending") continue
+        if (c.parse_status !== "parsing" && c.parse_status !== "pending") {
+          parsingSinceRef.current.delete(c.id)
+          continue
+        }
+        let since = parsingSinceRef.current.get(c.id)
+        if (since === undefined) {
+          since = now
+          parsingSinceRef.current.set(c.id, since)
+        }
         if (retryAttemptedRef.current.has(c.id)) continue
-        const elapsed = now - new Date(c.created_at).getTime()
-        if (elapsed > 90_000) {
+        if (now - since > 90_000) {
           retryAttemptedRef.current.add(c.id)
           void fetch(`/api/cv/${c.id}/parse`, { method: "POST", keepalive: true }).catch(() => {})
         }
@@ -1183,7 +1197,8 @@ function CandidateCard({
 /**
  * ParsingCard — dedicated card shown while a CV is being parsed.
  * Renders a realistic progress bar driven by elapsed time since
- * `created_at`. The curve `1 - exp(-t/14000)` rises fast at first and
+ * the start of the CURRENT parse run (see `startedAt` below — not
+ * `created_at`, which dates the import). The curve `1 - exp(-t/14000)` rises fast at first and
  * asymptotes near 96 %, mimicking real backend progress (and never
  * showing a misleading 100 %). Past 90 s we show a discreet "Relance
  * automatique…" hint — the parent already re-fires the parse endpoint.
@@ -1196,7 +1211,16 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
     const t = setInterval(() => setNow(Date.now()), 600)
     return () => clearInterval(t)
   }, [])
-  const startedAt = new Date(c.created_at).getTime()
+  // Origine du chrono. `created_at` date de l'IMPORT, pas du parsing en cours :
+  // sur un RE-PARSING (bouton « Relancer », ou ré-import d'un CV déjà présent
+  // qui renvoie le candidat existant), il peut remonter à des jours. La carte
+  // affichait alors « Le PDF est peut-être trop complexe » dès la première
+  // seconde, sur un parsing parfaitement sain. On prend donc la plus TARDIVE
+  // des deux origines : l'import pour un CV neuf, le montage de la carte pour
+  // un re-parsing. Au pire (rechargement de page en plein parsing) on
+  // sous-estime le temps écoulé, ce qui ne produit jamais de fausse alerte.
+  const mountedAtRef = useRef(Date.now())
+  const startedAt = Math.max(new Date(c.created_at).getTime(), mountedAtRef.current)
   const elapsedMs = Math.max(0, now - startedAt)
   const elapsedSec = Math.round(elapsedMs / 1000)
   // Exponential approach to 96 % — feels alive, never hits 100 (the

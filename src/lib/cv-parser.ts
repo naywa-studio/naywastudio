@@ -151,11 +151,11 @@ LANGUE :
 
 SECTEUR :
 - "sector" : grand secteur dominant du candidat sur sa trajectoire récente (3-5 dernières années si possible). Choisis EXACTEMENT UNE valeur dans la liste fermée :
-  - "tech" : édition logiciel, SaaS, data, IA, web, mobile, cybersécurité, ESN à dominante dev
+  - "tech" : édition logiciel, SaaS, data, IA, web, mobile, cybersécurité, ESN à dominante dev. STRICTEMENT le NUMÉRIQUE. Les mots "technique", "ingénieur" ou "engineering" ne suffisent JAMAIS à classer en "tech" : un ingénieur électrique, mécanique, énergie, procédés, automatisme ou génie civil relève de "industrie".
   - "finance" : banque, assurance, asset management, fintech B2B, audit financier
   - "retail" : e-commerce, distribution, grande conso, mode, luxe
   - "sante" : hôpital, biotech, pharma, medtech, e-santé
-  - "industrie" : industriel, automobile, aéronautique, énergie, BTP, transport
+  - "industrie" : industriel, automobile, aéronautique, énergie, BTP, transport, électricité et électrotechnique, mécanique, procédés, automatisme, génie civil, mise en service / commissioning, maintenance industrielle, bureaux d'études techniques
   - "conseil" : conseil en stratégie, en management, cabinet d'avocats, audit non-financier
   - "marketing" : pub, communication, médias, événementiel, contenu, créa
   - "rh" : cabinet de recrutement, formation, RH conseil
