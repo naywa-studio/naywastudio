@@ -198,6 +198,67 @@ const LABELS = {
 const norm = (s: string) => s.toLowerCase().trim()
 
 /**
+ * ZONE géographique pour un document ANONYMISÉ.
+ *
+ * `candidate.location` reprend la ligne d'adresse du CV telle qu'extraite, et
+ * c'est très souvent une adresse postale COMPLÈTE. Constaté en recette sur 8
+ * candidats sur 12 : « 35, Rte d'Hauterives 26210 Moras en Valloire »,
+ * « 15 rue Jean Mermoz, 75008 Paris », et même « Monica Landou 77700 Chessy »
+ * — le NOM du candidat imprimé sur son propre CV anonymisé.
+ *
+ * Un numéro de rue croisé avec un parcours détaillé identifie une personne
+ * sans effort, et ce document part chez le client final du cabinet. Le libellé
+ * du champ dit d'ailleurs « ZONE » : l'intention n'a jamais été l'adresse.
+ *
+ * On ne garde donc que la maille COMMUNE + DÉPARTEMENT :
+ *   - on coupe tout ce qui précède un code postal français (5 chiffres), qui
+ *     marque la fin de la voie et le début de la localité ;
+ *   - à défaut de code postal, on retire les segments qui portent un numéro de
+ *     voie ou un mot de voirie ;
+ *   - le nom du candidat est retiré s'il s'y trouve.
+ * Si rien d'exploitable ne reste, on n'affiche rien plutôt qu'une adresse.
+ */
+export function anonymizedZone(location: string | null | undefined, fullName?: string | null): string | null {
+  if (!location) return null
+  let s = location.trim()
+
+  // Retire le nom du candidat s'il a été aspiré dans la ligne d'adresse.
+  for (const part of (fullName ?? "").split(/\s+/)) {
+    if (part.length < 3) continue
+    s = s.replace(new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), " ")
+  }
+
+  const VOIE = /\b(\d+\s*(bis|ter|quater)?\b|rue|avenue|av\.|boulevard|bd\.?|impasse|chemin|route|rte|all[ée]e|place|quai)\b/i
+  /** Nettoie un fragment : ponctuation résiduelle, espaces multiples. */
+  const propre = (x: string) => x.replace(/[(),;–-]+/g, " ").replace(/\s{2,}/g, " ").trim()
+
+  // Code postal FR, éventuellement espacé ("75 014"). Il sépare la voie de la
+  // localité — mais l'ordre varie : « 31000 Toulouse » aussi bien que
+  // « Saint-Denis - 93200 ». On essaie donc les deux côtés.
+  const cp = s.match(/\b(\d{2})\s?\d{3}\b/)
+  if (cp) {
+    const dep = cp[1]
+    const idx = s.indexOf(cp[0])
+    const apres = propre(s.slice(idx + cp[0].length).split(/[,;]/)[0] ?? "")
+    if (apres.length > 2 && !VOIE.test(apres)) return `${apres} (${dep})`
+
+    // Rien d'exploitable après : la commune est probablement AVANT le code.
+    // On prend le dernier fragment qui ne ressemble pas à une voie.
+    const avant = s.slice(0, idx).split(/[,;-]/).map(propre).filter((x) => x.length > 2 && !VOIE.test(x))
+    const commune = avant[avant.length - 1]
+    if (commune) return `${commune} (${dep})`
+
+    // Ni l'un ni l'autre : le département seul reste informatif et sûr.
+    return `Département ${dep}`
+  }
+
+  // Pas de code postal : on jette les fragments qui ressemblent à une voie.
+  const restants = s.split(/[,;]/).map(propre).filter((x) => x.length > 1 && !VOIE.test(x))
+  const out = restants.join(", ").trim()
+  return out.length > 1 ? out : null
+}
+
+/**
  * Libellé de fin d'un poste.
  *
  * `null` = poste réellement EN COURS. Absent/undefined = date de fin INCONNUE.
@@ -280,6 +341,8 @@ export function AnonymizedCv({
       ? candidate.taxonomy.core_skills
       : (candidate.skills ?? [])),
   ).slice(0, 40)
+  // Zone géographique dégrossie — jamais l'adresse postale brute.
+  const zone = anonymizedZone(candidate.location, candidate.full_name)
   // Expériences : ordre d'origine du parser (qui suit le CV — généralement
   // antichronologique). On NE pousse PAS les expériences "pertinentes mission"
   // en haut : préserver le fond, c'est respecter le récit du candidat.
@@ -410,10 +473,10 @@ export function AnonymizedCv({
                   <Text style={s.metaValue}>{t.yearsSuffix(years)}</Text>
                 </View>
               )}
-              {candidate.location && (
+              {zone && (
                 <View style={{ marginBottom: 10 }}>
                   <Text style={s.metaLabel}>{t.metaZone}</Text>
-                  <Text style={s.metaValue}>{candidate.location}</Text>
+                  <Text style={s.metaValue}>{zone}</Text>
                 </View>
               )}
               {languages.length > 0 && (
@@ -624,13 +687,13 @@ export function AnonymizedCv({
                 </Text>
               </View>
             )}
-            {candidate.location && (
+            {zone && (
               <View style={{ marginRight: 32, minWidth: 80 }}>
                 <Text style={{ fontSize: 7.5, color: MUTED, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 3 }}>
                   {t.metaZone}
                 </Text>
                 <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", color: INK }}>
-                  {candidate.location}
+                  {zone}
                 </Text>
               </View>
             )}
@@ -878,12 +941,12 @@ export function AnonymizedCv({
                   <Text style={{ fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK }}>{t.yearsSuffix(years)}</Text>
                 </View>
               )}
-              {candidate.location && (
+              {zone && (
                 <View style={{ marginBottom: 7 }}>
                   <Text style={{ fontSize: 7, color: MUTED, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 1.5 }}>
                     {t.metaZone}
                   </Text>
-                  <Text style={{ fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK }}>{candidate.location}</Text>
+                  <Text style={{ fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK }}>{zone}</Text>
                 </View>
               )}
               {languages.length > 0 && (
@@ -1042,10 +1105,10 @@ export function AnonymizedCv({
               <Text style={s.metaValue}>{t.yearsSuffix(years)}</Text>
             </View>
           )}
-          {candidate.location && (
+          {zone && (
             <View style={s.metaItem}>
               <Text style={s.metaLabel}>{t.metaZone}</Text>
-              <Text style={s.metaValue}>{candidate.location}</Text>
+              <Text style={s.metaValue}>{zone}</Text>
             </View>
           )}
           {languages.length > 0 && (

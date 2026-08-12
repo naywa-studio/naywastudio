@@ -28,6 +28,7 @@ import {
 } from "docx"
 import type { Candidate } from "./database.types"
 import type { AnonymizedBrand, AnonymizedJobContext, AnonymizedOptions } from "./anonymized-cv"
+import { anonymizedZone } from "./anonymized-cv"
 
 /**
  * Couleur par défaut (hex sans #) appliquée à la marque quand
@@ -263,7 +264,10 @@ export async function buildAnonymizedDocx({
   const metaParts: string[] = []
   if (seniority) metaParts.push(`${t.metaSeniority} : ${seniority}`)
   if (years != null) metaParts.push(`${t.metaExperience} : ${t.yearsSuffix(years)}`)
-  if (candidate.location) metaParts.push(`${t.metaZone} : ${candidate.location}`)
+  // Zone dégrossie, jamais l'adresse postale brute — même règle que les
+  // templates PDF (cf. anonymizedZone).
+  const zone = anonymizedZone(candidate.location, candidate.full_name)
+  if (zone) metaParts.push(`${t.metaZone} : ${zone}`)
   if (languages.length > 0) metaParts.push(`${t.metaLanguages} : ${languages.join(" · ")}`)
   if (metaParts.length > 0) {
     children.push(
