@@ -195,14 +195,33 @@ export function prefilterCandidates(job: JobNormalized, candidates: Candidate[])
     const candDomains = [...(tax?.domains ?? []), ...(tax?.industries ?? [])]
     const candSeniority = (c.seniority_level ?? tax?.seniority ?? "").toLowerCase()
 
-    const roleHit = looseOverlapCount(jobRoles, candRoles)
-    const mustHit = looseOverlapCount(jobMust, candSkills)
+    // Intitulés des postes DÉJÀ OCCUPÉS. Le pré-filtre ne regardait que les
+    // tags : un candidat dont la preuve d'adéquation ne vit que dans son
+    // parcours était écarté AVANT que le scoring ne voie ce parcours — donc
+    // avant même de pouvoir en profiter. Un profil tagué « Commercial » mais
+    // passé par « Négociateur immobilier » était invisible sur une mission
+    // immobilière. Reste déterministe et gratuit : aucun appel LLM ici.
+    // Le seuil de 3 caractères normalisés évite qu'un intitulé résiduel très
+    // court ne matche tout par sous-chaîne.
+    const candPastTitles = (c.parsed_cv?.experience ?? [])
+      .map((e) => e.title)
+      .filter((t): t is string => typeof t === "string" && norm(t).length >= 3)
+
+    const roleHit = looseOverlapCount(jobRoles, [...candRoles, ...candPastTitles])
+    const mustHit = looseOverlapCount(jobMust, [...candSkills, ...candPastTitles])
     const niceHit = looseOverlapCount(jobNice, candSkills)
     const domainHit = looseOverlapCount(jobDomains, candDomains)
     const seniorityBridge = jobIsEntry && ENTRY_LEVELS.has(candSeniority)
 
     const noTaxonomy = !tax || (!candRoles.length && !(tax?.core_skills?.length))
-    const plausible = noTaxonomy || roleHit > 0 || mustHit > 0 || seniorityBridge
+    // `domainHit` était calculé ici puis utilisé UNIQUEMENT pour ordonner la
+    // file d'attente, jamais pour décider. Conséquence : un candidat qui
+    // correspondait au DOMAINE de la mission, sans recoupement de famille de
+    // métier ni de compétence, était écarté sans jamais être scoré. Ça
+    // ressemblait à un oubli plus qu'à un choix — il entre maintenant dans la
+    // décision, cohérent avec le parti pris du pré-filtre : laisser passer un
+    // faux positif plutôt que perdre un vrai match.
+    const plausible = noTaxonomy || roleHit > 0 || mustHit > 0 || domainHit > 0 || seniorityBridge
 
     if (!plausible) continue
 
