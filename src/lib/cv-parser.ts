@@ -348,6 +348,15 @@ export async function parseCvWithLlm(rawText: string): Promise<ParseResult> {
     if (richer) {
       parsed.experience = secondPassExperiences as ParsedExperience[]
     }
+    // Trace de recette : sans elle, impossible de savoir depuis les logs si la
+    // seconde passe s'est declenchee ni si elle a apporte quelque chose.
+    console.log(
+      `[cv-parser] 2e passe : ${firstPass.length} exp (${describedLength(firstPass)}c) ` +
+      `vs ${secondPassExperiences.length} exp (${describedLength(secondPassExperiences)}c) ` +
+      `-> ${richer ? "2e passe retenue" : "1re passe conservee"}`,
+    )
+  } else if (isLong) {
+    console.log("[cv-parser] 2e passe declenchee mais sans resultat exploitable")
   }
 
   const cv = normalizeParsedCv(parsed)
