@@ -329,6 +329,13 @@ PRINCIPE D'OR
 - \`unknown\` = pas d'info dans le profil pour trancher. N'invente PAS : si le CV ne mentionne pas le permis, le statut est "unknown", PAS "no".
 - \`no\` est RÉSERVÉ à une incompatibilité CLAIRE et démontrée. En cas de doute → "unknown", JAMAIS "no".
 - Evidence COURTE : 1 phrase max, citation directe quand possible.
+- ÉQUIVALENT QUANTITATIF DE "unknown" : sur un critère chiffré, l'absence d'information vaut ~50, PAS 0. Le 0 est réservé à une absence DÉMONTRÉE ("aucune trace de la compétence alors que le CV est détaillé"). Un profil peu documenté ne doit pas être puni comme un profil qui ne convient pas.
+
+INDÉPENDANCE DES CRITÈRES (crucial)
+- Chaque critère se juge SÉPARÉMENT, sur son propre objet, SANS tenir compte de l'adéquation globale du candidat au poste. C'est la moyenne pondérée, calculée par notre code, qui produira le verdict d'ensemble — ce n'est pas ton rôle.
+- Ne mets JAMAIS 0 (ni "no") à un critère au motif que le candidat ne convient pas pour le poste dans son ensemble. Un score de 0 signifie « CE critère précis n'est pas satisfait », rien d'autre.
+- Un candidat globalement hors sujet peut parfaitement satisfaire un critère de secteur, de langue, de séniorité ou de mobilité : dis-le. C'est cette nuance qui permet au sourceur de repérer un profil proche mais mal orienté.
+- Exemple : sur un critère « secteur : énergie », un ingénieur MÉCANIQUE avec 13 ans dans l'énergie satisfait pleinement le critère, même si la mission vise un ingénieur ÉLECTRIQUE. Note le secteur haut et laisse le critère de compétences porter l'écart.
 
 INFÉRENCE INTELLIGENTE (crucial)
 - Un critère "type de contrat = alternance/stage/alternant" : un candidat ÉTUDIANT, ALTERNANT ou dont le titre/summary indique qu'il cherche/fait une alternance = "yes". Ne réponds "no" que pour un profil clairement incompatible (ex : senior 15 ans visant uniquement du CDI). Le titre "Alternant en …" ou "Étudiant …" implique "yes".
@@ -376,8 +383,17 @@ function computeGlobalScore(criteria: Criterion[], evals: CriterionEval[]): numb
     const e = evalById.get(c.id)
     if (!e) continue
     const kind = kindOf(c.type)
+    // Asymétrie corrigée : un critère QUANTITATIF sans `score` exploitable
+    // valait 0 (`e.score ?? 0`), alors que son équivalent QUALITATIF sans
+    // statut vaut 50 (neutre). Une réponse malformée du modèle — un `status`
+    // renvoyé là où un `score` était attendu, ou aucun des deux — pénalisait
+    // donc le candidat comme une inadéquation démontrée. On retombe
+    // désormais sur la même règle neutre : le statut s'il est là, 50 sinon.
+    // Un `score: 0` explicitement renvoyé par le modèle reste, lui, respecté.
     const score = kind === "quantitative"
-      ? Math.max(0, Math.min(100, Math.round(e.score ?? 0)))
+      ? (typeof e.score === "number" && isFinite(e.score)
+          ? Math.max(0, Math.min(100, Math.round(e.score)))
+          : statusToScore(e.status))
       : statusToScore(e.status)
     total += score
     weights += 1
