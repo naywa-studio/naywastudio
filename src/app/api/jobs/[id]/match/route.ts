@@ -148,10 +148,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   try {
     // 1. Candidates — only successfully parsed ones can be matched.
+    // `order("id")` n'est PAS cosmétique. Sans lui, Postgres ne garantit aucun
+    // ordre, et il change volontiers après des écritures. Or le tri par signal
+    // du pré-filtre est STABLE : à signal égal — le cas de la plupart des
+    // candidats — l'ordre de la base est conservé, et c'est lui qui décide du
+    // découpage en lots de 8. Le LLM voyant 8 candidats dans un même prompt,
+    // son jugement sur l'un dépend de ceux qui l'accompagnent : un même
+    // candidat pouvait donc sortir à 87 ou 80 d'une exécution à l'autre, sans
+    // qu'aucun paramètre n'ait changé (mesuré en recette, août 2026).
     const { data: candRows } = await sb
       .from("candidates")
       .select(CANDIDATE_COLUMNS)
       .eq("parse_status", "parsed")
+      .order("id", { ascending: true })
       .limit(1000)
     // raw_text isn't needed for matching — it works on taxonomy + summary.
     const candidates = (candRows ?? []) as unknown as Candidate[]

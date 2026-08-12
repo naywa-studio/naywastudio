@@ -237,7 +237,13 @@ export function prefilterCandidates(job: JobNormalized, candidates: Candidate[])
     )
     hits.push({ candidate: c, signal: noTaxonomy ? Math.max(signal, 0.15) : signal })
   }
-  hits.sort((a, b) => b.signal - a.signal)
+  // Départage explicite à signal égal. Le tri JS est stable : sans ce second
+  // critère, l'ordre retombait sur celui de la requête SQL, donc sur celui du
+  // stockage Postgres — non garanti et changeant. Comme cet ordre décide du
+  // découpage en lots envoyés au LLM, et que le modèle juge 8 candidats d'un
+  // coup, il influait sur les scores eux-mêmes. Trier sur l'id rend la
+  // composition des lots reproductible d'une exécution à l'autre.
+  hits.sort((a, b) => (b.signal - a.signal) || a.candidate.id.localeCompare(b.candidate.id))
   return hits
 }
 
