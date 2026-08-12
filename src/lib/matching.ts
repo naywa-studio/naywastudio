@@ -209,12 +209,19 @@ export function prefilterCandidates(job: JobNormalized, candidates: Candidate[])
 
     const noTaxonomy = !tax || (!candRoles.length && !(tax?.core_skills?.length))
     // `domainHit` était calculé ici puis utilisé UNIQUEMENT pour ordonner la
-    // file d'attente, jamais pour décider. Conséquence : un candidat qui
-    // correspondait au DOMAINE de la mission, sans recoupement de famille de
-    // métier ni de compétence, était écarté sans jamais être scoré. Ça
-    // ressemblait à un oubli plus qu'à un choix — il entre maintenant dans la
-    // décision, cohérent avec le parti pris du pré-filtre : laisser passer un
-    // faux positif plutôt que perdre un vrai match.
+    // file d'attente, jamais pour décider — un candidat correspondant au
+    // DOMAINE de la mission, sans recoupement de métier ni de compétence,
+    // sortait donc de `plausible`. Il y entre désormais, cohérent avec le
+    // parti pris du pré-filtre : laisser passer un faux positif plutôt que
+    // perdre un vrai match.
+    //
+    // PORTÉE RÉELLE, à ne pas surestimer : la route de matching n'applique
+    // cette coupe qu'au-delà de SCORE_ALL_BELOW (200) candidats dans le
+    // gate base. En dessous, elle score TOUT LE MONDE et ne se sert de
+    // `plausible` que pour l'ordre de passage (les non-plausibles sont
+    // ajoutés en fin de file, pas retirés). Sur un vivier de quelques
+    // dizaines de profils, ce correctif ne change donc que l'ordre ; il ne
+    // devient un vrai gain de rappel qu'à partir de 200 candidats.
     const plausible = noTaxonomy || roleHit > 0 || mustHit > 0 || domainHit > 0 || seniorityBridge
 
     if (!plausible) continue
