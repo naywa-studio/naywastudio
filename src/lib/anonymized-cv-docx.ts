@@ -121,10 +121,15 @@ export async function buildAnonymizedDocx({
 
   const seniority = candidate.seniority_level ?? cv.seniority_level ?? null
   const years = candidate.years_experience ?? cv.years_experience ?? null
+  // Aucune troncature : le DOCX est un format LINÉAIRE, le contenu s'écoule
+  // sans contrainte de page. Les plafonds (20 compétences, 8 postes)
+  // écartaient donc du contenu sans qu'aucune mise en page ne l'exige, sur le
+  // document que le cabinet remet à son client. Plafond compétences aligné sur
+  // celui du parsing (40).
   const skills = ((candidate.taxonomy?.core_skills?.length
     ? candidate.taxonomy.core_skills
-    : (candidate.skills ?? []))).slice(0, 20)
-  const experience = (cv.experience ?? []).slice(0, 8)
+    : (candidate.skills ?? []))).slice(0, 40)
+  const experience = cv.experience ?? []
   const education = cv.education ?? []
   const languages = cv.languages ?? candidate.languages ?? []
 
@@ -297,7 +302,10 @@ export async function buildAnonymizedDocx({
   if (experience.length > 0) {
     children.push(sectionTitle(t.background, accentSecondary))
     for (const e of experience) {
-      const dates = [e.start, e.end ?? t.presentSuffix].filter(Boolean).join(" – ")
+      // `null` = poste en cours ; absent = date de fin inconnue. Les confondre
+      // présentait un poste terminé comme le poste actuel du candidat.
+      const fin = e.end === null ? t.presentSuffix : (e.end ?? null)
+      const dates = [e.start, fin].filter(Boolean).join(" – ")
       children.push(
         new Paragraph({
           spacing: { before: 100, after: 40 },

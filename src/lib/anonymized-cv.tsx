@@ -197,6 +197,20 @@ const LABELS = {
 
 const norm = (s: string) => s.toLowerCase().trim()
 
+/**
+ * Libellé de fin d'un poste.
+ *
+ * `null` = poste réellement EN COURS. Absent/undefined = date de fin INCONNUE.
+ * Les quatre templates les confondaient via `e.end ?? "présent"`, si bien
+ * qu'un poste terminé dont la date de fin n'avait pas été extraite était
+ * présenté comme le poste actuel du candidat — dans le document remis au
+ * client final du cabinet.
+ */
+function endLabel(end: string | null | undefined, lang: "fr" | "en"): string | null {
+  if (end === null) return lang === "en" ? "present" : "présent"
+  return end ?? null
+}
+
 function dedupe(arr: string[]): string[] {
   const seen = new Set<string>()
   const out: string[] = []
@@ -258,11 +272,14 @@ export function AnonymizedCv({
   const years = candidate.years_experience ?? cv.years_experience ?? null
   // Compétences : on ne réordonne PAS par pertinence mission. Le client lit
   // le CV tel qu'il est, sans tri orienté. Juste dédupe + cap raisonnable.
+  // Plafond aligné sur celui du parsing (40) au lieu de 24 : il ne mordait
+  // que sur les candidats sans taxonomie, en écartant des compétences que
+  // l'extraction avait bel et bien trouvées.
   const skills = dedupe(
     (candidate.taxonomy?.core_skills?.length
       ? candidate.taxonomy.core_skills
       : (candidate.skills ?? [])),
-  ).slice(0, 24)
+  ).slice(0, 40)
   // Expériences : ordre d'origine du parser (qui suit le CV — généralement
   // antichronologique). On NE pousse PAS les expériences "pertinentes mission"
   // en haut : préserver le fond, c'est respecter le récit du candidat.
@@ -441,7 +458,7 @@ export function AnonymizedCv({
                 <>
                   <Text style={s.sectionTitle}>{t.background}</Text>
                   {experience.map((e, i) => {
-                    const dates = [e.start, e.end ?? (opts.language === "en" ? "present" : "présent")].filter(Boolean).join(" – ")
+                    const dates = [e.start, endLabel(e.end, opts.language)].filter(Boolean).join(" – ")
                     return (
                       <View key={i} style={s.expItem} wrap={false}>
                         <Text style={s.expTitle}>{e.title || (opts.language === "en" ? "Role" : "Poste")}</Text>
@@ -486,8 +503,14 @@ export function AnonymizedCv({
   // sur le volet. Pour profils senior présentés à des décideurs
   // métier qui veulent un document confortable à lire.
   if (opts.template === "executive") {
-    const execSkills = skills.slice(0, 10)
-    const execExperience = experience.slice(0, 6)
+    // Plus de troncature. Ces plafonds (10 compétences, 6 postes) ne
+    // protégeaient aucune contrainte de mise en page : chaque expérience est
+    // rendue dans une View `wrap={false}` et @react-pdf pagine tout seul —
+    // les templates classique et deux-colonnes affichent d'ailleurs déjà le
+    // parcours entier sans problème. C'était donc du contenu perdu pour rien,
+    // et sur le document remis au client final.
+    const execSkills = skills
+    const execExperience = experience
     return (
       <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
         <Page
@@ -664,7 +687,7 @@ export function AnonymizedCv({
                 {t.background}
               </Text>
               {execExperience.map((e, i) => {
-                const dates = [e.start, e.end ?? (opts.language === "en" ? "present" : "présent")].filter(Boolean).join(" – ")
+                const dates = [e.start, endLabel(e.end, opts.language)].filter(Boolean).join(" – ")
                 return (
                   <View key={i} style={{ marginBottom: 16 }} wrap={false}>
                     {/* Row titre + date — on encadre les 2 Texts avec
@@ -757,8 +780,10 @@ export function AnonymizedCv({
       textTransform: "uppercase",
       marginBottom: 8,
     } as const
-    const bentoSkills = skills.slice(0, 16)
-    const bentoExperience = experience.slice(0, 6)
+    // Même raison que pour le template exécutif : la carte « Parcours » est en
+    // pleine largeur, sans hauteur fixe, et chaque poste porte `wrap={false}`.
+    const bentoSkills = skills
+    const bentoExperience = experience
     return (
       <Document title={`Profil anonymisé ${reference}${job ? ` — ${job.title}` : ""}`} author={brandName}>
         <Page
@@ -899,7 +924,7 @@ export function AnonymizedCv({
             <View style={{ ...card, marginBottom: 10 }}>
               <Text style={cardTitle}>{t.background}</Text>
               {bentoExperience.map((e, i) => {
-                const dates = [e.start, e.end ?? (opts.language === "en" ? "present" : "présent")].filter(Boolean).join(" – ")
+                const dates = [e.start, endLabel(e.end, opts.language)].filter(Boolean).join(" – ")
                 const isLast = i === bentoExperience.length - 1
                 return (
                   <View
@@ -1048,7 +1073,7 @@ export function AnonymizedCv({
           <>
             <Text style={s.sectionTitle}>{t.background}</Text>
             {experience.map((e, i) => {
-              const dates = [e.start, e.end ?? (opts.language === "en" ? "present" : "présent")].filter(Boolean).join(" – ")
+              const dates = [e.start, endLabel(e.end, opts.language)].filter(Boolean).join(" – ")
               return (
                 <View key={i} style={s.expItem} wrap={false}>
                   <Text style={s.expTitle}>{e.title || (opts.language === "en" ? "Role" : "Poste")}</Text>
