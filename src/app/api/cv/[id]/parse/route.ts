@@ -54,7 +54,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   // organization_id pour le scoping R2 (assertOrgScopedPath).
   const { data: candidate, error: fetchErr } = await sb
     .from("candidates")
-    .select("id, user_id, organization_id, cv_file_path, parse_status, tags")
+    .select("id, user_id, organization_id, cv_file_path, parse_status, tags, taxonomy")
     .eq("id", id)
     .single()
   if (fetchErr || !candidate) {
@@ -278,6 +278,16 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
     }
   }
 
+  // Les `mission_tags` sont la MÉMOIRE DU VIVIER : le matching les écrit sur
+  // le candidat à chaque bon score (cf. withMissionTag), et le vivier
+  // s'enrichit ainsi mission après mission. Un parse produit une taxonomie
+  // neuve dont `mission_tags` est vide — sans cette reprise, relancer le
+  // parsing d'un candidat effaçait tout ce que le vivier avait appris sur lui.
+  const previousMissionTags = candidate.taxonomy?.mission_tags ?? []
+  const mergedTaxonomy: CandidateTaxonomy | null = taxonomy
+    ? { ...taxonomy, mission_tags: previousMissionTags }
+    : taxonomy
+
   const { data: updated, error: updateErr } = await admin
     .from("candidates")
     .update({
@@ -285,7 +295,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       parse_error: null,
       parsed_at: new Date().toISOString(),
       parsed_cv: parsedCv,
-      taxonomy,
+      taxonomy: mergedTaxonomy,
       raw_text: rawText,
       full_name:        parsedCv?.full_name ?? null,
       email:            parsedCv?.email ?? null,
