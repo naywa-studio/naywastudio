@@ -56,7 +56,12 @@ export async function extractPdfText(buf: Buffer): Promise<string> {
     throw new CvParseError("invalid_pdf", `PDF illisible: ${(err as Error).message}`)
   }
   text = (text ?? "")
-    .replace(//g, " ")
+    // Octets NUL : certains PDF en produisent à l'extraction. Ils étaient
+    // jusqu'ici filtrés par une regex contenant un NUL LITTÉRAL dans la source,
+    // invisible à la relecture — et qui faisait classer ce fichier comme
+    // binaire par ripgrep, donc l'excluait de toute recherche du dépôt.
+    // Même comportement, écrit avec un échappement lisible.
+    .replace(/\0/g, " ")
     .replace(/[ \t]+/g, " ")
     .replace(/\r/g, "")
     .replace(/\n{3,}/g, "\n\n")
