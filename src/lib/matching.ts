@@ -371,6 +371,64 @@ function statusToScore(status: "yes" | "no" | "unknown" | undefined): number {
   return 50
 }
 
+/**
+ * PLANCHER DÉTERMINISTE — `domain_fit` uniquement.
+ *
+ * Constat de recette : sur une mission ciblant « énergie / industrie /
+ * électrique », gpt-4o-mini notait 0 des candidats dont la taxonomie contient
+ * littéralement « énergie ». Ajouter une règle explicite au prompt n'y a rien
+ * changé : un recoupement d'ensembles n'est pas une tâche de langage, et le
+ * modèle n'est pas fiable dessus.
+ *
+ * Ce critère, lui, se calcule exactement depuis des données qu'on possède
+ * déjà. On ne REMPLACE pas le jugement du modèle pour autant : il capte des
+ * proximités sémantiques que la comparaison de chaînes rate (mesuré : 100 côté
+ * LLM contre 0 côté calcul sur un candidat). On prend donc le MAXIMUM des deux.
+ *
+ * Renvoie null si le calcul n'est pas applicable (mission sans domaines ciblés,
+ * candidat sans taxonomie) — on laisse alors le modèle seul juge.
+ */
+function deterministicDomainFit(params: unknown, cand: Candidate): number | null {
+  const p = params as { domains?: unknown } | null | undefined
+  const jobDomains = Array.isArray(p?.domains)
+    ? p!.domains.map((d) => String(d)).filter(Boolean)
+    : []
+  if (jobDomains.length === 0) return null
+
+  const tax = cand.taxonomy
+  const candDomains = [...(tax?.domains ?? []), ...(tax?.industries ?? [])]
+  if (candDomains.length === 0) return null
+
+  const hits = looseOverlapCount(jobDomains, candDomains)
+  return Math.round((hits / jobDomains.length) * 100)
+}
+
+/**
+ * Relève les évals que le calcul déterministe sait contredire.
+ *
+ * GARANTIE VOULUE — aucun score ne peut BAISSER :
+ *   - on ne touche qu'aux évals DÉJÀ produites par le modèle (on n'en ajoute
+ *     jamais : introduire un critère que le LLM n'avait pas évalué changerait
+ *     le dénominateur de la moyenne et pourrait faire chuter le score global) ;
+ *   - on ne relève que si le calcul est STRICTEMENT supérieur.
+ */
+function applyDeterministicFloor(
+  criteria: Criterion[],
+  evals: CriterionEval[],
+  cand: Candidate,
+): void {
+  const byId = new Map(criteria.map((c) => [c.id, c]))
+  for (const e of evals) {
+    const c = byId.get(e.id)
+    if (!c || c.type !== "domain_fit") continue
+    const computed = deterministicDomainFit(c.params, cand)
+    if (computed === null) continue
+    if (typeof e.score !== "number" || computed > e.score) {
+      e.score = computed
+    }
+  }
+}
+
 /** Calcule le score global d'un candidat depuis criteria_eval.
  *  Moyenne pondérée des critères "main" uniquement. Si aucun main
  *  évalué, retourne 0 (le caller décidera). */
@@ -560,6 +618,10 @@ async function scoreBatchCriteriaOnce(
       }
       evals.push(item)
     }
+    // Plancher déterministe AVANT le calcul du score global, pour que le
+    // détail affiché au sourceur et le score agrégé racontent la même chose.
+    const cand = candidates.find((c) => c.id === candidateId)
+    if (cand) applyDeterministicFloor(criteria, evals, cand)
     let score = computeGlobalScore(criteria, evals)
     // Exclusion rédhibitoire confirmée par le LLM → forte pénalité (plafonne le
     // score en zone « faible »). Seulement si la mission a des exclusions.
