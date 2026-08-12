@@ -32,8 +32,16 @@ const MAX_TEXT_CHARS   = 24_000 // hard cap to keep token usage bounded
  * seules expériences, qui dispose alors de tout son budget pour les restituer
  * exhaustivement (descriptions comprises). Les deux passes partent en
  * parallèle — la latence reste celle d'un seul appel.
+ *
+ * Abaissé de 8 000 à 5 000 (août 2026) : le CV d'Aymen HAMMAMI, celui-là même
+ * que GMH nous a remonté, fait 7 219 caractères et passait donc à côté de la
+ * seconde passe. La difficulté ne tient pas qu'à la longueur — son CV est en
+ * plusieurs colonnes et range sa carrière sous un titre « PROJETS ET STAGES ».
+ * Le coût du seuil bas est une requête de plus sur des CV moyens ; elle ne
+ * l'emporte que si elle rapporte davantage, et ne consomme aucun crédit client
+ * supplémentaire (le quota se compte par parsing, pas par appel).
  */
-const LONG_CV_CHARS = 8_000
+const LONG_CV_CHARS = 5_000
 
 export class CvParseError extends Error {
   code: "scanned_pdf" | "empty_pdf" | "invalid_pdf" | "llm_failed" | "llm_invalid_json"
@@ -41,6 +49,216 @@ export class CvParseError extends Error {
     super(message)
     this.code = code
   }
+}
+
+/* -------------------------------------------------------------------------
+ * ORDRE DE LECTURE — reconstruction géométrique
+ *
+ * `extractText` restitue les blocs dans l'ordre du FLUX INTERNE du PDF, qui
+ * n'a aucune raison d'être l'ordre de lecture humain. Sur les CV mis en page
+ * dans un outil de design (colonne latérale, blocs libres), les deux ordres
+ * divergent, et la conséquence n'est pas cosmétique : elle CORROMPT la fiche.
+ *
+ * Cas mesuré (CV d'Elyas, août 2026) — le flux rendait :
+ *     BDB TALENT | mai 2025 - juillet 2025
+ *     Accueil, encaissement, mise en rayon ...     <- description de CARREFOUR
+ *     Carrefour | depuis septembre 2024
+ * chaque description arrivant AVANT son en-tête. Le modèle, qui lit dans
+ * l'ordre, décalait tout d'un cran : le cabinet de recrutement héritait de la
+ * mise en rayon du supermarché, et Carrefour se retrouvait sans description.
+ *
+ * On reconstruit donc l'ordre à partir des COORDONNÉES de chaque fragment :
+ * regroupement en lignes par ordonnée, tri des lignes de haut en bas, et
+ * détection d'une éventuelle gouttière verticale pour rendre les colonnes
+ * l'une après l'autre plutôt que de les entrelacer (c'est ce qui collait
+ * « EXPÉRIENCE PROFESSIONELLE » et « COMPETENCES » sur la même ligne chez
+ * Aymen HAMMAMI).
+ *
+ * BEST-EFFORT STRICT : à la moindre erreur, et surtout si le texte reconstruit
+ * contient MOINS de caractères que l'extraction à plat, on garde cette
+ * dernière. Réordonner ne doit jamais devenir un moyen de perdre du contenu.
+ * ------------------------------------------------------------------------- */
+
+/** Au-delà, on ne réordonne pas : ce n'est plus un CV. */
+const MAX_LAYOUT_PAGES = 40
+/** Résolution du profil de couverture horizontale utilisé pour la gouttière. */
+const GUTTER_BUCKETS = 120
+
+/** Fragment de texte muni de sa position sur la page. */
+interface PlacedItem {
+  str: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/** Surface minimale de pdf.js dont on dépend, décrite localement pour ne pas
+ *  s'accrocher aux types réexportés par unpdf. */
+interface PdfLikePage {
+  getTextContent(): Promise<{ items?: unknown }>
+  getViewport(params: { scale: number }): { width: number }
+}
+interface PdfLikeDoc {
+  numPages: number
+  getPage(pageNumber: number): Promise<PdfLikePage>
+}
+
+function toPlacedItems(items: unknown): PlacedItem[] {
+  if (!Array.isArray(items)) return []
+  const out: PlacedItem[] = []
+  for (const raw of items) {
+    const it = raw as { str?: unknown; width?: unknown; height?: unknown; transform?: unknown }
+    const str = typeof it?.str === "string" ? it.str : ""
+    if (!str.trim()) continue
+    const t = it.transform
+    // transform = [a, b, c, d, e, f] : e/f portent la position, d l'échelle
+    // verticale, donc la taille de police effective.
+    if (!Array.isArray(t) || t.length < 6) continue
+    const x = Number(t[4])
+    const y = Number(t[5])
+    if (!isFinite(x) || !isFinite(y)) continue
+    const scaleY = Math.abs(Number(t[3]))
+    const h = (isFinite(scaleY) && scaleY > 0)
+      ? scaleY
+      : (typeof it.height === "number" && it.height > 0 ? it.height : 10)
+    const w = (typeof it.width === "number" && isFinite(it.width) && it.width > 0)
+      ? it.width
+      : str.length * h * 0.5
+    out.push({ str, x, y, w, h })
+  }
+  return out
+}
+
+/**
+ * Position de la gouttière verticale séparant deux colonnes, ou null.
+ *
+ * On projette tous les fragments sur l'axe horizontal et on cherche la plus
+ * large bande VIDE bordée de contenu des deux côtés. Une marge de page est
+ * donc écartée d'office (rien à sa gauche, ou rien à sa droite).
+ *
+ * Volontairement CONSERVATEUR : le moindre bloc pleine largeur (un titre, un
+ * bandeau) recouvre la gouttière et fait retomber la page en une colonne. Mal
+ * découper une page ferait plus de dégâts que ne pas la découper.
+ */
+function findGutter(items: PlacedItem[], pageWidth: number): number | null {
+  if (!isFinite(pageWidth) || pageWidth <= 0) return null
+  if (items.length < 40) return null
+
+  const bucketWidth = pageWidth / GUTTER_BUCKETS
+  const covered = new Array<boolean>(GUTTER_BUCKETS).fill(false)
+  for (const it of items) {
+    const from = Math.max(0, Math.floor(it.x / bucketWidth))
+    const to = Math.min(GUTTER_BUCKETS - 1, Math.floor((it.x + it.w) / bucketWidth))
+    for (let b = from; b <= to; b++) covered[b] = true
+  }
+
+  let bestStart = -1
+  let bestLen = 0
+  let b = 0
+  while (b < GUTTER_BUCKETS) {
+    if (covered[b]) { b++; continue }
+    let end = b
+    while (end < GUTTER_BUCKETS && !covered[end]) end++
+    const borderedBothSides = b > 0 && end < GUTTER_BUCKETS
+    if (borderedBothSides && end - b > bestLen) {
+      bestStart = b
+      bestLen = end - b
+    }
+    b = end
+  }
+  // Moins de ~4 % de la largeur : c'est une respiration typographique, pas une
+  // séparation de colonnes.
+  if (bestLen < 5) return null
+
+  const splitX = (bestStart + bestLen / 2) * bucketWidth
+  let left = 0
+  let right = 0
+  for (const it of items) {
+    if (it.x + it.w <= splitX) left++
+    else if (it.x >= splitX) right++
+  }
+  const total = items.length
+  // Les deux côtés doivent peser, et presque aucun fragment ne doit enjamber
+  // la gouttière — sinon ce n'est pas une vraie structure en colonnes.
+  if (left < total * 0.15 || right < total * 0.15) return null
+  if (left + right < total * 0.98) return null
+  return splitX
+}
+
+/** Assemble une ligne : fragments de gauche à droite, espace inséré seulement
+ *  quand l'écart le justifie (sinon on couperait les mots en deux). */
+function renderLine(line: PlacedItem[]): string {
+  const sorted = [...line].sort((a, b) => a.x - b.x)
+  let out = ""
+  let prevRight: number | null = null
+  for (const it of sorted) {
+    if (prevRight !== null && it.x - prevRight > it.h * 0.25) out += " "
+    out += it.str
+    prevRight = it.x + it.w
+  }
+  return out
+}
+
+/** Regroupe les fragments en lignes (ordonnée décroissante : en PDF, l'origine
+ *  est en bas à gauche) puis rend chaque ligne. */
+function toLines(items: PlacedItem[]): string[] {
+  if (items.length === 0) return []
+  const heights = items.map((i) => i.h).sort((a, b) => a - b)
+  const medianHeight = heights[Math.floor(heights.length / 2)] || 10
+  const tolerance = Math.max(1.5, medianHeight * 0.6)
+
+  const sorted = [...items].sort((a, b) => (b.y - a.y) || (a.x - b.x))
+  const lines: PlacedItem[][] = []
+  let current: PlacedItem[] = []
+  let refY = sorted[0].y
+  for (const it of sorted) {
+    if (current.length > 0 && Math.abs(it.y - refY) > tolerance) {
+      lines.push(current)
+      current = []
+    }
+    if (current.length === 0) refY = it.y
+    current.push(it)
+  }
+  if (current.length > 0) lines.push(current)
+
+  return lines.map(renderLine).filter((l) => l.trim().length > 0)
+}
+
+function renderPage(items: PlacedItem[], pageWidth: number): string {
+  const splitX = findGutter(items, pageWidth)
+  if (splitX === null) return toLines(items).join("\n")
+  const left: PlacedItem[] = []
+  const right: PlacedItem[] = []
+  for (const it of items) {
+    if (it.x < splitX) left.push(it)
+    else right.push(it)
+  }
+  // Colonne de gauche en entier, puis celle de droite : chaque colonne garde
+  // son fil, au lieu d'être hachée ligne à ligne par sa voisine.
+  return [...toLines(left), "", ...toLines(right)].join("\n")
+}
+
+async function extractTextByLayout(doc: PdfLikeDoc): Promise<string> {
+  const pageCount = Math.min(doc.numPages ?? 0, MAX_LAYOUT_PAGES)
+  const pages: string[] = []
+  for (let p = 1; p <= pageCount; p++) {
+    const page = await doc.getPage(p)
+    const content = await page.getTextContent()
+    const items = toPlacedItems(content?.items)
+    if (items.length === 0) continue
+    pages.push(renderPage(items, page.getViewport({ scale: 1 }).width))
+  }
+  return pages.join("\n\n")
+}
+
+/** Le texte réordonné n'est retenu que s'il ne PERD rien. On compare hors
+ *  espaces : seul le contenu compte, la mise en forme n'est pas l'enjeu. */
+function layoutTextIsSafe(layout: string, flat: string): boolean {
+  const dense = (s: string) => s.replace(/\s+/g, "").length
+  const l = dense(layout)
+  if (l === 0) return false
+  return l >= dense(flat) * 0.98
 }
 
 export async function extractPdfText(buf: Buffer): Promise<string> {
@@ -51,7 +269,22 @@ export async function extractPdfText(buf: Buffer): Promise<string> {
   try {
     const pdf = await getDocumentProxy(new Uint8Array(buf))
     const out = await extractText(pdf, { mergePages: true })
-    text = Array.isArray(out.text) ? out.text.join("\n") : (out.text ?? "")
+    const flat = Array.isArray(out.text) ? out.text.join("\n") : (out.text ?? "")
+    let layout = ""
+    try {
+      layout = await extractTextByLayout(pdf as unknown as PdfLikeDoc)
+    } catch (err) {
+      // Le réordonnancement est un CONFORT : son échec ne doit jamais coûter
+      // un parsing. On le trace pour la recette et on reprend le texte à plat.
+      console.warn(`[cv-parser] ordre de lecture non reconstruit : ${(err as Error).message}`)
+      layout = ""
+    }
+    const useLayout = layoutTextIsSafe(layout, flat)
+    console.log(
+      `[cv-parser] ordre de lecture : ${useLayout ? "geometrique" : "flux PDF"} ` +
+      `(${layout.length}c reordonnes vs ${flat.length}c a plat)`,
+    )
+    text = useLayout ? layout : flat
   } catch (err) {
     throw new CvParseError("invalid_pdf", `PDF illisible: ${(err as Error).message}`)
   }
@@ -169,6 +402,7 @@ EXHAUSTIVITÉ — RÈGLE PRIORITAIRE :
 - Ta mission est d'EXTRAIRE, pas de résumer. Un CV long doit produire une extraction longue. Ne condense JAMAIS pour faire court : si le CV liste 11 expériences et 25 outils, tu restitues 11 expériences et 25 outils.
 - N'omets AUCUNE expérience professionnelle, même ancienne, même décrite en une ligne.
 - Balaye le document ENTIER pour les compétences et outils. Ils sont souvent hors d'une section "Compétences" : sous "Formation", "Divers", "Informatique", "Logiciels", ou noyés dans les descriptions de poste. Un intitulé de section trompeur ne doit JAMAIS te faire ignorer son contenu.
+- L'ORDRE DU TEXTE N'EST PAS FIABLE. Un CV mis en page en colonnes ou en blocs libres peut te parvenir désordonné : une description de poste apparaît parfois JUSTE AVANT l'employeur qu'elle décrit, une colonne latérale peut s'intercaler au milieu d'une section. Rattache chaque bloc à son poste par le SENS, jamais par la position. Si un paragraphe parle d'encaissement et de mise en rayon, il appartient au supermarché, pas au cabinet de recrutement cité juste au-dessus. Dans le doute, laisse "description" à null plutôt que de l'attribuer au mauvais employeur : une description absente se voit, une description mal attribuée trompe le recruteur.
 - Les outils métier spécialisés (simulation, calcul, CAO, ERP, instrumentation…) sont ce qui rend un profil recrutable : ils priment sur la bureautique générique. Ne garde jamais "Word/Excel" en écartant un outil spécialisé faute de place.
 
 SKILLS vs QUALITIES (deux listes séparées, un item dans UNE SEULE) :
@@ -177,7 +411,9 @@ SKILLS vs QUALITIES (deux listes séparées, un item dans UNE SEULE) :
 - Si tu hésites, mets dans "skills". Les langues parlées vont dans "languages", pas dans "skills".
 
 SÉNIORITÉ :
-- DATES : capture-les le plus précisément possible (YYYY-MM si dispo, sinon YYYY). "end" = null si c'est le poste actuel. NE LES INVENTE PAS — si une date manque, mets null. Le calcul d'années est fait par notre code à partir de ces dates : ta précision sur les dates est ce qui compte le plus.
+- DATES : capture-les le plus précisément possible (YYYY-MM si dispo, sinon YYYY). NE LES INVENTE PAS. Le calcul d'années est fait par notre code à partir de ces dates : ta précision sur les dates est ce qui compte le plus.
+- "end" = null signifie EN COURS, rien d'autre. Mets null UNIQUEMENT si le CV présente ce poste comme actuel : "depuis 2024", "présent", "aujourd'hui", "à ce jour", période laissée ouverte. Dès qu'une date de fin figure au CV, reprends-la. Un poste passé dont tu ne retrouves pas la fin reste à null faute de mieux, mais tu le signales alors dans "warnings" — sinon notre interface l'affichera comme le poste actuel du candidat, ce qui est faux.
+- Plusieurs postes peuvent légitimement être en cours en même temps (gérance, freelance, mandat, emploi en parallèle). N'en referme aucun pour "faire propre" : recopie ce que dit le CV.
 - "years_experience" : ton estimation indicative en années arrondie au plus proche entier. **NE COMPTE QUE LE TRAVAIL POST-DIPLÔME** : stages avant diplôme, alternances et années d'études n'entrent PAS dans le calcul. Quelqu'un qui a son diplôme depuis 10 ans mais n'a vraiment travaillé que 2 ans (gaps, autre formation, sabbatique) = 2 ans, pas 10. Notre code recalcule à partir des dates + du flag is_apprentice.
 - "is_apprentice" : true si la personne est ACTUELLEMENT en alternance / apprentissage / contrat pro (mots-clés à chercher : "Apprenti", "Alternance", "Contrat d'apprentissage", "Contrat de professionnalisation", parfois mention "BUT 2 / Master en alternance"). False sinon (y compris pour les anciens alternants qui sont maintenant en CDI). Si tu hésites → false.
 - "seniority_level" : séniorité **dans le rôle dominant** (pas en années absolues). Quelqu'un qui a 10 ans d'XP totale mais a switché de domaine il y a 1 an n'est PAS senior dans le nouveau rôle.
@@ -202,13 +438,16 @@ WARNINGS — alertes pour le sourceur :
 - 0 à 4 alertes courtes (< 80 caractères chacune) en français, sur ce qui pose question dans le CV.
 - Tu DOIS émettre une alerte dans CHACUN de ces cas, ce n'est pas optionnel :
   - gap inexpliqué > 6 mois entre deux postes
-  - date manquante ou contradictoire (poste sans année de début, fin antérieure au début…)
-  - plusieurs postes sans date de fin, donc présentés comme simultanément en cours
+  - date de DÉBUT absente sur un poste, ou dates contradictoires (fin antérieure au début, chevauchement impossible)
+  - un poste manifestement TERMINÉ dont la date de fin n'est pas lisible dans le CV
   - intitulé de poste très vague (ex: "consultant" sans précision)
+  - un poste sans AUCUNE description alors que les autres en ont une (signe d'une information perdue à la lecture)
   - aucune description sur plus de la moitié des postes
   - CV visiblement daté (l'en-tête annonce un nombre d'années incohérent avec les dates listées)
+- N'ALERTE JAMAIS sur un poste EN COURS. Un poste que le CV présente comme actuel ("depuis 2024", "présent", "aujourd'hui", "à ce jour", ou une période laissée ouverte) n'a PAS de date de fin manquante : il n'en a pas encore. Tu écris end = null, et c'est une donnée COMPLÈTE, pas un défaut. Une alerte "sans date de fin" sur ce cas est une FAUSSE alerte.
+- N'alerte pas non plus sur le simple fait que plusieurs postes soient en cours simultanément : cumuler une gérance, du freelance, un mandat ou un emploi en parallèle est banal. Notre code s'en charge séparément si c'est vraiment douteux.
 - Ces alertes servent au sourceur à savoir OÙ vérifier : un CV imparfait qui s'annonce vaut mieux qu'un CV faussement propre. Ne les omets pas par politesse.
-- Ne mets PAS d'alerte si tout est réellement cohérent — tableau vide.
+- Ne mets PAS d'alerte si tout est réellement cohérent — tableau vide. Une alerte fausse coûte plus cher qu'une alerte absente : elle apprend au sourceur à ne plus les lire.
 
 TAXONOMY — classement pour le matching futur, sois rigoureux :
 - N'invente AUCUN tag qui ne soit pas DIRECTEMENT supporté par une mention explicite dans le texte du CV. Si tu ne peux pas pointer la phrase qui justifie le tag, ne le mets pas.
@@ -251,7 +490,8 @@ RÈGLES :
 - ATTENTION AUX TITRES DE SECTION TROMPEURS : un CV range parfois toute sa carrière sous "PROJETS", "PARCOURS", "DIVERS" ou même "STAGES". Ce qui décide qu'une ligne est une expérience professionnelle, ce sont les DATES et l'EMPLOYEUR — jamais le titre de la section qui la contient.
 - Ne FUSIONNE JAMAIS deux postes distincts en une seule entrée : deux employeurs différents, ou deux intitulés successifs chez le même employeur, font deux entrées.
 - "description" : reprends les missions réellement décrites, en CONSERVANT les termes techniques du CV (outils, normes, spécialités, types d'installations). 400 caractères max par poste. N'invente rien.
-- "end" : null UNIQUEMENT pour le poste réellement en cours aujourd'hui. UN SEUL poste peut avoir end à null. Tous les autres DOIVENT porter une date de fin.
+- L'ORDRE DU TEXTE N'EST PAS FIABLE : sur un CV mis en page en colonnes ou en blocs, une description peut apparaître JUSTE AVANT l'employeur qu'elle décrit, et non après. Rattache chaque description à son poste par le SENS, pas par la position. Si un bloc parle d'encaissement et de mise en rayon, il appartient au supermarché, pas au cabinet de recrutement mentionné juste au-dessus. Dans le doute, laisse la description à null plutôt que de l'attribuer au mauvais employeur.
+- "end" : null UNIQUEMENT pour un poste que le CV présente comme EN COURS ("depuis…", "présent", "aujourd'hui", période ouverte). Dès qu'une date de fin figure au CV, reprends-la. PLUSIEURS postes peuvent être en cours simultanément (gérance, freelance, mandat, emploi en parallèle) : ne referme aucun poste pour "faire propre".
 - Dates : "YYYY-MM" si le mois est disponible, sinon "YYYY". Ne les invente pas — null si vraiment absente.
 - "seniority" : niveau réellement tenu DANS CE POSTE. Un poste de direction, de gérance ou de chefferie de projet tenu plusieurs années n'est pas "mid".
 - "counts_toward_role" : false pour les stages, jobs étudiants et postes hors du métier dominant ; true sinon.
@@ -551,7 +791,7 @@ function seniorityFromMonths(months: number): NonNullable<ParsedCv["seniority_le
 }
 
 /**
- * Contrôle DÉTERMINISTE : signale plusieurs postes simultanément "en cours".
+ * Contrôle DÉTERMINISTE : signale un nombre INHABITUEL de postes "en cours".
  *
  * Constaté sur le vivier GMH (août 2026) : le prompt réclamait déjà une alerte
  * sur ce cas précis, et aucune n'a jamais été émise sur les 12 candidats. D'où
@@ -571,8 +811,12 @@ function seniorityFromMonths(months: number): NonNullable<ParsedCv["seniority_le
  */
 function flagMultipleCurrentRoles(experiences: ParsedExperience[]): string | null {
   const ongoing = experiences.filter((e) => e.end === null).length
-  if (ongoing <= 1) return null
-  return `${ongoing} postes sont marqués en cours, à vérifier.`
+  // Seuil à 3 et non à 2 : deux postes en cours est le cas ORDINAIRE d'un
+  // indépendant (sa société + ses missions) ou d'un salarié avec une activité
+  // à côté. Alerter dessus, c'était crier sur des parcours normaux — et la
+  // valeur d'une alerte tient entièrement à ce qu'on la lise encore.
+  if (ongoing <= 2) return null
+  return `${ongoing} postes en cours en parallèle : cumul réel ou date de fin oubliée ?`
 }
 
 /**
