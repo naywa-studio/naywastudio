@@ -83,6 +83,8 @@ export class CvParseError extends Error {
 const MAX_LAYOUT_PAGES = 40
 /** Résolution du profil de couverture horizontale utilisé pour la gouttière. */
 const GUTTER_BUCKETS = 120
+/** Nombre de bandes horizontales sur lesquelles la gouttière est cherchée. */
+const GUTTER_BANDS = 40
 
 /** Fragment de texte muni de sa position sur la page. */
 interface PlacedItem {
@@ -110,7 +112,11 @@ function toPlacedItems(items: unknown): PlacedItem[] {
   for (const raw of items) {
     const it = raw as { str?: unknown; width?: unknown; height?: unknown; transform?: unknown }
     const str = typeof it?.str === "string" ? it.str : ""
-    if (!str.trim()) continue
+    // On GARDE les fragments faits de seuls espaces : pdf.js émet souvent
+    // l'espace entre deux mots comme un fragment à part entière. Les écarter
+    // recollait les mots ("NAYWASTUDIO|depuisjuin2026") sans que le contrôle
+    // de sécurité, qui compare hors espaces, puisse s'en apercevoir.
+    if (str.length === 0) continue
     const t = it.transform
     // transform = [a, b, c, d, e, f] : e/f portent la position, d l'échelle
     // verticale, donc la taille de police effective.
@@ -133,35 +139,69 @@ function toPlacedItems(items: unknown): PlacedItem[] {
 /**
  * Position de la gouttière verticale séparant deux colonnes, ou null.
  *
- * On projette tous les fragments sur l'axe horizontal et on cherche la plus
- * large bande VIDE bordée de contenu des deux côtés. Une marge de page est
- * donc écartée d'office (rien à sa gauche, ou rien à sa droite).
+ * La page est découpée en BANDES horizontales, et on cherche l'abscisse qui
+ * reste vide dans la grande majorité des bandes occupées. Projeter la page
+ * entière d'un seul bloc ne marchait pas : le CV d'Elyas porte un en-tête
+ * pleine largeur (nom, téléphone, mail) qui recouvrait à lui seul la
+ * gouttière et faisait retomber toute la page en une colonne — la barre
+ * latérale venait alors se glisser au milieu des descriptions de poste.
  *
- * Volontairement CONSERVATEUR : le moindre bloc pleine largeur (un titre, un
- * bandeau) recouvre la gouttière et fait retomber la page en une colonne. Mal
- * découper une page ferait plus de dégâts que ne pas la découper.
+ * Reste volontairement CONSERVATEUR : il faut une bande vide sur au moins
+ * trois quarts de la hauteur utile, bordée de contenu des deux côtés, et deux
+ * colonnes qui pèsent chacune leur part. Mal découper une page ferait plus de
+ * dégâts que ne pas la découper.
  */
 function findGutter(items: PlacedItem[], pageWidth: number): number | null {
   if (!isFinite(pageWidth) || pageWidth <= 0) return null
   if (items.length < 40) return null
 
-  const bucketWidth = pageWidth / GUTTER_BUCKETS
-  const covered = new Array<boolean>(GUTTER_BUCKETS).fill(false)
+  let minY = Infinity
+  let maxY = -Infinity
   for (const it of items) {
+    if (it.y < minY) minY = it.y
+    if (it.y > maxY) maxY = it.y
+  }
+  const span = maxY - minY
+  if (!isFinite(span) || span <= 0) return null
+
+  const bucketWidth = pageWidth / GUTTER_BUCKETS
+  const bandHeight = span / GUTTER_BANDS
+  const bands: boolean[][] = Array.from(
+    { length: GUTTER_BANDS },
+    () => new Array<boolean>(GUTTER_BUCKETS).fill(false),
+  )
+  const bandUsed = new Array<boolean>(GUTTER_BANDS).fill(false)
+
+  for (const it of items) {
+    const bi = Math.min(GUTTER_BANDS - 1, Math.max(0, Math.floor((maxY - it.y) / bandHeight)))
+    bandUsed[bi] = true
     const from = Math.max(0, Math.floor(it.x / bucketWidth))
     const to = Math.min(GUTTER_BUCKETS - 1, Math.floor((it.x + it.w) / bucketWidth))
-    for (let b = from; b <= to; b++) covered[b] = true
+    for (let b = from; b <= to; b++) bands[bi][b] = true
   }
 
+  const usedBands = bandUsed.filter(Boolean).length
+  if (usedBands < 8) return null
+
+  const isGutter = new Array<boolean>(GUTTER_BUCKETS).fill(false)
+  for (let b = 0; b < GUTTER_BUCKETS; b++) {
+    let empty = 0
+    for (let i = 0; i < GUTTER_BANDS; i++) {
+      if (bandUsed[i] && !bands[i][b]) empty++
+    }
+    isGutter[b] = empty >= usedBands * 0.75
+  }
+
+  // Plage de gouttière la plus large, bordée de contenu des deux côtés : une
+  // marge de page touche un bord et se trouve donc écartée d'office.
   let bestStart = -1
   let bestLen = 0
   let b = 0
   while (b < GUTTER_BUCKETS) {
-    if (covered[b]) { b++; continue }
+    if (!isGutter[b]) { b++; continue }
     let end = b
-    while (end < GUTTER_BUCKETS && !covered[end]) end++
-    const borderedBothSides = b > 0 && end < GUTTER_BUCKETS
-    if (borderedBothSides && end - b > bestLen) {
+    while (end < GUTTER_BUCKETS && isGutter[end]) end++
+    if (b > 0 && end < GUTTER_BUCKETS && end - b > bestLen) {
       bestStart = b
       bestLen = end - b
     }
@@ -174,15 +214,17 @@ function findGutter(items: PlacedItem[], pageWidth: number): number | null {
   const splitX = (bestStart + bestLen / 2) * bucketWidth
   let left = 0
   let right = 0
+  let straddling = 0
   for (const it of items) {
     if (it.x + it.w <= splitX) left++
     else if (it.x >= splitX) right++
+    else straddling++
   }
   const total = items.length
-  // Les deux côtés doivent peser, et presque aucun fragment ne doit enjamber
-  // la gouttière — sinon ce n'est pas une vraie structure en colonnes.
+  // Les deux côtés doivent peser. Quelques fragments à cheval sont tolérés
+  // (un titre pleine largeur), pas davantage.
   if (left < total * 0.15 || right < total * 0.15) return null
-  if (left + right < total * 0.98) return null
+  if (straddling > total * 0.10) return null
   return splitX
 }
 
@@ -231,7 +273,9 @@ function renderPage(items: PlacedItem[], pageWidth: number): string {
   const left: PlacedItem[] = []
   const right: PlacedItem[] = []
   for (const it of items) {
-    if (it.x < splitX) left.push(it)
+    // Rattachement au MILIEU du fragment : les rares blocs à cheval sur la
+    // gouttière tombent du côté où ils pèsent le plus, aucun n'est perdu.
+    if (it.x + it.w / 2 < splitX) left.push(it)
     else right.push(it)
   }
   // Colonne de gauche en entier, puis celle de droite : chaque colonne garde
@@ -252,13 +296,21 @@ async function extractTextByLayout(doc: PdfLikeDoc): Promise<string> {
   return pages.join("\n\n")
 }
 
-/** Le texte réordonné n'est retenu que s'il ne PERD rien. On compare hors
- *  espaces : seul le contenu compte, la mise en forme n'est pas l'enjeu. */
+/**
+ * Le texte réordonné n'est retenu que s'il ne PERD rien.
+ *
+ * DEUX contrôles, et le second a été appris à ses dépens. Comparer les seuls
+ * caractères hors espaces laissait passer une version où TOUS les espaces
+ * intra-ligne avaient sauté ("NAYWASTUDIO|depuisjuin2026") : le contenu était
+ * intact au caractère près, illisible en pratique. On vérifie donc aussi que
+ * le découpage en mots survit.
+ */
 function layoutTextIsSafe(layout: string, flat: string): boolean {
   const dense = (s: string) => s.replace(/\s+/g, "").length
-  const l = dense(layout)
-  if (l === 0) return false
-  return l >= dense(flat) * 0.98
+  const words = (s: string) => s.split(/\s+/).filter(Boolean).length
+  if (dense(layout) === 0) return false
+  if (dense(layout) < dense(flat) * 0.98) return false
+  return words(layout) >= words(flat) * 0.95
 }
 
 export async function extractPdfText(buf: Buffer): Promise<string> {
