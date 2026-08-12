@@ -195,20 +195,14 @@ export function prefilterCandidates(job: JobNormalized, candidates: Candidate[])
     const candDomains = [...(tax?.domains ?? []), ...(tax?.industries ?? [])]
     const candSeniority = (c.seniority_level ?? tax?.seniority ?? "").toLowerCase()
 
-    // Intitulés des postes DÉJÀ OCCUPÉS. Le pré-filtre ne regardait que les
-    // tags : un candidat dont la preuve d'adéquation ne vit que dans son
-    // parcours était écarté AVANT que le scoring ne voie ce parcours — donc
-    // avant même de pouvoir en profiter. Un profil tagué « Commercial » mais
-    // passé par « Négociateur immobilier » était invisible sur une mission
-    // immobilière. Reste déterministe et gratuit : aucun appel LLM ici.
-    // Le seuil de 3 caractères normalisés évite qu'un intitulé résiduel très
-    // court ne matche tout par sous-chaîne.
-    const candPastTitles = (c.parsed_cv?.experience ?? [])
-      .map((e) => e.title)
-      .filter((t): t is string => typeof t === "string" && norm(t).length >= 3)
-
-    const roleHit = looseOverlapCount(jobRoles, [...candRoles, ...candPastTitles])
-    const mustHit = looseOverlapCount(jobMust, [...candSkills, ...candPastTitles])
+    // NB : verser en plus les INTITULÉS DES POSTES PASSÉS dans ce pool a été
+    // essayé puis retiré. Mesuré sur 4 missions × 32 candidats : zéro
+    // candidat gagné. La raison est structurelle — `role_family` est
+    // précisément dérivé des intitulés de poste par le parsing, les deux
+    // sources disent donc la même chose. C'était du code et un risque de
+    // faux positif par sous-chaîne pour un gain nul.
+    const roleHit = looseOverlapCount(jobRoles, candRoles)
+    const mustHit = looseOverlapCount(jobMust, candSkills)
     const niceHit = looseOverlapCount(jobNice, candSkills)
     const domainHit = looseOverlapCount(jobDomains, candDomains)
     const seniorityBridge = jobIsEntry && ENTRY_LEVELS.has(candSeniority)
