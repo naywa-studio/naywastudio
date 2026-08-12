@@ -541,63 +541,29 @@ function seniorityFromMonths(months: number): NonNullable<ParsedCv["seniority_le
   return "principal"
 }
 
-/** Formate une date en "YYYY-MM", le format de dates attendu par le schéma. */
-function isoYearMonth(d: Date): string {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
-}
-
 /**
- * Garde-fou DÉTERMINISTE : un CV ne peut décrire qu'un seul poste en cours.
+ * Contrôle DÉTERMINISTE : signale plusieurs postes simultanément "en cours".
  *
- * Constaté sur le vivier GMH (août 2026) : sur le CV le plus long, deux postes
- * ressortaient simultanément "en cours". Le prompt demandait pourtant déjà une
- * alerte sur ce cas précis, et aucune n'a jamais été émise — d'où ce contrôle
- * en dur, qui ne dépend d'aucun modèle.
+ * Constaté sur le vivier GMH (août 2026) : le prompt réclamait déjà une alerte
+ * sur ce cas précis, et aucune n'a jamais été émise sur les 12 candidats. D'où
+ * ce contrôle en dur, qui ne dépend d'aucun modèle.
  *
- * L'enjeu dépasse l'affichage : `deriveSeniority` compte tout `end === null`
- * comme courant jusqu'à aujourd'hui, et le CV anonymisé envoyé au client final
- * afficherait un poste terminé comme actuel.
+ * IL SIGNALE, IL NE CORRIGE PAS — et c'est délibéré. Une première version
+ * refermait les postes en trop à la date de début du suivant, en supposant un
+ * parcours séquentiel. Le vivier a immédiatement fourni le contre-exemple : un
+ * candidat cumule "Lead mechanical engineer / FREELANCE CONTRACTS" et
+ * "Manager / CHAMP-ECORCE" depuis la même date, soit un indépendant exerçant
+ * via sa propre société. Les deux postes sont réellement en cours, et les
+ * refermer aurait détruit une information juste.
  *
- * Règle : seul le poste commencé le plus tard reste ouvert. Les autres sont
- * refermés à la date de début de l'expérience suivante dans le temps
- * (hypothèse d'un parcours séquentiel). Sans successeur datable, on retire le
- * statut "en cours" sans inventer de date. Dans tous les cas on lève une
- * alerte : la correction est une hypothèse, le sourceur doit pouvoir vérifier.
+ * Aucune règle fondée sur les seules dates ne sépare une erreur du modèle d'un
+ * cumul légitime (freelance, gérance, portage, mandat social). On alerte donc
+ * le sourceur, qui tranchera depuis la fiche candidat.
  */
-function enforceSingleCurrentRole(
-  experiences: ParsedExperience[],
-): { experiences: ParsedExperience[]; warning: string | null } {
-  const ongoing = experiences
-    .map((e, i) => ({ e, i, start: parseYearMonth(e.start ?? null) }))
-    .filter(({ e }) => e.end === null)
-  if (ongoing.length <= 1) return { experiences, warning: null }
-
-  // Poste légitimement en cours = celui qui a commencé le plus tard. Une
-  // entrée sans date de début ne peut pas revendiquer ce statut face à une
-  // entrée datée.
-  let keep = ongoing[0]
-  for (const cand of ongoing) {
-    if (!keep.start) { keep = cand; continue }
-    if (cand.start && cand.start.getTime() > keep.start.getTime()) keep = cand
-  }
-
-  const allStarts = experiences
-    .map((e) => parseYearMonth(e.start ?? null))
-    .filter((d): d is Date => d !== null)
-    .sort((a, b) => a.getTime() - b.getTime())
-
-  const fixed = experiences.map((e, i) => {
-    if (i === keep.i || e.end !== null) return e
-    const own = parseYearMonth(e.start ?? null)
-    if (!own) return { ...e, end: undefined }
-    const next = allStarts.find((d) => d.getTime() > own.getTime())
-    return { ...e, end: next ? isoYearMonth(next) : undefined }
-  })
-
-  return {
-    experiences: fixed,
-    warning: `${ongoing.length} postes étaient marqués en cours, dates recalées à vérifier.`,
-  }
+function flagMultipleCurrentRoles(experiences: ParsedExperience[]): string | null {
+  const ongoing = experiences.filter((e) => e.end === null).length
+  if (ongoing <= 1) return null
+  return `${ongoing} postes sont marqués en cours, à vérifier.`
 }
 
 /**
@@ -774,13 +740,11 @@ function normalizeParsedCv(p: LlmCvPayload): ParsedCv {
     source_quality: "native",
   }
 
-  // Garde-fou dates AVANT tout calcul d'ancienneté : deriveSeniority traite
-  // chaque `end === null` comme courant jusqu'à aujourd'hui, donc un poste
-  // terminé mais mal marqué gonflerait l'expérience et la séniorité.
-  const guarded = enforceSingleCurrentRole(cv.experience ?? [])
-  cv.experience = guarded.experiences
-  if (guarded.warning) {
-    cv.warnings = [...(cv.warnings ?? []), guarded.warning].slice(0, 5)
+  // Contrôle dates : plusieurs postes "en cours" est soit une erreur du
+  // modèle, soit un cumul réel. On ne tranche pas à sa place, on le signale.
+  const multiCurrent = flagMultipleCurrentRoles(cv.experience ?? [])
+  if (multiCurrent) {
+    cv.warnings = [...(cv.warnings ?? []), multiCurrent].slice(0, 5)
   }
 
   // Recompute years_experience + seniority_level from real dates when we have
