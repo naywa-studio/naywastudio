@@ -6,7 +6,7 @@
  * parse, clé manquante) renvoie null → le PDF se rend avec cv.summary.
  */
 
-import type { Candidate } from "@/lib/database.types"
+import type { Candidate, ParsedCv } from "@/lib/database.types"
 import type { AnonymizedJobContext } from "@/lib/anonymized-cv"
 import { openrouterChat } from "@/lib/openrouter"
 
@@ -48,6 +48,47 @@ Strict rules:
 - Avoid superlatives ("expert", "perfect mastery") unless the CV
   literally uses them.`
 
+/** Longueur max d'une description de poste dans le récapitulatif envoyé au
+ *  modèle. Les éléments qui font la valeur d'un profil (outils, normes, types
+ *  d'installations, taille d'équipe) arrivent quasi toujours en tête. */
+const RECAP_DESC_CHARS = 300
+/** Budget total de description. Au-delà, les postes les plus anciens gardent
+ *  intitulé, société et dates : aucune ligne de parcours ne disparaît, seul le
+ *  détail du plus lointain s'efface. */
+const RECAP_DESC_BUDGET = 3_000
+
+/**
+ * Récapitulatif du parcours transmis au modèle qui rédige le résumé exécutif.
+ *
+ * Exhaustif par construction : TOUS les postes, jamais une sélection.
+ */
+function experienceRecap(
+  experiences: NonNullable<ParsedCv["experience"]>,
+  language: "fr" | "en",
+): Array<Record<string, unknown>> {
+  let remaining = RECAP_DESC_BUDGET
+  return experiences.map((e) => {
+    const full = (e.description ?? "").trim()
+    let desc: string | null = null
+    if (full && remaining > 0) {
+      desc = full.slice(0, Math.min(RECAP_DESC_CHARS, remaining))
+      remaining -= desc.length
+    }
+    // `null` = poste en cours ; absent/undefined = date de fin inconnue. Les
+    // confondre faisait passer un poste terminé pour le poste actuel du
+    // candidat, jusque dans le document remis au client.
+    const fin = e.end === null
+      ? (language === "en" ? "present" : "présent")
+      : (e.end ?? null)
+    return {
+      titre: e.title,
+      societe: e.company,
+      duree: [e.start, fin].filter(Boolean).join(" – "),
+      missions: desc,
+    }
+  })
+}
+
 export async function buildExecutiveSummary(
   candidate: Candidate,
   job: AnonymizedJobContext,
@@ -59,19 +100,27 @@ export async function buildExecutiveSummary(
       mission: {
         titre: job.title,
         seniorite_attendue: job.seniority,
-        competences_must_have: job.must_have_skills.slice(0, 10),
-        competences_required: job.required_skills.slice(0, 10),
+        // Exigences de la mission au complet. Le résumé doit RELIER le candidat
+        // à ces exigences : en tronquer deux, c'est risquer de manquer
+        // précisément celle sur laquelle il excelle. La normalisation de la
+        // mission les plafonne déjà en amont.
+        competences_must_have: job.must_have_skills,
+        competences_required: job.required_skills,
       },
       candidat: {
         titre_actuel: candidate.current_title,
         ans_xp: candidate.years_experience,
         seniorite: candidate.seniority_level,
-        competences_principales: (candidate.taxonomy?.core_skills?.slice(0, 12)) ?? candidate.skills?.slice(0, 12) ?? [],
-        experience_recap: (cv.experience ?? []).slice(0, 4).map((e) => ({
-          titre: e.title,
-          societe: e.company,
-          duree: [e.start, e.end ?? (language === "en" ? "present" : "présent")].filter(Boolean).join(" – "),
-        })),
+        // Plus de `slice(0, 12)` : la taxonomie est déjà plafonnée en amont
+        // (20 compétences clés), tronquer une seconde fois ici écartait des
+        // compétences que le parsing venait d'extraire.
+        competences_principales: candidate.taxonomy?.core_skills ?? candidate.skills ?? [],
+        // Le parcours COMPLET, descriptions comprises. Il était limité aux 4
+        // postes les plus récents ET privé de toute description : le résumé
+        // envoyé au client final était donc rédigé sur quatre intitulés secs,
+        // sans jamais savoir ce que le candidat avait fait. Sur un profil à 13
+        // expériences, les deux tiers du parcours étaient invisibles.
+        experience_recap: experienceRecap(cv.experience ?? [], language),
       },
     }
 
