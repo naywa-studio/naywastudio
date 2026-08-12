@@ -98,6 +98,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     { mode?: unknown; target_sectors?: unknown; lang?: unknown } | null
   const mode: MatchMode =
     body?.mode === "intelligent" || body?.mode === "personnalise" ? body.mode : "complet"
+  // "complet" est AUSSI la valeur de repli quand aucun mode n'est transmis
+  // (relance après blocage, re-matching auto après ajustement des critères).
+  // On distingue donc le choix EXPLICITE du sourceur : lui seul déclenche un
+  // re-scoring intégral, sinon un simple déblocage relancerait tout le vivier.
+  const explicitCompletMode = body?.mode === "complet"
   const lang: "fr" | "en" = body?.lang === "en" ? "en" : "fr"
   const bodySectors = Array.isArray(body?.target_sectors)
     ? (body!.target_sectors as unknown[]).map((s) => String(s).trim()).filter(Boolean)
@@ -253,11 +258,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     //  - Mission jamais matchée OU critères modifiés depuis le dernier match
     //    (criteria_locked_at > matched_at) → on reprend TOUT le vivier : les
     //    critères ont changé, il faut ré-évaluer tout le monde.
-    //  - Sinon (critères inchangés) → on ne score QUE les candidats pas encore
-    //    évalués (nouveaux CV arrivés au vivier). Les scores existants restent.
+    //  - Mode "complet" CHOISI EXPLICITEMENT par le sourceur → on reprend tout
+    //    aussi. La modale lui promet « tout le vivier est analysé, sans filtre » ;
+    //    jusqu'ici ce mode élargissait seulement le gate sectoriel, et les
+    //    candidats déjà évalués restaient écartés du scoring en gardant des
+    //    notes parfois très anciennes. C'était le seul chemin possible pour
+    //    re-scorer une mission, et il n'existait pas : il fallait modifier
+    //    `criteria_locked_at` directement en base. Sans lui, aucune
+    //    amélioration du moteur ne profite jamais à une mission déjà matchée.
+    //    On exige le choix EXPLICITE : "complet" est aussi la valeur de repli
+    //    quand aucun mode n'est transmis (relance après blocage, re-matching
+    //    auto après ajustement), et ces chemins-là ne doivent pas relancer tout
+    //    le vivier à l'insu du sourceur.
+    //  - Sinon (critères inchangés, mode restreint) → on ne score QUE les
+    //    candidats pas encore évalués (nouveaux CV arrivés au vivier). Les
+    //    scores existants restent.
     const lastMatchedMs = job.matched_at ? new Date(job.matched_at).getTime() : 0
     const critLockedMs = job.criteria_locked_at ? new Date(job.criteria_locked_at).getTime() : 0
-    const fullRescore = lastMatchedMs === 0 || critLockedMs > lastMatchedMs
+    const fullRescore = lastMatchedMs === 0 || critLockedMs > lastMatchedMs || explicitCompletMode
     if (!fullRescore) {
       pool = pool.filter((c) => !existingByCand.has(c.id))
     }
