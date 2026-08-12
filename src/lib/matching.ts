@@ -297,7 +297,9 @@ const CRITERIA_SCORE_SYSTEM_PROMPT_BASE = `Tu es l'expert de matching recrutemen
 CONTEXTE
 - POSTE : titre, séniorité, contrat, description, briefing.
 - CRITÈRES : liste avec { id, type, label, weight, params }. weight="main" compte dans le score global, "bonus" est informatif. Évalue les DEUX.
-- CANDIDATS : poste actuel, séniorité, années XP, skills, domaines, summary, langues si visibles. Pas le CV brut.
+- CANDIDATS : poste actuel, séniorité, années XP, skills, outils, domaines, industries, summary, langues, certifications, et le PARCOURS COMPLET dans \`experience\` — chaque poste avec son intitulé, sa société, ses dates et ce qui y a été fait. Tu n'as pas le CV brut, mais tu as ce parcours structuré.
+- EXPLOITE LE PARCOURS : c'est là que se trouve la preuve de la plupart des critères. Une compétence réellement exercée, un secteur fréquenté, un type d'installation, une taille d'équipe encadrée, une durée sur un domaine précis apparaissent dans les descriptions de poste, pas dans la liste de tags. Un tag absent n'est PAS une preuve d'absence si le parcours le démontre.
+- Sur les postes les plus anciens, la description peut être absente alors que l'intitulé, la société et les dates sont là : c'est une limite de place, pas un manque d'information. Ne pénalise pas un candidat pour ça.
 
 RÈGLES PAR TYPE
 - Critères QUANTITATIFS (skills, seniority_fit, experience_years, role_fit, domain_fit, etc.) → renvoie un \`score\` 0-100.
@@ -370,6 +372,49 @@ function tierFromScore(score: number): MatchTier {
   return "poor"
 }
 
+/** Longueur max d'une description de poste envoyée au scoring. Les termes
+ *  qui prouvent un critère (outil, norme, type d'installation) arrivent
+ *  quasi toujours en tête de description. */
+const MATCH_DESC_CHARS = 300
+/** Budget TOTAL de description par candidat, alloué aux postes les plus
+ *  récents d'abord. Au-delà, les postes anciens gardent leur intitulé, leur
+ *  société et leurs dates — seule leur description saute. On ne perd donc
+ *  jamais une ligne de parcours, seulement du détail sur le plus lointain. */
+const MATCH_DESC_BUDGET = 3_000
+
+/**
+ * Parcours professionnel envoyé au scoring.
+ *
+ * Il manquait entièrement jusqu'ici : le LLM jugeait chaque critère sur des
+ * tags et un titre de poste, sans jamais savoir ce que le candidat avait
+ * FAIT. Or c'est dans les descriptions que se trouve la preuve de la plupart
+ * des critères (« a piloté la mise en service d'un poste HT », « a encadré
+ * une équipe de 5 »). Le CV brut, lui, n'est toujours pas relu — on envoie le
+ * parcours déjà structuré par le parsing.
+ */
+function experienceForCriteria(c: Candidate): Array<Record<string, unknown>> {
+  const exps = c.parsed_cv?.experience ?? []
+  let remaining = MATCH_DESC_BUDGET
+  return exps.map((e) => {
+    const full = (e.description ?? "").trim()
+    let desc: string | null = null
+    if (full && remaining > 0) {
+      desc = full.slice(0, Math.min(MATCH_DESC_CHARS, remaining))
+      remaining -= desc.length
+    }
+    return {
+      title: e.title || null,
+      company: e.company || null,
+      start: e.start ?? null,
+      // `null` = poste en cours ; `undefined`/absent = date de fin inconnue.
+      // La nuance compte pour juger une durée, on ne l'aplatit pas.
+      end: e.end === null ? "en cours" : (e.end ?? null),
+      seniority: e.seniority ?? null,
+      description: desc,
+    }
+  })
+}
+
 function compactCandidateForCriteria(c: Candidate): Record<string, unknown> {
   const tax = c.taxonomy
   return {
@@ -380,7 +425,10 @@ function compactCandidateForCriteria(c: Candidate): Record<string, unknown> {
     seniority: c.seniority_level ?? tax?.seniority ?? null,
     is_apprentice: c.is_apprentice ?? false,
     role_family: tax?.role_family ?? [],
-    core_skills: tax?.core_skills ?? (c.skills ?? []).slice(0, 12),
+    // Plus de `slice(0, 12)` sur le repli : la taxonomie est déjà plafonnée
+    // en amont (20 core_skills), et tronquer une seconde fois ici faisait
+    // disparaître des compétences que le parsing avait justement extraites.
+    core_skills: tax?.core_skills ?? (c.skills ?? []),
     tools: tax?.tools ?? [],
     domains: tax?.domains ?? [],
     industries: tax?.industries ?? [],
@@ -388,6 +436,7 @@ function compactCandidateForCriteria(c: Candidate): Record<string, unknown> {
     certifications: c.parsed_cv?.certifications ?? [],
     location: c.location ?? null,
     summary: c.parsed_cv?.summary ?? null,
+    experience: experienceForCriteria(c),
   }
 }
 
@@ -431,6 +480,14 @@ async function scoreBatchCriteriaOnce(
     // (~45 tokens). Sous-dimensionner tronque la réponse JSON → candidats
     // manquants → retry coûteux. gpt-4o-mini accepte jusqu'à 16k output.
     maxTokens: Math.min(8000, 400 + candidates.length * criteria.length * 45),
+    // Plafond explicite. L'ajout du parcours au payload allonge nettement
+    // l'entrée (jusqu'à ~8 postes décrits × 8 candidats par lot) ; le défaut
+    // implicite de 24 s d'openrouterChat devenait trop court et un abort
+    // aurait fait échouer tout le lot. 45 s reste sous le maxDuration le plus
+    // serré des trois routes appelantes (60 s pour score-one et match-all,
+    // qui ne scorent qu'UN candidat et répondent de toute façon en quelques
+    // secondes ; la route de matching par lot dispose, elle, de 300 s).
+    timeoutMs: 45_000,
     messages: [
       { role: "system", content: criteriaScoreSystemPrompt(lang) },
       { role: "user", content: `POSTE :\n${JSON.stringify(jobPayload)}${exclusionsBlock}\n\nCANDIDATS :\n${JSON.stringify(candPayload)}` },
