@@ -144,6 +144,10 @@ interface ColumnRegion {
   yTop: number
   /** Ordonnée du bas de la zone. */
   yBottom: number
+  /** Côté portant l'essentiel du contenu. La barre latérale est tantôt à
+   *  gauche, tantôt à droite ; c'est la colonne PRINCIPALE qu'on veut lire en
+   *  premier et qui doit recueillir les lignes pleine largeur. */
+  mainIsLeft: boolean
 }
 
 /**
@@ -289,7 +293,7 @@ function findColumnRegion(items: PlacedItem[], pageWidth: number): ColumnRegion 
   if (minor < inside * 0.08) return null
   if (straddling > inside * 0.10) return null
 
-  return { splitX, yTop, yBottom }
+  return { splitX, yTop, yBottom, mainIsLeft: left >= right }
 }
 
 /** Assemble une ligne : fragments de gauche à droite, espace inséré seulement
@@ -307,8 +311,8 @@ function renderLine(line: PlacedItem[]): string {
 }
 
 /** Regroupe les fragments en lignes (ordonnée décroissante : en PDF, l'origine
- *  est en bas à gauche) puis rend chaque ligne. */
-function toLines(items: PlacedItem[]): string[] {
+ *  est en bas à gauche). */
+function groupIntoLines(items: PlacedItem[]): PlacedItem[][] {
   if (items.length === 0) return []
   const heights = items.map((i) => i.h).sort((a, b) => a - b)
   const medianHeight = heights[Math.floor(heights.length / 2)] || 10
@@ -327,36 +331,60 @@ function toLines(items: PlacedItem[]): string[] {
     current.push(it)
   }
   if (current.length > 0) lines.push(current)
-
-  return lines.map(renderLine).filter((l) => l.trim().length > 0)
+  return lines
 }
 
+function toLines(items: PlacedItem[]): string[] {
+  return groupIntoLines(items).map(renderLine).filter((l) => l.trim().length > 0)
+}
+
+/**
+ * Rend une page en séparant les colonnes LIGNE PAR LIGNE.
+ *
+ * Découper la page en deux blocs d'items sur la seule abscisse ne suffisait
+ * pas : dans la zone à deux colonnes, la colonne principale émet parfois une
+ * ligne assez longue pour traverser la gouttière (chez Elyas : « Planification
+ * et suivi des formations obligatoires de plus de 2 000 collaborateurs… »), et
+ * les sections pleine largeur du bas de page font de même. Couper à l'aveugle
+ * aurait expédié la fin de ces lignes dans la barre latérale.
+ *
+ * On regarde donc chaque ligne : celle qui TRAVERSE la gouttière est une ligne
+ * pleine largeur et reste entière du côté principal ; seules celles qui
+ * présentent un vrai vide au niveau de la gouttière sont séparées en deux.
+ * Chaque fragment atterrit dans exactement une ligne de sortie.
+ */
 function renderPage(items: PlacedItem[], pageWidth: number): string {
   const region = findColumnRegion(items, pageWidth)
   if (!region) return toLines(items).join("\n")
+  const { splitX, mainIsLeft } = region
 
-  const above: PlacedItem[] = []
-  const below: PlacedItem[] = []
-  const left: PlacedItem[] = []
-  const right: PlacedItem[] = []
-  for (const it of items) {
-    if (it.y > region.yTop) { above.push(it); continue }
-    if (it.y < region.yBottom) { below.push(it); continue }
-    // Rattachement au MILIEU du fragment : les rares blocs à cheval sur la
-    // gouttière tombent du côté où ils pèsent le plus, aucun n'est perdu.
-    if (it.x + it.w / 2 < region.splitX) left.push(it)
-    else right.push(it)
+  const mainLines: string[] = []
+  const asideLines: string[] = []
+  const push = (target: string[], line: PlacedItem[]) => {
+    const rendered = renderLine(line)
+    if (rendered.trim().length > 0) target.push(rendered)
   }
-  // Bandeau du haut, puis chaque colonne d'un seul tenant, puis la section
-  // pleine largeur du bas. Chaque colonne garde son fil au lieu d'être hachée
-  // ligne à ligne par sa voisine.
-  return [
-    ...toLines(above),
-    ...toLines(left),
-    "",
-    ...toLines(right),
-    ...toLines(below),
-  ].join("\n")
+
+  for (const line of groupIntoLines(items)) {
+    // Une ligne qui traverse la gouttière est pleine largeur : elle revient
+    // entière à la colonne principale.
+    if (line.some((it) => it.x < splitX && it.x + it.w > splitX)) {
+      push(mainLines, line)
+      continue
+    }
+    const left = line.filter((it) => it.x + it.w <= splitX)
+    const right = line.filter((it) => it.x >= splitX)
+    const main = mainIsLeft ? left : right
+    const aside = mainIsLeft ? right : left
+    if (main.length === 0) { push(asideLines, line); continue }
+    if (aside.length === 0) { push(mainLines, line); continue }
+    push(mainLines, main)
+    push(asideLines, aside)
+  }
+
+  // Colonne principale d'un seul tenant, puis la colonne étroite. Chacune
+  // garde son fil, au lieu d'être hachée ligne à ligne par sa voisine.
+  return [...mainLines, "", ...asideLines].join("\n")
 }
 
 async function extractTextByLayout(doc: PdfLikeDoc): Promise<string> {
@@ -530,7 +558,8 @@ EXHAUSTIVITÉ — RÈGLE PRIORITAIRE :
 - Ta mission est d'EXTRAIRE, pas de résumer. Un CV long doit produire une extraction longue. Ne condense JAMAIS pour faire court : si le CV liste 11 expériences et 25 outils, tu restitues 11 expériences et 25 outils.
 - N'omets AUCUNE expérience professionnelle, même ancienne, même décrite en une ligne.
 - Balaye le document ENTIER pour les compétences et outils. Ils sont souvent hors d'une section "Compétences" : sous "Formation", "Divers", "Informatique", "Logiciels", ou noyés dans les descriptions de poste. Un intitulé de section trompeur ne doit JAMAIS te faire ignorer son contenu.
-- L'ORDRE DU TEXTE N'EST PAS FIABLE. Un CV mis en page en colonnes ou en blocs libres peut te parvenir désordonné : une description de poste apparaît parfois JUSTE AVANT l'employeur qu'elle décrit, une colonne latérale peut s'intercaler au milieu d'une section. Rattache chaque bloc à son poste par le SENS, jamais par la position. Si un paragraphe parle d'encaissement et de mise en rayon, il appartient au supermarché, pas au cabinet de recrutement cité juste au-dessus. Dans le doute, laisse "description" à null plutôt que de l'attribuer au mauvais employeur : une description absente se voit, une description mal attribuée trompe le recruteur.
+- L'ORDRE DU TEXTE PEUT ÊTRE IMPARFAIT. Un CV mis en page en colonnes ou en blocs libres arrive parfois désordonné : une colonne latérale peut s'intercaler au milieu d'une section, une description apparaître avant l'employeur qu'elle décrit. Rattache chaque bloc à son poste par le SENS, pas seulement par la position. Un paragraphe qui parle d'encaissement et de mise en rayon appartient au supermarché, pas au cabinet de recrutement cité juste au-dessus.
+- DESCRIPTIONS DE POSTE : reprends TOUTES les lignes de mission rattachées au poste, sans en résumer ni en sacrifier aucune, et en gardant les termes du CV (chiffres, outils, normes, intitulés). Jusqu'à 700 caractères par poste. Une description tronquée fait disparaître exactement ce sur quoi le recruteur juge.
 - Les outils métier spécialisés (simulation, calcul, CAO, ERP, instrumentation…) sont ce qui rend un profil recrutable : ils priment sur la bureautique générique. Ne garde jamais "Word/Excel" en écartant un outil spécialisé faute de place.
 
 SKILLS vs QUALITIES (deux listes séparées, un item dans UNE SEULE) :
@@ -617,8 +646,8 @@ RÈGLES :
 - EXHAUSTIVITÉ ABSOLUE : reprends TOUTES les expériences, de la plus récente à la plus ancienne. Aucune omission, même pour un poste décrit en une seule ligne. C'est ta seule mission ici : tu as tout ton budget pour elle.
 - ATTENTION AUX TITRES DE SECTION TROMPEURS : un CV range parfois toute sa carrière sous "PROJETS", "PARCOURS", "DIVERS" ou même "STAGES". Ce qui décide qu'une ligne est une expérience professionnelle, ce sont les DATES et l'EMPLOYEUR — jamais le titre de la section qui la contient.
 - Ne FUSIONNE JAMAIS deux postes distincts en une seule entrée : deux employeurs différents, ou deux intitulés successifs chez le même employeur, font deux entrées.
-- "description" : reprends les missions réellement décrites, en CONSERVANT les termes techniques du CV (outils, normes, spécialités, types d'installations). 400 caractères max par poste. N'invente rien.
-- L'ORDRE DU TEXTE N'EST PAS FIABLE : sur un CV mis en page en colonnes ou en blocs, une description peut apparaître JUSTE AVANT l'employeur qu'elle décrit, et non après. Rattache chaque description à son poste par le SENS, pas par la position. Si un bloc parle d'encaissement et de mise en rayon, il appartient au supermarché, pas au cabinet de recrutement mentionné juste au-dessus. Dans le doute, laisse la description à null plutôt que de l'attribuer au mauvais employeur.
+- "description" : reprends TOUTES les lignes de mission du poste, sans en résumer ni en sacrifier aucune, en CONSERVANT les termes du CV (chiffres, outils, normes, spécialités, types d'installations). Jusqu'à 700 caractères par poste. N'invente rien, mais n'élague rien non plus.
+- L'ORDRE DU TEXTE PEUT ÊTRE IMPARFAIT : sur un CV en colonnes ou en blocs, une description peut apparaître avant l'employeur qu'elle décrit, ou une colonne latérale s'intercaler. Rattache chaque description à son poste par le SENS, pas seulement par la position. Un bloc qui parle d'encaissement et de mise en rayon appartient au supermarché, pas au cabinet de recrutement mentionné juste au-dessus.
 - "end" : null UNIQUEMENT pour un poste que le CV présente comme EN COURS ("depuis…", "présent", "aujourd'hui", période ouverte). Dès qu'une date de fin figure au CV, reprends-la. PLUSIEURS postes peuvent être en cours simultanément (gérance, freelance, mandat, emploi en parallèle) : ne referme aucun poste pour "faire propre".
 - Dates : "YYYY-MM" si le mois est disponible, sinon "YYYY". Ne les invente pas — null si vraiment absente.
 - "seniority" : niveau réellement tenu DANS CE POSTE. Un poste de direction, de gérance ou de chefferie de projet tenu plusieurs années n'est pas "mid".
