@@ -384,6 +384,21 @@ export async function buildAnonymizedDocx({
     }
   }
 
+  // Rubriques libres du CV (projets, sites, habilitations, publications…),
+  // après la formation : ce sont des compléments. Même exigence que sur les
+  // PDF — GMH veut retrouver dans le document remis au client TOUT ce qui
+  // figure au CV, pas seulement ce que le schéma avait prévu.
+  for (const sec of cv.other_sections ?? []) {
+    if (!sec.title.trim() || !sec.content.trim()) continue
+    children.push(sectionTitle(sec.title, accentSecondary))
+    children.push(
+      new Paragraph({
+        spacing: { after: 160 },
+        children: [new TextRun({ text: sec.content, color: MUTED, size: 18 })],
+      }),
+    )
+  }
+
   // Footer (en bas de doc, pas un vrai footer Word — juste un dernier
   // paragraphe sobre avec mail de contact si présent).
   if (contactEmail) {

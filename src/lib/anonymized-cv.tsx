@@ -349,6 +349,13 @@ export function AnonymizedCv({
   const experience = cv.experience ?? []
   const education = cv.education ?? []
   const languages = cv.languages ?? candidate.languages ?? []
+  // Rubriques libres du CV (projets, sites, habilitations, publications…).
+  // GMH veut les retrouver ICI aussi, pas seulement dans la fiche : c'est le
+  // document remis au client final. On écarte celles qui ne portent qu'un nom
+  // propre ou une adresse — l'anonymat prime sur l'exhaustivité.
+  const otherSections = (cv.other_sections ?? []).filter(
+    (s) => s.title.trim().length > 0 && s.content.trim().length > 0,
+  )
 
   // Texte d'en-tête : si on a un contexte mission, on l'affiche au-dessus
   // du H1 comme un "présenté pour", et le H1 reste le titre formel mission.
@@ -551,6 +558,13 @@ export function AnonymizedCv({
                   ))}
                 </>
               )}
+
+              {otherSections.map((sec, i) => (
+                <View key={`sec-${i}`} wrap={false}>
+                  <Text style={s.sectionTitle}>{sec.title}</Text>
+                  <Text style={s.expDesc}>{sec.content}</Text>
+                </View>
+              ))}
             </View>
           </View>
 
@@ -813,6 +827,19 @@ export function AnonymizedCv({
             </View>
           )}
 
+          {otherSections.map((sec, i) => (
+            <View key={`sec-${i}`} wrap={false} style={{ marginTop: 14 }}>
+              <Text style={{
+                fontSize: 9, fontFamily: "Helvetica-Bold",
+                color: accentSecondary, letterSpacing: 1.2,
+                textTransform: "uppercase", marginBottom: 8,
+              }}>
+                {sec.title}
+              </Text>
+              <Text style={{ fontSize: 9.5, color: MUTED, lineHeight: 1.5 }}>{sec.content}</Text>
+            </View>
+          ))}
+
           {renderWatermark()}
           {renderFooter()}
         </Page>
@@ -1045,6 +1072,14 @@ export function AnonymizedCv({
             </View>
           )}
 
+          {/* Une carte par rubrique libre — le bento est fait pour ça. */}
+          {otherSections.map((sec, i) => (
+            <View key={`sec-${i}`} style={{ ...card }} wrap={false}>
+              <Text style={cardTitle}>{sec.title}</Text>
+              <Text style={{ fontSize: 9.5, color: MUTED, lineHeight: 1.5 }}>{sec.content}</Text>
+            </View>
+          ))}
+
           {renderWatermark()}
           {renderFooter()}
         </Page>
@@ -1167,6 +1202,15 @@ export function AnonymizedCv({
             ))}
           </>
         )}
+
+        {/* Rubriques libres du CV, rendues APRÈS la formation : ce sont des
+            compléments, pas la colonne vertébrale du profil. */}
+        {otherSections.map((sec, i) => (
+          <View key={`sec-${i}`} wrap={false}>
+            <Text style={s.sectionTitle}>{sec.title}</Text>
+            <Text style={s.expDesc}>{sec.content}</Text>
+          </View>
+        ))}
 
         {/* Watermark diagonal — fixed sur toutes les pages, opacity
             très basse pour rester lisible. On le rend APRÈS le contenu
