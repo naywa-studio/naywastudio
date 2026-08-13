@@ -136,22 +136,36 @@ function toPlacedItems(items: unknown): PlacedItem[] {
   return out
 }
 
+/** Zone de la page où DEUX colonnes coexistent réellement. */
+interface ColumnRegion {
+  /** Abscisse de séparation. */
+  splitX: number
+  /** Ordonnée du haut de la zone (en PDF, l'ordonnée croît vers le haut). */
+  yTop: number
+  /** Ordonnée du bas de la zone. */
+  yBottom: number
+}
+
 /**
- * Position de la gouttière verticale séparant deux colonnes, ou null.
+ * Trouve la zone à deux colonnes d'une page, ou null s'il n'y en a pas.
  *
- * La page est découpée en BANDES horizontales, et on cherche l'abscisse qui
- * reste vide dans la grande majorité des bandes occupées. Projeter la page
- * entière d'un seul bloc ne marchait pas : le CV d'Elyas porte un en-tête
- * pleine largeur (nom, téléphone, mail) qui recouvrait à lui seul la
- * gouttière et faisait retomber toute la page en une colonne — la barre
- * latérale venait alors se glisser au milieu des descriptions de poste.
+ * Deux enseignements tirés du CV d'Elyas, mesuré boîte par boîte :
  *
- * Reste volontairement CONSERVATEUR : il faut une bande vide sur au moins
- * trois quarts de la hauteur utile, bordée de contenu des deux côtés, et deux
- * colonnes qui pèsent chacune leur part. Mal découper une page ferait plus de
- * dégâts que ne pas la découper.
+ * 1. Projeter la page entière d'un seul bloc ne marche pas. Son en-tête
+ *    (nom, téléphone, mail) traverse toute la largeur et recouvre à lui seul
+ *    la gouttière : la page semblait n'avoir qu'une colonne, et la barre
+ *    latérale venait se glisser au milieu des descriptions de poste. D'où la
+ *    recherche par BANDES horizontales.
+ * 2. La séparation ne vaut pas sur toute la hauteur. Chez lui, les colonnes
+ *    s'arrêtent avant la section FORMATION, qui reprend la pleine largeur.
+ *    Découper jusqu'en bas aurait coupé chaque ligne de formation en deux.
+ *    On délimite donc AUSSI la zone verticale où la gouttière tient.
+ *
+ * Reste volontairement CONSERVATEUR : sans gouttière franche, sans zone assez
+ * haute, ou avec deux côtés déséquilibrés, on renvoie null et la page est lue
+ * d'un seul tenant. Mal découper ferait plus de dégâts que ne pas découper.
  */
-function findGutter(items: PlacedItem[], pageWidth: number): number | null {
+function findColumnRegion(items: PlacedItem[], pageWidth: number): ColumnRegion | null {
   if (!isFinite(pageWidth) || pageWidth <= 0) return null
   if (items.length < 40) return null
 
@@ -171,9 +185,11 @@ function findGutter(items: PlacedItem[], pageWidth: number): number | null {
     () => new Array<boolean>(GUTTER_BUCKETS).fill(false),
   )
   const bandUsed = new Array<boolean>(GUTTER_BANDS).fill(false)
+  const bandOf = (y: number) =>
+    Math.min(GUTTER_BANDS - 1, Math.max(0, Math.floor((maxY - y) / bandHeight)))
 
   for (const it of items) {
-    const bi = Math.min(GUTTER_BANDS - 1, Math.max(0, Math.floor((maxY - it.y) / bandHeight)))
+    const bi = bandOf(it.y)
     bandUsed[bi] = true
     const from = Math.max(0, Math.floor(it.x / bucketWidth))
     const to = Math.min(GUTTER_BUCKETS - 1, Math.floor((it.x + it.w) / bucketWidth))
@@ -183,6 +199,9 @@ function findGutter(items: PlacedItem[], pageWidth: number): number | null {
   const usedBands = bandUsed.filter(Boolean).length
   if (usedBands < 8) return null
 
+  // Un seau est « gouttière » s'il reste vide sur au moins trois quarts des
+  // bandes occupées. Le seuil laisse passer une section pleine largeur en
+  // haut ou en bas sans faire échouer la détection.
   const isGutter = new Array<boolean>(GUTTER_BUCKETS).fill(false)
   for (let b = 0; b < GUTTER_BUCKETS; b++) {
     let empty = 0
@@ -212,20 +231,65 @@ function findGutter(items: PlacedItem[], pageWidth: number): number | null {
   if (bestLen < 5) return null
 
   const splitX = (bestStart + bestLen / 2) * bucketWidth
+
+  // Bandes où la gouttière tient vraiment. Une bande vide ne rompt pas la
+  // continuité (interligne), une bande pleine largeur si.
+  const bandSplits = new Array<boolean>(GUTTER_BANDS).fill(false)
+  for (let i = 0; i < GUTTER_BANDS; i++) {
+    if (!bandUsed[i]) { bandSplits[i] = true; continue }
+    let clear = true
+    for (let g = bestStart; g < bestStart + bestLen; g++) {
+      if (bands[i][g]) { clear = false; break }
+    }
+    bandSplits[i] = clear
+  }
+
+  let runStart = -1
+  let runEnd = -1
+  let bestRunUsed = 0
+  let i = 0
+  while (i < GUTTER_BANDS) {
+    if (!bandSplits[i]) { i++; continue }
+    let end = i
+    let used = 0
+    while (end < GUTTER_BANDS && bandSplits[end]) {
+      if (bandUsed[end]) used++
+      end++
+    }
+    if (used > bestRunUsed) {
+      bestRunUsed = used
+      runStart = i
+      runEnd = end
+    }
+    i = end
+  }
+  // Une zone à deux colonnes trop courte ne vaut pas le risque de la découpe.
+  if (bestRunUsed < 8) return null
+
+  const yTop = maxY - runStart * bandHeight
+  const yBottom = maxY - runEnd * bandHeight
+
   let left = 0
   let right = 0
   let straddling = 0
   for (const it of items) {
+    if (it.y > yTop || it.y < yBottom) continue
     if (it.x + it.w <= splitX) left++
     else if (it.x >= splitX) right++
     else straddling++
   }
-  const total = items.length
-  // Les deux côtés doivent peser. Quelques fragments à cheval sont tolérés
-  // (un titre pleine largeur), pas davantage.
-  if (left < total * 0.15 || right < total * 0.15) return null
-  if (straddling > total * 0.10) return null
-  return splitX
+  const inside = left + right + straddling
+  if (inside < 20) return null
+  // Test SYMÉTRIQUE : la barre latérale est tantôt à gauche, tantôt à droite.
+  // Exiger un côté gauche dominant écartait à tort 12 CV du corpus de recette
+  // dont la colonne étroite est à gauche (elle n'y pèse que 8 à 27 %).
+  const dominant = Math.max(left, right)
+  const minor = Math.min(left, right)
+  if (dominant < inside * 0.30) return null
+  if (minor < inside * 0.08) return null
+  if (straddling > inside * 0.10) return null
+
+  return { splitX, yTop, yBottom }
 }
 
 /** Assemble une ligne : fragments de gauche à droite, espace inséré seulement
@@ -268,19 +332,31 @@ function toLines(items: PlacedItem[]): string[] {
 }
 
 function renderPage(items: PlacedItem[], pageWidth: number): string {
-  const splitX = findGutter(items, pageWidth)
-  if (splitX === null) return toLines(items).join("\n")
+  const region = findColumnRegion(items, pageWidth)
+  if (!region) return toLines(items).join("\n")
+
+  const above: PlacedItem[] = []
+  const below: PlacedItem[] = []
   const left: PlacedItem[] = []
   const right: PlacedItem[] = []
   for (const it of items) {
+    if (it.y > region.yTop) { above.push(it); continue }
+    if (it.y < region.yBottom) { below.push(it); continue }
     // Rattachement au MILIEU du fragment : les rares blocs à cheval sur la
     // gouttière tombent du côté où ils pèsent le plus, aucun n'est perdu.
-    if (it.x + it.w / 2 < splitX) left.push(it)
+    if (it.x + it.w / 2 < region.splitX) left.push(it)
     else right.push(it)
   }
-  // Colonne de gauche en entier, puis celle de droite : chaque colonne garde
-  // son fil, au lieu d'être hachée ligne à ligne par sa voisine.
-  return [...toLines(left), "", ...toLines(right)].join("\n")
+  // Bandeau du haut, puis chaque colonne d'un seul tenant, puis la section
+  // pleine largeur du bas. Chaque colonne garde son fil au lieu d'être hachée
+  // ligne à ligne par sa voisine.
+  return [
+    ...toLines(above),
+    ...toLines(left),
+    "",
+    ...toLines(right),
+    ...toLines(below),
+  ].join("\n")
 }
 
 async function extractTextByLayout(doc: PdfLikeDoc): Promise<string> {
