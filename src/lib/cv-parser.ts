@@ -592,19 +592,14 @@ SUMMARY :
 - Reste factuel — uniquement ce qui est dans le CV. Si le CV est très pauvre, 1 phrase honnête vaut mieux que du meublage.
 
 WARNINGS — alertes pour le sourceur :
-- 0 à 4 alertes courtes (< 80 caractères chacune) en français, sur ce qui pose question dans le CV.
-- Tu DOIS émettre une alerte dans CHACUN de ces cas, ce n'est pas optionnel :
-  - gap inexpliqué > 6 mois entre deux postes
-  - date de DÉBUT absente sur un poste, ou dates contradictoires (fin antérieure au début, chevauchement impossible)
-  - un poste manifestement TERMINÉ dont la date de fin n'est pas lisible dans le CV
-  - intitulé de poste très vague (ex: "consultant" sans précision)
-  - un poste sans AUCUNE description alors que les autres en ont une (signe d'une information perdue à la lecture)
-  - aucune description sur plus de la moitié des postes
-  - CV visiblement daté (l'en-tête annonce un nombre d'années incohérent avec les dates listées)
-- N'ALERTE JAMAIS sur un poste EN COURS. Un poste que le CV présente comme actuel ("depuis 2024", "présent", "aujourd'hui", "à ce jour", ou une période laissée ouverte) n'a PAS de date de fin manquante : il n'en a pas encore. Tu écris end = null, et c'est une donnée COMPLÈTE, pas un défaut. Une alerte "sans date de fin" sur ce cas est une FAUSSE alerte.
-- N'alerte pas non plus sur le simple fait que plusieurs postes soient en cours simultanément : cumuler une gérance, du freelance, un mandat ou un emploi en parallèle est banal. Notre code s'en charge séparément si c'est vraiment douteux.
-- Ces alertes servent au sourceur à savoir OÙ vérifier : un CV imparfait qui s'annonce vaut mieux qu'un CV faussement propre. Ne les omets pas par politesse.
-- Ne mets PAS d'alerte si tout est réellement cohérent — tableau vide. Une alerte fausse coûte plus cher qu'une alerte absente : elle apprend au sourceur à ne plus les lire.
+- 0 à 3 alertes courtes (< 80 caractères chacune) en français, sur ce qui pose question À LA LECTURE du CV.
+- Périmètre STRICT. Tu ne signales QUE ces trois situations, et rien d'autre :
+  - trou inexpliqué de plus de 6 mois entre deux postes
+  - intitulé de poste trop vague pour être exploitable (ex: "consultant" sans précision)
+  - CV visiblement périmé : l'en-tête annonce un nombre d'années qui ne colle pas aux dates listées
+- NE COMPTE RIEN. Notre code calcule lui-même, sur le JSON que tu produis, les dates manquantes, les dates incohérentes, les descriptions absentes et les postes en cours. Une alerte de ta part sur ces sujets serait un doublon au mieux, une contradiction au pire : nous avons déjà vu le modèle annoncer « aucune description sur plus de la moitié des postes » sur un CV où les six postes en avaient une.
+- N'ALERTE JAMAIS sur un poste EN COURS. Un poste présenté comme actuel ("depuis 2024", "présent", "aujourd'hui", période ouverte) n'a pas de date de fin manquante : il n'en a pas encore.
+- Une alerte doit pouvoir être VÉRIFIÉE en rouvrant le CV. Si tu n'es pas certain, n'écris rien : une alerte fausse coûte plus cher qu'une alerte absente, elle apprend au sourceur à ne plus les lire. Tableau vide si tout est cohérent.
 
 TAXONOMY — classement pour le matching futur, sois rigoureux :
 - N'invente AUCUN tag qui ne soit pas DIRECTEMENT supporté par une mention explicite dans le texte du CV. Si tu ne peux pas pointer la phrase qui justifie le tag, ne le mets pas.
@@ -948,32 +943,59 @@ function seniorityFromMonths(months: number): NonNullable<ParsedCv["seniority_le
 }
 
 /**
- * Contrôle DÉTERMINISTE : signale un nombre INHABITUEL de postes "en cours".
+ * Alertes CALCULÉES depuis les données extraites, sans passer par le modèle.
  *
- * Constaté sur le vivier GMH (août 2026) : le prompt réclamait déjà une alerte
- * sur ce cas précis, et aucune n'a jamais été émise sur les 12 candidats. D'où
- * ce contrôle en dur, qui ne dépend d'aucun modèle.
+ * Le lot A avait rendu les alertes obligatoires dans le prompt pour les
+ * réveiller (elles étaient mortes : zéro sur douze candidats). Le modèle s'est
+ * mis à en produire, mais FAUSSES : sur le CV d'Elyas, dont les six postes
+ * portent une description, il annonçait « aucune description sur plus de la
+ * moitié des postes » et nommait un poste précis comme dépourvu de la sienne.
+ * Une alerte fausse est pire qu'une alerte absente : elle apprend au sourceur
+ * à ne plus les lire.
  *
- * IL SIGNALE, IL NE CORRIGE PAS — et c'est délibéré. Une première version
+ * D'où le partage : ce qui se COMPTE se calcule ici, exactement, à partir du
+ * JSON qu'on vient de normaliser ; le modèle ne garde que ce qui relève du
+ * jugement (trou inexpliqué, intitulé vague, en-tête périmé).
+ *
+ * Sur les postes en cours, on SIGNALE SANS CORRIGER. Une première version
  * refermait les postes en trop à la date de début du suivant, en supposant un
- * parcours séquentiel. Le vivier a immédiatement fourni le contre-exemple : un
- * candidat cumule "Lead mechanical engineer / FREELANCE CONTRACTS" et
- * "Manager / CHAMP-ECORCE" depuis la même date, soit un indépendant exerçant
- * via sa propre société. Les deux postes sont réellement en cours, et les
- * refermer aurait détruit une information juste.
- *
- * Aucune règle fondée sur les seules dates ne sépare une erreur du modèle d'un
- * cumul légitime (freelance, gérance, portage, mandat social). On alerte donc
- * le sourceur, qui tranchera depuis la fiche candidat.
+ * parcours séquentiel. Le vivier a fourni le contre-exemple : un candidat
+ * cumule "Lead mechanical engineer / FREELANCE CONTRACTS" et "Manager /
+ * CHAMP-ECORCE" depuis la même date, soit un indépendant exerçant via sa
+ * propre société. Les deux postes sont réellement en cours.
  */
-function flagMultipleCurrentRoles(experiences: ParsedExperience[]): string | null {
+function structuralWarnings(experiences: ParsedExperience[]): string[] {
+  if (experiences.length === 0) return []
+  const out: string[] = []
+  const label = (e: ParsedExperience) =>
+    (e.company || "").trim() || (e.title || "").trim() || "un poste"
+
+  const noStart = experiences.filter((e) => !e.start)
+  if (noStart.length === 1) out.push(`Poste chez ${label(noStart[0])} sans date de début.`)
+  else if (noStart.length > 1) out.push(`${noStart.length} postes sans date de début.`)
+
+  const inverted = experiences.find(
+    (e) => typeof e.start === "string" && typeof e.end === "string" && e.end < e.start,
+  )
+  if (inverted) out.push(`Dates incohérentes chez ${label(inverted)} : fin avant le début.`)
+
+  const undescribed = experiences.filter((e) => (e.description || "").trim().length === 0)
+  if (undescribed.length === experiences.length) {
+    out.push("Aucune description de poste dans ce CV.")
+  } else if (undescribed.length === 1) {
+    out.push(`Poste chez ${label(undescribed[0])} sans description.`)
+  } else if (undescribed.length > 1) {
+    out.push(`${undescribed.length} postes sans description.`)
+  }
+
+  // Seuil à 4 : trois postes en cours est le quotidien d'un fondateur ou d'un
+  // indépendant (sa société, ses missions, un emploi à côté). Alerter dessous,
+  // c'était crier sur des parcours parfaitement normaux.
   const ongoing = experiences.filter((e) => e.end === null).length
-  // Seuil à 3 et non à 2 : deux postes en cours est le cas ORDINAIRE d'un
-  // indépendant (sa société + ses missions) ou d'un salarié avec une activité
-  // à côté. Alerter dessus, c'était crier sur des parcours normaux — et la
-  // valeur d'une alerte tient entièrement à ce qu'on la lise encore.
-  if (ongoing <= 2) return null
-  return `${ongoing} postes en cours en parallèle : cumul réel ou date de fin oubliée ?`
+  if (ongoing > 3) {
+    out.push(`${ongoing} postes en cours en parallèle : cumul réel ou date de fin oubliée ?`)
+  }
+  return out
 }
 
 /**
@@ -1146,16 +1168,17 @@ function normalizeParsedCv(p: LlmCvPayload): ParsedCv {
       end: trimOrNull(e?.end) ?? undefined,
     })).filter((e) => e.degree || e.school) : [],
     certifications: safeArr(p.certifications, 20),
-    warnings: safeArr(p.warnings, 4).map((w) => w.slice(0, 120)),
+    warnings: safeArr(p.warnings, 3).map((w) => w.slice(0, 120)),
     source_quality: "native",
   }
 
-  // Contrôle dates : plusieurs postes "en cours" est soit une erreur du
-  // modèle, soit un cumul réel. On ne tranche pas à sa place, on le signale.
-  const multiCurrent = flagMultipleCurrentRoles(cv.experience ?? [])
-  if (multiCurrent) {
-    cv.warnings = [...(cv.warnings ?? []), multiCurrent].slice(0, 5)
-  }
+  // Les alertes VÉRIFIABLES sont recalculées ici et passent devant : elles
+  // portent sur le JSON réellement stocké, là où celles du modèle ne sont
+  // qu'une impression de lecture.
+  cv.warnings = [
+    ...structuralWarnings(cv.experience ?? []),
+    ...(cv.warnings ?? []),
+  ].slice(0, 5)
 
   // Recompute years_experience + seniority_level from real dates when we have
   // enough — far more reproducible than the LLM's rounding (10 mois = 1 an).
