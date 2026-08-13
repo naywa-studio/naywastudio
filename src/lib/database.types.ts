@@ -571,6 +571,13 @@ export type Database = {
           parse_status: 'pending' | 'parsing' | 'parsed' | 'error' | 'manual'
           parse_error: string | null
           parsed_at: string | null
+          /** Instantané de `parsed_cv` pris à la PREMIÈRE édition manuelle —
+           *  permet le retour à la version produite par Nora. NULL = fiche
+           *  jamais retouchée à la main. Remis à NULL par un re-parsing. */
+          parsed_cv_original: ParsedCv | null
+          /** Dernière édition manuelle. Pilote le tag « modifié », qui reste
+           *  dans le workspace et n'apparaît JAMAIS sur le CV anonymisé. */
+          parsed_cv_edited_at: string | null
           notes: string | null
           tags: string[] | null
           /** Secteurs du candidat (par nom). Multi-secteur (profils hybrides). */
@@ -614,6 +621,8 @@ export type Database = {
           parse_status?: 'pending' | 'parsing' | 'parsed' | 'error' | 'manual'
           parse_error?: string | null
           parsed_at?: string | null
+          parsed_cv_original?: ParsedCv | null
+          parsed_cv_edited_at?: string | null
           notes?: string | null
           tags?: string[] | null
           sectors?: string[]
@@ -1001,7 +1010,10 @@ export const CANDIDATE_COLUMNS =
   "skills, languages, parsed_cv, taxonomy, cluster_assignments, cluster_assigned_at, " +
   "cv_file_path, cv_file_name, " +
   "cv_file_size, cv_mime_type, anonymized_pdf_path, anonymized_at, " +
-  "outreach_draft, outreach_meta, parse_status, parse_error, parsed_at, " +
+  // `parsed_cv_edited_at` est là (une date, pilote le tag « modifié »), mais
+  // PAS `parsed_cv_original` : c'est un second CV complet, aussi lourd que
+  // `raw_text`, et il ne sert qu'au moment précis où l'on annule.
+  "outreach_draft, outreach_meta, parse_status, parse_error, parsed_at, parsed_cv_edited_at, " +
   "notes, tags, sectors, sector_status, created_at, updated_at, consulted_at"
 
 // ── Aliases métier ────────────────────────────────────────────────────────────

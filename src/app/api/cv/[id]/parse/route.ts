@@ -295,6 +295,13 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       parse_error: null,
       parsed_at: new Date().toISOString(),
       parsed_cv: parsedCv,
+      // Politique de conflit édition / re-parsing (décision Elyas) : le
+      // re-parsing ÉCRASE les corrections manuelles, et le sourceur en est
+      // averti AVANT de le lancer. On efface donc aussi l'instantané
+      // d'origine : il datait d'un parsing que ce nouveau vient de remplacer,
+      // le proposer encore en « retour à l'original » serait un piège.
+      parsed_cv_original: null,
+      parsed_cv_edited_at: null,
       taxonomy: mergedTaxonomy,
       raw_text: rawText,
       full_name:        parsedCv?.full_name ?? null,
