@@ -9,7 +9,7 @@
  */
 
 import { openrouterChat, safeJsonParse } from "./openrouter"
-import type { ParsedCv, ParsedExperience, CandidateTaxonomy } from "./database.types"
+import type { ParsedCv, ParsedExperience, ParsedSection, CandidateTaxonomy } from "./database.types"
 
 export interface ParseResult {
   cv: ParsedCv
@@ -516,6 +516,9 @@ Le JSON doit suivre ce schéma exactement (toutes les clés présentes, mettre n
     }
   ],
   "certifications": string[],
+  "other_sections": [
+    { "title": string, "content": string }
+  ],
   "warnings": string[],
   "taxonomy": {
     "role_family":  string[],
@@ -565,6 +568,13 @@ EXHAUSTIVITÉ — RÈGLE PRIORITAIRE :
 - DESCRIPTIONS DE POSTE : reprends les lignes de mission rattachées au poste en gardant les termes du CV (chiffres, outils, normes, intitulés), jusqu'à 600 caractères par poste. Une description élaguée fait disparaître exactement ce sur quoi le recruteur juge.
 - COUVRIR TOUS LES POSTES PRIME SUR EN ALLONGER UN. N'omets JAMAIS un poste pour tenir dans le format. Si le CV en compte beaucoup et que ta réponse s'annonce très longue, écourte en commençant par les postes les PLUS ANCIENS, et laisse intactes les descriptions des trois plus récents. Ce n'est pas une invitation à raccourcir par défaut : tant que tu peux tout dire, dis tout.
 - Les outils métier spécialisés (simulation, calcul, CAO, ERP, instrumentation…) sont ce qui rend un profil recrutable : ils priment sur la bureautique générique. Ne garde jamais "Word/Excel" en écartant un outil spécialisé faute de place.
+
+OTHER_SECTIONS — tout ce qui n'entre dans aucun autre champ :
+- Un CV contient souvent des rubriques que ce schéma ne prévoit pas : listes de projets, d'usines ou de sites, publications, brevets, réalisations, distinctions, engagements associatifs, permis et habilitations, références, centres d'intérêt, formations internes ou constructeurs, missions bénévoles…
+- Reprends-les ICI plutôt que de les laisser tomber. "title" = l'intitulé tel qu'il apparaît au CV ; "content" = son contenu mis à plat, en gardant les termes exacts (noms de sites, références de normes, intitulés de projets).
+- N'y remets PAS ce que tu as déjà rangé ailleurs : ni les expériences, ni les diplômes, ni les compétences, ni les langues, ni les certifications. Ce champ ne sert qu'au RESTE.
+- Jusqu'à 8 rubriques, 800 caractères chacune. Tableau vide si le CV n'a rien d'autre.
+- Pourquoi c'est important : notre client veut retrouver dans la fiche TOUT ce qui figure au CV. Une rubrique perdue ici est une information que le recruteur ne verra jamais, alors qu'elle était écrite noir sur blanc.
 
 SKILLS vs QUALITIES (deux listes séparées, un item dans UNE SEULE) :
 - "skills" = compétences vérifiables : technique, méthodologie, outil, framework, langue. Quelque chose qu'on peut tester ou citer dans une fiche de poste. Ex : "SQL", "Agile", "Python", "Salesforce", "négociation B2B", "anglais courant". Max 40.
@@ -1012,6 +1022,33 @@ function dedupeExperiences(experiences: ParsedExperience[]): ParsedExperience[] 
   return out
 }
 
+/**
+ * Normalise le fourre-tout `other_sections`.
+ *
+ * Plafonds volontairement GÉNÉREUX (8 rubriques, 800 caractères) : ce champ
+ * existe précisément pour ce que le schéma n'a pas prévu, le rogner
+ * reproduirait la perte qu'il est censé réparer. Il n'entre dans AUCUN appel
+ * au modèle (ni matching, ni résumé exécutif) : il ne coûte donc rien en
+ * tokens, seulement de l'affichage.
+ */
+function normalizeSections(raw: unknown): ParsedSection[] {
+  if (!Array.isArray(raw)) return []
+  const out: ParsedSection[] = []
+  const seen = new Set<string>()
+  for (const item of raw) {
+    const s = item as { title?: unknown; content?: unknown } | null
+    const title = typeof s?.title === "string" ? s.title.trim().slice(0, 80) : ""
+    const content = typeof s?.content === "string" ? s.content.trim().slice(0, 800) : ""
+    if (!title || !content) continue
+    const key = title.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ title, content })
+    if (out.length >= 8) break
+  }
+  return out
+}
+
 /** Rang absolu en mois d'une date "YYYY" ou "YYYY-MM", ou null si illisible.
  *  Tolère un mois non complété ("2019-9") et un mois hors bornes. */
 function monthRank(value: string | null | undefined): number | null {
@@ -1246,6 +1283,7 @@ function normalizeParsedCv(p: LlmCvPayload): ParsedCv {
       end: trimOrNull(e?.end) ?? undefined,
     })).filter((e) => e.degree || e.school) : [],
     certifications: safeArr(p.certifications, 20),
+    other_sections: normalizeSections(p.other_sections),
     warnings: safeArr(p.warnings, 3).map((w) => w.slice(0, 120)),
     source_quality: "native",
   }

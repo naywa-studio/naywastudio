@@ -64,8 +64,25 @@ export type ParsedCv = {
   completeness?: number | null
   /** Free-form alerts surfaced to the sourcer (gaps, contradictions…). */
   warnings?: string[]
+  /** Sections du CV qui n'entrent dans AUCUN champ du schéma.
+   *
+   *  Demande explicite de GMH : retrouver TOUT ce qui figure au CV, dans la
+   *  fiche comme dans le document anonymisé. Un schéma fixe range bien ce
+   *  qu'il a prévu et perd le reste — chez Aymen HAMMAMI, des listes d'usines
+   *  et de projets, des formations constructeurs, des sections entières.
+   *  Ce fourre-tout leur donne une place, sans avoir à deviner à l'avance
+   *  toutes les rubriques que les candidats inventent. */
+  other_sections?: ParsedSection[]
   // For OCR fallback / future flags
   source_quality?: 'native' | 'scanned' | 'partial'
+}
+
+/** Rubrique libre du CV, reprise telle quelle faute de champ dédié. */
+export type ParsedSection = {
+  /** Intitulé tel qu'il apparaît au CV ("PROJETS", "PUBLICATIONS"…). */
+  title: string
+  /** Contenu de la rubrique, mis à plat. */
+  content: string
 }
 
 export type ScoreDimensions = {

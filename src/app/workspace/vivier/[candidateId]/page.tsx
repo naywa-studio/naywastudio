@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { m } from "framer-motion"
@@ -87,6 +87,12 @@ const copy = {
     other: "Autres",
     languagesLabel: "Langues:",
     certificationsLabel: "Certifications:",
+    rawTextTitle: "Texte intégral du CV",
+    rawTextShow: "Afficher",
+    rawTextHide: "Masquer",
+    rawTextHint: "Ce que Nora a lu dans le PDF, mot pour mot. À consulter si une information du CV ne se retrouve pas ci-dessus.",
+    rawTextLoading: "Chargement…",
+    rawTextEmpty: "Aucun texte conservé pour ce CV. C'est le cas des PDF scannés, lus par reconnaissance de caractères sans que le texte soit stocké.",
     notes: "Notes",
     saving: "Enregistrement…",
     saved: "✓ Sauvegardé",
@@ -141,6 +147,12 @@ const copy = {
     other: "Other",
     languagesLabel: "Languages:",
     certificationsLabel: "Certifications:",
+    rawTextTitle: "Full CV text",
+    rawTextShow: "Show",
+    rawTextHide: "Hide",
+    rawTextHint: "What Nora read in the PDF, word for word. Check here if something from the CV is missing above.",
+    rawTextLoading: "Loading…",
+    rawTextEmpty: "No text kept for this CV. This happens with scanned PDFs, read through character recognition without the text being stored.",
     notes: "Notes",
     saving: "Saving…",
     saved: "✓ Saved",
@@ -198,6 +210,22 @@ export default function CandidatePage() {
   const [jobMatches, setJobMatches] = useState<JobMatch[]>([])
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
   const [tagsSaving, setTagsSaving] = useState(false)
+  // `raw_text` pèse ~24 Ko par candidat et reste HORS de CANDIDATE_COLUMNS
+  // pour ne pas alourdir chaque ouverture de fiche. On le charge donc au
+  // premier clic seulement, et on le garde ensuite.
+  const [showRawText, setShowRawText] = useState(false)
+  const [rawText, setRawText] = useState<string | null>(null)
+
+  const toggleRawText = useCallback(async () => {
+    setShowRawText((v) => !v)
+    if (rawText !== null) return
+    const { data } = await sb
+      .from("candidates")
+      .select("raw_text")
+      .eq("id", candidateId)
+      .single()
+    setRawText((data as { raw_text: string | null } | null)?.raw_text ?? "")
+  }, [rawText, candidateId, sb])
 
   const notesRef = useRef(notes)
   useEffect(() => { notesRef.current = notes }, [notes])
@@ -586,6 +614,57 @@ export default function CandidatePage() {
                   )}
                 </SubSection>
               )}
+
+              {/* Rubriques du CV qui n'entrent dans aucun champ du schéma —
+                  projets, sites, habilitations, publications… Sans elles, le
+                  sourceur ne voyait jamais des pans entiers du document. */}
+              {cv?.other_sections && cv.other_sections.length > 0 && (
+                <>
+                  {cv.other_sections.map((sec, i) => (
+                    <SubSection key={i} title={sec.title}>
+                      <p style={{ margin: 0, fontSize: 13.5, color: "var(--nw-text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                        {sec.content}
+                      </p>
+                    </SubSection>
+                  ))}
+                </>
+              )}
+
+              {/* Texte intégral — le SEUL garant réel du « rien perdu ». Ce que
+                  le modèle n'a pas su ranger reste consultable ici. Replié par
+                  défaut : c'est un filet de vérification, pas la vue de
+                  travail. */}
+              <SubSection
+                title={t.rawTextTitle}
+                right={
+                  <button
+                    type="button"
+                    onClick={toggleRawText}
+                    style={{
+                      border: "1px solid var(--nw-border)", background: "transparent",
+                      color: "var(--nw-text-muted)", borderRadius: 6, padding: "3px 9px",
+                      fontSize: 11.5, cursor: "pointer",
+                    }}
+                  >
+                    {showRawText ? t.rawTextHide : t.rawTextShow}
+                  </button>
+                }
+              >
+                {showRawText && (
+                  <>
+                    <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--nw-text-muted)" }}>{t.rawTextHint}</p>
+                    <pre style={{
+                      margin: 0, padding: 12, maxHeight: 420, overflow: "auto",
+                      background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border)",
+                      borderRadius: 8, fontSize: 12, lineHeight: 1.6,
+                      color: "var(--nw-text-body)", whiteSpace: "pre-wrap", wordBreak: "break-word",
+                      fontFamily: "inherit",
+                    }}>
+                      {rawText === null ? t.rawTextLoading : (rawText.trim() || t.rawTextEmpty)}
+                    </pre>
+                  </>
+                )}
+              </SubSection>
             </div>
           </section>
 
@@ -771,15 +850,23 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
   )
 }
 
-function SubSection({ title, children }: { title: string; children: React.ReactNode }) {
+function SubSection({ title, children, right }: {
+  title: string
+  children: React.ReactNode
+  /** Action optionnelle alignée à droite du titre (ex : « Afficher »). */
+  right?: React.ReactNode
+}) {
   return (
     <div>
-      <h3 style={{
-        margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
-        letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
-      }}>
-        {title}
-      </h3>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, margin: "0 0 10px" }}>
+        <h3 style={{
+          margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
+          letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+        }}>
+          {title}
+        </h3>
+        {right}
+      </div>
       {children}
     </div>
   )
