@@ -971,6 +971,41 @@ function seniorityFromMonths(months: number): NonNullable<ParsedCv["seniority_le
  * CHAMP-ECORCE" depuis la même date, soit un indépendant exerçant via sa
  * propre société. Les deux postes sont réellement en cours.
  */
+/**
+ * Retire les expériences RIGOUREUSEMENT redondantes.
+ *
+ * Depuis que le texte est lu dans le bon ordre, le modèle voit l'intégralité
+ * du document — y compris, sur les CV longs, une synthèse de carrière EN PLUS
+ * de la section détaillée. Il restitue alors deux fois le même poste sous deux
+ * intitulés voisins : chez Sebastian MOLINA, « DOW CHEMICAL / Directeur de
+ * chantier » et « DOW CHEMICAL / Directeur de chantier TCE » partageaient les
+ * mêmes dates au mois près.
+ *
+ * La clé est volontairement STRICTE — société + début + fin. Deux postes
+ * successifs chez le même employeur ont des dates différentes et sont donc
+ * conservés : on ne déduplique que ce qui est indiscernable. À égalité, on
+ * garde l'entrée la plus décrite.
+ */
+function dedupeExperiences(experiences: ParsedExperience[]): ParsedExperience[] {
+  const seen = new Map<string, number>()
+  const out: ParsedExperience[] = []
+  for (const e of experiences) {
+    const company = (e.company || "").trim().toLowerCase()
+    // Sans société ni dates, aucune comparaison n'est fiable : on garde.
+    if (!company || (!e.start && e.end === undefined)) { out.push(e); continue }
+    const key = `${company}|${e.start ?? ""}|${e.end === null ? "encours" : e.end ?? ""}`
+    const at = seen.get(key)
+    if (at === undefined) {
+      seen.set(key, out.length)
+      out.push(e)
+      continue
+    }
+    const kept = out[at]
+    if ((e.description || "").length > (kept.description || "").length) out[at] = e
+  }
+  return out
+}
+
 function structuralWarnings(experiences: ParsedExperience[]): string[] {
   if (experiences.length === 0) return []
   const out: string[] = []
@@ -1117,11 +1152,18 @@ function deriveSectorFromIndustries(industries: string[] | undefined): ParsedCv[
   return "autre"
 }
 
+/** Chaînes que le modèle écrit parfois AU LIEU d'un null JSON. Sans ce filtre,
+ *  un début de mission valait littéralement "null" : la date paraissait
+ *  renseignée, et le contrôle de cohérence annonçait une fin antérieure au
+ *  début (« null » se compare après « 2004 »). Vu chez Sebastian MOLINA. */
+const NULL_LIKE = new Set(["null", "none", "n/a", "na", "-", "--", "undefined", "nc"])
+
 function normalizeParsedCv(p: LlmCvPayload): ParsedCv {
   const trimOrNull = (v: unknown) => {
     if (typeof v !== "string") return null
     const t = v.trim()
-    return t.length ? t : null
+    if (!t.length) return null
+    return NULL_LIKE.has(t.toLowerCase()) ? null : t
   }
   const safeArr = (v: unknown, cap = 50): string[] =>
     Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean).slice(0, cap) : []
@@ -1178,6 +1220,10 @@ function normalizeParsedCv(p: LlmCvPayload): ParsedCv {
     warnings: safeArr(p.warnings, 3).map((w) => w.slice(0, 120)),
     source_quality: "native",
   }
+
+  // Dédoublonnage AVANT les alertes : elles comptent les postes, et compter
+  // deux fois le même fausserait leur diagnostic autant que la fiche.
+  cv.experience = dedupeExperiences(cv.experience ?? [])
 
   // Les alertes VÉRIFIABLES sont recalculées ici et passent devant : elles
   // portent sur le JSON réellement stocké, là où celles du modèle ne sont
