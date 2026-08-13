@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { Eye, EyeOff } from "lucide-react"
 
 const copy = {
   fr: {
@@ -199,6 +200,36 @@ export default function AdminRecherchePage() {
 
   const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : "—"
+  const [revealedEmails, setRevealedEmails] = useState<Set<string>>(new Set());
+
+  const toggleEmail = (userId: string) => {
+  setRevealedEmails((prev) => {
+    const next = new Set(prev);
+
+    if (next.has(userId)) {
+      next.delete(userId);
+    } else {
+      next.add(userId);
+    }
+
+    return next;
+  });
+};
+
+const maskEmail = (email: string) => {
+  const [name, domain] = email.split("@");
+
+  if (!domain) return email;
+
+  if (name.length <= 2) {
+    return `${name[0]}***@${domain}`;
+  }
+
+  return `${name.slice(0, 2)}${"*".repeat(
+    Math.max(name.length - 2, 4)
+  )}@${domain}`;
+};
+
 
   return (
     <main style={{
@@ -303,14 +334,60 @@ export default function AdminRecherchePage() {
             </thead>
             <tbody>
               {results.map((r) => (
-                <tr key={r.user_id} style={{ borderTop: "1px solid var(--nw-border-soft)" }}>
+                <tr key={r.user_id} style={{ minWidth: 260, borderTop: "1px solid var(--nw-border-soft)" }}>
                   <Td>
                     <div style={{ fontWeight: 600, color: "var(--nw-text)" }}>
                       {r.first_name ?? <em style={{ color: "var(--nw-text-muted)" }}>{t.noName}</em>}
                     </div>
-                    <div style={{ fontSize: 11.5, color: "var(--nw-text-muted)", marginTop: 2 }}>
-                      {r.email ?? "—"}
-                    </div>
+                    
+
+                    <div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 11.5,
+    color: "var(--nw-text-muted)",
+    marginTop: 2,
+  }}
+>
+  {r.email ? (
+    <>
+      <span>
+        {revealedEmails.has(r.user_id)
+          ? r.email
+          : maskEmail(r.email)}
+      </span>
+
+      <button
+        onClick={() => toggleEmail(r.user_id)}
+        style={{
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          padding: 0,
+          display: "flex",
+          alignItems: "center",
+          color: "var(--nw-text-muted)",
+        }}
+        title={
+          revealedEmails.has(r.user_id)
+            ? "Hide email"
+            : "Reveal email"
+        }
+      >
+        {revealedEmails.has(r.user_id) ? (
+          <EyeOff size={14} />
+        ) : (
+          <Eye size={14} />
+        )}
+      </button>
+    </>
+  ) : (
+    "—"
+  )}
+</div>
+
                   </Td>
                   <Td>
                     {r.organization ? (

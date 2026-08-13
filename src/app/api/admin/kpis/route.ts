@@ -42,20 +42,35 @@ export async function GET() {
     trialsActive,
     subActive,
   ] = await Promise.all([
-    admin.from("organizations").select("id", { count: "exact", head: true })
-      .is("pending_deletion_at", null),
-    admin.from("profiles").select("id", { count: "exact", head: true }),
-    admin.from("profiles").select("id", { count: "exact", head: true })
-      .eq("has_sourcing_seat", true),
-    admin.from("candidates").select("id", { count: "exact", head: true })
-      .eq("parse_status", "parsed"),
-    admin.from("organizations").select("id", { count: "exact", head: true })
-      .gt("trial_ends_at", new Date().toISOString()),
+    admin.from("organizations")
+     .select("id", { count: "exact", head: true })
+     .is("pending_deletion_at", null)
+     .eq("is_test", false),
+
+    admin.from("profiles")
+     .select("id, organizations!inner(is_test)", { count: "exact", head: true })
+     .eq("organizations.is_test", false),
+
+    admin.from("profiles")
+     .select("id, organizations!inner(is_test)", { count: "exact", head: true })
+     .eq("has_sourcing_seat", true)
+     .eq("organizations.is_test", false),
+
+    admin.from("candidates")
+     .select("id, organizations!inner(is_test)", { count: "exact", head: true })
+     .eq("parse_status", "parsed")
+     .eq("organizations.is_test", false),
+
+    admin.from("organizations")
+     .select("id", { count: "exact", head: true })
+     .gt("trial_ends_at", new Date().toISOString())
+     .eq("is_test", false),
     // MRR : on tire les lignes pour faire la somme côté code (le barème
     // dégressif vit en TS, c'est plus fiable qu'un CASE WHEN SQL).
     admin.from("organizations")
       .select("subscription_seats, subscription_has_pricing, subscription_status")
-      .in("subscription_status", ["active", "trialing"]),
+      .in("subscription_status", ["active", "trialing"])
+      .eq("is_test", false)
   ])
 
   // Le montant se recalcule depuis le barème (sièges + option), au lieu d'être

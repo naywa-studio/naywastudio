@@ -33,12 +33,10 @@ const copy = {
     refreshing: "Actualisation…",
     refresh: "Actualiser",
     errorWithStatus: (status: number) => `Erreur ${status}`,
-    kpiCabinets: "Cabinets actifs",
-    kpiCabinetsHint: "hors suppression en attente",
-    kpiUsers: "Utilisateurs",
-    kpiUsersHint: "tous comptes confondus",
-    kpiSeats: "Sièges occupés",
-    kpiSeatsHint: "profiles avec un siège alloué",
+    platform: "Plateforme",
+    platformFirms:"Cabinets actifs",
+    platformUsers:"Utilisateurs",
+    platformSeats: "Sièges occupés",
     kpiCandidates: "Candidats parsés",
     kpiCandidatesHint: "CV uploadés et analysés par Nora",
     kpiTrials: "Essais actifs",
@@ -47,25 +45,23 @@ const copy = {
     kpiMrrHint: "sub Stripe active + trialing",
     footnote: "Chaque KPI vient d'une requête unique côté API. Aucun ratio composé. Le MRR estimé compte les sub Stripe actives ou en essai natif, valorisées via le barème dégressif (sièges + option Pricing).",
   },
-  en: {
-    badge: "Admin console",
-    title: "Dashboard",
-    refreshing: "Refreshing…",
-    refresh: "Refresh",
-    errorWithStatus: (status: number) => `Error ${status}`,
-    kpiCabinets: "Active firms",
-    kpiCabinetsHint: "excludes pending deletion",
-    kpiUsers: "Users",
-    kpiUsersHint: "all accounts combined",
-    kpiSeats: "Occupied seats",
-    kpiSeatsHint: "profiles with an allocated seat",
-    kpiCandidates: "Parsed candidates",
-    kpiCandidatesHint: "CVs uploaded and analyzed by Nora",
-    kpiTrials: "Active trials",
-    kpiTrialsHint: "trial_ends_at > now",
-    kpiMrr: "Estimated MRR",
-    kpiMrrHint: "active or trialing Stripe sub",
-    footnote: "Each KPI comes from a single API query. No composite ratio. Estimated MRR counts active or native-trial Stripe subs, valued via the tiered pricing scale (seats + Pricing option).",
+  en: { 
+    badge: "Admin console", 
+    title: "Dashboard", 
+    refreshing: "Refreshing…", 
+    refresh: "Refresh", 
+    errorWithStatus: (status: number) => `Error ${status}`, 
+    platform: "Platform", 
+    platformFirms: "Firms", 
+    platformUsers: "Users", 
+    platformSeats: "Seats", 
+    kpiCandidates: "Parsed candidates", 
+    kpiCandidatesHint: "CVs uploaded and analyzed by Nora", 
+    kpiTrials: "Active trials", 
+    kpiTrialsHint: "trial_ends_at > now", 
+    kpiMrr: "Estimated MRR", 
+    kpiMrrHint: "active or trialing Stripe sub", 
+    footnote: "Each KPI comes from a single API query. No composite ratio. Estimated MRR counts active or native-trial Stripe subs, valued via the tiered pricing scale (seats + Pricing option).", 
   },
 }
 
@@ -77,7 +73,8 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState<string | null>(null)
 
   const fetchKpis = async () => {
-    setLoading(true); setError(null)
+    setLoading(true); 
+    setError(null)
     try {
       const res = await fetch("/api/admin/kpis", { cache: "no-store" })
       if (!res.ok) {
@@ -151,27 +148,14 @@ export default function AdminDashboardPage() {
           gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           gap: 14,
         }}>
-          <KpiCard
-            label={t.kpiCabinets}
-            value={kpis?.cabinets_active}
-            icon={<BuildingIcon />}
-            hint={t.kpiCabinetsHint}
-            delay={0}
+          <PlatformCard
+           firms={kpis?.cabinets_active} 
+           users={kpis?.users_total} 
+           seats={kpis?.seats_occupied}
+           delay={0}
           />
-          <KpiCard
-            label={t.kpiUsers}
-            value={kpis?.users_total}
-            icon={<UsersIcon />}
-            hint={t.kpiUsersHint}
-            delay={0.04}
-          />
-          <KpiCard
-            label={t.kpiSeats}
-            value={kpis?.seats_occupied}
-            icon={<SeatIcon />}
-            hint={t.kpiSeatsHint}
-            delay={0.08}
-          />
+         
+          
           <KpiCard
             label={t.kpiCandidates}
             value={kpis?.candidates_parsed}
@@ -206,6 +190,202 @@ export default function AdminDashboardPage() {
       </main>
     </LazyMotion>
   )
+}
+
+/*Platform Card */ 
+function PlatformCard({
+  firms,
+  users,
+  seats,
+  delay=0,
+}: {
+  firms?:number
+  users?:number
+  seats?:number
+  delay?:number
+}) {
+  const {lang }=useLanguage()
+
+  const labels = 
+   lang === "fr"
+     ? {
+         title: "Plateforme",
+         firms: "Cabinets", 
+         users: "Utilisateurs", 
+         seats: "Sièges", 
+        } 
+      : { 
+         title: "Platform", 
+         firms: "Firms", 
+         users: "Users", 
+         seats: "Seats",
+        }
+  const formatNumber =(value?: number )=>
+    value === undefined
+      ? "-"
+      : value.toLocaleString(lang ==="fr"? "fr-FR": "en-US")
+return (
+  <m.div
+    initial ={{opacity: 0, y: 8}}
+    animate= {{opacity: 1, y: 0}}
+    transition={{
+      duration: 0.4,
+      ease:EASE,
+      delay,
+    }}
+    style={{
+      padding: "16px 18px",
+      background: "white",
+      border: "1 px solid var(--nw--border--soft)",
+      borderRadius: 14,
+      minWidth: 0,
+    }}
+  > 
+  <div 
+      style ={{
+        display:"flex",
+        alignItems:"center",
+        gap: 10,
+        marginBottom: 18,
+        color: "var(--nw-primary)",
+      }}
+   > 
+    <BuildingIcon/>
+    
+    <span
+     style={{ 
+      fontSize: 11, 
+      fontWeight: 700, 
+      color: "var(--nw-text-muted)", 
+      letterSpacing: "0.06em", 
+      fontFamily: "var(--nw-font-mono)", 
+      textTransform: "uppercase", 
+    }} 
+    > 
+    {labels.title} 
+    </span> 
+  </div> 
+    <div 
+    style={{ 
+      display: "grid", 
+      gridTemplateColumns: "repeat(3, minmax(0, 1fr))", 
+      gap: 12, 
+    }} 
+    > 
+    <PlatformMetric 
+      label={labels.firms} 
+      value={formatNumber(firms)} 
+      /> 
+
+    <PlatformMetric 
+      label={labels.users} 
+      value={formatNumber(users)} 
+    /> 
+    
+    <PlatformMetric 
+      label={labels.seats} 
+      value={formatNumber(seats)} 
+    /> 
+    </div> 
+    </m.div> 
+    ) 
+  } 
+
+function PlatformMetric({ 
+  label, 
+  value, 
+}: { 
+  label: string 
+  value: string 
+}) { 
+  return ( 
+  <div style={{ 
+    minWidth: 0, 
+    paddingRight: 10, 
+    borderRight: "1px solid var(--nw-border-soft)", 
+  }} 
+  > 
+  <p 
+    style={{ 
+      margin: 0, 
+      fontSize: 25, 
+      fontWeight: 800, 
+      color: "var(--nw-text)", 
+      letterSpacing: "-0.025em", 
+      lineHeight: 1.1, 
+      fontVariantNumeric: "tabular-nums", 
+    }} 
+    > 
+    {value} 
+    </p> 
+    <p 
+    style={{ 
+      margin: "6px 0 0", 
+      fontSize: 10.5, 
+      fontWeight: 700, 
+      color: "var(--nw-text-muted)", 
+      letterSpacing: "0.05em", 
+      fontFamily: "var(--nw-font-mono)", 
+      textTransform: "uppercase",
+    }} 
+    > {
+      label} 
+      </p> 
+      </div> 
+    )
+}
+
+function KpiCard({
+    label, value, icon, hint, delay = 0, wide = false,
+  }: {
+    label: string
+    value: number | string | undefined
+    icon: React.ReactNode
+    hint: string
+    delay?: number
+    wide?: boolean
+  }) {
+    const { lang } = useLanguage()
+    const display = value === undefined
+      ? "—"
+      : typeof value === "number" ? value.toLocaleString(lang === "fr" ? "fr-FR" : "en-US") : value
+    return (
+      <m.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: EASE, delay }}
+        style={{
+          padding: "16px 18px",
+          background: "white",
+          border: "1px solid var(--nw-border-soft)",
+          borderRadius: 14,
+          gridColumn: wide ? "span 2" : undefined,
+          minWidth: 0,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, color: "var(--nw-primary)" }}>
+          {icon}
+          <span style={{
+            fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
+            letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+          }}>
+            {label}
+          </span>
+        </div>
+        <p style={{
+          margin: 0, fontSize: 32, fontWeight: 800, color: "var(--nw-text)",
+          letterSpacing: "-0.025em", lineHeight: 1.1,
+          fontVariantNumeric: "tabular-nums",
+        }}>
+          {display}
+        </p>
+        <p style={{
+          margin: "6px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5,
+        }}>
+          {hint}
+        </p>
+      </m.div>
+    )
 }
 
 /**
@@ -281,58 +461,7 @@ function StripeSeedCard() {
 }
 
 
-function KpiCard({
-    label, value, icon, hint, delay = 0, wide = false,
-  }: {
-    label: string
-    value: number | string | undefined
-    icon: React.ReactNode
-    hint: string
-    delay?: number
-    wide?: boolean
-  }) {
-    const { lang } = useLanguage()
-    const display = value === undefined
-      ? "—"
-      : typeof value === "number" ? value.toLocaleString(lang === "fr" ? "fr-FR" : "en-US") : value
-    return (
-      <m.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: EASE, delay }}
-        style={{
-          padding: "16px 18px",
-          background: "white",
-          border: "1px solid var(--nw-border-soft)",
-          borderRadius: 14,
-          gridColumn: wide ? "span 2" : undefined,
-          minWidth: 0,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, color: "var(--nw-primary)" }}>
-          {icon}
-          <span style={{
-            fontSize: 11, fontWeight: 700, color: "var(--nw-text-muted)",
-            letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
-          }}>
-            {label}
-          </span>
-        </div>
-        <p style={{
-          margin: 0, fontSize: 32, fontWeight: 800, color: "var(--nw-text)",
-          letterSpacing: "-0.025em", lineHeight: 1.1,
-          fontVariantNumeric: "tabular-nums",
-        }}>
-          {display}
-        </p>
-        <p style={{
-          margin: "6px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5,
-        }}>
-          {hint}
-        </p>
-      </m.div>
-    )
-}
+
 
 function formatEuros(n: number, lang: "fr" | "en"): string {
   return new Intl.NumberFormat(lang === "fr" ? "fr-FR" : "en-US", {
@@ -350,22 +479,14 @@ function BuildingIcon() {
     </svg>
   )
 }
-function UsersIcon() {
+
+
+function HourglassIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="9" cy="8" r="3.5" />
-      <path d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6" />
-      <circle cx="17" cy="9" r="2.5" />
-      <path d="M14.5 20c0-2.5 1.5-4.5 4-4.5s2.5 1 2.5 1" />
-    </svg>
-  )
-}
-function SeatIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M5 18v-7a3 3 0 013-3h8a3 3 0 013 3v7" />
-      <path d="M3 21h18" />
-      <path d="M8 14h8" />
+      <path d="M6 3h12M6 21h12" />
+      <path d="M6 3c0 4 6 5 6 9 0 4-6 5-6 9" />
+      <path d="M18 3c0 4-6 5-6 9 0 4 6 5 6 9" />
     </svg>
   )
 }
@@ -375,15 +496,6 @@ function FileIcon() {
       <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z" />
       <path d="M14 3v5h5" />
       <path d="M8 13h8M8 17h6" />
-    </svg>
-  )
-}
-function HourglassIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M6 3h12M6 21h12" />
-      <path d="M6 3c0 4 6 5 6 9 0 4-6 5-6 9" />
-      <path d="M18 3c0 4-6 5-6 9 0 4 6 5 6 9" />
     </svg>
   )
 }

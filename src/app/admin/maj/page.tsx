@@ -139,6 +139,7 @@ export default function AdminMajPage() {
   const t = copy[lang]
   const categories = CATEGORIES[lang]
   const [rows, setRows] = useState<Row[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Row | "new" | null>(null)
 
@@ -169,6 +170,11 @@ export default function AdminMajPage() {
     await fetch(`/api/admin/maj/${row.id}`, { method: "DELETE" })
     void fetchAll()
   }
+
+  const filteredRows =
+    selectedCategory === "all"
+        ? rows
+        : rows.filter(r => r.category === selectedCategory)
 
   return (
     <LazyMotion features={domAnimation}>
@@ -210,9 +216,78 @@ export default function AdminMajPage() {
           </button>
         </header>
 
+
+        <div
+  style={{
+    display: "flex",
+    gap: 8,
+    marginBottom: 20,
+    flexWrap: "wrap",
+  }}
+>
+  <button
+    type="button"
+    onClick={() => setSelectedCategory("all")}
+    style={{
+      padding: "8px 14px",
+      borderRadius: 999,
+      border:
+        selectedCategory === "all"
+          ? "1px solid var(--nw-primary)"
+          : "1px solid var(--nw-border)",
+      background:
+        selectedCategory === "all"
+          ? "var(--nw-primary)"
+          : "white",
+      color:
+        selectedCategory === "all"
+          ? "white"
+          : "var(--nw-text-body)",
+      cursor: "pointer",
+      fontWeight: 600,
+      fontFamily: "inherit",
+    }}
+  >
+    All ({rows.length})
+  </button>
+
+  {categories.map((cat) => {
+    const count = rows.filter((r) => r.category === cat.value).length
+
+    return (
+      <button
+        key={cat.value}
+        type="button"
+        onClick={() => setSelectedCategory(cat.value)}
+        style={{
+          padding: "8px 14px",
+          borderRadius: 999,
+          border:
+            selectedCategory === cat.value
+              ? `1px solid ${cat.color}`
+              : "1px solid var(--nw-border)",
+          background:
+            selectedCategory === cat.value
+              ? cat.color
+              : "white",
+          color:
+            selectedCategory === cat.value
+              ? "white"
+              : "var(--nw-text-body)",
+          cursor: "pointer",
+          fontWeight: 600,
+          fontFamily: "inherit",
+        }}
+      >
+        {cat.label} ({count})
+      </button>
+    )
+  })}
+</div>
+
         {loading ? (
           <p style={{ fontSize: 13, color: "var(--nw-text-muted)" }}>{t.loading}</p>
-        ) : rows.length === 0 ? (
+        ) : filteredRows.length === 0 ? (
           <div style={{
             padding: 32, textAlign: "center",
             border: "1px dashed var(--nw-border)", borderRadius: 14, background: "var(--nw-surface-muted)",
@@ -226,7 +301,7 @@ export default function AdminMajPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {rows.map((row) => {
+            {filteredRows.map((row) => {
               const cat = categories.find((c) => c.value === row.category)!
               const isDraft = !row.published_at
               return (
