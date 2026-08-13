@@ -559,7 +559,8 @@ EXHAUSTIVITÉ — RÈGLE PRIORITAIRE :
 - N'omets AUCUNE expérience professionnelle, même ancienne, même décrite en une ligne.
 - Balaye le document ENTIER pour les compétences et outils. Ils sont souvent hors d'une section "Compétences" : sous "Formation", "Divers", "Informatique", "Logiciels", ou noyés dans les descriptions de poste. Un intitulé de section trompeur ne doit JAMAIS te faire ignorer son contenu.
 - L'ORDRE DU TEXTE PEUT ÊTRE IMPARFAIT. Un CV mis en page en colonnes ou en blocs libres arrive parfois désordonné : une colonne latérale peut s'intercaler au milieu d'une section, une description apparaître avant l'employeur qu'elle décrit. Rattache chaque bloc à son poste par le SENS, pas seulement par la position. Un paragraphe qui parle d'encaissement et de mise en rayon appartient au supermarché, pas au cabinet de recrutement cité juste au-dessus.
-- DESCRIPTIONS DE POSTE : reprends TOUTES les lignes de mission rattachées au poste, sans en résumer ni en sacrifier aucune, et en gardant les termes du CV (chiffres, outils, normes, intitulés). Jusqu'à 700 caractères par poste. Une description tronquée fait disparaître exactement ce sur quoi le recruteur juge.
+- DESCRIPTIONS DE POSTE : reprends les lignes de mission rattachées au poste en gardant les termes du CV (chiffres, outils, normes, intitulés), jusqu'à 600 caractères par poste. Une description élaguée fait disparaître exactement ce sur quoi le recruteur juge.
+- MAIS COUVRIR TOUS LES POSTES PRIME SUR EN ALLONGER UN. Si le CV compte plus de 6 postes, resserre chaque description autour de 250 caractères pour tous les restituer. Un poste entier qui manque est une faute bien plus grave qu'une description un peu courte, et un JSON trop long finit coupé au milieu, donc inexploitable.
 - Les outils métier spécialisés (simulation, calcul, CAO, ERP, instrumentation…) sont ce qui rend un profil recrutable : ils priment sur la bureautique générique. Ne garde jamais "Word/Excel" en écartant un outil spécialisé faute de place.
 
 SKILLS vs QUALITIES (deux listes séparées, un item dans UNE SEULE) :
@@ -641,7 +642,8 @@ RÈGLES :
 - EXHAUSTIVITÉ ABSOLUE : reprends TOUTES les expériences, de la plus récente à la plus ancienne. Aucune omission, même pour un poste décrit en une seule ligne. C'est ta seule mission ici : tu as tout ton budget pour elle.
 - ATTENTION AUX TITRES DE SECTION TROMPEURS : un CV range parfois toute sa carrière sous "PROJETS", "PARCOURS", "DIVERS" ou même "STAGES". Ce qui décide qu'une ligne est une expérience professionnelle, ce sont les DATES et l'EMPLOYEUR — jamais le titre de la section qui la contient.
 - Ne FUSIONNE JAMAIS deux postes distincts en une seule entrée : deux employeurs différents, ou deux intitulés successifs chez le même employeur, font deux entrées.
-- "description" : reprends TOUTES les lignes de mission du poste, sans en résumer ni en sacrifier aucune, en CONSERVANT les termes du CV (chiffres, outils, normes, spécialités, types d'installations). Jusqu'à 700 caractères par poste. N'invente rien, mais n'élague rien non plus.
+- "description" : reprends les lignes de mission du poste en CONSERVANT les termes du CV (chiffres, outils, normes, spécialités, types d'installations), jusqu'à 600 caractères par poste. N'invente rien, mais n'élague rien non plus.
+- COUVRIR TOUS LES POSTES PRIME SUR EN ALLONGER UN. Au-delà de 6 postes, resserre chaque description autour de 250 caractères pour tous les restituer : un poste manquant est une faute bien plus grave qu'une description courte, et un JSON trop long finit coupé au milieu, donc inexploitable.
 - L'ORDRE DU TEXTE PEUT ÊTRE IMPARFAIT : sur un CV en colonnes ou en blocs, une description peut apparaître avant l'employeur qu'elle décrit, ou une colonne latérale s'intercaler. Rattache chaque description à son poste par le SENS, pas seulement par la position. Un bloc qui parle d'encaissement et de mise en rayon appartient au supermarché, pas au cabinet de recrutement mentionné juste au-dessus.
 - "end" : null UNIQUEMENT pour un poste que le CV présente comme EN COURS ("depuis…", "présent", "aujourd'hui", période ouverte). Dès qu'une date de fin figure au CV, reprends-la. PLUSIEURS postes peuvent être en cours simultanément (gérance, freelance, mandat, emploi en parallèle) : ne referme aucun poste pour "faire propre".
 - Dates : "YYYY-MM" si le mois est disponible, sinon "YYYY". Ne les invente pas — null si vraiment absente.
@@ -681,8 +683,8 @@ async function parseExperiencesOnly(rawText: string): Promise<unknown[] | null> 
       model: "openai/gpt-4o-mini",
       temperature: 0.1,
       responseFormat: "json_object",
-      maxTokens: 3200,
-      timeoutMs: 25_000,
+      maxTokens: 4_000,
+      timeoutMs: 40_000,
       messages: [
         { role: "system", content: EXPERIENCE_PROMPT },
         { role: "user", content: `Voici le CV :\n\n${rawText}` },
@@ -701,19 +703,24 @@ export async function parseCvWithLlm(rawText: string): Promise<ParseResult> {
 
   // Les deux passes partent EN PARALLÈLE : la latence totale reste celle du
   // plus lent des deux appels et non leur somme, ce qui laisse la route très
-  // en deçà de son watchdog (75 s) même sur un CV de 24 000 caractères.
+  // en deçà de ses 90 s même sur un CV de 24 000 caractères.
   const [result, secondPassExperiences] = await Promise.all([
     openrouterChat({
       model: "openai/gpt-4o-mini",
       temperature: 0.1,
       responseFormat: "json_object",
-      maxTokens: 2600,
-      // 25 s ceiling on the primary text LLM call. Default openrouter timeout
-      // is 45 s, but on Vercel Hobby (60 s maxDuration) we need to leave room
-      // for the OCR fallback in case the text extraction was bad. Most healthy
-      // gpt-4o-mini calls finish in 3-12 s, so 25 s is a generous budget that
-      // still gives ~30 s to OCR if needed.
-      timeoutMs: 25_000,
+      // Relevé de 2 600 à 4 000. Le plafond était calé sur des descriptions
+      // que le prompt ne bornait pas et qui sortaient à 150-250 caractères ;
+      // en réclamant l'exhaustivité, la sortie a doublé et le JSON s'est mis à
+      // être TRONQUÉ, donc invalide — le CV de Merzouk Habi (21 000
+      // caractères) est passé en erreur de parsing. Un JSON coupé au milieu ne
+      // laisse aucune trace parlante : l'erreur remontée est « JSON invalide »
+      // et rien n'indique que c'est le budget qui a manqué.
+      maxTokens: 4_000,
+      // 40 s de plafond. La route a 90 s (maxDuration) et les deux passes
+      // partent en parallèle : le pire cas reste très en deçà du watchdog,
+      // tout en laissant de la marge à l'OCR de secours.
+      timeoutMs: 40_000,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `Voici le CV :\n\n${rawText}` },
