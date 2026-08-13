@@ -136,14 +136,14 @@ function toPlacedItems(items: unknown): PlacedItem[] {
   return out
 }
 
-/** Zone de la page où DEUX colonnes coexistent réellement. */
+/** Verdict de mise en page d'une page : elle est à deux colonnes, et voici où
+ *  passe la séparation. Les bornes VERTICALES de la zone servent à établir ce
+ *  verdict mais ne sont pas exposées : la séparation s'applique ensuite ligne
+ *  par ligne sur toute la page, une ligne pleine largeur étant reconnue à ce
+ *  qu'elle traverse la gouttière plutôt qu'à sa position. */
 interface ColumnRegion {
   /** Abscisse de séparation. */
   splitX: number
-  /** Ordonnée du haut de la zone (en PDF, l'ordonnée croît vers le haut). */
-  yTop: number
-  /** Ordonnée du bas de la zone. */
-  yBottom: number
   /** Côté portant l'essentiel du contenu. La barre latérale est tantôt à
    *  gauche, tantôt à droite ; c'est la colonne PRINCIPALE qu'on veut lire en
    *  premier et qui doit recueillir les lignes pleine largeur. */
@@ -270,6 +270,9 @@ function findColumnRegion(items: PlacedItem[], pageWidth: number): ColumnRegion 
   // Une zone à deux colonnes trop courte ne vaut pas le risque de la découpe.
   if (bestRunUsed < 8) return null
 
+  // L'équilibre des deux colonnes se juge DANS la zone où elles coexistent :
+  // compté sur la page entière, un bandeau d'en-tête ou une section pleine
+  // largeur fausserait la mesure.
   const yTop = maxY - runStart * bandHeight
   const yBottom = maxY - runEnd * bandHeight
 
@@ -293,7 +296,7 @@ function findColumnRegion(items: PlacedItem[], pageWidth: number): ColumnRegion 
   if (minor < inside * 0.08) return null
   if (straddling > inside * 0.10) return null
 
-  return { splitX, yTop, yBottom, mainIsLeft: left >= right }
+  return { splitX, mainIsLeft: left >= right }
 }
 
 /** Assemble une ligne : fragments de gauche à droite, espace inséré seulement
@@ -570,7 +573,7 @@ SKILLS vs QUALITIES (deux listes séparées, un item dans UNE SEULE) :
 
 SÉNIORITÉ :
 - DATES : capture-les le plus précisément possible (YYYY-MM si dispo, sinon YYYY). NE LES INVENTE PAS. Le calcul d'années est fait par notre code à partir de ces dates : ta précision sur les dates est ce qui compte le plus.
-- "end" = null signifie EN COURS, rien d'autre. Mets null UNIQUEMENT si le CV présente ce poste comme actuel : "depuis 2024", "présent", "aujourd'hui", "à ce jour", période laissée ouverte. Dès qu'une date de fin figure au CV, reprends-la. Un poste passé dont tu ne retrouves pas la fin reste à null faute de mieux, mais tu le signales alors dans "warnings" — sinon notre interface l'affichera comme le poste actuel du candidat, ce qui est faux.
+- "end" = null signifie EN COURS, rien d'autre. Mets null UNIQUEMENT si le CV présente ce poste comme actuel : "depuis 2024", "présent", "aujourd'hui", "à ce jour", période laissée ouverte. Dès qu'une date de fin figure au CV, reprends-la, même approximative ("fin 2019" → "2019"). Notre interface affiche tout poste à null comme le poste ACTUEL du candidat : y mettre un poste terminé est une erreur visible par le client final.
 - Plusieurs postes peuvent légitimement être en cours en même temps (gérance, freelance, mandat, emploi en parallèle). N'en referme aucun pour "faire propre" : recopie ce que dit le CV.
 - "years_experience" : ton estimation indicative en années arrondie au plus proche entier. **NE COMPTE QUE LE TRAVAIL POST-DIPLÔME** : stages avant diplôme, alternances et années d'études n'entrent PAS dans le calcul. Quelqu'un qui a son diplôme depuis 10 ans mais n'a vraiment travaillé que 2 ans (gaps, autre formation, sabbatique) = 2 ans, pas 10. Notre code recalcule à partir des dates + du flag is_apprentice.
 - "is_apprentice" : true si la personne est ACTUELLEMENT en alternance / apprentissage / contrat pro (mots-clés à chercher : "Apprenti", "Alternance", "Contrat d'apprentissage", "Contrat de professionnalisation", parfois mention "BUT 2 / Master en alternance"). False sinon (y compris pour les anciens alternants qui sont maintenant en CDI). Si tu hésites → false.
@@ -777,12 +780,15 @@ export async function parseCvViaOcr(buf: Buffer): Promise<ParseResult> {
     model: "openai/gpt-4o-mini",
     temperature: 0.1,
     responseFormat: "json_object",
-    maxTokens: 2600,
-    // 30 s ceiling on OCR. Was 90 s, but on Vercel Hobby (60 s maxDuration)
-    // 90 s is impossible — the function would be killed before OCR could
-    // return. With primary LLM capped at 25 s + OCR at 30 s = 55 s worst case,
-    // leaving 5 s to write the error/success status to DB.
-    timeoutMs: 30_000,
+    // Aligné sur la passe texte : ce chemin sert le MÊME prompt, il porte donc
+    // exactement le même risque de JSON tronqué. L'oublier ici aurait laissé
+    // les PDF scannés tomber en « JSON invalide » alors que les PDF natifs
+    // venaient d'être réparés — et les scans sont justement ceux qu'on ne peut
+    // pas re-parser ensuite, faute de texte brut conservé.
+    maxTokens: 4_000,
+    // 40 s de plafond, pour la même raison qu'au-dessus : la route dispose de
+    // 90 s, il reste de la marge pour écrire le statut en base.
+    timeoutMs: 40_000,
     plugins: [{ id: "file-parser", pdf: { engine: "mistral-ocr" } }],
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
@@ -1006,6 +1012,18 @@ function dedupeExperiences(experiences: ParsedExperience[]): ParsedExperience[] 
   return out
 }
 
+/** Rang absolu en mois d'une date "YYYY" ou "YYYY-MM", ou null si illisible.
+ *  Tolère un mois non complété ("2019-9") et un mois hors bornes. */
+function monthRank(value: string | null | undefined): number | null {
+  if (typeof value !== "string") return null
+  const m = /^(\d{4})(?:-(\d{1,2}))?/.exec(value.trim())
+  if (!m) return null
+  const year = Number(m[1])
+  const month = m[2] === undefined ? 1 : Number(m[2])
+  if (!isFinite(year) || !isFinite(month) || month < 1 || month > 12) return null
+  return year * 12 + (month - 1)
+}
+
 function structuralWarnings(experiences: ParsedExperience[]): string[] {
   if (experiences.length === 0) return []
   const out: string[] = []
@@ -1016,9 +1034,16 @@ function structuralWarnings(experiences: ParsedExperience[]): string[] {
   if (noStart.length === 1) out.push(`Poste chez ${label(noStart[0])} sans date de début.`)
   else if (noStart.length > 1) out.push(`${noStart.length} postes sans date de début.`)
 
-  const inverted = experiences.find(
-    (e) => typeof e.start === "string" && typeof e.end === "string" && e.end < e.start,
-  )
+  // Comparaison sur un RANG de mois, jamais sur les chaînes : le modèle écrit
+  // parfois "2019-9" au lieu de "2019-09", et l'ordre alphabétique place alors
+  // décembre AVANT septembre. On aurait annoncé des dates incohérentes sur un
+  // parcours parfaitement cohérent — exactement le genre de fausse alerte
+  // qu'on vient de retirer au modèle.
+  const inverted = experiences.find((e) => {
+    const s = monthRank(e.start)
+    const f = monthRank(typeof e.end === "string" ? e.end : null)
+    return s !== null && f !== null && f < s
+  })
   if (inverted) out.push(`Dates incohérentes chez ${label(inverted)} : fin avant le début.`)
 
   const undescribed = experiences.filter((e) => (e.description || "").trim().length === 0)
@@ -1155,8 +1180,12 @@ function deriveSectorFromIndustries(industries: string[] | undefined): ParsedCv[
 /** Chaînes que le modèle écrit parfois AU LIEU d'un null JSON. Sans ce filtre,
  *  un début de mission valait littéralement "null" : la date paraissait
  *  renseignée, et le contrôle de cohérence annonçait une fin antérieure au
- *  début (« null » se compare après « 2004 »). Vu chez Sebastian MOLINA. */
-const NULL_LIKE = new Set(["null", "none", "n/a", "na", "-", "--", "undefined", "nc"])
+ *  début (« null » se compare après « 2004 »). Vu chez Sebastian MOLINA.
+ *
+ *  Volontairement limité aux formes SANS ambiguïté : ce filtre s'applique à
+ *  tous les champs texte, localisation comprise, où « NA » (North America) et
+ *  « NC » (Nouvelle-Calédonie) sont des valeurs légitimes. */
+const NULL_LIKE = new Set(["null", "none", "n/a", "undefined", "-", "--"])
 
 function normalizeParsedCv(p: LlmCvPayload): ParsedCv {
   const trimOrNull = (v: unknown) => {
