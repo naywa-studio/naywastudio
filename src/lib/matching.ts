@@ -325,6 +325,7 @@ CONTEXTE
 - CRITÈRES : liste avec { id, type, label, weight, params }. weight="main" compte dans le score global, "bonus" est informatif. Évalue les DEUX.
 - CANDIDATS : poste actuel, séniorité, années XP, skills, outils, domaines, industries, summary, langues, certifications, et le PARCOURS COMPLET dans \`experience\` — chaque poste avec son intitulé, sa société, ses dates et ce qui y a été fait. Tu n'as pas le CV brut, mais tu as ce parcours structuré.
 - EXPLOITE LE PARCOURS : c'est là que se trouve la preuve de la plupart des critères. Une compétence réellement exercée, un secteur fréquenté, un type d'installation, une taille d'équipe encadrée, une durée sur un domaine précis apparaissent dans les descriptions de poste, pas dans la liste de tags. Un tag absent n'est PAS une preuve d'absence si le parcours le démontre.
+- \`other_sections\` : rubriques du CV qui n'entrent dans aucun champ (habilitations, CACES, permis, projets, publications, engagements). Elles portent parfois la preuve DÉCISIVE d'un critère — une habilitation électrique ou un CACES peut conditionner l'accès au poste. Traite-les comme le parcours : une information vue là vaut preuve, au même titre qu'un tag.
 - Sur les postes les plus anciens, la description peut être absente alors que l'intitulé, la société et les dates sont là : c'est une limite de place, pas un manque d'information. Ne pénalise pas un candidat pour ça.
 
 RÈGLES PAR TYPE
@@ -537,7 +538,33 @@ function compactCandidateForCriteria(c: Candidate): Record<string, unknown> {
     location: c.location ?? null,
     summary: c.parsed_cv?.summary ?? null,
     experience: experienceForCriteria(c),
+    // Rubriques libres du CV (habilitations, CACES, permis, projets,
+    // engagements…). Elles en étaient exclues au départ pour ne rien coûter
+    // en tokens — à tort : sur un profil technique, une habilitation peut
+    // être la CONDITION d'accès au poste, et si elle ne figure que là, le
+    // scoring passait à côté. Budget serré (cf. SECTIONS_BUDGET) : ces
+    // rubriques éclairent un critère, elles ne doivent pas noyer le parcours.
+    other_sections: sectionsForCriteria(c),
   }
+}
+
+/** Budget total des rubriques libres envoyées au scoring, tous titres
+ *  confondus. Volontairement dix fois plus serré que celui des descriptions
+ *  de poste : ce sont des compléments, pas la matière première du jugement. */
+const MATCH_SECTIONS_BUDGET = 600
+
+function sectionsForCriteria(c: Candidate): Array<Record<string, unknown>> {
+  const sections = c.parsed_cv?.other_sections ?? []
+  let remaining = MATCH_SECTIONS_BUDGET
+  const out: Array<Record<string, unknown>> = []
+  for (const s of sections) {
+    if (remaining <= 0) break
+    const content = (s.content ?? "").trim().slice(0, remaining)
+    if (!content) continue
+    remaining -= content.length
+    out.push({ title: s.title, content })
+  }
+  return out
 }
 
 async function scoreBatchCriteriaOnce(
