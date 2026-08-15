@@ -25,6 +25,8 @@ const copy = {
     title: "Réglages du document",
     hint: "S'appliquent à toute la page. Le contenu se règle dans l'aperçu, bloc par bloc.",
     template: "Gabarit",
+    templateScope: "Vaut pour cette génération. Le gabarit du cabinet se règle depuis la shortlist.",
+    missionScope: "Enregistré sur la mission — vaut pour tous ses candidats.",
     noraSummary: "Résumé Nora",
     noraSummaryHint: "Deux ou trois phrases factuelles orientées mission, rédigées à la génération.",
     watermark: "Filigrane",
@@ -40,6 +42,8 @@ const copy = {
     title: "Document settings",
     hint: "They apply to the whole page. Content is adjusted in the preview, block by block.",
     template: "Template",
+    templateScope: "Applies to this generation. The organization's template is set from the shortlist.",
+    missionScope: "Saved on the job opening — applies to all its candidates.",
     noraSummary: "Nora summary",
     noraSummaryHint: "Two or three factual, job-oriented sentences, written at generation time.",
     watermark: "Watermark",
@@ -126,15 +130,22 @@ export function AnonymizeSidePanel({ options, onChange, readOnly = false, footer
               )
             })}
           </div>
+          {/* La portée de chaque réglage est dite ici : le gabarit ne suit pas
+              le candidat, le message éditorial suit la mission. Sans ça, le
+              sourceur ne peut pas deviner ce qui persiste. */}
+          <Scope>{t.templateScope}</Scope>
         </div>
 
-        <Toggle
-          label={t.noraSummary}
-          hint={t.noraSummaryHint}
-          checked={options.keepNoraSummary ?? false}
-          disabled={readOnly}
-          onChange={(v) => set({ keepNoraSummary: v })}
-        />
+        <div>
+          <Toggle
+            label={t.noraSummary}
+            hint={t.noraSummaryHint}
+            checked={options.keepNoraSummary ?? false}
+            disabled={readOnly}
+            onChange={(v) => set({ keepNoraSummary: v })}
+          />
+          <Scope>{t.missionScope}</Scope>
+        </div>
 
         <div>
           <Toggle
@@ -185,6 +196,7 @@ export function AnonymizeSidePanel({ options, onChange, readOnly = false, footer
           <span style={{ display: "block", marginTop: 4, fontSize: 10.5, color: "var(--nw-text-muted)" }}>
             {t.charsLeft(CUSTOM_TEXT_MAX - (options.customText ?? "").length)}
           </span>
+          <Scope>{t.missionScope}</Scope>
         </div>
       </div>
 
@@ -198,6 +210,18 @@ export function AnonymizeSidePanel({ options, onChange, readOnly = false, footer
         </div>
       )}
     </aside>
+  )
+}
+
+/** Mention de portée sous un réglage : ce qui persiste, et où. */
+function Scope({ children }: { children: React.ReactNode }) {
+  return (
+    <span style={{
+      display: "block", marginTop: 6, fontSize: 10.5, lineHeight: 1.45,
+      color: "var(--nw-text-muted)", fontStyle: "italic",
+    }}>
+      {children}
+    </span>
   )
 }
 

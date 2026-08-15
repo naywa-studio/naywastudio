@@ -458,6 +458,43 @@ export default function MatchPage() {
       .finally(() => setSelectionSaving(false))
   }
 
+  /**
+   * Le résumé Nora et le message d'accompagnement appartiennent à la MISSION
+   * (`jobs.anonymize_options`) : c'est là que la shortlist les lit et les
+   * écrit. Les régler ici sans les réenregistrer donnerait un message qui
+   * disparaît dès qu'on quitte la page, et qui contredirait la shortlist.
+   *
+   * Le gabarit et le filigrane, eux, restent LOCAUX à cette génération : ils
+   * appartiennent à l'organisation et se règlent depuis la shortlist, où le
+   * geste est explicite. Les réécrire au passage depuis une fiche candidat
+   * changerait la présentation de tous les documents du cabinet sans que
+   * personne ne l'ait demandé.
+   */
+  const jobOptionsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const jobOptionsReady = useRef(false)
+  useEffect(() => {
+    const jobId = match?.job?.id
+    if (!jobId || isReadOnly) return
+    // Le premier passage suit le chargement : rien à réécrire.
+    if (!jobOptionsReady.current) { jobOptionsReady.current = true; return }
+    if (jobOptionsTimer.current) clearTimeout(jobOptionsTimer.current)
+    jobOptionsTimer.current = setTimeout(() => {
+      void fetch(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          anonymize_options: {
+            keepNoraSummary: anonymizeOptions.keepNoraSummary,
+            customText: anonymizeOptions.customText,
+          },
+        }),
+      }).catch(() => { /* best-effort : la valeur reste à l'écran */ })
+    }, 700)
+    return () => { if (jobOptionsTimer.current) clearTimeout(jobOptionsTimer.current) }
+    // Volontairement limité aux deux champs de la mission.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anonymizeOptions.keepNoraSummary, anonymizeOptions.customText, match?.job?.id, isReadOnly])
+
   const generateAnonymized = async () => {
     if (!candidate || anonymizeStatus.state === "working" || isReadOnly) return
     setAnonymizeStatus((prev) => ({ ...prev, state: "working", error: null }))
