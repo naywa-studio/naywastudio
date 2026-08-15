@@ -9,6 +9,7 @@ import { CANDIDATE_COLUMNS, type Candidate, type ParsedCv, type MatchTier } from
 import { customTagsOf, SYSTEM_TAGS } from "@/lib/tags"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 import TagPicker from "@/components/workspace/TagPicker"
+import CandidateCvEditor from "@/components/workspace/CandidateCvEditor"
 import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { showUndoToast } from "@/components/ui/UndoToast"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
@@ -93,6 +94,11 @@ const copy = {
     rawTextHint: "Ce que Nora a lu dans le PDF, mot pour mot. À consulter si une information du CV ne se retrouve pas ci-dessus.",
     rawTextLoading: "Chargement…",
     rawTextEmpty: "Aucun texte conservé pour ce CV. C'est le cas des PDF scannés, lus par reconnaissance de caractères sans que le texte soit stocké.",
+    parsedCvTitle: "CV analysé",
+    edit: "Modifier",
+    editedBadge: "Modifié",
+    editedTitle: (d: string) => `Fiche corrigée à la main le ${d}. Ce marqueur reste dans le workspace, il n'apparaît jamais sur le CV anonymisé.`,
+    reparseWarning: "Cette fiche a été corrigée à la main. Un nouveau parsing ÉCRASERA vos corrections et la version d'origine ne sera plus proposée. Continuer ?",
     notes: "Notes",
     saving: "Enregistrement…",
     saved: "✓ Sauvegardé",
@@ -153,6 +159,11 @@ const copy = {
     rawTextHint: "What Nora read in the PDF, word for word. Check here if something from the CV is missing above.",
     rawTextLoading: "Loading…",
     rawTextEmpty: "No text kept for this CV. This happens with scanned PDFs, read through character recognition without the text being stored.",
+    parsedCvTitle: "Parsed CV",
+    edit: "Edit",
+    editedBadge: "Edited",
+    editedTitle: (d: string) => `Profile corrected by hand on ${d}. This marker stays in the workspace — it never appears on the anonymized CV.`,
+    reparseWarning: "This profile was corrected by hand. Re-parsing will OVERWRITE your corrections and the original version will no longer be offered. Continue?",
     notes: "Notes",
     saving: "Saving…",
     saved: "✓ Saved",
@@ -215,6 +226,10 @@ export default function CandidatePage() {
   // premier clic seulement, et on le garde ensuite.
   const [showRawText, setShowRawText] = useState(false)
   const [rawText, setRawText] = useState<string | null>(null)
+  // Édition de la fiche = correction de la SOURCE DE VÉRITÉ (le matching et
+  // tous les CV anonymisés en héritent). À ne pas confondre avec le choix des
+  // briques d'un document client, qui vit sur la fiche match.
+  const [editing, setEditing] = useState(false)
 
   const toggleRawText = useCallback(async () => {
     setShowRawText((v) => !v)
@@ -346,8 +361,32 @@ export default function CandidatePage() {
 
   const handleRetryParse = async () => {
     if (!candidate) return
+    // Politique de conflit assumée : un re-parsing écrase les corrections
+    // manuelles et efface l'instantané d'origine. Le sourceur doit le savoir
+    // AVANT, pas le découvrir après.
+    if (candidate.parsed_cv_edited_at && !window.confirm(t.reparseWarning)) return
     setCandidate((prev) => prev ? { ...prev, parse_status: "parsing", parse_error: null } : prev)
     await fetch(`/api/cv/${candidate.id}/parse`, { method: "POST" }).catch(() => {})
+  }
+
+  /** Retour de l'éditeur : on recompose la fiche avec le CV enregistré et les
+   *  colonnes miroirs que le serveur vient de reporter (nom, titre, skills…),
+   *  sinon l'en-tête garderait l'ancien nom jusqu'au prochain chargement. */
+  const handleCvSaved = (cv: ParsedCv, reverted: boolean) => {
+    setCandidate((prev) => prev ? {
+      ...prev,
+      parsed_cv: cv,
+      parsed_cv_edited_at: reverted ? null : new Date().toISOString(),
+      full_name: cv.full_name ?? null,
+      email: cv.email ?? null,
+      phone: cv.phone ?? null,
+      location: cv.location ?? null,
+      current_title: cv.current_title ?? null,
+      current_company: cv.current_company ?? null,
+      skills: cv.skills ?? [],
+      languages: cv.languages ?? [],
+    } : prev)
+    setEditing(false)
   }
 
   const saveTags = async (nextCustom: string[]) => {
@@ -526,11 +565,67 @@ export default function CandidatePage() {
             />
           </Section>
 
-          {/* Parsed CV */}
+          {/* CV analysé — lecture, ou édition quand le sourceur corrige.
+              L'éditeur remplace la carte au lieu de s'ouvrir à côté : deux
+              versions du même CV à l'écran, l'une modifiable et l'autre non,
+              inviteraient à corriger la mauvaise. */}
+          {editing ? (
+            <CandidateCvEditor
+              candidateId={candidate.id}
+              cv={cv}
+              hasOriginal={!!candidate.parsed_cv_edited_at}
+              onSaved={handleCvSaved}
+              onCancel={() => setEditing(false)}
+            />
+          ) : (
           <section style={{
             background: "white", borderRadius: 16, border: "1px solid var(--nw-border-soft)",
             overflow: "hidden",
           }}>
+            <div style={{
+              padding: "14px 24px", borderBottom: "1px solid var(--nw-border-soft)",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              gap: 12, flexWrap: "wrap",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <h2 style={{
+                  margin: 0, fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)",
+                  letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+                }}>
+                  {t.parsedCvTitle}
+                </h2>
+                {/* Tag « modifié » : WORKSPACE UNIQUEMENT. Sur un document
+                    client il sèmerait le doute sans donner de moyen d'agir. */}
+                {candidate.parsed_cv_edited_at && (
+                  <span
+                    title={t.editedTitle(new Date(candidate.parsed_cv_edited_at).toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR"))}
+                    style={{
+                      fontSize: 10, fontWeight: 700, color: "var(--nw-primary)",
+                      background: "rgba(124,99,200,0.08)", border: "1px solid rgba(124,99,200,0.22)",
+                      borderRadius: 100, padding: "2px 8px",
+                      letterSpacing: "0.05em", textTransform: "uppercase",
+                      fontFamily: "var(--nw-font-mono)",
+                    }}
+                  >
+                    {t.editedBadge}
+                  </span>
+                )}
+              </div>
+              {!isReadOnly && candidate.parse_status === "parsed" && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  style={{
+                    fontFamily: "inherit", fontSize: 11.5, fontWeight: 700,
+                    color: "var(--nw-primary)", background: "transparent",
+                    border: "1px solid rgba(124,99,200,0.3)", borderRadius: 8,
+                    padding: "5px 12px", cursor: "pointer",
+                  }}
+                >
+                  {t.edit}
+                </button>
+              )}
+            </div>
             <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 22 }}>
               {cv?.summary && (
                 <SubSection title={t.summary}>
@@ -667,6 +762,7 @@ export default function CandidatePage() {
               </SubSection>
             </div>
           </section>
+          )}
 
           {/* Notes */}
           <Section

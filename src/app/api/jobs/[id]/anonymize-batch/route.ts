@@ -25,6 +25,7 @@ import { buildExecutiveSummary } from "@/lib/anonymized-summary"
 import { consumeOrgLlmActionForUser } from "@/lib/quota"
 import { readOrgDefaults, readJobOptions, coerceTemplate } from "@/components/workspace/anonymize/types"
 import { candidateRefSlug } from "@/lib/candidate-ref"
+import { readSelection, applySelection, type AnonymizeSelection } from "@/lib/anonymize-selection"
 import type { Candidate } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -114,6 +115,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
   const missionSafe = safeName(job.title || "mission")
 
+  // ── Briques masquées, par candidat, pour CETTE mission ─────────────────
+  //
+  // Une seule requête plutôt qu'une par CV : le lot monte à 25 candidats.
+  // Sans ce chargement, le choix fait sur une fiche match ne vaudrait que
+  // pour le téléchargement à l'unité et le paquet remis au client dirait
+  // autre chose que l'aperçu — le pire des deux mondes.
+  const exclusions = new Map<string, AnonymizeSelection>()
+  {
+    const { data: rows } = await sb
+      .from("match_assessments")
+      .select("candidate_id, anonymize_excluded")
+      .eq("job_id", jobId)
+      .in("candidate_id", ids)
+    for (const row of rows ?? []) {
+      if (row.anonymize_excluded) {
+        exclusions.set(row.candidate_id, readSelection(row.anonymize_excluded))
+      }
+    }
+  }
+
   const { r2Upload } = await import("@/lib/r2-storage")
   const { incrementStorageUsed } = await import("@/lib/quota")
 
@@ -133,6 +154,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       skipped.push(candidateId); continue
     }
 
+    // Copie filtrée des briques masquées sur cette mission. `parsed_cv` reste
+    // intact en base : c'est un choix de présentation, pas une correction.
+    const selection = exclusions.get(candidate.id)
+    const subject: Candidate = selection
+      ? { ...(candidate as Candidate), parsed_cv: applySelection(candidate.parsed_cv, selection) }
+      : (candidate as Candidate)
+
     // Quota LLM seulement si le résumé Nora est demandé (sinon zéro appel).
     let executiveSummary: string | null = null
     if (jobOptions.keepNoraSummary) {
@@ -140,14 +168,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (!q.ok) {
         return NextResponse.json({ error: q.code ?? "llm_quota_exceeded", message: q.message }, { status: 429 })
       }
-      executiveSummary = await buildExecutiveSummary(candidate as Candidate, jobContext, "fr")
+      // Le résumé est construit sur le CV FILTRÉ — il ne doit jamais vanter
+      // une expérience que le document ne montre pas.
+      executiveSummary = await buildExecutiveSummary(subject, jobContext, "fr")
     }
 
     let buffer: Buffer
     try {
       buffer = Buffer.from(await renderToBuffer(
         AnonymizedCv({
-          candidate: candidate as Candidate,
+          candidate: subject,
           reference: candidateRefSlug(candidate.id),
           job: jobContext,
           brand,

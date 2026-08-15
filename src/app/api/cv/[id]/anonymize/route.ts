@@ -21,6 +21,7 @@ import {
   readOrgDefaults, readJobOptions, coerceTemplate,
   INITIAL_ORG_ANONYMIZE_DEFAULTS, INITIAL_JOB_ANONYMIZE_OPTIONS,
 } from "@/components/workspace/anonymize/types"
+import { readSelection, applySelection } from "@/lib/anonymize-selection"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -168,6 +169,29 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const reference = refFor(candidate.id)
 
+  // ── Briques masquées pour CETTE mission ──────────────────────────────────
+  //
+  // Arbitrage de présentation propre au client (le poste chez son concurrent,
+  // le job étudiant sans rapport). On travaille sur une COPIE : `parsed_cv`
+  // reste intact en base, et rien de ce filtrage ne redescend dans le vivier
+  // ni dans le matching.
+  //
+  // Le filtrage a lieu AVANT le résumé exécutif : un résumé qui vanterait une
+  // expérience absente du document serait pire que pas de résumé du tout.
+  let subject = candidate as Candidate
+  if (jobId && candidate.parsed_cv) {
+    const { data: matchRow } = await sb
+      .from("match_assessments")
+      .select("anonymize_excluded")
+      .eq("job_id", jobId)
+      .eq("candidate_id", candidate.id)
+      .maybeSingle()
+    if (matchRow?.anonymize_excluded) {
+      const selection = readSelection(matchRow.anonymize_excluded)
+      subject = { ...subject, parsed_cv: applySelection(candidate.parsed_cv, selection) }
+    }
+  }
+
   // Executive summary mission-oriented — 2-3 phrases formelles qui expliquent
   // pourquoi ce profil correspond à la mission. Best-effort : si le LLM rate
   // ou prend trop de temps, on tombe sur cv.summary tel que parsé côté PDF.
@@ -175,7 +199,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // panneau "Personnaliser" — économise quota + latence.
   let executiveSummary: string | null = null
   if (jobContext && keepNoraSummary) {
-    executiveSummary = await buildExecutiveSummary(candidate as Candidate, jobContext, language)
+    executiveSummary = await buildExecutiveSummary(subject, jobContext, language)
   }
 
   let buffer: Buffer
@@ -183,7 +207,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     buffer = Buffer.from(
       await renderToBuffer(
         AnonymizedCv({
-          candidate: candidate as Candidate,
+          candidate: subject,
           reference,
           job: jobContext,
           brand,

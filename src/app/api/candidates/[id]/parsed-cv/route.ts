@@ -199,7 +199,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       // Première retouche seulement : on fige ce que NORA avait produit.
       ...(candidate.parsed_cv_original ? {} : { parsed_cv_original: current }),
       parsed_cv_edited_at: new Date().toISOString(),
-      parse_status: "manual",
+      // `parse_status` reste à "parsed" — DÉLIBÉRÉMENT. Il ne dit pas QUI a
+      // écrit la fiche, il dit qu'elle porte des données structurées
+      // exploitables, et une correction manuelle ne change pas ça. Le poser à
+      // "manual" ferait disparaître le candidat de tout ce qui filtre sur
+      // "parsed" : matching (`jobs/[id]/match`, `score-one`, `match-all`),
+      // anonymisation PDF et DOCX, clustering, classement par secteur — et
+      // même le bouton « Modifier », qui ne se serait plus jamais affiché
+      // après la première correction. La trace de la retouche, c'est
+      // `parsed_cv_edited_at`, et lui seul.
       ...mirroredColumns(next),
     })
     .eq("id", id)
@@ -238,7 +246,9 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
       parsed_cv: original,
       parsed_cv_original: null,
       parsed_cv_edited_at: null,
-      parse_status: "parsed",
+      // Pas de `parse_status` ici non plus : l'édition ne l'a pas changé, le
+      // retour arrière n'a donc rien à restaurer. L'écrire à "parsed" ferait
+      // passer pour exploitable une fiche dont le parsing avait échoué.
       ...mirroredColumns(original),
     })
     .eq("id", id)

@@ -11,6 +11,8 @@ import { criterionHeaderLabel, shortCriterionLabel, dimColor, statusColor } from
 import ComposeBox from "@/components/workspace/ComposeBox"
 import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
 import { AnonymizePreview } from "@/components/workspace/anonymize/AnonymizePreview"
+import { AnonymizeBrickPicker } from "@/components/workspace/anonymize/AnonymizeBrickPicker"
+import { readSelection, EMPTY_SELECTION, type AnonymizeSelection } from "@/lib/anonymize-selection"
 import {
   INITIAL_ANONYMIZE_OPTIONS,
   INITIAL_ANONYMIZE_STATUS,
@@ -300,6 +302,11 @@ export default function MatchPage() {
   // MatchPage qui orchestre.
   const [anonymizeStatus, setAnonymizeStatus] = useState<AnonymizeStatus>(INITIAL_ANONYMIZE_STATUS)
   const [anonymizeOptions, setAnonymizeOptions] = useState<AnonymizeOptions>(INITIAL_ANONYMIZE_OPTIONS)
+  // Briques masquées dans le document remis au client POUR CETTE MISSION.
+  // Distinct de l'édition de la fiche candidat, qui corrige la donnée elle-même.
+  const [anonymizeSelection, setAnonymizeSelection] = useState<AnonymizeSelection>(EMPTY_SELECTION)
+  const [selectionSaving, setSelectionSaving] = useState(false)
+  const selectionQueue = useRef<Promise<unknown>>(Promise.resolve())
   const previewSectionRef = useRef<HTMLDivElement | null>(null)
   const scrollToPreview = () => {
     previewSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -315,6 +322,7 @@ export default function MatchPage() {
       const data = await res.json()
       setMatch(data.match as LoadedMatch)
       setCandidate(data.candidate as Candidate)
+      setAnonymizeSelection(readSelection((data.match as { anonymize_excluded?: unknown })?.anonymize_excluded))
       setLoading(false)
     })()
     return () => { mounted = false }
@@ -371,6 +379,30 @@ export default function MatchPage() {
     })()
     return () => { cancelled = true }
   }, [candidate])
+
+  /**
+   * Enregistre la sélection de briques. Les écritures sont CHAÎNÉES : chaque
+   * PATCH envoie l'état complet, donc deux réponses arrivées dans le désordre
+   * feraient réapparaître chez le client une brique qu'on venait de masquer.
+   * Une file d'un seul rang suffit — on ne clique pas ces boutons en rafale.
+   */
+  const saveSelection = (next: AnonymizeSelection) => {
+    if (isReadOnly) return
+    setAnonymizeSelection(next)
+    setSelectionSaving(true)
+    const run = async () => {
+      try {
+        await fetch(`/api/match/${matchId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ anonymize_excluded: next }),
+        })
+      } catch { /* best-effort : la sélection reste à l'écran, un clic la rejoue */ }
+    }
+    selectionQueue.current = selectionQueue.current
+      .then(run)
+      .finally(() => setSelectionSaving(false))
+  }
 
   const generateAnonymized = async () => {
     if (!candidate || anonymizeStatus.state === "working" || isReadOnly) return
@@ -1024,6 +1056,15 @@ export default function MatchPage() {
             onScrollToPreview={scrollToPreview}
             readOnly={isReadOnly}
           />
+          {candidate.parse_status === "parsed" && (
+            <AnonymizeBrickPicker
+              cv={candidate.parsed_cv}
+              selection={anonymizeSelection}
+              onChange={saveSelection}
+              disabled={isReadOnly}
+              saving={selectionSaving}
+            />
+          )}
           <AnonymizePreview
             status={anonymizeStatus}
           />

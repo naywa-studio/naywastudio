@@ -18,6 +18,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { buildAnonymizedDocx } from "@/lib/anonymized-cv-docx"
+import { readSelection, applySelection } from "@/lib/anonymize-selection"
 import { candidateRefSlug as refFor } from "@/lib/candidate-ref"
 import type { AnonymizedJobContext } from "@/lib/anonymized-cv"
 import type { Candidate } from "@/lib/database.types"
@@ -118,10 +119,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const reference = refFor(candidate.id)
 
+  // Mêmes briques masquées que le PDF de cette mission — le Word est une
+  // version éditable du MÊME document. S'il montrait un poste que le PDF
+  // cache, le sourceur enverrait au client ce qu'il croyait avoir retiré.
+  let subject = candidate as Candidate
+  if (jobId && candidate.parsed_cv) {
+    const { data: matchRow } = await sb
+      .from("match_assessments")
+      .select("anonymize_excluded")
+      .eq("job_id", jobId)
+      .eq("candidate_id", candidate.id)
+      .maybeSingle()
+    if (matchRow?.anonymize_excluded) {
+      subject = { ...subject, parsed_cv: applySelection(candidate.parsed_cv, readSelection(matchRow.anonymize_excluded)) }
+    }
+  }
+
   let buffer: Buffer
   try {
     buffer = await buildAnonymizedDocx({
-      candidate: candidate as Candidate,
+      candidate: subject,
       reference,
       job: jobContext,
       brand,

@@ -77,6 +77,24 @@ export type ParsedCv = {
   source_quality?: 'native' | 'scanned' | 'partial'
 }
 
+/**
+ * Briques du CV masquées dans le document anonymisé d'UNE mission
+ * (`match_assessments.anonymize_excluded`, migration 080).
+ *
+ * Liste d'EXCLUSION : absent = la brique part chez le client. Les helpers et
+ * le raisonnement derrière ce choix vivent dans `lib/anonymize-selection.ts` —
+ * le type est ici parce qu'il décrit une colonne, et pour éviter un import
+ * circulaire entre les deux fichiers.
+ */
+export type AnonymizeSelection = {
+  /** Clés d'expériences masquées. */
+  experiences: string[]
+  /** Clés de formations masquées. */
+  education: string[]
+  /** Clés de rubriques libres masquées. */
+  sections: string[]
+}
+
 /** Rubrique libre du CV, reprise telle quelle faute de champ dédié. */
 export type ParsedSection = {
   /** Intitulé tel qu'il apparaît au CV ("PROJETS", "PUBLICATIONS"…). */
@@ -745,6 +763,11 @@ export type Database = {
           client_positive_note: string | null
           /** Horodatage du dernier retour positif client. */
           client_positive_at: string | null
+          /** Briques du CV masquées dans le document anonymisé DE CETTE MISSION
+           *  (liste d'exclusion par clé de contenu, cf. lib/anonymize-selection).
+           *  Arbitrage de présentation propre à un client — ne modifie jamais
+           *  `candidates.parsed_cv`, qui reste la source de vérité. Voir 080. */
+          anonymize_excluded: AnonymizeSelection | null
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -780,6 +803,7 @@ export type Database = {
           client_liked_reasons?: string[] | null
           client_positive_note?: string | null
           client_positive_at?: string | null
+          anonymize_excluded?: AnonymizeSelection | null
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null
