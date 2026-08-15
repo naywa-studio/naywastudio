@@ -622,7 +622,11 @@ TAXONOMY — classement pour le matching futur, sois rigoureux :
 - "domains" : domaines fonctionnels où la personne a vraiment travaillé (ex: "paiement", "logistique", "cybersécurité"). Sois PRÉCIS et complet : sur un profil technique, "air comprimé", "vapeur", "eau glacée", "lutte incendie" valent bien mieux que le seul mot "fluides". Max 10.
 - "industries" : secteurs d'activité des entreprises où elle a travaillé (ex: "banque", "e-commerce", "santé"). Max 10.
 - "tools" : technologies / logiciels / frameworks maîtrisés et nommés dans le CV (ex: "AWS", "Salesforce", "Figma", "Aspen", "AutoCAD"). Prends-les PARTOUT dans le document, y compris hors section "Compétences". Max 30.
-- "core_skills" : 8 à 20 compétences réellement déterminantes pour recruter ce profil. IGNORE le bruit (sports, loisirs, soft skills génériques).
+- "core_skills" : 8 à 20 compétences déterminantes pour recruter ce profil. Ce champ s'affiche tel quel sur le CV remis au client final, sous « Compétences clés » : en sortir quatre sur un profil à quinze ans de carrière donne l'image d'un candidat pauvre, alors que son CV est riche.
+  - VA LES CHERCHER DANS LE PARCOURS, pas seulement dans la section « Compétences ». Ce qu'un candidat a FAIT de façon répétée est une compétence, même s'il ne l'a listée nulle part : piloter un chantier, coordonner des sous-traitants, réceptionner des travaux, encadrer une équipe, négocier avec un maître d'ouvrage. Ces verbes reviennent dans ses descriptions de poste.
+  - Reprends aussi ce qui est déjà dans "tools" et "domains" quand c'est déterminant à l'embauche : un ERP métier ou une spécialité technique EST une compétence clé.
+  - Si tu n'atteins pas 8, c'est presque toujours que tu n'as pas relu les descriptions de poste. Relis-les avant de conclure.
+  - IGNORE le bruit : sports, loisirs, soft skills génériques ("rigoureux", "motivé").
 - Tout en minuscules sauf les noms propres/acronymes. Déduplique. Si rien de fiable → tableau vide.`
 
 /**
