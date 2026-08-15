@@ -75,7 +75,11 @@ function buildStyles(accent: string, secondary: string = accent) {
     },
 
     metaRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
-    metaItem: { marginRight: 22, marginBottom: 4 },
+    // `marginBottom` GÉNÉREUX, et non décoratif : la ligne passe à la ligne
+    // dès qu'une zone est longue, et sans cet écart le libellé de l'item
+    // reporté vient coller à la VALEUR de celui du dessus. Constaté sur le
+    // gabarit exécutif : « LANGUES » collé sous « principal ».
+    metaItem: { marginRight: 22, marginBottom: 10 },
     metaLabel: { fontSize: 7, color: MUTED, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 2 },
     metaValue: { fontSize: 10, color: INK, fontFamily: "Helvetica-Bold" },
 
@@ -470,16 +474,19 @@ export function AnonymizedCv({
             </Text>
           )}
 
-          {/* Meta row plein air, max 4 items */}
+          {/* Meta row plein air, max 4 items.
+              `paddingBottom` réduit à 2 : chaque item porte désormais un
+              `marginBottom: 10` (nécessaire au passage à la ligne), et garder
+              12 en plus creusait un blanc sous le filet du bas. */}
           <View style={{
             flexDirection: "row", flexWrap: "wrap",
             marginTop: 6, marginBottom: 28,
             borderTopWidth: 0.5, borderBottomWidth: 0.5,
             borderColor: LINE,
-            paddingVertical: 12,
+            paddingTop: 12, paddingBottom: 2,
           }}>
             {seniority && (
-              <View style={{ marginRight: 32, minWidth: 80 }}>
+              <View style={{ marginRight: 32, minWidth: 80, marginBottom: 10 }}>
                 <Text style={{ fontSize: 7.5, color: MUTED, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 3 }}>
                   {t.metaSeniority}
                 </Text>
@@ -489,7 +496,7 @@ export function AnonymizedCv({
               </View>
             )}
             {years != null && (
-              <View style={{ marginRight: 32, minWidth: 80 }}>
+              <View style={{ marginRight: 32, minWidth: 80, marginBottom: 10 }}>
                 <Text style={{ fontSize: 7.5, color: MUTED, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 3 }}>
                   {t.metaExperience}
                 </Text>
@@ -499,7 +506,7 @@ export function AnonymizedCv({
               </View>
             )}
             {zone && (
-              <View style={{ marginRight: 32, minWidth: 80 }}>
+              <View style={{ marginRight: 32, minWidth: 80, marginBottom: 10 }}>
                 <Text style={{ fontSize: 7.5, color: MUTED, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 3 }}>
                   {t.metaZone}
                 </Text>
