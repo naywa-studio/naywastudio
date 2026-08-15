@@ -565,6 +565,7 @@ export function AnonymizedCvLivePreview({
         <InlineEditor
           target={editing}
           cv={candidate.parsed_cv ?? {}}
+          t={t}
           onClose={() => setEditing(null)}
           onSaved={(cv) => { onCvChange(cv); setEditing(null) }}
           candidateId={candidate.id}

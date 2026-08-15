@@ -360,9 +360,23 @@ export default function MatchPage() {
       if (res.status === 404) { setNotFound(true); setLoading(false); return }
       if (!res.ok) { setLoading(false); return }
       const data = await res.json()
-      setMatch(data.match as LoadedMatch)
+      const loaded = data.match as LoadedMatch
+      setMatch(loaded)
       setCandidate(data.candidate as Candidate)
-      setAnonymizeSelection(readSelection((data.match as { anonymize_excluded?: unknown })?.anonymize_excluded))
+      setAnonymizeSelection(readSelection((loaded as { anonymize_excluded?: unknown })?.anonymize_excluded))
+      // Les options de la MISSION (résumé Nora, message) sont la source de
+      // vérité éditoriale : la fiche match partait jusqu'ici des valeurs
+      // d'usine et écrasait donc, à la génération, ce que le sourceur avait
+      // réglé dans la shortlist. Invisible tant que l'aperçu n'existait pas,
+      // criant maintenant qu'il montre le document.
+      const jobOpts = loaded?.job?.anonymize_options
+      if (jobOpts) {
+        setAnonymizeOptions((prev) => ({
+          ...prev,
+          keepNoraSummary: jobOpts.keepNoraSummary ?? prev.keepNoraSummary,
+          customText: jobOpts.customText ?? prev.customText,
+        }))
+      }
       setLoading(false)
     })()
     return () => { mounted = false }
