@@ -1167,7 +1167,10 @@ export default function MatchPage() {
             eux-mêmes. À droite les réglages de page. Le PDF réellement
             généré reste consultable en dessous — c'est la pièce qui part,
             l'aperçu n'en est que le plan de travail. */}
-        <div id="anonymize" ref={previewSectionRef} className="match-cv" style={{ gridColumn: "1 / 3", gridRow: "2", display: "flex", flexDirection: "column", gap: 16, scrollMarginTop: 80 }}>
+        {/* L'atelier prend TOUTE la largeur : sur deux colonnes sur trois, il
+            laissait une colonne vide à droite, le document se retrouvait
+            décentré, et le rail du pipeline restait planté à côté de lui. */}
+        <div id="anonymize" ref={previewSectionRef} className="match-cv" style={{ gridColumn: "1 / -1", gridRow: "2", display: "flex", flexDirection: "column", gap: 16, scrollMarginTop: 80 }}>
           <AnonymizeControls
             candidateId={candidate.id}
             jobId={job?.id ?? null}
@@ -1234,8 +1237,17 @@ export default function MatchPage() {
         .anon-studio {
           display: grid;
           gap: 16px;
-          grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+          /* 794px = largeur d'une A4 à 96 dpi. La page garde sa taille réelle
+             et l'ensemble page + réglages est CENTRÉ dans la fiche : c'est un
+             document qu'on regarde, pas un panneau qui remplit l'espace. */
+          grid-template-columns: minmax(0, 794px) minmax(240px, 300px);
+          justify-content: center;
           align-items: start;
+        }
+        @media (max-width: 1180px) {
+          /* Sous cette largeur la page ne tient plus à sa taille réelle : on
+             la laisse se réduire plutôt que d'imposer un défilement latéral. */
+          .anon-studio { grid-template-columns: minmax(0, 1fr) minmax(240px, 280px); }
         }
         @media (max-width: 1180px) {
           .match-band { grid-template-columns: 1fr !important; }

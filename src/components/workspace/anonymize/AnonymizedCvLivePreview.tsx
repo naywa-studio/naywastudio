@@ -395,15 +395,25 @@ export function AnonymizedCvLivePreview({
         )}
       </div>
 
-      {/* La « page ». Fond gris autour pour lire le document comme une feuille. */}
-      <div style={{ background: "var(--nw-surface-muted)", padding: 18, overflowX: "auto" }}>
+      {/* La « page ».
+          Toutes les mesures ci-dessous sont celles du PDF, converties : une A4
+          fait 595,28 pt de large et le rendu à 96 dpi en fait 794 px, soit un
+          facteur 1,3338. Les marges du document (52 pt sur les côtés, 44 en
+          haut, 64 en bas) deviennent donc 69 / 59 / 85 px, et le corps de
+          texte de 10 pt devient 13,3 px.
+
+          Ce n'est pas de la coquetterie : tant que l'aperçu avait ses propres
+          proportions, le sourceur ne pouvait pas juger de ce qui tiendrait sur
+          la page. Le document qu'il ajuste doit avoir la forme de celui qu'il
+          envoie. */}
+      <div style={{ background: "var(--nw-surface-muted)", padding: 22, overflowX: "auto" }}>
         <div style={{
           position: "relative",
-          maxWidth: 720, margin: "0 auto", background: "white",
-          border: "1px solid var(--nw-border)", borderRadius: 6,
-          boxShadow: "0 2px 14px rgba(17,24,39,0.06)",
-          padding: "30px 34px 34px",
-          fontSize: 13, color: "#1F2937", lineHeight: 1.55,
+          width: 794, maxWidth: "100%", margin: "0 auto", background: "white",
+          border: "1px solid var(--nw-border)", borderRadius: 3,
+          boxShadow: "0 3px 18px rgba(17,24,39,0.10)",
+          padding: "59px 69px 85px",
+          fontSize: 13.3, color: "#1F2937", lineHeight: 1.55,
         }}>
           {model.options.watermark && model.watermarkText && (
             <span aria-hidden style={{
@@ -425,24 +435,24 @@ export function AnonymizedCvLivePreview({
                 <img src={model.brand.logoUrl} alt="" style={{ height: 34, maxWidth: 120, objectFit: "contain" }} />
               )}
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: accent, letterSpacing: "0.08em" }}>
+                <div style={{ fontSize: 14.7, fontWeight: 700, color: accent, letterSpacing: "1.3px" }}>
                   {model.brand.name.toUpperCase()}
                 </div>
                 {model.brand.slogan && (
-                  <div style={{ fontSize: 10, color: "#6B7280", fontStyle: "italic" }}>{model.brand.slogan}</div>
+                  <div style={{ fontSize: 11.3, color: "#6B7280", fontStyle: "italic", marginTop: 2 }}>{model.brand.slogan}</div>
                 )}
               </div>
             </div>
-            <span style={{ fontSize: 10, color: "#6B7280", letterSpacing: "0.04em", flexShrink: 0 }}>
+            <span style={{ fontSize: 10.7, color: "#6B7280", letterSpacing: "0.7px", flexShrink: 0 }}>
               {t.ref} {reference}
             </span>
           </div>
-          <div style={{ borderBottom: `1.5px solid ${accent}`, marginTop: 8, marginBottom: 18 }} />
+          <div style={{ borderBottom: `1.9px solid ${accent}`, marginTop: 11, marginBottom: 24 }} />
 
           {/* Titre */}
           {model.hasJob && (
             <div style={{
-              fontSize: 10, fontWeight: 700, color: accent2,
+              fontSize: 11.3, fontWeight: 700, color: accent,
               letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3,
             }}>
               {t.presentedFor}
@@ -458,7 +468,7 @@ export function AnonymizedCvLivePreview({
             editTitle={t.jobScopeHint}
             scopeEverywhere={t.scopeJob}
           >
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+            <h1 style={{ margin: 0, fontSize: 26.7, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
               {model.headline}
             </h1>
           </BlockShell>
@@ -748,7 +758,7 @@ function Meta({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
       <div style={{
-        fontSize: 8.5, fontWeight: 700, color: "#9CA3AF",
+        fontSize: 9.3, fontWeight: 700, color: "#9CA3AF",
         letterSpacing: "0.1em", textTransform: "uppercase",
       }}>
         {label}
@@ -768,7 +778,7 @@ function Band({ title, accent, action, children }: {
         gap: 10, marginBottom: 7,
       }}>
         <div style={{
-          fontSize: 9.5, fontWeight: 800, color: accent,
+          fontSize: 12, fontWeight: 700, color: accent,
           letterSpacing: "0.12em", textTransform: "uppercase",
         }}>
           {title}
