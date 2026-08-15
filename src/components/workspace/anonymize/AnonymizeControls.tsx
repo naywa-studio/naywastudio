@@ -208,6 +208,7 @@ export function AnonymizeControls({
   onGenerate,
   onScrollToPreview,
   readOnly = false,
+  showCustomize = true,
 }: {
   candidateId: string
   jobId: string | null
@@ -221,6 +222,9 @@ export function AnonymizeControls({
   onScrollToPreview: () => void
   /** Lecture seule : génération + export .docx bloqués (anti-extraction). */
   readOnly?: boolean
+  /** Affiche le bouton « Personnaliser » et son panneau. À passer à false
+   *  quand les réglages sont rendus ailleurs (colonne de l'aperçu vivant). */
+  showCustomize?: boolean
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -321,7 +325,11 @@ export function AnonymizeControls({
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {/* Toggle "Personnaliser" — ouvre le panneau d'options. */}
+          {/* Toggle "Personnaliser" — masqué quand les réglages vivent à côté
+              de l'aperçu, en bas de page. Deux endroits pour régler la même
+              chose, c'est un endroit de trop : le sourceur ne saurait plus
+              lequel fait foi. */}
+          {showCustomize && (
           <button
             type="button"
             onClick={() => setCustomizeOpen((v) => !v)}
@@ -344,6 +352,7 @@ export function AnonymizeControls({
             )}
             <span style={{ fontSize: 10, opacity: 0.6 }}>{customizeOpen ? "▴" : "▾"}</span>
           </button>
+          )}
 
           <button
             type="button"

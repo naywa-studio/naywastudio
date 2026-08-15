@@ -18,20 +18,24 @@
  */
 
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
-import type { ParsedCv, Candidate } from "./database.types"
+import type { Candidate } from "./database.types"
+// Le CONTENU du document est décidé dans le modèle partagé, jamais ici : ce
+// fichier ne fait plus que l'habiller. L'aperçu éditable du workspace appelle
+// exactement la même fonction, ce qui rend impossible qu'il montre autre chose
+// que ce qui partira chez le client.
+import {
+  buildAnonymizedModel, anonymizedZone, endLabel,
+  type AnonymizedJobContext, type AnonymizedBrand, type AnonymizedOptions, type AnonymizedTemplate,
+} from "./anonymized-cv-model"
 
-/**
- * Couleur par défaut quand l'org n'a pas configuré sa brand_color.
- * Décision produit : on rend en NOIR (off, non configuré) plutôt
- * qu'en violet Naywa, pour forcer l'owner à choisir sa propre
- * identité. Sinon il livre des CVs siglés Naywa par mégarde.
- */
-const DEFAULT_OFF = "#000000"
 const INK = "#1F2937"
 const MUTED = "#6B7280"
 const LINE = "#E5E1F2"
 
-const DEFAULT_BRAND = "NAYWA STUDIO"
+// Ré-exports : plusieurs appelants (routes, DOCX) importent ces symboles
+// depuis ce fichier depuis longtemps. Les garder évite un sweep sans valeur.
+export { anonymizedZone }
+export type { AnonymizedJobContext, AnonymizedBrand, AnonymizedOptions, AnonymizedTemplate }
 
 /** Construit le stylesheet PDF en injectant la couleur de marque du
  *  cabinet (par défaut violet Naywa). On ne met pas la couleur dans le
@@ -100,69 +104,6 @@ function buildStyles(accent: string, secondary: string = accent) {
   })
 }
 
-export interface AnonymizedJobContext {
-  title: string
-  seniority: string | null
-  location: string | null
-  required_skills: string[]
-  nice_to_have_skills: string[]
-  must_have_skills: string[]
-  role_family: string | null
-}
-
-export interface AnonymizedBrand {
-  /** Cabinet / client name. Falls back to "NAYWA STUDIO" when null. */
-  name: string | null
-  /** Signed URL to the brand logo PNG/JPG. Optional — text-only fallback works. */
-  logoUrl: string | null
-  /** Hex color (#RRGGBB) used as primary accent in the PDF. Falls
-   *  back to NOIR (#000000, "off" non configuré) si null pour ne pas
-   *  usurper le branding Naywa par défaut. */
-  color?: string | null
-  /** Hex color (#RRGGBB) secondaire, utilisée pour les titres de
-   *  section et accents (bicolore). Si null, on reste sur l'accent
-   *  principal partout. */
-  colorSecondary?: string | null
-  /** Slogan court affiché sous le nom du cabinet (header). Optionnel. */
-  slogan?: string | null
-  /** Mail de contact générique imprimé en pied de page pour permettre
-   *  au client final de recontacter au sujet du candidat. Optionnel. */
-  contactEmail?: string | null
-}
-
-/**
- * Options de rendu choisies par le sourceur dans le panneau
- * "Personnaliser" de la fiche match. Toutes optionnelles, défauts
- * appliqués si absentes.
- */
-/**
- * Identifiants des templates de PDF disponibles.
- *  - "classic"    : layout mono-colonne historique (défaut).
- *  - "two-column" : sidebar (skills+méta) + main (résumé, parcours).
- *  - "executive"  : mono-colonne aérée, headline XXL, peu de chips,
- *                   skills en pills larges. Pour profils senior.
- *  - "bento"      : grille de cards bordées arrondies. Plus design.
- */
-export type AnonymizedTemplate = "classic" | "two-column" | "executive" | "bento"
-
-export interface AnonymizedOptions {
-  /** Template de layout. Défaut "classic". */
-  template?: AnonymizedTemplate
-  /** Afficher (true, défaut) ou masquer le résumé Nora. */
-  keepNoraSummary?: boolean
-  /** Message libre du sourceur, affiché sous le résumé Nora (ou
-   *  seul si keepNoraSummary est false). Trim + max 600 chars
-   *  recommandé côté caller. */
-  customText?: string
-  /** Filigrane diagonal "<NomCabinet>" en fond de toutes les pages. */
-  watermark?: boolean
-  /** Texte du filigrane. Vide → retombe sur le nom de marque. */
-  watermarkText?: string
-  /** Langue des labels section ("fr" défaut). Le contenu du CV
-   *  reste dans sa langue d'origine. */
-  language?: "fr" | "en"
-}
-
 /**
  * Labels traduits par section. On évite une lib i18n complète pour
  * éviter de payer un bundle PDF plus lourd ; le PDF n'a que 6 libellés
@@ -195,95 +136,6 @@ const LABELS = {
   },
 } as const
 
-const norm = (s: string) => s.toLowerCase().trim()
-
-/**
- * ZONE géographique pour un document ANONYMISÉ.
- *
- * `candidate.location` reprend la ligne d'adresse du CV telle qu'extraite, et
- * c'est très souvent une adresse postale COMPLÈTE. Constaté en recette sur 8
- * candidats sur 12 : « 35, Rte d'Hauterives 26210 Moras en Valloire »,
- * « 15 rue Jean Mermoz, 75008 Paris », et même « Monica Landou 77700 Chessy »
- * — le NOM du candidat imprimé sur son propre CV anonymisé.
- *
- * Un numéro de rue croisé avec un parcours détaillé identifie une personne
- * sans effort, et ce document part chez le client final du cabinet. Le libellé
- * du champ dit d'ailleurs « ZONE » : l'intention n'a jamais été l'adresse.
- *
- * On ne garde donc que la maille COMMUNE + DÉPARTEMENT :
- *   - on coupe tout ce qui précède un code postal français (5 chiffres), qui
- *     marque la fin de la voie et le début de la localité ;
- *   - à défaut de code postal, on retire les segments qui portent un numéro de
- *     voie ou un mot de voirie ;
- *   - le nom du candidat est retiré s'il s'y trouve.
- * Si rien d'exploitable ne reste, on n'affiche rien plutôt qu'une adresse.
- */
-export function anonymizedZone(location: string | null | undefined, fullName?: string | null): string | null {
-  if (!location) return null
-  let s = location.trim()
-
-  // Retire le nom du candidat s'il a été aspiré dans la ligne d'adresse.
-  for (const part of (fullName ?? "").split(/\s+/)) {
-    if (part.length < 3) continue
-    s = s.replace(new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), " ")
-  }
-
-  const VOIE = /\b(\d+\s*(bis|ter|quater)?\b|rue|avenue|av\.|boulevard|bd\.?|impasse|chemin|route|rte|all[ée]e|place|quai)\b/i
-  /** Nettoie un fragment : ponctuation résiduelle, espaces multiples. */
-  const propre = (x: string) => x.replace(/[(),;–-]+/g, " ").replace(/\s{2,}/g, " ").trim()
-
-  // Code postal FR, éventuellement espacé ("75 014"). Il sépare la voie de la
-  // localité — mais l'ordre varie : « 31000 Toulouse » aussi bien que
-  // « Saint-Denis - 93200 ». On essaie donc les deux côtés.
-  const cp = s.match(/\b(\d{2})\s?\d{3}\b/)
-  if (cp) {
-    const dep = cp[1]
-    const idx = s.indexOf(cp[0])
-    const apres = propre(s.slice(idx + cp[0].length).split(/[,;]/)[0] ?? "")
-    if (apres.length > 2 && !VOIE.test(apres)) return `${apres} (${dep})`
-
-    // Rien d'exploitable après : la commune est probablement AVANT le code.
-    // On prend le dernier fragment qui ne ressemble pas à une voie.
-    const avant = s.slice(0, idx).split(/[,;-]/).map(propre).filter((x) => x.length > 2 && !VOIE.test(x))
-    const commune = avant[avant.length - 1]
-    if (commune) return `${commune} (${dep})`
-
-    // Ni l'un ni l'autre : le département seul reste informatif et sûr.
-    return `Département ${dep}`
-  }
-
-  // Pas de code postal : on jette les fragments qui ressemblent à une voie.
-  const restants = s.split(/[,;]/).map(propre).filter((x) => x.length > 1 && !VOIE.test(x))
-  const out = restants.join(", ").trim()
-  return out.length > 1 ? out : null
-}
-
-/**
- * Libellé de fin d'un poste.
- *
- * `null` = poste réellement EN COURS. Absent/undefined = date de fin INCONNUE.
- * Les quatre templates les confondaient via `e.end ?? "présent"`, si bien
- * qu'un poste terminé dont la date de fin n'avait pas été extraite était
- * présenté comme le poste actuel du candidat — dans le document remis au
- * client final du cabinet.
- */
-function endLabel(end: string | null | undefined, lang: "fr" | "en"): string | null {
-  if (end === null) return lang === "en" ? "present" : "présent"
-  return end ?? null
-}
-
-function dedupe(arr: string[]): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const x of arr) {
-    if (!x) continue
-    const k = norm(x)
-    if (seen.has(k)) continue
-    seen.add(k); out.push(x)
-  }
-  return out
-}
-
 export function AnonymizedCv({
   candidate,
   reference,
@@ -302,79 +154,24 @@ export function AnonymizedCv({
   /** Choix du sourceur dans le panneau "Personnaliser" de la fiche match. */
   options?: AnonymizedOptions | null
 }) {
-  const opts: Required<AnonymizedOptions> = {
-    template: options?.template ?? "classic",
-    keepNoraSummary: options?.keepNoraSummary ?? false,
-    customText: (options?.customText ?? "").trim(),
-    watermark: options?.watermark ?? false,
-    watermarkText: (options?.watermarkText ?? "").trim(),
-    language: options?.language ?? "fr",
-  }
+  // ── CONTENU : décidé par le modèle partagé, jamais ici ──────────────────
+  //
+  // L'aperçu éditable du workspace appelle la MÊME fonction. C'est ce qui
+  // garantit qu'il ne peut pas montrer autre chose que ce document : un poste
+  // masqué y est masqué des deux côtés, une rubrique retrouvée y apparaît des
+  // deux côtés. Ce fichier ne s'occupe plus que de l'habillage.
+  const model = buildAnonymizedModel({ candidate, reference, job, brand, executiveSummary, options })
+
+  const opts = model.options
   const t = LABELS[opts.language]
-  const brandName = (brand?.name ?? "").trim() || DEFAULT_BRAND
-  const brandLogo = brand?.logoUrl ?? null
-  // Sanity-check hex côté rendu : si la valeur DB est malformée, on
-  // retombe sur noir "off" pour ne jamais casser le PDF — et pour
-  // que l'absence de configuration soit visuellement claire (CV
-  // sobre noir au lieu d'usurper la marque Naywa par défaut).
-  const accentRaw = (brand?.color ?? "").trim()
-  const accent = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accentRaw) ? accentRaw : DEFAULT_OFF
-  // Couleur secondaire bicolore (titres de section, accents). Si
-  // absente ou malformée, on retombe sur l'accent principal pour
-  // unifier le rendu.
-  const accent2Raw = (brand?.colorSecondary ?? "").trim()
-  const accentSecondary = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent2Raw) ? accent2Raw : accent
-  const brandSlogan = (brand?.slogan ?? "").trim() || null
-  const contactEmail = (brand?.contactEmail ?? "").trim() || null
+  const {
+    brand: { name: brandName, logoUrl: brandLogo, accent, accentSecondary, slogan: brandSlogan, contactEmail },
+    roleFamily, seniority, years, zone, skills,
+    experience, education, languages, otherSections,
+    hasJob, headline, watermarkText,
+    noraSummary: baseSummaryText, customSummary: customSummaryText,
+  } = model
   const s = buildStyles(accent, accentSecondary)
-  const cv: ParsedCv = candidate.parsed_cv ?? {}
-  const roleFamily = candidate.taxonomy?.role_family?.[0] ?? null
-  const seniority = candidate.seniority_level ?? cv.seniority_level ?? null
-  const years = candidate.years_experience ?? cv.years_experience ?? null
-  // Compétences : on ne réordonne PAS par pertinence mission. Le client lit
-  // le CV tel qu'il est, sans tri orienté. Juste dédupe + cap raisonnable.
-  // Plafond aligné sur celui du parsing (40) au lieu de 24 : il ne mordait
-  // que sur les candidats sans taxonomie, en écartant des compétences que
-  // l'extraction avait bel et bien trouvées.
-  const skills = dedupe(
-    (candidate.taxonomy?.core_skills?.length
-      ? candidate.taxonomy.core_skills
-      : (candidate.skills ?? [])),
-  ).slice(0, 40)
-  // Zone géographique dégrossie — jamais l'adresse postale brute.
-  const zone = anonymizedZone(candidate.location, candidate.full_name)
-  // Expériences : ordre d'origine du parser (qui suit le CV — généralement
-  // antichronologique). On NE pousse PAS les expériences "pertinentes mission"
-  // en haut : préserver le fond, c'est respecter le récit du candidat.
-  const experience = cv.experience ?? []
-  const education = cv.education ?? []
-  const languages = cv.languages ?? candidate.languages ?? []
-  // Rubriques libres du CV (projets, sites, habilitations, publications…).
-  // GMH veut les retrouver ICI aussi, pas seulement dans la fiche : c'est le
-  // document remis au client final. On écarte celles qui ne portent qu'un nom
-  // propre ou une adresse — l'anonymat prime sur l'exhaustivité.
-  const otherSections = (cv.other_sections ?? []).filter(
-    (s) => s.title.trim().length > 0 && s.content.trim().length > 0,
-  )
-
-  // Texte d'en-tête : si on a un contexte mission, on l'affiche au-dessus
-  // du H1 comme un "présenté pour", et le H1 reste le titre formel mission.
-  // Sinon, fallback : titre courant du candidat ou son role_family.
-  const hasJob = !!job
-  const headline = job ? job.title : (candidate.current_title ?? roleFamily ?? "Profil professionnel")
-
-  // Choix du résumé affiché : executive summary mission-oriented si dispo,
-  // sinon cv.summary tel que parsé (résumé que le candidat avait écrit).
-  // Si l'owner a décoché "Garder résumé Nora" dans la fiche match, on
-  // ne montre aucun résumé auto — seul le custom text restera.
-  const baseSummaryText = opts.keepNoraSummary
-    ? (executiveSummary?.trim() || cv.summary?.trim() || null)
-    : null
-  const customSummaryText = opts.customText.length > 0 ? opts.customText : null
-  // Filigrane = juste le nom du cabinet, façon "tampon" discret.
-  // Pas de "Réf" devant : la ref est déjà imprimée en clair en haut
-  // à droite et dans le footer, inutile de la redoubler en filigrane.
-  const watermarkText = opts.watermarkText || brandName || ""
 
   // ─── Helpers partagés entre templates ────────────────────────────
   // (Closures qui capturent brand/labels/opts/styles depuis le scope

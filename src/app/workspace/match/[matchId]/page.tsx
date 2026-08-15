@@ -11,7 +11,9 @@ import { criterionHeaderLabel, shortCriterionLabel, dimColor, statusColor } from
 import ComposeBox from "@/components/workspace/ComposeBox"
 import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
 import { AnonymizePreview } from "@/components/workspace/anonymize/AnonymizePreview"
-import { AnonymizeBrickPicker } from "@/components/workspace/anonymize/AnonymizeBrickPicker"
+import { AnonymizedCvLivePreview } from "@/components/workspace/anonymize/AnonymizedCvLivePreview"
+import { AnonymizeSidePanel } from "@/components/workspace/anonymize/AnonymizeSidePanel"
+import type { AnonymizedJobContext, AnonymizedBrand } from "@/lib/anonymized-cv-model"
 import { readSelection, EMPTY_SELECTION, type AnonymizeSelection } from "@/lib/anonymize-selection"
 import {
   INITIAL_ANONYMIZE_OPTIONS,
@@ -85,6 +87,8 @@ const copy = {
     availableOnceParsed: "Disponible une fois le CV parsé.",
     emptyServerResponse: (status: number) => `Réponse vide du serveur (${status}).`,
     unreadableServerResponse: "Réponse serveur illisible.",
+    generating: "Génération…",
+    generateDocument: "Générer le document",
     anonymizeFailed: "Échec de l'anonymisation.",
     networkError: "Erreur réseau.",
     anonymizeJump: "Personnaliser et télécharger le CV anonymisé",
@@ -151,6 +155,8 @@ const copy = {
     availableOnceParsed: "Available once the CV is parsed.",
     emptyServerResponse: (status: number) => `Empty response from server (${status}).`,
     unreadableServerResponse: "Unreadable server response.",
+    generating: "Generating…",
+    generateDocument: "Generate the document",
     anonymizeFailed: "Anonymization failed.",
     networkError: "Network error.",
     anonymizeJump: "Customize and download the anonymized CV",
@@ -307,6 +313,40 @@ export default function MatchPage() {
   const [anonymizeSelection, setAnonymizeSelection] = useState<AnonymizeSelection>(EMPTY_SELECTION)
   const [selectionSaving, setSelectionSaving] = useState(false)
   const selectionQueue = useRef<Promise<unknown>>(Promise.resolve())
+
+  // Contexte mission et marque, dans la forme exacte que le rendu serveur
+  // reçoit — c'est ce qui permet à l'aperçu d'appeler le même modèle et donc
+  // de montrer le même document. Le titre formel privilégie le `role_family`
+  // normalisé, comme la route : « Ingénieur data / Data engineer » plutôt que
+  // ce que le sourceur a tapé dans le formulaire.
+  const anonymizeJobContext = useMemo<AnonymizedJobContext | null>(() => {
+    const j = match?.job
+    if (!j) return null
+    const rf = j.normalized?.role_family ?? []
+    return {
+      title: rf.length > 0 ? rf.slice(0, 2).join(" / ") : j.title,
+      seniority: j.seniority,
+      location: j.location,
+      required_skills: j.required_skills ?? [],
+      nice_to_have_skills: j.nice_to_have_skills ?? [],
+      must_have_skills: j.normalized?.must_have_skills ?? [],
+      role_family: rf[0] ?? null,
+    }
+  }, [match?.job])
+
+  const anonymizeBrand = useMemo<AnonymizedBrand | null>(() => {
+    if (!organization) return null
+    return {
+      name: (organization.brand_name?.trim() || organization.name?.trim()) || null,
+      // L'URL signée du logo est chargée par l'aperçu lui-même : elle ne vit
+      // pas dans le contexte workspace et expire au bout d'une heure.
+      logoUrl: null,
+      color: organization.brand_color,
+      colorSecondary: organization.brand_color_secondary,
+      slogan: organization.brand_slogan,
+      contactEmail: organization.contact_email,
+    }
+  }, [organization])
   const previewSectionRef = useRef<HTMLDivElement | null>(null)
   const scrollToPreview = () => {
     previewSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -1038,12 +1078,12 @@ export default function MatchPage() {
           />
         </aside>
 
-        {/* RANGÉE 2 — Aperçu du PDF anonymisé sur toute la largeur des
-            deux premières colonnes. Affiche un empty state si aucun PDF
-            n'a été généré, ou l'iframe sinon. L'utilisateur déclenche
-            la génération via les contrôles tout en haut (sous le
-            bandeau d'identité). */}
-        <div ref={previewSectionRef} className="match-cv" style={{ gridColumn: "1 / 3", gridRow: "2", display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* RANGÉE 2 — l'atelier du document client.
+            À gauche l'aperçu vivant : le sourceur agit sur les blocs
+            eux-mêmes. À droite les réglages de page. Le PDF réellement
+            généré reste consultable en dessous — c'est la pièce qui part,
+            l'aperçu n'en est que le plan de travail. */}
+        <div id="anonymize" ref={previewSectionRef} className="match-cv" style={{ gridColumn: "1 / 3", gridRow: "2", display: "flex", flexDirection: "column", gap: 16, scrollMarginTop: 80 }}>
           <AnonymizeControls
             candidateId={candidate.id}
             jobId={job?.id ?? null}
@@ -1055,16 +1095,48 @@ export default function MatchPage() {
             onGenerate={generateAnonymized}
             onScrollToPreview={scrollToPreview}
             readOnly={isReadOnly}
+            // Les réglages vivent dans la colonne de droite de l'atelier.
+            showCustomize={candidate.parse_status !== "parsed"}
           />
-          {candidate.parse_status === "parsed" && (
-            <AnonymizeBrickPicker
-              cv={candidate.parsed_cv}
-              selection={anonymizeSelection}
-              onChange={saveSelection}
-              disabled={isReadOnly}
-              saving={selectionSaving}
-            />
-          )}
+
+          {candidate.parse_status === "parsed" ? (
+            <div className="anon-studio">
+              <AnonymizedCvLivePreview
+                candidate={candidate}
+                reference={candidateRefLabel(candidate.id)}
+                job={anonymizeJobContext}
+                brand={anonymizeBrand}
+                options={anonymizeOptions}
+                selection={anonymizeSelection}
+                onSelectionChange={saveSelection}
+                onCvChange={(cv) => setCandidate((prev) => prev ? { ...prev, parsed_cv: cv } : prev)}
+                readOnly={isReadOnly}
+              />
+              <AnonymizeSidePanel
+                options={anonymizeOptions}
+                onChange={setAnonymizeOptions}
+                readOnly={isReadOnly}
+                footer={
+                  <button
+                    type="button"
+                    onClick={() => void generateAnonymized()}
+                    disabled={isReadOnly || anonymizeStatus.state === "working"}
+                    style={{
+                      fontFamily: "inherit", fontSize: 12.5, fontWeight: 700,
+                      color: "white", background: "var(--nw-primary)",
+                      border: "1px solid rgba(124,99,200,0.4)", borderRadius: 10,
+                      padding: "10px 14px",
+                      cursor: isReadOnly || anonymizeStatus.state === "working" ? "not-allowed" : "pointer",
+                      opacity: isReadOnly || anonymizeStatus.state === "working" ? 0.55 : 1,
+                    }}
+                  >
+                    {anonymizeStatus.state === "working" ? t.generating : t.generateDocument}
+                  </button>
+                }
+              />
+            </div>
+          ) : null}
+
           <AnonymizePreview
             status={anonymizeStatus}
           />
@@ -1072,6 +1144,12 @@ export default function MatchPage() {
       </div>
 
       <style>{`
+        .anon-studio {
+          display: grid;
+          gap: 16px;
+          grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+          align-items: start;
+        }
         @media (max-width: 1180px) {
           .match-band { grid-template-columns: 1fr !important; }
           .match-grid { grid-template-columns: 1fr !important; }
@@ -1079,6 +1157,12 @@ export default function MatchPage() {
              placements explicites (col 2/3, row 2, span) cassent l'empilement. */
           .match-grid > * { grid-column: 1 / -1 !important; grid-row: auto !important; }
           .match-rail { position: static !important; }
+        }
+        @media (max-width: 900px) {
+          /* Les réglages passent SOUS l'aperçu : sur écran étroit, une
+             colonne de 260px écraserait le document au point de le rendre
+             illisible, et c'est lui qu'on vient regarder. */
+          .anon-studio { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </main>

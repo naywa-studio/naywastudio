@@ -32,6 +32,7 @@ import type { Lang } from "@/lib/i18n/LanguageContext"
 import { AnonymizeSettings, type AnonymizeBranding } from "@/components/workspace/AnonymizeSettings"
 import { type AnonymizeTemplate, readOrgDefaults } from "@/components/workspace/anonymize/types"
 import { detectOffLimitsForCandidate, type OffLimitsClientRef } from "@/lib/off-limits"
+import { countHidden, readSelection } from "@/lib/anonymize-selection"
 
 type OffLimitsBadge = { verdict: "possible" | "confirmed"; clientName: string } | null
 
@@ -132,6 +133,8 @@ const copy = {
     presentToClient: "Présenter au client",
     score: "Score",
     noName: "Sans nom",
+    adjustedBadge: (n: number) => `${n} bloc${n > 1 ? "s" : ""} masqué${n > 1 ? "s" : ""} sur ce CV`,
+    adjustedTitle: "Ce candidat a été ajusté pour cette mission. Ouvrir la fiche match pour revoir ce qui part.",
     rejectedFor: "Écarté :",
     readOnly: "Lecture seule",
     readOnlyHint: "Lecture seule — souscrivez pour qualifier la shortlist",
@@ -189,6 +192,8 @@ const copy = {
     presentToClient: "Present to client",
     score: "Score",
     noName: "No name",
+    adjustedBadge: (n: number) => `${n} block${n > 1 ? "s" : ""} hidden on this CV`,
+    adjustedTitle: "This candidate was adjusted for this job opening. Open the match sheet to review what goes out.",
     rejectedFor: "Rejected:",
     readOnly: "Read-only",
     readOnlyHint: "Read-only — subscribe to qualify the shortlist",
@@ -712,6 +717,12 @@ function ShortlistCard({
   const name = row.candidate?.full_name?.trim() || t.noName
   const ref = candidateRefLabel(row.candidate_id)
   const subtitle = row.candidate?.current_title?.trim() || ref
+  // Blocs que le sourceur a masqués pour cette mission depuis la fiche match.
+  // On ne compte que les clés encore présentes au CV : une brique disparue
+  // depuis annoncerait un ajustement qui n'existe plus.
+  const adjustedCount = row.candidate?.parsed_cv
+    ? countHidden(row.candidate.parsed_cv, readSelection(row.anonymize_excluded))
+    : 0
 
   return (
     <m.article
@@ -802,6 +813,27 @@ function ShortlistCard({
         <p style={{ margin: 0, fontSize: 11, color: "var(--nw-text-muted)", fontStyle: "italic" }}>
           {t.rejectedFor} {rejectReasonLabel(row.reject_reason, lang)}
         </p>
+      )}
+
+      {/* Ce candidat a été ajusté pour cette mission : des blocs de son CV ne
+          partiront pas. Sans ce repère, le sourceur qui télécharge tout le lot
+          n'aurait aucun moyen de savoir que l'un des documents est allégé —
+          et il ne le découvrirait qu'en ouvrant le PDF. */}
+      {adjustedCount > 0 && (
+        <Link
+          href={`/workspace/match/${row.id}#anonymize`}
+          title={t.adjustedTitle}
+          style={{
+            alignSelf: "flex-start",
+            display: "inline-flex", alignItems: "center", gap: 5,
+            fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+            color: "var(--nw-warn-strong)", background: "rgba(245,158,11,0.10)",
+            border: "1px solid rgba(245,158,11,0.32)", borderRadius: 100,
+            padding: "2px 9px", textDecoration: "none",
+          }}
+        >
+          {t.adjustedBadge(adjustedCount)}
+        </Link>
       )}
 
       {/* Ligne 3 : étape (sélecteur) + actions */}

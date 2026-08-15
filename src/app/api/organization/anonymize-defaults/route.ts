@@ -23,6 +23,48 @@ import { readOrgDefaults } from "@/components/workspace/anonymize/types"
 
 export const runtime = "nodejs"
 
+/**
+ * GET — URL signée du logo du cabinet, pour l'aperçu éditable du workspace.
+ *
+ * Le logo vit dans un bucket privé : sans URL signée, l'aperçu afficherait un
+ * cartouche vide là où le document imprime la marque, et le sourceur validerait
+ * un rendu qui n'est pas celui qu'il envoie. Aucune donnée candidat ici — juste
+ * l'identité de l'organisation du caller, qu'il voit déjà partout ailleurs.
+ */
+export async function GET() {
+  const sb = await createSupabaseServerClient()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
+
+  const gate = await requireActiveAccess()
+  if (!gate.ok) return gate.response
+
+  const { data: profile } = await sb
+    .from("profiles").select("organization_id").eq("user_id", user.id).maybeSingle()
+  const orgId = profile?.organization_id
+  if (!orgId) return NextResponse.json({ error: "no_organization" }, { status: 400 })
+
+  const { data: org } = await sb
+    .from("organizations")
+    .select("brand_logo_path, anonymize_defaults")
+    .eq("id", orgId)
+    .maybeSingle()
+
+  let logoUrl: string | null = null
+  if (org?.brand_logo_path) {
+    const { data: signed } = await getAdminSupabase().storage
+      .from("brand-logos")
+      .createSignedUrl(org.brand_logo_path, 60 * 60)
+    logoUrl = signed?.signedUrl ?? null
+  }
+
+  return NextResponse.json({
+    ok: true,
+    logo_url: logoUrl,
+    anonymize_defaults: readOrgDefaults(org?.anonymize_defaults),
+  })
+}
+
 export async function POST(req: NextRequest) {
   const sb = await createSupabaseServerClient()
   const { data: { user } } = await sb.auth.getUser()
