@@ -677,8 +677,8 @@ export function AnonymizedCvLivePreview({
                     scopeMission={t.scopeMission}
                     scopeEverywhere={t.scopeEverywhere}
                     hiddenTag={t.hiddenTag}
-                  >
                     drag={dragProps("sections", key)}
+                  >
                     <strong style={{ fontSize: 12.5, color: "#111827" }}>{sec.title}</strong>
                     <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#374151", whiteSpace: "pre-wrap" }}>
                       {sec.content}
