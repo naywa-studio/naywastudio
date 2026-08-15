@@ -185,6 +185,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .select("anonymize_excluded")
       .eq("job_id", jobId)
       .eq("candidate_id", candidate.id)
+      // `limit(1)` volontaire : sans lui, deux lignes pour un même couple
+      // feraient échouer `maybeSingle`, et le document partirait chez le
+      // client avec les briques que le sourceur croyait avoir masquées.
+      .limit(1)
       .maybeSingle()
     if (matchRow?.anonymize_excluded) {
       const selection = readSelection(matchRow.anonymize_excluded)

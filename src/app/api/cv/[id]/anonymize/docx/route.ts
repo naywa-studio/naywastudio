@@ -129,6 +129,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .select("anonymize_excluded")
       .eq("job_id", jobId)
       .eq("candidate_id", candidate.id)
+      .limit(1)
       .maybeSingle()
     if (matchRow?.anonymize_excluded) {
       subject = { ...subject, parsed_cv: applySelection(candidate.parsed_cv, readSelection(matchRow.anonymize_excluded)) }
