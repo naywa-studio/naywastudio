@@ -26,6 +26,7 @@ import { detectOffLimitsForCandidate, type OffLimitsClientRef } from "@/lib/off-
 import { AnonymizeSettings, type AnonymizeBranding } from "@/components/workspace/AnonymizeSettings"
 import { readOrgDefaults, type AnonymizeTemplate } from "@/components/workspace/anonymize/types"
 import type { ShortlistOrg } from "@/components/workspace/MissionShortlist"
+import { countHidden, readSelection } from "@/lib/anonymize-selection"
 import { NoraAdjustPanel } from "@/components/workspace/NoraAdjustPanel"
 
 /** Proposition de réajustement de mission par Nora (lot 3c). Vit dans l'état
@@ -116,6 +117,8 @@ const copy = {
     noraErr: "Nora n'a pas pu générer de proposition. Réessayez.",
     noraNoFeedback: "Pas encore assez de retours pour proposer un ajustement.",
     noraEmptyPick: "Gardez au moins un critère pour appliquer.",
+    adjustedBadge: (n: number) => `${n} bloc${n > 1 ? "s" : ""} masqué${n > 1 ? "s" : ""}`,
+    adjustedTitle: "Ce candidat a été ajusté pour cette mission : des blocs de son CV ne partiront pas. Ouvrir la fiche match pour revoir ce qui part.",
     cvReady: "CV anonymisé prêt",
     salary: "Prétention",
     matchSheet: "Fiche match complète",
@@ -160,6 +163,8 @@ const copy = {
     noraErr: "Nora couldn't generate a suggestion. Try again.",
     noraNoFeedback: "Not enough feedback yet to suggest an adjustment.",
     noraEmptyPick: "Keep at least one criterion to apply.",
+    adjustedBadge: (n: number) => `${n} block${n > 1 ? "s" : ""} hidden`,
+    adjustedTitle: "This candidate was adjusted for this job opening: some CV blocks will not go out. Open the match sheet to review what goes out.",
     cvReady: "Anonymized CV ready",
     salary: "Expectation",
     matchSheet: "Full match sheet",
@@ -505,6 +510,13 @@ function PipelineCard({
   const isHired = step === "hired"
   const isRejected = step === "rejected"
   const cvReady = row.candidate?.anonymized_at != null
+  // Blocs masqués pour CETTE mission depuis la fiche match. On ne compte que
+  // les clés encore présentes au CV : une brique disparue depuis annoncerait
+  // un ajustement qui n'existe plus.
+  const parsedForBadge = row.candidate?.parsed_cv ?? null
+  const adjustedCount = parsedForBadge
+    ? countHidden(parsedForBadge, readSelection(row.anonymize_excluded))
+    : 0
 
   const steps: PipelineStage[] = clientReviewEnabled
     ? ["identified", "contacted", "interview", "offer"]
@@ -633,6 +645,25 @@ function PipelineCard({
               <span>{t.salary} <strong style={{ color: "var(--nw-text)", fontWeight: 600 }}>{row.salary_expectation_brut.toLocaleString(lang === "fr" ? "fr-FR" : "en-US")} €</strong></span>
             )}
             {cvReady && <span style={{ color: PRIMARY_DK }}>{t.cvReady}</span>}
+            {/* Ce candidat a été ajusté pour cette mission : des blocs de son
+                CV ne partiront pas. Sans ce repère, celui qui télécharge tout
+                le lot ne saurait pas qu'un des documents est allégé, et ne le
+                découvrirait qu'en ouvrant le PDF. */}
+            {adjustedCount > 0 && (
+              <Link
+                href={`/workspace/match/${row.id}#anonymize`}
+                title={t.adjustedTitle}
+                style={{
+                  display: "inline-flex", alignItems: "center",
+                  fontSize: 11, fontWeight: 700, letterSpacing: "0.03em",
+                  color: "var(--nw-warn-strong)", background: "rgba(245,158,11,0.10)",
+                  border: "1px solid rgba(245,158,11,0.32)", borderRadius: 99,
+                  padding: "2px 9px", textDecoration: "none",
+                }}
+              >
+                {t.adjustedBadge(adjustedCount)}
+              </Link>
+            )}
             <Link href={`/workspace/match/${row.id}`} style={{ color: PRIMARY_DK, textDecoration: "none", fontWeight: 600 }}>{t.matchSheet} →</Link>
             {!isReadOnly && (
               <button type="button" onClick={removeShort} style={{ fontSize: 12, color: "var(--nw-text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "inherit", padding: 0, marginLeft: "auto" }}>{t.removeShort}</button>
