@@ -118,7 +118,8 @@ const copy = {
     noraNoFeedback: "Pas encore assez de retours pour proposer un ajustement.",
     noraEmptyPick: "Gardez au moins un critère pour appliquer.",
     adjustedBadge: (n: number) => `${n} bloc${n > 1 ? "s" : ""} masqué${n > 1 ? "s" : ""}`,
-    adjustedTitle: "Ce candidat a été ajusté pour cette mission : des blocs de son CV ne partiront pas. Ouvrir la fiche match pour revoir ce qui part.",
+    adjustedTitle: "Des blocs du CV de ce candidat ne partiront pas dans le document de cette mission. Ouvrez la fiche match pour revoir ce qui part.",
+    adjustedReview: "Revoir ce qui part",
     cvReady: "CV anonymisé prêt",
     salary: "Prétention",
     matchSheet: "Fiche match complète",
@@ -164,7 +165,8 @@ const copy = {
     noraNoFeedback: "Not enough feedback yet to suggest an adjustment.",
     noraEmptyPick: "Keep at least one criterion to apply.",
     adjustedBadge: (n: number) => `${n} block${n > 1 ? "s" : ""} hidden`,
-    adjustedTitle: "This candidate was adjusted for this job opening: some CV blocks will not go out. Open the match sheet to review what goes out.",
+    adjustedTitle: "Some blocks of this candidate CV will not go out in this job opening's document. Open the match sheet to review what goes out.",
+    adjustedReview: "Review what goes out",
     cvReady: "Anonymized CV ready",
     salary: "Expectation",
     matchSheet: "Full match sheet",
@@ -606,6 +608,19 @@ function PipelineCard({
               {offLimits.verdict !== "none" && offLimits.client && (
                 <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 99, color: "#B42318", background: "rgba(217,45,32,0.08)", border: "1px solid rgba(217,45,32,0.24)" }}>Off-limits</span>
               )}
+              {/* Dans l'EN-TÊTE, pas dans le repli : les cartes sont fermées
+                  par défaut, et le sourceur qui télécharge tout le lot ne
+                  déplie pas chacune d'elles. Un ajustement invisible n'avertit
+                  personne — il se découvrirait en ouvrant le PDF chez le
+                  client. */}
+              {adjustedCount > 0 && (
+                <span
+                  title={t.adjustedTitle}
+                  style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 99, color: "var(--nw-warn-strong)", background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.32)" }}
+                >
+                  {t.adjustedBadge(adjustedCount)}
+                </span>
+              )}
             </span>
             {typeof row.score === "number" && (
               <span style={{ fontSize: 11.5, color: "var(--nw-text-muted)", flexShrink: 0 }}>{Math.round(row.score)}{row.match_tier ? ` · ${t.tier[row.match_tier]}` : ""}</span>
@@ -645,23 +660,14 @@ function PipelineCard({
               <span>{t.salary} <strong style={{ color: "var(--nw-text)", fontWeight: 600 }}>{row.salary_expectation_brut.toLocaleString(lang === "fr" ? "fr-FR" : "en-US")} €</strong></span>
             )}
             {cvReady && <span style={{ color: PRIMARY_DK }}>{t.cvReady}</span>}
-            {/* Ce candidat a été ajusté pour cette mission : des blocs de son
-                CV ne partiront pas. Sans ce repère, celui qui télécharge tout
-                le lot ne saurait pas qu'un des documents est allégé, et ne le
-                découvrirait qu'en ouvrant le PDF. */}
+            {/* Carte dépliée : on redonne le lien vers l'atelier, là où le
+                sourceur peut agir. Le badge de l'en-tête, lui, alerte. */}
             {adjustedCount > 0 && (
               <Link
                 href={`/workspace/match/${row.id}#anonymize`}
-                title={t.adjustedTitle}
-                style={{
-                  display: "inline-flex", alignItems: "center",
-                  fontSize: 11, fontWeight: 700, letterSpacing: "0.03em",
-                  color: "var(--nw-warn-strong)", background: "rgba(245,158,11,0.10)",
-                  border: "1px solid rgba(245,158,11,0.32)", borderRadius: 99,
-                  padding: "2px 9px", textDecoration: "none",
-                }}
+                style={{ color: "var(--nw-warn-strong)", textDecoration: "none", fontWeight: 600 }}
               >
-                {t.adjustedBadge(adjustedCount)}
+                {t.adjustedReview} →
               </Link>
             )}
             <Link href={`/workspace/match/${row.id}`} style={{ color: PRIMARY_DK, textDecoration: "none", fontWeight: 600 }}>{t.matchSheet} →</Link>
