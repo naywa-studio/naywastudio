@@ -720,8 +720,9 @@ function ShortlistCard({
   // Blocs que le sourceur a masqués pour cette mission depuis la fiche match.
   // On ne compte que les clés encore présentes au CV : une brique disparue
   // depuis annoncerait un ajustement qui n'existe plus.
-  const adjustedCount = row.candidate?.parsed_cv
-    ? countHidden(row.candidate.parsed_cv, readSelection(row.anonymize_excluded))
+  const parsedForBadge = row.candidate?.parsed_cv ?? null
+  const adjustedCount = parsedForBadge
+    ? countHidden(parsedForBadge, readSelection(row.anonymize_excluded))
     : 0
 
   return (

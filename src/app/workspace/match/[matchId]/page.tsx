@@ -24,7 +24,7 @@ import {
 import CandidateMiniKanban from "@/components/workspace/CandidateMiniKanban"
 import Select from "@/components/ui/Select"
 import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
-import { candidateRefLabel } from "@/lib/candidate-ref"
+import { candidateRefLabel, candidateRefSlug } from "@/lib/candidate-ref"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 import { useWorkspace } from "../../layout"
 import { orgUsesClients } from "@/lib/org-type"
@@ -1117,7 +1117,9 @@ export default function MatchPage() {
             <div className="anon-studio">
               <AnonymizedCvLivePreview
                 candidate={candidate}
-                reference={candidateRefLabel(candidate.id)}
+                // Le PDF imprime le SLUG (« 0AAAAB50 »), pas le libellé « C-… » :
+                // l'aperçu doit afficher exactement la même référence.
+                reference={candidateRefSlug(candidate.id)}
                 job={anonymizeJobContext}
                 brand={anonymizeBrand}
                 options={anonymizeOptions}

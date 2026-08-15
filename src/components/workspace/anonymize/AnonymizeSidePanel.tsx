@@ -66,9 +66,11 @@ export function AnonymizeSidePanel({ options, onChange, readOnly = false, footer
   const t = copy[lang]
   const templateMeta = lang === "fr" ? TEMPLATE_META : TEMPLATE_META_EN
 
-  const set = <K extends keyof AnonymizeOptions>(k: K, v: AnonymizeOptions[K]) => {
+  // Patch explicite plutôt qu'une clé générique : `{ ...options, [k]: v }`
+  // fait perdre à TypeScript le type exact de la clé calculée.
+  const set = (patch: Partial<AnonymizeOptions>) => {
     if (readOnly) return
-    onChange({ ...options, [k]: v })
+    onChange({ ...options, ...patch })
   }
 
   return (
@@ -101,7 +103,7 @@ export function AnonymizeSidePanel({ options, onChange, readOnly = false, footer
                 <button
                   key={tpl}
                   type="button"
-                  onClick={() => set("template", tpl)}
+                  onClick={() => set({ template: tpl })}
                   disabled={readOnly}
                   style={{
                     textAlign: "left", fontFamily: "inherit",
@@ -131,7 +133,7 @@ export function AnonymizeSidePanel({ options, onChange, readOnly = false, footer
           hint={t.noraSummaryHint}
           checked={options.keepNoraSummary ?? false}
           disabled={readOnly}
-          onChange={(v) => set("keepNoraSummary", v)}
+          onChange={(v) => set({ keepNoraSummary: v })}
         />
 
         <div>
@@ -140,7 +142,7 @@ export function AnonymizeSidePanel({ options, onChange, readOnly = false, footer
             hint={t.watermarkHint}
             checked={options.watermark ?? false}
             disabled={readOnly}
-            onChange={(v) => set("watermark", v)}
+            onChange={(v) => set({ watermark: v })}
           />
           {options.watermark && (
             <input
@@ -149,7 +151,7 @@ export function AnonymizeSidePanel({ options, onChange, readOnly = false, footer
               maxLength={40}
               disabled={readOnly}
               placeholder={t.watermarkPlaceholder}
-              onChange={(e) => set("watermarkText", e.target.value)}
+              onChange={(e) => set({ watermarkText: e.target.value })}
               style={{
                 marginTop: 8, width: "100%", boxSizing: "border-box",
                 fontFamily: "inherit", fontSize: 12.5, color: "var(--nw-text)",
@@ -171,7 +173,7 @@ export function AnonymizeSidePanel({ options, onChange, readOnly = false, footer
             maxLength={CUSTOM_TEXT_MAX}
             disabled={readOnly}
             placeholder={t.customPlaceholder}
-            onChange={(e) => set("customText", e.target.value)}
+            onChange={(e) => set({ customText: e.target.value })}
             style={{
               width: "100%", boxSizing: "border-box",
               fontFamily: "inherit", fontSize: 12.5, color: "var(--nw-text)",
