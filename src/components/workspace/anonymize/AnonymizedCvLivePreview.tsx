@@ -706,6 +706,15 @@ export function AnonymizedCvLivePreview({
           target={editing}
           cv={candidate.parsed_cv ?? {}}
           coreSkills={candidate.taxonomy?.core_skills ?? null}
+          // Valeurs EFFECTIVEMENT affichées sur le document. Le modèle
+          // privilégie les colonnes du candidat au JSON du CV ; initialiser
+          // l'éditeur depuis le seul JSON aurait pu lui faire présenter une
+          // séniorité différente de celle imprimée sous les yeux du sourceur.
+          meta={{
+            seniority: model.seniority,
+            years: model.years,
+            location: candidate.location ?? candidate.parsed_cv?.location ?? null,
+          }}
           t={t}
           onClose={() => setEditing(null)}
           onSaved={(cv, taxonomy) => { onCvChange(cv, taxonomy); setEditing(null) }}
@@ -976,13 +985,15 @@ const fieldLabel: React.CSSProperties = {
  * format est signalée ici : le serveur la refuserait en silence, et le
  * sourceur croirait sa correction passée.
  */
-function InlineEditor({ target, cv, coreSkills, t, onClose, onSaved, candidateId }: {
+function InlineEditor({ target, cv, coreSkills, meta, t, onClose, onSaved, candidateId }: {
   target: EditTarget
   cv: ParsedCv
   /** `taxonomy.core_skills` — ce que le document imprime sous « Compétences
    *  clés » quand il est renseigné. Vit hors de `parsed_cv`, d'où le passage
    *  explicite : l'éditer sans ça n'aurait aucun effet visible. */
   coreSkills: string[] | null
+  /** Valeurs d'en-tête telles qu'AFFICHÉES, colonnes du candidat comprises. */
+  meta: { seniority: string | null; years: number | null; location: string | null }
   t: typeof copy["fr"]
   onClose: () => void
   onSaved: (cv: ParsedCv, taxonomy?: CandidateTaxonomy) => void
@@ -1000,6 +1011,12 @@ function InlineEditor({ target, cv, coreSkills, t, onClose, onSaved, candidateId
   const [draft, setDraft] = useState<ParsedCv>(() => {
     const base: ParsedCv = {
       ...cv,
+      // Ce que le document AFFICHE, pas ce que le JSON contient : le modèle
+      // privilégie les colonnes du candidat, et l'éditeur doit partir de la
+      // valeur que le sourceur a sous les yeux.
+      seniority_level: meta.seniority,
+      years_experience: meta.years,
+      location: meta.location,
       experience: [...(cv.experience ?? [])],
       education: [...(cv.education ?? [])],
       other_sections: [...(cv.other_sections ?? [])],
