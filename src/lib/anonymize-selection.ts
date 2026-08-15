@@ -107,6 +107,41 @@ export function isEmptySelection(sel: AnonymizeSelection): boolean {
   return sel.experiences.length === 0 && sel.education.length === 0 && sel.sections.length === 0
 }
 
+/* ── ORDRE des briques, propre à la mission ──────────────────────────────
+ *
+ * Même forme et mêmes clés que l'exclusion, même raisonnement : des clés de
+ * contenu, jamais des index.
+ *
+ * Règle de résolution : une brique dont la clé figure dans la liste prend le
+ * rang correspondant ; **une brique absente de la liste va à la FIN**, dans son
+ * ordre d'origine. C'est la direction sûre — un poste retrouvé par un
+ * re-parsing apparaît chez le client, quitte à être mal placé, plutôt que de
+ * disparaître ou de s'insérer au hasard au milieu du récit.
+ */
+export type AnonymizeOrder = AnonymizeSelection
+
+export const EMPTY_ORDER: AnonymizeOrder = { experiences: [], education: [], sections: [] }
+
+export function readOrder(raw: unknown): AnonymizeOrder {
+  return readSelection(raw)
+}
+
+export function isEmptyOrder(order: AnonymizeOrder): boolean {
+  return isEmptySelection(order)
+}
+
+/** Trie une liste selon un ordre de clés. Stable, et tolérant aux clés
+ *  orphelines comme aux briques absentes de l'ordre. */
+export function sortByKeys<T>(items: T[], keys: string[], keyOf: (item: T) => string): T[] {
+  if (keys.length === 0) return items
+  const rank = new Map<string, number>()
+  keys.forEach((k, i) => { if (!rank.has(k)) rank.set(k, i) })
+  return items
+    .map((item, i) => ({ item, i, r: rank.get(keyOf(item)) ?? Number.POSITIVE_INFINITY }))
+    .sort((a, b) => (a.r - b.r) || (a.i - b.i))
+    .map((x) => x.item)
+}
+
 /**
  * Retire du CV les briques exclues pour cette mission.
  *
@@ -125,6 +160,28 @@ export function applySelection(cv: ParsedCv, sel: AnonymizeSelection): ParsedCv 
     experience: (cv.experience ?? []).filter((e) => !excludedExp.has(experienceKey(e))),
     education: (cv.education ?? []).filter((ed) => !excludedEdu.has(educationKey(ed))),
     other_sections: (cv.other_sections ?? []).filter((s) => !excludedSec.has(sectionKey(s))),
+  }
+}
+
+/**
+ * Masque PUIS réordonne, dans cet ordre.
+ *
+ * Le point d'entrée unique du rendu : PDF, DOCX et aperçu passent tous par
+ * ici, ce qui interdit qu'une sortie montre un ordre ou un tri que les autres
+ * ignorent.
+ */
+export function applyLayout(
+  cv: ParsedCv,
+  sel: AnonymizeSelection,
+  order: AnonymizeOrder,
+): ParsedCv {
+  const filtered = applySelection(cv, sel)
+  if (isEmptyOrder(order)) return filtered
+  return {
+    ...filtered,
+    experience: sortByKeys(filtered.experience ?? [], order.experiences, experienceKey),
+    education: sortByKeys(filtered.education ?? [], order.education, educationKey),
+    other_sections: sortByKeys(filtered.other_sections ?? [], order.sections, sectionKey),
   }
 }
 

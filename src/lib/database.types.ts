@@ -593,6 +593,9 @@ export type Database = {
            *  permet le retour à la version produite par Nora. NULL = fiche
            *  jamais retouchée à la main. Remis à NULL par un re-parsing. */
           parsed_cv_original: ParsedCv | null
+          /** Instantané de `taxonomy` pris avec `parsed_cv_original` — les
+           *  « compétences clés » du document client en viennent. Voir 081. */
+          taxonomy_original: CandidateTaxonomy | null
           /** Dernière édition manuelle. Pilote le tag « modifié », qui reste
            *  dans le workspace et n'apparaît JAMAIS sur le CV anonymisé. */
           parsed_cv_edited_at: string | null
@@ -640,6 +643,7 @@ export type Database = {
           parse_error?: string | null
           parsed_at?: string | null
           parsed_cv_original?: ParsedCv | null
+          taxonomy_original?: CandidateTaxonomy | null
           parsed_cv_edited_at?: string | null
           notes?: string | null
           tags?: string[] | null
@@ -768,6 +772,10 @@ export type Database = {
            *  Arbitrage de présentation propre à un client — ne modifie jamais
            *  `candidates.parsed_cv`, qui reste la source de vérité. Voir 080. */
           anonymize_excluded: AnonymizeSelection | null
+          /** Ordre des briques dans le document anonymisé de CETTE mission.
+           *  Mêmes clés que l'exclusion ; une brique absente va à la fin.
+           *  Voir 081. */
+          anonymize_order: AnonymizeSelection | null
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -804,6 +812,7 @@ export type Database = {
           client_positive_note?: string | null
           client_positive_at?: string | null
           anonymize_excluded?: AnonymizeSelection | null
+          anonymize_order?: AnonymizeSelection | null
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null

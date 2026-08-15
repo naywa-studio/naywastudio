@@ -14,7 +14,7 @@ import { requireActiveAccess } from "@/lib/access-guard"
 import { CANDIDATE_COLUMNS } from "@/lib/database.types"
 import { sanitizeClientRejectReasons } from "@/lib/client-reject-reasons"
 import { sanitizeClientLikedReasons } from "@/lib/client-liked-reasons"
-import { readSelection, isEmptySelection, type AnonymizeSelection } from "@/lib/anonymize-selection"
+import { readSelection, isEmptySelection, readOrder, isEmptyOrder, type AnonymizeSelection } from "@/lib/anonymize-selection"
 
 export const runtime = "nodejs"
 
@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       pipeline_stage, in_pipeline, contacted_at, replied_at, interview_at,
       salary_expectation_brut,
       client_feedback_note, client_feedback_at,
-      anonymize_excluded,
+      anonymize_excluded, anonymize_order,
       booking_token, created_at, updated_at,
       job:jobs(*)
     `)
@@ -83,6 +83,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     client_positive_at?: string | null
     anonymized_at?: string | null
     anonymize_excluded?: AnonymizeSelection | null
+    anonymize_order?: AnonymizeSelection | null
   } = {}
 
   if (body && "salary_expectation_brut" in body) {
@@ -168,6 +169,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     update.anonymize_excluded = isEmptySelection(sel) ? null : sel
   }
 
+  // Ordre des briques, même mission. Colonne séparée de l'exclusion : masquer
+  // et réordonner sont deux gestes indépendants, et les fusionner obligerait à
+  // réécrire l'ensemble à chaque clic.
+  if (body && "anonymize_order" in body) {
+    const order = readOrder(body.anonymize_order)
+    update.anonymize_order = isEmptyOrder(order) ? null : order
+  }
+
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "no_op" }, { status: 400 })
   }
@@ -176,7 +185,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .from("match_assessments")
     .update(update)
     .eq("id", id)
-    .select("id, salary_expectation_brut, client_feedback_note, client_feedback_at, client_reject_reasons, client_liked_reasons, client_positive_note, client_positive_at, anonymized_at, anonymize_excluded")
+    .select("id, salary_expectation_brut, client_feedback_note, client_feedback_at, client_reject_reasons, client_liked_reasons, client_positive_note, client_positive_at, anonymized_at, anonymize_excluded, anonymize_order")
     .single()
   if (error || !data) return NextResponse.json({ error: "not_found" }, { status: 404 })
 

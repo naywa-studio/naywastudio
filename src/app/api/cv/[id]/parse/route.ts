@@ -302,6 +302,9 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
       // le proposer encore en « retour à l'original » serait un piège.
       parsed_cv_original: null,
       parsed_cv_edited_at: null,
+      // Même raison pour l'instantané de taxonomie : il accompagnait le CV
+      // d'origine, le garder seul n'aurait plus de sens.
+      taxonomy_original: null,
       taxonomy: mergedTaxonomy,
       raw_text: rawText,
       full_name:        parsedCv?.full_name ?? null,

@@ -5,12 +5,14 @@
  * juste sous le bandeau d'identité candidat.
  *
  * Responsabilités :
- *  - description courte mission ciblée
- *  - section dépliable "Personnaliser" : toggle résumé Nora,
- *    textarea custom, toggle filigrane
- *  - bouton principal "Anonymiser pour cette mission"
- *  - une fois un PDF prêt : bouton "Voir le PDF ↓" qui scroll vers
- *    AnonymizePreview en bas de page + Télécharger
+ *  - description courte de la mission ciblée
+ *  - bouton principal « Anonymiser pour cette mission »
+ *  - une fois le document généré : téléchargement PDF et .docx
+ *
+ * Le panneau « Personnaliser » n'est plus monté quand l'atelier
+ * d'anonymisation est affiché (`showCustomize={false}`) : les réglages y
+ * vivent, à côté du document. Deux endroits pour la même chose, c'est un
+ * endroit de trop.
  */
 
 import { useState } from "react"
@@ -39,8 +41,6 @@ const copy = {
     generating: "Génération…",
     regenerate: "Régénérer pour cette mission",
     generate: "Anonymiser pour cette mission",
-    viewPdfTitle: "Aller à l'aperçu du PDF en bas de page",
-    viewPdf: "Voir le PDF ↓",
     downloadPdf: "Télécharger PDF",
     docxTitle: "Version .docx éditable dans Word",
     docxGenerating: "Génération .docx…",
@@ -70,8 +70,6 @@ const copy = {
     generating: "Generating…",
     regenerate: "Regenerate for this mission",
     generate: "Anonymize for this mission",
-    viewPdfTitle: "Go to the PDF preview at the bottom of the page",
-    viewPdf: "View PDF ↓",
     downloadPdf: "Download PDF",
     docxTitle: "Editable .docx version for Word",
     docxGenerating: "Generating .docx…",
@@ -218,7 +216,7 @@ export function AnonymizeControls({
   options: AnonymizeOptions
   onOptionsChange: (next: AnonymizeOptions) => void
   onGenerate: () => Promise<void> | void
-  /** Scroll vers la section AnonymizePreview en bas de la fiche match. */
+  /** Descend vers l'atelier d'anonymisation, en bas de la fiche match. */
   onScrollToPreview: () => void
   /** Lecture seule : génération + export .docx bloqués (anti-extraction). */
   readOnly?: boolean
@@ -381,23 +379,11 @@ export function AnonymizeControls({
                 : t.generate}
           </button>
 
-          {status.state === "ready" && status.previewUrl && (
-            <button
-              type="button"
-              onClick={onScrollToPreview}
-              style={{
-                fontSize: 12.5, fontWeight: 700, color: "var(--nw-primary)",
-                background: "white", border: "1px solid rgba(124,99,200,0.25)",
-                borderRadius: 10, padding: "10px 14px",
-                cursor: "pointer", fontFamily: "inherit",
-                display: "inline-flex", alignItems: "center", gap: 6,
-                whiteSpace: "nowrap",
-              }}
-              title={t.viewPdfTitle}
-            >
-              {t.viewPdf}
-            </button>
-          )}
+          {/* Le bouton « Voir le PDF ↓ » a disparu avec l'aperçu PDF en bas de
+              page : l'atelier montre déjà le document, et le PDF généré se
+              télécharge. Renvoyer vers un aperçu qui n'existe plus n'aurait
+              mené nulle part. Le bouton d'accès rapide en tête de fiche, lui,
+              descend vers l'atelier — c'est là qu'on travaille. */}
 
           {status.state === "ready" && status.downloadUrl && (
             <a

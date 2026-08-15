@@ -32,14 +32,14 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import type { Candidate, ParsedCv } from "@/lib/database.types"
+import type { Candidate, ParsedCv, CandidateTaxonomy } from "@/lib/database.types"
 import {
   buildAnonymizedModel, endLabel,
   type AnonymizedJobContext, type AnonymizedBrand, type AnonymizedOptions,
 } from "@/lib/anonymized-cv-model"
 import {
-  experienceKey, educationKey, sectionKey,
-  type AnonymizeSelection,
+  experienceKey, educationKey, sectionKey, sortByKeys,
+  type AnonymizeSelection, type AnonymizeOrder,
 } from "@/lib/anonymize-selection"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
@@ -60,6 +60,21 @@ const copy = {
     showHidden: "Afficher les blocs masqués",
     hideHidden: "Masquer les blocs masqués",
     hiddenTag: "Masqué",
+    dragHint: "Glisser pour déplacer ce bloc dans le document de cette mission",
+    editTitleJob: "Renommer la mission",
+    editTitleMeta: "Corriger les informations d'en-tête",
+    editTitleSkills: "Corriger les compétences clés",
+    editTitleLanguages: "Corriger les langues",
+    scopeJob: "la mission",
+    jobScopeHint: "Le nom de la mission change partout où elle apparaît, pas seulement sur ce document",
+    fJobTitle: "Nom de la mission",
+    fSeniority: "Séniorité",
+    fYears: "Années d'expérience",
+    fLocation: "Localisation du candidat",
+    locationHint: "Le document n'imprime que la commune et le département, jamais l'adresse.",
+    fSkills: "Compétences clés",
+    fLanguages: "Langues",
+    listHint: "Une par ligne.",
     presentedFor: "Présenté pour",
     summary: "Résumé",
     keySkills: "Compétences clés",
@@ -118,6 +133,21 @@ const copy = {
     showHidden: "Show hidden blocks",
     hideHidden: "Hide hidden blocks",
     hiddenTag: "Hidden",
+    dragHint: "Drag to move this block within this job opening's document",
+    editTitleJob: "Rename the job opening",
+    editTitleMeta: "Fix the header information",
+    editTitleSkills: "Fix the key skills",
+    editTitleLanguages: "Fix the languages",
+    scopeJob: "the job opening",
+    jobScopeHint: "The job opening name changes everywhere it appears, not only on this document",
+    fJobTitle: "Job opening name",
+    fSeniority: "Seniority",
+    fYears: "Years of experience",
+    fLocation: "Candidate location",
+    locationHint: "The document only prints town and county, never the address.",
+    fSkills: "Key skills",
+    fLanguages: "Languages",
+    listHint: "One per line.",
     presentedFor: "Presented for",
     summary: "Summary",
     keySkills: "Key skills",
@@ -174,6 +204,10 @@ type Bucket = keyof AnonymizeSelection
 const NEW = -1
 type EditTarget =
   | { kind: "summary"; index?: undefined }
+  /** En-tête : séniorité, années d'expérience, localisation. */
+  | { kind: "meta"; index?: undefined }
+  | { kind: "skills"; index?: undefined }
+  | { kind: "languages"; index?: undefined }
   | { kind: "experience"; index: number }
   | { kind: "education"; index: number }
   | { kind: "section"; index: number }
@@ -187,21 +221,32 @@ export interface AnonymizedCvLivePreviewProps {
   selection: AnonymizeSelection
   /** Masquer / remettre un bloc — portée : cette mission. */
   onSelectionChange: (next: AnonymizeSelection) => void
+  /** Ordre des briques — portée : cette mission. */
+  order: AnonymizeOrder
+  onOrderChange: (next: AnonymizeOrder) => void
   /** Corriger la donnée — portée : partout. Renvoie le CV enregistré. */
-  onCvChange: (next: ParsedCv) => void
+  onCvChange: (next: ParsedCv, taxonomy?: CandidateTaxonomy) => void
+  /** Renommer la mission — portée : la mission. */
+  onJobTitleChange?: (title: string) => void
   readOnly?: boolean
 }
 
 export function AnonymizedCvLivePreview({
   candidate, reference, job, brand, options, selection,
-  onSelectionChange, onCvChange, readOnly = false,
+  onSelectionChange, order, onOrderChange, onCvChange, onJobTitleChange,
+  readOnly = false,
 }: AnonymizedCvLivePreviewProps) {
   const { lang } = useLanguage()
   const t = copy[lang]
 
   const [editing, setEditing] = useState<EditTarget | null>(null)
+  /** Renommage de la mission — chemin à part : il n'écrit pas dans le CV du
+   *  candidat mais dans la mission, et sa portée n'est donc pas la même. */
+  const [editingJob, setEditingJob] = useState<string | null>(null)
   const [showHidden, setShowHidden] = useState(true)
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  /** Clé de la brique en cours de déplacement, avec son type. */
+  const [dragging, setDragging] = useState<{ bucket: Bucket; key: string } | null>(null)
 
   // Le logo vit dans un bucket privé : sans URL signée, l'aperçu montrerait un
   // en-tête sans marque là où le document en imprime une.
@@ -219,17 +264,45 @@ export function AnonymizedCvLivePreview({
   }, [])
 
   const model = useMemo(
-    () => buildAnonymizedModel({
-      candidate, reference, job,
-      brand: { ...(brand ?? { name: null, logoUrl: null }), logoUrl: logoUrl ?? brand?.logoUrl ?? null },
-      // Le résumé exécutif est rédigé par le serveur au moment de la
-      // génération : ici on montre le résumé du CV à sa place, en annonçant
-      // la substitution plutôt qu'en la laissant deviner.
-      executiveSummary: null,
-      options,
-    }),
-    [candidate, reference, job, brand, options, logoUrl],
+    () => {
+      const base = buildAnonymizedModel({
+        candidate, reference, job,
+        brand: { ...(brand ?? { name: null, logoUrl: null }), logoUrl: logoUrl ?? brand?.logoUrl ?? null },
+        // Le résumé exécutif est rédigé par le serveur au moment de la
+        // génération : ici on montre le résumé du CV à sa place, en annonçant
+        // la substitution plutôt qu'en la laissant deviner.
+        executiveSummary: null,
+        options,
+      })
+      // On applique l'ORDRE mais PAS le masquage : une brique masquée reste à
+      // l'écran, barrée, pour qu'on puisse la remettre. Le serveur, lui,
+      // applique les deux — c'est la seule divergence assumée entre l'aperçu
+      // et le document, et elle est signalée à l'écran.
+      return {
+        ...base,
+        experience: sortByKeys(base.experience, order.experiences, experienceKey),
+        education: sortByKeys(base.education, order.education, educationKey),
+        otherSections: sortByKeys(base.otherSections, order.sections, sectionKey),
+      }
+    },
+    [candidate, reference, job, brand, options, logoUrl, order],
   )
+
+  /** Déplace `key` juste avant `overKey`, et enregistre le nouvel ordre. */
+  const reorder = useCallback((bucket: Bucket, key: string, overKey: string) => {
+    if (readOnly || key === overKey) return
+    const currentKeys =
+      bucket === "experiences" ? model.experience.map(experienceKey)
+      : bucket === "education" ? model.education.map(educationKey)
+      : model.otherSections.map(sectionKey)
+    const from = currentKeys.indexOf(key)
+    const to = currentKeys.indexOf(overKey)
+    if (from < 0 || to < 0) return
+    const next = [...currentKeys]
+    next.splice(from, 1)
+    next.splice(to, 0, key)
+    onOrderChange({ ...order, [bucket]: next })
+  }, [model, order, onOrderChange, readOnly])
 
   const accent = model.brand.accent
   const accent2 = model.brand.accentSecondary
@@ -243,6 +316,26 @@ export function AnonymizedCvLivePreview({
       [bucket]: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     })
   }, [selection, onSelectionChange, readOnly])
+
+  /** Câblage du glisser-déposer d'un bloc. `dragOver` sert uniquement au trait
+   *  d'insertion ; le déplacement réel n'a lieu qu'au dépôt. */
+  const [dragOver, setDragOver] = useState<{ bucket: Bucket; key: string } | null>(null)
+  const dragProps = useCallback((bucket: Bucket, key: string) => ({
+    title: t.dragHint,
+    isDragging: dragging?.bucket === bucket && dragging.key === key,
+    isTarget: dragOver?.bucket === bucket && dragOver.key === key
+      && !(dragging?.bucket === bucket && dragging.key === key),
+    onStart: () => setDragging({ bucket, key }),
+    onEnd: () => { setDragging(null); setDragOver(null) },
+    // On ne déplace QUE dans la même rubrique : une formation n'a rien à
+    // faire au milieu du parcours, et l'autoriser produirait un document
+    // que le PDF ne saurait pas rendre.
+    onOver: () => { if (dragging?.bucket === bucket) setDragOver({ bucket, key }) },
+    onDrop: () => {
+      if (dragging?.bucket === bucket) reorder(bucket, dragging.key, key)
+      setDragging(null); setDragOver(null)
+    },
+  }), [dragging, dragOver, reorder, t])
 
   const hiddenCount = useMemo(() => {
     const inExp = new Set(model.experience.map(experienceKey))
@@ -355,17 +448,49 @@ export function AnonymizedCvLivePreview({
               {t.presentedFor}
             </div>
           )}
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
-            {model.headline}
-          </h1>
+          {/* Le titre est celui de la MISSION : le corriger la renomme partout,
+              d'où une portée différente des deux autres. */}
+          <BlockShell
+            hidden={false}
+            readOnly={readOnly || !model.hasJob || !onJobTitleChange}
+            onEdit={model.hasJob && onJobTitleChange ? () => setEditingJob(model.headline) : undefined}
+            editLabel={t.edit}
+            editTitle={t.jobScopeHint}
+            scopeEverywhere={t.scopeJob}
+          >
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>
+              {model.headline}
+            </h1>
+          </BlockShell>
 
           {/* Méta */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 12, marginBottom: 18 }}>
-            <Meta label={t.seniorityLabel} value={model.seniority} />
-            <Meta label={t.experienceLabel} value={model.years != null ? t.yearsSuffix(model.years) : null} />
-            <Meta label={t.zoneLabel} value={model.zone} />
-            <Meta label={t.languages} value={model.languages.length ? model.languages.join(" · ") : null} />
-          </div>
+          <BlockShell
+            hidden={false}
+            readOnly={readOnly}
+            onEdit={() => setEditing({ kind: "meta" })}
+            editLabel={t.edit}
+            editTitle={t.editScope}
+            scopeEverywhere={t.scopeEverywhere}
+          >
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 12, marginBottom: 6 }}>
+              <Meta label={t.seniorityLabel} value={model.seniority} />
+              <Meta label={t.experienceLabel} value={model.years != null ? t.yearsSuffix(model.years) : null} />
+              <Meta label={t.zoneLabel} value={model.zone} />
+            </div>
+          </BlockShell>
+
+          <BlockShell
+            hidden={false}
+            readOnly={readOnly}
+            onEdit={() => setEditing({ kind: "languages" })}
+            editLabel={t.edit}
+            editTitle={t.editScope}
+            scopeEverywhere={t.scopeEverywhere}
+          >
+            <div style={{ marginBottom: 12 }}>
+              <Meta label={t.languages} value={model.languages.length ? model.languages.join(" · ") : "—"} />
+            </div>
+          </BlockShell>
 
           {/* Résumé */}
           <Band title={t.summary} accent={accent2}>
@@ -387,20 +512,32 @@ export function AnonymizedCvLivePreview({
             </BlockShell>
           </Band>
 
-          {/* Compétences clés — non masquables une par une : ce sont des
-              étiquettes, pas des blocs. Les corriger se fait sur la fiche. */}
-          {model.skills.length > 0 && (
-            <Band title={t.keySkills} accent={accent2}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                {model.skills.map((sk) => (
-                  <span key={sk} style={{
-                    fontSize: 11, color: "#374151", background: "#F9FAFB",
-                    border: "1px solid #E5E7EB", borderRadius: 5, padding: "3px 8px",
-                  }}>{sk}</span>
-                ))}
-              </div>
-            </Band>
-          )}
+          {/* Compétences clés — non masquables une par une (ce sont des
+              étiquettes, pas des blocs), mais corrigeables en lot. C'est le
+              champ qui s'imprime tel quel chez le client. */}
+          <Band title={t.keySkills} accent={accent2}>
+            <BlockShell
+              hidden={false}
+              readOnly={readOnly}
+              onEdit={() => setEditing({ kind: "skills" })}
+              editLabel={t.edit}
+              editTitle={t.editScope}
+              scopeEverywhere={t.scopeEverywhere}
+            >
+              {model.skills.length > 0 ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {model.skills.map((sk) => (
+                    <span key={sk} style={{
+                      fontSize: 11, color: "#374151", background: "#F9FAFB",
+                      border: "1px solid #E5E7EB", borderRadius: 5, padding: "3px 8px",
+                    }}>{sk}</span>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ margin: 0, color: "#9CA3AF", fontStyle: "italic", fontSize: 12 }}>—</p>
+              )}
+            </BlockShell>
+          </Band>
 
           {/* Parcours */}
           <Band
@@ -436,6 +573,7 @@ export function AnonymizedCvLivePreview({
                     scopeMission={t.scopeMission}
                     scopeEverywhere={t.scopeEverywhere}
                     hiddenTag={t.hiddenTag}
+                    drag={dragProps("experiences", key)}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                       <strong style={{ fontSize: 13.5, color: "#111827" }}>
@@ -488,6 +626,7 @@ export function AnonymizedCvLivePreview({
                     scopeMission={t.scopeMission}
                     scopeEverywhere={t.scopeEverywhere}
                     hiddenTag={t.hiddenTag}
+                    drag={dragProps("education", key)}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                       <strong style={{ fontSize: 13, color: "#111827" }}>
@@ -539,6 +678,7 @@ export function AnonymizedCvLivePreview({
                     scopeEverywhere={t.scopeEverywhere}
                     hiddenTag={t.hiddenTag}
                   >
+                    drag={dragProps("sections", key)}
                     <strong style={{ fontSize: 12.5, color: "#111827" }}>{sec.title}</strong>
                     <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#374151", whiteSpace: "pre-wrap" }}>
                       {sec.content}
@@ -565,10 +705,20 @@ export function AnonymizedCvLivePreview({
         <InlineEditor
           target={editing}
           cv={candidate.parsed_cv ?? {}}
+          coreSkills={candidate.taxonomy?.core_skills ?? null}
           t={t}
           onClose={() => setEditing(null)}
-          onSaved={(cv) => { onCvChange(cv); setEditing(null) }}
+          onSaved={(cv, taxonomy) => { onCvChange(cv, taxonomy); setEditing(null) }}
           candidateId={candidate.id}
+        />
+      )}
+
+      {editingJob !== null && onJobTitleChange && (
+        <JobTitleEditor
+          value={editingJob}
+          t={t}
+          onClose={() => setEditingJob(null)}
+          onSave={(title) => { onJobTitleChange(title); setEditingJob(null) }}
         />
       )}
     </section>
@@ -644,6 +794,7 @@ function BlockShell({
   children, hidden, readOnly, onToggle, onEdit,
   toggleLabel, toggleTitle, editLabel, editTitle,
   scopeMission, scopeEverywhere, hiddenTag,
+  drag,
 }: {
   children: React.ReactNode
   hidden: boolean
@@ -657,61 +808,103 @@ function BlockShell({
   scopeMission?: string
   scopeEverywhere: string
   hiddenTag?: string
+  /** Déplacement du bloc. Absent = bloc non déplaçable (le résumé). */
+  drag?: {
+    title: string
+    isDragging: boolean
+    isTarget: boolean
+    onStart: () => void
+    onEnd: () => void
+    onOver: () => void
+    onDrop: () => void
+  }
 }) {
   const [hover, setHover] = useState(false)
   const showActions = hover && !readOnly
+  const draggable = !!drag && !readOnly
+
   return (
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      draggable={draggable}
+      onDragStart={draggable ? (e) => { e.dataTransfer.effectAllowed = "move"; drag!.onStart() } : undefined}
+      onDragEnd={draggable ? () => drag!.onEnd() : undefined}
+      onDragOver={draggable ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; drag!.onOver() } : undefined}
+      onDrop={draggable ? (e) => { e.preventDefault(); drag!.onDrop() } : undefined}
       style={{
-        position: "relative",
+        // Grille à trois colonnes : poignée · contenu · actions. Les deux
+        // colonnes latérales existent EN PERMANENCE, même vides. Les actions
+        // étaient auparavant posées en absolu au-dessus du bloc : elles
+        // mordaient sur le bloc précédent, et le document sautait au survol.
+        display: "grid",
+        gridTemplateColumns: `${drag ? "18px" : "0px"} minmax(0, 1fr) auto`,
+        alignItems: "start",
+        gap: 8,
         padding: "7px 9px",
         margin: "0 -9px",
         borderRadius: 8,
         background: hidden ? "rgba(245,158,11,0.06)" : (showActions ? "rgba(124,99,200,0.04)" : "transparent"),
         outline: hidden ? "1px dashed rgba(245,158,11,0.45)" : "none",
-        opacity: hidden ? 0.6 : 1,
-        transition: "background 120ms",
+        borderTop: drag?.isTarget ? "2px solid var(--nw-primary)" : "2px solid transparent",
+        opacity: drag?.isDragging ? 0.4 : (hidden ? 0.6 : 1),
+        transition: "background 120ms, opacity 120ms",
+        cursor: draggable ? "grab" : "default",
       }}
     >
-      {hidden && hiddenTag && (
-        <span style={{
-          position: "absolute", top: -8, left: 8,
-          fontSize: 8.5, fontWeight: 800, color: "var(--nw-warn-strong)",
-          background: "white", border: "1px solid rgba(245,158,11,0.45)",
-          borderRadius: 100, padding: "1px 7px", letterSpacing: "0.06em",
-          textTransform: "uppercase",
-        }}>
-          {hiddenTag}
-        </span>
-      )}
-      <div style={{ textDecoration: hidden ? "line-through" : "none" }}>{children}</div>
-      {showActions && (
-        <div style={{
-          position: "absolute", top: -10, right: 6, zIndex: 2,
-          display: "flex", gap: 5,
-        }}>
-          {onToggle && toggleLabel && (
-            <ActionChip
-              onClick={onToggle}
-              title={toggleTitle ?? ""}
-              label={toggleLabel}
-              scope={scopeMission ?? ""}
-              tone="mission"
-            />
-          )}
-          {onEdit && (
-            <ActionChip
-              onClick={onEdit}
-              title={editTitle}
-              label={editLabel}
-              scope={scopeEverywhere}
-              tone="source"
-            />
-          )}
-        </div>
-      )}
+      {/* Poignée — signale que le bloc se déplace, sans occuper la place
+          d'une icône permanente : elle n'apparaît qu'au survol. */}
+      <span aria-hidden title={drag?.title} style={{
+        display: drag ? "block" : "none",
+        paddingTop: 2, lineHeight: 1,
+        color: "var(--nw-text-muted)", fontSize: 13,
+        opacity: showActions ? 0.75 : 0,
+        transition: "opacity 120ms",
+      }}>
+        ⠿
+      </span>
+
+      <div style={{ minWidth: 0, textDecoration: hidden ? "line-through" : "none" }}>
+        {hidden && hiddenTag && (
+          <span style={{
+            display: "inline-block", marginBottom: 3,
+            fontSize: 8.5, fontWeight: 800, color: "var(--nw-warn-strong)",
+            background: "white", border: "1px solid rgba(245,158,11,0.45)",
+            borderRadius: 100, padding: "1px 7px", letterSpacing: "0.06em",
+            textTransform: "uppercase", textDecoration: "none",
+          }}>
+            {hiddenTag}
+          </span>
+        )}
+        {children}
+      </div>
+
+      {/* Colonne d'actions : `visibility` et non `display`, pour que la
+          largeur soit réservée dès le départ — sinon le texte du bloc se
+          recompose à chaque survol. */}
+      <div style={{
+        display: "flex", flexDirection: "column", gap: 4, flexShrink: 0,
+        visibility: showActions ? "visible" : "hidden",
+      }}>
+        {onToggle && toggleLabel && (
+          <ActionChip
+            onClick={onToggle}
+            title={toggleTitle ?? ""}
+            label={toggleLabel}
+            scope={scopeMission ?? ""}
+            tone="mission"
+          />
+        )}
+        {onEdit && (
+          <ActionChip
+            onClick={onEdit}
+            title={editTitle}
+            label={editLabel}
+            scope={scopeEverywhere}
+            tone="source"
+          />
+        )}
+      </div>
     </div>
   )
 }
@@ -783,14 +976,25 @@ const fieldLabel: React.CSSProperties = {
  * format est signalée ici : le serveur la refuserait en silence, et le
  * sourceur croirait sa correction passée.
  */
-function InlineEditor({ target, cv, t, onClose, onSaved, candidateId }: {
+function InlineEditor({ target, cv, coreSkills, t, onClose, onSaved, candidateId }: {
   target: EditTarget
   cv: ParsedCv
+  /** `taxonomy.core_skills` — ce que le document imprime sous « Compétences
+   *  clés » quand il est renseigné. Vit hors de `parsed_cv`, d'où le passage
+   *  explicite : l'éditer sans ça n'aurait aucun effet visible. */
+  coreSkills: string[] | null
   t: typeof copy["fr"]
   onClose: () => void
-  onSaved: (cv: ParsedCv) => void
+  onSaved: (cv: ParsedCv, taxonomy?: CandidateTaxonomy) => void
   candidateId: string
 }) {
+  // Listes éditées en texte libre, une par ligne : plus rapide à corriger en
+  // lot que des chips, et c'est un travail de reprise, pas de saisie.
+  const [skillsText, setSkillsText] = useState(
+    () => (coreSkills?.length ? coreSkills : (cv.skills ?? [])).join("\n"),
+  )
+  const [languagesText, setLanguagesText] = useState(() => (cv.languages ?? []).join("\n"))
+  const linesOf = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean)
   // Un bloc NEUF est ajouté au brouillon seulement, jamais au CV : refermer
   // sans enregistrer ne doit pas laisser une brique vide dans la fiche.
   const [draft, setDraft] = useState<ParsedCv>(() => {
@@ -851,19 +1055,39 @@ function InlineEditor({ target, cv, t, onClose, onSaved, candidateId }: {
     if (saving || badDate) return
     setSaving(true); setError(null)
     try {
+      // On n'envoie QUE ce que ce panneau édite. La route laisse intacte
+      // toute clé absente : envoyer le CV entier à chaque correction ferait
+      // écraser, sur une saisie concurrente, des champs qu'on n'a pas touchés.
+      const payload: Record<string, unknown> =
+        target.kind === "skills"
+          ? {
+              // On écrit les DEUX : `core_skills` est ce que le document
+              // imprime, `skills` sert au matching. Ne toucher qu'à l'un des
+              // deux ferait diverger le document et le scoring.
+              core_skills: linesOf(skillsText),
+              skills: linesOf(skillsText),
+            }
+        : target.kind === "languages" ? { languages: linesOf(languagesText) }
+        : target.kind === "meta" ? {
+            seniority_level: draft.seniority_level ?? null,
+            years_experience: draft.years_experience ?? null,
+            location: draft.location ?? null,
+          }
+        : {
+            summary: draft.summary ?? null,
+            experience: draft.experience ?? [],
+            education: draft.education ?? [],
+            other_sections: draft.other_sections ?? [],
+          }
+
       const res = await fetch(`/api/candidates/${candidateId}/parsed-cv`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          summary: draft.summary ?? null,
-          experience: draft.experience ?? [],
-          education: draft.education ?? [],
-          other_sections: draft.other_sections ?? [],
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok || !data?.ok) { setError(t.saveFailed); return }
-      onSaved(data.parsed_cv as ParsedCv)
+      onSaved(data.parsed_cv as ParsedCv, data.taxonomy as CandidateTaxonomy | undefined)
     } catch {
       setError(t.saveFailed)
     } finally {
@@ -873,6 +1097,9 @@ function InlineEditor({ target, cv, t, onClose, onSaved, candidateId }: {
 
   const title =
     target.kind === "summary" ? t.editTitleSummary
+    : target.kind === "meta" ? t.editTitleMeta
+    : target.kind === "skills" ? t.editTitleSkills
+    : target.kind === "languages" ? t.editTitleLanguages
     : target.kind === "experience" ? t.editTitleExp
     : target.kind === "education" ? t.editTitleEdu
     : t.editTitleSec
@@ -911,6 +1138,58 @@ function InlineEditor({ target, cv, t, onClose, onSaved, candidateId }: {
                 onChange={(e) => setDraft((d) => ({ ...d, summary: e.target.value }))}
                 style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.6 }}
               />
+            </label>
+          )}
+
+          {target.kind === "meta" && (
+            <>
+              <Row>
+                <F label={t.fSeniority} value={draft.seniority_level ?? ""}
+                   onChange={(v) => setDraft((d) => ({ ...d, seniority_level: v }))} autoFocus />
+                <F label={t.fYears} value={draft.years_experience != null ? String(draft.years_experience) : ""}
+                   onChange={(v) => setDraft((d) => ({
+                     ...d, years_experience: v.trim() === "" ? null : Number(v.replace(/[^\d]/g, "")) || null,
+                   }))} />
+              </Row>
+              <F label={t.fLocation} value={draft.location ?? ""}
+                 onChange={(v) => setDraft((d) => ({ ...d, location: v }))} />
+              <p style={{ margin: 0, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
+                {t.locationHint}
+              </p>
+            </>
+          )}
+
+          {target.kind === "skills" && (
+            <label style={{ display: "block" }}>
+              <span style={fieldLabel}>{t.fSkills}</span>
+              <textarea
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                value={skillsText}
+                rows={10}
+                onChange={(e) => setSkillsText(e.target.value)}
+                style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.6 }}
+              />
+              <span style={{ display: "block", marginTop: 4, fontSize: 11, color: "var(--nw-text-muted)" }}>
+                {t.listHint}
+              </span>
+            </label>
+          )}
+
+          {target.kind === "languages" && (
+            <label style={{ display: "block" }}>
+              <span style={fieldLabel}>{t.fLanguages}</span>
+              <textarea
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                value={languagesText}
+                rows={6}
+                onChange={(e) => setLanguagesText(e.target.value)}
+                style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.6 }}
+              />
+              <span style={{ display: "block", marginTop: 4, fontSize: 11, color: "var(--nw-text-muted)" }}>
+                {t.listHint}
+              </span>
             </label>
           )}
 
@@ -1011,6 +1290,90 @@ function InlineEditor({ target, cv, t, onClose, onSaved, candidateId }: {
             opacity: saving || badDate ? 0.55 : 1,
           }}>
             {saving ? t.saving : t.save}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Renommage de la mission — chemin séparé de l'éditeur de CV.
+ *
+ * Il n'écrit pas dans le candidat mais dans la mission, et sa portée n'est
+ * donc ni « cette mission » (au sens présentation) ni « partout » : c'est le
+ * nom de la mission, qui change dans tout le produit. Le panneau le dit.
+ */
+function JobTitleEditor({ value, t, onClose, onSave }: {
+  value: string
+  t: typeof copy["fr"]
+  onClose: () => void
+  onSave: (title: string) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onClose])
+
+  const trimmed = draft.trim()
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 120,
+        background: "rgba(17,24,39,0.40)", backdropFilter: "blur(2px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+      }}
+    >
+      <div style={{
+        background: "white", borderRadius: 14, width: "min(480px, 100%)",
+        border: "1px solid var(--nw-border-soft)", boxShadow: "0 18px 50px rgba(17,24,39,0.22)",
+        padding: 20,
+      }}>
+        <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--nw-text)" }}>{t.editTitleJob}</h4>
+        <p style={{ margin: "5px 0 14px", fontSize: 12, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
+          {t.jobScopeHint}
+        </p>
+        <label style={{ display: "block" }}>
+          <span style={fieldLabel}>{t.fJobTitle}</span>
+          <input
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
+            type="text"
+            value={draft}
+            maxLength={200}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && trimmed) onSave(trimmed) }}
+            style={fieldStyle}
+          />
+        </label>
+        <div style={{ marginTop: 18, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button type="button" onClick={onClose} style={{
+            fontFamily: "inherit", fontSize: 12, fontWeight: 600,
+            color: "var(--nw-text-secondary)", background: "transparent",
+            border: "1px solid var(--nw-border)", borderRadius: 8,
+            padding: "8px 14px", cursor: "pointer",
+          }}>
+            {t.cancel}
+          </button>
+          <button
+            type="button"
+            onClick={() => trimmed && onSave(trimmed)}
+            disabled={!trimmed}
+            style={{
+              fontFamily: "inherit", fontSize: 12, fontWeight: 700,
+              color: "white", background: "var(--nw-primary)",
+              border: "1px solid rgba(124,99,200,0.4)", borderRadius: 8,
+              padding: "8px 16px",
+              cursor: trimmed ? "pointer" : "not-allowed",
+              opacity: trimmed ? 1 : 0.55,
+            }}
+          >
+            {t.save}
           </button>
         </div>
       </div>

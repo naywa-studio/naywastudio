@@ -27,7 +27,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { requireActiveAccess } from "@/lib/access-guard"
-import type { ParsedCv, ParsedExperience, ParsedEducation, ParsedSection } from "@/lib/database.types"
+import type { ParsedCv, ParsedExperience, ParsedEducation, ParsedSection, CandidateTaxonomy } from "@/lib/database.types"
 
 export const runtime = "nodejs"
 
@@ -148,6 +148,20 @@ function applyEditableFields(current: ParsedCv, body: Record<string, unknown>): 
   if ("experience" in body) next.experience = cleanExperiences(body.experience)
   if ("education" in body) next.education = cleanEducation(body.education)
   if ("other_sections" in body) next.other_sections = cleanSections(body.other_sections)
+  // Séniorité et années d'expérience s'affichent en tête du document client.
+  // Une extraction approximative s'y voit tout de suite ; le sourceur doit
+  // pouvoir la reprendre sans re-parser tout le CV.
+  if ("seniority_level" in body) next.seniority_level = str(body.seniority_level, 60)
+  if ("years_experience" in body) {
+    const v = body.years_experience
+    if (v === null || v === "") next.years_experience = null
+    else {
+      const n = typeof v === "number" ? v : Number(v)
+      // Borne haute volontairement large mais finie : au-delà, c'est une
+      // faute de frappe, et elle irait s'imprimer chez le client.
+      next.years_experience = Number.isFinite(n) && n >= 0 && n <= 70 ? Math.round(n) : null
+    }
+  }
   return next
 }
 
@@ -164,7 +178,24 @@ function mirroredColumns(cv: ParsedCv): Record<string, unknown> {
     current_company: cv.current_company ?? null,
     skills: cv.skills ?? [],
     languages: cv.languages ?? [],
+    seniority_level: cv.seniority_level ?? null,
+    years_experience: cv.years_experience ?? null,
   }
+}
+
+/**
+ * Compétences clés — le champ que le document client imprime tel quel.
+ *
+ * Il vit dans `candidates.taxonomy.core_skills`, pas dans `parsed_cv` : le
+ * corriger sans passer par ici serait sans effet, puisque le rendu préfère
+ * `core_skills` à `skills` dès qu'il existe. On réécrit la SEULE clé
+ * `core_skills` et on préserve le reste de la taxonomie, qui sert au matching.
+ */
+function taxonomyWithCoreSkills(
+  current: CandidateTaxonomy | null,
+  raw: unknown,
+): CandidateTaxonomy {
+  return { ...(current ?? {}), core_skills: list(raw, 40) }
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -183,7 +214,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // Lecture RLS : hors de l'organisation du caller, le candidat n'existe pas.
   const { data: candidate, error } = await sb
     .from("candidates")
-    .select("id, parsed_cv, parsed_cv_original")
+    .select("id, parsed_cv, parsed_cv_original, taxonomy")
     .eq("id", id)
     .single()
   if (error || !candidate) return NextResponse.json({ error: "not_found" }, { status: 404 })
@@ -196,8 +227,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .from("candidates")
     .update({
       parsed_cv: next,
-      // Première retouche seulement : on fige ce que NORA avait produit.
-      ...(candidate.parsed_cv_original ? {} : { parsed_cv_original: current }),
+      ...("core_skills" in body
+        ? { taxonomy: taxonomyWithCoreSkills(candidate.taxonomy, body.core_skills) }
+        : {}),
+      // Première retouche seulement : on fige ce que NORA avait produit. La
+      // TAXONOMIE part dans le même instantané — les « compétences clés » du
+      // document client en viennent, et un retour arrière qui ne les
+      // restaurerait pas tiendrait sa promesse à moitié.
+      ...(candidate.parsed_cv_original
+        ? {}
+        : { parsed_cv_original: current, taxonomy_original: candidate.taxonomy }),
       parsed_cv_edited_at: new Date().toISOString(),
       // `parse_status` reste à "parsed" — DÉLIBÉRÉMENT. Il ne dit pas QUI a
       // écrit la fiche, il dit qu'elle porte des données structurées
@@ -216,7 +255,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     console.error("[parsed-cv] update failed", updateErr)
     return NextResponse.json({ error: "update_failed", detail: "internal_error" }, { status: 500 })
   }
-  return NextResponse.json({ ok: true, parsed_cv: next })
+  return NextResponse.json({
+    ok: true,
+    parsed_cv: next,
+    // L'appelant redessine l'aperçu avec : sans la taxonomie, les compétences
+    // clés corrigées ne changeraient à l'écran qu'au prochain chargement.
+    taxonomy: "core_skills" in body ? taxonomyWithCoreSkills(candidate.taxonomy, body.core_skills) : undefined,
+  })
 }
 
 /** Retour à la version d'origine produite par Nora. */
@@ -230,7 +275,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
 
   const { data: candidate, error } = await sb
     .from("candidates")
-    .select("id, parsed_cv_original")
+    .select("id, parsed_cv_original, taxonomy_original")
     .eq("id", id)
     .single()
   if (error || !candidate) return NextResponse.json({ error: "not_found" }, { status: 404 })
@@ -246,6 +291,10 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
       parsed_cv: original,
       parsed_cv_original: null,
       parsed_cv_edited_at: null,
+      // La taxonomie revient avec le reste — sinon les « compétences clés »
+      // corrigées resteraient sur le document client après un retour arrière.
+      ...(candidate.taxonomy_original ? { taxonomy: candidate.taxonomy_original } : {}),
+      taxonomy_original: null,
       // Pas de `parse_status` ici non plus : l'édition ne l'a pas changé, le
       // retour arrière n'a donc rien à restaurer. L'écrire à "parsed" ferait
       // passer pour exploitable une fiche dont le parsing avait échoué.
@@ -257,5 +306,5 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     console.error("[parsed-cv] revert failed", updateErr)
     return NextResponse.json({ error: "revert_failed", detail: "internal_error" }, { status: 500 })
   }
-  return NextResponse.json({ ok: true, parsed_cv: original })
+  return NextResponse.json({ ok: true, parsed_cv: original, taxonomy: candidate.taxonomy_original ?? undefined })
 }

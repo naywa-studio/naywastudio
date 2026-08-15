@@ -18,7 +18,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { buildAnonymizedDocx } from "@/lib/anonymized-cv-docx"
-import { readSelection, applySelection } from "@/lib/anonymize-selection"
+import { readSelection, readOrder, applyLayout } from "@/lib/anonymize-selection"
 import { candidateRefSlug as refFor } from "@/lib/candidate-ref"
 import type { AnonymizedJobContext } from "@/lib/anonymized-cv"
 import type { Candidate } from "@/lib/database.types"
@@ -104,9 +104,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .single()
     if (job) {
       const rf = job.normalized?.role_family ?? []
-      const formalTitle = rf.length > 0 ? rf.slice(0, 2).join(" / ") : job.title
+      // Titre = celui de la mission, tel qu'ecrit par le sourceur (et editable
+      // depuis l'apercu). Plus de substitution par le role_family normalise.
       jobContext = {
-        title: formalTitle,
+        title: job.title,
         seniority: job.seniority,
         location: job.location,
         required_skills: job.required_skills ?? [],
@@ -126,13 +127,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (jobId && candidate.parsed_cv) {
     const { data: matchRow } = await sb
       .from("match_assessments")
-      .select("anonymize_excluded")
+      .select("anonymize_excluded, anonymize_order")
       .eq("job_id", jobId)
       .eq("candidate_id", candidate.id)
       .limit(1)
       .maybeSingle()
-    if (matchRow?.anonymize_excluded) {
-      subject = { ...subject, parsed_cv: applySelection(candidate.parsed_cv, readSelection(matchRow.anonymize_excluded)) }
+    if (matchRow?.anonymize_excluded || matchRow?.anonymize_order) {
+      subject = {
+        ...subject,
+        parsed_cv: applyLayout(
+          candidate.parsed_cv,
+          readSelection(matchRow.anonymize_excluded),
+          readOrder(matchRow.anonymize_order),
+        ),
+      }
     }
   }
 

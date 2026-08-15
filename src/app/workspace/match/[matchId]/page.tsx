@@ -10,11 +10,10 @@ import { kindOf, type Criterion, type CriterionEval } from "@/lib/job-criteria-c
 import { criterionHeaderLabel, shortCriterionLabel, dimColor, statusColor } from "@/lib/criterion-display"
 import ComposeBox from "@/components/workspace/ComposeBox"
 import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
-import { AnonymizePreview } from "@/components/workspace/anonymize/AnonymizePreview"
 import { AnonymizedCvLivePreview } from "@/components/workspace/anonymize/AnonymizedCvLivePreview"
 import { AnonymizeSidePanel } from "@/components/workspace/anonymize/AnonymizeSidePanel"
 import type { AnonymizedJobContext, AnonymizedBrand } from "@/lib/anonymized-cv-model"
-import { readSelection, EMPTY_SELECTION, type AnonymizeSelection } from "@/lib/anonymize-selection"
+import { readSelection, readOrder, EMPTY_SELECTION, EMPTY_ORDER, type AnonymizeSelection, type AnonymizeOrder } from "@/lib/anonymize-selection"
 import {
   INITIAL_ANONYMIZE_OPTIONS,
   INITIAL_ANONYMIZE_STATUS,
@@ -302,15 +301,14 @@ export default function MatchPage() {
   const [clientNote, setClientNote] = useState("")
   const [clientSaving, setClientSaving] = useState(false)
 
-  // État anonymisation lifté ici pour piloter en même temps les
-  // contrôles haut de page (AnonymizeControls) et l'aperçu bas de page
-  // (AnonymizePreview). Les deux composants ne se voient pas, c'est
-  // MatchPage qui orchestre.
+  // État d'anonymisation lifté ici : les contrôles du haut, l'aperçu vivant et
+  // le panneau de réglages le partagent sans se voir entre eux.
   const [anonymizeStatus, setAnonymizeStatus] = useState<AnonymizeStatus>(INITIAL_ANONYMIZE_STATUS)
   const [anonymizeOptions, setAnonymizeOptions] = useState<AnonymizeOptions>(INITIAL_ANONYMIZE_OPTIONS)
   // Briques masquées dans le document remis au client POUR CETTE MISSION.
   // Distinct de l'édition de la fiche candidat, qui corrige la donnée elle-même.
   const [anonymizeSelection, setAnonymizeSelection] = useState<AnonymizeSelection>(EMPTY_SELECTION)
+  const [anonymizeOrder, setAnonymizeOrder] = useState<AnonymizeOrder>(EMPTY_ORDER)
   const [selectionSaving, setSelectionSaving] = useState(false)
   const selectionQueue = useRef<Promise<unknown>>(Promise.resolve())
 
@@ -364,6 +362,7 @@ export default function MatchPage() {
       setMatch(loaded)
       setCandidate(data.candidate as Candidate)
       setAnonymizeSelection(readSelection((loaded as { anonymize_excluded?: unknown })?.anonymize_excluded))
+      setAnonymizeOrder(readOrder((loaded as { anonymize_order?: unknown })?.anonymize_order))
       // Les options de la MISSION (résumé Nora, message) sont la source de
       // vérité éditoriale : la fiche match partait jusqu'ici des valeurs
       // d'usine et écrasait donc, à la génération, ce que le sourceur avait
@@ -456,6 +455,40 @@ export default function MatchPage() {
     selectionQueue.current = selectionQueue.current
       .then(run)
       .finally(() => setSelectionSaving(false))
+  }
+
+  /** Ordre des briques — même file d'écriture, même raison : chaque PATCH
+   *  envoie la liste complète, deux réponses désordonnées remettraient un
+   *  ordre périmé. */
+  const saveOrder = (next: AnonymizeOrder) => {
+    if (isReadOnly) return
+    setAnonymizeOrder(next)
+    setSelectionSaving(true)
+    const run = async () => {
+      try {
+        await fetch(`/api/match/${matchId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ anonymize_order: next }),
+        })
+      } catch { /* best-effort */ }
+    }
+    selectionQueue.current = selectionQueue.current
+      .then(run)
+      .finally(() => setSelectionSaving(false))
+  }
+
+  /** Renomme la MISSION. Portée volontairement large — c'est son nom, il
+   *  change partout où elle apparaît, pas seulement sur ce document. */
+  const saveJobTitle = (title: string) => {
+    const jobId = match?.job?.id
+    if (!jobId || isReadOnly) return
+    setMatch((prev) => prev?.job ? { ...prev, job: { ...prev.job, title } } : prev)
+    void fetch(`/api/jobs/${jobId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    }).catch(() => { /* best-effort : la valeur reste à l'écran */ })
   }
 
   /**
@@ -1162,7 +1195,12 @@ export default function MatchPage() {
                 options={anonymizeOptions}
                 selection={anonymizeSelection}
                 onSelectionChange={saveSelection}
-                onCvChange={(cv) => setCandidate((prev) => prev ? { ...prev, parsed_cv: cv } : prev)}
+                order={anonymizeOrder}
+                onOrderChange={saveOrder}
+                onCvChange={(cv, taxonomy) => setCandidate((prev) => prev
+                  ? { ...prev, parsed_cv: cv, ...(taxonomy ? { taxonomy } : {}) }
+                  : prev)}
+                onJobTitleChange={saveJobTitle}
                 readOnly={isReadOnly}
               />
               <AnonymizeSidePanel
@@ -1189,10 +1227,6 @@ export default function MatchPage() {
               />
             </div>
           ) : null}
-
-          <AnonymizePreview
-            status={anonymizeStatus}
-          />
         </div>
       </div>
 

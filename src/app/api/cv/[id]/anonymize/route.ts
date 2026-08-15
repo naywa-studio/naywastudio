@@ -21,7 +21,7 @@ import {
   readOrgDefaults, readJobOptions, coerceTemplate,
   INITIAL_ORG_ANONYMIZE_DEFAULTS, INITIAL_JOB_ANONYMIZE_OPTIONS,
 } from "@/components/workspace/anonymize/types"
-import { readSelection, applySelection } from "@/lib/anonymize-selection"
+import { readSelection, readOrder, applyLayout } from "@/lib/anonymize-selection"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -139,16 +139,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .single()
     if (job) {
       jobOptions = readJobOptions(job.anonymize_options)
-      // Formal title for the client : prefer the LLM-normalised role_family
-      // (joined with " / " when there's a FR/EN pair) so the PDF says
-      // "Ingénieur data / Data engineer" instead of whatever the sourcer
-      // typed in the form ("Ingénieur en Data"). Falls back to the raw
-      // title when no normalised role is available.
+      // Titre affiché au client = CELUI DE LA MISSION, tel que le sourceur
+      // l'a écrit. On substituait auparavant le `role_family` normalisé par le
+      // modèle, au motif qu'il « sonnait plus formel » — mais il faisait
+      // apparaître sur un document client un intitulé que personne n'avait
+      // tapé, et que personne ne pouvait corriger. Maintenant que le titre
+      // s'édite directement depuis l'aperçu, la substitution n'a plus de
+      // raison d'être : ce qu'on lit est ce qu'on a écrit.
       const rf = job.normalized?.role_family ?? []
-      const formalTitle = rf.length > 0 ? rf.slice(0, 2).join(" / ") : job.title
 
       jobContext = {
-        title: formalTitle,
+        title: job.title,
         seniority: job.seniority,
         location: job.location,
         required_skills: job.required_skills ?? [],
@@ -182,7 +183,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (jobId && candidate.parsed_cv) {
     const { data: matchRow } = await sb
       .from("match_assessments")
-      .select("anonymize_excluded")
+      .select("anonymize_excluded, anonymize_order")
       .eq("job_id", jobId)
       .eq("candidate_id", candidate.id)
       // `limit(1)` volontaire : sans lui, deux lignes pour un même couple
@@ -190,9 +191,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       // client avec les briques que le sourceur croyait avoir masquées.
       .limit(1)
       .maybeSingle()
-    if (matchRow?.anonymize_excluded) {
-      const selection = readSelection(matchRow.anonymize_excluded)
-      subject = { ...subject, parsed_cv: applySelection(candidate.parsed_cv, selection) }
+    if (matchRow?.anonymize_excluded || matchRow?.anonymize_order) {
+      subject = {
+        ...subject,
+        parsed_cv: applyLayout(
+          candidate.parsed_cv,
+          readSelection(matchRow.anonymize_excluded),
+          readOrder(matchRow.anonymize_order),
+        ),
+      }
     }
   }
 

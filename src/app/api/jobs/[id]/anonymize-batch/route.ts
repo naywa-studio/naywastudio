@@ -25,7 +25,7 @@ import { buildExecutiveSummary } from "@/lib/anonymized-summary"
 import { consumeOrgLlmActionForUser } from "@/lib/quota"
 import { readOrgDefaults, readJobOptions, coerceTemplate } from "@/components/workspace/anonymize/types"
 import { candidateRefSlug } from "@/lib/candidate-ref"
-import { readSelection, applySelection, type AnonymizeSelection } from "@/lib/anonymize-selection"
+import { readSelection, readOrder, applyLayout, type AnonymizeSelection } from "@/lib/anonymize-selection"
 import type { Candidate } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -103,9 +103,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const customText = typeof ov.customText === "string" ? ov.customText.slice(0, 600) : jobOptionsBase.customText
   const jobOptions = { keepNoraSummary, customText }
   const rf = job.normalized?.role_family ?? []
-  const formalTitle = rf.length > 0 ? rf.slice(0, 2).join(" / ") : job.title
+  // Titre = celui de la mission, tel qu'ecrit par le sourceur (et editable
+  // depuis l'apercu). Plus de substitution par le role_family normalise.
   const jobContext: AnonymizedJobContext = {
-    title: formalTitle,
+    title: job.title,
     seniority: job.seniority,
     location: job.location,
     required_skills: job.required_skills ?? [],
@@ -121,16 +122,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // Sans ce chargement, le choix fait sur une fiche match ne vaudrait que
   // pour le téléchargement à l'unité et le paquet remis au client dirait
   // autre chose que l'aperçu — le pire des deux mondes.
-  const exclusions = new Map<string, AnonymizeSelection>()
+  const layouts = new Map<string, { hidden: AnonymizeSelection; order: AnonymizeSelection }>()
   {
     const { data: rows } = await sb
       .from("match_assessments")
-      .select("candidate_id, anonymize_excluded")
+      .select("candidate_id, anonymize_excluded, anonymize_order")
       .eq("job_id", jobId)
       .in("candidate_id", ids)
     for (const row of rows ?? []) {
-      if (row.anonymize_excluded) {
-        exclusions.set(row.candidate_id, readSelection(row.anonymize_excluded))
+      if (row.anonymize_excluded || row.anonymize_order) {
+        layouts.set(row.candidate_id, {
+          hidden: readSelection(row.anonymize_excluded),
+          order: readOrder(row.anonymize_order),
+        })
       }
     }
   }
@@ -156,9 +160,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     // Copie filtrée des briques masquées sur cette mission. `parsed_cv` reste
     // intact en base : c'est un choix de présentation, pas une correction.
-    const selection = exclusions.get(candidate.id)
-    const subject: Candidate = selection
-      ? { ...(candidate as Candidate), parsed_cv: applySelection(candidate.parsed_cv, selection) }
+    const layout = layouts.get(candidate.id)
+    const subject: Candidate = layout
+      ? { ...(candidate as Candidate), parsed_cv: applyLayout(candidate.parsed_cv, layout.hidden, layout.order) }
       : (candidate as Candidate)
 
     // Quota LLM seulement si le résumé Nora est demandé (sinon zéro appel).
