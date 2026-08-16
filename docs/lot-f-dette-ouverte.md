@@ -249,7 +249,28 @@ diverge.
    rester cohérent dans une grille bento, où l'ordre visuel n'est pas l'ordre du
    flux.
 
-**Faire le 1 tout de suite, le 2 dans le lot.**
+**FAIT le 2026-08-16 — F10-2 directement, sans passer par le bandeau.** Elyas a
+tranché : « ça ne sert à rien de faire le bandeau, écris directement les 3 mises
+en page ». Le corps du document est découpé en pièces (`renderBrandHeader`,
+`renderHeadline`, `renderSummary`, `renderMeta`, `renderSkills`,
+`renderExperience`, `renderEducation`, `renderSections`, `renderFooter`,
+`renderWatermark`) et `renderDocument()` les agence par gabarit, en suivant
+`anonymized-cv.tsx` branche par branche. Toutes les mesures passent par `pt()`
+(794 / 595,28), donc les deux fichiers se lisent en regard.
+
+**Trois divergences trouvées en écrivant, et corrigées :**
+1. l'**école** figurait dans la formation de l'aperçu. Aucun des quatre gabarits
+   ne l'imprime — c'est un identifiant. L'aperçu montrait donc au sourceur une
+   fuite qui n'existait pas dans le document remis au client.
+2. le résumé était coiffé d'un titre « Résumé » et posé **après** les méta ; au
+   PDF il n'a pas de titre et vient **avant**.
+3. les rubriques libres étaient regroupées sous « Autres rubriques », un chapeau
+   qui n'existe nulle part dans le document.
+
+**Divergence assumée, dans le bon sens** : un champ d'en-tête vide s'affiche en
+gris italique avec un tiret au lieu d'être omis comme au PDF. Sans ça, une
+séniorité absente n'est cliquable nulle part et ne peut pas être renseignée
+depuis le document.
 
 ---
 
