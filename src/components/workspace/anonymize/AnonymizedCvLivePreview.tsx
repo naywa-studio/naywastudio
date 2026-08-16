@@ -913,9 +913,17 @@ function BlockShell({
         // étaient auparavant posées en absolu au-dessus du bloc : elles
         // mordaient sur le bloc précédent, et le document sautait au survol.
         display: "grid",
-        gridTemplateColumns: compactActions
-          ? `${drag ? "18px" : "0px"} minmax(0, 1fr)`
-          : `${drag ? "18px" : "0px"} minmax(0, 1fr) auto`,
+        // On ne DÉCLARE la colonne de poignée que si elle est rendue.
+        // Piège : un élément en `display: none` ne consomme pas sa cellule de
+        // grille. La poignée toujours présente mais masquée laissait donc le
+        // contenu tomber dans la colonne de 0 px — largeur nulle, texte qui
+        // déborde et s'empile. Invisible sur les blocs de parcours (qui ont
+        // une poignée) et systématique sur l'en-tête (qui n'en a pas).
+        gridTemplateColumns: [
+          drag ? "18px" : null,
+          "minmax(0, 1fr)",
+          compactActions ? null : "auto",
+        ].filter(Boolean).join(" "),
         position: compactActions ? "relative" : undefined,
         alignItems: "start",
         gap: 8,
@@ -930,17 +938,20 @@ function BlockShell({
         cursor: draggable ? "grab" : "default",
       }}
     >
-      {/* Poignée — signale que le bloc se déplace, sans occuper la place
-          d'une icône permanente : elle n'apparaît qu'au survol. */}
-      <span aria-hidden title={drag?.title} style={{
-        display: drag ? "block" : "none",
-        paddingTop: 2, lineHeight: 1,
-        color: "var(--nw-text-muted)", fontSize: 13,
-        opacity: showActions ? 0.75 : 0,
-        transition: "opacity 120ms",
-      }}>
-        ⠿
-      </span>
+      {/* Poignée — signale que le bloc se déplace. Elle n'est PAS rendue quand
+          le bloc n'est pas déplaçable (et non masquée en CSS : voir le calcul
+          des colonnes ci-dessus). Sa cellule est réservée en permanence, seule
+          son opacité varie au survol, pour que le texte ne bouge pas. */}
+      {drag && (
+        <span aria-hidden title={drag.title} style={{
+          paddingTop: 2, lineHeight: 1,
+          color: "var(--nw-text-muted)", fontSize: 13,
+          opacity: showActions ? 0.75 : 0,
+          transition: "opacity 120ms",
+        }}>
+          ⠿
+        </span>
+      )}
 
       <div style={{ minWidth: 0, textDecoration: hidden ? "line-through" : "none" }}>
         {hidden && hiddenTag && (
