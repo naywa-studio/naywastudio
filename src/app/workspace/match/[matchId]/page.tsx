@@ -1211,28 +1211,39 @@ export default function MatchPage() {
                 onJobTitleChange={saveJobTitle}
                 readOnly={isReadOnly}
               />
-              <AnonymizeSidePanel
-                options={anonymizeOptions}
-                onChange={setAnonymizeOptions}
-                readOnly={isReadOnly}
-                footer={
-                  <button
-                    type="button"
-                    onClick={() => void generateAnonymized()}
-                    disabled={isReadOnly || anonymizeStatus.state === "working"}
-                    style={{
-                      fontFamily: "inherit", fontSize: 12.5, fontWeight: 700,
-                      color: "white", background: "var(--nw-primary)",
-                      border: "1px solid rgba(124,99,200,0.4)", borderRadius: 10,
-                      padding: "10px 14px",
-                      cursor: isReadOnly || anonymizeStatus.state === "working" ? "not-allowed" : "pointer",
-                      opacity: isReadOnly || anonymizeStatus.state === "working" ? 0.55 : 1,
-                    }}
-                  >
-                    {anonymizeStatus.state === "working" ? t.generating : t.generateDocument}
-                  </button>
-                }
-              />
+              {/* Les réglages SUIVENT le défilement.
+                  Un CV fait deux à quatre écrans de haut ; sans ça, changer de
+                  gabarit ou décocher le résumé imposait de remonter tout en
+                  haut, de régler à l'aveugle, puis de redescendre pour voir
+                  l'effet. Le même piège de grille que pour le rail du
+                  pipeline : une cellule qui s'étire, et le collage à
+                  l'intérieur. */}
+              <div className="anon-rail">
+                <div>
+                  <AnonymizeSidePanel
+                    options={anonymizeOptions}
+                    onChange={setAnonymizeOptions}
+                    readOnly={isReadOnly}
+                    footer={
+                      <button
+                        type="button"
+                        onClick={() => void generateAnonymized()}
+                        disabled={isReadOnly || anonymizeStatus.state === "working"}
+                        style={{
+                          fontFamily: "inherit", fontSize: 12.5, fontWeight: 700,
+                          color: "white", background: "var(--nw-primary)",
+                          border: "1px solid rgba(124,99,200,0.4)", borderRadius: 10,
+                          padding: "10px 14px",
+                          cursor: isReadOnly || anonymizeStatus.state === "working" ? "not-allowed" : "pointer",
+                          opacity: isReadOnly || anonymizeStatus.state === "working" ? 0.55 : 1,
+                        }}
+                      >
+                        {anonymizeStatus.state === "working" ? t.generating : t.generateDocument}
+                      </button>
+                    }
+                  />
+                </div>
+              </div>
             </div>
           ) : null}
         </div>
@@ -1252,6 +1263,20 @@ export default function MatchPage() {
           justify-content: center;
           align-items: start;
         }
+        /* La cellule des réglages s'étire sur toute la hauteur de l'atelier ;
+           le panneau colle à l'intérieur et s'arrête donc avec l'aperçu, sans
+           aller se poser sur ce qui suit. Même construction que le rail du
+           pipeline, pour la même raison : un enfant direct de grille en
+           position collante se confine au CONTENEUR, pas à sa cellule. */
+        .anon-rail { align-self: stretch; }
+        .anon-rail > div {
+          position: sticky;
+          top: 80px;
+          /* Le panneau est plus haut que l'écran sur un portable : sans cette
+             borne, son bas — le bouton « Générer » — restait hors de vue. */
+          max-height: calc(100vh - 104px);
+          overflow-y: auto;
+        }
         @media (max-width: 1180px) {
           /* Sous cette largeur la page ne tient plus à sa taille réelle : on
              la laisse se réduire plutôt que d'imposer un défilement latéral. */
@@ -1270,6 +1295,13 @@ export default function MatchPage() {
              colonne de 260px écraserait le document au point de le rendre
              illisible, et c'est lui qu'on vient regarder. */
           .anon-studio { grid-template-columns: 1fr !important; }
+          /* Empilés, les réglages n'ont plus rien à suivre : les coller
+             immobiliserait un pavé au milieu de l'écran. */
+          .anon-rail > div {
+            position: static;
+            max-height: none;
+            overflow: visible;
+          }
         }
       `}</style>
     </main>

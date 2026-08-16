@@ -36,6 +36,7 @@ import type { Candidate, ParsedCv, CandidateTaxonomy } from "@/lib/database.type
 import {
   buildAnonymizedModel, endLabel,
   type AnonymizedJobContext, type AnonymizedBrand, type AnonymizedOptions,
+  type AnonymizedTemplate,
 } from "@/lib/anonymized-cv-model"
 import {
   experienceKey, educationKey, sectionKey, sortByKeys,
@@ -86,6 +87,9 @@ const copy = {
     seniorityLabel: "Séniorité",
     experienceLabel: "Expérience",
     zoneLabel: "Zone",
+    profile: "Profil",
+    role: "Poste",
+    contactPrefix: "Pour échanger sur ce profil :",
     yearsSuffix: (n: number) => `${n} an${n > 1 ? "s" : ""}`,
     ref: "Réf.",
     save: "Enregistrer",
@@ -161,6 +165,9 @@ const copy = {
     seniorityLabel: "Seniority",
     experienceLabel: "Experience",
     zoneLabel: "Location",
+    profile: "Profile",
+    role: "Role",
+    contactPrefix: "Contact about this profile:",
     yearsSuffix: (n: number) => `${n} year${n > 1 ? "s" : ""}`,
     ref: "Ref.",
     save: "Save",
@@ -199,6 +206,63 @@ const copy = {
 const DATE_RE = /^\d{4}(-(0[1-9]|1[0-2]))?$/
 const isBadDate = (v: string | null | undefined) =>
   typeof v === "string" && v.trim().length > 0 && !DATE_RE.test(v.trim())
+
+/* ─── Le document, à l'échelle ──────────────────────────────────────────
+ *
+ * `anonymized-cv.tsx` écrit toutes ses mesures en POINTS, l'unité de
+ * @react-pdf. Une A4 fait 595,28 pt de large et son rendu à 96 dpi en fait
+ * 794 px : le facteur est donc 794 / 595,28.
+ *
+ * Toutes les valeurs ci-dessous passent par `pt()` et se lisent en regard du
+ * fichier PDF, ligne pour ligne. C'est délibéré : la fidélité de l'aperçu
+ * n'est pas maintenable si les deux fichiers parlent des unités différentes.
+ * Une valeur écrite en dur ici serait invérifiable.
+ */
+const PT = 794 / 595.28
+const pt = (n: number) => n * PT
+
+const INK = "#1F2937"
+const MUTED = "#6B7280"
+const LINE = "#E5E1F2"
+const FAINT = "#9CA3AF"
+const BODY = "#4B5563"
+const PROSE = "#374151"
+
+/** Marges et fond de page, par gabarit — repris des `<Page style>` du PDF. */
+const PAGE_STYLE: Record<AnonymizedTemplate, React.CSSProperties> = {
+  classic: {
+    padding: `${pt(44)}px ${pt(52)}px ${pt(64)}px`,
+    fontSize: pt(10), background: "white",
+  },
+  "two-column": {
+    padding: `${pt(44)}px ${pt(52)}px ${pt(64)}px`,
+    fontSize: pt(10), background: "white",
+  },
+  executive: {
+    padding: `${pt(60)}px ${pt(64)}px ${pt(72)}px`,
+    fontSize: pt(10.5), background: "white",
+  },
+  bento: {
+    padding: `${pt(36)}px ${pt(36)}px ${pt(60)}px`,
+    fontSize: pt(10), background: "#FAFAFA",
+  },
+}
+
+/** Titre de rubrique. Les trois habillages du PDF, à la lettre. */
+function sectionTitleStyle(tpl: AnonymizedTemplate, color: string): React.CSSProperties {
+  const base = { fontWeight: 700, color, textTransform: "uppercase" as const }
+  if (tpl === "executive") return { ...base, fontSize: pt(9), letterSpacing: `${pt(1.2)}px` }
+  if (tpl === "bento") return { ...base, fontSize: pt(8.5), letterSpacing: `${pt(1.1)}px` }
+  return { ...base, fontSize: pt(9), letterSpacing: `${pt(1)}px` }
+}
+
+/** Carte du gabarit bento — le contenant de toutes ses rubriques. */
+const bentoCard: React.CSSProperties = {
+  background: "white",
+  border: `${pt(0.7)}px solid ${LINE}`,
+  borderRadius: pt(8),
+  padding: pt(14),
+}
 
 type Bucket = keyof AnonymizeSelection
 
@@ -355,7 +419,579 @@ export function AnonymizedCvLivePreview({
       + selection.sections.filter((k) => inSec.has(k)).length
   }, [model, selection])
 
-  const summaryText = model.noraSummary ?? model.customSummary
+  /* ─── Les pièces du document ─────────────────────────────────────────
+   *
+   * Une pièce par bloc du PDF, déclinée par gabarit — la même découpe que
+   * `anonymized-cv.tsx`, volontairement, pour qu'on puisse lire les deux
+   * fichiers côte à côte et voir tout de suite ce qui diverge.
+   *
+   * Le CONTENU ne se décide toujours pas ici : il vient de `model`. Ce qui
+   * change d'un gabarit à l'autre, c'est où les blocs sont posés et comment
+   * ils sont habillés.
+   */
+  const tpl = model.options.template
+  const brandName = model.brand.name
+  const logoSrc = model.brand.logoUrl
+  const slogan = model.brand.slogan
+  const titleStyle = sectionTitleStyle(tpl, accent2)
+
+  /** En-tête de marque. Le logo, le nom, le slogan, la référence. */
+  const renderBrandHeader = () => {
+    const z = tpl === "executive"
+      ? { logoH: pt(32), logoW: pt(110), gap: pt(10), name: pt(10), nameLs: pt(1.4), slogan: pt(8), refW: pt(80), ref: pt(9), refLs: pt(0.8), refBold: 400, refUp: undefined, mb: pt(36) }
+      : tpl === "bento"
+        ? { logoH: pt(42), logoW: pt(150), gap: pt(10), name: pt(10), nameLs: pt(1.2), slogan: pt(8.5), refW: pt(84), ref: pt(8.5), refLs: pt(0.8), refBold: 700, refUp: "uppercase" as const, mb: pt(10) }
+        : { logoH: pt(56), logoW: pt(200), gap: pt(12), name: pt(11), nameLs: pt(1), slogan: pt(8.5), refW: pt(90), ref: pt(8), refLs: pt(0.5), refBold: 400, refUp: undefined, mb: pt(4) }
+    return (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: z.mb }}>
+        <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0, paddingRight: pt(14) }}>
+          {logoSrc && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoSrc} alt="" style={{ height: z.logoH, maxWidth: z.logoW, marginRight: z.gap, objectFit: "contain" }} />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: z.name, fontWeight: 700, color: accent, letterSpacing: `${z.nameLs}px` }}>
+              {brandName.toUpperCase()}
+            </div>
+            {slogan && (
+              <div style={{ fontSize: z.slogan, color: MUTED, fontStyle: "italic", marginTop: pt(2) }}>{slogan}</div>
+            )}
+          </div>
+        </div>
+        <div style={{ minWidth: z.refW, textAlign: "right", flexShrink: 0 }}>
+          <span style={{
+            fontSize: z.ref, color: MUTED, letterSpacing: `${z.refLs}px`,
+            fontWeight: z.refBold, textTransform: z.refUp,
+          }}>
+            {t.ref} {reference}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  /** « Présenté pour » + le titre. Corriger le titre RENOMME LA MISSION —
+   *  portée différente des deux autres gestes, écrite sur la puce. */
+  const renderHeadline = () => {
+    const z = tpl === "executive"
+      ? { pre: pt(9), preLs: pt(2), preMb: pt(8), h: pt(32), lh: 1.15, mb: pt(28) }
+      : tpl === "bento"
+        ? { pre: pt(8.5), preLs: pt(1.4), preMb: pt(5), h: pt(22), lh: 1.2, mb: pt(10) }
+        : { pre: pt(8.5), preLs: pt(1.2), preMb: pt(4), h: pt(20), lh: 1.25, mb: pt(14) }
+    return (
+      <>
+        {model.hasJob && (
+          <div style={{
+            fontSize: z.pre, fontWeight: 700, color: accent,
+            letterSpacing: `${z.preLs}px`, textTransform: "uppercase", marginBottom: z.preMb,
+          }}>
+            {t.presentedFor}
+          </div>
+        )}
+        <BlockShell
+          hidden={false}
+          readOnly={readOnly || !model.hasJob || !onJobTitleChange}
+          onEdit={model.hasJob && onJobTitleChange ? () => setEditingJob(model.headline) : undefined}
+          compactActions
+          editLabel={t.edit}
+          editTitle={t.jobScopeHint}
+          scopeEverywhere={t.scopeJob}
+        >
+          <h1 style={{ margin: 0, fontSize: z.h, fontWeight: 700, color: INK, lineHeight: z.lh, letterSpacing: "-0.01em" }}>
+            {model.headline}
+          </h1>
+        </BlockShell>
+        <div style={{ height: z.mb }} />
+      </>
+    )
+  }
+
+  /** Résumé Nora et message du sourceur. Le PDF ne les titre pas : ce n'est
+   *  pas une rubrique, c'est une accroche. */
+  const renderSummary = () => {
+    const z = tpl === "executive"
+      ? { nora: pt(12), noraLh: 1.7, noraMb: pt(16), custom: pt(11), customLh: 1.65, customMb: pt(20), pad: pt(14), max: "92%" }
+      : tpl === "bento"
+        ? { nora: pt(10.5), noraLh: 1.6, noraMb: 0, custom: pt(10), customLh: 1.55, customMb: 0, pad: pt(10), max: "100%" }
+        : { nora: pt(10.5), noraLh: 1.6, noraMb: pt(18), custom: pt(10), customLh: 1.55, customMb: pt(18), pad: pt(10), max: "100%" }
+    return (
+      <BlockShell
+        hidden={false}
+        readOnly={readOnly}
+        onEdit={() => setEditing({ kind: "summary" })}
+        compactActions
+        editLabel={t.edit}
+        editTitle={t.editScope}
+        scopeEverywhere={t.scopeEverywhere}
+      >
+        {model.noraSummary && (
+          <p style={{
+            margin: `0 0 ${model.customSummary ? pt(8) : z.noraMb}px`,
+            fontSize: z.nora, color: PROSE, lineHeight: z.noraLh,
+            fontStyle: "italic", maxWidth: z.max,
+          }}>
+            {model.noraSummary}
+          </p>
+        )}
+        {model.customSummary && (
+          <p style={{
+            margin: `0 0 ${z.customMb}px`,
+            fontSize: z.custom, color: PROSE, lineHeight: z.customLh,
+            paddingLeft: z.pad, borderLeft: `2px solid ${accent}`, maxWidth: z.max,
+          }}>
+            {model.customSummary}
+          </p>
+        )}
+        {!model.noraSummary && !model.customSummary && (
+          <p style={{ margin: 0, color: FAINT, fontStyle: "italic", fontSize: pt(9) }}>
+            {model.options.keepNoraSummary ? t.summaryPending : t.noSummary}
+          </p>
+        )}
+      </BlockShell>
+    )
+  }
+
+  /** Séniorité · expérience · zone, puis les langues. DEUX blocs et non un :
+   *  ils s'éditent dans deux panneaux différents. Ils restent sur la même
+   *  ligne, comme au PDF, grâce à `inline`. */
+  const renderMeta = (stacked: boolean) => (
+    <div style={{
+      display: "flex", flexDirection: stacked ? "column" : "row",
+      flexWrap: stacked ? "nowrap" : "wrap", alignItems: "flex-start",
+    }}>
+      <BlockShell
+        hidden={false} readOnly={readOnly} inline compactActions
+        onEdit={() => setEditing({ kind: "meta" })}
+        editLabel={t.edit} editTitle={t.editScope} scopeEverywhere={t.scopeEverywhere}
+      >
+        <div style={{ display: "flex", flexDirection: stacked ? "column" : "row", flexWrap: "wrap" }}>
+          <Meta tpl={tpl} label={t.seniorityLabel} value={model.seniority} />
+          <Meta tpl={tpl} label={t.experienceLabel} value={model.years != null ? t.yearsSuffix(model.years) : null} />
+          <Meta tpl={tpl} label={t.zoneLabel} value={model.zone} />
+        </div>
+      </BlockShell>
+      <BlockShell
+        hidden={false} readOnly={readOnly} inline compactActions
+        onEdit={() => setEditing({ kind: "languages" })}
+        editLabel={t.edit} editTitle={t.editScope} scopeEverywhere={t.scopeEverywhere}
+      >
+        <Meta tpl={tpl} label={t.languages} value={model.languages.length ? model.languages.join(" · ") : null} />
+      </BlockShell>
+    </div>
+  )
+
+  /** Compétences clés. Ce sont des étiquettes, pas des blocs : on ne les
+   *  masque pas une par une, on les corrige en lot. */
+  const renderSkills = () => {
+    const chip: React.CSSProperties = tpl === "executive"
+      ? { fontSize: pt(10), color: accent, background: "white", border: `${pt(0.8)}px solid ${accent}`, borderRadius: 999, padding: `${pt(4)}px ${pt(10)}px`, marginRight: pt(6), marginBottom: pt(6) }
+      : tpl === "bento"
+        ? { fontSize: pt(9), color: accent, background: "white", border: `${pt(0.7)}px solid ${accent}`, borderRadius: pt(4), padding: `${pt(2.5)}px ${pt(7)}px`, marginRight: pt(5), marginBottom: pt(5) }
+        : { fontSize: pt(8.5), color: BODY, background: tpl === "two-column" ? "white" : "#F4F1FB", border: `1px solid ${LINE}`, borderRadius: pt(3), padding: `${pt(2)}px ${pt(6)}px`, marginRight: pt(5), marginBottom: pt(5) }
+    return (
+      <BlockShell
+        hidden={false} readOnly={readOnly} compactActions
+        onEdit={() => setEditing({ kind: "skills" })}
+        editLabel={t.edit} editTitle={t.editScope} scopeEverywhere={t.scopeEverywhere}
+      >
+        {model.skills.length > 0 ? (
+          <div style={{ display: "flex", flexWrap: "wrap" }}>
+            {model.skills.map((sk) => <span key={sk} style={chip}>{sk}</span>)}
+          </div>
+        ) : (
+          <p style={{ margin: 0, color: FAINT, fontStyle: "italic", fontSize: pt(9) }}>—</p>
+        )}
+      </BlockShell>
+    )
+  }
+
+  /** Le parcours. Classique et deux colonnes empilent titre / entreprise /
+   *  dates le long d'un filet ; exécutif et bento mettent les dates en regard
+   *  du titre. C'est exactement ce que font les quatre gabarits du PDF. */
+  const renderExperience = () => {
+    const stacked = tpl === "classic" || tpl === "two-column"
+    const exec = tpl === "executive"
+    return (
+      <BlockList
+        gap={exec ? pt(16) : pt(10)}
+        empty={model.experience.length > 0 && model.experience.every((e) => isHidden("experiences", experienceKey(e)))}
+        emptyLabel={t.everythingHidden}
+      >
+        {model.experience.map((e, i) => {
+          const key = experienceKey(e)
+          const hidden = isHidden("experiences", key)
+          if (hidden && !showHidden) return null
+          const dates = [e.start, endLabel(e.end, model.options.language)].filter(Boolean).join(" – ")
+          const isLast = i === model.experience.length - 1
+          return (
+            <BlockShell
+              key={`${key}#${i}`}
+              hidden={hidden}
+              readOnly={readOnly}
+              onToggle={() => toggle("experiences", key)}
+              onEdit={() => setEditing({ kind: "experience", index: i })}
+              toggleLabel={hidden ? t.restore : t.hide}
+              toggleTitle={hidden ? t.restoreScope : t.hideScope}
+              editLabel={t.edit}
+              editTitle={t.editScope}
+              scopeMission={t.scopeMission}
+              scopeEverywhere={t.scopeEverywhere}
+              hiddenTag={t.hiddenTag}
+              drag={dragProps("experiences", key)}
+            >
+              <div style={
+                stacked
+                  ? { paddingLeft: pt(12), borderLeft: `${pt(1.5)}px solid ${LINE}` }
+                  : tpl === "bento" && !isLast
+                    ? { paddingBottom: pt(10), borderBottom: `${pt(0.5)}px solid ${LINE}` }
+                    : undefined
+              }>
+                {stacked ? (
+                  <>
+                    <div style={{ fontSize: pt(10.5), fontWeight: 700, color: INK }}>{e.title || t.role}</div>
+                    {e.company && <div style={{ fontSize: pt(9.5), color: MUTED }}>{e.company}</div>}
+                    {dates && <div style={{ fontSize: pt(8), color: FAINT, marginTop: pt(1), marginBottom: pt(3) }}>{dates}</div>}
+                    {e.description && <p style={{ margin: 0, fontSize: pt(9), color: BODY, lineHeight: 1.5 }}>{e.description}</p>}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: pt(12), marginBottom: pt(exec ? 3 : 2) }}>
+                      <strong style={{ fontSize: pt(exec ? 12 : 10.5), fontWeight: 700, color: INK, minWidth: 0 }}>
+                        {e.title || t.role}
+                      </strong>
+                      {dates && (
+                        <span style={{ fontSize: pt(exec ? 9 : 8.5), color: MUTED, whiteSpace: "nowrap", flexShrink: 0 }}>
+                          {dates}
+                        </span>
+                      )}
+                    </div>
+                    {e.company && (
+                      <div style={{ fontSize: pt(exec ? 10 : 9.5), color: MUTED, marginBottom: pt(exec ? 4 : 3) }}>{e.company}</div>
+                    )}
+                    {e.description && (
+                      <p style={{ margin: 0, fontSize: pt(exec ? 10 : 9.5), color: BODY, lineHeight: exec ? 1.6 : 1.55 }}>
+                        {e.description}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </BlockShell>
+          )
+        })}
+      </BlockList>
+    )
+  }
+
+  /** La formation. L'ÉCOLE N'EST PAS IMPRIMÉE — aucun des quatre gabarits ne
+   *  la rend, c'est un identifiant. L'aperçu l'affichait : il montrait donc
+   *  au sourceur une fuite qui n'existait pas dans le document. */
+  const renderEducation = () => {
+    const z = tpl === "executive"
+      ? { degree: pt(10.5), meta: pt(9), gap: pt(6) }
+      : tpl === "bento"
+        ? { degree: pt(10), meta: pt(8.5), gap: pt(5) }
+        : { degree: pt(9.5), meta: pt(8.5), gap: pt(5) }
+    return (
+      <BlockList
+        gap={z.gap}
+        empty={model.education.length > 0 && model.education.every((ed) => isHidden("education", educationKey(ed)))}
+        emptyLabel={t.everythingHidden}
+      >
+        {model.education.map((ed, i) => {
+          const key = educationKey(ed)
+          const hidden = isHidden("education", key)
+          if (hidden && !showHidden) return null
+          const dates = `${ed.start ?? ""}${ed.end ? `–${ed.end}` : ""}`
+          return (
+            <BlockShell
+              key={`${key}#${i}`}
+              hidden={hidden}
+              readOnly={readOnly}
+              onToggle={() => toggle("education", key)}
+              onEdit={() => setEditing({ kind: "education", index: i })}
+              toggleLabel={hidden ? t.restore : t.hide}
+              toggleTitle={hidden ? t.restoreScope : t.hideScope}
+              editLabel={t.edit}
+              editTitle={t.editScope}
+              scopeMission={t.scopeMission}
+              scopeEverywhere={t.scopeEverywhere}
+              hiddenTag={t.hiddenTag}
+              drag={dragProps("education", key)}
+            >
+              <div style={{ fontSize: z.degree, fontWeight: 700, color: INK }}>
+                {ed.degree || "—"}{ed.field ? ` — ${ed.field}` : ""}
+              </div>
+              {dates && <div style={{ fontSize: z.meta, color: MUTED }}>{dates}</div>}
+            </BlockShell>
+          )
+        })}
+      </BlockList>
+    )
+  }
+
+  /** Rubriques libres. Chacune porte SON titre en tête de rubrique, comme au
+   *  PDF — pas regroupées sous un chapeau « Autres rubriques » qui n'existe
+   *  nulle part dans le document. */
+  const renderSections = () => {
+    const z = tpl === "executive"
+      ? { content: pt(9.5), color: MUTED, gap: pt(14), titleGap: pt(8) }
+      : tpl === "bento"
+        ? { content: pt(9.5), color: MUTED, gap: pt(10), titleGap: pt(8) }
+        : { content: pt(9), color: BODY, gap: pt(10), titleGap: pt(8) }
+    return (
+      <BlockList
+        gap={z.gap}
+        empty={model.otherSections.length > 0 && model.otherSections.every((s) => isHidden("sections", sectionKey(s)))}
+        emptyLabel={t.everythingHidden}
+      >
+        {model.otherSections.map((sec, i) => {
+          const key = sectionKey(sec)
+          const hidden = isHidden("sections", key)
+          if (hidden && !showHidden) return null
+          return (
+            <BlockShell
+              key={`${key}#${i}`}
+              hidden={hidden}
+              readOnly={readOnly}
+              onToggle={() => toggle("sections", key)}
+              onEdit={() => setEditing({ kind: "section", index: i })}
+              toggleLabel={hidden ? t.restore : t.hide}
+              toggleTitle={hidden ? t.restoreScope : t.hideScope}
+              editLabel={t.edit}
+              editTitle={t.editScope}
+              scopeMission={t.scopeMission}
+              scopeEverywhere={t.scopeEverywhere}
+              hiddenTag={t.hiddenTag}
+              drag={dragProps("sections", key)}
+            >
+              {/* Le bento donne une carte à chaque rubrique libre — c'est
+                  précisément ce que fait le PDF, et ce pour quoi ce gabarit
+                  existe. */}
+              <div style={tpl === "bento" ? bentoCard : undefined}>
+                <div style={{ ...titleStyle, marginBottom: z.titleGap }}>{sec.title}</div>
+                <p style={{ margin: 0, fontSize: z.content, color: z.color, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                  {sec.content}
+                </p>
+              </div>
+            </BlockShell>
+          )
+        })}
+      </BlockList>
+    )
+  }
+
+  /** Bouton d'ajout d'une brique. La cible est passée telle quelle plutôt que
+   *  reconstruite depuis un libellé : `EditTarget` est une union discriminée,
+   *  et la recomposer ferait perdre le typage exact au compilateur. */
+  const addBtn = (label: string, target: EditTarget) =>
+    readOnly ? null : (
+      <AddInline label={label} hint={t.addScope} onClick={() => setEditing(target)} />
+    )
+
+  /** Filigrane — mêmes proportions que le PDF : 60 pt, incliné de 30°. */
+  const renderWatermark = () =>
+    model.options.watermark && model.watermarkText ? (
+      <span aria-hidden style={{
+        position: "absolute", inset: 0, display: "flex",
+        alignItems: "center", justifyContent: "center",
+        transform: "rotate(-30deg)", pointerEvents: "none", overflow: "hidden",
+        fontSize: pt(60), fontWeight: 800, letterSpacing: `${pt(6)}px`,
+        color: accent, opacity: 0.08, whiteSpace: "nowrap",
+      }}>
+        {model.watermarkText.toUpperCase()}
+      </span>
+    ) : null
+
+  /** Pied de page. Au PDF il est ancré en bas de CHAQUE page ; ici il ferme le
+   *  document, faute de pagination. */
+  const renderFooter = () => (
+    <div style={{ marginTop: pt(22), paddingTop: pt(8), borderTop: `1px solid ${LINE}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: pt(14) }}>
+        <span style={{ fontSize: pt(7.5), color: FAINT, minWidth: 0 }}>{brandName}</span>
+        <span style={{ fontSize: pt(7.5), color: FAINT, flexShrink: 0 }}>{t.ref} {reference}</span>
+      </div>
+      {model.brand.contactEmail && (
+        <div style={{ fontSize: pt(7.5), color: MUTED, marginTop: pt(3) }}>
+          {t.contactPrefix} {model.brand.contactEmail}
+        </div>
+      )}
+    </div>
+  )
+
+  /**
+   * L'AGENCEMENT — le seul endroit où les quatre gabarits diffèrent vraiment.
+   *
+   * Chaque branche suit son homologue de `anonymized-cv.tsx`, dans le même
+   * ordre. Avant ce découpage, l'aperçu rendait toujours le classique quel que
+   * soit le gabarit choisi : on réglait « deux colonnes », on voyait du
+   * mono-colonne, et le client recevait deux colonnes. L'aperçu mentait sur la
+   * forme du document.
+   */
+  const renderDocument = () => {
+    const rule = (
+      <div style={{ borderBottom: `${pt(1.4)}px solid ${accent}`, marginTop: pt(8), marginBottom: pt(18) }} />
+    )
+    const sectionsWithAdd = (
+      <>
+        {renderSections()}
+        {!readOnly && <div style={{ marginTop: pt(8) }}>{addBtn(t.addSection, { kind: "section", index: NEW })}</div>}
+      </>
+    )
+
+    // ── Deux colonnes : barre latérale teintée + colonne principale ──────
+    if (tpl === "two-column") {
+      return (
+        <>
+          {renderBrandHeader()}
+          {rule}
+          {renderHeadline()}
+          <div style={{ display: "flex", gap: pt(16), marginTop: pt(6), alignItems: "flex-start" }}>
+            <aside style={{
+              width: pt(165), flexShrink: 0, boxSizing: "border-box",
+              padding: pt(12), borderRadius: pt(6),
+              background: "#F4F1FB", border: `${pt(0.5)}px solid ${LINE}`,
+            }}>
+              {renderMeta(true)}
+              <div style={{ ...titleStyle, marginTop: pt(2), marginBottom: pt(6) }}>{t.keySkills}</div>
+              {renderSkills()}
+            </aside>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {renderSummary()}
+              <Band
+                title={t.experience} titleStyle={titleStyle}
+                marginTop={pt(4)} marginBottom={pt(14)} titleGap={pt(8)}
+                action={addBtn(t.addExperience, { kind: "experience", index: NEW })}
+              >
+                {renderExperience()}
+              </Band>
+              <Band
+                title={t.education} titleStyle={titleStyle}
+                marginTop={pt(4)} marginBottom={pt(14)} titleGap={pt(8)}
+                action={addBtn(t.addEducation, { kind: "education", index: NEW })}
+              >
+                {renderEducation()}
+              </Band>
+              {sectionsWithAdd}
+            </div>
+          </div>
+          {renderFooter()}
+        </>
+      )
+    }
+
+    // ── Exécutif : mono-colonne aérée, titre XXL, méta en bandeau filé ───
+    if (tpl === "executive") {
+      return (
+        <>
+          {renderBrandHeader()}
+          {renderHeadline()}
+          {renderSummary()}
+          <div style={{
+            display: "flex", flexWrap: "wrap", alignItems: "flex-start",
+            marginTop: pt(6), marginBottom: pt(28),
+            borderTop: `${pt(0.5)}px solid ${LINE}`,
+            borderBottom: `${pt(0.5)}px solid ${LINE}`,
+            paddingTop: pt(12), paddingBottom: pt(2),
+          }}>
+            {renderMeta(false)}
+          </div>
+          <Band title={t.keySkills} titleStyle={titleStyle} marginBottom={pt(28)} titleGap={pt(12)}>
+            {renderSkills()}
+          </Band>
+          <Band
+            title={t.experience} titleStyle={titleStyle}
+            marginBottom={pt(26)} titleGap={pt(14)}
+            action={addBtn(t.addExperience, { kind: "experience", index: NEW })}
+          >
+            {renderExperience()}
+          </Band>
+          <Band
+            title={t.education} titleStyle={titleStyle}
+            marginBottom={pt(14)} titleGap={pt(10)}
+            action={addBtn(t.addEducation, { kind: "education", index: NEW })}
+          >
+            {renderEducation()}
+          </Band>
+          <div style={{ marginTop: pt(14) }}>{sectionsWithAdd}</div>
+          {renderFooter()}
+        </>
+      )
+    }
+
+    // ── Bento : une carte par rubrique, sur fond gris ────────────────────
+    if (tpl === "bento") {
+      return (
+        <>
+          <div style={{ ...bentoCard, marginBottom: pt(10) }}>
+            {renderBrandHeader()}
+            {renderHeadline()}
+            {renderSummary()}
+          </div>
+          <div style={{ display: "flex", gap: pt(10), alignItems: "stretch", marginBottom: pt(10) }}>
+            <div style={{ ...bentoCard, width: pt(200), flexShrink: 0, boxSizing: "border-box" }}>
+              <div style={{ ...titleStyle, marginBottom: pt(8) }}>{t.profile}</div>
+              {renderMeta(true)}
+            </div>
+            <div style={{ ...bentoCard, flex: 1, minWidth: 0 }}>
+              <div style={{ ...titleStyle, marginBottom: pt(8) }}>{t.keySkills}</div>
+              {renderSkills()}
+            </div>
+          </div>
+          <div style={{ ...bentoCard, marginBottom: pt(10) }}>
+            <Band
+              title={t.experience} titleStyle={titleStyle}
+              marginBottom={0} titleGap={pt(8)}
+              action={addBtn(t.addExperience, { kind: "experience", index: NEW })}
+            >
+              {renderExperience()}
+            </Band>
+          </div>
+          <div style={{ ...bentoCard, marginBottom: pt(10) }}>
+            <Band
+              title={t.education} titleStyle={titleStyle}
+              marginBottom={0} titleGap={pt(8)}
+              action={addBtn(t.addEducation, { kind: "education", index: NEW })}
+            >
+              {renderEducation()}
+            </Band>
+          </div>
+          {sectionsWithAdd}
+          {renderFooter()}
+        </>
+      )
+    }
+
+    // ── Classique (défaut) ───────────────────────────────────────────────
+    return (
+      <>
+        {renderBrandHeader()}
+        {rule}
+        {renderHeadline()}
+        {renderSummary()}
+        <div style={{ marginBottom: pt(16) }}>{renderMeta(false)}</div>
+        <Band title={t.keySkills} titleStyle={titleStyle} marginTop={pt(4)} marginBottom={pt(14)} titleGap={pt(8)}>
+          {renderSkills()}
+        </Band>
+        <Band
+          title={t.experience} titleStyle={titleStyle}
+          marginTop={pt(4)} marginBottom={pt(14)} titleGap={pt(8)}
+          action={addBtn(t.addExperience, { kind: "experience", index: NEW })}
+        >
+          {renderExperience()}
+        </Band>
+        <Band
+          title={t.education} titleStyle={titleStyle}
+          marginTop={pt(4)} marginBottom={pt(14)} titleGap={pt(8)}
+          action={addBtn(t.addEducation, { kind: "education", index: NEW })}
+        >
+          {renderEducation()}
+        </Band>
+        {sectionsWithAdd}
+        {renderFooter()}
+      </>
+    )
+  }
 
   return (
     <section style={{
@@ -421,11 +1057,10 @@ export function AnonymizedCvLivePreview({
       </div>
 
       {/* La « page ».
-          Toutes les mesures ci-dessous sont celles du PDF, converties : une A4
-          fait 595,28 pt de large et le rendu à 96 dpi en fait 794 px, soit un
-          facteur 1,3338. Les marges du document (52 pt sur les côtés, 44 en
-          haut, 64 en bas) deviennent donc 69 / 59 / 85 px, et le corps de
-          texte de 10 pt devient 13,3 px.
+          Sa largeur est celle d'une A4 : 595,28 pt à 96 dpi font 794 px. Ses
+          marges, son fond et son corps de texte viennent de `PAGE_STYLE`, qui
+          reprend les `<Page style>` du PDF gabarit par gabarit — le bento n'a
+          ni les mêmes marges ni le même fond que l'exécutif.
 
           Ce n'est pas de la coquetterie : tant que l'aperçu avait ses propres
           proportions, le sourceur ne pouvait pas juger de ce qui tiendrait sur
@@ -434,11 +1069,11 @@ export function AnonymizedCvLivePreview({
       <div style={{ background: "var(--nw-surface-muted)", padding: 22, overflowX: "auto" }}>
         <div style={{
           position: "relative",
-          width: 794, maxWidth: "100%", margin: "0 auto", background: "white",
+          width: 794, maxWidth: "100%", margin: "0 auto",
           border: "1px solid var(--nw-border)", borderRadius: 3,
           boxShadow: "0 3px 18px rgba(17,24,39,0.10)",
-          padding: "59px 69px 85px",
-          fontSize: 13.3, color: "#1F2937", lineHeight: 1.55,
+          color: INK, lineHeight: 1.55,
+          ...PAGE_STYLE[tpl],
         }}>
           {/* PAS DE REPÈRES DE PAGE — essayés, mesurés, retirés.
               Une A4 laisse ~979 px de contenu au facteur d'échelle utilisé.
@@ -453,303 +1088,11 @@ export function AnonymizedCvLivePreview({
               n'est pas fait, la largeur est exacte et la hauteur ne prétend
               rien. */}
 
-          {model.options.watermark && model.watermarkText && (
-            <span aria-hidden style={{
-              position: "absolute", inset: 0, display: "flex",
-              alignItems: "center", justifyContent: "center",
-              transform: "rotate(-24deg)", pointerEvents: "none",
-              fontSize: 52, fontWeight: 800, letterSpacing: "0.06em",
-              color: accent, opacity: 0.07, overflow: "hidden",
-            }}>
-              {model.watermarkText}
-            </span>
-          )}
-
-          {/* En-tête de marque */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-              {model.brand.logoUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={model.brand.logoUrl} alt="" style={{ height: 34, maxWidth: 120, objectFit: "contain" }} />
-              )}
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14.7, fontWeight: 700, color: accent, letterSpacing: "1.3px" }}>
-                  {model.brand.name.toUpperCase()}
-                </div>
-                {model.brand.slogan && (
-                  <div style={{ fontSize: 11.3, color: "#6B7280", fontStyle: "italic", marginTop: 2 }}>{model.brand.slogan}</div>
-                )}
-              </div>
-            </div>
-            <span style={{ fontSize: 10.7, color: "#6B7280", letterSpacing: "0.7px", flexShrink: 0 }}>
-              {t.ref} {reference}
-            </span>
-          </div>
-          <div style={{ borderBottom: `1.9px solid ${accent}`, marginTop: 11, marginBottom: 24 }} />
-
-          {/* Titre */}
-          {model.hasJob && (
-            <div style={{
-              fontSize: 11.3, fontWeight: 700, color: accent,
-              letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3,
-            }}>
-              {t.presentedFor}
-            </div>
-          )}
-          {/* Le titre est celui de la MISSION : le corriger la renomme partout,
-              d'où une portée différente des deux autres. */}
-          <BlockShell
-            hidden={false}
-            readOnly={readOnly || !model.hasJob || !onJobTitleChange}
-            onEdit={model.hasJob && onJobTitleChange ? () => setEditingJob(model.headline) : undefined}
-            compactActions
-            editLabel={t.edit}
-            editTitle={t.jobScopeHint}
-            scopeEverywhere={t.scopeJob}
-          >
-            <h1 style={{ margin: 0, fontSize: 26.7, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
-              {model.headline}
-            </h1>
-          </BlockShell>
-
-          {/* Méta */}
-          <BlockShell
-            hidden={false}
-            readOnly={readOnly}
-            onEdit={() => setEditing({ kind: "meta" })}
-            compactActions
-            editLabel={t.edit}
-            editTitle={t.editScope}
-            scopeEverywhere={t.scopeEverywhere}
-          >
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 12, marginBottom: 6 }}>
-              <Meta label={t.seniorityLabel} value={model.seniority} />
-              <Meta label={t.experienceLabel} value={model.years != null ? t.yearsSuffix(model.years) : null} />
-              <Meta label={t.zoneLabel} value={model.zone} />
-            </div>
-          </BlockShell>
-
-          <BlockShell
-            hidden={false}
-            readOnly={readOnly}
-            onEdit={() => setEditing({ kind: "languages" })}
-            compactActions
-            editLabel={t.edit}
-            editTitle={t.editScope}
-            scopeEverywhere={t.scopeEverywhere}
-          >
-            <div style={{ marginBottom: 12 }}>
-              <Meta label={t.languages} value={model.languages.length ? model.languages.join(" · ") : "—"} />
-            </div>
-          </BlockShell>
-
-          {/* Résumé */}
-          <Band title={t.summary} accent={accent2}>
-            <BlockShell
-              hidden={false}
-              readOnly={readOnly}
-              onEdit={() => setEditing({ kind: "summary" })}
-              editLabel={t.edit}
-              editTitle={t.editScope}
-              scopeEverywhere={t.scopeEverywhere}
-            >
-              {summaryText ? (
-                <p style={{ margin: 0 }}>{summaryText}</p>
-              ) : (
-                <p style={{ margin: 0, color: "#9CA3AF", fontStyle: "italic" }}>
-                  {model.options.keepNoraSummary ? t.summaryPending : t.noSummary}
-                </p>
-              )}
-            </BlockShell>
-          </Band>
-
-          {/* Compétences clés — non masquables une par une (ce sont des
-              étiquettes, pas des blocs), mais corrigeables en lot. C'est le
-              champ qui s'imprime tel quel chez le client. */}
-          <Band title={t.keySkills} accent={accent2}>
-            <BlockShell
-              hidden={false}
-              readOnly={readOnly}
-              onEdit={() => setEditing({ kind: "skills" })}
-              compactActions
-              editLabel={t.edit}
-              editTitle={t.editScope}
-              scopeEverywhere={t.scopeEverywhere}
-            >
-              {model.skills.length > 0 ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                  {model.skills.map((sk) => (
-                    <span key={sk} style={{
-                      fontSize: 11, color: "#374151", background: "#F9FAFB",
-                      border: "1px solid #E5E7EB", borderRadius: 5, padding: "3px 8px",
-                    }}>{sk}</span>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ margin: 0, color: "#9CA3AF", fontStyle: "italic", fontSize: 12 }}>—</p>
-              )}
-            </BlockShell>
-          </Band>
-
-          {/* Parcours */}
-          <Band
-            title={t.experience}
-            accent={accent2}
-            action={!readOnly && (
-              <AddInline
-                label={t.addExperience} hint={t.addScope}
-                onClick={() => setEditing({ kind: "experience", index: NEW })}
-              />
-            )}
-          >
-            <BlockList
-              empty={model.experience.length > 0 && model.experience.every((e) => isHidden("experiences", experienceKey(e)))}
-              emptyLabel={t.everythingHidden}
-            >
-              {model.experience.map((e, i) => {
-                const key = experienceKey(e)
-                const hidden = isHidden("experiences", key)
-                if (hidden && !showHidden) return null
-                const end = endLabel(e.end, model.options.language)
-                return (
-                  <BlockShell
-                    key={`${key}#${i}`}
-                    hidden={hidden}
-                    readOnly={readOnly}
-                    onToggle={() => toggle("experiences", key)}
-                    onEdit={() => setEditing({ kind: "experience", index: i })}
-                    toggleLabel={hidden ? t.restore : t.hide}
-                    toggleTitle={hidden ? t.restoreScope : t.hideScope}
-                    editLabel={t.edit}
-                    editTitle={t.editScope}
-                    scopeMission={t.scopeMission}
-                    scopeEverywhere={t.scopeEverywhere}
-                    hiddenTag={t.hiddenTag}
-                    drag={dragProps("experiences", key)}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <strong style={{ fontSize: 13.5, color: "#111827" }}>
-                        {e.title || "—"}
-                        {e.company && <span style={{ fontWeight: 500, color: "#6B7280" }}> — {e.company}</span>}
-                      </strong>
-                      <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap" }}>
-                        {[e.start, end].filter(Boolean).join(" – ")}
-                      </span>
-                    </div>
-                    {e.description && (
-                      <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#374151" }}>{e.description}</p>
-                    )}
-                  </BlockShell>
-                )
-              })}
-            </BlockList>
-          </Band>
-
-          {/* Formation */}
-          <Band
-            title={t.education}
-            accent={accent2}
-            action={!readOnly && (
-              <AddInline
-                label={t.addEducation} hint={t.addScope}
-                onClick={() => setEditing({ kind: "education", index: NEW })}
-              />
-            )}
-          >
-            <BlockList
-              empty={model.education.length > 0 && model.education.every((ed) => isHidden("education", educationKey(ed)))}
-              emptyLabel={t.everythingHidden}
-            >
-              {model.education.map((ed, i) => {
-                const key = educationKey(ed)
-                const hidden = isHidden("education", key)
-                if (hidden && !showHidden) return null
-                return (
-                  <BlockShell
-                    key={`${key}#${i}`}
-                    hidden={hidden}
-                    readOnly={readOnly}
-                    onToggle={() => toggle("education", key)}
-                    onEdit={() => setEditing({ kind: "education", index: i })}
-                    toggleLabel={hidden ? t.restore : t.hide}
-                    toggleTitle={hidden ? t.restoreScope : t.hideScope}
-                    editLabel={t.edit}
-                    editTitle={t.editScope}
-                    scopeMission={t.scopeMission}
-                    scopeEverywhere={t.scopeEverywhere}
-                    hiddenTag={t.hiddenTag}
-                    drag={dragProps("education", key)}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <strong style={{ fontSize: 13, color: "#111827" }}>
-                        {ed.degree || "—"}
-                        {ed.field ? `, ${ed.field}` : ""}
-                        {ed.school && <span style={{ fontWeight: 500, color: "#6B7280" }}> — {ed.school}</span>}
-                      </strong>
-                      <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap" }}>
-                        {[ed.start, ed.end].filter(Boolean).join(" – ")}
-                      </span>
-                    </div>
-                  </BlockShell>
-                )
-              })}
-            </BlockList>
-          </Band>
-
-          {/* Rubriques libres */}
-          <Band
-            title={lang === "en" ? "Other sections" : "Autres rubriques"}
-            accent={accent2}
-            action={!readOnly && (
-              <AddInline
-                label={t.addSection} hint={t.addScope}
-                onClick={() => setEditing({ kind: "section", index: NEW })}
-              />
-            )}
-          >
-            <BlockList
-              empty={model.otherSections.length > 0 && model.otherSections.every((s) => isHidden("sections", sectionKey(s)))}
-              emptyLabel={t.everythingHidden}
-            >
-              {model.otherSections.map((sec, i) => {
-                const key = sectionKey(sec)
-                const hidden = isHidden("sections", key)
-                if (hidden && !showHidden) return null
-                return (
-                  <BlockShell
-                    key={`${key}#${i}`}
-                    hidden={hidden}
-                    readOnly={readOnly}
-                    onToggle={() => toggle("sections", key)}
-                    onEdit={() => setEditing({ kind: "section", index: i })}
-                    toggleLabel={hidden ? t.restore : t.hide}
-                    toggleTitle={hidden ? t.restoreScope : t.hideScope}
-                    editLabel={t.edit}
-                    editTitle={t.editScope}
-                    scopeMission={t.scopeMission}
-                    scopeEverywhere={t.scopeEverywhere}
-                    hiddenTag={t.hiddenTag}
-                    drag={dragProps("sections", key)}
-                  >
-                    <strong style={{ fontSize: 12.5, color: "#111827" }}>{sec.title}</strong>
-                    <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#374151", whiteSpace: "pre-wrap" }}>
-                      {sec.content}
-                    </p>
-                  </BlockShell>
-                )
-              })}
-            </BlockList>
-          </Band>
-
-          {/* Pied — repris du document */}
-          <div style={{
-            marginTop: 22, paddingTop: 8, borderTop: "1px solid #E5E1F2",
-            display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
-            fontSize: 10, color: "#9CA3AF",
-          }}>
-            <span>{model.brand.name}</span>
-            {model.brand.contactEmail && <span>{model.brand.contactEmail}</span>}
-          </div>
+          {renderDocument()}
+          {/* Le filigrane passe APRÈS le document, comme au PDF, donc AU-DESSUS.
+              En bento il serait sinon caché derrière les cartes blanches, qui
+              couvrent presque toute la page. Il n'intercepte aucun clic. */}
+          {renderWatermark()}
         </div>
       </div>
 
@@ -795,36 +1138,67 @@ const miniBtn: React.CSSProperties = {
   padding: "4px 9px", cursor: "pointer",
 }
 
-function Meta({ label, value }: { label: string; value: string | null }) {
-  if (!value) return null
+/** Tailles et écarts d'un couple libellé/valeur, par gabarit — repris des
+ *  `metaLabel` / `metaValue` du PDF, y compris les marges de l'item, qui
+ *  diffèrent selon qu'il est en ligne, empilé en barre latérale ou en carte. */
+const META_SKIN: Record<AnonymizedTemplate, {
+  label: number; value: number; ls: number; gap: number
+  marginRight: number; marginBottom: number; minWidth: number
+}> = {
+  classic: { label: pt(7), value: pt(10), ls: pt(0.6), gap: pt(2), marginRight: pt(22), marginBottom: pt(10), minWidth: 0 },
+  "two-column": { label: pt(7), value: pt(10), ls: pt(0.6), gap: pt(2), marginRight: 0, marginBottom: pt(10), minWidth: 0 },
+  executive: { label: pt(7.5), value: pt(11), ls: pt(0.8), gap: pt(3), marginRight: pt(32), marginBottom: pt(10), minWidth: pt(80) },
+  bento: { label: pt(7), value: pt(10.5), ls: pt(0.6), gap: pt(1.5), marginRight: 0, marginBottom: pt(7), minWidth: 0 },
+}
+
+/**
+ * Un couple libellé / valeur de l'en-tête.
+ *
+ * Le PDF OMET un champ vide ; ici on l'affiche en pointillé gris. C'est une
+ * divergence assumée, et dans le bon sens : sans elle, une séniorité absente
+ * ne serait cliquable nulle part et le sourceur n'aurait aucun moyen de la
+ * renseigner depuis le document. Le rendu ne peut pas être confondu avec du
+ * contenu — italique, gris, un tiret.
+ */
+function Meta({ label, value, tpl }: { label: string; value: string | null; tpl: AnonymizedTemplate }) {
+  const z = META_SKIN[tpl]
   return (
-    <div>
+    <div style={{ marginRight: z.marginRight, marginBottom: z.marginBottom, minWidth: z.minWidth }}>
       <div style={{
-        fontSize: 9.3, fontWeight: 700, color: "#9CA3AF",
-        letterSpacing: "0.1em", textTransform: "uppercase",
+        fontSize: z.label, color: MUTED, letterSpacing: `${z.ls}px`,
+        textTransform: "uppercase", marginBottom: z.gap,
       }}>
         {label}
       </div>
-      <div style={{ fontSize: 12, color: "#374151", fontWeight: 600 }}>{value}</div>
+      <div style={value
+        ? { fontSize: z.value, color: INK, fontWeight: 700 }
+        : { fontSize: z.value, color: FAINT, fontStyle: "italic" }}
+      >
+        {value ?? "—"}
+      </div>
     </div>
   )
 }
 
-function Band({ title, accent, action, children }: {
-  title: string; accent: string; action?: React.ReactNode; children: React.ReactNode
+/** Rubrique titrée du document — et, à droite du titre, le bouton d'ajout.
+ *  Les écarts viennent du gabarit : ils ne sont pas décoratifs, ce sont ceux
+ *  du PDF. */
+function Band({ title, titleStyle, action, marginTop, marginBottom, titleGap, children }: {
+  title: string
+  titleStyle: React.CSSProperties
+  action?: React.ReactNode
+  marginTop?: number
+  marginBottom: number
+  titleGap: number
+  children: React.ReactNode
 }) {
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div style={{ marginTop, marginBottom }}>
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        gap: 10, marginBottom: 7,
+        gap: 10, marginBottom: titleGap,
       }}>
-        <div style={{
-          fontSize: 12, fontWeight: 700, color: accent,
-          letterSpacing: "0.12em", textTransform: "uppercase",
-        }}>
-          {title}
-        </div>
+        <div style={titleStyle}>{title}</div>
         {action}
       </div>
       {children}
@@ -832,14 +1206,14 @@ function Band({ title, accent, action, children }: {
   )
 }
 
-function BlockList({ children, empty, emptyLabel }: {
-  children: React.ReactNode; empty: boolean; emptyLabel: string
+function BlockList({ children, empty, emptyLabel, gap }: {
+  children: React.ReactNode; empty: boolean; emptyLabel: string; gap: number
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap }}>
       {children}
       {empty && (
-        <p style={{ margin: 0, fontSize: 11.5, color: "#9CA3AF", fontStyle: "italic" }}>{emptyLabel}</p>
+        <p style={{ margin: 0, fontSize: pt(8.5), color: FAINT, fontStyle: "italic" }}>{emptyLabel}</p>
       )}
     </div>
   )
@@ -856,6 +1230,7 @@ function BlockShell({
   toggleLabel, toggleTitle, editLabel, editTitle,
   scopeMission, scopeEverywhere, hiddenTag,
   compactActions = false,
+  inline = false,
   drag,
 }: {
   children: React.ReactNode
@@ -883,6 +1258,16 @@ function BlockShell({
    * comme dans la version d'origine, qui mordait sur le bloc précédent.
    */
   compactActions?: boolean
+  /**
+   * Bloc posé À CÔTÉ d'un autre dans une même ligne, et non en pleine largeur.
+   *
+   * L'enveloppe déborde normalement de 9 px de chaque côté (`margin: 0 -9px`)
+   * pour que son fond de survol dépasse un peu du texte. Entre deux blocs
+   * voisins, ce débord les fait se chevaucher : l'en-tête met la séniorité et
+   * les langues sur la même ligne, et sans ça la seconde mordait sur la
+   * première.
+   */
+  inline?: boolean
   /** Déplacement du bloc. Absent = bloc non déplaçable (le résumé). */
   drag?: {
     title: string
@@ -928,7 +1313,7 @@ function BlockShell({
         alignItems: "start",
         gap: 8,
         padding: "7px 9px",
-        margin: "0 -9px",
+        margin: inline ? 0 : "0 -9px",
         borderRadius: 8,
         background: hidden ? "rgba(245,158,11,0.06)" : (showActions ? "rgba(124,99,200,0.04)" : "transparent"),
         outline: hidden ? "1px dashed rgba(245,158,11,0.45)" : "none",
