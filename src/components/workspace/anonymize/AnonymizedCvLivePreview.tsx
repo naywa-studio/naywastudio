@@ -615,6 +615,14 @@ export function AnonymizedCvLivePreview({
   const renderExperience = () => {
     const stacked = tpl === "classic" || tpl === "two-column"
     const exec = tpl === "executive"
+    // Le trait de séparation du bento se pose entre deux blocs, donc pas sous
+    // le DERNIER AFFICHÉ — qui n'est pas forcément le dernier de la liste :
+    // masquer le dernier poste puis replier les blocs masqués laissait un
+    // trait pendre sous le vide.
+    const lastShown = model.experience.reduce(
+      (acc, e, i) => (showHidden || !isHidden("experiences", experienceKey(e)) ? i : acc),
+      -1,
+    )
     return (
       <BlockList
         gap={exec ? pt(16) : pt(10)}
@@ -626,7 +634,7 @@ export function AnonymizedCvLivePreview({
           const hidden = isHidden("experiences", key)
           if (hidden && !showHidden) return null
           const dates = [e.start, endLabel(e.end, model.options.language)].filter(Boolean).join(" – ")
-          const isLast = i === model.experience.length - 1
+          const isLast = i === lastShown
           return (
             <BlockShell
               key={`${key}#${i}`}
