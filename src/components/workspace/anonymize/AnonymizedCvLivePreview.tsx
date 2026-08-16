@@ -557,7 +557,11 @@ export function AnonymizedCvLivePreview({
   const renderMeta = (stacked: boolean) => (
     <div style={{
       display: "flex", flexDirection: stacked ? "column" : "row",
-      flexWrap: stacked ? "nowrap" : "wrap", alignItems: "flex-start",
+      flexWrap: stacked ? "nowrap" : "wrap",
+      // Empilés (barre latérale, carte bento), les blocs prennent toute la
+      // largeur : mesuré à 103 px sinon, soit une zone de survol plus étroite
+      // que la puce d'action qu'elle fait apparaître.
+      alignItems: stacked ? "stretch" : "flex-start",
     }}>
       <BlockShell
         hidden={false} readOnly={readOnly} inline compactActions
