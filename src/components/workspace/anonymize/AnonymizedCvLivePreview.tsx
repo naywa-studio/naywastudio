@@ -502,6 +502,7 @@ export function AnonymizedCvLivePreview({
             hidden={false}
             readOnly={readOnly || !model.hasJob || !onJobTitleChange}
             onEdit={model.hasJob && onJobTitleChange ? () => setEditingJob(model.headline) : undefined}
+            compactActions
             editLabel={t.edit}
             editTitle={t.jobScopeHint}
             scopeEverywhere={t.scopeJob}
@@ -516,6 +517,7 @@ export function AnonymizedCvLivePreview({
             hidden={false}
             readOnly={readOnly}
             onEdit={() => setEditing({ kind: "meta" })}
+            compactActions
             editLabel={t.edit}
             editTitle={t.editScope}
             scopeEverywhere={t.scopeEverywhere}
@@ -531,6 +533,7 @@ export function AnonymizedCvLivePreview({
             hidden={false}
             readOnly={readOnly}
             onEdit={() => setEditing({ kind: "languages" })}
+            compactActions
             editLabel={t.edit}
             editTitle={t.editScope}
             scopeEverywhere={t.scopeEverywhere}
@@ -568,6 +571,7 @@ export function AnonymizedCvLivePreview({
               hidden={false}
               readOnly={readOnly}
               onEdit={() => setEditing({ kind: "skills" })}
+              compactActions
               editLabel={t.edit}
               editTitle={t.editScope}
               scopeEverywhere={t.scopeEverywhere}
@@ -851,6 +855,7 @@ function BlockShell({
   children, hidden, readOnly, onToggle, onEdit,
   toggleLabel, toggleTitle, editLabel, editTitle,
   scopeMission, scopeEverywhere, hiddenTag,
+  compactActions = false,
   drag,
 }: {
   children: React.ReactNode
@@ -865,6 +870,19 @@ function BlockShell({
   scopeMission?: string
   scopeEverywhere: string
   hiddenTag?: string
+  /**
+   * Actions posées EN SURIMPRESSION au lieu d'occuper une colonne.
+   *
+   * La colonne réservée coûte ~140 px de largeur en permanence. Sur les blocs
+   * de parcours, larges et en pleine hauteur, ça ne se voit pas. Sur l'en-tête
+   * — séniorité, expérience, zone, langues — ça suffisait à faire passer la
+   * ligne en colonne : le document imprimait « SÉNIORITÉ · EXPÉRIENCE · ZONE »
+   * côte à côte quand l'aperçu les empilait, avec le blanc que ça laisse.
+   *
+   * Ici les actions flottent DANS le bloc, en haut à droite — pas au-dessus
+   * comme dans la version d'origine, qui mordait sur le bloc précédent.
+   */
+  compactActions?: boolean
   /** Déplacement du bloc. Absent = bloc non déplaçable (le résumé). */
   drag?: {
     title: string
@@ -895,7 +913,10 @@ function BlockShell({
         // étaient auparavant posées en absolu au-dessus du bloc : elles
         // mordaient sur le bloc précédent, et le document sautait au survol.
         display: "grid",
-        gridTemplateColumns: `${drag ? "18px" : "0px"} minmax(0, 1fr) auto`,
+        gridTemplateColumns: compactActions
+          ? `${drag ? "18px" : "0px"} minmax(0, 1fr)`
+          : `${drag ? "18px" : "0px"} minmax(0, 1fr) auto`,
+        position: compactActions ? "relative" : undefined,
         alignItems: "start",
         gap: 8,
         padding: "7px 9px",
@@ -940,8 +961,12 @@ function BlockShell({
           largeur soit réservée dès le départ — sinon le texte du bloc se
           recompose à chaque survol. */}
       <div style={{
-        display: "flex", flexDirection: "column", gap: 4, flexShrink: 0,
+        display: "flex", gap: 4, flexShrink: 0,
+        flexDirection: compactActions ? "row" : "column",
         visibility: showActions ? "visible" : "hidden",
+        ...(compactActions
+          ? { position: "absolute" as const, top: 4, right: 4, zIndex: 2 }
+          : {}),
       }}>
         {onToggle && toggleLabel && (
           <ActionChip

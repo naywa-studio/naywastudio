@@ -1147,19 +1147,24 @@ export default function MatchPage() {
 
         </div>
 
-        {/* COL 3 (rangée 1) — mini-kanban vertical (sticky) */}
-        <aside className="match-rail" style={{
-          gridColumn: "3", gridRow: "1",
-          position: "sticky", top: 80, alignSelf: "flex-start",
-        }}>
-          <CandidateMiniKanban
-            candidateId={candidate.id}
-            candidateName={candidate.full_name}
-            highlightMatchId={match.id}
-            layout="vertical"
-            onlyMatchId={match.id}
-            readOnly={isReadOnly}
-          />
+        {/* COL 3 (rangée 1) — mini-kanban vertical, collant.
+            DEUX niveaux, et c'est nécessaire : pour un enfant direct de
+            grille, `position: sticky` se confine au CONTENEUR DE GRILLE, pas à
+            la cellule. Le rail glissait donc sur toute la hauteur de la fiche
+            et venait se poser par-dessus l'atelier de la rangée 2. En le
+            plaçant dans une cellule qui, elle, s'arrête au bas de la rangée 1,
+            sa course s'arrête avec elle. */}
+        <aside className="match-rail" style={{ gridColumn: "3", gridRow: "1", alignSelf: "stretch" }}>
+          <div style={{ position: "sticky", top: 80 }}>
+            <CandidateMiniKanban
+              candidateId={candidate.id}
+              candidateName={candidate.full_name}
+              highlightMatchId={match.id}
+              layout="vertical"
+              onlyMatchId={match.id}
+              readOnly={isReadOnly}
+            />
+          </div>
         </aside>
 
         {/* RANGÉE 2 — l'atelier du document client.
