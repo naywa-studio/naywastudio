@@ -858,7 +858,11 @@ export function AnonymizedCvLivePreview({
           {renderBrandHeader()}
           {rule}
           {renderHeadline()}
-          <div style={{ display: "flex", gap: pt(16), marginTop: pt(6), alignItems: "flex-start" }}>
+          {/* `stretch` et non `flex-start` : @react-pdf étire la barre latérale
+              sur toute la hauteur de la rangée, et le PDF généré montre bien
+              son fond teinté se prolonger sous les compétences. Vu en
+              comparant le document réel à l'aperçu, pas en relisant. */}
+          <div style={{ display: "flex", gap: pt(16), marginTop: pt(6), alignItems: "stretch" }}>
             <aside style={{
               width: pt(165), flexShrink: 0, boxSizing: "border-box",
               padding: pt(12), borderRadius: pt(6),
