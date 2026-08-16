@@ -1,12 +1,11 @@
 /**
- * Types partagés entre AnonymizeControls (haut de page fiche match) et
- * AnonymizePreview (bas de page). L'état est lifté dans le composant
- * parent (MatchPage) pour qu'un seul état pilote les deux slots
- * visuellement séparés.
+ * Types partagés par l'atelier d'anonymisation de la fiche match :
+ * `AnonymizeControls` (bandeau de génération), `AnonymizedCvLivePreview`
+ * (le document éditable) et `AnonymizeSidePanel` (les réglages).
  *
- * V1 (ce commit) : juste l'état de génération.
- * V2 (commit suivant) : ajout des paramètres "Personnaliser"
- * (keepNoraSummary, customText, watermark, language).
+ * L'état est lifté dans `MatchPage` pour qu'un seul état pilote les trois :
+ * changer de gabarit dans le panneau doit redessiner l'aperçu ET partir au
+ * PDF, sans synchronisation à la main.
  */
 
 export type AnonymizeState = "idle" | "working" | "ready" | "error"
