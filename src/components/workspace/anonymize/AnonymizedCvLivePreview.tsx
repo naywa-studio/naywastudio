@@ -57,6 +57,8 @@ const copy = {
     editScope: "Corriger la donnée — la correction vaut pour le matching et pour toutes les missions",
     hiddenBanner: (n: number) => `${n} bloc${n > 1 ? "s" : ""} masqué${n > 1 ? "s" : ""} pour cette mission`,
     showAll: "Tout réafficher",
+    resetOrder: "Rétablir l'ordre du CV",
+    resetOrderHint: "Remet les blocs dans l'ordre où ils figurent au CV du candidat",
     showHidden: "Afficher les blocs masqués",
     hideHidden: "Masquer les blocs masqués",
     hiddenTag: "Masqué",
@@ -130,6 +132,8 @@ const copy = {
     editScope: "Fix the data — the correction applies to matching and to every job opening",
     hiddenBanner: (n: number) => `${n} block${n > 1 ? "s" : ""} hidden for this job opening`,
     showAll: "Show all again",
+    resetOrder: "Restore the CV order",
+    resetOrderHint: "Puts the blocks back in the order they appear in the candidate CV",
     showHidden: "Show hidden blocks",
     hideHidden: "Hide hidden blocks",
     hiddenTag: "Hidden",
@@ -337,6 +341,11 @@ export function AnonymizedCvLivePreview({
     },
   }), [dragging, dragOver, reorder, t])
 
+  /** Un ordre est en vigueur dès qu'une des trois listes est renseignée. */
+  const orderTouched = order.experiences.length > 0
+    || order.education.length > 0
+    || order.sections.length > 0
+
   const hiddenCount = useMemo(() => {
     const inExp = new Set(model.experience.map(experienceKey))
     const inEdu = new Set(model.education.map(educationKey))
@@ -370,29 +379,45 @@ export function AnonymizedCvLivePreview({
             {readOnly ? t.readOnly : t.docHint}
           </p>
         </div>
-        {hiddenCount > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{
-              fontSize: 11, fontWeight: 700, color: "var(--nw-warn-strong)",
-              background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.3)",
-              borderRadius: 100, padding: "3px 10px",
-            }}>
-              {t.hiddenBanner(hiddenCount)}
-            </span>
-            <button type="button" onClick={() => setShowHidden((v) => !v)} style={miniBtn}>
-              {showHidden ? t.hideHidden : t.showHidden}
-            </button>
-            {!readOnly && (
-              <button
-                type="button"
-                onClick={() => onSelectionChange({ experiences: [], education: [], sections: [] })}
-                style={miniBtn}
-              >
-                {t.showAll}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {hiddenCount > 0 && (
+            <>
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: "var(--nw-warn-strong)",
+                background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.3)",
+                borderRadius: 100, padding: "3px 10px",
+              }}>
+                {t.hiddenBanner(hiddenCount)}
+              </span>
+              <button type="button" onClick={() => setShowHidden((v) => !v)} style={miniBtn}>
+                {showHidden ? t.hideHidden : t.showHidden}
               </button>
-            )}
-          </div>
-        )}
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => onSelectionChange({ experiences: [], education: [], sections: [] })}
+                  style={miniBtn}
+                >
+                  {t.showAll}
+                </button>
+              )}
+            </>
+          )}
+          {/* Pendant de « Tout réafficher » pour l'ORDRE. Sans lui, le
+              sourceur qui avait déplacé un bloc n'avait aucun moyen de revenir
+              à l'ordre du CV : il devait redéplacer à la main, sans savoir
+              quel était l'ordre d'origine. Repéré en testant. */}
+          {!readOnly && orderTouched && (
+            <button
+              type="button"
+              onClick={() => onOrderChange({ experiences: [], education: [], sections: [] })}
+              style={miniBtn}
+              title={t.resetOrderHint}
+            >
+              {t.resetOrder}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* La « page ».
