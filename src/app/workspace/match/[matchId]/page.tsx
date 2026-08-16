@@ -1208,6 +1208,10 @@ export default function MatchPage() {
                 onCvChange={(cv, taxonomy) => setCandidate((prev) => prev
                   ? { ...prev, parsed_cv: cv, ...(taxonomy ? { taxonomy } : {}) }
                   : prev)}
+                // Le NOM de la mission, distinct du titre imprimé sur le
+                // document (`anonymizeJobContext.title` = la famille de
+                // métier). Le panneau de renommage doit partir du nom réel.
+                jobTitle={match?.job?.title ?? null}
                 onJobTitleChange={saveJobTitle}
                 readOnly={isReadOnly}
               />

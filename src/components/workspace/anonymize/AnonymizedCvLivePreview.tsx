@@ -70,6 +70,8 @@ const copy = {
     editTitleLanguages: "Corriger les langues",
     scopeJob: "la mission",
     jobScopeHint: "Le nom de la mission change partout où elle apparaît, pas seulement sur ce document",
+    jobPrintedHint: (h: string) =>
+      `Le document imprime « ${h} », la famille de métier. Pas le nom de la mission : celui-ci contient souvent le nom du client final, qui n'a rien à faire sur une pièce anonymisée.`,
     fJobTitle: "Nom de la mission",
     fSeniority: "Séniorité",
     fYears: "Années d'expérience",
@@ -148,6 +150,8 @@ const copy = {
     editTitleLanguages: "Fix the languages",
     scopeJob: "the job opening",
     jobScopeHint: "The job opening name changes everywhere it appears, not only on this document",
+    jobPrintedHint: (h: string) =>
+      `The document prints “${h}”, the role family — not the job opening name, which often carries the end client's name and has no place on an anonymized document.`,
     fJobTitle: "Job opening name",
     fSeniority: "Seniority",
     fYears: "Years of experience",
@@ -294,6 +298,20 @@ export interface AnonymizedCvLivePreviewProps {
   onOrderChange: (next: AnonymizeOrder) => void
   /** Corriger la donnée — portée : partout. Renvoie le CV enregistré. */
   onCvChange: (next: ParsedCv, taxonomy?: CandidateTaxonomy) => void
+  /**
+   * NOM RÉEL de la mission (`jobs.title`) — à ne pas confondre avec le titre
+   * IMPRIMÉ sur le document, qui est la famille de métier.
+   *
+   * Le document affiche `role_family` et non le nom de la mission, et c'est
+   * délibéré : un nom de mission contient souvent celui du client final
+   * (« Commercial pour BNP »), qui n'a rien à faire sur une pièce anonymisée.
+   *
+   * Sans ce prop, le panneau de renommage se pré-remplissait avec ce qui est
+   * AFFICHÉ. Enregistrer sans rien toucher écrivait donc la famille de métier
+   * dans `jobs.title` — la mission renommée partout, en silence, par un geste
+   * qui n'avait l'air de rien.
+   */
+  jobTitle?: string | null
   /** Renommer la mission — portée : la mission. */
   onJobTitleChange?: (title: string) => void
   readOnly?: boolean
@@ -301,7 +319,7 @@ export interface AnonymizedCvLivePreviewProps {
 
 export function AnonymizedCvLivePreview({
   candidate, reference, job, brand, options, selection,
-  onSelectionChange, order, onOrderChange, onCvChange, onJobTitleChange,
+  onSelectionChange, order, onOrderChange, onCvChange, jobTitle, onJobTitleChange,
   readOnly = false,
 }: AnonymizedCvLivePreviewProps) {
   const { lang } = useLanguage()
@@ -491,7 +509,10 @@ export function AnonymizedCvLivePreview({
         <BlockShell
           hidden={false}
           readOnly={readOnly || !model.hasJob || !onJobTitleChange}
-          onEdit={model.hasJob && onJobTitleChange ? () => setEditingJob(model.headline) : undefined}
+          // Le NOM de la mission, jamais le titre affiché : voir `jobTitle`.
+          onEdit={model.hasJob && onJobTitleChange
+            ? () => setEditingJob(jobTitle ?? model.headline)
+            : undefined}
           compactActions
           editLabel={t.edit}
           editTitle={t.jobScopeHint}
@@ -1136,6 +1157,7 @@ export function AnonymizedCvLivePreview({
       {editingJob !== null && onJobTitleChange && (
         <JobTitleEditor
           value={editingJob}
+          printed={model.headline}
           t={t}
           onClose={() => setEditingJob(null)}
           onSave={(title) => { onJobTitleChange(title); setEditingJob(null) }}
@@ -1806,8 +1828,11 @@ function InlineEditor({ target, cv, coreSkills, meta, t, onClose, onSaved, candi
  * donc ni « cette mission » (au sens présentation) ni « partout » : c'est le
  * nom de la mission, qui change dans tout le produit. Le panneau le dit.
  */
-function JobTitleEditor({ value, t, onClose, onSave }: {
+function JobTitleEditor({ value, printed, t, onClose, onSave }: {
+  /** Le NOM de la mission (`jobs.title`). */
   value: string
+  /** Ce que le document imprime réellement — la famille de métier. */
+  printed: string
   t: typeof copy["fr"]
   onClose: () => void
   onSave: (title: string) => void
@@ -1837,8 +1862,17 @@ function JobTitleEditor({ value, t, onClose, onSave }: {
         padding: 20,
       }}>
         <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--nw-text)" }}>{t.editTitleJob}</h4>
-        <p style={{ margin: "5px 0 14px", fontSize: 12, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
+        <p style={{ margin: "5px 0 10px", fontSize: 12, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
           {t.jobScopeHint}
+        </p>
+        {/* Sans cette ligne, on croit corriger ce qu'on a sous les yeux. */}
+        <p style={{
+          margin: "0 0 14px", fontSize: 11.5, lineHeight: 1.5,
+          color: "var(--nw-text-secondary)",
+          background: "var(--nw-surface-muted)", borderRadius: 8,
+          padding: "8px 10px", border: "1px solid var(--nw-border-soft)",
+        }}>
+          {t.jobPrintedHint(printed)}
         </p>
         <label style={{ display: "block" }}>
           <span style={fieldLabel}>{t.fJobTitle}</span>
