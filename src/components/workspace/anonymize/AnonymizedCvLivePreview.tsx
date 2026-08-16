@@ -1137,7 +1137,8 @@ export function AnonymizedCvLivePreview({
         <InlineEditor
           target={editing}
           cv={candidate.parsed_cv ?? {}}
-          coreSkills={candidate.taxonomy?.core_skills ?? null}
+          skills={model.skills}
+          languages={model.languages}
           // Valeurs EFFECTIVEMENT affichées sur le document. Le modèle
           // privilégie les colonnes du candidat au JSON du CV ; initialiser
           // l'éditeur depuis le seul JSON aurait pu lui faire présenter une
@@ -1492,13 +1493,25 @@ const fieldLabel: React.CSSProperties = {
  * format est signalée ici : le serveur la refuserait en silence, et le
  * sourceur croirait sa correction passée.
  */
-function InlineEditor({ target, cv, coreSkills, meta, t, onClose, onSaved, candidateId }: {
+function InlineEditor({ target, cv, skills, languages, meta, t, onClose, onSaved, candidateId }: {
   target: EditTarget
   cv: ParsedCv
-  /** `taxonomy.core_skills` — ce que le document imprime sous « Compétences
-   *  clés » quand il est renseigné. Vit hors de `parsed_cv`, d'où le passage
-   *  explicite : l'éditer sans ça n'aurait aucun effet visible. */
-  coreSkills: string[] | null
+  /**
+   * Compétences et langues telles qu'AFFICHÉES sur le document, pas telles
+   * que stockées.
+   *
+   * Même principe que `meta`, et pour la même raison : le modèle choisit sa
+   * source (`taxonomy.core_skills` sinon la colonne `candidates.skills`) et
+   * dédoublonne. L'éditeur lisait `parsed_cv.skills`, une TROISIÈME source :
+   * sur une fiche où elles divergent, il aurait présenté au sourceur une
+   * liste différente de celle imprimée sous ses yeux, et sa « correction »
+   * aurait remplacé la bonne par l'ancienne.
+   *
+   * C'est exactement le défaut trouvé sur le titre de la mission, en plus
+   * discret. Un éditeur part de ce qu'on voit.
+   */
+  skills: string[]
+  languages: string[]
   /** Valeurs d'en-tête telles qu'AFFICHÉES, colonnes du candidat comprises. */
   meta: { seniority: string | null; years: number | null; location: string | null }
   t: typeof copy["fr"]
@@ -1508,10 +1521,8 @@ function InlineEditor({ target, cv, coreSkills, meta, t, onClose, onSaved, candi
 }) {
   // Listes éditées en texte libre, une par ligne : plus rapide à corriger en
   // lot que des chips, et c'est un travail de reprise, pas de saisie.
-  const [skillsText, setSkillsText] = useState(
-    () => (coreSkills?.length ? coreSkills : (cv.skills ?? [])).join("\n"),
-  )
-  const [languagesText, setLanguagesText] = useState(() => (cv.languages ?? []).join("\n"))
+  const [skillsText, setSkillsText] = useState(() => skills.join("\n"))
+  const [languagesText, setLanguagesText] = useState(() => languages.join("\n"))
   const linesOf = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean)
   // Un bloc NEUF est ajouté au brouillon seulement, jamais au CV : refermer
   // sans enregistrer ne doit pas laisser une brique vide dans la fiche.
