@@ -217,10 +217,72 @@ seul typecheck du projet. Basculer en `next/font/local` supprime la dépendance.
 
 ---
 
+## F10 — L'aperçu vivant ne rend qu'un seul gabarit
+
+Repéré par Elyas le 2026-08-16. Le panneau latéral propose les **quatre**
+gabarits (classique, deux colonnes, exécutif, bento) et le choix part bien au
+PDF. Mais `AnonymizedCvLivePreview.tsx` **ne lit jamais `options.template`** :
+il rend toujours la mise en page classique.
+
+Conséquence : on choisit « deux colonnes », l'aperçu montre du mono-colonne, et
+le PDF sort en deux colonnes. L'aperçu **ment sur la mise en page** — sur le
+document que voit le client final.
+
+Le contenu, lui, est juste : `buildAnonymizedModel()` est partagé, donc les
+blocs masqués et l'ordre sont identiques dans les deux. Seule la **forme**
+diverge.
+
+**Deux niveaux de correctif :**
+
+1. **Ne plus mentir — un quart d'heure.** Quand le gabarit choisi n'est pas
+   « classique », afficher au-dessus de l'aperçu : « Aperçu en mise en page
+   classique. Le PDF sortira en <gabarit>. » La vignette SVG du gabarit existe
+   déjà (`TemplatePreview` dans `AnonymizeControls.tsx`), on peut la poser à
+   côté.
+
+2. **Rendre les quatre — un jour, un jour et demi.** Ré-écrire en HTML les trois
+   autres mises en page. La machinerie d'édition (`BlockShell`, glisser-déposer,
+   panneaux de correction) est indépendante de la mise en page : elle enveloppe
+   des blocs, elle ne les positionne pas. Ce qui est à refaire, c'est le
+   contenant : barre latérale de 165 pt pour deux colonnes, bandeau de méta pour
+   exécutif, grille pour bento. Point de vigilance : le glisser-déposer doit
+   rester cohérent dans une grille bento, où l'ordre visuel n'est pas l'ordre du
+   flux.
+
+**Faire le 1 tout de suite, le 2 dans le lot.**
+
+---
+
+## F11 — L'aperçu ne colle pas au PDF en hauteur
+
+L'aperçu est **fidèle en largeur** (794 px = 595,28 pt à 96 dpi) et **environ
+25 % plus haut** que le PDF. Deux causes, de coûts très différents.
+
+**Cause 1 — le chrome d'édition prend de la place. Deux à trois heures.**
+Chaque bloc est enveloppé dans un `BlockShell` qui ajoute `padding: 7px 9px` et
+un `gap: 8`. Sur une vingtaine de blocs, ça fait ~280 px de haut qui n'existent
+pas dans le PDF. Le correctif : sortir le chrome du flux (fond et contour en
+`box-shadow` à débord négatif au lieu de `padding`, colonne d'actions déjà en
+absolu sur les blocs d'en-tête). À faire en même temps : recaler les
+`line-height` sur ceux de `@react-pdf`, qui dérivent en cumulé. Ça ramène l'écart
+sous les 5 %.
+
+**Cause 2 — savoir OÙ tombent les sauts de page. Long, à ne pas entreprendre.**
+Il faudrait reproduire le moteur de pagination de `@react-pdf` : Yoga pour le
+flex, plus les métriques exactes des polices embarquées. J'avais posé des repères
+de page calculés à la main : ils annonçaient **3,8 pages pour 3 réelles**, et je
+les ai retirés — un repère faux est pire que pas de repère.
+
+**Faire la cause 1. Ne pas promettre la cause 2 :** un aperçu éditable ne peut
+pas être un rendu PDF, et il vaut mieux qu'il ne prétende pas l'être.
+
+---
+
 ## Ordre proposé
 
 | # | Sujet | Coût | Pourquoi ce rang |
 |---|---|---|---|
+| 0 | **F10-1** l'aperçu ne ment plus sur le gabarit | ¼ h | Trivial, et l'aperçu induit en erreur sur un document client. |
 | 1 | **F7** core_skills | 1 h | Seul point dont on ignore s'il est réglé. Touche le document client. |
 | 2 | **F1** auth mutualisée | ½ j | Gain visible (navigation) + supprime le bruit Sentry qui masque les vraies alertes. |
 | 3 | **F9** polices locales | 1 h | Rend fiable le seul typecheck du projet. |
@@ -228,8 +290,12 @@ seul typecheck du projet. Basculer en `next/font/local` supprime la dépendance.
 | 5 | **F3** jeu de référence | 1 j + arbitrage | Le filet de tout le reste. À trancher : où le script tourne. |
 | 6 | **F5** identifiant de brique | ½ j | À faire **après** F3, qui donne de quoi le valider. |
 | 7 | **F4** route admin de re-parsing | ½ j | Décision produit avant code. Débloque Aymen HAMMAMI. |
-| 8 | **F6** rubrique mêlée | 2 h | Plus faible enjeu, sans garantie de succès. |
+| 8 | **F11-1** hauteur de l'aperçu (chrome) | 2-3 h | Ramène l'écart de 25 % à moins de 5 %. |
+| 9 | **F10-2** les quatre gabarits dans l'aperçu | 1-1,5 j | Le plus gros de la liste. À faire une fois F11-1 posé, sinon on règle la hauteur quatre fois. |
+| 10 | **F6** rubrique mêlée | 2 h | Plus faible enjeu, sans garantie de succès. |
 | — | **F2** reproductibilité du scoring | — | Pas d'action. Contrainte de discours, à ne pas promettre. |
+| — | **F11-2** sauts de page exacts | — | Pas d'action. Reproduire la pagination de `@react-pdf` coûte plus que ça ne rapporte. |
 
-**Le premier jour (F7 + F1 + F9 + F8) règle quatre points.** Le reste demande
-des arbitrages qui ne sont pas techniques.
+**Le premier jour (F10-1 + F7 + F1 + F9 + F8) règle cinq points.** Le reste
+demande des arbitrages qui ne sont pas techniques, sauf F10-2 qui est du travail
+franc.
