@@ -346,7 +346,7 @@ export function AnonymizedCv({
                 <>
                   <Text style={s.sectionTitle}>{t.education}</Text>
                   {education.map((ed, i) => (
-                    <View key={i} style={s.eduItem}>
+                    <View key={i} style={s.eduItem} wrap={false}>
                       <Text style={s.eduDegree}>
                         {ed.degree}{ed.field ? ` — ${ed.field}` : ""}
                       </Text>
@@ -617,7 +617,7 @@ export function AnonymizedCv({
                 {t.education}
               </Text>
               {education.map((ed, i) => (
-                <View key={i} style={{ marginBottom: 6 }}>
+                <View key={i} style={{ marginBottom: 6 }} wrap={false}>
                   <Text style={{ fontSize: 10.5, fontFamily: "Helvetica-Bold", color: INK }}>
                     {ed.degree}{ed.field ? ` — ${ed.field}` : ""}
                   </Text>
@@ -862,7 +862,11 @@ export function AnonymizedCv({
             <View style={{ ...card }}>
               <Text style={cardTitle}>{t.education}</Text>
               {education.map((ed, i) => (
-                <View key={i} style={{ marginBottom: 5 }}>
+                // `wrap={false}` comme sur les expériences : sans lui, le saut
+                // de page tombe ENTRE le diplôme et ses dates. Constaté sur un
+                // bento généré en recette — la carte Formation coupée en deux,
+                // « 2022-09–2026-06 » orphelin en haut de la page suivante.
+                <View key={i} style={{ marginBottom: 5 }} wrap={false}>
                   <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: INK }}>
                     {ed.degree}{ed.field ? ` — ${ed.field}` : ""}
                   </Text>
@@ -993,7 +997,7 @@ export function AnonymizedCv({
           <>
             <Text style={s.sectionTitle}>{t.education}</Text>
             {education.map((ed, i) => (
-              <View key={i} style={s.eduItem}>
+              <View key={i} style={s.eduItem} wrap={false}>
                 <Text style={s.eduDegree}>
                   {ed.degree}{ed.field ? ` — ${ed.field}` : ""}
                 </Text>
