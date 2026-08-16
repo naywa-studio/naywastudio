@@ -1240,7 +1240,10 @@ export default function MatchPage() {
           /* 794px = largeur d'une A4 à 96 dpi. La page garde sa taille réelle
              et l'ensemble page + réglages est CENTRÉ dans la fiche : c'est un
              document qu'on regarde, pas un panneau qui remplit l'espace. */
-          grid-template-columns: minmax(0, 794px) minmax(240px, 300px);
+          /* 794 px de page + 2 × 22 px de fond autour = 838 : sans ces 44 px,
+             le `maxWidth: 100%` de la page la rabotait à 749 et le format
+             n'était plus celui de l'A4. */
+          grid-template-columns: minmax(0, 838px) minmax(240px, 300px);
           justify-content: center;
           align-items: start;
         }

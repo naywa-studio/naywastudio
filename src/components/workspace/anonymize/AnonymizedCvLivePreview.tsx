@@ -31,7 +31,7 @@
  * affichée sur chaque action, et non reléguée dans une doc que personne ne lit.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Candidate, ParsedCv, CandidateTaxonomy } from "@/lib/database.types"
 import {
   buildAnonymizedModel, endLabel,
@@ -61,6 +61,7 @@ const copy = {
     hideHidden: "Masquer les blocs masqués",
     hiddenTag: "Masqué",
     dragHint: "Glisser pour déplacer ce bloc dans le document de cette mission",
+    pageBreak: (n: number) => `Page ${n} · approximatif`,
     editTitleJob: "Renommer la mission",
     editTitleMeta: "Corriger les informations d'en-tête",
     editTitleSkills: "Corriger les compétences clés",
@@ -134,6 +135,7 @@ const copy = {
     hideHidden: "Hide hidden blocks",
     hiddenTag: "Hidden",
     dragHint: "Drag to move this block within this job opening's document",
+    pageBreak: (n: number) => `Page ${n} · approximate`,
     editTitleJob: "Rename the job opening",
     editTitleMeta: "Fix the header information",
     editTitleSkills: "Fix the key skills",
@@ -415,6 +417,18 @@ export function AnonymizedCvLivePreview({
           padding: "59px 69px 85px",
           fontSize: 13.3, color: "#1F2937", lineHeight: 1.55,
         }}>
+          {/* Repères de page.
+              Une A4 fait 841,89 pt de haut, soit 1123 px au même facteur ;
+              moins les marges haute et basse du document, il reste ~979 px de
+              contenu par page. Ces traits disent donc où la coupe TOMBERA à
+              peu près — le rendu PDF évite de couper un bloc en deux, donc la
+              coupe réelle remonte parfois un peu. C'est écrit sur l'étiquette :
+              un repère faux qu'on croit exact serait pire que pas de repère.
+
+              Sans eux, le sourceur ne savait pas si son document tenait en
+              deux pages ou en quatre avant de l'avoir généré. */}
+          <PageBreaks label={t.pageBreak} />
+
           {model.options.watermark && model.watermarkText && (
             <span aria-hidden style={{
               position: "absolute", inset: 0, display: "flex",
@@ -751,6 +765,48 @@ const miniBtn: React.CSSProperties = {
   color: "var(--nw-text-secondary)", background: "white",
   border: "1px solid var(--nw-border)", borderRadius: 7,
   padding: "4px 9px", cursor: "pointer",
+}
+
+/**
+ * Traits indiquant où la page se coupera, tous les ~979 px de contenu.
+ *
+ * On mesure la hauteur réelle du parent plutôt que de la deviner : le contenu
+ * change à chaque masquage, à chaque correction, et un nombre de repères figé
+ * mentirait dès le premier ajustement.
+ */
+function PageBreaks({ label }: { label: (n: number) => string }) {
+  const CONTENT_PER_PAGE = 979
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    const page = ref.current?.parentElement
+    if (!page) return
+    const measure = () => setCount(Math.max(0, Math.ceil(page.scrollHeight / CONTENT_PER_PAGE) - 1))
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(page)
+    return () => ro.disconnect()
+  }, [])
+
+  return (
+    <div ref={ref} aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} style={{ position: "absolute", left: 0, right: 0, top: (i + 1) * CONTENT_PER_PAGE }}>
+          <div style={{ borderTop: "1px dashed rgba(124,99,200,0.45)" }} />
+          <span style={{
+            position: "absolute", right: 6, top: 3,
+            fontSize: 9, fontWeight: 700, letterSpacing: "0.05em",
+            color: "var(--nw-primary)", background: "white",
+            padding: "1px 6px", borderRadius: 100,
+            border: "1px solid rgba(124,99,200,0.28)",
+          }}>
+            {label(i + 2)}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function Meta({ label, value }: { label: string; value: string | null }) {
