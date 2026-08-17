@@ -671,7 +671,9 @@ propre** (garde-fous respectés, i18n FR+EN tenue, allowlists strictes, aucun
 - **Dette cadrée** : `docs/lot-f-dette-ouverte.md` (F1→F11) — excellent document,
   à lire avant de reprendre. F10-2 est FAIT.
 
-**⚠️ TROUVÉ À L'AUDIT DU 18/08 — à traiter :**
+**AUDIT DU 18/08 — 6 points trouvés. Les points 2 à 6 sont CORRIGÉS** (branche
+`claude/post-vacances`, commit `f86e88b` : tsc + eslint 0 erreur / 0 warning sur
+tout `src/`). **Seul le point 1 reste ouvert** — il demande une décision produit.
 
 1. **F7 `core_skills` n'a jamais été vérifié — et il est ENCORE cassé en prod.**
    Mesuré en base : **195 CV, moyenne 3,29 compétences clés, max 6, et 195/195
@@ -681,27 +683,29 @@ propre** (garde-fous respectés, i18n FR+EN tenue, allowlists strictes, aucun
    s'affiche **tel quel sur le CV remis au client final**. Couplé à **F4** (Naywa
    ne peut pas re-parser les CV d'un client, RLS), ces 12 CV ne s'amélioreront
    que si GMH re-parse fiche par fiche. → **priorité n° 1**.
-2. **Migrations 074/075/076 absentes du repo** (dette de MA session d'avant
-   vacances) : `jobs.criteria_adjustments`, `feedback_consumed_until`,
-   `pending_adjustment` ont été appliquées **via MCP uniquement**. Les colonnes
-   existent en base et le code s'en sert, mais **le repo ne peut pas recréer la
-   base**. → écrire les 3 fichiers `.sql` (idempotents, `IF NOT EXISTS`).
-3. **Collision de numéro** : deux fichiers `070_*` (`070_match_client_feedback`
-   et `070_organizations_is_Test`). Sans effet en base (Supabase versionne par
-   timestamp), mais trompeur → renommer le second en `082_`.
-4. **1 erreur ESLint en prod** : `src/app/workspace/vivier/page.tsx:1222` —
-   `useRef(Date.now())` viole la règle de pureté React 19 (et notre propre règle
-   §16). **Next 16 ne lance plus ESLint pendant `next build`**, donc c'est passé.
-   ⚠️ `reactCompiler: true` est activé → à corriger. + 8 warnings (variables
-   mortes, `eslint-disable` inutiles).
-5. **Code mort** : `ClientReview.tsx` n'est plus importé nulle part (supprimable).
-   `MissionShortlist.tsx` n'est gardé que pour le **type `ShortlistOrg`** importé
-   par `MissionPipeline` → déplacer le type puis supprimer le fichier.
-6. **Durcissement mineur** (advisors Supabase) : les fonctions trigger
-   `touch_clients_updated_at()` et `touch_app_updates_updated_at()` sont
-   `SECURITY DEFINER` et **exécutables via RPC** par `anon`/`authenticated`. La
-   migration 029 avait fait ce `REVOKE EXECUTE` pour les autres → gap de
-   cohérence. Sans risque réel (elles ne lisent rien), mais à fermer.
+2. ✅ **CORRIGÉ — Migrations 074/075/076 absentes du repo** (dette de la session
+   d'avant vacances : appliquées via MCP sans être commitées). Écrites a
+   posteriori, idempotentes, conformes aux colonnes réellement en base.
+3. ✅ **CORRIGÉ — Collision de numéro** : `070_organizations_is_Test` renommé en
+   **`082_organizations_is_test`**.
+4. ✅ **CORRIGÉ — 1 erreur ESLint + 8 warnings.** `vivier/page.tsx` appelait
+   `Date.now()` pendant le rendu via `useRef()` → passé en initialiseur paresseux
+   `useState(() => Date.now())` (même sémantique, règle de pureté respectée).
+   **⚠️ LEÇON À RETENIR : Next 16 ne lance plus ESLint pendant `next build`.** Le
+   build Vercel ne garantit donc plus QUE le typage. `npx eslint "src/**/*.{ts,tsx}"
+   --max-warnings=0` doit être lancé à la main — d'autant que `reactCompiler:
+   true` est activé et que le compilateur React est strict sur la pureté.
+5. ✅ **CORRIGÉ — Code mort** : `ClientReview.tsx` et `MissionShortlist.tsx`
+   supprimés ; le type `ShortlistOrg` a été déplacé dans `MissionPipeline.tsx`
+   (son unique consommateur).
+6. ✅ **CORRIGÉ — Durcissement** : migration **083**, `REVOKE EXECUTE` sur
+   `touch_app_updates_updated_at()` et `touch_clients_updated_at()` (restées
+   appelables en RPC alors que la 029 avait fait ce ménage pour les autres).
+   Appliquée en base → 4 avertissements de sécurité en moins. Les 3 restants sont
+   voulus/connus : `admin_audit_log` sans policy (lu via `getAdminSupabase`
+   uniquement), `current_org_id()` accordé exprès à `authenticated` (helper RLS),
+   et **« Leaked password protection » désactivé** — option Supabase Auth à
+   activer d'un clic au dashboard (vérifie les mots de passe contre HaveIBeenPwned).
 
 **Branches doc NON mergées (aucune ligne de code, zéro risque de conflit) :**
 `claude/doc-pricing-honoraires` (chantier à faire), `claude/doc-mailing-domaine`
