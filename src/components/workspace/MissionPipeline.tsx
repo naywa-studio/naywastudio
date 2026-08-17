@@ -25,7 +25,18 @@ import { CLIENT_LIKED_REASONS, clientLikedReasonLabel, type ClientLikedReason } 
 import { detectOffLimitsForCandidate, type OffLimitsClientRef } from "@/lib/off-limits"
 import { AnonymizeSettings, type AnonymizeBranding } from "@/components/workspace/AnonymizeSettings"
 import { readOrgDefaults, type AnonymizeTemplate } from "@/components/workspace/anonymize/types"
-import type { ShortlistOrg } from "@/components/workspace/MissionShortlist"
+/** Sous-ensemble de l'organisation nécessaire à l'anonymisation (marque +
+ *  gabarit par défaut). Défini ici depuis la suppression de `MissionShortlist`,
+ *  dont ce type était le dernier vestige utile. */
+export interface ShortlistOrg {
+  name: string
+  brand_name: string | null
+  brand_color: string | null
+  brand_color_secondary: string | null
+  brand_slogan: string | null
+  contact_email: string | null
+  anonymize_defaults: { template?: string; watermark?: boolean; watermarkText?: string } | null
+}
 import { countHidden, readSelection } from "@/lib/anonymize-selection"
 import { NoraAdjustPanel } from "@/components/workspace/NoraAdjustPanel"
 

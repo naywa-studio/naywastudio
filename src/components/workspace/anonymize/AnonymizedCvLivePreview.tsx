@@ -1698,7 +1698,7 @@ function InlineEditor({ target, cv, skills, languages, meta, t, onClose, onSaved
             <label style={{ display: "block" }}>
               <span style={fieldLabel}>{t.fSkills}</span>
               <textarea
-                // eslint-disable-next-line jsx-a11y/no-autofocus
+                 
                 autoFocus
                 value={skillsText}
                 rows={10}
@@ -1715,7 +1715,7 @@ function InlineEditor({ target, cv, skills, languages, meta, t, onClose, onSaved
             <label style={{ display: "block" }}>
               <span style={fieldLabel}>{t.fLanguages}</span>
               <textarea
-                // eslint-disable-next-line jsx-a11y/no-autofocus
+                 
                 autoFocus
                 value={languagesText}
                 rows={6}
@@ -1888,7 +1888,7 @@ function JobTitleEditor({ value, printed, t, onClose, onSave }: {
         <label style={{ display: "block" }}>
           <span style={fieldLabel}>{t.fJobTitle}</span>
           <input
-            // eslint-disable-next-line jsx-a11y/no-autofocus
+             
             autoFocus
             type="text"
             value={draft}
@@ -1951,7 +1951,7 @@ function F({ label, value, onChange, placeholder, invalid, invalidHint, disabled
     <label style={{ display: "block" }}>
       <span style={fieldLabel}>{label}</span>
       <input
-        // eslint-disable-next-line jsx-a11y/no-autofocus
+         
         autoFocus={autoFocus}
         type="text"
         value={value}

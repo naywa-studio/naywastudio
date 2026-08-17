@@ -1219,8 +1219,12 @@ function ParsingCard({ c, delay, onDelete }: { c: Candidate; delay: number; onDe
   // des deux origines : l'import pour un CV neuf, le montage de la carte pour
   // un re-parsing. Au pire (rechargement de page en plein parsing) on
   // sous-estime le temps écoulé, ce qui ne produit jamais de fausse alerte.
-  const mountedAtRef = useRef(Date.now())
-  const startedAt = Math.max(new Date(c.created_at).getTime(), mountedAtRef.current)
+  // Initialiseur paresseux (et non `useRef(Date.now())`) : appeler Date.now()
+  // pendant le rendu casse la règle de pureté React 19 — le compilateur peut
+  // rejouer un rendu et obtenir une autre valeur. Passé en fonction, l'appel
+  // n'a lieu qu'une fois, au montage, ce qui est exactement l'intention.
+  const [mountedAt] = useState(() => Date.now())
+  const startedAt = Math.max(new Date(c.created_at).getTime(), mountedAt)
   const elapsedMs = Math.max(0, now - startedAt)
   const elapsedSec = Math.round(elapsedMs / 1000)
   // Exponential approach to 96 % — feels alive, never hits 100 (the

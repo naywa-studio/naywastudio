@@ -309,7 +309,6 @@ export default function MatchPage() {
   // Distinct de l'édition de la fiche candidat, qui corrige la donnée elle-même.
   const [anonymizeSelection, setAnonymizeSelection] = useState<AnonymizeSelection>(EMPTY_SELECTION)
   const [anonymizeOrder, setAnonymizeOrder] = useState<AnonymizeOrder>(EMPTY_ORDER)
-  const [selectionSaving, setSelectionSaving] = useState(false)
   const selectionQueue = useRef<Promise<unknown>>(Promise.resolve())
 
   // Contexte mission et marque, dans la forme exacte que le rendu serveur
@@ -442,7 +441,6 @@ export default function MatchPage() {
   const saveSelection = (next: AnonymizeSelection) => {
     if (isReadOnly) return
     setAnonymizeSelection(next)
-    setSelectionSaving(true)
     const run = async () => {
       try {
         await fetch(`/api/match/${matchId}`, {
@@ -452,9 +450,7 @@ export default function MatchPage() {
         })
       } catch { /* best-effort : la sélection reste à l'écran, un clic la rejoue */ }
     }
-    selectionQueue.current = selectionQueue.current
-      .then(run)
-      .finally(() => setSelectionSaving(false))
+    selectionQueue.current = selectionQueue.current.then(run)
   }
 
   /** Ordre des briques — même file d'écriture, même raison : chaque PATCH
@@ -463,7 +459,6 @@ export default function MatchPage() {
   const saveOrder = (next: AnonymizeOrder) => {
     if (isReadOnly) return
     setAnonymizeOrder(next)
-    setSelectionSaving(true)
     const run = async () => {
       try {
         await fetch(`/api/match/${matchId}`, {
@@ -473,9 +468,7 @@ export default function MatchPage() {
         })
       } catch { /* best-effort */ }
     }
-    selectionQueue.current = selectionQueue.current
-      .then(run)
-      .finally(() => setSelectionSaving(false))
+    selectionQueue.current = selectionQueue.current.then(run)
   }
 
   /** Renomme la MISSION. Portée volontairement large — c'est son nom, il
@@ -525,7 +518,6 @@ export default function MatchPage() {
     }, 700)
     return () => { if (jobOptionsTimer.current) clearTimeout(jobOptionsTimer.current) }
     // Volontairement limité aux deux champs de la mission.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anonymizeOptions.keepNoraSummary, anonymizeOptions.customText, match?.job?.id, isReadOnly])
 
   const generateAnonymized = async () => {
@@ -1185,7 +1177,6 @@ export default function MatchPage() {
             options={anonymizeOptions}
             onOptionsChange={setAnonymizeOptions}
             onGenerate={generateAnonymized}
-            onScrollToPreview={scrollToPreview}
             readOnly={isReadOnly}
             // Les réglages vivent dans la colonne de droite de l'atelier.
             showCustomize={candidate.parse_status !== "parsed"}

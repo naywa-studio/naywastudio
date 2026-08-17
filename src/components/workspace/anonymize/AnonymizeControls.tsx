@@ -204,7 +204,6 @@ export function AnonymizeControls({
   options,
   onOptionsChange,
   onGenerate,
-  onScrollToPreview,
   readOnly = false,
   showCustomize = true,
 }: {
@@ -216,8 +215,6 @@ export function AnonymizeControls({
   options: AnonymizeOptions
   onOptionsChange: (next: AnonymizeOptions) => void
   onGenerate: () => Promise<void> | void
-  /** Descend vers l'atelier d'anonymisation, en bas de la fiche match. */
-  onScrollToPreview: () => void
   /** Lecture seule : génération + export .docx bloqués (anti-extraction). */
   readOnly?: boolean
   /** Affiche le bouton « Personnaliser » et son panneau. À passer à false

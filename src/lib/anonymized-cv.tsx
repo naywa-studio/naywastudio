@@ -170,7 +170,7 @@ export function AnonymizedCv({
   const t = LABELS[opts.language]
   const {
     brand: { name: brandName, logoUrl: brandLogo, accent, accentSecondary, slogan: brandSlogan, contactEmail },
-    roleFamily, seniority, years, zone, skills,
+    seniority, years, zone, skills,
     experience, education, languages, otherSections,
     hasJob, headline, watermarkText,
     noraSummary: baseSummaryText, customSummary: customSummaryText,
