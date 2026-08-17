@@ -1,11 +1,14 @@
 # Naywa Studio — Contexte projet
 
-> **Statut** (juin 2026) : Premier client en période d'essai (GMH Engineering
-> Solutions). Plus en beta privée. Stripe **branché en LIVE**. Produit phare =
-> **Nora**, l'assistante IA du workspace. Un seul package commercial : **Package
-> Sourcing** (+ variante **Sourcing Pro** qui ajoute la Suite Pricing Syntec).
-> Stockage CV sur **Cloudflare R2** (depuis PR3). Système de **quotas mensuels
-> dérivés du plan** (stockage + crédits IA) avec **override admin custom**.
+> **Statut** (août 2026) : Premier client (GMH Engineering Solutions). Plus en
+> beta privée. Stripe **branché en LIVE**. Produit phare = **Nora**, l'assistante
+> IA du workspace. Un seul package commercial : **Package Sourcing** (+ option
+> **Suite Pricing** en add-on). Stockage CV sur **Cloudflare R2**. **Quotas
+> dérivés du plan** (nombre de CV en plafond visible) avec **override admin**.
+> Depuis août : **boucle de feedback client complète** (retours négatifs ET
+> positifs → Nora réajuste la mission), **critères à proscrire**, **atelier
+> d'anonymisation éditable** (aperçu vivant 4 gabarits + édition de la fiche
+> candidat). `main` = `a1c9a11`. **Migrations en base jusqu'à 081.**
 
 ---
 
@@ -281,6 +284,13 @@ Page changelog produit accessible depuis sidebar workspace + menu profil organis
 | 047 | `branding_change_requests.request_batch_id` (regroupement multi-champs) |
 | 048 | `app_updates.affected_paths text[]` (zones impactées par une nouveauté) |
 | 049 | `organizations.storage_used_bytes`, `llm_actions_this_month`, `llm_period_start`, `quota_override_json` |
+| 050-066 | quotas anniversaire, secteurs (`sectors`, `candidates.sectors`, `jobs.target_sectors`/`last_match_mode`), `jobs.client_brief`, `match.salary_expectation_brut`, résiliation (`subscription_cancel_at_period_end`), délégation granulaire (`can_manage_branding`/`_pricing`), CGU (`profiles.cgu_accepted_at`) |
+| 067-069 | `organizations.anonymize_defaults` + `jobs.anonymize_options` · `organizations.org_type` · table `clients` (annuaire off-limits) |
+| 070-073 | Boucle feedback client : `match.client_feedback_note`/`_at`, drop `client_status`, `match.anonymized_at` (= présenté), `match.client_reject_reasons text[]` |
+| **074-076** | **⚠️ APPLIQUÉES EN BASE VIA MCP MAIS ABSENTES DU REPO** : `jobs.criteria_adjustments jsonb`, `jobs.feedback_consumed_until timestamptz` (filigrane anti-doublon), `jobs.pending_adjustment jsonb` (proposition Nora en attente). **À écrire en `.sql` idempotent.** |
+| 077-078 | Retours POSITIFS (`match.client_liked_reasons`, `client_positive_note`/`_at`) · `jobs.exclusions text[]` (critères à proscrire) |
+| 079-081 | `candidates.parsed_cv_original` + `parsed_cv_edited_at` (édition manuelle) · `match.anonymize_excluded` · `match.anonymize_order` |
+| `070_organizations_is_Test` | `organizations.is_test` (exclut les orgs de test des KPIs admin). **⚠️ numéro 070 en double dans le repo — à renommer 082.** |
 
 ---
 
@@ -618,7 +628,85 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 ---
 
-## 20. État des chantiers (juin 2026)
+## 20. État des chantiers (août 2026)
+
+#### Session « vacances » (5 → 17 août) — 83 commits EN PROD — audit fait le 2026-08-18
+
+**`main` = `a1c9a11`.** Tout est mergé et déployé. Travail mené en autonomie sur
+une autre session, **relu et audité ici le 18/08**. Verdict : **globalement très
+propre** (garde-fous respectés, i18n FR+EN tenue, allowlists strictes, aucun
+`...body`, 0 TODO). Détail des lots :
+
+- **Boucle feedback Nora — TERMINÉE** (c'était le chantier documenté dans
+  `docs/chantier-nora-feedback-finalisation.md`, désormais **caduc**) :
+  - **Retours POSITIFS** (migration **077**) : `match_assessments.client_liked_reasons`
+    + `client_positive_note`/`_at`, `lib/client-liked-reasons.ts`, capture UI sur
+    les cartes de candidats retenus (`MissionPipeline`). Injectés dans le prompt
+    de `POST /api/jobs/[id]/adjust` avec **règle d'arbitrage explicite** : en cas
+    de conflit écarté ↔ retenu, **le signal positif l'emporte** sur l'assouplissement.
+  - **Critères NÉGATIFS** (migration **078**) : `jobs.exclusions text[]` +
+    `lib/job-exclusions.ts`. Injectés dans `scoreBatchCriteria` **et** — mieux que
+    la spec — le LLM renvoie `exclusion_hit: true`, ce qui déclenche une
+    **pénalité déterministe** sur le score. Nora peut aussi proposer des
+    exclusions dans `/adjust`.
+- **Atelier d'anonymisation** (migrations **080/081**) : `AnonymizedCvLivePreview.tsx`
+  (~2000 l.) = aperçu **vivant, éditable**, blocs déplaçables, **les 4 gabarits
+  rendus** (F10-2) ; `anonymize-selection.ts` (masquage `anonymize_excluded` +
+  ordre `anonymize_order`, colonnes séparées) ; `AnonymizeSidePanel.tsx` ;
+  `anonymized-cv-model.ts` (modèle partagé aperçu/PDF). Série de fixes PDF.
+- **Édition manuelle de la fiche candidat** (migration **079**) :
+  `PATCH/DELETE /api/candidates/[id]/parsed-cv` + `CandidateCvEditor.tsx`.
+  `candidates.parsed_cv_original` garde l'**instantané de Nora** (posé à la 1ʳᵉ
+  édition seulement) → « revenir à l'origine » rend bien la version Nora.
+  Route exemplaire : allowlist de champs, bornes de saisie, RLS-scopée.
+- **Parsing — fidélité** (`cv-parser.ts` +777 l.) : espaces perdus, gouttière
+  multi-colonnes, JSON tronqué, secteur mal classé, faux « parsing bloqué » au
+  re-parsing, `core_skills` étoffées (⚠️ cf. dette F7 ci-dessous).
+- **Matching** (`matching.ts` +211 l.) : le mode **Complet re-score enfin tout le
+  monde**, plancher déterministe sur `domain_fit`, rubriques libres exposées au
+  scoring.
+- **Admin** : `organizations.is_test` (migration **070_organizations_is_Test**) —
+  les **KPIs `/admin` excluent désormais les orgs de test** (KYPE, Naywa, Elyas…),
+  donc les chiffres reflètent le réel. Carrousel de missions (`MissionCarousel`).
+- **Dette cadrée** : `docs/lot-f-dette-ouverte.md` (F1→F11) — excellent document,
+  à lire avant de reprendre. F10-2 est FAIT.
+
+**⚠️ TROUVÉ À L'AUDIT DU 18/08 — à traiter :**
+
+1. **F7 `core_skills` n'a jamais été vérifié — et il est ENCORE cassé en prod.**
+   Mesuré en base : **195 CV, moyenne 3,29 compétences clés, max 6, et 195/195
+   sous le seuil de 8**. Surtout : **AUCUN CV n'a été parsé depuis le correctif**
+   (commit `acecdd8`, 15/08 19:52) → le correctif n'a jamais tourné. **GMH (seul
+   client réel) : 12 CV, moyenne 3,5, dernier parsing le 12/08.** Ce champ
+   s'affiche **tel quel sur le CV remis au client final**. Couplé à **F4** (Naywa
+   ne peut pas re-parser les CV d'un client, RLS), ces 12 CV ne s'amélioreront
+   que si GMH re-parse fiche par fiche. → **priorité n° 1**.
+2. **Migrations 074/075/076 absentes du repo** (dette de MA session d'avant
+   vacances) : `jobs.criteria_adjustments`, `feedback_consumed_until`,
+   `pending_adjustment` ont été appliquées **via MCP uniquement**. Les colonnes
+   existent en base et le code s'en sert, mais **le repo ne peut pas recréer la
+   base**. → écrire les 3 fichiers `.sql` (idempotents, `IF NOT EXISTS`).
+3. **Collision de numéro** : deux fichiers `070_*` (`070_match_client_feedback`
+   et `070_organizations_is_Test`). Sans effet en base (Supabase versionne par
+   timestamp), mais trompeur → renommer le second en `082_`.
+4. **1 erreur ESLint en prod** : `src/app/workspace/vivier/page.tsx:1222` —
+   `useRef(Date.now())` viole la règle de pureté React 19 (et notre propre règle
+   §16). **Next 16 ne lance plus ESLint pendant `next build`**, donc c'est passé.
+   ⚠️ `reactCompiler: true` est activé → à corriger. + 8 warnings (variables
+   mortes, `eslint-disable` inutiles).
+5. **Code mort** : `ClientReview.tsx` n'est plus importé nulle part (supprimable).
+   `MissionShortlist.tsx` n'est gardé que pour le **type `ShortlistOrg`** importé
+   par `MissionPipeline` → déplacer le type puis supprimer le fichier.
+6. **Durcissement mineur** (advisors Supabase) : les fonctions trigger
+   `touch_clients_updated_at()` et `touch_app_updates_updated_at()` sont
+   `SECURITY DEFINER` et **exécutables via RPC** par `anon`/`authenticated`. La
+   migration 029 avait fait ce `REVOKE EXECUTE` pour les autres → gap de
+   cohérence. Sans risque réel (elles ne lisent rien), mais à fermer.
+
+**Branches doc NON mergées (aucune ligne de code, zéro risque de conflit) :**
+`claude/doc-pricing-honoraires` (chantier à faire), `claude/doc-mailing-domaine`
+(à développer), `claude/doc-nora-feedback-finalisation` (**caduque**, la feature
+est en prod).
 
 #### Shortlist par mission + refonte anonymisation — EN PROD (mergée) — 2026-07-27
 
