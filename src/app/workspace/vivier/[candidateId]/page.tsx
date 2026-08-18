@@ -14,6 +14,7 @@ import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { showUndoToast } from "@/components/ui/UndoToast"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 import { tierMeta as sharedTierMeta } from "@/lib/criterion-display"
+import { mergeDisplaySkills } from "@/lib/anonymized-cv-model"
 import { useWorkspace } from "../../layout"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -416,6 +417,17 @@ export default function CandidatePage() {
 
   const cv = candidate.parsed_cv ?? null
 
+  // Mêmes compétences que sur le document remis au client, via la MÊME
+  // fonction. La fiche n'affichait que la colonne `skills` et ignorait
+  // `taxonomy.core_skills` : le sourceur voyait donc MOINS que son client, et
+  // les compétences que Nora avait déduites des descriptions de poste
+  // n'apparaissaient nulle part. Celui qui décide doit voir au moins ce qu'il
+  // présente.
+  const displaySkills = mergeDisplaySkills(
+    candidate.taxonomy?.core_skills ?? [],
+    candidate.skills ?? [],
+  )
+
   return (
     <main style={{
       padding: "32px 24px 80px",
@@ -641,15 +653,15 @@ export default function CandidatePage() {
                 </SubSection>
               )}
 
-              {((candidate.skills && candidate.skills.length > 0) || (cv?.qualities && cv.qualities.length > 0)) && (
+              {(displaySkills.length > 0 || (cv?.qualities && cv.qualities.length > 0)) && (
                 <SubSection title={t.skills}>
-                  {candidate.skills && candidate.skills.length > 0 && (
+                  {displaySkills.length > 0 && (
                     <div>
                       <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "var(--nw-primary)", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                         {t.technicalSkills}
                       </p>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {candidate.skills.map((s) => (
+                        {displaySkills.map((s) => (
                           <span key={s} style={{
                             fontSize: 12, color: "var(--nw-text-secondary)",
                             background: "var(--nw-bg)", border: "1px solid var(--nw-border-soft)",
@@ -660,7 +672,7 @@ export default function CandidatePage() {
                     </div>
                   )}
                   {cv?.qualities && cv.qualities.length > 0 && (
-                    <div style={{ marginTop: candidate.skills && candidate.skills.length > 0 ? 16 : 0 }}>
+                    <div style={{ marginTop: displaySkills.length > 0 ? 16 : 0 }}>
                       <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#16a34a", letterSpacing: "0.06em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
                         {t.softSkills}
                       </p>
