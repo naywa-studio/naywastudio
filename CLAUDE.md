@@ -8,7 +8,7 @@
 > Depuis août : **boucle de feedback client complète** (retours négatifs ET
 > positifs → Nora réajuste la mission), **critères à proscrire**, **atelier
 > d'anonymisation éditable** (aperçu vivant 4 gabarits + édition de la fiche
-> candidat). `main` = `a1c9a11`. **Migrations en base jusqu'à 081.**
+> candidat). `main` = `65314bd`. **Migrations en base jusqu'à 083.**
 
 ---
 
@@ -632,7 +632,8 @@ R2_ENDPOINT               # https://<account-id>.r2.cloudflarestorage.com
 
 #### Session « vacances » (5 → 17 août) — 83 commits EN PROD — audit fait le 2026-08-18
 
-**`main` = `a1c9a11`.** Tout est mergé et déployé. Travail mené en autonomie sur
+**Les 83 commits de la session vacances = `a1c9a11`.** Tout est mergé et déployé.
+Travail mené en autonomie sur
 une autre session, **relu et audité ici le 18/08**. Verdict : **globalement très
 propre** (garde-fous respectés, i18n FR+EN tenue, allowlists strictes, aucun
 `...body`, 0 TODO). Détail des lots :
@@ -671,9 +672,10 @@ propre** (garde-fous respectés, i18n FR+EN tenue, allowlists strictes, aucun
 - **Dette cadrée** : `docs/lot-f-dette-ouverte.md` (F1→F11) — excellent document,
   à lire avant de reprendre. F10-2 est FAIT.
 
-**AUDIT DU 18/08 — 6 points trouvés. Les points 2 à 6 sont CORRIGÉS** (branche
-`claude/post-vacances`, commit `f86e88b` : tsc + eslint 0 erreur / 0 warning sur
-tout `src/`). **Seul le point 1 reste ouvert** — il demande une décision produit.
+**AUDIT DU 18/08 — 6 points trouvés. Les points 2 à 6 sont CORRIGÉS ET MERGÉS**
+(branche `claude/post-vacances` mergée en fast-forward le 18/08, `main` =
+`65314bd` : tsc + eslint 0 erreur / 0 warning sur tout `src/`). **Seul le point 1
+reste ouvert** — il demande une décision produit.
 
 1. **F7 `core_skills` n'a jamais été vérifié — et il est ENCORE cassé en prod.**
    Mesuré en base : **195 CV, moyenne 3,29 compétences clés, max 6, et 195/195
