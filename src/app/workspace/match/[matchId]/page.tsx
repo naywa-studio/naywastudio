@@ -372,6 +372,7 @@ export default function MatchPage() {
         setAnonymizeOptions((prev) => ({
           ...prev,
           keepNoraSummary: jobOpts.keepNoraSummary ?? prev.keepNoraSummary,
+          keepCandidateSummary: jobOpts.keepCandidateSummary ?? prev.keepCandidateSummary,
           customText: jobOpts.customText ?? prev.customText,
         }))
       }
@@ -511,14 +512,17 @@ export default function MatchPage() {
         body: JSON.stringify({
           anonymize_options: {
             keepNoraSummary: anonymizeOptions.keepNoraSummary,
+            keepCandidateSummary: anonymizeOptions.keepCandidateSummary,
             customText: anonymizeOptions.customText,
           },
         }),
       }).catch(() => { /* best-effort : la valeur reste à l'écran */ })
     }, 700)
     return () => { if (jobOptionsTimer.current) clearTimeout(jobOptionsTimer.current) }
-    // Volontairement limité aux deux champs de la mission.
-  }, [anonymizeOptions.keepNoraSummary, anonymizeOptions.customText, match?.job?.id, isReadOnly])
+    // Volontairement limité aux champs de PORTÉE MISSION : les deux résumés
+    // et le message. Le gabarit et le filigrane, eux, sont réglés au niveau de
+    // l'organisation et n'ont rien à faire ici.
+  }, [anonymizeOptions.keepNoraSummary, anonymizeOptions.keepCandidateSummary, anonymizeOptions.customText, match?.job?.id, isReadOnly])
 
   const generateAnonymized = async () => {
     if (!candidate || anonymizeStatus.state === "working" || isReadOnly) return
