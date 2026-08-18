@@ -1500,12 +1500,17 @@ function InlineEditor({ target, cv, skills, languages, meta, t, onClose, onSaved
    * Compétences et langues telles qu'AFFICHÉES sur le document, pas telles
    * que stockées.
    *
-   * Même principe que `meta`, et pour la même raison : le modèle choisit sa
-   * source (`taxonomy.core_skills` sinon la colonne `candidates.skills`) et
-   * dédoublonne. L'éditeur lisait `parsed_cv.skills`, une TROISIÈME source :
-   * sur une fiche où elles divergent, il aurait présenté au sourceur une
-   * liste différente de celle imprimée sous ses yeux, et sa « correction »
-   * aurait remplacé la bonne par l'ancienne.
+   * Même principe que `meta`, et pour la même raison : le modèle FUSIONNE ses
+   * sources (`taxonomy.core_skills` en tête, la colonne `candidates.skills` en
+   * complément), dédoublonne et normalise la casse. L'éditeur lisait
+   * `parsed_cv.skills`, une TROISIÈME source : sur une fiche où elles
+   * divergent, il aurait présenté au sourceur une liste différente de celle
+   * imprimée sous ses yeux, et sa « correction » aurait remplacé la bonne par
+   * l'ancienne.
+   *
+   * L'enregistrement réécrit les DEUX sources à l'identique (cf. `payload`
+   * plus bas), si bien qu'après une correction la fusion rend exactement la
+   * liste saisie : rien de ce que le sourceur a retiré ne peut réapparaître.
    *
    * C'est exactement le défaut trouvé sur le titre de la mission, en plus
    * discret. Un éditeur part de ce qu'on voit.
