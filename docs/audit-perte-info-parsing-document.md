@@ -112,16 +112,20 @@ bruit : soft skills génériques (rigoureux, motivé) », et `rigueur`,
 client. Mais l'exigence retenue est « tout le CV » : elles doivent donc partir,
 quitte à ce que le sourceur les masque au cas par cas.
 
-## §4 — L'alternance n'est pas dite au client
+## §4 — L'alternance : point ABANDONNÉ
 
 `is_apprentice` pilote un badge sur la fiche et entre dans le matching, mais
-**n'apparaît pas sur le document**. Le client voit une séniorité et un nombre
-d'années, jamais le fait que le candidat est en alternance.
+n'apparaît pas sur le document (0 chez GMH, 125 sur 142 chez KYPE).
 
-**Mesure** : 0 chez GMH, mais **125 sur 142 chez KYPE** et 20 sur 34 chez Naywa.
+**Écarté après arbitrage d'Elyas, et à raison.** Le document est toujours
+présenté POUR une mission : le cadre contractuel vient de la mission, pas de la
+fiche du candidat. Si la mission est une alternance, présenter un candidat
+suppose qu'il en cherche une.
 
-C'est une information contractuelle déterminante pour un client. À afficher, au
-moins comme mention dans le bandeau d'en-tête.
+Deuxième argument dans le même sens : `years_experience` exclut déjà
+l'alternance en cours, donc le client ne surestime jamais l'expérience. La
+mention n'apporterait rien et, sur un document anonymisé, une étiquette
+« alternant » dessert le candidat plus qu'elle n'informe le client.
 
 ## §5 — `tools`, `domains`, `industries` : absence assumée
 
@@ -154,13 +158,15 @@ d'exclusions explicitement justifiée. Un champ ajouté sans décision fait alor
 
 | # | Action | Ampleur | Décision |
 |---|---|---|---|
-| 1 | Certifications au document (4 gabarits + aperçu + DOCX) | moyenne | ✅ tranchée : à faire |
-| 2 | Qualités au document | moyenne | ✅ tranchée : à faire |
-| 3 | Découpler résumé du candidat / résumé Nora | moyenne | ⏳ change le défaut de TOUS les documents |
-| 4 | Mention alternance sur le document | petite | ⏳ à valider |
-| 5 | Certifications exploitées par le matching | moyenne | ⏳ à cadrer |
-| 6 | Test de non-régression parseur → document | petite | recommandé |
+| 1 | Certifications au document (4 gabarits + aperçu + DOCX) | moyenne | ✅ fait |
+| 2 | Qualités au document, en bloc distinct | moyenne | ✅ fait |
+| 3 | Découpler accroche du candidat / résumé Nora | moyenne | ✅ fait |
+| 4 | Mention alternance sur le document | petite | ❌ abandonné (cf. §4) |
+| 5 | Certifications exploitées par le matching | moyenne | ⏳ lot à part |
+| 6 | Test de non-régression parseur → document | petite | ⏳ recommandé |
 
-Les points 1 et 2 sont sans ambiguïté au regard de l'exigence « tout le CV ».
-Le point 3 modifie l'apparence de **tous** les documents générés : il mérite
-d'être validé avant, pas après.
+Le point 5 touche le moteur de scoring : il mérite son propre lot, le gain
+immédiat étant sur le document.
+
+Le point 6 est le seul qui empêche la classe de défaut de revenir. Tant qu'il
+n'existe pas, le contrat parseur → document reste implicite.

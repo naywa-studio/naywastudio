@@ -29,6 +29,7 @@ import {
 import type { Candidate } from "./database.types"
 import type { AnonymizedBrand, AnonymizedJobContext, AnonymizedOptions } from "./anonymized-cv"
 import { anonymizedZone } from "./anonymized-cv"
+import { mergeDisplaySkills } from "./anonymized-cv-model"
 
 /**
  * Couleur par défaut (hex sans #) appliquée à la marque quand
@@ -46,6 +47,8 @@ const LABELS = {
     keySkills: "Compétences clés",
     background: "Parcours",
     education: "Formation",
+    certifications: "Certifications",
+    qualities: "Qualités",
     contactPrefix: "Pour échanger sur ce profil :",
     metaSeniority: "Séniorité",
     metaExperience: "Expérience",
@@ -61,6 +64,8 @@ const LABELS = {
     keySkills: "Key skills",
     background: "Experience",
     education: "Education",
+    certifications: "Certifications",
+    qualities: "Strengths",
     contactPrefix: "Contact about this profile:",
     metaSeniority: "Seniority",
     metaExperience: "Experience",
@@ -103,6 +108,8 @@ export async function buildAnonymizedDocx({
   const lang: "fr" | "en" = options?.language ?? "fr"
   const t = LABELS[lang]
   const keepNora = options?.keepNoraSummary ?? true
+  // Coche par defaut : c'est du contenu de CV, pas une generation.
+  const keepCandidateSummary = options?.keepCandidateSummary ?? true
   const customText = (options?.customText ?? "").trim()
 
   const accent = normalizeAccent(brand?.color)
@@ -127,16 +134,23 @@ export async function buildAnonymizedDocx({
   // écartaient donc du contenu sans qu'aucune mise en page ne l'exige, sur le
   // document que le cabinet remet à son client. Plafond compétences aligné sur
   // celui du parsing (40).
-  const skills = ((candidate.taxonomy?.core_skills?.length
-    ? candidate.taxonomy.core_skills
-    : (candidate.skills ?? []))).slice(0, 40)
+  // Même fusion que le PDF et l'aperçu. Ce fichier ne passe PAS par
+  // `buildAnonymizedModel` (il a son propre agencement, linéaire), donc chaque
+  // règle de CONTENU doit être répliquée ici sciemment — sinon le Word part
+  // chez le client avec un contenu différent du PDF du même candidat.
+  const skills = mergeDisplaySkills(
+    candidate.taxonomy?.core_skills ?? [],
+    candidate.skills ?? [],
+  ).slice(0, 40)
+  const qualities = (cv.qualities ?? []).slice(0, 15)
   const experience = cv.experience ?? []
   const education = cv.education ?? []
+  const certifications = cv.certifications ?? []
   const languages = cv.languages ?? candidate.languages ?? []
 
-  const baseSummary = keepNora
-    ? (executiveSummary?.trim() || cv.summary?.trim() || null)
-    : null
+  // Accroche du candidat et résumé Nora : deux choses, deux interrupteurs.
+  const candidateSummary = keepCandidateSummary ? (cv.summary?.trim() || null) : null
+  const baseSummary = keepNora ? (executiveSummary?.trim() || null) : null
 
   // ─── Builders ────────────────────────────────────────────────────
   const children: Paragraph[] = []
@@ -223,6 +237,18 @@ export async function buildAnonymizedDocx({
     }),
   )
 
+  // Accroche du candidat (droit — c'est sa voix, pas un commentaire)
+  if (candidateSummary) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 220 },
+        children: [
+          new TextRun({ text: candidateSummary, color: "374151", size: 21 }),
+        ],
+      }),
+    )
+  }
+
   // Résumé Nora (italique)
   if (baseSummary) {
     children.push(
@@ -297,6 +323,20 @@ export async function buildAnonymizedDocx({
             color: "4B5563",
             size: 19,
           }),
+        ],
+      }),
+    )
+  }
+
+  // Qualités — bloc SÉPARÉ des compétences clés : mêler « rigueur » à
+  // « AutoCAD » dilue le technique dans le générique.
+  if (qualities.length > 0) {
+    children.push(sectionTitle(t.qualities, accentSecondary))
+    children.push(
+      new Paragraph({
+        spacing: { after: 280 },
+        children: [
+          new TextRun({ text: qualities.join("  ·  "), color: "4B5563", size: 19 }),
         ],
       }),
     )
@@ -382,6 +422,21 @@ export async function buildAnonymizedDocx({
         )
       }
     }
+  }
+
+  // Certifications et habilitations, juste après la formation : même nature,
+  // un titre obtenu. Elles n'atteignaient aucun format jusqu'ici.
+  if (certifications.length > 0) {
+    children.push(sectionTitle(t.certifications, accentSecondary))
+    for (const c of certifications) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 60 },
+          children: [new TextRun({ text: c, color: INK, size: 20 })],
+        }),
+      )
+    }
+    children.push(new Paragraph({ spacing: { after: 160 }, children: [new TextRun("")] }))
   }
 
   // Rubriques libres du CV (projets, sites, habilitations, publications…),

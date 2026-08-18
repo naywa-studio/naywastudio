@@ -85,6 +85,8 @@ const copy = {
     keySkills: "Compétences clés",
     experience: "Parcours",
     education: "Formation",
+    certifications: "Certifications",
+    qualities: "Qualités",
     languages: "Langues",
     seniorityLabel: "Séniorité",
     experienceLabel: "Expérience",
@@ -165,6 +167,8 @@ const copy = {
     keySkills: "Key skills",
     experience: "Experience",
     education: "Education",
+    certifications: "Certifications",
+    qualities: "Strengths",
     languages: "Languages",
     seniorityLabel: "Seniority",
     experienceLabel: "Experience",
@@ -545,6 +549,16 @@ export function AnonymizedCvLivePreview({
         editTitle={t.editScope}
         scopeEverywhere={t.scopeEverywhere}
       >
+        {/* Accroche du candidat — DROITE, contrairement au résumé Nora en
+            italique : c'est sa voix, pas un commentaire sur lui. */}
+        {model.candidateSummary && (
+          <p style={{
+            margin: `0 0 ${(model.noraSummary || model.customSummary) ? pt(8) : z.noraMb}px`,
+            fontSize: z.nora, color: PROSE, lineHeight: z.noraLh, maxWidth: z.max,
+          }}>
+            {model.candidateSummary}
+          </p>
+        )}
         {model.noraSummary && (
           <p style={{
             margin: `0 0 ${model.customSummary ? pt(8) : z.noraMb}px`,
@@ -563,7 +577,7 @@ export function AnonymizedCvLivePreview({
             {model.customSummary}
           </p>
         )}
-        {!model.noraSummary && !model.customSummary && (
+        {!model.candidateSummary && !model.noraSummary && !model.customSummary && (
           <p style={{ margin: 0, color: FAINT, fontStyle: "italic", fontSize: pt(9) }}>
             {model.options.keepNoraSummary ? t.summaryPending : t.noSummary}
           </p>
@@ -629,6 +643,34 @@ export function AnonymizedCvLivePreview({
       </BlockShell>
     )
   }
+
+  /** Qualités humaines. Bloc distinct des compétences clés — mêler
+   *  « rigueur » à « AutoCAD » dilue le technique dans le générique. Pastilles
+   *  volontairement plus sourdes : c'est du déclaratif, pas du vérifiable. */
+  const renderQualities = () => {
+    const chip: React.CSSProperties = tpl === "executive"
+      ? { fontSize: pt(10), color: BODY, background: "white", border: `${pt(0.8)}px solid ${LINE}`, borderRadius: 999, padding: `${pt(4)}px ${pt(10)}px`, marginRight: pt(6), marginBottom: pt(6) }
+      : tpl === "bento"
+        ? { fontSize: pt(9), color: BODY, background: "white", border: `${pt(0.7)}px solid ${LINE}`, borderRadius: pt(4), padding: `${pt(2.5)}px ${pt(7)}px`, marginRight: pt(5), marginBottom: pt(5) }
+        : { fontSize: pt(8.5), color: BODY, background: "white", border: `1px solid ${LINE}`, borderRadius: pt(3), padding: `${pt(2)}px ${pt(6)}px`, marginRight: pt(5), marginBottom: pt(5) }
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap" }}>
+        {model.qualities.map((q) => <span key={q} style={chip}>{q}</span>)}
+      </div>
+    )
+  }
+
+  /** Certifications et habilitations, rendues comme la formation : même
+   *  nature, un titre obtenu. */
+  const renderCertifications = () => (
+    <div>
+      {model.certifications.map((c) => (
+        <p key={c} style={{ margin: `0 0 ${pt(3)}px`, fontSize: pt(9.5), color: INK, fontWeight: 700 }}>
+          {c}
+        </p>
+      ))}
+    </div>
+  )
 
   /** Le parcours. Classique et deux colonnes empilent titre / entreprise /
    *  dates le long d'un filet ; exécutif et bento mettent les dates en regard
@@ -871,6 +913,18 @@ export function AnonymizedCvLivePreview({
         {!readOnly && <div style={{ marginTop: pt(8) }}>{addBtn(t.addSection, { kind: "section", index: NEW })}</div>}
       </>
     )
+    // Rendus seulement s'il y a de quoi : un titre de section suivi du vide
+    // est pire que l'absence de section.
+    const certificationsBand = model.certifications.length > 0 ? (
+      <Band title={t.certifications} titleStyle={titleStyle} marginTop={pt(4)} marginBottom={pt(14)} titleGap={pt(8)}>
+        {renderCertifications()}
+      </Band>
+    ) : null
+    const qualitiesBand = model.qualities.length > 0 ? (
+      <Band title={t.qualities} titleStyle={titleStyle} marginTop={pt(4)} marginBottom={pt(14)} titleGap={pt(8)}>
+        {renderQualities()}
+      </Band>
+    ) : null
 
     // ── Deux colonnes : barre latérale teintée + colonne principale ──────
     if (tpl === "two-column") {
@@ -892,6 +946,12 @@ export function AnonymizedCvLivePreview({
               {renderMeta(true)}
               <div style={{ ...titleStyle, marginTop: pt(2), marginBottom: pt(6) }}>{t.keySkills}</div>
               {renderSkills()}
+              {model.qualities.length > 0 && (
+                <>
+                  <div style={{ ...titleStyle, marginTop: pt(10), marginBottom: pt(6) }}>{t.qualities}</div>
+                  {renderQualities()}
+                </>
+              )}
             </aside>
             <div style={{ flex: 1, minWidth: 0 }}>
               {renderSummary()}
@@ -909,6 +969,7 @@ export function AnonymizedCvLivePreview({
               >
                 {renderEducation()}
               </Band>
+              {certificationsBand}
               {sectionsWithAdd}
             </div>
           </div>
@@ -936,6 +997,7 @@ export function AnonymizedCvLivePreview({
           <Band title={t.keySkills} titleStyle={titleStyle} marginBottom={pt(28)} titleGap={pt(12)}>
             {renderSkills()}
           </Band>
+          {qualitiesBand}
           <Band
             title={t.experience} titleStyle={titleStyle}
             marginBottom={pt(26)} titleGap={pt(14)}
@@ -950,6 +1012,7 @@ export function AnonymizedCvLivePreview({
           >
             {renderEducation()}
           </Band>
+          {certificationsBand}
           <div style={{ marginTop: pt(14) }}>{sectionsWithAdd}</div>
           {renderFooter()}
         </>
@@ -973,6 +1036,12 @@ export function AnonymizedCvLivePreview({
             <div style={{ ...bentoCard, flex: 1, minWidth: 0 }}>
               <div style={{ ...titleStyle, marginBottom: pt(8) }}>{t.keySkills}</div>
               {renderSkills()}
+              {model.qualities.length > 0 && (
+                <>
+                  <div style={{ ...titleStyle, marginTop: pt(12), marginBottom: pt(8) }}>{t.qualities}</div>
+                  {renderQualities()}
+                </>
+              )}
             </div>
           </div>
           <div style={{ ...bentoCard, marginBottom: pt(10) }}>
@@ -993,6 +1062,12 @@ export function AnonymizedCvLivePreview({
               {renderEducation()}
             </Band>
           </div>
+          {model.certifications.length > 0 && (
+            <div style={{ ...bentoCard, marginBottom: pt(10) }}>
+              <div style={{ ...titleStyle, marginBottom: pt(8) }}>{t.certifications}</div>
+              {renderCertifications()}
+            </div>
+          )}
           {sectionsWithAdd}
           {renderFooter()}
         </>
@@ -1010,6 +1085,7 @@ export function AnonymizedCvLivePreview({
         <Band title={t.keySkills} titleStyle={titleStyle} marginTop={pt(4)} marginBottom={pt(14)} titleGap={pt(8)}>
           {renderSkills()}
         </Band>
+        {qualitiesBand}
         <Band
           title={t.experience} titleStyle={titleStyle}
           marginTop={pt(4)} marginBottom={pt(14)} titleGap={pt(8)}
@@ -1024,6 +1100,7 @@ export function AnonymizedCvLivePreview({
         >
           {renderEducation()}
         </Band>
+        {certificationsBand}
         {sectionsWithAdd}
         {renderFooter()}
       </>

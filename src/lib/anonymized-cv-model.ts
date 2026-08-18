@@ -52,6 +52,18 @@ export interface AnonymizedBrand {
 export interface AnonymizedOptions {
   template?: AnonymizedTemplate
   keepNoraSummary?: boolean
+  /**
+   * Accroche ÉCRITE PAR LE CANDIDAT sur son CV (`parsed_cv.summary`).
+   *
+   * Rien à voir avec le résumé de Nora, et c'est tout l'objet de ce drapeau :
+   * les deux étaient pilotés par la seule case « Résumé Nora », décochée par
+   * défaut. Un CV sur un (12/12 chez GMH, 141/142 chez KYPE) perdait donc son
+   * accroche dans le document remis au client — du contenu de CV, au même
+   * titre qu'une expérience, supprimé par une case qui parle d'IA.
+   *
+   * Coché par défaut : ne rien retirer de ce que le candidat a écrit.
+   */
+  keepCandidateSummary?: boolean
   customText?: string
   watermark?: boolean
   watermarkText?: string
@@ -84,10 +96,18 @@ export interface AnonymizedCvModel {
   /** Commune + département, jamais l'adresse postale. */
   zone: string | null
   skills: string[]
+  /** Qualités humaines telles qu'écrites au CV. Bloc distinct des compétences
+   *  clés : les mélanger diluerait le technique dans le générique. */
+  qualities: string[]
   experience: ParsedExperience[]
   education: ParsedEducation[]
+  /** Certifications et habilitations. Sur un profil technique, c'est souvent
+   *  le critère qui emporte la décision du client. */
+  certifications: string[]
   languages: string[]
   otherSections: ParsedSection[]
+  /** Accroche écrite par le CANDIDAT, `null` si absente ou décochée. */
+  candidateSummary: string | null
   /** Résumé automatique, `null` si le sourceur l'a décoché. */
   noraSummary: string | null
   /** Message libre du sourceur, `null` s'il n'en a pas écrit. */
@@ -309,6 +329,9 @@ export function buildAnonymizedModel({
   const opts: Required<AnonymizedOptions> = {
     template: options?.template ?? "classic",
     keepNoraSummary: options?.keepNoraSummary ?? false,
+    // Coché par défaut, contrairement au résumé Nora : c'est du contenu du CV,
+    // pas une génération. Le retirer par défaut revenait à amputer le document.
+    keepCandidateSummary: options?.keepCandidateSummary ?? true,
     customText: (options?.customText ?? "").trim(),
     watermark: options?.watermark ?? false,
     watermarkText: (options?.watermarkText ?? "").trim(),
@@ -358,16 +381,20 @@ export function buildAnonymizedModel({
     years: candidate.years_experience ?? cv.years_experience ?? null,
     zone: anonymizedZone(candidate.location, candidate.full_name),
     skills,
+    qualities: dedupe(cv.qualities ?? []).slice(0, 15),
     // Ordre d'origine du parser (qui suit le CV, généralement
     // antichronologique). On ne pousse PAS les expériences « pertinentes
     // mission » en haut : préserver le fond, c'est respecter le récit.
     experience: cv.experience ?? [],
     education: cv.education ?? [],
+    certifications: dedupe(cv.certifications ?? []),
     languages: cv.languages ?? candidate.languages ?? [],
     otherSections,
-    noraSummary: opts.keepNoraSummary
-      ? (executiveSummary?.trim() || cv.summary?.trim() || null)
-      : null,
+    // Accroche du candidat et résumé de Nora sont DEUX choses, et ne partagent
+    // plus le même interrupteur. `executiveSummary` n'apparaît plus ici en
+    // repli : il n'a jamais été l'accroche du candidat.
+    candidateSummary: opts.keepCandidateSummary ? (cv.summary?.trim() || null) : null,
+    noraSummary: opts.keepNoraSummary ? (executiveSummary?.trim() || null) : null,
     customSummary: opts.customText.length > 0 ? opts.customText : null,
     // Filigrane = le nom du cabinet, façon tampon discret. Pas de « Réf »
     // devant : la référence est déjà imprimée en clair en haut et en pied.

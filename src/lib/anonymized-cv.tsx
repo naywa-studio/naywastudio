@@ -18,6 +18,7 @@
  */
 
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
+import type { Style as PdfStyle } from "@react-pdf/stylesheet"
 import type { Candidate } from "./database.types"
 // Le CONTENU du document est décidé dans le modèle partagé, jamais ici : ce
 // fichier ne fait plus que l'habiller. L'aperçu éditable du workspace appelle
@@ -119,6 +120,8 @@ const LABELS = {
     keySkills: "Compétences clés",
     background: "Parcours",
     education: "Formation",
+    certifications: "Certifications",
+    qualities: "Qualités",
     contactPrefix: "Pour échanger sur ce profil :",
     metaSeniority: "Séniorité",
     metaExperience: "Expérience",
@@ -131,6 +134,8 @@ const LABELS = {
     keySkills: "Key skills",
     background: "Experience",
     education: "Education",
+    certifications: "Certifications",
+    qualities: "Strengths",
     contactPrefix: "Contact about this profile:",
     metaSeniority: "Seniority",
     metaExperience: "Experience",
@@ -170,9 +175,10 @@ export function AnonymizedCv({
   const t = LABELS[opts.language]
   const {
     brand: { name: brandName, logoUrl: brandLogo, accent, accentSecondary, slogan: brandSlogan, contactEmail },
-    seniority, years, zone, skills,
+    seniority, years, zone, skills, qualities, certifications,
     experience, education, languages, otherSections,
     hasJob, headline, watermarkText,
+    candidateSummary: candidateSummaryText,
     noraSummary: baseSummaryText, customSummary: customSummaryText,
   } = model
   const s = buildStyles(accent, accentSecondary)
@@ -180,6 +186,46 @@ export function AnonymizedCv({
   // ─── Helpers partagés entre templates ────────────────────────────
   // (Closures qui capturent brand/labels/opts/styles depuis le scope
   // parent — évite de polluer la signature des sous-renders.)
+
+  /**
+   * Certifications et habilitations.
+   *
+   * Extraites depuis toujours, affichées sur la fiche candidat, et absentes
+   * des quatre gabarits jusqu'ici — donc invisibles du client (5 CV sur 12
+   * chez GMH). Sur un profil technique, une habilitation est souvent le
+   * critère qui emporte la décision.
+   *
+   * Rendues juste après la formation : même nature, un titre obtenu.
+   */
+  const renderCertifications = (titleStyle: PdfStyle, itemStyle: PdfStyle) =>
+    certifications.length > 0 ? (
+      <View wrap={false}>
+        <Text style={titleStyle}>{t.certifications}</Text>
+        {certifications.map((c, i) => (
+          <Text key={`cert-${i}`} style={itemStyle}>{c}</Text>
+        ))}
+      </View>
+    ) : null
+
+  /**
+   * Qualités humaines telles qu'écrites au CV.
+   *
+   * Bloc SÉPARÉ des compétences clés, et c'est délibéré : « rigueur » ou
+   * « esprit d'équipe » mêlés à « Tekla » et « AutoCAD » diluent le technique
+   * dans le générique, au détriment des deux. Le client voit d'un coup d'œil
+   * ce qui est vérifiable et ce qui est déclaratif.
+   */
+  const renderQualities = (titleStyle: PdfStyle, chipStyle: PdfStyle) =>
+    qualities.length > 0 ? (
+      <View wrap={false}>
+        <Text style={titleStyle}>{t.qualities}</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          {qualities.map((q, i) => (
+            <Text key={`q-${i}`} style={chipStyle}>{q}</Text>
+          ))}
+        </View>
+      </View>
+    ) : null
   const renderBrandHeader = () => (
     // Brand row : on contraint le bloc gauche (logo+nom+slogan) à
     // flex:1 + paddingRight pour qu'il ne déborde jamais sous la
@@ -312,10 +358,18 @@ export function AnonymizedCv({
                   </View>
                 </>
               )}
+
+              {renderQualities(
+                { ...s.sectionTitle, marginBottom: 6, marginTop: 10 },
+                { ...s.chip, backgroundColor: "white", marginRight: 4, marginBottom: 4 },
+              )}
             </View>
 
             {/* Main droite : résumé + parcours + formation */}
             <View style={{ flex: 1, minWidth: 0 }}>
+              {candidateSummaryText && (
+                <Text style={s.execSummary}>{candidateSummaryText}</Text>
+              )}
               {baseSummaryText && (
                 <Text style={s.execSummary}>{baseSummaryText}</Text>
               )}
@@ -359,6 +413,8 @@ export function AnonymizedCv({
                   ))}
                 </>
               )}
+
+              {renderCertifications(s.sectionTitle, s.eduDegree)}
 
               {otherSections.map((sec, i) => (
                 <View key={`sec-${i}`} wrap={false}>
@@ -451,7 +507,17 @@ export function AnonymizedCv({
             {headline}
           </Text>
 
-          {/* Summary — Nora factuel + optional custom note */}
+          {/* Accroche du candidat, puis Nora si activée, puis note du sourceur. */}
+          {candidateSummaryText && (
+            <Text style={{
+              fontSize: 12, color: "#374151",
+              lineHeight: 1.7,
+              marginBottom: 16,
+              maxWidth: "92%",
+            }}>
+              {candidateSummaryText}
+            </Text>
+          )}
           {baseSummaryText && (
             <Text style={{
               fontSize: 12, color: "#374151",
@@ -557,6 +623,22 @@ export function AnonymizedCv({
             </View>
           )}
 
+          {renderQualities(
+            {
+              fontSize: 9, fontFamily: "Helvetica-Bold",
+              color: accentSecondary, letterSpacing: 1.2,
+              textTransform: "uppercase", marginBottom: 12,
+            },
+            {
+              fontSize: 10, color: MUTED,
+              backgroundColor: "white",
+              borderWidth: 0.8, borderColor: LINE,
+              borderRadius: 999,
+              paddingVertical: 4, paddingHorizontal: 10,
+              marginRight: 6, marginBottom: 6,
+            },
+          )}
+
           {/* Parcours aéré */}
           {execExperience.length > 0 && (
             <View style={{ marginBottom: 26 }}>
@@ -629,6 +711,15 @@ export function AnonymizedCv({
                 </View>
               ))}
             </View>
+          )}
+
+          {renderCertifications(
+            {
+              fontSize: 9, fontFamily: "Helvetica-Bold",
+              color: accentSecondary, letterSpacing: 1.2,
+              textTransform: "uppercase", marginBottom: 10, marginTop: 14,
+            },
+            { fontSize: 10.5, color: INK, marginBottom: 4 },
           )}
 
           {otherSections.map((sec, i) => (
@@ -735,8 +826,16 @@ export function AnonymizedCv({
             }}>
               {headline}
             </Text>
+            {candidateSummaryText && (
+              <Text style={{ fontSize: 10.5, color: "#374151", lineHeight: 1.6 }}>
+                {candidateSummaryText}
+              </Text>
+            )}
             {baseSummaryText && (
-              <Text style={{ fontSize: 10.5, color: "#374151", lineHeight: 1.6, fontStyle: "italic" }}>
+              <Text style={{
+                fontSize: 10.5, color: "#374151", lineHeight: 1.6, fontStyle: "italic",
+                marginTop: candidateSummaryText ? 6 : 0,
+              }}>
                 {baseSummaryText}
               </Text>
             )}
@@ -810,6 +909,17 @@ export function AnonymizedCv({
                   </Text>
                 ))}
               </View>
+              {renderQualities(
+                { ...cardTitle, marginTop: 12 },
+                {
+                  fontSize: 9, color: MUTED,
+                  backgroundColor: "white",
+                  borderWidth: 0.7, borderColor: LINE,
+                  borderRadius: 4,
+                  paddingVertical: 2.5, paddingHorizontal: 7,
+                  marginRight: 5, marginBottom: 5,
+                },
+              )}
             </View>
           </View>
 
@@ -877,6 +987,10 @@ export function AnonymizedCv({
                   )}
                 </View>
               ))}
+              {renderCertifications(
+                { ...cardTitle, marginTop: 12 },
+                { fontSize: 10, color: INK, marginBottom: 3 },
+              )}
             </View>
           )}
 
@@ -922,8 +1036,11 @@ export function AnonymizedCv({
         {hasJob && <Text style={s.preheadline}>{t.presentedFor}</Text>}
         <Text style={s.headline}>{headline}</Text>
 
-        {/* Executive summary — LLM 2-3 phrases factuelles si on a un job,
-            puis (en plus ou seul) message custom du sourceur si renseigné. */}
+        {/* Accroche du candidat, puis résumé Nora si activé, puis (en plus ou
+            seul) message custom du sourceur si renseigné. */}
+        {candidateSummaryText && (
+          <Text style={s.execSummary}>{candidateSummaryText}</Text>
+        )}
         {baseSummaryText && (
           <Text style={s.execSummary}>{baseSummaryText}</Text>
         )}
@@ -985,6 +1102,8 @@ export function AnonymizedCv({
           </>
         )}
 
+        {renderQualities(s.sectionTitle, { ...s.chip, backgroundColor: "white" })}
+
         {/* Expérience — ordre d'origine, descriptions intactes. */}
         {experience.length > 0 && (
           <>
@@ -1021,6 +1140,8 @@ export function AnonymizedCv({
             ))}
           </>
         )}
+
+        {renderCertifications(s.sectionTitle, s.eduDegree)}
 
         {/* Rubriques libres du CV, rendues APRÈS la formation : ce sont des
             compléments, pas la colonne vertébrale du profil. */}

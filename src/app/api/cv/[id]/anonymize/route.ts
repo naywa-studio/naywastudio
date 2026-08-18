@@ -53,6 +53,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     options?: {
       template?: unknown
       keep_nora_summary?: unknown
+      keep_candidate_summary?: unknown
       custom_text?: unknown
       watermark?: unknown
       language?: unknown
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const optRaw = body?.options ?? {}
   const bodyTemplate = optRaw.template
   const bodyKeepNora = typeof optRaw.keep_nora_summary === "boolean" ? optRaw.keep_nora_summary : undefined
+  const bodyKeepCandidate = typeof optRaw.keep_candidate_summary === "boolean" ? optRaw.keep_candidate_summary : undefined
   const bodyCustomText = typeof optRaw.custom_text === "string" ? optRaw.custom_text : undefined
   const bodyWatermark = typeof optRaw.watermark === "boolean" ? optRaw.watermark : undefined
   const language: "fr" | "en" = optRaw.language === "en" ? "en" : "fr"
@@ -166,6 +168,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const watermark = bodyWatermark ?? orgDefaults.watermark
   const watermarkText = orgDefaults.watermarkText
   const keepNoraSummary = bodyKeepNora ?? jobOptions.keepNoraSummary
+  const keepCandidateSummary = bodyKeepCandidate ?? jobOptions.keepCandidateSummary
   const customText = (bodyCustomText ?? jobOptions.customText).trim().slice(0, 600)
 
   const reference = refFor(candidate.id)
@@ -226,6 +229,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           options: {
             template,
             keepNoraSummary,
+            keepCandidateSummary,
             customText,
             watermark,
             watermarkText,

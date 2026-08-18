@@ -64,6 +64,9 @@ export type AnonymizeTemplate = "classic" | "two-column" | "executive" | "bento"
 export interface AnonymizeOptions {
   template: AnonymizeTemplate
   keepNoraSummary: boolean
+  /** Accroche ECRITE PAR LE CANDIDAT. Distincte du resume Nora : ce n'est
+   *  pas une generation, c'est du contenu de CV. Cochee par defaut. */
+  keepCandidateSummary: boolean
   customText: string
   watermark: boolean
   /** Texte du filigrane. Vide → le rendu retombe sur le nom de l'org. */
@@ -75,6 +78,9 @@ export const INITIAL_ANONYMIZE_OPTIONS: AnonymizeOptions = {
   // Demande produit (lot Shortlist) : le résumé Nora est MASQUÉ par défaut.
   // Le sourceur le coche explicitement mission par mission.
   keepNoraSummary: false,
+  // Cochee, elle : retirer par defaut l'accroche du candidat amputait le
+  // document d'un contenu qu'il a lui-meme ecrit.
+  keepCandidateSummary: true,
   customText: "",
   watermark: false,
   watermarkText: "",
@@ -106,11 +112,13 @@ export const INITIAL_ORG_ANONYMIZE_DEFAULTS: OrgAnonymizeDefaults = {
 /** Override d'anonymisation par mission (jobs.anonymize_options). */
 export interface JobAnonymizeOptions {
   keepNoraSummary: boolean
+  keepCandidateSummary: boolean
   customText: string
 }
 
 export const INITIAL_JOB_ANONYMIZE_OPTIONS: JobAnonymizeOptions = {
   keepNoraSummary: false,
+  keepCandidateSummary: true,
   customText: "",
 }
 
@@ -134,6 +142,7 @@ export function readJobOptions(raw: unknown): JobAnonymizeOptions {
   const o = (raw ?? {}) as Record<string, unknown>
   return {
     keepNoraSummary: typeof o.keepNoraSummary === "boolean" ? o.keepNoraSummary : false,
+    keepCandidateSummary: typeof o.keepCandidateSummary === "boolean" ? o.keepCandidateSummary : true,
     customText: typeof o.customText === "string" ? o.customText.slice(0, CUSTOM_TEXT_MAX) : "",
   }
 }
@@ -148,6 +157,7 @@ export function resolveAnonymizeOptions(
     watermark: org.watermark,
     watermarkText: org.watermarkText,
     keepNoraSummary: job.keepNoraSummary,
+    keepCandidateSummary: job.keepCandidateSummary,
     customText: job.customText,
   }
 }

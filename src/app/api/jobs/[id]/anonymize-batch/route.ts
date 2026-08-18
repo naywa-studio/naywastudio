@@ -48,7 +48,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const body = await req.json().catch(() => null) as {
     candidate_ids?: unknown
-    options?: { template?: unknown; watermark?: unknown; watermarkText?: unknown; keepNoraSummary?: unknown; customText?: unknown }
+    options?: { template?: unknown; watermark?: unknown; watermarkText?: unknown; keepNoraSummary?: unknown; keepCandidateSummary?: unknown; customText?: unknown }
   } | null
   const ids = Array.isArray(body?.candidate_ids)
     ? Array.from(new Set(body.candidate_ids.filter((x): x is string => typeof x === "string"))).slice(0, MAX_BATCH)
@@ -100,8 +100,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const watermarkText = typeof ov.watermarkText === "string" ? ov.watermarkText.slice(0, 40) : orgDefaults.watermarkText
   const jobOptionsBase = readJobOptions(job.anonymize_options)
   const keepNoraSummary = typeof ov.keepNoraSummary === "boolean" ? ov.keepNoraSummary : jobOptionsBase.keepNoraSummary
+  const keepCandidateSummary = typeof ov.keepCandidateSummary === "boolean" ? ov.keepCandidateSummary : jobOptionsBase.keepCandidateSummary
   const customText = typeof ov.customText === "string" ? ov.customText.slice(0, 600) : jobOptionsBase.customText
-  const jobOptions = { keepNoraSummary, customText }
+  const jobOptions = { keepNoraSummary, keepCandidateSummary, customText }
   const rf = job.normalized?.role_family ?? []
   // Titre = celui de la mission, tel qu'ecrit par le sourceur (et editable
   // depuis l'apercu). Plus de substitution par le role_family normalise.
@@ -189,6 +190,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           options: {
             template,
             keepNoraSummary: jobOptions.keepNoraSummary,
+            keepCandidateSummary: jobOptions.keepCandidateSummary,
             customText: jobOptions.customText,
             watermark,
             watermarkText,

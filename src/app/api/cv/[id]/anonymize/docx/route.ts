@@ -38,6 +38,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     job_id?: unknown
     options?: {
       keep_nora_summary?: unknown
+      keep_candidate_summary?: unknown
       custom_text?: unknown
       language?: unknown
     }
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const optRaw = body?.options ?? {}
   const keepNoraSummary = typeof optRaw.keep_nora_summary === "boolean" ? optRaw.keep_nora_summary : true
+  const keepCandidateSummary = typeof optRaw.keep_candidate_summary === "boolean" ? optRaw.keep_candidate_summary : true
   const customText =
     typeof optRaw.custom_text === "string" ? optRaw.custom_text.trim().slice(0, 600) : ""
   const language: "fr" | "en" = optRaw.language === "en" ? "en" : "fr"
@@ -154,6 +156,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       executiveSummary: null,
       options: {
         keepNoraSummary,
+        keepCandidateSummary,
         customText,
         language,
       },

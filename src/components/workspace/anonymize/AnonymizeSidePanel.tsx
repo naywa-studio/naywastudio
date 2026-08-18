@@ -29,6 +29,8 @@ const copy = {
     missionScope: "Enregistré sur la mission — vaut pour tous ses candidats.",
     noraSummary: "Résumé Nora",
     noraSummaryHint: "Deux ou trois phrases factuelles orientées mission, rédigées à la génération.",
+    candidateSummary: "Accroche du candidat",
+    candidateSummaryHint: "Le résumé que le candidat a écrit sur son CV. Ce n'est pas de l'IA.",
     watermark: "Filigrane",
     watermarkHint: "Le nom de votre organisation en fond de chaque page.",
     watermarkPlaceholder: "Nom affiché en filigrane",
@@ -46,6 +48,8 @@ const copy = {
     missionScope: "Saved on the job opening — applies to all its candidates.",
     noraSummary: "Nora summary",
     noraSummaryHint: "Two or three factual, job-oriented sentences, written at generation time.",
+    candidateSummary: "Candidate summary",
+    candidateSummaryHint: "The summary the candidate wrote on their own CV. Not AI-generated.",
     watermark: "Watermark",
     watermarkHint: "Your organization's name behind every page.",
     watermarkPlaceholder: "Name shown in the watermark",
@@ -134,6 +138,20 @@ export function AnonymizeSidePanel({ options, onChange, readOnly = false, footer
               le candidat, le message éditorial suit la mission. Sans ça, le
               sourceur ne peut pas deviner ce qui persiste. */}
           <Scope>{t.templateScope}</Scope>
+        </div>
+
+        {/* Deux cases et non une : l'accroche du candidat n'est pas de l'IA.
+            Les confondre faisait disparaître, par défaut, le texte que le
+            candidat avait lui-même écrit sur son CV. */}
+        <div>
+          <Toggle
+            label={t.candidateSummary}
+            hint={t.candidateSummaryHint}
+            checked={options.keepCandidateSummary ?? true}
+            disabled={readOnly}
+            onChange={(v) => set({ keepCandidateSummary: v })}
+          />
+          <Scope>{t.missionScope}</Scope>
         </div>
 
         <div>
