@@ -527,9 +527,9 @@ export function AnonymizedCv({
             )}
           </View>
 
-          {/* Skills — pills larges, max 10 */}
+          {/* Skills — pills larges, liste entiere (le plafond a saute avec `execSkills`). */}
           {execSkills.length > 0 && (
-            <View style={{ marginBottom: 28 }}>
+            <View style={{ marginBottom: 28 }} minPresenceAhead={56}>
               <Text style={{
                 fontSize: 9, fontFamily: "Helvetica-Bold",
                 color: accentSecondary, letterSpacing: 1.2,
@@ -965,7 +965,18 @@ export function AnonymizedCv({
         {/* Skills — telles que parsées (pas de highlight mission). */}
         {skills.length > 0 && (
           <>
-            <Text style={s.sectionTitle}>{t.keySkills}</Text>
+            {/*
+              Le titre et les puces sont deux elements FRERES : rien n'empeche
+              @react-pdf de poser « Competences cles » en bas de page 1 et les
+              puces en haut de page 2. Sans consequence tant que le bloc tenait
+              en quatre puces, beaucoup plus probable depuis qu'il en compte
+              couramment dix a vingt-cinq. Meme famille de defaut que le diplome
+              separe de ses dates. `minPresenceAhead` reporte le titre a la page
+              suivante s'il ne reste pas la place d'au moins deux rangees.
+            */}
+            <View minPresenceAhead={44}>
+              <Text style={s.sectionTitle}>{t.keySkills}</Text>
+            </View>
             <View style={s.chipRow}>
               {skills.map((sk, i) => (
                 <Text key={i} style={s.chip}>{sk}</Text>
