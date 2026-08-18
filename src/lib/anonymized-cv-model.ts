@@ -179,6 +179,118 @@ export function dedupe(arr: string[]): string[] {
 }
 
 /**
+ * Casse d'affichage d'une compétence.
+ *
+ * Les deux sources n'ont pas la même convention : le parseur écrit les
+ * `core_skills` en minuscules, alors que la colonne `skills` reprend le CV tel
+ * quel — souvent en capitales. Les juxtaposer donnait « REVIT » à côté de
+ * « modélisation 3D » sur le document remis au client.
+ *
+ * Les acronymes courts (BIM, ACP, E3D) restent en capitales : les abaisser
+ * serait pire. Au-delà, une marque connue est rétablie dans sa graphie propre,
+ * sinon on capitalise la première lettre.
+ */
+const BRAND_CASE: Record<string, string> = {
+  autocad: "AutoCAD",
+  revit: "Revit",
+  tekla: "Tekla",
+  navisworks: "Navisworks",
+  twinmotion: "Twinmotion",
+  solidworks: "SolidWorks",
+  sketchup: "SketchUp",
+  catia: "CATIA",
+  excel: "Excel",
+  powerpoint: "PowerPoint",
+}
+
+function displayCase(s: string): string {
+  const t = s.trim()
+  const known = BRAND_CASE[t.toLowerCase()]
+  if (known) return known
+  // Acronyme court, ou libellé qui n'est pas tout en capitales : on n'y touche pas.
+  if (t.length <= 4) return t
+  if (t !== t.toUpperCase()) return t
+  if (/\d/.test(t)) return t
+  return t.charAt(0) + t.slice(1).toLowerCase()
+}
+
+/**
+ * Clé de COMPARAISON (jamais affichée).
+ *
+ * Les annotations entre parenthèses sont retirées : `calcul flexibilité` et
+ * `Calcul flexibilité (CeasarII)` sont la même compétence, et les afficher
+ * toutes les deux donne l'impression d'une fiche mal relue.
+ */
+const cmpKey = (s: string) =>
+  s.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^\p{L}\p{N}]+/gu, " ").trim()
+
+/** `a` apparaît-il comme suite de mots consécutifs dans `b` ? */
+function containsRun(a: string[], b: string[]): boolean {
+  if (a.length === 0 || a.length > b.length) return false
+  for (let i = 0; i + a.length <= b.length; i++) {
+    let ok = true
+    for (let j = 0; j < a.length; j++) {
+      if (b[i + j] !== a[j]) { ok = false; break }
+    }
+    if (ok) return true
+  }
+  return false
+}
+
+/**
+ * Bureautique générique — écartée du COMPLÉMENT uniquement.
+ *
+ * « Excel » en compétence CLÉ d'un ingénieur structure affaiblit la fiche au
+ * lieu de l'étoffer. Mais si le modèle l'a délibérément retenu dans
+ * `core_skills` (une assistante de gestion, par exemple), on respecte son
+ * choix : le filtre ne s'applique jamais à la liste d'origine.
+ */
+const BUREAUTIQUE = new Set([
+  "excel", "word", "powerpoint", "outlook", "office", "pack office",
+  "microsoft office", "ms office", "suite office", "bureautique", "internet",
+])
+
+/**
+ * Compétences affichées sur le document anonymisé.
+ *
+ * AVANT : `core_skills` OU, si vide seulement, la colonne `skills`. Un ou
+ * EXCLUSIF — donc dès que le modèle sortait ne serait-ce qu'une compétence, le
+ * contenu de la colonne était jeté. Mesuré en base sur 198 CV : 3,3 compétences
+ * affichées en moyenne là où la fusion en donne 9,1, alors que TOUT était déjà
+ * en base. Le champ s'imprime tel quel sur le CV remis au client final : quatre
+ * étiquettes pour quinze ans de carrière donnent l'image d'un candidat pauvre.
+ *
+ * MAINTENANT : les deux sources fusionnent, `core_skills` en tête (c'est la
+ * liste que le modèle a jugée déterminante), la colonne en complément.
+ *
+ * Ne consomme aucun crédit, n'appelle aucun modèle, et n'exige pas de
+ * re-parser : la donnée est déjà là, elle était simplement écartée à
+ * l'affichage.
+ */
+export function mergeDisplaySkills(core: string[], fallback: string[]): string[] {
+  const out: string[] = []
+  const keys: string[][] = []
+
+  const push = (raw: string, isTopUp: boolean) => {
+    const label = displayCase(raw)
+    if (!label) return
+    const key = cmpKey(label)
+    if (!key) return
+    if (isTopUp && BUREAUTIQUE.has(key)) return
+    // Doublon exact, ou variante plus/moins détaillée d'une entrée déjà retenue.
+    for (const k of keys) {
+      if (containsRun(k, key.split(" ")) || containsRun(key.split(" "), k)) return
+    }
+    keys.push(key.split(" "))
+    out.push(label)
+  }
+
+  for (const s of core) push(s, false)
+  for (const s of fallback) push(s, true)
+  return out
+}
+
+/**
  * Décide ce qui figure au document.
  *
  * Appelé par le rendu PDF (serveur) ET par l'aperçu HTML (navigateur). Toute
@@ -216,11 +328,11 @@ export function buildAnonymizedModel({
   const roleFamily = candidate.taxonomy?.role_family?.[0] ?? null
 
   // Compétences : on ne réordonne PAS par pertinence mission. Le client lit le
-  // CV tel qu'il est, sans tri orienté. Dédupe + plafond aligné sur le parsing.
-  const skills = dedupe(
-    candidate.taxonomy?.core_skills?.length
-      ? candidate.taxonomy.core_skills
-      : (candidate.skills ?? []),
+  // CV tel qu'il est, sans tri orienté. Les deux sources fusionnent (cf.
+  // `mergeDisplaySkills`) ; plafond inchangé, il ne mord qu'au-delà de 40.
+  const skills = mergeDisplaySkills(
+    candidate.taxonomy?.core_skills ?? [],
+    candidate.skills ?? [],
   ).slice(0, 40)
 
   // Rubriques libres : on écarte celles qui n'ont ni titre ni contenu.
