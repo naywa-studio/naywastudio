@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       pipeline_stage, in_pipeline, contacted_at, replied_at, interview_at,
       salary_expectation_brut,
       client_feedback_note, client_feedback_at,
-      anonymize_excluded, anonymize_order,
+      anonymize_excluded, anonymize_order, anonymize_custom_text,
       booking_token, created_at, updated_at,
       job:jobs(*)
     `)
@@ -84,6 +84,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     anonymized_at?: string | null
     anonymize_excluded?: AnonymizeSelection | null
     anonymize_order?: AnonymizeSelection | null
+    anonymize_custom_text?: string | null
   } = {}
 
   if (body && "salary_expectation_brut" in body) {
@@ -175,6 +176,20 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (body && "anonymize_order" in body) {
     const order = readOrder(body.anonymize_order)
     update.anonymize_order = isEmptyOrder(order) ? null : order
+  }
+
+  // Message d'accompagnement, PAR CANDIDAT depuis la migration 084. Il vivait
+  // sur la mission et se retrouvait donc sous les douze profils d'une même
+  // shortlist, alors qu'un angle éditorial ne vaut que pour une personne.
+  if (body && "anonymize_custom_text" in body) {
+    const v = body.anonymize_custom_text
+    if (v === null || v === "") {
+      update.anonymize_custom_text = null
+    } else if (typeof v === "string") {
+      update.anonymize_custom_text = v.slice(0, 600)
+    } else {
+      return NextResponse.json({ error: "invalid_custom_text" }, { status: 400 })
+    }
   }
 
   if (Object.keys(update).length === 0) {

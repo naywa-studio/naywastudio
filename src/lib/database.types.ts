@@ -500,7 +500,7 @@ export type Database = {
           /** Dernier mode de match choisi (mémo pour repartir vite). */
           last_match_mode: 'intelligent' | 'personnalise' | 'complet' | null
           /** Override anonymisation par mission. NULL = défauts du cabinet. */
-          anonymize_options: { keepNoraSummary?: boolean; keepCandidateSummary?: boolean; customText?: string } | null
+          anonymize_options: { keepNoraSummary?: boolean; keepCandidateSummary?: boolean } | null
           created_at: string
           updated_at: string
         }
@@ -545,7 +545,7 @@ export type Database = {
           exclusions?: string[] | null
           target_sectors?: string[]
           last_match_mode?: 'intelligent' | 'personnalise' | 'complet' | null
-          anonymize_options?: { keepNoraSummary?: boolean; keepCandidateSummary?: boolean; customText?: string } | null
+          anonymize_options?: { keepNoraSummary?: boolean; keepCandidateSummary?: boolean } | null
           created_at?: string
           updated_at?: string
         }
@@ -776,6 +776,7 @@ export type Database = {
            *  Mêmes clés que l'exclusion ; une brique absente va à la fin.
            *  Voir 081. */
           anonymize_order: AnonymizeSelection | null
+          anonymize_custom_text: string | null
           contacted_at: string | null
           replied_at: string | null
           interview_at: string | null
@@ -813,6 +814,7 @@ export type Database = {
           client_positive_at?: string | null
           anonymize_excluded?: AnonymizeSelection | null
           anonymize_order?: AnonymizeSelection | null
+          anonymize_custom_text?: string | null
           contacted_at?: string | null
           replied_at?: string | null
           interview_at?: string | null

@@ -169,7 +169,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const watermarkText = orgDefaults.watermarkText
   const keepNoraSummary = bodyKeepNora ?? jobOptions.keepNoraSummary
   const keepCandidateSummary = bodyKeepCandidate ?? jobOptions.keepCandidateSummary
-  const customText = (bodyCustomText ?? jobOptions.customText).trim().slice(0, 600)
+  // Message d'accompagnement : il vit sur le MATCH depuis la migration 084.
+  // Résolu plus bas, une fois la ligne de match lue — un override de body
+  // continue de gagner (appel ponctuel depuis la fiche match).
+  let customText = (bodyCustomText ?? "").trim().slice(0, 600)
 
   const reference = refFor(candidate.id)
 
@@ -186,7 +189,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (jobId && candidate.parsed_cv) {
     const { data: matchRow } = await sb
       .from("match_assessments")
-      .select("anonymize_excluded, anonymize_order")
+      .select("anonymize_excluded, anonymize_order, anonymize_custom_text")
       .eq("job_id", jobId)
       .eq("candidate_id", candidate.id)
       // `limit(1)` volontaire : sans lui, deux lignes pour un même couple
@@ -203,6 +206,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           readOrder(matchRow.anonymize_order),
         ),
       }
+    }
+    // Le message enregistré sur le match ne s'applique que si l'appel n'en a
+    // pas fourni un : la fiche match envoie ce qu'elle a à l'écran, y compris
+    // avant enregistrement.
+    if (!customText) {
+      customText = (matchRow?.anonymize_custom_text ?? "").trim().slice(0, 600)
     }
   }
 

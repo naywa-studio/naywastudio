@@ -368,14 +368,14 @@ export default function MatchPage() {
       // réglé dans la shortlist. Invisible tant que l'aperçu n'existait pas,
       // criant maintenant qu'il montre le document.
       const jobOpts = loaded?.job?.anonymize_options
-      if (jobOpts) {
-        setAnonymizeOptions((prev) => ({
-          ...prev,
-          keepNoraSummary: jobOpts.keepNoraSummary ?? prev.keepNoraSummary,
-          keepCandidateSummary: jobOpts.keepCandidateSummary ?? prev.keepCandidateSummary,
-          customText: jobOpts.customText ?? prev.customText,
-        }))
-      }
+      // Les deux résumés viennent de la MISSION (politique éditoriale du
+      // dossier), le message vient du MATCH (angle sur CE candidat).
+      setAnonymizeOptions((prev) => ({
+        ...prev,
+        keepNoraSummary: jobOpts?.keepNoraSummary ?? prev.keepNoraSummary,
+        keepCandidateSummary: jobOpts?.keepCandidateSummary ?? prev.keepCandidateSummary,
+        customText: loaded?.anonymize_custom_text ?? "",
+      }))
       setLoading(false)
     })()
     return () => { mounted = false }
@@ -513,16 +513,38 @@ export default function MatchPage() {
           anonymize_options: {
             keepNoraSummary: anonymizeOptions.keepNoraSummary,
             keepCandidateSummary: anonymizeOptions.keepCandidateSummary,
-            customText: anonymizeOptions.customText,
           },
         }),
       }).catch(() => { /* best-effort : la valeur reste à l'écran */ })
     }, 700)
     return () => { if (jobOptionsTimer.current) clearTimeout(jobOptionsTimer.current) }
-    // Volontairement limité aux champs de PORTÉE MISSION : les deux résumés
-    // et le message. Le gabarit et le filigrane, eux, sont réglés au niveau de
-    // l'organisation et n'ont rien à faire ici.
-  }, [anonymizeOptions.keepNoraSummary, anonymizeOptions.keepCandidateSummary, anonymizeOptions.customText, match?.job?.id, isReadOnly])
+    // Volontairement limité aux DEUX CASES DE RÉSUMÉ, seuls réglages de portée
+    // mission. Le message est parti sur le match (migration 084) ; le gabarit
+    // et le filigrane sont réglés au niveau de l'organisation.
+  }, [anonymizeOptions.keepNoraSummary, anonymizeOptions.keepCandidateSummary, match?.job?.id, isReadOnly])
+
+  /**
+   * Message d'accompagnement — enregistré sur LE MATCH.
+   *
+   * Séparé de l'effet ci-dessus parce que sa portée est différente : deux
+   * niveaux mélangés dans un même enregistrement, c'était justement le défaut
+   * que la migration 084 corrige.
+   */
+  const customTextTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const customTextReady = useRef(false)
+  useEffect(() => {
+    if (!matchId || isReadOnly) return
+    if (!customTextReady.current) { customTextReady.current = true; return }
+    if (customTextTimer.current) clearTimeout(customTextTimer.current)
+    customTextTimer.current = setTimeout(() => {
+      void fetch(`/api/match/${matchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anonymize_custom_text: anonymizeOptions.customText.trim() || null }),
+      }).catch(() => { /* best-effort : la valeur reste à l'écran */ })
+    }, 700)
+    return () => { if (customTextTimer.current) clearTimeout(customTextTimer.current) }
+  }, [anonymizeOptions.customText, matchId, isReadOnly])
 
   const generateAnonymized = async () => {
     if (!candidate || anonymizeStatus.state === "working" || isReadOnly) return

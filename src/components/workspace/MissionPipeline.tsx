@@ -252,7 +252,6 @@ export function MissionPipeline({
   const [watermark, setWatermark] = useState(orgDefaults.watermark)
   const [watermarkText, setWatermarkText] = useState(orgDefaults.watermarkText)
   const [anonNora, setAnonNora] = useState(job.anonymize_options?.keepNoraSummary ?? false)
-  const [anonMsg, setAnonMsg] = useState(job.anonymize_options?.customText ?? "")
   const [showSettings, setShowSettings] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [anonErr, setAnonErr] = useState<string | null>(null)
@@ -272,9 +271,11 @@ export function MissionPipeline({
 
   const liveOptions = () => ({
     template, watermark, watermarkText: watermarkText.trim().slice(0, 40),
-    keepNoraSummary: anonNora, customText: anonMsg.trim().slice(0, 600),
+    keepNoraSummary: anonNora,
   })
 
+  // Le MESSAGE n'est plus ici : il est passe sur le candidat (migration 084).
+  // Ce panneau ne regle donc plus que la politique editoriale du dossier.
   const msgMounted = useRef(false)
   useEffect(() => {
     if (!msgMounted.current) { msgMounted.current = true; return }
@@ -285,12 +286,11 @@ export function MissionPipeline({
         // decoche depuis l'atelier). L'omettre ici la remettrait a son defaut
         // a chaque enregistrement de la shortlist, en silence.
         keepCandidateSummary: job.anonymize_options?.keepCandidateSummary ?? true,
-        customText: anonMsg,
       } }) }).catch(() => {})
     }, 700)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anonMsg, anonNora])
+  }, [anonNora])
 
   const shortlisted = useMemo(() => rows.filter((r) => r.in_pipeline), [rows])
   const visible = useMemo(
@@ -449,8 +449,8 @@ export function MissionPipeline({
             branding={anonBranding}
             template={template} watermark={watermark} watermarkText={watermarkText}
             onTemplate={setTemplate} onWatermark={setWatermark} onWatermarkText={setWatermarkText}
-            keepNoraSummary={anonNora} customText={anonMsg}
-            onKeepNora={setAnonNora} onCustomText={setAnonMsg}
+            keepNoraSummary={anonNora}
+            onKeepNora={setAnonNora}
             brandingHref={brandingHref} lang={lang}
           />
         </div>

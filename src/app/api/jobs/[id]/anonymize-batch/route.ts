@@ -101,8 +101,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const jobOptionsBase = readJobOptions(job.anonymize_options)
   const keepNoraSummary = typeof ov.keepNoraSummary === "boolean" ? ov.keepNoraSummary : jobOptionsBase.keepNoraSummary
   const keepCandidateSummary = typeof ov.keepCandidateSummary === "boolean" ? ov.keepCandidateSummary : jobOptionsBase.keepCandidateSummary
-  const customText = typeof ov.customText === "string" ? ov.customText.slice(0, 600) : jobOptionsBase.customText
-  const jobOptions = { keepNoraSummary, keepCandidateSummary, customText }
+  const jobOptions = { keepNoraSummary, keepCandidateSummary }
   const rf = job.normalized?.role_family ?? []
   // Titre = celui de la mission, tel qu'ecrit par le sourceur (et editable
   // depuis l'apercu). Plus de substitution par le role_family normalise.
@@ -124,10 +123,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // pour le téléchargement à l'unité et le paquet remis au client dirait
   // autre chose que l'aperçu — le pire des deux mondes.
   const layouts = new Map<string, { hidden: AnonymizeSelection; order: AnonymizeSelection }>()
+  // Message d'accompagnement PAR CANDIDAT (migration 084). Un lot ne porte donc
+  // plus la même phrase sous douze profils : chacun repart avec le sien.
+  const customTexts = new Map<string, string>()
   {
     const { data: rows } = await sb
       .from("match_assessments")
-      .select("candidate_id, anonymize_excluded, anonymize_order")
+      .select("candidate_id, anonymize_excluded, anonymize_order, anonymize_custom_text")
       .eq("job_id", jobId)
       .in("candidate_id", ids)
     for (const row of rows ?? []) {
@@ -137,6 +139,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           order: readOrder(row.anonymize_order),
         })
       }
+      const txt = (row.anonymize_custom_text ?? "").trim()
+      if (txt) customTexts.set(row.candidate_id, txt.slice(0, 600))
     }
   }
 
@@ -191,7 +195,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
             template,
             keepNoraSummary: jobOptions.keepNoraSummary,
             keepCandidateSummary: jobOptions.keepCandidateSummary,
-            customText: jobOptions.customText,
+            customText: customTexts.get(candidate.id) ?? "",
             watermark,
             watermarkText,
             language: "fr",
