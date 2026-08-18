@@ -8,7 +8,10 @@
 > Depuis août : **boucle de feedback client complète** (retours négatifs ET
 > positifs → Nora réajuste la mission), **critères à proscrire**, **atelier
 > d'anonymisation éditable** (aperçu vivant 4 gabarits + édition de la fiche
-> candidat). `main` = `65314bd`. **Migrations en base jusqu'à 083.**
+> candidat). `main` = `f875f66`. **Migrations en base jusqu'à 083.**
+> **F7 CLOS** (19/08) : les compétences clés et, plus largement, tout ce que le
+> parseur extrait atteignent enfin le document remis au client. Voir
+> `docs/audit-perte-info-parsing-document.md`.
 
 ---
 
@@ -672,19 +675,25 @@ propre** (garde-fous respectés, i18n FR+EN tenue, allowlists strictes, aucun
 - **Dette cadrée** : `docs/lot-f-dette-ouverte.md` (F1→F11) — excellent document,
   à lire avant de reprendre. F10-2 est FAIT.
 
-**AUDIT DU 18/08 — 6 points trouvés. Les points 2 à 6 sont CORRIGÉS ET MERGÉS**
-(branche `claude/post-vacances` mergée en fast-forward le 18/08, `main` =
-`65314bd` : tsc + eslint 0 erreur / 0 warning sur tout `src/`). **Seul le point 1
-reste ouvert** — il demande une décision produit.
+**AUDIT DU 18/08 — 6 points trouvés, TOUS CLOS** (`claude/post-vacances` puis
+`claude/f7-competences-cles`, mergées en fast-forward ; `main` = `f875f66`,
+tsc + eslint 0 erreur / 0 warning sur tout `src/`).
 
-1. **F7 `core_skills` n'a jamais été vérifié — et il est ENCORE cassé en prod.**
-   Mesuré en base : **195 CV, moyenne 3,29 compétences clés, max 6, et 195/195
-   sous le seuil de 8**. Surtout : **AUCUN CV n'a été parsé depuis le correctif**
-   (commit `acecdd8`, 15/08 19:52) → le correctif n'a jamais tourné. **GMH (seul
-   client réel) : 12 CV, moyenne 3,5, dernier parsing le 12/08.** Ce champ
-   s'affiche **tel quel sur le CV remis au client final**. Couplé à **F4** (Naywa
-   ne peut pas re-parser les CV d'un client, RLS), ces 12 CV ne s'amélioreront
-   que si GMH re-parse fiche par fiche. → **priorité n° 1**.
+1. ✅ **CORRIGÉ le 19/08 — F7 `core_skills`, et la cause n'était pas celle qu'on
+   croyait.** Diagnostic de départ : 195 CV à 3,29 compétences en moyenne (cible
+   8-20), GMH à 3,5. On a d'abord soupçonné le parsing ; le correctif du 15/08
+   (`acecdd8`) est **purement un prompt**, et mesuré sur 3 CV importés le 18/08
+   il ne fait passer la moyenne qu'à 5,3. Ce n'est pas un manque de matière : le
+   CV qui sort le MOINS de compétences est celui dont le parcours est le PLUS
+   fourni. Le modèle se contente du minimum, insister ne le corrige pas.
+   **La vraie cause était dans le RENDU** : `buildAnonymizedModel` lisait
+   `taxonomy.core_skills` OU, si vide seulement, la colonne `candidates.skills`.
+   Un ou EXCLUSIF, donc tout le contenu de la colonne était jeté dès que le
+   modèle sortait une seule compétence. Les deux sources fusionnent désormais
+   (`mergeDisplaySkills`, avec déduplication par inclusion de mots, casse
+   d'affichage et filtre bureautique). **Mesuré sur les 12 CV réels de GMH :
+   3,50 → 9,92, 9 sur 12 atteignent 8 — sans re-parser un seul CV.**
+   → **La dépendance à F4 (route admin de re-parsing) disparaît.**
 2. ✅ **CORRIGÉ — Migrations 074/075/076 absentes du repo** (dette de la session
    d'avant vacances : appliquées via MCP sans être commitées). Écrites a
    posteriori, idempotentes, conformes aux colonnes réellement en base.
@@ -708,6 +717,39 @@ reste ouvert** — il demande une décision produit.
    uniquement), `current_org_id()` accordé exprès à `authenticated` (helper RLS),
    et **« Leaked password protection » désactivé** — option Supabase Auth à
    activer d'un clic au dashboard (vérifie les mots de passe contre HaveIBeenPwned).
+
+#### Perte d'information parseur → document — CLOS — 2026-08-19
+
+En traitant F7, une question d'Elyas a élargi le sujet : « le but est d'avoir
+tout le CV dans la version anonymisée ». Audit champ par champ écrit dans
+**`docs/audit-perte-info-parsing-document.md`** — à lire avant de toucher au
+document anonymisé. Quatre pertes trouvées, mesurées en base :
+
+- **`summary`** perdu sur ~100 % des CV (12/12 GMH, 141/142 KYPE) : UNE case
+  pilotait DEUX choses sans rapport — le résumé généré par Nora et l'accroche
+  écrite par le candidat. Décochée par défaut, elle supprimait les deux.
+  → `keepCandidateSummary`, drapeau distinct, **coché par défaut**.
+- **`certifications`** (5/12 GMH) et **`qualities`** (12/12) : extraites,
+  stockées, absentes des 4 gabarits. → rendues, qualités en bloc séparé.
+- **`is_apprentice`** : point ÉCARTÉ, arbitrage d'Elyas — le document est
+  toujours présenté POUR une mission, le cadre contractuel vient de là, et
+  `years_experience` exclut déjà l'alternance en cours.
+
+**Cause commune, et c'est l'enseignement à retenir** : `AnonymizedCvModel` est
+une liste d'INCLUSION. Un champ ajouté au parseur n'atteint le client que si
+quelqu'un pense à l'ajouter là aussi, et son absence ne se voit pas — le
+document reste valide, simplement incomplet. `anonymize-selection.ts` avait
+justement évité ce piège pour les briques en choisissant une liste d'exclusion.
+
+**⚠️ Le DOCX ne passe PAS par `buildAnonymizedModel`** (agencement linéaire
+propre). Toute règle de contenu doit y être répliquée sciemment, sinon le Word
+et le PDF d'un même candidat divergent — c'était le cas avant ce lot.
+
+**⚠️ LEÇON — une option se câble sur QUATRE maillons** : envoi client, lecture
+serveur, sauvegarde, rendu. `keepCandidateSummary` a été livrée avec 3 maillons
+sur 4 cassés (trouvés par Elyas en recette, puis par balayage systématique) :
+la case était inerte, ne se rechargeait pas, ne se sauvegardait pas, et le
+panneau shortlist l'écrasait en silence.
 
 **Branches doc NON mergées (aucune ligne de code, zéro risque de conflit) :**
 `claude/doc-pricing-honoraires` (chantier à faire), `claude/doc-mailing-domaine`
