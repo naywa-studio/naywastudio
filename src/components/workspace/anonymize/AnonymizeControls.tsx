@@ -244,6 +244,7 @@ export function AnonymizeControls({
           job_id: jobId,
           options: {
             keep_nora_summary: options.keepNoraSummary,
+            keep_candidate_summary: options.keepCandidateSummary,
             custom_text: options.customText.trim() || null,
           },
         }),

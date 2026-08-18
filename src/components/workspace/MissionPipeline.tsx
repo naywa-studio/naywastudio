@@ -269,7 +269,14 @@ export function MissionPipeline({
   useEffect(() => {
     if (!msgMounted.current) { msgMounted.current = true; return }
     const id = setTimeout(() => {
-      void fetch(`/api/jobs/${job.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ anonymize_options: { keepNoraSummary: anonNora, customText: anonMsg } }) }).catch(() => {})
+      void fetch(`/api/jobs/${job.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ anonymize_options: {
+        keepNoraSummary: anonNora,
+        // Preserve : ce panneau ne regle PAS l'accroche du candidat (elle se
+        // decoche depuis l'atelier). L'omettre ici la remettrait a son defaut
+        // a chaque enregistrement de la shortlist, en silence.
+        keepCandidateSummary: job.anonymize_options?.keepCandidateSummary ?? true,
+        customText: anonMsg,
+      } }) }).catch(() => {})
     }, 700)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps

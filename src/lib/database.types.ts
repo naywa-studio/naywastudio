@@ -500,7 +500,7 @@ export type Database = {
           /** Dernier mode de match choisi (mémo pour repartir vite). */
           last_match_mode: 'intelligent' | 'personnalise' | 'complet' | null
           /** Override anonymisation par mission. NULL = défauts du cabinet. */
-          anonymize_options: { keepNoraSummary?: boolean; customText?: string } | null
+          anonymize_options: { keepNoraSummary?: boolean; keepCandidateSummary?: boolean; customText?: string } | null
           created_at: string
           updated_at: string
         }
@@ -545,7 +545,7 @@ export type Database = {
           exclusions?: string[] | null
           target_sectors?: string[]
           last_match_mode?: 'intelligent' | 'personnalise' | 'complet' | null
-          anonymize_options?: { keepNoraSummary?: boolean; customText?: string } | null
+          anonymize_options?: { keepNoraSummary?: boolean; keepCandidateSummary?: boolean; customText?: string } | null
           created_at?: string
           updated_at?: string
         }

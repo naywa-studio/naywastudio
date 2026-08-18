@@ -532,6 +532,7 @@ export default function MatchPage() {
           options: {
             template: anonymizeOptions.template,
             keep_nora_summary: anonymizeOptions.keepNoraSummary,
+            keep_candidate_summary: anonymizeOptions.keepCandidateSummary,
             custom_text: anonymizeOptions.customText.trim() || null,
             watermark: anonymizeOptions.watermark,
           },
