@@ -96,6 +96,9 @@ const copy = {
   fr: {
     title: "Suivi",
     downloadAll: "CV anonymisés",
+    selectMode: "Sélectionner",
+    selectCancel: "Annuler",
+    downloadPicked: (n: number) => `CV anonymisés · ${n}`,
     settings: "Réglages du CV",
     downloading: "Génération…",
     anonError: "Échec du téléchargement.",
@@ -143,6 +146,9 @@ const copy = {
   en: {
     title: "Tracking",
     downloadAll: "Anonymized CVs",
+    selectMode: "Select",
+    selectCancel: "Cancel",
+    downloadPicked: (n: number) => `Anonymized CVs · ${n}`,
     settings: "CV settings",
     downloading: "Generating…",
     anonError: "Download failed.",
@@ -250,6 +256,10 @@ export function MissionPipeline({
   const [showSettings, setShowSettings] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [anonErr, setAnonErr] = useState<string | null>(null)
+  // Sélection pour le téléchargement. Hors mode sélection, le bouton prend
+  // toute la shortlist — on ne force personne à cocher pour le cas courant.
+  const [selectMode, setSelectMode] = useState(false)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
 
   const anonBranding: AnonymizeBranding = useMemo(() => ({
     orgName: (organization.brand_name?.trim() || organization.name?.trim()) || "",
@@ -346,8 +356,22 @@ export function MissionPipeline({
     }
   }, [shortlisted])
 
-  async function downloadAll() {
-    const ids = shortlisted.map((r) => r.candidate_id)
+  /**
+   * Télécharge les CV anonymisés : la sélection si le sourceur en a fait une,
+   * sinon toute la shortlist.
+   *
+   * Le mode « Sélectionner » avait disparu en même temps que `MissionShortlist`,
+   * dont ce composant a repris le rôle. Il ne restait que le tout-ou-rien, alors
+   * qu'on présente rarement une shortlist entière au même client — c'est
+   * justement le geste de présentation.
+   *
+   * Chaque candidat garde SA personnalisation : la route relit par match les
+   * blocs masqués et leur ordre. Un lot n'uniformise donc rien.
+   */
+  async function downloadCvs() {
+    const ids = selectMode && picked.size > 0
+      ? shortlisted.filter((r) => picked.has(r.candidate_id)).map((r) => r.candidate_id)
+      : shortlisted.map((r) => r.candidate_id)
     if (ids.length === 0 || downloading) return
     setDownloading(true); setAnonErr(null)
     try {
@@ -392,7 +416,27 @@ export function MissionPipeline({
         {!isReadOnly && shortlisted.length > 0 && (
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button type="button" onClick={() => setShowSettings((v) => !v)} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", color: showSettings ? PRIMARY_DK : "var(--nw-text-body)", background: "white", border: `1px solid ${showSettings ? PRIMARY : "var(--nw-border)"}` }}>{t.settings}</button>
-            <button type="button" onClick={downloadAll} disabled={downloading} style={{ fontSize: 12.5, fontWeight: 700, padding: "7px 14px", borderRadius: 8, cursor: downloading ? "wait" : "pointer", fontFamily: "inherit", color: "white", background: PRIMARY, border: "none" }}>{downloading ? t.downloading : t.downloadAll}</button>
+            <button
+              type="button"
+              onClick={() => { setSelectMode((v) => !v); setPicked(new Set()) }}
+              style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", color: selectMode ? PRIMARY_DK : "var(--nw-text-body)", background: "white", border: `1px solid ${selectMode ? PRIMARY : "var(--nw-border)"}` }}
+            >
+              {selectMode ? t.selectCancel : t.selectMode}
+            </button>
+            <button
+              type="button"
+              onClick={downloadCvs}
+              disabled={downloading || (selectMode && picked.size === 0)}
+              style={{
+                fontSize: 12.5, fontWeight: 700, padding: "7px 14px", borderRadius: 8,
+                cursor: downloading ? "wait" : (selectMode && picked.size === 0) ? "not-allowed" : "pointer",
+                fontFamily: "inherit", color: "white",
+                background: (selectMode && picked.size === 0) ? "var(--nw-border)" : PRIMARY,
+                border: "none",
+              }}
+            >
+              {downloading ? t.downloading : selectMode ? t.downloadPicked(picked.size) : t.downloadAll}
+            </button>
           </div>
         )}
       </div>
@@ -497,6 +541,13 @@ export function MissionPipeline({
           {visible.map((row) => (
             <PipelineCard
               key={row.id} row={row} isReadOnly={isReadOnly} clientReviewEnabled={clientReviewEnabled}
+              selectable={selectMode}
+              picked={picked.has(row.candidate_id)}
+              onTogglePick={() => setPicked((prev) => {
+                const n = new Set(prev)
+                if (n.has(row.candidate_id)) n.delete(row.candidate_id); else n.add(row.candidate_id)
+                return n
+              })}
               offLimits={clientDirectory.length > 0 ? detectOffLimitsForCandidate(row.candidate?.parsed_cv, row.candidate?.current_company, clientDirectory) : { verdict: "none", client: null }}
               expanded={expanded.has(row.id)}
               onToggleExpand={() => setExpanded((prev) => { const n = new Set(prev); if (n.has(row.id)) n.delete(row.id); else n.add(row.id); return n })}
@@ -511,6 +562,7 @@ export function MissionPipeline({
 
 function PipelineCard({
   row, isReadOnly, clientReviewEnabled, offLimits, expanded, onToggleExpand, onLocalUpdate, lang, t,
+  selectable, picked, onTogglePick,
 }: {
   row: AssessmentRow
   isReadOnly: boolean
@@ -518,6 +570,10 @@ function PipelineCard({
   offLimits: { verdict: string; client: { name: string } | null }
   expanded: boolean
   onToggleExpand: () => void
+  /** Mode sélection actif : une case apparaît en tête de carte. */
+  selectable: boolean
+  picked: boolean
+  onTogglePick: () => void
   onLocalUpdate: (rowId: string, patch: Partial<MatchAssessment>) => void
   lang: Lang
   t: (typeof copy)[Lang]
@@ -613,7 +669,22 @@ function PipelineCard({
       border: `1px solid ${step === "offer" ? "#E1DAF4" : "var(--nw-border)"}`,
       borderRadius: 14, padding: "13px 15px",
       transition: "background 0.2s ease, border-color 0.2s ease",
+      display: selectable ? "flex" : undefined,
+      gap: selectable ? 12 : undefined,
+      alignItems: selectable ? "flex-start" : undefined,
     }}>
+      {/* Case de sélection — hors du bouton d'expansion, sinon cocher
+          déplierait la carte au passage. */}
+      {selectable && (
+        <input
+          type="checkbox"
+          checked={picked}
+          onChange={onTogglePick}
+          aria-label={name}
+          style={{ marginTop: 12, width: 16, height: 16, accentColor: PRIMARY, cursor: "pointer", flexShrink: 0 }}
+        />
+      )}
+      <div style={{ flex: selectable ? 1 : undefined, minWidth: 0 }}>
       <button
         type="button" onClick={onToggleExpand}
         style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", background: "transparent", border: "none", cursor: "pointer", padding: 0, textAlign: "left", fontFamily: "inherit" }}
@@ -731,6 +802,7 @@ function PipelineCard({
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }
