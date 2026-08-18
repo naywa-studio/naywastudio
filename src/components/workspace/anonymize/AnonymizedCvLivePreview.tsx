@@ -1698,7 +1698,6 @@ function InlineEditor({ target, cv, skills, languages, meta, t, onClose, onSaved
             <label style={{ display: "block" }}>
               <span style={fieldLabel}>{t.fSkills}</span>
               <textarea
-                 
                 autoFocus
                 value={skillsText}
                 rows={10}
@@ -1715,7 +1714,6 @@ function InlineEditor({ target, cv, skills, languages, meta, t, onClose, onSaved
             <label style={{ display: "block" }}>
               <span style={fieldLabel}>{t.fLanguages}</span>
               <textarea
-                 
                 autoFocus
                 value={languagesText}
                 rows={6}
@@ -1888,7 +1886,6 @@ function JobTitleEditor({ value, printed, t, onClose, onSave }: {
         <label style={{ display: "block" }}>
           <span style={fieldLabel}>{t.fJobTitle}</span>
           <input
-             
             autoFocus
             type="text"
             value={draft}
@@ -1951,7 +1948,6 @@ function F({ label, value, onChange, placeholder, invalid, invalidHint, disabled
     <label style={{ display: "block" }}>
       <span style={fieldLabel}>{label}</span>
       <input
-         
         autoFocus={autoFocus}
         type="text"
         value={value}
