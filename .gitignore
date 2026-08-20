@@ -42,8 +42,11 @@ yarn-error.log*
 # vercel
 .vercel
 
-# Claude Code local settings
+# Claude Code local settings — tout est ignoré par défaut...
 .claude/
+# ...sauf les skills projet, partagés en équipe via git
+!.claude/skills/
+!.claude/skills/**
 
 # typescript
 *.tsbuildinfo
