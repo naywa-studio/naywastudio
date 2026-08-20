@@ -38,6 +38,13 @@ DEUX RAPPORTS eux-mêmes ne doivent jamais être commités.
   comme corrigée**, mais VÉRIFIE qu'elle l'est réellement dans le code actuel
   (les régressions arrivent). Si un point d'un ancien audit est revenu, c'est du
   Critique (régression sur un point déjà connu = pire qu'une découverte neuve).
+- **Vérifie la visibilité du repo** (angle mort qu'un audit de code pur ne voit
+  jamais, ce n'est pas un réglage dans le code) : `git remote get-url origin`
+  puis `curl -s https://api.github.com/repos/{owner}/{repo} | grep '"private"'`
+  (marche sans authentification si le repo est public — un 200 avec
+  `"private": false` le confirme). **Si public : c'est Critique d'office**,
+  peu importe le reste — tout le code, tout l'historique, tout `CLAUDE.md`
+  devient lisible par n'importe qui sur internet.
 
 ## 1. Inventaire
 
@@ -104,9 +111,28 @@ Pour la base (migrations SQL) :
   UPDATE client les toucher) ?
 
 Pour le code général :
-- **Secrets en dur** : `Grep` sur des patterns de clé (`sk_live`, `sk_test`,
-  `whsec_`, motifs base64 longs, `Bearer `, hostnames internes) dans `src/` —
-  rien ne doit être en dur, tout doit venir de `process.env`.
+- **Secrets en dur (arbre ACTUEL)** : `Grep` sur des patterns de clé (`sk_live`,
+  `sk_test`, `whsec_`, motifs base64 longs, `Bearer `, hostnames internes) dans
+  `src/` — rien ne doit être en dur, tout doit venir de `process.env`.
+- **Secrets dans l'HISTORIQUE GIT (différent du point précédent — ne JAMAIS
+  sauter cette étape)** : un secret supprimé du code aujourd'hui reste lisible
+  pour toujours dans les anciens commits, tant que l'historique n'est pas
+  réécrit. `Grep`/`git log --all -S"..."` (pickaxe, cherche l'ajout/suppression
+  d'une chaîne, marche même sur un fichier depuis supprimé) ne suffit QUE si tu
+  penses au bon pattern — croise donc avec :
+  - `git log --all -S"<motif>" --oneline` pour chaque pattern de la liste
+    ci-dessus, **+** `-----BEGIN` (clé privée PEM/OpenSSH), `AKIA` (AWS),
+    `ghp_`/`github_pat_` (token GitHub)
+  - `git log --all --diff-filter=A --name-only | grep -iE '^\.env'` : un vrai
+    `.env` a-t-il déjà été committé un jour, même supprimé depuis ?
+  - Si un hit apparaît dans un commit, même vieux, même supprimé depuis : ce
+    n'est PAS une faille "historique" à relativiser, c'est une **fuite active
+    aujourd'hui** sur un repo accessible (le secret est récupérable par
+    quiconque via `git show <commit>:<chemin>`) → **Critique**, indépendamment
+    du fait qu'il soit absent du code courant. Recommande la rotation
+    immédiate du secret dans `lots.md` (pas juste un nettoyage d'historique —
+    tant qu'il n'est pas rotaté, le nettoyer de l'historique ne protège pas
+    contre les clones déjà faits).
 - **XSS** : usages de `dangerouslySetInnerHTML` — le contenu est-il bien
   échappé/sanitizé en amont (cf. `lib/markdown.ts` qui escape HTML avant de
   parser) ? Tout nouveau point d'injection HTML introduit depuis le dernier
