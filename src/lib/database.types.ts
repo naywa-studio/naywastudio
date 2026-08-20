@@ -305,6 +305,43 @@ export type Database = {
           subscription_seats: number | null
           /** True if the active plan is the Pro variant (Suite Pricing Syntec). */
           subscription_has_pricing: boolean
+          /** Option Mailing acquise — miroir de la ligne add-on Stripe, écrite
+           *  par le webhook. Jamais modifiable depuis le client. */
+          subscription_has_mailing: boolean
+
+          /* ── Envoi depuis le domaine du client (migration 085) ────────────
+           *
+           * ⚠️ Rien à voir avec `mail.naywastudio.com`, qui porte le SMTP de
+           * Supabase, le contact et le support — les emails que Naywa envoie
+           * EN SON NOM. Seul l'outreach CANDIDAT bascule sur le domaine du
+           * client. */
+          // `mailing_domain` est declare plus haut : il etait reserve de longue
+          // date pour ce chantier, la 085 ne fait que le rejoindre.
+          /** Sous-domaine d'envoi, "careers" par défaut. */
+          mailing_subdomain: string | null
+          /** Dérivé : "careers.cabinet-durand.fr". Clé de correspondance avec
+           *  le fournisseur d'envoi, et identifiant de l'org à la réception. */
+          mailing_sending_domain: string | null
+          /** 'domain_connect' | 'ns_delegation' | 'naywa_managed' */
+          mailing_path: string | null
+          /** Registrar détecté — support et instructions affichées seulement. */
+          mailing_registrar: string | null
+          /** 'pending' | 'awaiting_dns' | 'verifying' | 'active' | 'failed'.
+           *  L'envoi n'est autorisé qu'en 'active'. */
+          mailing_status: string | null
+          /** Naywa a réservé le domaine pour le compte du client. */
+          mailing_managed: boolean
+          mailing_provider_domain_id: string | null
+          /** Zone DNS hébergée par Naywa. NULL en Domain Connect, où les
+           *  enregistrements vivent chez le registrar du client. */
+          mailing_dns_zone_id: string | null
+          mailing_ns_records: unknown | null
+          mailing_dns_records: unknown | null
+          mailing_verified_at: string | null
+          /** Délégation par email : le sourceur n'a pas toujours l'accès DNS. */
+          mailing_delegate_email: string | null
+          mailing_delegate_token: string | null
+          mailing_delegate_sent_at: string | null
           subscription_cancel_at_period_end: boolean
           /** End of the currently paid Stripe billing period. */
           current_period_end: string | null

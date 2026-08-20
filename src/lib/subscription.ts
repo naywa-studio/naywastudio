@@ -108,6 +108,58 @@ export function hasPricingAccess(
   return subscriptionAccess(org, opts).state === "trial"
 }
 
+/**
+ * L'org a-t-elle l'option Mailing (envoi depuis SON domaine) ?
+ *
+ * Même forme que `hasPricingAccess` — délibérément : un second mécanisme de
+ * gating avec ses propres règles finirait par diverger, et c'est ce genre
+ * d'écart qui produit des fuites de monétisation.
+ *
+ * ⚠️ Répondre `true` ne veut PAS dire que l'envoi est possible : il faut ENCORE
+ * que le domaine soit vérifié (`mailing_status === "active"`). Ce sont deux
+ * questions distinctes — « a-t-il payé ? » et « son domaine est-il prêt ? » —
+ * et les confondre laisserait passer des envois depuis un domaine non
+ * authentifié, ce qui les enverrait droit en spam sous la marque du client.
+ * L'envoi effectif se garde avec `canSendFromOrgDomain` ci-dessous.
+ */
+export function hasMailingAccess(
+  org: Pick<
+    Organization,
+    "trial_ends_at" | "subscription_status" | "current_period_end" | "subscription_has_mailing"
+  > | null | undefined,
+  opts?: { isAdmin?: boolean },
+): boolean {
+  if (opts?.isAdmin) return true
+  if (!org) return false
+  if (org.subscription_has_mailing) return true
+  return subscriptionAccess(org, opts).state === "trial"
+}
+
+/**
+ * L'envoi depuis le domaine de l'org est-il RÉELLEMENT possible ?
+ *
+ * Deux conditions cumulatives : l'option est acquise, ET le domaine est
+ * vérifié. C'est la garde à appeler avant tout envoi — la règle produit étant
+ * « le domaine du client, ou rien » : jamais de repli silencieux sur un
+ * domaine Naywa, qui ferait partir un mail candidat sous une identité que le
+ * cabinet n'a pas choisie.
+ *
+ * Un admin Naywa contourne le paywall, jamais la vérification DNS : sans clés
+ * DKIM publiées, l'email part quand même en spam.
+ */
+export function canSendFromOrgDomain(
+  org: Pick<
+    Organization,
+    | "trial_ends_at" | "subscription_status" | "current_period_end"
+    | "subscription_has_mailing" | "mailing_status" | "mailing_sending_domain"
+  > | null | undefined,
+  opts?: { isAdmin?: boolean },
+): boolean {
+  if (!org) return false
+  if (!hasMailingAccess(org, opts)) return false
+  return org.mailing_status === "active" && !!org.mailing_sending_domain
+}
+
 /** Résiliation programmée : le client a résilié au portail mais l'abonnement
  *  court jusqu'à la fin de la période payée. L'accès reste COMPLET jusque-là —
  *  ce n'est pas encore une grâce (cf. graceInfo), juste un état à afficher :

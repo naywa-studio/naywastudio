@@ -23,6 +23,7 @@ import {
   getStripeWebhookSecret,
   LOOKUP_SEAT,
   LOOKUP_PRICING_ADDON,
+  LOOKUP_MAILING_ADDON,
 } from "@/lib/stripe"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import {
@@ -131,6 +132,9 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
   const addonItem = sub.items.data.find(
     (i) => i.price?.lookup_key === LOOKUP_PRICING_ADDON,
   )
+  const mailingItem = sub.items.data.find(
+    (i) => i.price?.lookup_key === LOOKUP_MAILING_ADDON,
+  )
   // Fallback : un abonnement créé avant ce modèle (lookup sourcing_1..4 /
   // sourcing_pro_1..4) n'a qu'une ligne et ne matche aucune des deux clés. On
   // retombe sur la première pour ne pas écraser sa période avec du null.
@@ -145,6 +149,9 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
   // présente. Se désabonner de l'option au portail supprime la ligne → repasse
   // à false tout seul au prochain `subscription.updated`.
   const hasPricing = addonItem != null || (lookup?.startsWith("sourcing_pro_") ?? false)
+  // Option Mailing : meme mecanique, sans repli legacy -- aucun ancien
+  // abonnement ne peut l'avoir, le prix n'existe pas encore.
+  const hasMailing = mailingItem != null
 
   // Résiliation programmée : Stripe garde status = "active" jusqu'à la fin de
   // la période payée et signale seulement que l'abo s'arrêtera. Sans le
@@ -214,6 +221,7 @@ async function onSubscriptionUpsert(sub: Stripe.Subscription) {
       subscription_price_lookup: lookup,
       subscription_seats: seats,
       subscription_has_pricing: hasPricing,
+      subscription_has_mailing: hasMailing,
       subscription_cancel_at_period_end: cancelAtPeriodEnd,
       current_period_end: periodEndSec
         ? new Date(periodEndSec * 1000).toISOString()

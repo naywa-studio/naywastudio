@@ -25,6 +25,16 @@
 export const LOOKUP_SEAT = "sourcing_seat"
 /** Add-on Suite Pricing Syntec, quantité toujours 1. */
 export const LOOKUP_PRICING_ADDON = "pricing_addon"
+/**
+ * Add-on Mailing (envoi depuis le domaine du client), quantité toujours 1.
+ *
+ * Le prix n'existe pas encore dans le catalogue Stripe : tant qu'aucune ligne
+ * ne porte cette clé, aucun abonnement ne la contient et l'entitlement reste
+ * `false` partout. Câbler le webhook dès maintenant évite d'y revenir le jour
+ * où le prix est créé — et un oubli de recâblage offrirait l'option à tout le
+ * monde, comme c'est arrivé avec la Suite Pricing.
+ */
+export const LOOKUP_MAILING_ADDON = "mailing_addon"
 
 /**
  * Barème dégressif du siège (HT/mois). Reproduit au centime l'ancienne grille

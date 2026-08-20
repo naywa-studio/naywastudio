@@ -150,6 +150,7 @@ export async function ensureStripeCustomer(params: {
 export {
   LOOKUP_SEAT,
   LOOKUP_PRICING_ADDON,
+  LOOKUP_MAILING_ADDON,
   SEAT_TIERS,
   PRICING_ADDON_EUR,
   MAX_SELF_SERVE_SEATS,
