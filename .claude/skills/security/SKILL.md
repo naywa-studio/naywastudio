@@ -1,6 +1,6 @@
 ---
 name: security
-description: Audit de sécurité complet du produit Naywa Studio (code + routes API + secrets + dépendances + éventuellement recon passif du site en prod). Génère deux livrables Markdown locaux (rapport.md et lots.md) jamais commités.
+description: Audit de sécurité complet du produit Naywa Studio (code + routes API + secrets + dépendances + éventuellement recon passif du site en prod). Se lance depuis main, crée sa propre branche de chantier, puis génère deux livrables Markdown locaux (rapport.md et lots.md) jamais commités.
 ---
 
 # /security — Audit de sécurité Naywa Studio
@@ -10,14 +10,25 @@ autorisé — pas de pentest tiers). Objectif : parcourir le code (et si possibl
 site en prod, en lecture seule) pour lister les failles réelles, les noter par
 sévérité, et produire un plan de correction actionnable par lots.
 
-**Ce skill ne modifie AUCUN fichier du produit.** Il ne fait que lire, analyser,
-et écrire deux rapports dans `.claude/security-reports/` (dossier déjà hors de
-git : `.claude/` entier est dans `.gitignore` du repo — rien de ce que tu écris
-ici ne peut finir dans une branche, même par oubli. Ne déplace jamais ces
-fichiers ailleurs dans le repo).
+**Ce skill (la phase d'audit) ne modifie AUCUN fichier du produit.** Il ne fait
+que lire, analyser, et écrire deux rapports dans `.claude/security-reports/`
+(dossier hors de git : `.claude/security-reports/` est explicitement dans le
+`.gitignore` du repo — rien de ce que tu écris ici ne peut finir dans un commit,
+même par oubli, quelle que soit la branche. Ne déplace jamais ces fichiers
+ailleurs dans le repo). La correction des lots (chantier séparé, sur demande de
+l'utilisateur) touchera elle du code produit — c'est normal et voulu, seuls les
+DEUX RAPPORTS eux-mêmes ne doivent jamais être commités.
 
 ## 0. Préparation
 
+- **Pars toujours de `main` à jour**, puis crée une branche dédiée à ce chantier :
+  `git checkout main && git pull origin main --ff-only && git checkout -b
+  claude/security-audit-{YYYY-MM-DD}`. Si l'utilisateur est déjà sur une branche
+  qu'il a créée exprès pour cet audit, réutilise-la (ne recrée pas une deuxième
+  branche). C'est CETTE branche qui accueillera plus tard les commits de
+  correction des lots — le rapport lui-même n'y sera jamais commité (gitignoré),
+  seul le fait d'être dessus permet d'enchaîner audit → fixes → push sans
+  mélanger avec d'autres travaux.
 - Crée le dossier de sortie s'il n'existe pas : `.claude/security-reports/`
 - Note la date du jour et le commit courant (`git rev-parse HEAD`, `git branch --show-current`)
   pour horodater le rapport.
@@ -209,12 +220,12 @@ sévérité max contenue (les lots avec du Critique en premier).
 ## 7. Fin
 
 Affiche à l'utilisateur, dans le chat (pas seulement dans les fichiers) :
+- La branche sur laquelle tourne le chantier (celle créée en étape 0)
 - Le compte par sévérité
 - Le chemin des 2 fichiers générés (`.claude/security-reports/rapport.md` et
   `lots.md`)
-- Rappelle que ces fichiers sont **hors git** (`.claude/` est dans
-  `.gitignore`) : rien à nettoyer avant de push, ils ne partiront jamais dans
-  une branche.
+- Rappelle que ces fichiers sont **gitignorés** (`.claude/security-reports/`) :
+  ils ne partiront jamais dans un commit ni un push, même sur cette branche.
 - Les 1-2 failles Critique les plus urgentes, en une phrase chacune, pour que
   la personne sache quoi lire en premier même sans ouvrir les fichiers.
 
@@ -222,3 +233,19 @@ Ne propose PAS d'appliquer les correctifs toi-même dans ce skill — c'est un
 audit, pas une correction. Si l'utilisateur veut qu'un lot soit résolu tout de
 suite, il te le demandera séparément (ou lancera `/code-review` / une session
 dédiée sur le lot).
+
+## 8. Cycle complet du chantier (au-delà de ce skill)
+
+Ce skill ne couvre que l'audit (étapes 0-7). La suite du chantier, quand
+l'utilisateur la demande, se passe sur la MÊME branche créée en étape 0 :
+1. Les lots de `lots.md` sont corrigés un par un (ou en bloc), commit par
+   commit, comme n'importe quel travail de code sur cette branche.
+2. **Seulement une fois tous les fixes validés** (build/tests verts, revue
+   faite) : supprimer les deux rapports (`rapport.md` et `lots.md` dans
+   `.claude/security-reports/`) — ils ont fait leur travail, et même s'ils sont
+   gitignorés donc jamais partis dans un commit, on ne les laisse pas traîner
+   sur le disque une fois le sujet clos.
+3. Pousser la branche : elle ne contient alors QUE les commits de correction
+   (les rapports n'y ont jamais été, gitignore oblige) → PR normale via
+   `gh pr create`, suivant le workflow standard du repo (section 19 de
+   `CLAUDE.md`) : preview validée avant merge, jamais de `--force` sur main.
