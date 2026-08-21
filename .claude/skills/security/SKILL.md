@@ -205,6 +205,30 @@ tenter de la déclencher sans session.
 ## 🟡 Passable
 {même structure}
 
+## Historique git (secrets committés puis supprimés)
+Vérifié sur TOUTES les branches (`git log --all -S...` + recherche de `.env`
+jamais commités), pas seulement l'arbre actuel — voir méthode section 2.
+
+{Deux issues possibles, une seule à garder :}
+
+{✅ Rien trouvé — aucun secret, clé privée ou fichier `.env` n'a jamais été
+committé, sur aucune branche, à aucun moment de l'historique.}
+
+{— ou, si un hit est apparu —}
+
+{🔴 Trouvé : voir **{Cx}** ci-dessus (même sévérité, même format que les autres
+failles — ce n'est pas une catégorie à part, juste une méthode de détection
+différente). Statut à trancher explicitement ici, pas laissé en suspens :
+- **Secret encore valide / service encore actif** → action = rotation
+  immédiate obligatoire, à mettre en Lot 1 de `lots.md` quelle que soit sa
+  sévérité par ailleurs.
+- **Secret déjà rotaté depuis / service décommissionné** → aucun risque
+  résiduel réel, mais le laisser dans l'historique reste une mauvaise
+  pratique (visible par n'importe qui) → à nettoyer par hygiène
+  (`git filter-repo`/BFG) quand l'occasion se présente, pas urgent.
+- Préciser LEQUEL des deux cas s'applique ici — ne jamais laisser "à
+  vérifier" sans trancher au moins une hypothèse la plus probable.}
+
 ## Ce qui est déjà solide
 {2-4 points vérifiés et bons — utile pour ne pas tout re-suspecter au prochain audit}
 ```
@@ -248,6 +272,9 @@ sévérité max contenue (les lots avec du Critique en premier).
 Affiche à l'utilisateur, dans le chat (pas seulement dans les fichiers) :
 - La branche sur laquelle tourne le chantier (celle créée en étape 0)
 - Le compte par sévérité
+- **Le résultat du check d'historique git, explicitement** ("rien trouvé dans
+  l'historique" ou "trouvé, voir Cx, rotation nécessaire / déjà neutralisé")
+  — jamais silencieux, même quand c'est négatif
 - Le chemin des 2 fichiers générés (`.claude/security-reports/rapport.md` et
   `lots.md`)
 - Rappelle que ces fichiers sont **gitignorés** (`.claude/security-reports/`) :
