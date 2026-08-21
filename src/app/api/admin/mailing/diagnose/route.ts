@@ -38,11 +38,17 @@ export async function GET(req: NextRequest) {
   // d'un coup d'œil que Vercel sert bien la clé attendue — un copier-coller
   // tronqué produit sinon un « AccessDenied » incompréhensible.
   const keyId = (process.env.AWS_SES_ACCESS_KEY_ID ?? "").trim()
+  const topicArn = (process.env.AWS_SNS_INBOUND_TOPIC_ARN ?? "").trim()
   const env = {
     AWS_SES_ACCESS_KEY_ID: keyId ? `${keyId.slice(0, 4)}… (${keyId.length} car.)` : "MANQUANTE",
     AWS_SES_SECRET_ACCESS_KEY: (process.env.AWS_SES_SECRET_ACCESS_KEY ?? "").trim()
       ? "présente" : "MANQUANTE",
     AWS_SES_REGION: (process.env.AWS_SES_REGION ?? "").trim() || "(défaut eu-west-1)",
+    // Rubrique SNS attendue par la route de réception. Affichée en clair : un
+    // ARN est un identifiant, pas un secret — et le voir permet de repérer
+    // d'un coup d'œil une faute de frappe ou une mauvaise région, qui feraient
+    // sinon échouer la confirmation d'abonnement sans explication.
+    AWS_SNS_INBOUND_TOPIC_ARN: topicArn || "MANQUANTE — la réception refusera tout",
   }
 
   if (env.AWS_SES_ACCESS_KEY_ID === "MANQUANTE" || env.AWS_SES_SECRET_ACCESS_KEY === "MANQUANTE") {
