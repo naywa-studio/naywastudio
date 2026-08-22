@@ -1,10 +1,13 @@
-# Mailing depuis le domaine du client — état au 22 août 2026
+# Mailing depuis le domaine du client — état au 23 août 2026
 
 Suite de `docs/chantier-mailing-domaine-client.md`, qui reste la spécification.
 Ce document dit **où on en est** et **ce qui reste ouvert**.
 
 Branches : `claude/mailing-lot-0` et `claude/mailing-lot-1`. **Aucune n'est
-mergée.** Migrations 085 à 088 **appliquées en base**.
+mergée.** Migrations 085 à 089 **appliquées en base**.
+
+> **La chaîne complète a tourné de bout en bout le 23/08** — cf. « Prouvé en
+> conditions réelles » ci-dessous.
 
 ---
 
@@ -42,6 +45,28 @@ d'où l'interface fine : changer de fournisseur = un fichier.
 | Lecture du contenu depuis S3 | accents intacts (`Test éé é`) |
 | Rattachement au sourceur | ligne écrite dans `email_messages` |
 | Pièce jointe stockée sur R2 | 847 Ko, chemin org-scopé, nom assaini |
+| **CHAÎNE COMPLÈTE (23/08)** | déclarer → basculer l'adresse → écrire → recevoir la réponse, en une seule traite |
+
+### La chaîne complète, le 23 août 2026
+
+Le message sortant porte un identifiant SES (`010201a02bc36b2d-…`), pas un
+UUID Resend : la preuve que le chemin emprunté est bien le nouveau.
+
+La réponse est revenue sur `elyas@careers-test.naywastudio.com` — donc le
+`Reply-To` a été suivi — rattachée au bon candidat ET à la bonne mission, avec
+`sentiment: interested`, `étape suggérée: interview` et un résumé exact. Le
+pipeline était déjà passé en `contacted` à l'envoi.
+
+**Quatre défauts trouvés par ce seul test, aucun par relecture :**
+
+1. `inboxDomainFor` ignorait le bypass admin → aurait envoyé depuis le domaine
+   du cabinet avec un `Reply-To` chez Naywa. **Faux positif garanti.**
+2. Les adresses ne basculaient pas quand le domaine ressortait `active` dès la
+   déclaration.
+3. **Le jeu de configuration SES n'était créé nulle part** alors que son nom
+   était passé à chaque envoi → SES rejetait tout.
+4. **L'index unique PARTIEL de la 088 bloquait toute réception** (`ON CONFLICT`
+   ne sait pas inférer depuis un index partiel). Corrigé par la 089.
 
 ---
 
@@ -191,11 +216,14 @@ C'est mécanique — `/api/stripe/pricing-addon` fait exactement ça pour la Sui
 Pricing et se recopie — mais tant que ce n'est pas fait, **l'option n'est pas
 vendable**.
 
-### 2. La chaîne complète n'a pas tourné sur une vraie organisation
+### 2. Pas de fil de conversation dans l.interface
 
-Tout est branché. Rien n'a été exercé de bout en bout : déclarer → publier →
-vérifier → écrire à un candidat → recevoir sa réponse. L'essai donnant accès à
-l'option, cette preuve ne dépend PAS de Stripe.
+Les réponses arrivent en base, **rien ne les affiche**. Le commit qui avait
+retiré les surfaces mail (`8f7127d`) le disait : masquées « until the
+multi-domain rework » — ce chantier-ci EST ce rework. Le composant annoncé
+« gardé en arbre » n.existe nulle part dans l.historique : à écrire.
+
+Sans lui, un sourceur voit partir ses messages et jamais revenir les réponses.
 
 ⚠️ **Accès production SES toujours en attente** : hors bac à sable, on ne peut
 écrire qu'à des adresses vérifiées. La preuve de l'envoi réel en dépend.
