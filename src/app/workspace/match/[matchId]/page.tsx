@@ -9,6 +9,7 @@ import type { Candidate, MatchAssessment, Job, MatchTier, PipelineStage, ScoreDi
 import { kindOf, type Criterion, type CriterionEval } from "@/lib/job-criteria-catalog"
 import { criterionHeaderLabel, shortCriterionLabel, dimColor, statusColor } from "@/lib/criterion-display"
 import ComposeBox from "@/components/workspace/ComposeBox"
+import MessageThread from "@/components/workspace/MessageThread"
 import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
 import { AnonymizedCvLivePreview } from "@/components/workspace/anonymize/AnonymizedCvLivePreview"
 import { AnonymizeSidePanel } from "@/components/workspace/anonymize/AnonymizeSidePanel"
@@ -1164,6 +1165,20 @@ export default function MatchPage() {
             )}
           </section>
 
+          {/* Le fil vit SOUS le message d'approche, dans la même colonne :
+              écrire et lire la réponse sont un seul geste, et les séparer
+              obligerait le sourceur à chercher ailleurs ce qu'il attend. */}
+          <MessageThread
+            candidateId={candidate.id}
+            jobId={job?.id ?? null}
+            matchId={matchId}
+            // Le rail de pipeline suit immédiatement : voir la suggestion
+            // appliquée sans que la colonne bouge donnerait l'impression que
+            // le clic n'a rien fait.
+            onStageApplied={(stage) =>
+              setMatch((prev) => prev ? { ...prev, pipeline_stage: stage as PipelineStage } : prev)
+            }
+          />
         </div>
 
         {/* COL 3 (rangée 1) — mini-kanban vertical, collant.
