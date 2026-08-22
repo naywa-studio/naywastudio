@@ -27,15 +27,28 @@ export interface DomainCheck {
 const RESERVED = ["naywastudio.com", "naywa.studio"]
 
 /**
- * Domaines que PERSONNE ne peut revendiquer, admin compris.
+ * Domaines d'envoi que PERSONNE ne peut revendiquer, admin compris.
  *
  * `mail.naywastudio.com` porte le SMTP de Supabase : confirmations
  * d'inscription et réinitialisations de mot de passe. Le déclarer comme
  * domaine d'envoi d'une organisation reviendrait à détourner
  * l'authentification de tous les utilisateurs. La racine, elle, porte la
  * messagerie professionnelle (MX Lark).
+ *
+ * ⚠️ Cette liste s'applique au domaine d'envoi **final**, pas à la racine
+ * saisie. C'est la seule position correcte, et je l'avais d'abord mise au
+ * mauvais endroit : contrôler la racine interdisait `naywastudio.com` +
+ * `careers-test`, dont le résultat (`careers-test.naywastudio.com`) est
+ * parfaitement inoffensif — tout en laissant passer n'importe quelle racine
+ * dont la COMBINAISON aurait été dangereuse. On garde le vrai objet du
+ * contrôle : ce depuis quoi on enverra réellement.
  */
 const NEVER = ["naywastudio.com", "mail.naywastudio.com", "naywa.studio"]
+
+/** Le domaine d'envoi calculé est-il interdit à tout le monde ? */
+export function isForbiddenSendingDomain(sendingDomain: string): boolean {
+  return NEVER.includes(sendingDomain.trim().toLowerCase().replace(/\.+$/, ""))
+}
 
 /**
  * Normalise et valide une racine de domaine.
@@ -80,9 +93,9 @@ export function checkRootDomain(
   // Le TLD ne peut pas être numérique (sinon « 1.2 » passerait).
   if (/^\d+$/.test(labels[labels.length - 1])) return { ok: false, value, reason: "not_a_domain" }
 
-  // Interdits absolus, avant toute exception : la porte admin ne les ouvre pas.
-  if (NEVER.includes(value)) return { ok: false, value, reason: "reserved" }
-
+  // Un client ne revendique pas notre identité. Un admin, si — mais le
+  // domaine d'envoi FINAL reste contrôlé par `isForbiddenSendingDomain`,
+  // que l'appelant doit appliquer après composition.
   if (!opts?.isAdmin && RESERVED.some((r) => value === r || value.endsWith(`.${r}`))) {
     return { ok: false, value, reason: "reserved" }
   }

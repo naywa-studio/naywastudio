@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { checkRootDomain, cleanSubdomain } from "./domain-input"
+import { checkRootDomain, cleanSubdomain, isForbiddenSendingDomain } from "./domain-input"
+import { sendingDomainFor } from "./provider"
 
 /**
  * Le domaine saisi par le client.
@@ -46,14 +47,12 @@ describe("checkRootDomain", () => {
     expect(checkRootDomain("careers-test.naywastudio.com", { isAdmin: true }).ok).toBe(true)
   })
 
-  it("REFUSE mail.naywastudio.com même à un admin", () => {
-    // Ce domaine porte le SMTP de Supabase : inscriptions et mots de passe.
-    // Le déclarer comme domaine d'envoi d'une organisation détournerait
-    // l'authentification de TOUS les utilisateurs. Aucune exception.
-    expect(checkRootDomain("mail.naywastudio.com", { isAdmin: true })).toMatchObject({
-      ok: false, reason: "reserved",
-    })
-    expect(checkRootDomain("naywastudio.com", { isAdmin: true }).ok).toBe(false)
+  it("laisse un admin saisir la racine, le garde-fou portant sur le résultat", () => {
+    // Contrôler la RACINE interdisait « naywastudio.com » + « careers-test »,
+    // dont le résultat est inoffensif — et c'est pourtant la seule
+    // combinaison qui permet d'éprouver la chaîne sur le domaine déjà
+    // vérifié. Le vrai objet du contrôle est le domaine d'envoi final.
+    expect(checkRootDomain("naywastudio.com", { isAdmin: true }).ok).toBe(true)
   })
 
   it("refuse ce qui ne peut pas porter de DKIM", () => {
@@ -106,5 +105,39 @@ describe("cleanSubdomain", () => {
     expect(cleanSubdomain("careers.mail")).toBeNull()
     expect(cleanSubdomain("-jobs")).toBeNull()
     expect(cleanSubdomain("job s")).toBeNull()
+  })
+})
+
+/**
+ * Le garde-fou qui compte : le domaine d'envoi FINAL.
+ *
+ * Il était d'abord posé sur la racine saisie. Mauvais endroit, pour deux
+ * raisons symétriques : il interdisait des combinaisons inoffensives, et il
+ * ne regardait pas ce qui sert réellement à envoyer. Une racine anodine et un
+ * sous-domaine anodin peuvent composer un domaine qui ne l'est pas.
+ */
+
+describe("isForbiddenSendingDomain", () => {
+  it("refuse le relais qui porte l'authentification", () => {
+    // mail.naywastudio.com sert au SMTP de Supabase : inscriptions et
+    // réinitialisations de mot de passe. Le détourner couperait la connexion
+    // de TOUS les utilisateurs. Aucune exception, admin compris.
+    expect(isForbiddenSendingDomain("mail.naywastudio.com")).toBe(true)
+  })
+
+  it("refuse la racine, qui porte la messagerie professionnelle", () => {
+    expect(isForbiddenSendingDomain("naywastudio.com")).toBe(true)
+    expect(isForbiddenSendingDomain("NAYWASTUDIO.COM.")).toBe(true)
+  })
+
+  it("laisse passer un sous-domaine dédié", () => {
+    expect(isForbiddenSendingDomain("careers-test.naywastudio.com")).toBe(false)
+    expect(isForbiddenSendingDomain("careers.cabinet-durand.fr")).toBe(false)
+  })
+
+  it("attrape la composition dangereuse que la racine seule laissait passer", () => {
+    // « mail » + « naywastudio.com » : deux saisies anodines, un résultat qui
+    // ne l'est pas. C'est précisément le trou de la version précédente.
+    expect(isForbiddenSendingDomain(sendingDomainFor("naywastudio.com", "mail"))).toBe(true)
   })
 })

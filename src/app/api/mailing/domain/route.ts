@@ -28,7 +28,7 @@ import { getCapabilities } from "@/lib/capabilities"
 import { hasMailingAccess } from "@/lib/subscription"
 import { activeProvider } from "@/lib/mailing/send"
 import { DEFAULT_SUBDOMAIN, sendingDomainFor } from "@/lib/mailing/provider"
-import { checkRootDomain, cleanSubdomain, explainRejection } from "@/lib/mailing/domain-input"
+import { checkRootDomain, cleanSubdomain, explainRejection, isForbiddenSendingDomain } from "@/lib/mailing/domain-input"
 import { explainSesError } from "@/lib/mailing/ses"
 
 export const runtime = "nodejs"
@@ -121,6 +121,16 @@ export async function POST(req: NextRequest) {
   const subdomain = cleanSubdomain(typeof body?.subdomain === "string" ? body.subdomain : null)
     ?? DEFAULT_SUBDOMAIN
   const sendingDomain = sendingDomainFor(check.value, subdomain)
+
+  // Le contrôle qui compte : ce depuis quoi on enverra RÉELLEMENT. Il porte
+  // sur le domaine composé, pas sur la racine saisie — une racine anodine et
+  // un sous-domaine anodin peuvent composer un domaine qui ne l'est pas.
+  if (isForbiddenSendingDomain(sendingDomain)) {
+    return NextResponse.json(
+      { error: "invalid_domain", message: explainRejection("reserved") },
+      { status: 400 },
+    )
+  }
 
   /* ── Remplacer un domaine DÉJÀ actif se confirme ───────────────────────
    *
