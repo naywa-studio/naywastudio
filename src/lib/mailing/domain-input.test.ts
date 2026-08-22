@@ -40,6 +40,22 @@ describe("checkRootDomain", () => {
     expect(checkRootDomain("mail.naywastudio.com")).toMatchObject({ ok: false, reason: "reserved" })
   })
 
+  it("laisse un admin Naywa déclarer un sous-domaine, pour éprouver la chaîne", () => {
+    // Elyas n'a qu'un domaine. Sans cette porte, la mise en route ne peut être
+    // testée qu'en en achetant un second.
+    expect(checkRootDomain("careers-test.naywastudio.com", { isAdmin: true }).ok).toBe(true)
+  })
+
+  it("REFUSE mail.naywastudio.com même à un admin", () => {
+    // Ce domaine porte le SMTP de Supabase : inscriptions et mots de passe.
+    // Le déclarer comme domaine d'envoi d'une organisation détournerait
+    // l'authentification de TOUS les utilisateurs. Aucune exception.
+    expect(checkRootDomain("mail.naywastudio.com", { isAdmin: true })).toMatchObject({
+      ok: false, reason: "reserved",
+    })
+    expect(checkRootDomain("naywastudio.com", { isAdmin: true }).ok).toBe(false)
+  })
+
   it("refuse ce qui ne peut pas porter de DKIM", () => {
     expect(checkRootDomain("192.168.1.1").ok).toBe(false)
     expect(checkRootDomain("localhost").ok).toBe(false)

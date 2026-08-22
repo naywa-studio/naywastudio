@@ -115,20 +115,62 @@ avant** l'analyse : la réponse du candidat est la seule chose irremplaçable ic
 
 ---
 
+## ✅ Fermé depuis — l'écran de mise en route
+
+`MailingDomainCard` dans la section **Identité et branding** de `/organisation`
+(le domaine d'envoi s'affiche sur chaque message reçu par un candidat, au même
+titre que le nom et le logo : même endroit, même délégation).
+
+Trois partis pris, tous dictés par le fait que **publier du DNS est l'étape où
+les gens abandonnent** — difficulté de confiance, pas de technique :
+un enregistrement par ligne copiable en un clic (un jeton DKIM retapé produit
+une faute, et une faute produit une vérification qui échoue sans dire pourquoi) ;
+l'état toujours affiché, y compris « en attente » (ne rien montrer entre la
+publication et la vérification fait croire à une panne et envoie au support) ;
+et jamais de promesse que c'est prêt — l'écran ne fait que rapporter la réponse
+du fournisseur.
+
+**Exception admin** sur `checkRootDomain` : un admin Naywa peut déclarer un
+sous-domaine de `naywastudio.com`, pour éprouver la chaîne sans acheter un
+second domaine. `mail.naywastudio.com` et la racine restent interdits **à tout
+le monde** — le premier porte le SMTP de Supabase, le détourner couperait
+l'authentification de tous les utilisateurs.
+
+---
+
 ## 🔴 Ouvert
 
-### La chaîne complète n'a pas tourné sur une vraie organisation
+### 1. L'add-on Stripe n'existe pas
 
-Tout est branché — déclaration, vérification, bascule des adresses, envoi gardé
-par `sendCandidateEmail`. Mais aucune organisation n'a encore de domaine actif :
-le parcours n'a jamais été exercé de bout en bout. C'est le test qui reste, et
-il demande une vraie activation (ou l'org de test sur
-`careers-test.naywastudio.com`).
+Le webhook sait LIRE une ligne `mailing_addon`, mais **ce prix n'a jamais été
+créé, aucune route ne le vend, aucun interrupteur ne l'active**.
+`subscription_has_mailing` ne peut donc valoir `true` pour personne : la
+fonctionnalité n'est atteignable qu'en essai (`hasMailingAccess` est vrai
+pendant l'essai) ou en admin.
 
-⚠️ Ce domaine de test est un sous-domaine de `naywastudio.com`, que
-`checkRootDomain` **refuse volontairement**. Pour l'éprouver par la route
-d'activation, il faudra soit un autre domaine, soit une exception admin
-explicite — ne pas retirer la garde.
+C'est mécanique — `/api/stripe/pricing-addon` fait exactement ça pour la Suite
+Pricing et se recopie — mais tant que ce n'est pas fait, **l'option n'est pas
+vendable**.
+
+### 2. La chaîne complète n'a pas tourné sur une vraie organisation
+
+Tout est branché. Rien n'a été exercé de bout en bout : déclarer → publier →
+vérifier → écrire à un candidat → recevoir sa réponse. L'essai donnant accès à
+l'option, cette preuve ne dépend PAS de Stripe.
+
+⚠️ **Accès production SES toujours en attente** : hors bac à sable, on ne peut
+écrire qu'à des adresses vérifiées. La preuve de l'envoi réel en dépend.
+
+### 3. Les parcours DNS assistés ne sont pas écrits
+
+La spec en prévoyait trois — Domain Connect, délégation NS, domaine géré par
+Naywa. Les colonnes existent (`mailing_path`, `mailing_dns_zone_id`,
+`mailing_ns_records`, `mailing_delegate_email/token`), **aucun n'est
+implémenté**. Ce qui est livré, c'est le copier-coller manuel.
+
+C'est le vrai risque produit : la promesse « 0-config » n'est pas tenue, et
+c'est précisément l'étape où un client non technique décroche. À traiter avant
+d'élargir, pas après.
 
 ---
 

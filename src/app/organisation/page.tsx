@@ -12,6 +12,7 @@ import {
   subscriptionAccess,
   hasActiveAccess,
   hasPricingAccess,
+  hasMailingAccess,
   scheduledCancellation,
   GRACE_DAYS,
 } from "@/lib/subscription"
@@ -28,6 +29,7 @@ import type { Organization } from "@/lib/database.types"
 import { orgUsesPricing, orgUsesClients } from "@/lib/org-type"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import PricingPolicyForm from "@/components/organisation/PricingPolicyForm"
+import MailingDomainCard from "@/components/organisation/MailingDomainCard"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { StyledSelect } from "@/components/ui/StyledSelect"
@@ -695,6 +697,7 @@ export default function CabinetPage() {
   // puis jeté (`void`) depuis un refactor → un client Sourcing seul voyait la
   // carte ET le wizard. On s'appuie désormais sur la règle produit unique.
   const canUsePricing = hasPricingAccess(organization, { isAdmin: profile.is_admin === true })
+  const canUseMailing = hasMailingAccess(organization, { isAdmin: profile.is_admin === true })
 
   // La visite guidée 6 étapes Package Sourcing est désormais déclenchée
   // sur /workspace (premier accès après souscription), pas ici --
@@ -754,13 +757,21 @@ export default function CabinetPage() {
           )}
 
           {activeSection === "branding" && caps.canBranding && (
-            <BrandingSection
-              organization={organization}
-              logoUrl={logoUrl}
-              isOwner={caps.canBranding}
-              canEditLegalName={isOwner}
-              onUpdated={refetch}
-            />
+            <>
+              <BrandingSection
+                organization={organization}
+                logoUrl={logoUrl}
+                isOwner={caps.canBranding}
+                canEditLegalName={isOwner}
+                onUpdated={refetch}
+              />
+              {/* Le domaine d'envoi EST une identité de marque : il s'affiche
+                  sur chaque message reçu par un candidat, au même titre que le
+                  nom et le logo. Il vit donc ici, et suit la même délégation.
+                  La carte se masque d'elle-même si l'option n'est pas acquise
+                  (la route répond 403 et rien ne s'affiche). */}
+              {canUseMailing && <MailingDomainCard />}
+            </>
           )}
 
           {activeSection === "pricing" && caps.canPricing && (

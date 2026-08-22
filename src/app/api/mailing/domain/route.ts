@@ -108,7 +108,10 @@ export async function POST(req: NextRequest) {
     domain?: unknown; subdomain?: unknown; confirm_replace?: unknown
   } | null
 
-  const check = checkRootDomain(typeof body?.domain === "string" ? body.domain : "")
+  const check = checkRootDomain(
+    typeof body?.domain === "string" ? body.domain : "",
+    { isAdmin: g.isAdmin },
+  )
   if (!check.ok) {
     return NextResponse.json(
       { error: "invalid_domain", message: explainRejection(check.reason!) },
