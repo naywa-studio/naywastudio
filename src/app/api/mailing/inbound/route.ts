@@ -29,6 +29,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { verifySnsMessage, isTrustedCertUrl, type SnsMessage } from "@/lib/mailing/sns"
+import { fetchRawEmail, parseInboundEmail } from "@/lib/mailing/inbound"
 
 export const runtime = "nodejs"
 
@@ -109,18 +110,39 @@ export async function POST(req: NextRequest) {
     const recipients = payload.receipt?.recipients ?? payload.mail?.destination ?? []
     const objectKey = payload.receipt?.action?.objectKey ?? null
 
-    // Le contenu vit sur S3 (choix assumé : la voie SNS directe plafonne à
-    // 150 Ko, or un candidat qui répond joint son CV). La récupération et le
-    // rattachement au fil arrivent au lot suivant ; on trace d'abord ce qu'on
-    // reçoit, pour vérifier la forme réelle des notifications avant de bâtir
-    // dessus.
-    console.info("[mailing/inbound] email reçu", {
-      messageId: payload.mail?.messageId ?? null,
-      from: payload.mail?.source ?? null,
-      recipients,
-      objectKey,
-      storage: payload.receipt?.action?.type ?? null,
+    if (!objectKey) {
+      // Pas d'objet S3 : la règle de réception n'a pas la bonne action. Rien
+      // à retenter — on accuse pour ne pas boucler, et on trace fort.
+      console.error("[mailing/inbound] notification sans objectKey", { recipients })
+      return NextResponse.json({ ok: true, ignored: "no_object" })
+    }
+
+    const raw = await fetchRawEmail(objectKey)
+    const email = await parseInboundEmail(raw)
+
+    // Le rattachement au sourceur et à la conversation vient ensuite. On
+    // observe d'abord ce que l'analyse produit sur de vrais messages : les
+    // clients de messagerie prennent des libertés avec le format, et coder
+    // contre la théorie mènerait à refaire le travail.
+    console.info("[mailing/inbound] email lu", {
+      from: email.fromAddress,
+      to: email.to,
+      subject: email.subject,
+      textLength: email.text.length,
+      textPreview: email.text.slice(0, 160),
+      inReplyTo: email.inReplyTo,
+      references: email.references.length,
+      attachments: email.attachments.map((a) => ({
+        filename: a.filename,
+        contentType: a.contentType,
+        sizeKo: Math.round(a.size / 1024),
+      })),
+      rawSizeKo: Math.round(raw.length / 1024),
     })
+
+    // ⚠️ On ne supprime PAS encore l'objet S3 : tant que le contenu n'est pas
+    // écrit en base, l'effacer reviendrait à perdre le message. La suppression
+    // se branchera avec l'enregistrement, dans le même geste.
 
     return NextResponse.json({ ok: true, received: recipients.length })
   } catch (err) {
