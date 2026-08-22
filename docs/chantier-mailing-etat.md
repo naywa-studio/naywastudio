@@ -138,6 +138,45 @@ l'authentification de tous les utilisateurs.
 
 ---
 
+## Le plan d'origine, relu à l'aune de SES
+
+Le plan en 7 lots a été écrit **quand on partait sur Resend**. Le comparatif a
+fait basculer sur SES, ce qui rend une partie caduque — et l'ordre a changé en
+cours de route, pour une raison qui reste valable : **la réception était
+l'inconnue risquée**, on l'a donc traitée en premier plutôt qu'en dernier.
+
+| Plan d'origine | Réalité |
+|---|---|
+| **Prép.** Compte AWS + IAM | ✅ compte `795364428552`, IAM `naywa-mailing` |
+| **Prép.** Env vars `AWS_ROUTE53_*` | ⚠️ nommées `AWS_SES_*`. Route 53 pas encore utilisé — mêmes clés à réutiliser le moment venu |
+| **Prép.** Ligne add-on Stripe LIVE | ❌ **jamais créée** — l'option n'est vendable à personne |
+| **Prép.** Vérifier le palier Resend (10 domaines) | ⛔️ **caduc** — Resend ne porte plus les domaines clients. C'était le point qui tuait la marge |
+| **Prép.** Trancher prix + propriété du domaine géré | ❌ non tranché |
+| **Lot 0** Migration `mailing_*` | ✅ 085 |
+| **Lot 0** `subscription_has_mailing` + webhook | ✅ colonne + lecture au webhook (mais aucun prix à lire) |
+| **Lot 0** Helper `canMailing` + gating | ✅ **scindé en deux** : `hasMailingAccess` (a-t-il payé ?) et `canSendFromOrgDomain` (son domaine est-il prêt ?). Les confondre laissait passer des envois non authentifiés |
+| **Lot 1** Créer domaine + records + verify | ✅ les 3 fonctions du fournisseur + les routes |
+| **Lot 1** Poll du statut | ❌ pas de cron — la vérification est manuelle |
+| **Lot 1** Envoi sur le domaine d'org, bloqué si non actif | ✅ `sendCandidateEmail`, branché sur `/api/cv/[id]/send` |
+| **Lot 1** `ensureInboxAddress` / `fromHeader` | ✅ migration 087, avec conservation des anciennes adresses |
+| **Lot 1** **Test bout-en-bout** | ❌ **jamais fait — c'est la priorité** |
+| **Lot 2** Route 53 : zone + records + NS | ❌ non commencé. Débloque les lots 3, 4 et 5 |
+| **Lot 3** Détection registrar | ❌ |
+| **Lot 3** UI deux portes | ⚠️ **une seule porte** : le copier-coller manuel (`MailingDomainCard`). Fait en avance parce que la fonctionnalité était injoignable |
+| **Lot 3** Délégation par email tokenisée | ❌ colonnes prêtes (`mailing_delegate_*`), aucun code |
+| **Lot 4** Domain Connect | ❌ |
+| **Lot 5** Domaine géré Naywa | ❌ |
+| **Lot 6** Réception par domaine client | ✅ **fait en avance** — SNS + S3, prouvé sur un email réel de 1 141 Ko |
+| **Lot 6** Cron de vérification des domaines en attente | ❌ |
+| **Lot 6** Déprovisionnement (résiliation / suppression org) | ❌ |
+| **Lot 6** « Nettoyer le relais `mail.naywastudio.com` » | ⛔️ **révisé — à NE PAS faire.** Il porte le SMTP de Supabase. Seul l'outreach candidat bascule |
+
+**Deux surprises hors plan, traitées** : l'analyse des réponses n'était câblée
+que sur le chemin Resend (les suggestions auraient cessé le jour de
+l'activation), et SNS retente au-delà de ~15 s (doublons possibles dans le fil).
+
+---
+
 ## 🔴 Ouvert
 
 ### 1. L'add-on Stripe n'existe pas
