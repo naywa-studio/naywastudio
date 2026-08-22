@@ -73,8 +73,8 @@ export type SendCandidateResult =
  * La partie locale reprend le sous-domaine (« careers ») : le domaine porte
  * déjà l'identité du cabinet, la répéter dans la boîte n'apporterait rien.
  */
-export function orgFromAddress(org: MailingOrg): string | null {
-  if (!org.mailing_sending_domain) return null
+export function orgFromAddress(org: MailingOrg | null | undefined): string | null {
+  if (!org?.mailing_sending_domain) return null
   const local = (org.mailing_subdomain ?? "").trim() || DEFAULT_SUBDOMAIN
   return `${local}@${org.mailing_sending_domain}`
 }

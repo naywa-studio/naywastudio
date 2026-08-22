@@ -3,6 +3,9 @@
 import { useState } from "react"
 import type { Candidate, OutreachMeta } from "@/lib/database.types"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useWorkspace } from "@/app/workspace/layout"
+import { canSendFromOrgDomain } from "@/lib/subscription"
+import { orgFromAddress } from "@/lib/mailing/send"
 
 const uiCopy = {
   fr: {
@@ -29,6 +32,15 @@ const uiCopy = {
     generateFailed: "Échec de la génération.",
     networkError: "Erreur réseau.",
     critiqueFailed: "Nora n'a pas pu relire le message.",
+    sendBtn: "Envoyer",
+    sending: "Envoi…",
+    confirmTo: (to: string) => `Envoyer à ${to} ?`,
+    confirmYes: "Confirmer l'envoi",
+    confirmNo: "Annuler",
+    sentTitle: "Message envoyé",
+    sentFrom: (from: string) => `Parti de ${from}. La réponse du candidat reviendra dans ce fil.`,
+    needSubject: "Ajoutez un objet avant d'envoyer.",
+    sendFooterHint: "L'envoi part du domaine de votre organisation. Rien n'est envoyé sans ce clic.",
   },
   en: {
     email: "Email",
@@ -54,6 +66,15 @@ const uiCopy = {
     generateFailed: "Generation failed.",
     networkError: "Network error.",
     critiqueFailed: "Nora couldn't review the message.",
+    sendBtn: "Send",
+    sending: "Sending…",
+    confirmTo: (to: string) => `Send to ${to}?`,
+    confirmYes: "Confirm and send",
+    confirmNo: "Cancel",
+    sentTitle: "Message sent",
+    sentFrom: (from: string) => `Sent from ${from}. The candidate's reply will land in this thread.`,
+    needSubject: "Add a subject before sending.",
+    sendFooterHint: "The email goes out from your organisation's domain. Nothing is sent without this click.",
   },
 }
 
@@ -81,6 +102,7 @@ export default function ComposeBox({
 }) {
   const { lang } = useLanguage()
   const t = uiCopy[lang]
+  const { organization, profile, isReadOnly } = useWorkspace()
   const existing = candidate.outreach_meta as OutreachMeta | null
   const [channel, setChannel] = useState<"email" | "linkedin">(existing?.channel ?? "email")
   const [instruction, setInstruction] = useState(existing?.instruction ?? "")
@@ -99,8 +121,58 @@ export default function ComposeBox({
     flags: { level: "info" | "warn"; text: string }[]
   } | null>(null)
 
+  const [confirming, setConfirming] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sentAt, setSentAt] = useState<string | null>(null)
+
   const hasDraft = bodyText.trim().length > 0
   const edited = hasDraft && (bodyText.trim() !== aiBody.trim() || subject.trim() !== aiSubject.trim())
+
+  /* ── Quand le bouton « Envoyer » apparaît ───────────────────────────────
+   *
+   * Seulement quand l'organisation peut RÉELLEMENT écrire depuis son domaine.
+   * Sans l'option, on garde le copier-coller vers Gmail : c'est ce que font
+   * les cabinets aujourd'hui, et le leur retirer serait une régression.
+   *
+   * C'est aussi, très exactement, ce que l'add-on achète — passer du
+   * copier-coller à l'envoi depuis l'application, sous sa propre marque.
+   *
+   * ⚠️ Ce bouton était absent de TOUTE l'interface : la route d'envoi
+   * existait sans aucun appelant depuis le commit qui a masqué l'UI mail.
+   * L'add-on reposait donc sur une action que le produit n'exposait plus. */
+  const asAdmin = { isAdmin: profile?.is_admin === true }
+  const senderAddress = orgFromAddress(organization)
+  const canSend =
+    channel === "email" &&
+    !isReadOnly &&
+    !!candidate.email &&
+    canSendFromOrgDomain(organization, asAdmin) &&
+    !!senderAddress
+
+  const send = async () => {
+    if (!subject.trim()) { setError(t.needSubject); setConfirming(false); return }
+    setSending(true); setError(null)
+    try {
+      const res = await fetch(`/api/cv/${candidate.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, body: bodyText, job_id: selectedJobId || null }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        // `detail` n'est renseigné que pour les admins Naywa : sans lui, un
+        // refus du fournisseur est indiscernable d'une panne réseau.
+        setError([data?.message, data?.detail].filter(Boolean).join(" — ") || t.networkError)
+        return
+      }
+      setSentAt(new Date().toISOString())
+      setConfirming(false)
+    } catch (err) {
+      setError((err as Error).message ?? t.networkError)
+    } finally {
+      setSending(false)
+    }
+  }
 
   const generate = async () => {
     setComposing(true); setError(null)
@@ -321,20 +393,76 @@ export default function ComposeBox({
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <button onClick={copyToClipboard} style={{
-              padding: "7px 12px", borderRadius: 9,
-              background: copied ? "rgba(34,197,94,0.10)" : "white",
-              border: `1px solid ${copied ? "rgba(34,197,94,0.3)" : "var(--nw-border)"}`,
-              color: copied ? "var(--nw-success)" : "var(--nw-text-body)",
-              fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+          {sentAt ? (
+            <div style={{
+              background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.3)",
+              borderRadius: 10, padding: "10px 12px",
             }}>
-              {copied ? t.copied : t.copyBtn}
-            </button>
-          </div>
-          <span style={{ fontSize: 11, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
-            {t.footerHint}
-          </span>
+              <div style={{
+                fontSize: 11, fontWeight: 800, color: "var(--nw-success)",
+                letterSpacing: "0.04em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+              }}>
+                {t.sentTitle}
+              </div>
+              <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "var(--nw-text-body)" }}>
+                {t.sentFrom(senderAddress ?? "")}
+              </p>
+            </div>
+          ) : confirming ? (
+            /* Confirmation explicite, avec l'adresse RÉELLE du destinataire.
+             * Un envoi est irréversible et sort de l'application : le clic
+             * qui l'autorise doit dire à qui, pas seulement « envoyer ». */
+            <div style={{
+              background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border)",
+              borderRadius: 10, padding: "10px 12px",
+              display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center",
+            }}>
+              <span style={{ fontSize: 12.5, color: "var(--nw-text-body)" }}>
+                {t.confirmTo(candidate.email ?? "")}
+              </span>
+              <button onClick={send} disabled={sending} style={{
+                marginLeft: "auto", padding: "7px 13px", borderRadius: 9, border: "none",
+                background: "var(--nw-primary)", color: "white",
+                fontSize: 12, fontWeight: 700,
+                cursor: sending ? "default" : "pointer", fontFamily: "inherit",
+              }}>
+                {sending ? t.sending : t.confirmYes}
+              </button>
+              <button onClick={() => setConfirming(false)} disabled={sending} style={{
+                padding: "7px 10px", borderRadius: 9, border: "none", background: "transparent",
+                color: "var(--nw-text-muted)", fontSize: 12, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit",
+              }}>
+                {t.confirmNo}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              {canSend && (
+                <button onClick={() => { setError(null); setConfirming(true) }} style={{
+                  padding: "7px 14px", borderRadius: 9, border: "none",
+                  background: "var(--nw-primary)", color: "white",
+                  fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                }}>
+                  {t.sendBtn}
+                </button>
+              )}
+              <button onClick={copyToClipboard} style={{
+                padding: "7px 12px", borderRadius: 9,
+                background: copied ? "rgba(34,197,94,0.10)" : "white",
+                border: `1px solid ${copied ? "rgba(34,197,94,0.3)" : "var(--nw-border)"}`,
+                color: copied ? "var(--nw-success)" : "var(--nw-text-body)",
+                fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              }}>
+                {copied ? t.copied : t.copyBtn}
+              </button>
+            </div>
+          )}
+          {!sentAt && (
+            <span style={{ fontSize: 11, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
+              {canSend ? t.sendFooterHint : t.footerHint}
+            </span>
+          )}
         </div>
       )}
     </div>
