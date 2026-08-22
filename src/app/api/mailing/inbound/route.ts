@@ -29,7 +29,9 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { verifySnsMessage, isTrustedCertUrl, type SnsMessage } from "@/lib/mailing/sns"
-import { fetchRawEmail, parseInboundEmail } from "@/lib/mailing/inbound"
+import { fetchRawEmail, parseInboundEmail, deleteRawEmail } from "@/lib/mailing/inbound"
+import { resolveInboundRouting, stripQuotedReply } from "@/lib/mailing/route-inbound"
+import { getAdminSupabase } from "@/lib/admin-supabase"
 
 export const runtime = "nodejs"
 
@@ -120,31 +122,80 @@ export async function POST(req: NextRequest) {
     const raw = await fetchRawEmail(objectKey)
     const email = await parseInboundEmail(raw)
 
-    // Le rattachement au sourceur et à la conversation vient ensuite. On
-    // observe d'abord ce que l'analyse produit sur de vrais messages : les
-    // clients de messagerie prennent des libertés avec le format, et coder
-    // contre la théorie mènerait à refaire le travail.
-    console.info("[mailing/inbound] email lu", {
-      from: email.fromAddress,
-      to: email.to,
-      subject: email.subject,
-      textLength: email.text.length,
-      textPreview: email.text.slice(0, 160),
-      inReplyTo: email.inReplyTo,
-      references: email.references.length,
-      attachments: email.attachments.map((a) => ({
-        filename: a.filename,
-        contentType: a.contentType,
-        sizeKo: Math.round(a.size / 1024),
-      })),
-      rawSizeKo: Math.round(raw.length / 1024),
+    if (!email.fromAddress) {
+      console.error("[mailing/inbound] message sans expéditeur exploitable", { objectKey })
+      return NextResponse.json({ ok: true, ignored: "no_sender" })
+    }
+
+    // Le destinataire retenu est celui que SES a réellement accepté, pas le
+    // premier de l'en-tête `To` : un message peut être adressé à plusieurs
+    // personnes, et seule l'adresse qui nous concerne doit décider du
+    // rattachement.
+    const target = (recipients[0] ?? email.to[0] ?? "").toLowerCase()
+
+    const admin = getAdminSupabase()
+    const routing = await resolveInboundRouting(admin, {
+      toAddress: target,
+      fromAddress: email.fromAddress,
     })
 
-    // ⚠️ On ne supprime PAS encore l'objet S3 : tant que le contenu n'est pas
-    // écrit en base, l'effacer reviendrait à perdre le message. La suppression
-    // se branchera avec l'enregistrement, dans le même geste.
+    if (!routing.userId || !routing.organizationId) {
+      // Adresse qui ne correspond à aucun sourceur. On ne stocke rien : ce
+      // n'est pas notre courrier. Tracé pour distinguer « personne ne l'a
+      // reçu » de « la réception est en panne ».
+      console.warn("[mailing/inbound] destinataire inconnu, message ignoré", {
+        target, from: email.fromAddress,
+      })
+      await deleteRawEmail(objectKey)
+      return NextResponse.json({ ok: true, ignored: "unknown_recipient" })
+    }
 
-    return NextResponse.json({ ok: true, received: recipients.length })
+    const bodyText = stripQuotedReply(email.text)
+
+    const { error } = await admin.from("email_messages").insert({
+      user_id: routing.userId,
+      organization_id: routing.organizationId,
+      candidate_id: routing.candidateId,
+      job_id: routing.jobId,
+      direction: "inbound",
+      from_address: email.fromAddress,
+      to_address: target,
+      subject: email.subject || null,
+      body_text: bodyText || null,
+      body_html: email.html,
+      provider_id: payload.mail?.messageId ?? null,
+      status: "received",
+    })
+
+    if (error) {
+      // Échec d'écriture : on NE supprime PAS l'objet S3 et on renvoie 500
+      // pour que SNS retente. C'est le seul cas où une nouvelle tentative a
+      // une chance d'aboutir — et le seul où perdre le message serait grave.
+      console.error("[mailing/inbound] insertion impossible:", error.message)
+      return NextResponse.json({ error: "store_failed" }, { status: 500 })
+    }
+
+    console.info("[mailing/inbound] message rattaché", {
+      user: routing.userId,
+      candidate: routing.candidateId,
+      job: routing.jobId,
+      attachments: email.attachments.length,
+    })
+
+    // Le contenu est en base : l'objet S3 n'a plus de raison d'exister.
+    // Le garder reviendrait à conserver les échanges candidats à DEUX
+    // endroits — minimisation RGPD autant que ménage.
+    //
+    // ⚠️ Les pièces jointes ne sont pas encore stockées durablement : elles
+    // disparaissent donc avec l'objet. C'est assumé pour ce lot, et c'est la
+    // première chose à traiter au suivant.
+    await deleteRawEmail(objectKey)
+
+    return NextResponse.json({
+      ok: true,
+      matched: !!routing.candidateId,
+      attachments: email.attachments.length,
+    })
   } catch (err) {
     // Format inattendu : on accuse quand même, sinon SNS retente en boucle un
     // message qui ne deviendra jamais valide.

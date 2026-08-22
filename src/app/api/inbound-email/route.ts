@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { Webhook } from "svix"
+import { stripQuotedReply } from "@/lib/mailing/route-inbound"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { getInboundEmail } from "@/lib/resend"
 import { openrouterChat, safeJsonParse } from "@/lib/openrouter"
@@ -37,27 +38,13 @@ function bareAddress(v: unknown): string | null {
   return addr.includes("@") ? addr : null
 }
 
-/**
- * Strip the quoted original message from a reply, keeping only the new text.
- * Cuts at the first quoted line (`>`) or attribution line ("Le … a écrit :").
+/*
+ * `stripQuotedReply` vit désormais dans `lib/mailing/route-inbound.ts`, partagé
+ * avec la réception par le domaine du client (SES). Les deux chemins doivent
+ * découper les citations de la même façon : une divergence donnerait des
+ * corps de message différents selon le fournisseur, donc des analyses et un
+ * affichage différents pour un même échange.
  */
-function stripQuotedReply(text: string): string {
-  const lines = text.split(/\r?\n/)
-  const attribution = [
-    /^\s*>?\s*Le .+ a écrit\s*:/i,                  // Apple Mail / Gmail FR
-    /^\s*>?\s*On .+ wrote:\s*$/i,                    // Apple Mail / Gmail EN
-    /^\s*-{2,}\s*(Original Message|Message d'origine)\s*-{2,}/i,
-    /^\s*_{5,}\s*$/,                                 // Outlook divider
-  ]
-  let cut = lines.length
-  for (let i = 0; i < lines.length; i++) {
-    if (/^\s*>/.test(lines[i]) || attribution.some((re) => re.test(lines[i]))) {
-      cut = i
-      break
-    }
-  }
-  return lines.slice(0, cut).join("\n").replace(/\s+$/, "")
-}
 
 const ANALYSIS_PROMPT = `Tu analyses la réponse d'un candidat à un message de recrutement.
 Réponds UNIQUEMENT en JSON :
