@@ -92,6 +92,24 @@ describe("inboxDomainFor", () => {
   it("reste sur Naywa sans organisation", () => {
     expect(inboxDomainFor(null)).toBe("mail.naywastudio.com")
   })
+
+  it("suit le bypass admin, comme l'envoi", () => {
+    // LE piège trouvé en base sur l'organisation admin : sans `isAdmin`, une
+    // org sans abonnement envoyait depuis son domaine (la garde d'envoi, elle,
+    // recevait le drapeau) mais recevait sur celui de Naywa. Le candidat aurait
+    // répondu à la mauvaise adresse, l'échange serait revenu par l'ancien
+    // chemin, et le test aurait semblé réussir sans rien prouver.
+    const orgSansAbo = { ...ORG_ACTIVE, subscription_has_mailing: false } satisfies InboxOrg
+    expect(inboxDomainFor(orgSansAbo)).toBe("mail.naywastudio.com")
+    expect(inboxDomainFor(orgSansAbo, { isAdmin: true })).toBe("careers.cabinet-durand.fr")
+  })
+
+  it("un admin ne contourne PAS la vérification DNS", () => {
+    // Le bypass porte sur le paiement, jamais sur les clés publiées : sans
+    // DKIM, l'adresse ne recevrait rien et le mail partirait en spam.
+    expect(inboxDomainFor({ ...ORG_ACTIVE, mailing_status: "verifying" }, { isAdmin: true }))
+      .toBe("mail.naywastudio.com")
+  })
 })
 
 /* ── L'attribution et la bascule ──────────────────────────────────────────── */

@@ -90,8 +90,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
    *
    * L'adresse de réception suit le même domaine — sans quoi le candidat
    * lirait un expéditeur au nom du cabinet et répondrait à Naywa. */
-  const onOwnDomain = canSendFromOrgDomain(org, { isAdmin: profile?.is_admin === true })
-  const inboxAddress = await ensureInboxAddress(admin, user.id, org)
+  // ⚠️ La MÊME valeur d'`isAdmin` des deux côtés. Une divergence enverrait
+  // depuis le domaine du cabinet avec un `Reply-To` chez Naywa : le candidat
+  // répondrait ailleurs, et tout aurait l'air de marcher.
+  const asAdmin = { isAdmin: profile?.is_admin === true }
+  const onOwnDomain = canSendFromOrgDomain(org, asAdmin)
+  const inboxAddress = await ensureInboxAddress(admin, user.id, org, asAdmin)
   const from = fromHeader(profile?.first_name, inboxAddress)
   const bcc = profile?.inbox_cc_self ? (user.email ?? undefined) : undefined
 
@@ -109,7 +113,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           text: messageBody,
           bcc,
         },
-        { isAdmin: profile?.is_admin === true },
+        asAdmin,
       )
       // Un refus ici serait une incohérence : `canSendFromOrgDomain` vient de
       // dire oui. On le traite quand même — la garde interne de l'envoi est
@@ -142,10 +146,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       status: "failed",
       error: (err as Error).message,
     })
-    return NextResponse.json(
-      { error: "send_failed", message: "L'envoi a échoué. Réessayez." },
-      { status: 502 },
-    )
+    return NextResponse.json({
+      error: "send_failed",
+      message: "L'envoi a échoué. Réessayez.",
+      // La cause réelle, pour les admins Naywa uniquement. Un message de
+      // fournisseur peut nommer une adresse ou une configuration interne :
+      // il n'a rien à faire chez un client. Mais sans lui, diagnostiquer un
+      // refus SES revient à deviner — le refus « bac à sable », notamment,
+      // parle du destinataire et n'oriente vers rien.
+      ...(profile?.is_admin === true ? { detail: (err as Error).message } : {}),
+    }, { status: 502 })
   }
 
   // Log the sent message

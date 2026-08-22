@@ -45,8 +45,20 @@ export type InboxOrg = Pick<
  * choisie serait une usurpation ; une boîte de réception hébergée chez Naywa
  * est simplement le service tel qu'il existe aujourd'hui.
  */
-export function inboxDomainFor(org: InboxOrg | null | undefined): string {
-  if (org && canSendFromOrgDomain(org) && org.mailing_sending_domain) {
+export function inboxDomainFor(
+  org: InboxOrg | null | undefined,
+  /**
+   * ⚠️ À passer, TOUJOURS, avec la même valeur qu'à l'envoi.
+   *
+   * L'oublier ne provoque pas d'erreur : ça produit un message expédié depuis
+   * le domaine du cabinet mais dont le `Reply-To` pointe sur Naywa. Le candidat
+   * répond alors à la mauvaise adresse, l'échange revient par l'ancien chemin,
+   * et tout a l'air de fonctionner. C'est le pire des cas — un test qui passe
+   * sans rien prouver. Trouvé exactement comme ça sur l'organisation admin.
+   */
+  opts?: { isAdmin?: boolean },
+): string {
+  if (org && canSendFromOrgDomain(org, opts) && org.mailing_sending_domain) {
     return org.mailing_sending_domain
   }
   return MAIL_DOMAIN
@@ -122,8 +134,10 @@ export async function ensureInboxAddress(
   admin: SupabaseClient<Database>,
   userId: string,
   org: InboxOrg | null | undefined,
+  /** Même remarque que pour `inboxDomainFor` : à passer comme à l'envoi. */
+  opts?: { isAdmin?: boolean },
 ): Promise<string> {
-  const domain = inboxDomainFor(org)
+  const domain = inboxDomainFor(org, opts)
 
   const { data: profile } = await admin
     .from("profiles")
@@ -170,6 +184,39 @@ export async function ensureInboxAddress(
     .eq("user_id", userId)
 
   return address
+}
+
+/**
+ * Bascule les adresses de réception de TOUS les membres d'une organisation.
+ *
+ * Appelée aux deux endroits où un domaine peut devenir actif : la
+ * vérification, et la déclaration — car un domaine déjà vérifié chez le
+ * fournisseur ressort `active` dès la déclaration, et la vérification n'a
+ * alors plus rien à annoncer. N'appeler que la seconde laissait les adresses
+ * en arrière dans ce cas précis, sans le moindre signe.
+ *
+ * Best-effort, et volontairement : un échec ne doit pas faire échouer une
+ * activation qui a réussi. L'adresse manquante sera créée au premier envoi,
+ * puisque `ensureInboxAddress` y est aussi appelé.
+ */
+export async function switchOrgInboxAddresses(
+  admin: SupabaseClient<Database>,
+  org: InboxOrg & { id: string },
+  opts?: { isAdmin?: boolean },
+): Promise<number> {
+  const { data: members } = await admin
+    .from("profiles").select("user_id").eq("organization_id", org.id)
+
+  let switched = 0
+  for (const m of members ?? []) {
+    try {
+      await ensureInboxAddress(admin, m.user_id, org, opts)
+      switched++
+    } catch (err) {
+      console.error("[mailing] adresse non basculée:", m.user_id, err)
+    }
+  }
+  return switched
 }
 
 /**

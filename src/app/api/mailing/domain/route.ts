@@ -30,6 +30,7 @@ import { activeProvider } from "@/lib/mailing/send"
 import { DEFAULT_SUBDOMAIN, sendingDomainFor } from "@/lib/mailing/provider"
 import { checkRootDomain, cleanSubdomain, explainRejection, isForbiddenSendingDomain } from "@/lib/mailing/domain-input"
 import { explainSesError } from "@/lib/mailing/ses"
+import { switchOrgInboxAddresses } from "@/lib/mailing/inbox-address"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -201,6 +202,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "store_failed", detail: "internal_error" }, { status: 500 })
   }
 
+  /* ── Un domaine peut naître ACTIF ──────────────────────────────────────
+   *
+   * Si le fournisseur connaît déjà ce domaine et l'a vérifié, la déclaration
+   * ressort `active` du premier coup — et la vérification n'aura alors plus
+   * rien à annoncer. Ne basculer les adresses que dans la vérification les
+   * laissait donc en arrière dans ce cas précis, sans le moindre signe.
+   * Constaté en vrai sur l'organisation de test. */
+  const switched = declared.status === "active"
+    ? await switchOrgInboxAddresses(
+        admin,
+        { ...org, mailing_sending_domain: sendingDomain, mailing_status: "active" },
+        { isAdmin: g.isAdmin },
+      )
+    : 0
+
   return NextResponse.json({
     ok: true,
     domain: check.value,
@@ -208,5 +224,6 @@ export async function POST(req: NextRequest) {
     sending_domain: sendingDomain,
     status: declared.status,
     records: declared.records,
+    addresses_switched: switched,
   })
 }

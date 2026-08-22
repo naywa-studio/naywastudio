@@ -28,7 +28,7 @@ import { getCapabilities } from "@/lib/capabilities"
 import { hasMailingAccess } from "@/lib/subscription"
 import { activeProvider } from "@/lib/mailing/send"
 import { explainSesError } from "@/lib/mailing/ses"
-import { ensureInboxAddress } from "@/lib/mailing/inbox-address"
+import { switchOrgInboxAddresses } from "@/lib/mailing/inbox-address"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -96,19 +96,13 @@ export async function POST() {
    * `ensureInboxAddress` est appelé là aussi. L'inverse — annuler la
    * vérification parce qu'une adresse n'a pas bougé — ferait perdre au client
    * une étape DNS qu'il vient de franchir. */
-  let switched = 0
-  if (becameActive) {
-    const { data: members } = await admin
-      .from("profiles").select("user_id").eq("organization_id", org.id)
-    for (const m of members ?? []) {
-      try {
-        await ensureInboxAddress(admin, m.user_id, { ...org, mailing_status: state.status })
-        switched++
-      } catch (err) {
-        console.error("[mailing/verify] adresse non basculée:", m.user_id, err)
-      }
-    }
-  }
+  const switched = becameActive
+    ? await switchOrgInboxAddresses(
+        admin,
+        { ...org, mailing_status: state.status },
+        { isAdmin: caps.isAdminNaywa },
+      )
+    : 0
 
   return NextResponse.json({
     ok: true,
