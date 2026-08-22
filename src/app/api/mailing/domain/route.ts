@@ -26,10 +26,10 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { getCapabilities } from "@/lib/capabilities"
 import { hasMailingAccess } from "@/lib/subscription"
-import { activeProvider } from "@/lib/mailing/send"
+import { activeProvider, reputationGroupFor } from "@/lib/mailing/send"
 import { DEFAULT_SUBDOMAIN, sendingDomainFor } from "@/lib/mailing/provider"
 import { checkRootDomain, cleanSubdomain, explainRejection, isForbiddenSendingDomain } from "@/lib/mailing/domain-input"
-import { explainSesError } from "@/lib/mailing/ses"
+import { explainSesError, ensureReputationGroup } from "@/lib/mailing/ses"
 import { switchOrgInboxAddresses } from "@/lib/mailing/inbox-address"
 
 export const runtime = "nodejs"
@@ -171,6 +171,17 @@ export async function POST(req: NextRequest) {
       message: "Ce domaine d'envoi est déjà utilisé par une autre organisation. Contactez-nous si c'est le vôtre.",
     }, { status: 409 })
   }
+
+  /* ── Le jeu de configuration de cette organisation ─────────────────────
+   *
+   * À créer AVANT le premier envoi : SES rejette tout message qui en nomme un
+   * inexistant. Best-effort — si la politique IAM ne l'autorise pas, on perd
+   * la mesure de réputation, pas le service (l'envoi retombe alors sans jeu
+   * de configuration, en le journalisant).
+   *
+   * Placé ici parce que c'est le seul endroit qui connaît à la fois
+   * l'organisation et le moment où elle se met en route. */
+  await ensureReputationGroup(reputationGroupFor(org.id))
 
   // Déclaration chez le fournisseur. Idempotente par contrat : un domaine
   // déjà déclaré est renvoyé tel quel, jamais recréé — recréer ferait tourner

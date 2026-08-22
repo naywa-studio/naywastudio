@@ -27,6 +27,7 @@ import {
   GetEmailIdentityCommand,
   SendEmailCommand,
   GetAccountCommand,
+  CreateConfigurationSetCommand,
   type DkimStatus,
 } from "@aws-sdk/client-sesv2"
 import {
@@ -156,34 +157,92 @@ export const sesProvider: MailingProvider = {
   },
 
   async sendFromDomain(input: ProviderSendInput): Promise<{ id: string }> {
-    try {
-      const out = await client().send(new SendEmailCommand({
-        FromEmailAddress: input.from,
-        Destination: {
-          ToAddresses: [input.to],
-          ...(input.bcc ? { BccAddresses: [input.bcc] } : {}),
-        },
-        ReplyToAddresses: [input.replyTo],
-        ConfigurationSetName: input.reputationGroup,
-        Content: {
-          Simple: {
-            // Un saut de ligne dans un sujet permet d'injecter des en-têtes.
-            // Filtré ici plutôt que chez chaque appelant : la garde protège
-            // tous les points d'envoi, présents et futurs.
-            Subject: { Data: input.subject.replace(/[\r\n]+/g, " "), Charset: "UTF-8" },
-            Body: {
-              Text: { Data: input.text, Charset: "UTF-8" },
-              ...(input.html ? { Html: { Data: input.html, Charset: "UTF-8" } } : {}),
-            },
+    const build = (configurationSet?: string) => new SendEmailCommand({
+      FromEmailAddress: input.from,
+      Destination: {
+        ToAddresses: [input.to],
+        ...(input.bcc ? { BccAddresses: [input.bcc] } : {}),
+      },
+      ReplyToAddresses: [input.replyTo],
+      ...(configurationSet ? { ConfigurationSetName: configurationSet } : {}),
+      Content: {
+        Simple: {
+          // Un saut de ligne dans un sujet permet d'injecter des en-têtes.
+          // Filtré ici plutôt que chez chaque appelant : la garde protège
+          // tous les points d'envoi, présents et futurs.
+          Subject: { Data: input.subject.replace(/[\r\n]+/g, " "), Charset: "UTF-8" },
+          Body: {
+            Text: { Data: input.text, Charset: "UTF-8" },
+            ...(input.html ? { Html: { Data: input.html, Charset: "UTF-8" } } : {}),
           },
         },
-      }))
+      },
+    })
+
+    try {
+      const out = await client().send(build(input.reputationGroup))
       if (!out.MessageId) throw new Error("SES : envoi sans MessageId")
       return { id: out.MessageId }
     } catch (err) {
+      /* ── Le jeu de configuration manque : on envoie quand même ──────────
+       *
+       * Il sert à MESURER un client (rebonds, plaintes) pour pouvoir couper
+       * le fautif seul. C'est précieux, mais c'est de la télémétrie — et un
+       * message à un candidat vaut plus qu'une métrique. Le perdre parce que
+       * notre propre instrumentation manque serait absurde.
+       *
+       * L'erreur est journalisée fort : Sentry doit la voir, sinon on
+       * enverrait durablement sans mesurer, ce qui est le vrai danger avec
+       * une réputation partagée entre tous les clients du compte. */
+      if (input.reputationGroup && isMissingConfigurationSet(err)) {
+        console.error(
+          "[ses] jeu de configuration absent, envoi SANS mesure de réputation:",
+          input.reputationGroup,
+        )
+        const out = await client().send(build()).catch((e) => { throw new Error(explainSesError(e)) })
+        if (!out.MessageId) throw new Error("SES : envoi sans MessageId")
+        return { id: out.MessageId }
+      }
       throw new Error(explainSesError(err))
     }
   },
+}
+
+/** SES refuse-t-il parce que le jeu de configuration n'existe pas ? */
+function isMissingConfigurationSet(err: unknown): boolean {
+  const message = (err as { message?: string })?.message ?? String(err)
+  return /configuration set/i.test(message) && /does not exist|not found/i.test(message)
+}
+
+/**
+ * Crée le jeu de configuration d'une organisation, s'il n'existe pas.
+ *
+ * ── Pourquoi il en faut un par client ─────────────────────────────────────
+ *
+ * Chez SES, la réputation est celle du COMPTE : un cabinet qui envoie
+ * n'importe quoi dégrade la délivrabilité de tous les autres, et au pire fait
+ * suspendre l'ensemble. Rattacher chaque client à son propre jeu permet de
+ * mesurer séparément, et de couper le fautif AVANT qu'AWS ne s'en aperçoive.
+ *
+ * ⚠️ J'avais écrit la moitié du dispositif : le nom était passé à chaque
+ * envoi, rien ne le créait jamais. SES rejetait donc tout envoi — trouvé au
+ * premier essai réel, pas en relisant.
+ *
+ * Best-effort : si la politique IAM n'autorise pas la création, on ne bloque
+ * ni la déclaration du domaine ni les envois. On perd la mesure, pas le
+ * service — et l'envoi retombe sans jeu de configuration (cf. ci-dessus).
+ */
+export async function ensureReputationGroup(name: string): Promise<boolean> {
+  try {
+    await client().send(new CreateConfigurationSetCommand({ ConfigurationSetName: name }))
+    return true
+  } catch (err) {
+    const errName = (err as { name?: string })?.name ?? ""
+    // Déjà là : c'est le résultat voulu, pas un échec.
+    if (errName === "AlreadyExistsException") return true
+    console.error("[ses] jeu de configuration non créé:", name, explainSesError(err))
+    return false
+  }
 }
 
 /**
