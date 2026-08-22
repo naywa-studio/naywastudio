@@ -4,7 +4,7 @@ Suite de `docs/chantier-mailing-domaine-client.md`, qui reste la spécification.
 Ce document dit **où on en est** et **ce qui reste ouvert**.
 
 Branches : `claude/mailing-lot-0` et `claude/mailing-lot-1`. **Aucune n'est
-mergée.** Migrations 085 et 086 **appliquées en base**.
+mergée.** Migrations 085, 086 et 087 **appliquées en base**.
 
 ---
 
@@ -45,29 +45,51 @@ d'où l'interface fine : changer de fournisseur = un fichier.
 
 ---
 
+## ✅ Fermé depuis — adresse de réception au domaine de l'org
+
+Le point qui manquait au lot 1 est écrit (migration **087**).
+
+- `ensureInboxAddress` vit désormais dans `lib/mailing/inbox-address.ts` et
+  dérive son domaine de l'organisation via `inboxDomainFor`, adossé à
+  `canSendFromOrgDomain` — pas à une règle maison, pour que recevoir et
+  envoyer ne puissent pas diverger.
+- **La bascule garde la partie locale** (`sophie@` reste `sophie@`) et
+  **archive l'ancienne adresse** dans `profiles.inbox_aliases`. Sans ça,
+  l'activation ferait tomber toutes les réponses en cours dans « destinataire
+  inconnu » — un échec parfaitement muet, que le sourceur lirait comme un
+  candidat qui ne répond pas.
+- `resolveInboundRouting` cherche l'adresse courante **puis les alias**.
+- Une adresse abandonnée n'est jamais réattribuée à un collègue : ce serait
+  une fuite de fil entre deux membres, pire qu'une réponse perdue.
+- La route `/api/inbound-email` (Resend) **utilise enfin** `resolveInboundRouting`
+  au lieu de sa copie — la divergence que son propre commentaire annonçait.
+- Index unique sur `inbox_address` : deux sourceurs partageant une adresse
+  rendraient le rattachement ambigu.
+
+`POST /api/cv/[id]/send` route maintenant sur `sendCandidateEmail` dès que le
+domaine du cabinet est prêt, et sur Resend sinon. Le `Bcc` de courtoisie
+(`inbox_cc_self`) a été porté sur le chemin SES — un réglage coché par
+l'utilisateur qui aurait disparu sans bruit à l'activation.
+
+18 tests dédiés (`inbox-address.test.ts`), 107 au total.
+
+---
+
 ## 🔴 Ouvert — dans l'ordre de priorité
 
-### 1. `ensureInboxAddress` n'utilise pas le domaine de l'org
+### 1. La garde d'envoi n'a pas encore tourné en vrai
 
-**Point de la spec pour le lot 1, jamais écrit.** `lib/resend.ts` construit
-encore les adresses avec la constante `MAIL_DOMAIN`. Quand un cabinet activera
-son domaine, l'adresse de réception de ses sourceurs pointera toujours sur
-Naywa — l'écart même que l'add-on doit supprimer.
+`sendCandidateEmail` est désormais **sur le vrai chemin d'envoi** (plus
+seulement en tests). Mais aucune organisation n'a de domaine actif : le
+branchement n'a donc jamais été exercé de bout en bout. À prouver à la
+première activation réelle.
 
-Prévoir aussi la **régénération** des adresses existantes à l'activation.
-
-### 2. La garde d'envoi n'a jamais tourné
-
-`sendCandidateEmail` (option acquise ET domaine vérifié) n'existe qu'en tests
-unitaires. La route de test d'envoi **court-circuite** cette garde en appelant
-le fournisseur directement. Aucune organisation réelle n'est passée dedans.
-
-### 3. `createSendingDomain` jamais exercé
+### 2. `createSendingDomain` jamais exercé
 
 On a lu l'état d'un domaine créé à la main dans la console. Le chemin
 d'ÉCRITURE n'a jamais été appelé.
 
-### 4. La signature de mail pollue le corps analysé
+### 3. La signature de mail pollue le corps analysé
 
 Constaté en base : `"Test éé é 3\nElyas Malki\nFounder & CEO — Naywa Studio…"`.
 `stripQuotedReply` coupe les citations, pas les signatures — ce n'est pas son

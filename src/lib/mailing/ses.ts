@@ -158,7 +158,10 @@ export const sesProvider: MailingProvider = {
     try {
       const out = await client().send(new SendEmailCommand({
         FromEmailAddress: input.from,
-        Destination: { ToAddresses: [input.to] },
+        Destination: {
+          ToAddresses: [input.to],
+          ...(input.bcc ? { BccAddresses: [input.bcc] } : {}),
+        },
         ReplyToAddresses: [input.replyTo],
         ConfigurationSetName: input.reputationGroup,
         Content: {

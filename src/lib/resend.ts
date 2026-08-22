@@ -1,13 +1,14 @@
 /**
- * Resend integration — outbound sending + inbox-address provisioning.
+ * Resend — le relais de Naywa, pour les emails que Naywa envoie EN SON NOM.
  *
- * Each client gets a dedicated sourcing address `{local}@mail.naywastudio.com`.
- * All recruitment email flows through Naywa's domain — we never touch the
- * client's personal inbox.
+ * Confirmations d'inscription et réinitialisations de mot de passe (via le
+ * SMTP Supabase), formulaire de contact, support, demandes de branding.
+ *
+ * ⚠️ L'outreach CANDIDAT ne passe plus par ici quand l'organisation a activé
+ * son domaine : il part par `lib/mailing/`, sous la marque du cabinet. Ce
+ * relais-ci ne doit jamais être débranché pour autant — il porte
+ * l'authentification de tous les utilisateurs.
  */
-
-import type { SupabaseClient } from "@supabase/supabase-js"
-import type { Database } from "./database.types"
 
 export const MAIL_DOMAIN = "mail.naywastudio.com"
 const RESEND_ENDPOINT = "https://api.resend.com/emails"
@@ -98,64 +99,15 @@ export async function getInboundEmail(emailId: string): Promise<InboundEmailCont
 
 /* ──────────────────── Inbox address provisioning ──────────────────── */
 
-/** Turn a name (or email local part) into a safe email local part. */
-export function slugifyLocalPart(input: string): string {
-  const base = input
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")   // strip accents
-    .replace(/[^a-z0-9]+/g, ".")        // non-alnum → dot
-    .replace(/\.+/g, ".")               // collapse dots
-    .replace(/^\.+|\.+$/g, "")          // trim dots
-    .slice(0, 32)
-  return base || "sourceur"
-}
-
 /**
- * Returns the profile's dedicated inbox address, creating it on first use.
- * Local part derived from first_name (fallback: email local part), with a
- * numeric suffix on collision. Pass the **admin** client.
+ * Déplacé vers `lib/mailing/inbox-address.ts`.
+ *
+ * L'adresse de réception d'un sourceur ne dépend plus de ce fichier : elle
+ * suit le domaine de son organisation, qui peut ne pas être celui de Naywa.
+ * La laisser ici l'aurait figée sur `MAIL_DOMAIN` — c'est exactement le défaut
+ * que l'add-on mailing corrige.
+ *
+ * `MAIL_DOMAIN` reste exporté ci-dessus : le contact, le support et les
+ * demandes de branding sont des emails que Naywa envoie EN SON NOM, et
+ * n'ont aucune raison de basculer.
  */
-export async function ensureInboxAddress(
-  admin: SupabaseClient<Database>,
-  userId: string,
-): Promise<string> {
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("inbox_address, first_name")
-    .eq("user_id", userId)
-    .single()
-
-  if (profile?.inbox_address) return profile.inbox_address
-
-  // Seed the local part from the first name; fall back to the auth email.
-  let seed = profile?.first_name?.trim() ?? ""
-  if (!seed) {
-    const { data: { user } } = await admin.auth.admin.getUserById(userId)
-    seed = user?.email?.split("@")[0] ?? "sourceur"
-  }
-  const localBase = slugifyLocalPart(seed)
-
-  // Resolve collisions: localBase, localBase2, localBase3, …
-  let local = localBase
-  for (let n = 2; n < 200; n++) {
-    const candidate = `${local}@${MAIL_DOMAIN}`
-    const { data: clash } = await admin
-      .from("profiles")
-      .select("user_id")
-      .eq("inbox_address", candidate)
-      .maybeSingle()
-    if (!clash) break
-    local = `${localBase}${n}`
-  }
-  const address = `${local}@${MAIL_DOMAIN}`
-
-  await admin.from("profiles").update({ inbox_address: address }).eq("user_id", userId)
-  return address
-}
-
-/** Build a display "From" header: `Prénom via Naywa <local@mail.naywastudio.com>`. */
-export function fromHeader(firstName: string | null | undefined, address: string): string {
-  const name = (firstName?.trim() || "Naywa Studio").replace(/["<>]/g, "")
-  return `${name} <${address}>`
-}

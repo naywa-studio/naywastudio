@@ -79,6 +79,13 @@ export interface ProviderSendInput {
   text: string
   html?: string
   /**
+   * Copie invisible au sourceur, quand il a demandé à recevoir ses propres
+   * envois (`profiles.inbox_cc_self`). Optionnelle, mais elle doit exister
+   * ici : c'est un réglage que l'utilisateur a coché, et qui disparaîtrait
+   * sans bruit le jour où son organisation bascule sur son domaine.
+   */
+  bcc?: string
+  /**
    * Regroupement de réputation, un par CLIENT.
    *
    * Chez SES, tous les clients partagent la réputation du compte : un cabinet

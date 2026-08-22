@@ -18,7 +18,10 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeQuota } from "@/lib/quota"
-import { sendEmail, ensureInboxAddress, fromHeader } from "@/lib/resend"
+import { sendEmail } from "@/lib/resend"
+import { ensureInboxAddress, fromHeader } from "@/lib/mailing/inbox-address"
+import { sendCandidateEmail } from "@/lib/mailing/send"
+import { canSendFromOrgDomain } from "@/lib/subscription"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -62,29 +65,69 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: "quota_exceeded", message: quota.message }, { status: 429 })
   }
 
-  // Client's dedicated address + profile context
-  const inboxAddress = await ensureInboxAddress(admin, user.id)
   const { data: profile } = await admin
     .from("profiles")
-    .select("first_name, inbox_cc_self")
+    .select("first_name, inbox_cc_self, organization_id, is_admin")
     .eq("user_id", user.id)
     .single()
 
+  const { data: org } = profile?.organization_id
+    ? await admin.from("organizations").select("*").eq("id", profile.organization_id).single()
+    : { data: null }
+
+  /* ── Sous quelle identité part ce message ? ────────────────────────────
+   *
+   * Deux chemins, et un seul critère pour trancher : le domaine du cabinet
+   * est-il RÉELLEMENT prêt (option acquise ET clés DKIM publiées) ?
+   *
+   *   oui  → le domaine du cabinet, via `lib/mailing`. Là, la règle est
+   *          « son domaine ou rien » : aucun repli, jamais.
+   *   non  → le domaine Naywa, comme depuis toujours.
+   *
+   * Ce n'est pas une contradiction. Un cabinet sans add-on n'a pas de
+   * domaine à usurper ; un cabinet qui en a un ne doit jamais voir ses
+   * messages partir sous une autre marque que la sienne.
+   *
+   * L'adresse de réception suit le même domaine — sans quoi le candidat
+   * lirait un expéditeur au nom du cabinet et répondrait à Naywa. */
+  const onOwnDomain = canSendFromOrgDomain(org, { isAdmin: profile?.is_admin === true })
+  const inboxAddress = await ensureInboxAddress(admin, user.id, org)
   const from = fromHeader(profile?.first_name, inboxAddress)
   const bcc = profile?.inbox_cc_self ? (user.email ?? undefined) : undefined
 
   // Send
   let providerId: string
   try {
-    const sent = await sendEmail({
-      from,
-      to: candidate.email,
-      replyTo: inboxAddress,
-      subject,
-      text: messageBody,
-      bcc,
-    })
-    providerId = sent.id
+    if (onOwnDomain && org) {
+      const sent = await sendCandidateEmail(
+        {
+          org,
+          senderName: profile?.first_name,
+          replyTo: inboxAddress,
+          to: candidate.email,
+          subject,
+          text: messageBody,
+          bcc,
+        },
+        { isAdmin: profile?.is_admin === true },
+      )
+      // Un refus ici serait une incohérence : `canSendFromOrgDomain` vient de
+      // dire oui. On le traite quand même — la garde interne de l'envoi est
+      // la dernière avant le candidat, et on préfère un échec explicite à un
+      // message parti sous une identité imprévue.
+      if (!sent.ok) throw new Error(`mailing refusé: ${sent.reason}`)
+      providerId = sent.id
+    } else {
+      const sent = await sendEmail({
+        from,
+        to: candidate.email,
+        replyTo: inboxAddress,
+        subject,
+        text: messageBody,
+        bcc,
+      })
+      providerId = sent.id
+    }
   } catch (err) {
     // Log the failure so the thread shows it.
     await admin.from("email_messages").insert({

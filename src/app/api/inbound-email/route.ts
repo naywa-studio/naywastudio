@@ -15,7 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { Webhook } from "svix"
-import { stripQuotedReply } from "@/lib/mailing/route-inbound"
+import { resolveInboundRouting, stripQuotedReply } from "@/lib/mailing/route-inbound"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { getInboundEmail } from "@/lib/resend"
 import { openrouterChat, safeJsonParse } from "@/lib/openrouter"
@@ -159,43 +159,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2. Match: to-address → owning profile (+ its org so the candidate
-  //    lookup spans all members of the cabinet, not just the inbox owner).
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("user_id, organization_id")
-    .eq("inbox_address", toAddr)
-    .maybeSingle()
-  if (!profile) {
+  // 2. Rattachement — MUTUALISÉ avec la réception SES (`lib/mailing`).
+  //
+  // Les deux chemins de réception coexistent pendant la transition et doivent
+  // rattacher à l'identique. Cette logique était dupliquée ici ; deux copies
+  // finissent par diverger, et la divergence est muette — un message rattaché
+  // au mauvais candidat ressemble à un message qui n'est jamais arrivé.
+  const routing = await resolveInboundRouting(admin, {
+    toAddress: toAddr,
+    fromAddress: fromAddr,
+  })
+  if (!routing.userId || !routing.organizationId) {
     // Not one of our addresses — acknowledge and drop.
     return NextResponse.json({ ok: true, ignored: true })
   }
-  const userId = profile.user_id
-  const orgId = profile.organization_id
-
-  // from-address → any candidate of that organization (vivier is shared
-  // across members).
-  const { data: candidate } = await admin
-    .from("candidates")
-    .select("id")
-    .eq("organization_id", orgId)
-    .eq("email", fromAddr)
-    .limit(1)
-    .maybeSingle()
-
-  // Last outbound to this candidate carries the job context, if any.
-  let jobId: string | null = null
-  if (candidate) {
-    const { data: lastOut } = await admin
-      .from("email_messages")
-      .select("job_id")
-      .eq("candidate_id", candidate.id)
-      .eq("direction", "outbound")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    jobId = lastOut?.job_id ?? null
-  }
+  const userId = routing.userId
+  const jobId = routing.jobId
 
   // 3. LLM suggestion (never auto-applied)
   const analysis = await analyzeReply(bodyText ?? "")
@@ -203,7 +182,7 @@ export async function POST(req: NextRequest) {
   // 4. Log
   await admin.from("email_messages").insert({
     user_id: userId,
-    candidate_id: candidate?.id ?? null,
+    candidate_id: routing.candidateId,
     job_id: jobId,
     direction: "inbound",
     from_address: fromAddr,
@@ -218,5 +197,5 @@ export async function POST(req: NextRequest) {
     ai_suggested_stage: analysis.suggestedStage,
   })
 
-  return NextResponse.json({ ok: true, matched: !!candidate })
+  return NextResponse.json({ ok: true, matched: !!routing.candidateId })
 }

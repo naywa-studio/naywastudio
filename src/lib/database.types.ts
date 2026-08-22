@@ -197,6 +197,12 @@ export type Database = {
            *  /workspace access is gated on this column. */
           has_sourcing_seat: boolean
           inbox_address: string | null
+          /** Adresses de réception PRÉCÉDENTES (migration 087). Quand l'org
+           *  active son domaine, l'adresse change de domaine ; les candidats
+           *  déjà contactés répondent encore à l'ancienne. On les garde pour
+           *  rattacher ces réponses — sans quoi elles disparaissent en
+           *  silence. Ne sert jamais à l'envoi. */
+          inbox_aliases: string[]
           inbox_cc_self: boolean
           /** Set quand cet utilisateur a complété/skippé la visite
            *  guidée Package Sourcing sur /workspace (per-user, indépendant

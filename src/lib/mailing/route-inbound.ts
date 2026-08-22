@@ -47,11 +47,29 @@ export async function resolveInboundRouting(
   const toAddr = opts.toAddress.trim().toLowerCase()
   const fromAddr = opts.fromAddress.trim().toLowerCase()
 
-  const { data: profile } = await admin
+  // L'adresse courante d'abord, puis les anciennes.
+  //
+  // Une organisation qui active son domaine change l'adresse de réception de
+  // ses sourceurs. Les candidats déjà contactés, eux, répondent à celle qu'ils
+  // ont dans leur boîte — pendant des semaines. Ne chercher que l'adresse
+  // courante ferait tomber toutes ces réponses dans « destinataire inconnu »,
+  // sans le moindre signe : un message non rattaché est indiscernable d'un
+  // message jamais reçu, et le sourceur en conclut que personne n'a répondu.
+  let { data: profile } = await admin
     .from("profiles")
     .select("user_id, organization_id")
     .eq("inbox_address", toAddr)
     .maybeSingle()
+
+  if (!profile) {
+    const { data: byAlias } = await admin
+      .from("profiles")
+      .select("user_id, organization_id")
+      .contains("inbox_aliases", [toAddr])
+      .limit(1)
+      .maybeSingle()
+    profile = byAlias
+  }
 
   if (!profile) {
     return { userId: null, organizationId: null, candidateId: null, jobId: null }
