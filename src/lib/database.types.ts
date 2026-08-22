@@ -914,6 +914,9 @@ export type Database = {
           ai_sentiment: 'interested' | 'not_interested' | 'question' | 'neutral' | 'negotiation' | null
           ai_summary: string | null
           ai_suggested_stage: string | null
+          /** Pieces jointes stockees sur R2 : [{ filename, contentType, size, path }].
+           *  Le `path` est org-scope -- cf. `lib/mailing/attachments.ts`. */
+          attachments: { filename: string; contentType: string; size: number; path: string }[]
           created_at: string
         }
         Insert: {
@@ -934,6 +937,7 @@ export type Database = {
           ai_sentiment?: 'interested' | 'not_interested' | 'question' | 'neutral' | 'negotiation' | null
           ai_summary?: string | null
           ai_suggested_stage?: string | null
+          attachments?: { filename: string; contentType: string; size: number; path: string }[]
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['email_messages']['Insert']>

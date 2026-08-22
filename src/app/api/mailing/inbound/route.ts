@@ -31,6 +31,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { verifySnsMessage, isTrustedCertUrl, type SnsMessage } from "@/lib/mailing/sns"
 import { fetchRawEmail, parseInboundEmail, deleteRawEmail } from "@/lib/mailing/inbound"
 import { resolveInboundRouting, stripQuotedReply } from "@/lib/mailing/route-inbound"
+import { storeInboundAttachments } from "@/lib/mailing/attachments"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 
 export const runtime = "nodejs"
@@ -152,7 +153,21 @@ export async function POST(req: NextRequest) {
 
     const bodyText = stripQuotedReply(email.text)
 
+    // Les pièces jointes sont recopiées sur R2 AVANT l'écriture du message :
+    // l'inverse laisserait, en cas d'échec, un message annonçant des fichiers
+    // qui n'existent nulle part. Mieux vaut un message sans pièce jointe qu'un
+    // message qui promet un CV introuvable.
+    const attachments = email.attachments.length > 0
+      ? await storeInboundAttachments(admin, {
+          organizationId: routing.organizationId,
+          messageKey: (payload.mail?.messageId ?? objectKey).replace(/[^a-zA-Z0-9_-]/g, ""),
+          candidateId: routing.candidateId,
+          attachments: email.attachments,
+        })
+      : []
+
     const { error } = await admin.from("email_messages").insert({
+      attachments,
       user_id: routing.userId,
       organization_id: routing.organizationId,
       candidate_id: routing.candidateId,
@@ -179,7 +194,7 @@ export async function POST(req: NextRequest) {
       user: routing.userId,
       candidate: routing.candidateId,
       job: routing.jobId,
-      attachments: email.attachments.length,
+      attachments: attachments.length,
     })
 
     // Le contenu est en base : l'objet S3 n'a plus de raison d'exister.
