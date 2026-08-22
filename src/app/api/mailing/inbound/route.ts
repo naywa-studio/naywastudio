@@ -32,9 +32,15 @@ import { verifySnsMessage, isTrustedCertUrl, type SnsMessage } from "@/lib/maili
 import { fetchRawEmail, parseInboundEmail, deleteRawEmail } from "@/lib/mailing/inbound"
 import { resolveInboundRouting, stripQuotedReply } from "@/lib/mailing/route-inbound"
 import { storeInboundAttachments } from "@/lib/mailing/attachments"
+import { analyzeReply } from "@/lib/mailing/analyze-reply"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 
 export const runtime = "nodejs"
+// S3, MIME, recopie R2 puis lecture par Nora : le défaut de 10 s ne suffit pas
+// pour un message chargé. La coupure serveur produirait un 500, donc une
+// nouvelle tentative de SNS — que l'insertion idempotente absorbe, mais autant
+// ne pas la provoquer.
+export const maxDuration = 60
 
 /** Rubrique(s) SNS autorisée(s), séparées par des virgules. */
 function allowedTopics(): string[] {
@@ -166,21 +172,39 @@ export async function POST(req: NextRequest) {
         })
       : []
 
-    const { error } = await admin.from("email_messages").insert({
-      attachments,
-      user_id: routing.userId,
-      organization_id: routing.organizationId,
-      candidate_id: routing.candidateId,
-      job_id: routing.jobId,
-      direction: "inbound",
-      from_address: email.fromAddress,
-      to_address: target,
-      subject: email.subject || null,
-      body_text: bodyText || null,
-      body_html: email.html,
-      provider_id: payload.mail?.messageId ?? null,
-      status: "received",
-    })
+    /* ── Le message d'abord, l'analyse ensuite ─────────────────────────────
+     *
+     * Deux raisons de ne pas faire appel au modèle avant d'écrire.
+     *
+     * SNS abandonne une livraison au bout d'une quinzaine de secondes et la
+     * retente. Ajouter une latence de modèle DEVANT l'écriture, c'est risquer
+     * d'être coupé juste avant elle : le message serait perdu, et retraité en
+     * repartant de zéro. Écrire d'abord met à l'abri la seule chose
+     * irremplaçable ici — la réponse du candidat. Une suggestion manquante se
+     * rattrape ; un message perdu, non.
+     *
+     * Et l'insertion est IDEMPOTENTE (`provider_id`, migration 088) : si AWS
+     * retente malgré tout, le sourceur ne voit pas sa réponse en double. */
+    const providerId = payload.mail?.messageId ?? null
+    const { data: inserted, error } = await admin
+      .from("email_messages")
+      .upsert({
+        attachments,
+        user_id: routing.userId,
+        organization_id: routing.organizationId,
+        candidate_id: routing.candidateId,
+        job_id: routing.jobId,
+        direction: "inbound",
+        from_address: email.fromAddress,
+        to_address: target,
+        subject: email.subject || null,
+        body_text: bodyText || null,
+        body_html: email.html,
+        provider_id: providerId,
+        status: "received",
+      }, { onConflict: "provider_id", ignoreDuplicates: false })
+      .select("id")
+      .single()
 
     if (error) {
       // Échec d'écriture : on NE supprime PAS l'objet S3 et on renvoie 500
@@ -190,6 +214,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "store_failed" }, { status: 500 })
     }
 
+    // Nora lit la réponse — une SUGGESTION, jamais appliquée d'office. Le même
+    // appel que sur le chemin Resend, et pour cause : sans lui, une réponse
+    // arrivée sur le domaine du cabinet n'aurait ni sentiment, ni résumé, ni
+    // étape suggérée, là où la même réponse en obtient trois sur le domaine
+    // Naywa. Le sourceur ne verrait aucune erreur — juste des suggestions qui
+    // cessent d'apparaître le jour où son organisation active son domaine.
+    //
+    // Un échec ici ne remonte pas : le message est déjà en base, et une
+    // suggestion absente vaut mieux qu'un retraitement complet.
+    const analysis = await analyzeReply(bodyText ?? "")
+    if (analysis.sentiment || analysis.summary) {
+      await admin.from("email_messages").update({
+        ai_sentiment: analysis.sentiment,
+        ai_summary: analysis.summary,
+        ai_suggested_stage: analysis.suggestedStage,
+      }).eq("id", inserted.id)
+    }
+
     console.info("[mailing/inbound] message rattaché", {
       user: routing.userId,
       candidate: routing.candidateId,
@@ -197,13 +239,10 @@ export async function POST(req: NextRequest) {
       attachments: attachments.length,
     })
 
-    // Le contenu est en base : l'objet S3 n'a plus de raison d'exister.
-    // Le garder reviendrait à conserver les échanges candidats à DEUX
-    // endroits — minimisation RGPD autant que ménage.
-    //
-    // ⚠️ Les pièces jointes ne sont pas encore stockées durablement : elles
-    // disparaissent donc avec l'objet. C'est assumé pour ce lot, et c'est la
-    // première chose à traiter au suivant.
+    // Le contenu est en base et les pièces jointes sont recopiées sur R2 :
+    // l'objet S3 n'a plus de raison d'exister. Le garder reviendrait à
+    // conserver les échanges candidats à DEUX endroits — minimisation RGPD
+    // autant que ménage.
     await deleteRawEmail(objectKey)
 
     return NextResponse.json({

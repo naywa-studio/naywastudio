@@ -142,3 +142,72 @@ export function stripQuotedReply(text: string): string {
   // corps vide ferait croire à une conversation restée sans réponse.
   return head.trim().length >= 8 ? head : text.trim()
 }
+
+/** Formules de politesse finales, FR et EN. */
+const CLOSINGS = [
+  // FR
+  "cordialement", "bien cordialement", "tres cordialement", "très cordialement",
+  "bien a vous", "bien à vous", "sinceres salutations", "sincères salutations",
+  "salutations distinguees", "salutations distinguées", "respectueusement",
+  "merci d'avance", "merci par avance", "a bientot", "à bientôt",
+  "bonne journee", "bonne journée", "bonne reception", "bonne réception",
+  "au plaisir", "merci", "bien a vous,", "amicalement",
+  // EN
+  "best regards", "kind regards", "warm regards", "regards", "best",
+  "sincerely", "yours sincerely", "yours faithfully", "cheers",
+  "thanks", "thank you", "many thanks",
+]
+
+/**
+ * Retire la signature d'un message entrant — **pour l'analyse seulement**.
+ *
+ * ── Pourquoi seulement pour l'analyse ────────────────────────────────────
+ *
+ * La signature d'un candidat contient son téléphone, son poste, parfois son
+ * LinkedIn : de l'information NEUVE, que le sourceur veut voir. La retirer du
+ * message stocké lui ferait perdre le numéro de quelqu'un qui vient de dire
+ * oui. Elle ne gêne qu'à un seul endroit — l'entrée de l'analyse de sentiment,
+ * où « Founder & CEO — Naywa Studio » pèse autant que la réponse elle-même, et
+ * peut la dominer sur un message court.
+ *
+ * C'est la différence avec `stripQuotedReply` : une citation est du texte que
+ * le SOURCEUR a déjà écrit, donc redondante partout. Une signature, non.
+ *
+ * ── Ce qui est coupé, et ce qui ne l'est pas ─────────────────────────────
+ *
+ * Deux marqueurs seulement, parce que trop de zèle ici supprime du contenu
+ * réel — et une phrase perdue fausse l'analyse autant que la signature :
+ *
+ *  - le délimiteur normalisé `-- ` seul sur sa ligne (RFC 3676), sans ambiguïté ;
+ *  - une formule de politesse SEULE sur sa ligne, suivie d'au plus 8 lignes.
+ *    La formule est GARDÉE (« Cordialement » n'est pas du bruit, c'est du ton) ;
+ *    au-delà de 8 lignes, ce n'est plus une signature et on ne touche à rien.
+ */
+export function stripSignature(text: string): string {
+  const lines = text.split(/\r?\n/)
+
+  // 1. Délimiteur normalisé : net, on coupe là.
+  const rfc = lines.findIndex((l) => /^--\s?$/.test(l))
+  if (rfc > 0) {
+    const head = lines.slice(0, rfc).join("\n").trim()
+    if (head.length >= 8) return head
+  }
+
+  // 2. Dernière formule de politesse isolée.
+  let cut = -1
+  for (let i = 0; i < lines.length; i++) {
+    const norm = lines[i].trim().toLowerCase().replace(/[,.!;:]+$/, "")
+    if (norm && CLOSINGS.includes(norm)) cut = i
+  }
+  if (cut >= 0) {
+    // Combien de lignes NON VIDES suivent ? Une signature en fait peu ; un
+    // paragraphe qui reprend après un « merci » en fait davantage.
+    const after = lines.slice(cut + 1).filter((l) => l.trim()).length
+    if (after > 0 && after <= 8) {
+      const head = lines.slice(0, cut + 1).join("\n").trim()
+      if (head.length >= 8) return head
+    }
+  }
+
+  return text.trim()
+}

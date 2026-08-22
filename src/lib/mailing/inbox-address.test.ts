@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "../database.types"
-import { ensureInboxAddress, fromHeader, inboxDomainFor, slugifyLocalPart } from "./inbox-address"
+import { ensureInboxAddress, fromHeader, inboxDomainFor, slugifyLocalPart, type InboxOrg } from "./inbox-address"
 
 /**
  * L'adresse de réception d'un sourceur, et sa bascule d'un domaine à l'autre.
@@ -68,9 +68,9 @@ const ORG_ACTIVE = {
   subscription_has_mailing: true,
   mailing_status: "active",
   mailing_sending_domain: "careers.cabinet-durand.fr",
-} as Parameters<typeof inboxDomainFor>[0]
+} satisfies InboxOrg
 
-const ORG_SANS_OPTION = { ...ORG_ACTIVE, subscription_has_mailing: false } as typeof ORG_ACTIVE
+const ORG_SANS_OPTION = { ...ORG_ACTIVE, subscription_has_mailing: false } satisfies InboxOrg
 
 /* ── Le domaine retenu ────────────────────────────────────────────────────── */
 

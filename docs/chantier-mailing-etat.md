@@ -4,7 +4,7 @@ Suite de `docs/chantier-mailing-domaine-client.md`, qui reste la spécification.
 Ce document dit **où on en est** et **ce qui reste ouvert**.
 
 Branches : `claude/mailing-lot-0` et `claude/mailing-lot-1`. **Aucune n'est
-mergée.** Migrations 085, 086 et 087 **appliquées en base**.
+mergée.** Migrations 085 à 088 **appliquées en base**.
 
 ---
 
@@ -75,28 +75,60 @@ l'utilisateur qui aurait disparu sans bruit à l'activation.
 
 ---
 
-## 🔴 Ouvert — dans l'ordre de priorité
+## ✅ Fermé depuis — activation, analyse partagée, signature
 
-### 1. La garde d'envoi n'a pas encore tourné en vrai
+**Le chemin d'écriture existe** (`createSendingDomain` n'était jamais appelé) :
 
-`sendCandidateEmail` est désormais **sur le vrai chemin d'envoi** (plus
-seulement en tests). Mais aucune organisation n'a de domaine actif : le
-branchement n'a donc jamais été exercé de bout en bout. À prouver à la
-première activation réelle.
+- `POST /api/mailing/domain` déclare le domaine, `GET` lit son état,
+  `POST /api/mailing/domain/verify` constate la publication DNS. **Seule la
+  vérification peut accorder `active`**, et seulement sur la réponse du
+  fournisseur : un `active` posé sans clés DKIM ferait partir des emails non
+  authentifiés sous la marque du cabinet, sans que personne ne voie d'erreur.
+- Gate : option acquise **et** `canBranding` — le domaine d'envoi est une
+  identité de marque, il suit la même délégation que le nom et le logo.
+- Remplacer un domaine déjà actif exige `confirm_replace` : les candidats en
+  cours écrivent encore à l'ancien.
+- `lib/mailing/domain-input.ts` valide la saisie (tolérant au copier-coller
+  d'URL, strict sur le résultat) et **refuse `naywastudio.com`** — un client ne
+  revendique pas notre identité.
+- Au passage à `active`, les adresses de réception de tous les membres
+  basculent (best-effort : un échec ne doit pas annuler une étape DNS que le
+  client vient de franchir).
 
-### 2. `createSendingDomain` jamais exercé
+**Divergence trouvée en chemin, et fermée** : `analyzeReply` n'était appelé que
+par la route Resend. Une réponse arrivée sur le domaine du cabinet repartait
+donc **sans sentiment, sans résumé, sans étape suggérée** — le sourceur aurait
+vu ses suggestions cesser le jour de l'activation, sans explication. Extrait
+dans `lib/mailing/analyze-reply.ts`, appelé par les deux chemins.
 
-On a lu l'état d'un domaine créé à la main dans la console. Le chemin
-d'ÉCRITURE n'a jamais été appelé.
+**Signature** : `stripSignature` coupe au délimiteur `-- ` ou après une formule
+de politesse (gardée). Appliqué à **l'analyse seulement** — la signature d'un
+candidat contient son téléphone et son poste, information neuve que le sourceur
+veut lire. C'est ce qui la distingue d'une citation, redondante partout.
+Le découpage est fait DANS `analyzeReply`, pour qu'aucun appelant ne l'oublie.
 
-### 3. La signature de mail pollue le corps analysé
+**Doublons SNS** : AWS abandonne une livraison HTTPS au bout d'une quinzaine de
+secondes et retente. Avec un CV volumineux et un modèle lent, la même réponse
+aurait pu s'afficher deux fois. Migration **088** (unique partiel sur
+`provider_id`) + insertion idempotente, et le message est désormais **écrit
+avant** l'analyse : la réponse du candidat est la seule chose irremplaçable ici.
 
-Constaté en base : `"Test éé é 3\nElyas Malki\nFounder & CEO — Naywa Studio…"`.
-`stripQuotedReply` coupe les citations, pas les signatures — ce n'est pas son
-rôle. Conséquence : l'analyse de sentiment porte en partie sur la signature de
-l'expéditeur. Sur un message court, elle peut dominer le texte analysé.
+---
 
-Piège connu : couper les signatures trop agressivement supprime du contenu réel.
+## 🔴 Ouvert
+
+### La chaîne complète n'a pas tourné sur une vraie organisation
+
+Tout est branché — déclaration, vérification, bascule des adresses, envoi gardé
+par `sendCandidateEmail`. Mais aucune organisation n'a encore de domaine actif :
+le parcours n'a jamais été exercé de bout en bout. C'est le test qui reste, et
+il demande une vraie activation (ou l'org de test sur
+`careers-test.naywastudio.com`).
+
+⚠️ Ce domaine de test est un sous-domaine de `naywastudio.com`, que
+`checkRootDomain` **refuse volontairement**. Pour l'éprouver par la route
+d'activation, il faudra soit un autre domaine, soit une exception admin
+explicite — ne pas retirer la garde.
 
 ---
 

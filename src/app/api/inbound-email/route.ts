@@ -18,8 +18,7 @@ import { Webhook } from "svix"
 import { resolveInboundRouting, stripQuotedReply } from "@/lib/mailing/route-inbound"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { getInboundEmail } from "@/lib/resend"
-import { openrouterChat, safeJsonParse } from "@/lib/openrouter"
-import type { EmailSentiment } from "@/lib/database.types"
+import { analyzeReply } from "@/lib/mailing/analyze-reply"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -46,50 +45,12 @@ function bareAddress(v: unknown): string | null {
  * affichage différents pour un même échange.
  */
 
-const ANALYSIS_PROMPT = `Tu analyses la réponse d'un candidat à un message de recrutement.
-Réponds UNIQUEMENT en JSON :
-{
-  "sentiment": "interested" | "not_interested" | "question" | "neutral" | "negotiation",
-  "summary": string,            // 1 phrase, ce que dit le candidat
-  "suggested_stage": "replied" | "interview" | "rejected"
-}
-- "suggested_stage" : étape de pipeline suggérée. "rejected" seulement si le candidat décline clairement.
-- C'est une SUGGESTION pour le sourceur, pas une décision. Sois factuel.
-- Pas de markdown, JSON pur.`
-
-const SENTIMENTS: EmailSentiment[] = ["interested", "not_interested", "question", "neutral", "negotiation"]
-const SUGGESTED_STAGES = ["replied", "interview", "rejected"]
-
-async function analyzeReply(text: string): Promise<{
-  sentiment: EmailSentiment | null
-  summary: string | null
-  suggestedStage: string | null
-}> {
-  if (!text.trim()) return { sentiment: null, summary: null, suggestedStage: null }
-  try {
-    const res = await openrouterChat({
-      model: "openai/gpt-4o-mini",
-      temperature: 0.2,
-      responseFormat: "json_object",
-      maxTokens: 300,
-      messages: [
-        { role: "system", content: ANALYSIS_PROMPT },
-        { role: "user", content: `Réponse du candidat :\n\n${text.slice(0, 6000)}` },
-      ],
-    })
-    const p = safeJsonParse<Record<string, unknown>>(res.content)
-    const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null)
-    const sent = str(p?.sentiment)
-    const stage = str(p?.suggested_stage)
-    return {
-      sentiment: sent && (SENTIMENTS as string[]).includes(sent) ? (sent as EmailSentiment) : "neutral",
-      summary: str(p?.summary),
-      suggestedStage: stage && SUGGESTED_STAGES.includes(stage) ? stage : "replied",
-    }
-  } catch {
-    return { sentiment: null, summary: null, suggestedStage: "replied" }
-  }
-}
+/*
+ * `analyzeReply` vit désormais dans `lib/mailing/analyze-reply.ts`, appelé par
+ * les DEUX chemins de réception. Il n'était appelé que d'ici : une réponse
+ * arrivée sur le domaine du cabinet repartait donc sans sentiment, sans résumé
+ * et sans étape suggérée — silencieusement.
+ */
 
 export async function POST(req: NextRequest) {
   const secret = (process.env.RESEND_WEBHOOK_SECRET ?? "").trim()
