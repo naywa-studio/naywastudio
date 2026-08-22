@@ -22,7 +22,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin"
 import { activeProvider } from "@/lib/mailing/send"
-import { explainSesError } from "@/lib/mailing/ses"
+import { explainSesError, sesAccountSummary } from "@/lib/mailing/ses"
 
 export const runtime = "nodejs"
 
@@ -60,6 +60,23 @@ export async function GET(req: NextRequest) {
     }, { status: 200 })
   }
 
+  /* ── Bac à sable ou accès production ? ──────────────────────────────────
+   *
+   * La question qu'on se pose en premier et à laquelle rien ne répond
+   * clairement : SES accepte-t-il enfin d'écrire à n'importe qui ?
+   *
+   * En bac à sable, un envoi vers une adresse non vérifiée est REJETÉ. Le
+   * message d'erreur ne dit pas « bac à sable » — il dit que l'adresse n'est
+   * pas vérifiée, ce qui laisse chercher du côté du destinataire. D'où cette
+   * lecture directe du compte, qui tranche sans envoyer un seul email.
+   */
+  let account: Record<string, unknown> | null = null
+  try {
+    account = await sesAccountSummary()
+  } catch (err) {
+    account = { erreur: explainSesError(err) }
+  }
+
   try {
     const found = await activeProvider().getSendingDomain(domain)
 
@@ -71,6 +88,7 @@ export async function GET(req: NextRequest) {
           `Les identifiants fonctionnent, mais aucune identité « ${domain} » dans ` +
           `cette région. Les identités SES sont vérifiées PAR RÉGION.`,
         env,
+        compte: account,
         provider: activeProvider().name,
       }, { status: 200 })
     }
@@ -79,6 +97,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       step: "done",
       env,
+      compte: account,
       provider: activeProvider().name,
       domain: found.name,
       status: found.status,
@@ -94,6 +113,7 @@ export async function GET(req: NextRequest) {
       step: "provider",
       message: explainSesError(err),
       env,
+      compte: account,
     }, { status: 200 })
   }
 }

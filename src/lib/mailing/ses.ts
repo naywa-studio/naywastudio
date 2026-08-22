@@ -26,6 +26,7 @@ import {
   CreateEmailIdentityCommand,
   GetEmailIdentityCommand,
   SendEmailCommand,
+  GetAccountCommand,
   type DkimStatus,
 } from "@aws-sdk/client-sesv2"
 import {
@@ -215,4 +216,36 @@ export function explainSesError(err: unknown): string {
     )
   }
   return `SES ${name}: ${message}`
+}
+
+/**
+ * L'état du COMPTE SES — bac à sable ou accès production, et les plafonds.
+ *
+ * ── Pourquoi ça mérite sa fonction ────────────────────────────────────────
+ *
+ * C'est la question la plus fréquente du chantier, et celle à laquelle rien ne
+ * répond franchement. En bac à sable, un envoi vers une adresse non vérifiée
+ * est rejeté avec un message qui parle du DESTINATAIRE (« adresse non
+ * vérifiée »), jamais du compte. On cherche donc du mauvais côté.
+ *
+ * `GetAccount` tranche directement, sans envoyer le moindre email — donc sans
+ * rien coûter à la réputation, qui est précisément ce qu'on protège.
+ */
+export async function sesAccountSummary(): Promise<Record<string, unknown>> {
+  const out = await client().send(new GetAccountCommand({}))
+  const quota = out.SendQuota
+  return {
+    accesProduction: out.ProductionAccessEnabled === true,
+    verdict: out.ProductionAccessEnabled === true
+      ? "Accès production ACCORDÉ — vous pouvez écrire à n'importe quelle adresse."
+      : "BAC À SABLE — seules les adresses vérifiées peuvent recevoir.",
+    // `Max24HourSend` vaut 200 en bac à sable ; une valeur bien supérieure est
+    // un second signe, utile si le drapeau tarde à basculer.
+    envoisMax24h: quota?.Max24HourSend ?? null,
+    envoisParSeconde: quota?.MaxSendRate ?? null,
+    envoyesDernieres24h: quota?.SentLast24Hours ?? null,
+    // Si SES suspend le compte, c'est ici que ça se voit en premier.
+    envoiActive: out.SendingEnabled === true,
+    region: (process.env.AWS_SES_REGION ?? "").trim() || DEFAULT_REGION,
+  }
 }
