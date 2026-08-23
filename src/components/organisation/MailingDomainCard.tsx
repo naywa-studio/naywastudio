@@ -101,6 +101,8 @@ const copy = {
     disconnectWarn: "Vos messages repartiront du domaine de Naywa. Les réponses en cours continueront d'arriver.",
     disconnectConfirm: "Confirmer",
     disconnecting: "Retrait…",
+    zoneBodyActive: "Votre domaine fonctionne, mais chaque renouvellement de clés vous redemandera de publier des enregistrements. En nous déléguant la zone, vous ne le referez plus jamais : une seule publication de quatre serveurs de noms, et nous gérons la suite.",
+    nsAfterActive: "Publiez ces quatre serveurs de noms sur votre sous-domaine, chez votre hébergeur DNS. Rien ne presse : votre configuration actuelle continue de fonctionner jusque-là, et vos envois ne s'interrompent pas.",
     zoneTitle: "Ou laissez Naywa s'en occuper",
     zoneBody: "Vous ne publiez alors qu'une seule chose, une seule fois : quatre serveurs de noms. Nous gérons ensuite tous les enregistrements, y compris leurs renouvellements futurs, sans plus jamais vous solliciter.",
     zoneCta: "Laisser Naywa gérer la zone",
@@ -161,6 +163,8 @@ const copy = {
     disconnectWarn: "Your emails will go back out from Naywa's domain. Ongoing replies will keep arriving.",
     disconnectConfirm: "Confirm",
     disconnecting: "Disconnecting…",
+    zoneBodyActive: "Your domain works, but every key rotation will ask you to publish records again. Delegate the zone to us and you never will: publish four nameservers once, and we handle the rest.",
+    nsAfterActive: "Publish these four nameservers on your subdomain, at your DNS host. No rush: your current setup keeps working until then, and your sending is not interrupted.",
     zoneTitle: "Or let Naywa handle it",
     zoneBody: "You then publish one thing, once: four nameservers. We manage every record from there, including future key rotations, without ever asking you again.",
     zoneCta: "Let Naywa manage the zone",
@@ -359,7 +363,42 @@ export default function MailingDomainCard() {
             {t.activeBody} <code style={S.code}>{state?.subdomain}@{state?.sending_domain}</code>
           </p>
           <p style={{ ...S.hint, marginTop: 6 }}>{t.activeReply}</p>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+
+          {/* ── La zone gérée reste offerte APRÈS l'activation ───────────
+              Elle n'était proposée que sur l'écran des enregistrements,
+              donc jamais à un client déjà configuré à la main — c'est-à-dire
+              exactement celui qui en aurait le plus envie, puisqu'il a fait
+              le travail et devra le refaire à chaque rotation de clés.
+              Trouvé en testant : le domaine déjà vérifié repassait droit à
+              l'écran vert, et la seconde porte devenait inatteignable. */}
+          {isDelegatedZone ? (
+            <div style={S.zoneBox}>
+              <strong style={{ fontSize: 12 }}>{t.nsTitle}</strong>
+              <p style={{ ...S.hint, marginTop: 4 }}>{t.nsAfterActive}</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                {state.nameservers.map((ns) => (
+                  <button key={ns} type="button" style={S.copyBtn} onClick={() => copyValue(ns, ns)}>
+                    {copiedKey === ns ? t.copied : ns}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={S.zoneBox}>
+              <strong style={{ fontSize: 12 }}>{t.zoneTitle}</strong>
+              <p style={{ ...S.hint, marginTop: 4 }}>{t.zoneBodyActive}</p>
+              <button
+                type="button"
+                style={{ ...S.copyBtn, marginTop: 8, padding: "7px 12px", fontSize: 12 }}
+                disabled={busy !== null}
+                onClick={delegateZone}
+              >
+                {busy === "zone" ? t.zoneWorking : t.zoneCta}
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
             <button type="button" style={S.linkBtn} onClick={() => setEditing(true)}>
               {t.change}
             </button>
