@@ -31,6 +31,7 @@ import { orgUsesPricing, orgUsesClients } from "@/lib/org-type"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import PricingPolicyForm from "@/components/organisation/PricingPolicyForm"
 import MailingDomainCard from "@/components/organisation/MailingDomainCard"
+import { mailingVisible } from "@/lib/mailing/rollout"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { StyledSelect } from "@/components/ui/StyledSelect"
@@ -150,7 +151,7 @@ const copy = {
     talkAboutItBody: (max: number) => `Au-delà de ${max} personnes, on construit une offre avec vous plutôt que de vous laisser deviner. Prenez 20 minutes avec l'équipe.`,
     continueWithPrice: (v: string) => `Continuer — ${v}/mois →`,
     bookAppointment: "Prendre rendez-vous →",
-    // PricingAddonToggle
+    // AddonToggle
     addonToggleFailed: "Modification impossible",
     addonSyncing: "Synchronisation…",
     addonIncluded: (v: string) => `Incluse · ${v}/mois`,
@@ -396,7 +397,7 @@ const copy = {
     talkAboutItBody: (max: number) => `Beyond ${max} people, we build an offer with you instead of leaving you guessing. Take 20 minutes with the team.`,
     continueWithPrice: (v: string) => `Continue — ${v}/mo →`,
     bookAppointment: "Book an appointment →",
-    // PricingAddonToggle
+    // AddonToggle
     addonToggleFailed: "Change failed",
     addonSyncing: "Syncing…",
     addonIncluded: (v: string) => `Included · ${v}/mo`,
@@ -702,7 +703,11 @@ export default function CabinetPage() {
   // puis jeté (`void`) depuis un refactor → un client Sourcing seul voyait la
   // carte ET le wizard. On s'appuie désormais sur la règle produit unique.
   const canUsePricing = hasPricingAccess(organization, { isAdmin: profile.is_admin === true })
-  const canUseMailing = hasMailingAccess(organization, { isAdmin: profile.is_admin === true })
+  // Double condition : l'option acquise ET le lancement ouvert. Tant que SES
+  // est en bac a sable et que le prix LIVE n'existe pas, seuls les admins
+  // Naywa voient le Mailing (cf. lib/mailing/rollout.ts).
+  const canUseMailing =
+    mailingVisible(profile) && hasMailingAccess(organization, { isAdmin: profile.is_admin === true })
 
   // La visite guidée 6 étapes Package Sourcing est désormais déclenchée
   // sur /workspace (premier accès après souscription), pas ici --
@@ -1454,6 +1459,11 @@ function SubscriptionCard({
   const [pickerMode, setPickerMode] = useState<"closed" | "paid">(
     autoOpenPicker && isOwner ? "paid" : "closed",
   )
+  /* Le prix `mailing_addon` n'existe pas encore dans le catalogue LIVE :
+   * afficher l'interrupteur le proposerait au seul client payant, et le clic
+   * répondrait « Modification impossible ». Proposer puis refuser est pire
+   * que ne rien proposer. Ouvert d'une ligne, cf. lib/mailing/rollout.ts. */
+  const showMailingAddon = mailingVisible({ is_admin: isAdmin })
 
   // Résiliation demandée au portail : l'abo court jusqu'à la fin de la période
   // payée. On l'annonce comme une FIN, pas comme un prochain prélèvement.
@@ -1556,7 +1566,7 @@ function SubscriptionCard({
                 endpoint="/api/stripe/pricing-addon"
                 isActive={(o) => o.subscription_has_pricing === true}
               />
-              <AddonToggle
+              {showMailingAddon && <AddonToggle
                 organization={organization}
                 isOwner={isOwner}
                 onChanged={onActivated}
@@ -1565,7 +1575,7 @@ function SubscriptionCard({
                 priceEur={MAILING_ADDON_EUR}
                 endpoint="/api/stripe/mailing-addon"
                 isActive={(o) => o.subscription_has_mailing === true}
-              />
+              />}
             </Panel>
             <div style={{ marginTop: 12, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
               {t.seatsAllocated(organization.seats_total)}

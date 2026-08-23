@@ -26,6 +26,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { getCapabilities } from "@/lib/capabilities"
 import { hasMailingAccess } from "@/lib/subscription"
+import { mailingVisible } from "@/lib/mailing/rollout"
 import { activeProvider, reputationGroupFor } from "@/lib/mailing/send"
 import { DEFAULT_SUBDOMAIN, sendingDomainFor } from "@/lib/mailing/provider"
 import { checkRootDomain, cleanSubdomain, explainRejection, isForbiddenSendingDomain } from "@/lib/mailing/domain-input"
@@ -69,7 +70,7 @@ async function gate() {
       ),
     }
   }
-  if (!hasMailingAccess(org, { isAdmin: caps.isAdminNaywa })) {
+  if (!mailingVisible(profile) || !hasMailingAccess(org, { isAdmin: caps.isAdminNaywa })) {
     return {
       ok: false as const,
       response: NextResponse.json(

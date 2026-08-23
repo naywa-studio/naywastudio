@@ -26,6 +26,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { getCapabilities } from "@/lib/capabilities"
 import { hasMailingAccess } from "@/lib/subscription"
+import { mailingVisible } from "@/lib/mailing/rollout"
 import { explainSesError } from "@/lib/mailing/ses"
 import { verifyAndPersist } from "@/lib/mailing/verify-domain"
 
@@ -51,7 +52,7 @@ export async function POST() {
   const { data: org } = await admin
     .from("organizations").select("*").eq("id", profile.organization_id).single()
   if (!org) return NextResponse.json({ error: "no_org" }, { status: 403 })
-  if (!hasMailingAccess(org, { isAdmin: caps.isAdminNaywa })) {
+  if (!mailingVisible(profile) || !hasMailingAccess(org, { isAdmin: caps.isAdminNaywa })) {
     return NextResponse.json({ error: "mailing_not_included" }, { status: 403 })
   }
   if (!org.mailing_sending_domain) {
