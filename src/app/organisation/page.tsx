@@ -707,7 +707,7 @@ export default function CabinetPage() {
   // est en bac a sable et que le prix LIVE n'existe pas, seuls les admins
   // Naywa voient le Mailing (cf. lib/mailing/rollout.ts).
   const canUseMailing =
-    mailingVisible(profile) && hasMailingAccess(organization, { isAdmin: profile.is_admin === true })
+    mailingVisible(profile, organization) && hasMailingAccess(organization, { isAdmin: profile.is_admin === true })
 
   // La visite guidée 6 étapes Package Sourcing est désormais déclenchée
   // sur /workspace (premier accès après souscription), pas ici --
@@ -1463,7 +1463,7 @@ function SubscriptionCard({
    * afficher l'interrupteur le proposerait au seul client payant, et le clic
    * répondrait « Modification impossible ». Proposer puis refuser est pire
    * que ne rien proposer. Ouvert d'une ligne, cf. lib/mailing/rollout.ts. */
-  const showMailingAddon = mailingVisible({ is_admin: isAdmin })
+  const showMailingAddon = mailingVisible({ is_admin: isAdmin }, organization)
 
   // Résiliation demandée au portail : l'abo court jusqu'à la fin de la période
   // payée. On l'annonce comme une FIN, pas comme un prochain prélèvement.

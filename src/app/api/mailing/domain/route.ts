@@ -71,7 +71,7 @@ async function gate() {
       ),
     }
   }
-  if (!mailingVisible(profile) || !hasMailingAccess(org, { isAdmin: caps.isAdminNaywa })) {
+  if (!mailingVisible(profile, org) || !hasMailingAccess(org, { isAdmin: caps.isAdminNaywa })) {
     return {
       ok: false as const,
       response: NextResponse.json(

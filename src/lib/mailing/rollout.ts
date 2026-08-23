@@ -32,6 +32,9 @@ export const MAILING_LAUNCHED = false
 /** Champs suffisants pour trancher — volontairement minces. */
 export type MailingViewer = { is_admin?: boolean | null } | null | undefined
 
+/** Idem côté organisation : on ne lit que ce qui sert à décider. */
+export type MailingOrgFlag = { is_test?: boolean | null } | null | undefined
+
 /**
  * Cette personne peut-elle voir et utiliser le Mailing ?
  *
@@ -39,7 +42,20 @@ export type MailingViewer = { is_admin?: boolean | null } | null | undefined
  * dans l'interface sans fermer la route laisserait la fonctionnalité
  * atteignable par un appel direct, ce qui n'est pas ce qu'on veut d'un
  * garde-fou de lancement.
+ *
+ * ── Trois portes, et une seule ouverte à tous ────────────────────────────
+ *
+ *  - `MAILING_LAUNCHED` : l'ouverture générale, encore fermée ;
+ *  - **admin Naywa** : pour éprouver en production ;
+ *  - **organisation de test** (`organizations.is_test`) : pour éprouver le
+ *    parcours EXACTEMENT comme un client — sans bypass admin, avec les mêmes
+ *    droits, les mêmes écrans, les mêmes refus.
+ *
+ * Cette troisième porte existe parce qu'un admin ne teste jamais vraiment ce
+ * que vit un client : il contourne les gardes qu'on cherche justement à
+ * vérifier. `is_test` est déjà le drapeau qui exclut ces organisations des
+ * KPIs — il ne désigne donc jamais un vrai client.
  */
-export function mailingVisible(viewer: MailingViewer): boolean {
-  return MAILING_LAUNCHED || viewer?.is_admin === true
+export function mailingVisible(viewer: MailingViewer, org?: MailingOrgFlag): boolean {
+  return MAILING_LAUNCHED || viewer?.is_admin === true || org?.is_test === true
 }

@@ -72,7 +72,7 @@ export async function POST(req: Request) {
   const { data: org } = await admin
     .from("organizations").select("*").eq("id", profile.organization_id).single()
   if (!org) return NextResponse.json({ error: "no_org" }, { status: 403 })
-  if (!mailingVisible(profile) || !hasMailingAccess(org, { isAdmin: caps.isAdminNaywa })) {
+  if (!mailingVisible(profile, org) || !hasMailingAccess(org, { isAdmin: caps.isAdminNaywa })) {
     return NextResponse.json({ error: "mailing_not_included" }, { status: 403 })
   }
   if (!org.mailing_sending_domain) {

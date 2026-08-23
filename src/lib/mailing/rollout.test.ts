@@ -29,6 +29,21 @@ describe("mailingVisible", () => {
     expect(mailingVisible({ is_admin: true })).toBe(true)
   })
 
+  it("ouvre aux organisations de TEST, sans bypass admin", () => {
+    // C'est ce qui permet d'éprouver le parcours exactement comme un client :
+    // mêmes droits, mêmes écrans, mêmes refus. Un admin ne teste jamais
+    // vraiment ce que vit un client -- il contourne les gardes qu'on cherche
+    // justement à vérifier.
+    expect(mailingVisible({ is_admin: false }, { is_test: true })).toBe(true)
+  })
+
+  it("ne l'ouvre PAS à une organisation ordinaire", () => {
+    if (MAILING_LAUNCHED) return
+    expect(mailingVisible({ is_admin: false }, { is_test: false })).toBe(false)
+    expect(mailingVisible({ is_admin: false }, {})).toBe(false)
+    expect(mailingVisible({ is_admin: false }, null)).toBe(false)
+  })
+
   it("ne prend rien d'autre pour un droit d'accès", () => {
     // Un `is_admin` absent ou nul ne doit jamais valoir vrai par accident.
     expect(mailingVisible({ is_admin: null })).toBe(MAILING_LAUNCHED)
