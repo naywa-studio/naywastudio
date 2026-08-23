@@ -22,6 +22,7 @@ import {
   cvIncludedForSeats,
   isSelfServeSeats,
   PRICING_ADDON_EUR,
+  MAILING_ADDON_EUR,
   MAX_SELF_SERVE_SEATS,
   formatEur,
 } from "@/lib/pricing-plan"
@@ -157,6 +158,8 @@ const copy = {
     removeAddon: "Retirer",
     activateAddon: "Activer",
     ownerOnlySubscription: "Seul le propriétaire peut modifier l'abonnement.",
+    mailingAddonTitle: "Mailing depuis votre domaine",
+    mailingAddonBody: "Vos messages aux candidats partent de votre propre domaine, et leurs réponses reviennent ici.",
     // IdentitySection
     orgIdentityTitle: "Identité de l'organisation",
     orgIdentitySubtitle: "Vitrine telle qu'elle apparaîtra sur les CV anonymisés. Modifiable dans Branding.",
@@ -401,6 +404,8 @@ const copy = {
     removeAddon: "Remove",
     activateAddon: "Activate",
     ownerOnlySubscription: "Only the owner can change the subscription.",
+    mailingAddonTitle: "Mailing from your own domain",
+    mailingAddonBody: "Your candidate emails go out from your own domain, and their replies come back here.",
     orgIdentityTitle: "Organization identity",
     orgIdentitySubtitle: "Showcase as it will appear on anonymized CVs. Editable in Branding.",
     noSlogan: "No slogan",
@@ -1542,10 +1547,24 @@ function SubscriptionCard({
                 isOwner={isOwner}
                 onChanged={onActivated}
               />
-              <PricingAddonToggle
+              <AddonToggle
                 organization={organization}
                 isOwner={isOwner}
                 onChanged={onActivated}
+                title="Suite Pricing Syntec"
+                priceEur={PRICING_ADDON_EUR}
+                endpoint="/api/stripe/pricing-addon"
+                isActive={(o) => o.subscription_has_pricing === true}
+              />
+              <AddonToggle
+                organization={organization}
+                isOwner={isOwner}
+                onChanged={onActivated}
+                title={t.mailingAddonTitle}
+                subtitle={t.mailingAddonBody}
+                priceEur={MAILING_ADDON_EUR}
+                endpoint="/api/stripe/mailing-addon"
+                isActive={(o) => o.subscription_has_mailing === true}
               />
             </Panel>
             <div style={{ marginTop: 12, fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
@@ -1867,12 +1886,26 @@ function SeatCountEditor({
  * donc une promesse non tenue. Ici, un clic ajoute ou retire la ligne d'abo,
  * proratisée par Stripe.
  */
-function PricingAddonToggle({
-  organization, isOwner, onChanged,
+/**
+ * Interrupteur d'OPTION, générique.
+ *
+ * Un seul composant pour la Suite Pricing et le Mailing — et pour celles qui
+ * suivront. Le dupliquer aurait produit deux comportements qui divergent
+ * lentement sur un écran de facturation, là où une incohérence se lit comme
+ * une erreur de prélèvement.
+ */
+function AddonToggle({
+  organization, isOwner, onChanged, title, subtitle, priceEur, endpoint, isActive,
 }: {
   organization: Organization
   isOwner: boolean
   onChanged: () => Promise<void>
+  title: string
+  /** Une ligne pour dire ce que l'option apporte, quand ce n'est pas évident. */
+  subtitle?: string
+  priceEur: number
+  endpoint: string
+  isActive: (org: Organization) => boolean
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -1884,13 +1917,13 @@ function PricingAddonToggle({
   // clignoter le bouton sur l'ancien état. `null` = on suit la base.
   const [optimistic, setOptimistic] = useState<boolean | null>(null)
   const [syncing, setSyncing] = useState(false)
-  const active = optimistic ?? organization.subscription_has_pricing === true
+  const active = optimistic ?? isActive(organization)
 
   const toggle = async () => {
     const target = !active
     setBusy(true); setError(null)
     try {
-      const res = await fetch("/api/stripe/pricing-addon", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enable: target }),
@@ -1918,14 +1951,19 @@ function PricingAddonToggle({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <div style={{ minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: "var(--nw-text)" }}>
-            Suite Pricing Syntec
+            {title}
           </p>
+          {subtitle && (
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--nw-text-muted)", lineHeight: 1.45 }}>
+              {subtitle}
+            </p>
+          )}
           <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--nw-text-muted)" }}>
             {syncing
               ? t.addonSyncing
               : active
-                ? t.addonIncluded(formatEur(PRICING_ADDON_EUR))
-                : t.addonOptional(formatEur(PRICING_ADDON_EUR))}
+                ? t.addonIncluded(formatEur(priceEur))
+                : t.addonOptional(formatEur(priceEur))}
           </p>
         </div>
         <button

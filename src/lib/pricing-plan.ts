@@ -56,6 +56,21 @@ export const SEAT_TIERS: ReadonlyArray<{ upTo: number | null; unitAmountEur: num
 export const PRICING_ADDON_EUR = 9.99
 
 /**
+ * Mailing (envoi depuis le domaine du client) — prix plat mensuel HT.
+ *
+ * ⚠️ **Valeur à confirmer avant de créer le prix en LIVE.** Elle est alignée
+ * sur la Suite Pricing faute d'arbitrage, et ce n'est pas une décision : le
+ * chantier laissait « trancher le prix de l'add-on » ouvert. Changer ce
+ * nombre APRÈS création du prix Stripe ne change rien à ce qui est facturé —
+ * seul l'affichage bougerait, et les deux divergeraient en silence.
+ *
+ * Plat, et non par siège : la valeur est au niveau de l'organisation (son
+ * domaine, sa réputation d'expéditeur), pas au niveau de l'utilisateur.
+ * Le coût réel côté Naywa est de quelques centimes par mois et par cabinet.
+ */
+export const MAILING_ADDON_EUR = 9.99
+
+/**
  * Au-delà de ce nombre de sièges, on ne vend plus en self-service : le
  * configurateur bascule sur « parlons-en » (prise de RDV). Un deal à ce
  * niveau mérite une conversation (négociation, facturation, onboarding).
@@ -91,9 +106,13 @@ export function priceForSeats(seats: number): number {
   return round2(total)
 }
 
-/** Total HT/mois affiché au client : socle + add-on éventuel. */
-export function monthlyTotalEur(seats: number, withPricing: boolean): number {
-  return round2(priceForSeats(seats) + (withPricing ? PRICING_ADDON_EUR : 0))
+/** Total HT/mois affiché au client : socle + add-ons éventuels. */
+export function monthlyTotalEur(seats: number, withPricing: boolean, withMailing = false): number {
+  return round2(
+    priceForSeats(seats)
+    + (withPricing ? PRICING_ADDON_EUR : 0)
+    + (withMailing ? MAILING_ADDON_EUR : 0),
+  )
 }
 
 /** CV inclus pour un nombre de sièges donné. */

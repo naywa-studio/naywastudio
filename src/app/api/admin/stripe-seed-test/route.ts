@@ -5,7 +5,9 @@ import {
   isStripeTestMode,
   LOOKUP_SEAT,
   LOOKUP_PRICING_ADDON,
+  LOOKUP_MAILING_ADDON,
   PRICING_ADDON_EUR,
+  MAILING_ADDON_EUR,
   stripeSeatTiers,
 } from "@/lib/stripe"
 
@@ -107,6 +109,36 @@ export async function POST() {
       transfer_lookup_key: true,
     })
     created.push(LOOKUP_PRICING_ADDON)
+  }
+
+  // ── 3. Add-on Mailing, prix plat ────────────────────────────────────
+  //
+  // Plat, et non par siège : ce qu'on vend est le domaine d'envoi de
+  // l'ORGANISATION et sa réputation d'expéditeur. Rien là-dedans ne dépend du
+  // nombre de personnes qui s'en servent.
+  const mailingExists = await stripe.prices.list({
+    lookup_keys: [LOOKUP_MAILING_ADDON],
+    active: true,
+    limit: 1,
+  })
+  if (mailingExists.data[0]) {
+    skipped.push(LOOKUP_MAILING_ADDON)
+  } else {
+    const mailingProduct = await stripe.products.create({
+      name: "Naywa — Mailing depuis votre domaine",
+      description:
+        "Vos messages aux candidats partent de votre propre domaine, authentifiés, et leurs réponses reviennent dans Naywa. Option, quel que soit le nombre de personnes.",
+    })
+    await stripe.prices.create({
+      product: mailingProduct.id,
+      currency: "eur",
+      unit_amount: Math.round(MAILING_ADDON_EUR * 100),
+      recurring: { interval: "month" },
+      tax_behavior: "exclusive",
+      lookup_key: LOOKUP_MAILING_ADDON,
+      transfer_lookup_key: true,
+    })
+    created.push(LOOKUP_MAILING_ADDON)
   }
 
   return NextResponse.json({
