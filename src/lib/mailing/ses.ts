@@ -113,11 +113,19 @@ async function readDomain(domain: string): Promise<SendingDomain | null> {
       id: domain, // SES adresse les identités par leur nom : pas d'autre id.
       name: domain,
       status,
-      // Une fois actif, plus rien à publier — l'UI ne doit pas continuer à
-      // réclamer des enregistrements déjà posés.
-      records: status === "active"
-        ? []
-        : [...dkimRecords(domain, out.DkimAttributes?.Tokens), dmarcRecord(domain)],
+      /* ⚠️ TOUJOURS renvoyer les enregistrements, même quand le domaine est
+       * actif.
+       *
+       * Ils étaient vidés dans ce cas — « une fois actif, plus rien à
+       * publier ». Bonne intention pour l'affichage, mauvaise couche : le
+       * chemin qui écrit la zone Route 53 en a besoin quel que soit l'état.
+       *
+       * Le bug trouvé en testant : déléguer la zone d'un domaine DÉJÀ vérifié
+       * créait une zone VIDE. Le client publiait ses NS, la zone devenait
+       * autoritaire sans aucune clé DKIM, et son domaine d'envoi tombait —
+       * après avoir fonctionné. Le fournisseur dit la vérité ; c'est à
+       * l'interface de décider ce qu'elle montre. */
+      records: [...dkimRecords(domain, out.DkimAttributes?.Tokens), dmarcRecord(domain)],
     }
   } catch (err) {
     if (isNotFound(err)) return null

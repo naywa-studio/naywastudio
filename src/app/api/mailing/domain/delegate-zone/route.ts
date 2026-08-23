@@ -83,6 +83,28 @@ export async function POST() {
     // l'autre ferait tourner des clés ou des serveurs de noms, et casserait
     // un domaine en production sans erreur visible.
     const declared = await activeProvider().createSendingDomain(sendingDomain)
+
+    /* ── Jamais de zone qu'on ne saurait pas remplir ────────────────────
+     *
+     * Une zone déléguée devient AUTORITAIRE dès que le client publie ses NS.
+     * Vide, elle ne répond plus rien : les clés DKIM disparaissent et le
+     * domaine d'envoi tombe — après avoir fonctionné, ce qui est le pire
+     * moment pour tomber.
+     *
+     * Ce garde-fou existe parce que le cas s'est produit : sur un domaine
+     * déjà vérifié, le fournisseur renvoyait une liste vide et on créait
+     * quand même la zone. Corrigé à la source, mais la vérification reste :
+     * c'est la dernière chose entre nous et un domaine client cassé. */
+    if (declared.records.length === 0) {
+      console.error("[mailing/delegate-zone] aucun enregistrement à écrire pour", sendingDomain)
+      return NextResponse.json({
+        error: "no_records",
+        message:
+          "Impossible de préparer la zone : le fournisseur n'a renvoyé aucun enregistrement. " +
+          "Contactez le support plutôt que de publier les serveurs de noms.",
+      }, { status: 502 })
+    }
+
     const zone = await ensureZone(sendingDomain)
     const written = await writeRecords(zone.id, declared.records)
 
