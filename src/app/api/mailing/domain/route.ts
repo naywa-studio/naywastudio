@@ -32,6 +32,7 @@ import { DEFAULT_SUBDOMAIN, sendingDomainFor } from "@/lib/mailing/provider"
 import { checkRootDomain, cleanSubdomain, explainRejection, isForbiddenSendingDomain } from "@/lib/mailing/domain-input"
 import { explainSesError, ensureReputationGroup } from "@/lib/mailing/ses"
 import { switchOrgInboxAddresses } from "@/lib/mailing/inbox-address"
+import { deleteZone, explainRoute53Error } from "@/lib/mailing/dns-zone"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -99,6 +100,81 @@ function publicState(org: Record<string, unknown>) {
     path: org.mailing_path ?? null,
     nameservers: org.mailing_ns_records ?? [],
   }
+}
+
+/**
+ * DELETE — le client reprend la main sur son domaine.
+ *
+ * ── Pourquoi ça doit exister ─────────────────────────────────────────────
+ *
+ * Sans chemin de retrait, une zone Route 53 survit à son client : elle
+ * continue d'être facturée 0,50 $ par mois, indéfiniment, sans que rien ne le
+ * signale. Une fonctionnalité qu'on ne peut pas quitter proprement est une
+ * fonctionnalité dont le coût ne fait que monter.
+ *
+ * ── Ce qui n'est PAS détruit ─────────────────────────────────────────────
+ *
+ * Les échanges. Les adresses de réception repassent sur le domaine Naywa,
+ * mais les anciennes sont **archivées en alias** (migration 087) : un candidat
+ * qui répond à un message parti la semaine dernière est toujours rattaché.
+ * Quitter l'option ne doit jamais faire disparaître des réponses.
+ *
+ * L'identité SES n'est pas supprimée non plus : elle ne coûte rien, et la
+ * détruire ferait tourner les clés DKIM pour rien si le client revient.
+ */
+export async function DELETE() {
+  const g = await gate()
+  if (!g.ok) return g.response
+  const { admin, org } = g
+
+  const sendingDomain = org.mailing_sending_domain
+  if (!sendingDomain) return NextResponse.json({ ok: true, already: true })
+
+  // La zone d'abord : si elle échoue, on n'efface RIEN en base. Effacer
+  // l'identifiant de zone avant de l'avoir supprimée la rendrait
+  // introuvable — donc éternellement facturée, sans trace de son existence.
+  let zoneRemoved = false
+  if (org.mailing_path === "ns_delegation") {
+    try {
+      zoneRemoved = await deleteZone(sendingDomain)
+    } catch (err) {
+      console.error("[mailing/domain] suppression de zone impossible:", err)
+      return NextResponse.json(
+        { error: "zone_delete_failed", message: explainRoute53Error(err) },
+        { status: 502 },
+      )
+    }
+  }
+
+  const { error } = await admin.from("organizations").update({
+    mailing_domain: null,
+    mailing_subdomain: null,
+    mailing_sending_domain: null,
+    mailing_path: null,
+    mailing_dns_zone_id: null,
+    mailing_ns_records: null,
+    mailing_dns_records: null,
+    mailing_status: null,
+    mailing_verified_at: null,
+    mailing_delegate_email: null,
+    mailing_delegate_token: null,
+    mailing_delegate_sent_at: null,
+  }).eq("id", org.id)
+
+  if (error) {
+    console.error("[mailing/domain] réinitialisation impossible:", error.message)
+    return NextResponse.json({ error: "store_failed", detail: "internal_error" }, { status: 500 })
+  }
+
+  // Les adresses repassent sur le domaine Naywa, les anciennes deviennent des
+  // alias : les réponses en cours continuent d'arriver.
+  const switched = await switchOrgInboxAddresses(
+    admin,
+    { ...org, mailing_status: null, mailing_sending_domain: null },
+    { isAdmin: g.isAdmin },
+  )
+
+  return NextResponse.json({ ok: true, zone_removed: zoneRemoved, addresses_switched: switched })
 }
 
 export async function GET() {
