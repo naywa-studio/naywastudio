@@ -54,6 +54,14 @@ export async function verifyAndPersist(
     mailing_verified_at: state.status === "active"
       ? (org.mailing_verified_at ?? new Date().toISOString())
       : null,
+    /* Le lien de délégation meurt avec sa raison d'être.
+     *
+     * Il vit dans la boîte mail d'un prestataire, souvent transféré à des
+     * collègues. Une fois le domaine vérifié il n'a plus aucun usage, et le
+     * laisser ouvert jusqu'à son expiration ne fait que prolonger une fenêtre
+     * pour rien. Révoquer ici plutôt qu'à l'expiration réduit la durée de vie
+     * réelle de quatorze jours à la durée du chantier. */
+    ...(state.status === "active" ? { mailing_delegate_token: null } : {}),
   }).eq("id", org.id)
   if (error) throw new Error(`store_failed: ${error.message}`)
 
