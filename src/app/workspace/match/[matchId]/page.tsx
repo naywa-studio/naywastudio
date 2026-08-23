@@ -84,6 +84,8 @@ const copy = {
     pathTitle: "Parcours",
     present: "auj.",
     approachMessageTitle: "✉ Message d'approche",
+    replyTitle: "✉ Votre réponse",
+    replyCta: "Répondre",
     availableOnceParsed: "Disponible une fois le CV parsé.",
     emptyServerResponse: (status: number) => `Réponse vide du serveur (${status}).`,
     unreadableServerResponse: "Réponse serveur illisible.",
@@ -152,6 +154,8 @@ const copy = {
     pathTitle: "Career path",
     present: "present",
     approachMessageTitle: "✉ Approach message",
+    replyTitle: "✉ Your reply",
+    replyCta: "Reply",
     availableOnceParsed: "Available once the CV is parsed.",
     emptyServerResponse: (status: number) => `Empty response from server (${status}).`,
     unreadableServerResponse: "Unreadable server response.",
@@ -289,6 +293,12 @@ export default function MatchPage() {
   const { isReadOnly, organization } = useWorkspace()
 
   const [match, setMatch] = useState<LoadedMatch | null>(null)
+
+  // Le fil est seul à savoir combien de messages existent ; la page s'en sert
+  // pour choisir entre rédiger et lire.
+  const [threadCount, setThreadCount] = useState(0)
+  const [replying, setReplying] = useState(false)
+  const [threadReload, setThreadReload] = useState(0)
   const [candidate, setCandidate] = useState<Candidate | null>(null)
   const [clientDirectory, setClientDirectory] = useState<OffLimitsClientRef[]>([])
   const [siblingMatches, setSiblingMatches] = useState<MatchSummary[]>([])
@@ -1143,9 +1153,42 @@ export default function MatchPage() {
 
         {/* COL 2 (rangée 1) — message d'approche */}
         <div style={{ gridColumn: "2", gridRow: "1", display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Dès qu'un échange existe, c'est LUI qu'on veut voir : la
+              rédaction se replie derrière « Répondre ». Empiler les deux
+              allongeait la fiche sans que le sourceur y gagne — il vient
+              d'abord lire ce que le candidat a dit. */}
+          <MessageThread
+            candidateId={candidate.id}
+            jobId={job?.id ?? null}
+            matchId={matchId}
+            reloadKey={threadReload}
+            onCount={setThreadCount}
+            // Le rail de pipeline suit immédiatement : voir la suggestion
+            // appliquée sans que la colonne bouge donnerait l'impression que
+            // le clic n'a rien fait.
+            onStageApplied={(stage) =>
+              setMatch((prev) => prev ? { ...prev, pipeline_stage: stage as PipelineStage } : prev)
+            }
+          />
+
+          {threadCount > 0 && !replying && !isReadOnly && (
+            <button
+              type="button"
+              onClick={() => setReplying(true)}
+              style={{
+                alignSelf: "flex-start", padding: "8px 15px", borderRadius: 9,
+                border: "none", background: "var(--nw-primary)", color: "white",
+                fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              {t.replyCta}
+            </button>
+          )}
+
+          {(threadCount === 0 || replying) && (
           <section style={{ flex: 1, background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16, padding: 18 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
-              {t.approachMessageTitle}
+              {threadCount > 0 ? t.replyTitle : t.approachMessageTitle}
             </h3>
             {isReadOnly ? (
               <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-muted)" }}>
@@ -1157,6 +1200,10 @@ export default function MatchPage() {
                 selectedJobId={job?.id ?? ""}
                 jobTitle={job?.title ?? null}
                 showJobBadge={false}
+                // Au-delà du premier message, Nora RÉPOND : elle relit tout
+                // l'échange plutôt que de refaire une approche.
+                isReply={threadCount > 0}
+                onSent={() => { setReplying(false); setThreadReload((n) => n + 1) }}
               />
             ) : (
               <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-muted)" }}>
@@ -1164,21 +1211,7 @@ export default function MatchPage() {
               </p>
             )}
           </section>
-
-          {/* Le fil vit SOUS le message d'approche, dans la même colonne :
-              écrire et lire la réponse sont un seul geste, et les séparer
-              obligerait le sourceur à chercher ailleurs ce qu'il attend. */}
-          <MessageThread
-            candidateId={candidate.id}
-            jobId={job?.id ?? null}
-            matchId={matchId}
-            // Le rail de pipeline suit immédiatement : voir la suggestion
-            // appliquée sans que la colonne bouge donnerait l'impression que
-            // le clic n'a rien fait.
-            onStageApplied={(stage) =>
-              setMatch((prev) => prev ? { ...prev, pipeline_stage: stage as PipelineStage } : prev)
-            }
-          />
+          )}
         </div>
 
         {/* COL 3 (rangée 1) — mini-kanban vertical, collant.

@@ -35,6 +35,39 @@ Règles :
 - Propose un échange / un appel pour la suite sans inventer de lien ou de créneau spécifique : on laisse le sourceur cadrer la logistique dans son échange suivant.
 - Si la mission contient un champ "briefing", il liste les contraintes/préférences du client (budget, démarrage, profils à éviter, etc.). Tiens-en compte sans le citer brut au candidat : adapte le ton, les détails évoqués et la promesse. NE révèle PAS le budget ni les info confidentielles du briefing au candidat.`
 
+/**
+ * Rédiger une RÉPONSE dans un échange déjà commencé.
+ *
+ * ── Pourquoi un second jeu de règles ─────────────────────────────────────
+ *
+ * Un premier message se vend ; une réponse répond. Réutiliser le prompt
+ * d'approche produirait une relance qui se représente et ignore la question
+ * posée — la faute qui fait décrocher un candidat déjà intéressé.
+ *
+ * ── La règle sur les créneaux n'est pas décorative ───────────────────────
+ *
+ * Naywa n'a AUCUN système de réservation : la connexion Calendly a été
+ * entièrement retirée du produit. Un modèle laissé libre inventerait un lien
+ * ou un horaire, le candidat cliquerait dans le vide, et le sourceur ne le
+ * saurait jamais. On propose donc un échange sans jamais fabriquer de lien.
+ */
+const REPLY_PROMPT = `Tu es Nora, l'assistante de recrutement de Naywa Studio. Un échange est DÉJÀ en cours entre un sourceur et un candidat. Tu rédiges la prochaine réponse DU SOURCEUR.
+
+Tu réponds UNIQUEMENT en JSON valide :
+{ "subject": string | null, "body": string }
+
+Règles :
+- Tu écris À LA PREMIÈRE PERSONNE, du point de vue du sourceur.
+- LIS TOUT L'ÉCHANGE, y compris le premier message. Réponds à ce que le candidat a RÉELLEMENT écrit : ses questions, ses réserves, ses conditions. Ne te représente pas, il te connaît déjà.
+- Reprends ses contraintes telles qu'il les a formulées (disponibilité, salaire, lieu) et confirme-les explicitement quand c'est possible.
+- Court : 60-120 mots. Une réponse longue à une question simple donne l'impression de noyer le poisson.
+- Objet : reprends celui du fil précédé de "Re : " s'il y en a un, sinon null.
+- Propose une étape concrète — un appel, un échange — MAIS N'INVENTE JAMAIS de lien de réservation, d'horaire précis, ni d'adresse. Aucun outil de créneau n'est branché : un lien inventé enverrait le candidat dans le vide. Demande plutôt ses disponibilités, ou propose de convenir d'un moment.
+- N'invente aucun fait sur la mission ni sur l'entreprise. Si le candidat pose une question dont tu n'as pas la réponse, dis que tu la lui apportes rapidement plutôt que de broder.
+- Ne révèle jamais le budget ni le contenu du briefing client.
+- Ton chaleureux, direct. Pas de jargon RH. Termine par une signature au prénom du sourceur s'il est fourni.
+- Pas de markdown.`
+
 const LANG_INSTRUCTION: Record<"fr" | "en", string> = {
   fr: "\n\nÉcris le message en FRANÇAIS.",
   en: "\n\nWrite the message in ENGLISH — subject and body both, entirely in English.",
@@ -49,9 +82,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!gate.ok) return gate.response
 
   const body = await req.json().catch(() => null) as {
-    channel?: unknown; job_id?: unknown; instruction?: unknown; lang?: unknown
+    channel?: unknown; job_id?: unknown; instruction?: unknown; lang?: unknown; mode?: unknown
   } | null
   const channel: OutreachChannel = body?.channel === "linkedin" ? "linkedin" : "email"
+  const isReply = body?.mode === "reply"
   const jobId = typeof body?.job_id === "string" ? body.job_id : null
   const instruction = typeof body?.instruction === "string" ? body.instruction.trim().slice(0, 400) : ""
   const lang = body?.lang === "en" ? "en" : "fr"
@@ -123,11 +157,60 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     recent_experience: (cv.experience ?? []).slice(0, 2),
   })
 
+  /* ── L'échange déjà tenu ────────────────────────────────────────────────
+   *
+   * Relu ICI, côté serveur, et jamais accepté depuis le client. Un historique
+   * fourni par le navigateur serait un texte arbitraire injecté dans le
+   * prompt : n'importe qui pourrait faire écrire à Nora ce qu'il veut, au nom
+   * du sourceur, vers un candidat réel.
+   *
+   * Lu via le client RLS, donc borné à l'organisation de l'appelant. */
+  let threadBlock = ""
+  if (isReply) {
+    let q = sb
+      .from("email_messages")
+      .select("direction, subject, body_text, created_at, job_id")
+      .eq("candidate_id", id)
+      .eq("status", "sent")
+      .order("created_at", { ascending: true })
+      .limit(20)
+    if (jobId) q = q.or(`job_id.eq.${jobId},job_id.is.null`)
+    const { data: sentMsgs } = await q
+
+    // Les entrants n'ont pas le statut "sent" : on les reprend à part plutôt
+    // que d'élargir le filtre, pour ne jamais embarquer un envoi EN ÉCHEC —
+    // un message que le candidat n'a jamais reçu ne doit pas être traité
+    // comme s'il l'avait lu.
+    let qi = sb
+      .from("email_messages")
+      .select("direction, subject, body_text, created_at, job_id")
+      .eq("candidate_id", id)
+      .eq("direction", "inbound")
+      .order("created_at", { ascending: true })
+      .limit(20)
+    if (jobId) qi = qi.or(`job_id.eq.${jobId},job_id.is.null`)
+    const { data: inMsgs } = await qi
+
+    const thread = [...(sentMsgs ?? []), ...(inMsgs ?? [])]
+      .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""))
+
+    if (thread.length > 0) {
+      threadBlock = "\n\nÉCHANGE DÉJÀ TENU (du plus ancien au plus récent) :\n" + thread
+        .map((m) => {
+          const who = m.direction === "inbound" ? "CANDIDAT" : "SOURCEUR"
+          const subj = m.subject ? `[${m.subject}] ` : ""
+          return `--- ${who} ---\n${subj}${(m.body_text ?? "").slice(0, 2000)}`
+        })
+        .join("\n\n")
+    }
+  }
+
   const userMsg = [
     `Canal : ${channel}`,
     recruiterName ? `Prénom du sourceur (pour signer) : ${recruiterName}` : "Prénom du sourceur : inconnu",
     `CANDIDAT :\n${candidateBlock}`,
     jobBlock,
+    threadBlock,
     instruction ? `\n\nCONSIGNE DU SOURCEUR : ${instruction}` : "",
   ].filter(Boolean).join("\n")
 
@@ -139,7 +222,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       responseFormat: "json_object",
       maxTokens: 700,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT + LANG_INSTRUCTION[lang] },
+        // Une réponse dans un fil n'obéit pas aux règles d'un premier
+        // contact : cf. REPLY_PROMPT.
+        { role: "system", content: (isReply && threadBlock ? REPLY_PROMPT : SYSTEM_PROMPT) + LANG_INSTRUCTION[lang] },
         { role: "user", content: userMsg },
       ],
     })

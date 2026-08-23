@@ -24,7 +24,7 @@
  *    automatique se piloterait depuis une boîte mail.
  */
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useWorkspace } from "@/app/workspace/layout"
 
@@ -115,12 +115,19 @@ export default function MessageThread({
   jobId,
   matchId,
   onStageApplied,
+  onCount,
+  reloadKey,
 }: {
   candidateId: string
   jobId: string | null
   /** Nécessaire pour appliquer une étape suggérée. Absent = suggestion en lecture seule. */
   matchId?: string | null
   onStageApplied?: (stage: string) => void
+  /** Remonte le nombre d'échanges : la page s'en sert pour décider si elle
+   *  affiche la rédaction ou le fil. Le fil est seul à connaître ce chiffre. */
+  onCount?: (n: number) => void
+  /** Changer cette valeur relance le chargement — après un envoi, typiquement. */
+  reloadKey?: number
 }) {
   const { lang } = useLanguage()
   const t = copy[lang === "en" ? "en" : "fr"]
@@ -132,13 +139,21 @@ export default function MessageThread({
   const [applying, setApplying] = useState<string | null>(null)
   const [appliedOn, setAppliedOn] = useState<string | null>(null)
 
+  // La callback passe par une réf : la mettre dans les dépendances de `load`
+  // relancerait un chargement à chaque rendu du parent, puisqu'une fonction
+  // fléchée écrite dans le JSX change d'identité à chaque fois.
+  const onCountRef = useRef(onCount)
+  useEffect(() => { onCountRef.current = onCount }, [onCount])
+
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
       const url = `/api/candidates/${candidateId}/messages${jobId ? `?job_id=${jobId}` : ""}`
       const res = await fetch(url, { signal })
       const data = await res.json()
       if (!res.ok || !data.ok) { setError(t.loadFailed); return }
-      setMessages(data.messages ?? [])
+      const list: ThreadMessage[] = data.messages ?? []
+      setMessages(list)
+      onCountRef.current?.(list.length)
       setError(null)
     } catch (err) {
       // Une requête annulée au démontage n'est pas une erreur à afficher.
@@ -152,7 +167,7 @@ export default function MessageThread({
     const ctrl = new AbortController()
     load(ctrl.signal)
     return () => ctrl.abort()
-  }, [load])
+  }, [load, reloadKey])
 
   const applyStage = useCallback(async (messageId: string, stage: string) => {
     if (!matchId) return
@@ -174,6 +189,9 @@ export default function MessageThread({
   }, [matchId, onStageApplied, t.applyFailed])
 
   if (loading) return null
+  // Un fil vide n'a rien à dire : la rédaction occupe la place, et une carte
+  // « aucun échange » ne ferait qu'allonger la page.
+  if (messages.length === 0) return null
 
   return (
     <section style={S.wrap}>
@@ -182,9 +200,9 @@ export default function MessageThread({
         <button type="button" style={S.refresh} onClick={() => load()}>{t.refresh}</button>
       </header>
 
-      {messages.length === 0 ? (
-        <p style={S.empty}>{t.empty}</p>
-      ) : (
+      {/* Hauteur bornée, défilement interne : un échange de dix messages ne
+          doit pas repousser le reste de la fiche hors de l'écran. */}
+      <div style={S.scroller}>
         <ol style={S.list}>
           {messages.map((m) => {
             const inbound = m.direction === "inbound"
@@ -266,7 +284,7 @@ export default function MessageThread({
             )
           })}
         </ol>
-      )}
+      </div>
 
       {error && <p style={S.errText}>{error}</p>}
     </section>
@@ -290,6 +308,9 @@ const S: Record<string, React.CSSProperties> = {
     cursor: "pointer", fontFamily: "inherit",
   },
   empty: { margin: 0, fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.6 },
+  // 420 px : assez pour lire deux ou trois échanges sans défiler, pas assez
+  // pour manger l'écran quand la conversation s'allonge.
+  scroller: { maxHeight: 420, overflowY: "auto", paddingRight: 4 },
   list: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 14 },
   item: { display: "flex", flexDirection: "column", gap: 6 },
   bubble: {

@@ -93,12 +93,19 @@ export default function ComposeBox({
   selectedJobId,
   jobTitle,
   showJobBadge = true,
+  isReply = false,
+  onSent,
 }: {
   candidate: Candidate
   selectedJobId: string
   jobTitle: string | null
   /** Hide the "Pour : <job>" pill when the surrounding UI already shows it. */
   showJobBadge?: boolean
+  /** Un échange est en cours : Nora RÉPOND au lieu de refaire une approche.
+   *  Elle relit tout le fil côté serveur — jamais depuis le navigateur. */
+  isReply?: boolean
+  /** Permet au parent de recharger le fil après un envoi. */
+  onSent?: () => void
 }) {
   const { lang } = useLanguage()
   const t = uiCopy[lang]
@@ -167,6 +174,7 @@ export default function ComposeBox({
       }
       setSentAt(new Date().toISOString())
       setConfirming(false)
+      onSent?.()
     } catch (err) {
       setError((err as Error).message ?? t.networkError)
     } finally {
@@ -185,6 +193,10 @@ export default function ComposeBox({
           job_id: selectedJobId || null,
           instruction: instruction.trim() || null,
           lang,
+          // Le serveur relit l'échange lui-même : on ne lui envoie que
+          // l'intention, jamais l'historique. Un fil fourni par le navigateur
+          // serait du texte arbitraire injecté dans le prompt.
+          mode: isReply ? "reply" : "outreach",
         }),
       })
       const data = await res.json()
