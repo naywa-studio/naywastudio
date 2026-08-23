@@ -92,6 +92,12 @@ function publicState(org: Record<string, unknown>) {
     status: org.mailing_status ?? null,
     verified_at: org.mailing_verified_at ?? null,
     records: org.mailing_dns_records ?? [],
+    /* Le parcours emprunté décide de ce que l'écran demande au client : les
+     * quatre enregistrements du fournisseur, ou les quatre serveurs de noms
+     * de la zone qu'on héberge pour lui. Lui montrer les deux le ferait
+     * publier deux fois — et la seconde publication annulerait la première. */
+    path: org.mailing_path ?? null,
+    nameservers: org.mailing_ns_records ?? [],
   }
 }
 

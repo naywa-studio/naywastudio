@@ -55,6 +55,9 @@ interface DomainState {
   status: string | null
   verified_at: string | null
   records: DnsRecord[]
+  /** "ns_delegation" = Naywa heberge la zone ; null = publication manuelle. */
+  path: string | null
+  nameservers: string[]
 }
 
 const copy = {
@@ -94,6 +97,13 @@ const copy = {
     delegateSent: (e: string) => `Configuration envoyée à ${e}`,
     delegateSentHint: "Le lien est valable 14 jours et ne donne accès à rien d'autre. Vous verrez ici quand le domaine sera vérifié.",
     delegateAgain: "Envoyer à quelqu'un d'autre",
+    zoneTitle: "Ou laissez Naywa s'en occuper",
+    zoneBody: "Vous ne publiez alors qu'une seule chose, une seule fois : quatre serveurs de noms. Nous gérons ensuite tous les enregistrements, y compris leurs renouvellements futurs, sans plus jamais vous solliciter.",
+    zoneCta: "Laisser Naywa gérer la zone",
+    zoneWorking: "Préparation…",
+    nsTitle: "Une seule chose à publier",
+    nsBody: (d: string) => `Chez votre hébergeur DNS, déléguez le sous-domaine ${d} en ajoutant ces quatre serveurs de noms.`,
+    nsAfter: "Une fois publiés, tout le reste est géré de notre côté — vous n'aurez plus rien à faire, même quand les clés seront renouvelées.",
     activeTitle: "Votre domaine est actif",
     activeBody: "Vos messages aux candidats partent désormais de",
     activeReply: "Leurs réponses reviennent dans Naywa, comme avant.",
@@ -143,6 +153,13 @@ const copy = {
     delegateSent: (e: string) => `Configuration sent to ${e}`,
     delegateSentHint: "The link is valid for 14 days and grants nothing else. You will see here when the domain is verified.",
     delegateAgain: "Send to someone else",
+    zoneTitle: "Or let Naywa handle it",
+    zoneBody: "You then publish one thing, once: four nameservers. We manage every record from there, including future key rotations, without ever asking you again.",
+    zoneCta: "Let Naywa manage the zone",
+    zoneWorking: "Preparing…",
+    nsTitle: "One thing to publish",
+    nsBody: (d: string) => `At your DNS host, delegate the ${d} subdomain by adding these four nameservers.`,
+    nsAfter: "Once published, everything else is handled on our side — you will not have to touch it again, even when keys rotate.",
     activeTitle: "Your domain is active",
     activeBody: "Your candidate emails now come from",
     activeReply: "Their replies come back into Naywa, as before.",
@@ -164,7 +181,7 @@ export default function MailingDomainCard() {
 
   const [state, setState] = useState<DomainState | null>(null)
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState<"declare" | "verify" | "delegate" | null>(null)
+  const [busy, setBusy] = useState<"declare" | "verify" | "delegate" | "zone" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -176,6 +193,27 @@ export default function MailingDomainCard() {
   const [host, setHost] = useState<DnsHost | null>(null)
   const [delegateEmail, setDelegateEmail] = useState("")
   const [delegated, setDelegated] = useState<string | null>(null)
+
+  const isDelegatedZone = state?.path === "ns_delegation" && (state?.nameservers?.length ?? 0) > 0
+
+  const delegateZone = useCallback(async () => {
+    setBusy("zone"); setError(null); setNotice(null)
+    try {
+      const res = await fetch("/api/mailing/domain/delegate-zone", { method: "POST" })
+      const d = await res.json()
+      if (!res.ok) { setError(d.message || t.genericError); return }
+      setState((s) => s ? {
+        ...s, path: d.path, nameservers: d.nameservers ?? [], status: d.status,
+      } : s)
+      // Les contrôles portaient sur les enregistrements du fournisseur : ils
+      // n'ont plus de sens maintenant que c'est nous qui les écrivons.
+      setChecks([])
+    } catch {
+      setError(t.genericError)
+    } finally {
+      setBusy(null)
+    }
+  }, [t.genericError])
 
   const delegate = useCallback(async () => {
     setBusy("delegate"); setError(null); setNotice(null)
@@ -228,6 +266,9 @@ export default function MailingDomainCard() {
       setState({
         domain: d.domain, subdomain: d.subdomain, sending_domain: d.sending_domain,
         status: d.status, verified_at: null, records: d.records ?? [],
+        // Une déclaration repart toujours du parcours manuel : c'est ensuite,
+        // et seulement si le client le demande, qu'on héberge sa zone.
+        path: null, nameservers: [],
       })
       setEditing(false); setNeedsConfirm(false)
     } catch {
@@ -373,6 +414,46 @@ export default function MailingDomainCard() {
             </span>
           </div>
 
+          {/* ── Deux portes, jamais les deux à la fois ──────────────────
+              Montrer simultanément les enregistrements du fournisseur ET les
+              serveurs de noms ferait publier les deux — et la délégation NS
+              annulerait les enregistrements posés à la main. */}
+          {isDelegatedZone ? (
+            <>
+              <h4 style={S.recordsTitle}>{t.nsTitle}</h4>
+              <p style={S.hint}>{t.nsBody(state.sending_domain ?? "")}</p>
+              <div style={S.tableWrap}>
+                <table style={S.table}>
+                  <thead>
+                    <tr>
+                      <th style={S.th}>{t.colType}</th>
+                      <th style={S.th}>{t.colName}</th>
+                      <th style={S.th}>{t.colValue}</th>
+                      <th style={S.th} aria-label={t.copy} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.nameservers.map((ns, i) => (
+                      <tr key={ns}>
+                        <td style={S.td}><span style={S.badge}>NS</span></td>
+                        <td style={{ ...S.td, ...S.mono }}>
+                          {i === 0 ? state.subdomain : ""}
+                        </td>
+                        <td style={{ ...S.td, ...S.mono, wordBreak: "break-all" }}>{ns}</td>
+                        <td style={{ ...S.td, textAlign: "right" }}>
+                          <button type="button" style={S.copyBtn} onClick={() => copyValue(ns, ns)}>
+                            {copiedKey === ns ? t.copied : t.copy}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ ...S.hint, marginTop: 8 }}>{t.nsAfter}</p>
+            </>
+          ) : (
+          <>
           <h4 style={S.recordsTitle}>{t.recordsTitle}</h4>
           <p style={S.hint}>{t.recordsBody}</p>
 
@@ -448,6 +529,24 @@ export default function MailingDomainCard() {
               </tbody>
             </table>
           </div>
+
+          {/* Seconde porte : Naywa prend la zone en charge. Proposée SOUS les
+              enregistrements, pas à la place — celui qui sait faire va au plus
+              court, celui qui doute a une issue. */}
+          <div style={S.zoneBox}>
+            <strong style={{ fontSize: 12 }}>{t.zoneTitle}</strong>
+            <p style={{ ...S.hint, marginTop: 4 }}>{t.zoneBody}</p>
+            <button
+              type="button"
+              style={{ ...S.copyBtn, marginTop: 8, padding: "7px 12px", fontSize: 12 }}
+              disabled={busy !== null}
+              onClick={delegateZone}
+            >
+              {busy === "zone" ? t.zoneWorking : t.zoneCta}
+            </button>
+          </div>
+          </>
+          )}
 
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14 }}>
             <button type="button" style={S.primaryBtn} disabled={busy !== null} onClick={verify}>
@@ -562,6 +661,10 @@ const S: Record<string, React.CSSProperties> = {
     borderRadius: 5, background: "var(--nw-surface-muted)", color: "var(--nw-text-muted)",
   },
   state: { display: "block", marginTop: 4, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" },
+  zoneBox: {
+    marginTop: 14, padding: "12px 14px", borderRadius: 10,
+    background: "var(--nw-surface-muted)", border: "1px dashed var(--nw-border)",
+  },
   delegateBox: {
     marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--nw-border)",
   },
