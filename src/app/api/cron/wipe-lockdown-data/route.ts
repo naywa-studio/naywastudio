@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { r2DeleteByPrefix } from "@/lib/r2-storage"
+import { deleteZone } from "@/lib/mailing/dns-zone"
 import { verifyCronSecret } from "@/lib/cron-auth"
 
 export const runtime = "nodejs"
@@ -130,6 +131,32 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    /* ── La zone DNS part avec les données ──────────────────────────────
+     *
+     * Ce cron garde le COMPTE mais vide le métier. Laisser la zone hébergée
+     * derrière serait doublement faux : elle coûte 0,50 $/mois pour une
+     * organisation qui ne peut plus envoyer, et la carte continuerait
+     * d'afficher « domaine actif » alors que plus rien ne le soutient.
+     *
+     * Best-effort, comme dans l'autre cron : une facturation qui traîne ne
+     * doit pas empêcher un effacement de données. Journalisé fort, Sentry
+     * voit passer. On efface les colonnes dans le même mouvement — un état
+     * qui prétend le contraire de la réalité est pire que pas d'état. */
+    const { data: orgMailing } = await admin
+      .from("organizations")
+      .select("mailing_sending_domain")
+      .eq("id", org.id)
+      .maybeSingle()
+
+    if (orgMailing?.mailing_sending_domain) {
+      try {
+        await deleteZone(orgMailing.mailing_sending_domain)
+      } catch (zoneErr) {
+        console.error(`[cron/wipe-lockdown] zone DNS ${orgMailing.mailing_sending_domain} NON supprimée — facturée jusqu'à intervention:`, zoneErr)
+        errors.push({ org_id: org.id, step: "delete_dns_zone", message: (zoneErr as Error).message })
+      }
+    }
+
     // Reset l'UI côté sièges. On ne touche PAS trial_ends_at (garde la trace)
     // ni lockdown_started_at pour un essai (reste null) ; pour un lockdown on
     // le clear (données gone, on ne re-wipe pas).
@@ -137,7 +164,25 @@ export async function GET(req: NextRequest) {
       seats_total: number
       subscription_seats: number | null
       lockdown_started_at?: string | null
-    } = { seats_total: 0, subscription_seats: null }
+      mailing_sending_domain: null
+      mailing_domain: null
+      mailing_subdomain: null
+      mailing_path: null
+      mailing_dns_zone_id: null
+      mailing_ns_records: null
+      mailing_dns_records: null
+      mailing_status: null
+      mailing_verified_at: null
+      mailing_delegate_email: null
+      mailing_delegate_token: null
+      mailing_delegate_sent_at: null
+    } = {
+      seats_total: 0, subscription_seats: null,
+      mailing_sending_domain: null, mailing_domain: null, mailing_subdomain: null,
+      mailing_path: null, mailing_dns_zone_id: null, mailing_ns_records: null,
+      mailing_dns_records: null, mailing_status: null, mailing_verified_at: null,
+      mailing_delegate_email: null, mailing_delegate_token: null, mailing_delegate_sent_at: null,
+    }
     if (org.cause === "subscription") orgPatch.lockdown_started_at = null
     const { error: updErr } = await admin
       .from("organizations")

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { r2DeleteByPrefix } from "@/lib/r2-storage"
+import { deleteZone } from "@/lib/mailing/dns-zone"
 import { getStripe } from "@/lib/stripe"
 import { verifyCronSecret } from "@/lib/cron-auth"
 
@@ -34,6 +35,8 @@ interface OrgRow {
   brand_logo_path: string | null
   pending_deletion_at: string
   stripe_subscription_id: string | null
+  /** Zone DNS hébergée pour cette org, à supprimer avec elle. */
+  mailing_sending_domain: string | null
 }
 
 export const dynamic = "force-dynamic"
@@ -49,7 +52,7 @@ export async function GET(req: NextRequest) {
   // 1. List orgs past their deletion deadline.
   const { data: orgs, error: listErr } = await admin
     .from("organizations")
-    .select("id, name, brand_logo_path, pending_deletion_at, stripe_subscription_id")
+    .select("id, name, brand_logo_path, pending_deletion_at, stripe_subscription_id, mailing_sending_domain")
     .not("pending_deletion_at", "is", null)
     .lte("pending_deletion_at", now)
   if (listErr) {
@@ -98,6 +101,27 @@ export async function GET(req: NextRequest) {
       } catch (stripeErr) {
         console.warn(`[cron/wipe] Stripe cancel ${org.stripe_subscription_id}:`, stripeErr)
         errors.push({ org_id: org.id, step: "cancel_stripe_sub", message: (stripeErr as Error).message })
+      }
+    }
+
+    // 2b-ter. Supprime la zone DNS hébergée pour cette org, s'il y en a une.
+    //     Même motif que l'abonnement Stripe : une ressource EXTERNE qui
+    //     continue de coûter (0,50 $/mois) longtemps après le départ du
+    //     client, sans que rien ne le signale.
+    //
+    //     Best-effort, contrairement à la purge R2 juste au-dessus — et
+    //     l'asymétrie est voulue. Des CV orphelins sur R2 sont un problème de
+    //     DONNÉES PERSONNELLES : on refuse de perdre la référence à l'org
+    //     tant qu'ils traînent. Une zone DNS ne contient que des clés
+    //     publiques de signature ; la garder coûte de l'argent, pas une
+    //     violation. Bloquer une suppression RGPD pour une question de
+    //     facturation serait le mauvais arbitrage.
+    if (org.mailing_sending_domain) {
+      try {
+        await deleteZone(org.mailing_sending_domain)
+      } catch (zoneErr) {
+        console.error(`[cron/wipe] zone DNS ${org.mailing_sending_domain} NON supprimée — facturée jusqu'à intervention:`, zoneErr)
+        errors.push({ org_id: org.id, step: "delete_dns_zone", message: (zoneErr as Error).message })
       }
     }
 
