@@ -27,6 +27,8 @@
 import { Resolver } from "node:dns/promises"
 import type { MailingDnsRecord } from "./provider"
 
+export type { MailingDnsRecord }
+
 export type RecordState =
   /** Trouvé, et conforme. */
   | "ok"

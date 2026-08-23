@@ -86,6 +86,14 @@ const copy = {
     allPublished: "Vos quatre enregistrements sont visibles. Il reste à votre hébergeur et à notre fournisseur de se synchroniser — cela prend de quelques minutes à quelques heures. Revenez vérifier.",
     hostDetected: (name: string) => `Votre DNS est géré chez ${name}`,
     hostUnknown: "Serveurs de noms de votre domaine",
+    delegateTitle: "Vous n'avez pas la main sur le DNS ?",
+    delegateBody: "Envoyez cette configuration à la personne qui gère votre nom de domaine — prestataire informatique, agence web, associé. Elle recevra un lien où tout est expliqué, et pourra vérifier elle-même.",
+    delegatePlaceholder: "email de votre contact technique",
+    delegateCta: "Envoyer",
+    delegateSending: "Envoi…",
+    delegateSent: (e: string) => `Configuration envoyée à ${e}`,
+    delegateSentHint: "Le lien est valable 14 jours et ne donne accès à rien d'autre. Vous verrez ici quand le domaine sera vérifié.",
+    delegateAgain: "Envoyer à quelqu'un d'autre",
     activeTitle: "Votre domaine est actif",
     activeBody: "Vos messages aux candidats partent désormais de",
     activeReply: "Leurs réponses reviennent dans Naywa, comme avant.",
@@ -127,6 +135,14 @@ const copy = {
     allPublished: "All four records are visible. Your DNS host and our provider now need to sync — that takes a few minutes to a few hours. Come back and verify.",
     hostDetected: (name: string) => `Your DNS is managed at ${name}`,
     hostUnknown: "Your domain's nameservers",
+    delegateTitle: "Not the one managing DNS?",
+    delegateBody: "Send this configuration to whoever manages your domain — IT provider, web agency, business partner. They get a link with everything explained, and can verify it themselves.",
+    delegatePlaceholder: "your technical contact's email",
+    delegateCta: "Send",
+    delegateSending: "Sending…",
+    delegateSent: (e: string) => `Configuration sent to ${e}`,
+    delegateSentHint: "The link is valid for 14 days and grants nothing else. You will see here when the domain is verified.",
+    delegateAgain: "Send to someone else",
     activeTitle: "Your domain is active",
     activeBody: "Your candidate emails now come from",
     activeReply: "Their replies come back into Naywa, as before.",
@@ -148,7 +164,7 @@ export default function MailingDomainCard() {
 
   const [state, setState] = useState<DomainState | null>(null)
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState<"declare" | "verify" | null>(null)
+  const [busy, setBusy] = useState<"declare" | "verify" | "delegate" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -158,6 +174,26 @@ export default function MailingDomainCard() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [checks, setChecks] = useState<RecordCheck[]>([])
   const [host, setHost] = useState<DnsHost | null>(null)
+  const [delegateEmail, setDelegateEmail] = useState("")
+  const [delegated, setDelegated] = useState<string | null>(null)
+
+  const delegate = useCallback(async () => {
+    setBusy("delegate"); setError(null); setNotice(null)
+    try {
+      const res = await fetch("/api/mailing/domain/delegate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: delegateEmail.trim() }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setError(d.message || t.genericError); return }
+      setDelegated(d.email)
+    } catch {
+      setError(t.genericError)
+    } finally {
+      setBusy(null)
+    }
+  }, [delegateEmail, t.genericError])
 
   // Chargement initial. Le garde `cancelled` évite d'écrire dans un composant
   // démonté — la console /organisation change de section sans démonter la page.
@@ -421,6 +457,45 @@ export default function MailingDomainCard() {
               {t.change}
             </button>
           </div>
+
+          {/* Déléguer, plutôt que transférer un email technique à l'aveugle.
+              Celui qui achète l'option n'a presque jamais les accès DNS : sans
+              ce chemin, la mise en route s'arrête chez quelqu'un d'autre, avec
+              des captures d'écran, et souvent ne repart pas. */}
+          <div style={S.delegateBox}>
+            {delegated ? (
+              <>
+                <strong style={{ fontSize: 12 }}>{t.delegateSent(delegated)}</strong>
+                <p style={{ ...S.hint, marginTop: 4 }}>{t.delegateSentHint}</p>
+                <button type="button" style={S.linkBtn} onClick={() => setDelegated(null)}>
+                  {t.delegateAgain}
+                </button>
+              </>
+            ) : (
+              <>
+                <strong style={{ fontSize: 12 }}>{t.delegateTitle}</strong>
+                <p style={{ ...S.hint, marginTop: 4 }}>{t.delegateBody}</p>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                  <input
+                    style={{ ...S.input, marginBottom: 0, flex: "1 1 220px", width: "auto" }}
+                    value={delegateEmail}
+                    onChange={(e) => setDelegateEmail(e.target.value)}
+                    placeholder={t.delegatePlaceholder}
+                    type="email"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    style={S.primaryBtn}
+                    disabled={busy !== null || !delegateEmail.trim()}
+                    onClick={delegate}
+                  >
+                    {busy === "delegate" ? t.delegateSending : t.delegateCta}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       ) : null}
 
@@ -487,6 +562,9 @@ const S: Record<string, React.CSSProperties> = {
     borderRadius: 5, background: "var(--nw-surface-muted)", color: "var(--nw-text-muted)",
   },
   state: { display: "block", marginTop: 4, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" },
+  delegateBox: {
+    marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--nw-border)",
+  },
   hostBox: {
     marginTop: 10, padding: "10px 12px", borderRadius: 10,
     background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border)",

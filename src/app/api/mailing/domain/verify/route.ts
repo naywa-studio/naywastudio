@@ -26,10 +26,8 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { getCapabilities } from "@/lib/capabilities"
 import { hasMailingAccess } from "@/lib/subscription"
-import { activeProvider } from "@/lib/mailing/send"
 import { explainSesError } from "@/lib/mailing/ses"
-import { switchOrgInboxAddresses } from "@/lib/mailing/inbox-address"
-import { checkRecords, detectDnsHost } from "@/lib/mailing/dns-check"
+import { verifyAndPersist } from "@/lib/mailing/verify-domain"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -63,10 +61,19 @@ export async function POST() {
     )
   }
 
-  let state
+  /* Toute la mécanique vit dans `verifyAndPersist`, PARTAGÉE avec le lien de
+   * délégation. Deux implémentations produiraient un domaine actif à l'envoi
+   * et muet à la réception selon qui a cliqué — l'écart n'apparaîtrait que
+   * chez le client qui a délégué, c'est-à-dire le moins technique. */
+  let out
   try {
-    state = await activeProvider().verifySendingDomain(org.mailing_sending_domain)
+    out = await verifyAndPersist(admin, org, { isAdmin: caps.isAdminNaywa })
   } catch (err) {
+    const msg = (err as Error).message ?? ""
+    if (msg.startsWith("store_failed")) {
+      console.error("[mailing/verify] écriture impossible:", msg)
+      return NextResponse.json({ error: "store_failed", detail: "internal_error" }, { status: 500 })
+    }
     console.error("[mailing/verify] fournisseur injoignable:", err)
     return NextResponse.json(
       { error: "provider_failed", message: explainSesError(err) },
@@ -74,60 +81,13 @@ export async function POST() {
     )
   }
 
-  const becameActive = state.status === "active" && org.mailing_status !== "active"
-
-  const { error } = await admin.from("organizations").update({
-    mailing_status: state.status,
-    mailing_dns_records: state.records,
-    mailing_verified_at: state.status === "active"
-      ? (org.mailing_verified_at ?? new Date().toISOString())
-      : null,
-  }).eq("id", org.id)
-
-  if (error) {
-    console.error("[mailing/verify] écriture impossible:", error.message)
-    return NextResponse.json({ error: "store_failed", detail: "internal_error" }, { status: 500 })
-  }
-
-  /* ── Bascule des adresses de réception ─────────────────────────────────
-   *
-   * Best-effort, et volontairement : un échec ici ne doit pas faire échouer
-   * une vérification qui a RÉUSSI. Le domaine est authentifié, c'est le fait
-   * important ; une adresse non basculée le sera au premier envoi, puisque
-   * `ensureInboxAddress` est appelé là aussi. L'inverse — annuler la
-   * vérification parce qu'une adresse n'a pas bougé — ferait perdre au client
-   * une étape DNS qu'il vient de franchir. */
-  const switched = becameActive
-    ? await switchOrgInboxAddresses(
-        admin,
-        { ...org, mailing_status: state.status },
-        { isAdmin: caps.isAdminNaywa },
-      )
-    : 0
-
-  /* ── Dire CE QUI manque, et pas seulement « pas vérifié » ──────────────
-   *
-   * SES répond par oui ou non. Un client qui reçoit « non » quatre fois de
-   * suite, sans savoir lequel de ses enregistrements est en cause, relit ses
-   * lignes, ne voit rien, et finit par appeler — ou par abandonner. C'est là
-   * que se perdent les mises en route.
-   *
-   * On résout donc nous-mêmes, et on renvoie l'état ligne par ligne. Cette
-   * lecture n'accorde JAMAIS `active` : seule la réponse du fournisseur le
-   * fait (notre résolveur peut voir un enregistrement que SES ne voit pas
-   * encore, et l'inverse). */
-  const checks = state.status === "active" ? [] : await checkRecords(state.records)
-  const host = state.status === "active" || !org.mailing_domain
-    ? null
-    : await detectDnsHost(org.mailing_domain)
-
   return NextResponse.json({
     ok: true,
-    status: state.status,
-    records: state.records,
-    checks,
-    host,
-    became_active: becameActive,
-    addresses_switched: switched,
+    status: out.status,
+    records: out.records,
+    checks: out.checks,
+    host: out.host,
+    became_active: out.becameActive,
+    addresses_switched: out.addressesSwitched,
   })
 }
