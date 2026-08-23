@@ -1,4 +1,4 @@
--- 086 — Supprime la fonction orpheline `handle_new_user()` (audit sécurité A3).
+-- 091 — Supprime la fonction orpheline `handle_new_user()` (audit sécurité A3).
 --
 -- Créée en migration 001 comme trigger `AFTER INSERT ON auth.users`, elle a
 -- été remplacée dès la migration 020 par `handle_new_auth_user()` (DROP

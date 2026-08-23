@@ -1,4 +1,4 @@
--- 085 — Verrouille les colonnes sensibles de `profiles` et `organizations`
+-- 090 — Verrouille les colonnes sensibles de `profiles` et `organizations`
 -- contre un UPDATE fait avec le JWT d'un utilisateur (audit sécurité C1).
 --
 -- Constat : les policies RLS `profiles_self_write` et
