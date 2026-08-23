@@ -29,6 +29,7 @@ import { hasMailingAccess } from "@/lib/subscription"
 import { activeProvider } from "@/lib/mailing/send"
 import { explainSesError } from "@/lib/mailing/ses"
 import { switchOrgInboxAddresses } from "@/lib/mailing/inbox-address"
+import { checkRecords, detectDnsHost } from "@/lib/mailing/dns-check"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -104,10 +105,28 @@ export async function POST() {
       )
     : 0
 
+  /* ── Dire CE QUI manque, et pas seulement « pas vérifié » ──────────────
+   *
+   * SES répond par oui ou non. Un client qui reçoit « non » quatre fois de
+   * suite, sans savoir lequel de ses enregistrements est en cause, relit ses
+   * lignes, ne voit rien, et finit par appeler — ou par abandonner. C'est là
+   * que se perdent les mises en route.
+   *
+   * On résout donc nous-mêmes, et on renvoie l'état ligne par ligne. Cette
+   * lecture n'accorde JAMAIS `active` : seule la réponse du fournisseur le
+   * fait (notre résolveur peut voir un enregistrement que SES ne voit pas
+   * encore, et l'inverse). */
+  const checks = state.status === "active" ? [] : await checkRecords(state.records)
+  const host = state.status === "active" || !org.mailing_domain
+    ? null
+    : await detectDnsHost(org.mailing_domain)
+
   return NextResponse.json({
     ok: true,
     status: state.status,
     records: state.records,
+    checks,
+    host,
     became_active: becameActive,
     addresses_switched: switched,
   })

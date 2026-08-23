@@ -36,6 +36,18 @@ interface DnsRecord {
   priority?: number
 }
 
+interface RecordCheck {
+  record: DnsRecord
+  state: "ok" | "missing" | "wrong" | "unknown"
+  found?: string
+}
+
+interface DnsHost {
+  name: string | null
+  where: string | null
+  nameservers: string[]
+}
+
 interface DomainState {
   domain: string | null
   subdomain: string
@@ -66,6 +78,14 @@ const copy = {
     verify: "Vérifier",
     verifying: "Vérification…",
     notYet: "Les enregistrements ne sont pas encore visibles. C'est normal juste après la publication : réessayez dans quelques minutes.",
+    stOk: "En place",
+    stMissing: "Absent",
+    stWrong: "Valeur différente",
+    stUnknown: "Non lu",
+    foundLabel: "Trouvé :",
+    allPublished: "Vos quatre enregistrements sont visibles. Il reste à votre hébergeur et à notre fournisseur de se synchroniser — cela prend de quelques minutes à quelques heures. Revenez vérifier.",
+    hostDetected: (name: string) => `Votre DNS est géré chez ${name}`,
+    hostUnknown: "Serveurs de noms de votre domaine",
     activeTitle: "Votre domaine est actif",
     activeBody: "Vos messages aux candidats partent désormais de",
     activeReply: "Leurs réponses reviennent dans Naywa, comme avant.",
@@ -99,6 +119,14 @@ const copy = {
     verify: "Verify",
     verifying: "Verifying…",
     notYet: "The records aren't visible yet. That's expected right after publishing — try again in a few minutes.",
+    stOk: "In place",
+    stMissing: "Missing",
+    stWrong: "Different value",
+    stUnknown: "Not read",
+    foundLabel: "Found:",
+    allPublished: "All four records are visible. Your DNS host and our provider now need to sync — that takes a few minutes to a few hours. Come back and verify.",
+    hostDetected: (name: string) => `Your DNS is managed at ${name}`,
+    hostUnknown: "Your domain's nameservers",
     activeTitle: "Your domain is active",
     activeBody: "Your candidate emails now come from",
     activeReply: "Their replies come back into Naywa, as before.",
@@ -128,6 +156,8 @@ export default function MailingDomainCard() {
   const [domain, setDomain] = useState("")
   const [subdomain, setSubdomain] = useState("careers")
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [checks, setChecks] = useState<RecordCheck[]>([])
+  const [host, setHost] = useState<DnsHost | null>(null)
 
   // Chargement initial. Le garde `cancelled` évite d'écrire dans un composant
   // démonté — la console /organisation change de section sans démonter la page.
@@ -178,16 +208,23 @@ export default function MailingDomainCard() {
       const d = await res.json()
       if (!res.ok) { setError(d.message || t.genericError); return }
       setState((s) => s ? { ...s, status: d.status, records: d.records ?? s.records } : s)
+      setChecks(d.checks ?? [])
+      setHost(d.host ?? null)
       // Une vérification qui n'aboutit pas n'est PAS une erreur : c'est l'état
-      // normal des premières minutes. Le dire autrement ferait croire à une
-      // panne et enverrait le client au support.
-      if (d.status !== "active") setNotice(t.notYet)
+      // normal des premières minutes. Et quand TOUT est publié de notre point
+      // de vue, on le dit — sinon le client croit s'être trompé alors qu'il
+      // n'a plus qu'à attendre.
+      if (d.status !== "active") {
+        const list: RecordCheck[] = d.checks ?? []
+        const allOk = list.length > 0 && list.every((c) => c.state === "ok")
+        setNotice(allOk ? t.allPublished : t.notYet)
+      }
     } catch {
       setError(t.genericError)
     } finally {
       setBusy(null)
     }
-  }, [t.genericError, t.notYet])
+  }, [t.genericError, t.notYet, t.allPublished])
 
   const copyValue = useCallback((key: string, value: string) => {
     navigator.clipboard?.writeText(value).then(() => {
@@ -303,6 +340,24 @@ export default function MailingDomainCard() {
           <h4 style={S.recordsTitle}>{t.recordsTitle}</h4>
           <p style={S.hint}>{t.recordsBody}</p>
 
+          {/* Où aller, chez SON hébergeur. Déduit des serveurs de noms et non
+              du registrar déclaré : ce qui compte est l'endroit où la zone se
+              modifie, et beaucoup de domaines sont achetés chez l'un puis
+              délégués à l'autre. */}
+          {host && (host.name || host.nameservers.length > 0) && (
+            <div style={S.hostBox}>
+              <strong style={{ fontSize: 12 }}>
+                {host.name ? t.hostDetected(host.name) : t.hostUnknown}
+              </strong>
+              {host.where && <p style={{ ...S.hint, marginTop: 4 }}>{host.where}</p>}
+              {!host.name && host.nameservers.length > 0 && (
+                <p style={{ ...S.hint, ...S.mono, marginTop: 4 }}>
+                  {host.nameservers.slice(0, 3).join(", ")}
+                </p>
+              )}
+            </div>
+          )}
+
           <div style={S.tableWrap}>
             <table style={S.table}>
               <thead>
@@ -316,12 +371,34 @@ export default function MailingDomainCard() {
               <tbody>
                 {state.records.map((r, i) => {
                   const key = `${r.type}-${r.name}-${i}`
+                  const check = checks.find((c) => c.record.name === r.name && c.record.type === r.type)
                   return (
                     <tr key={key}>
-                      <td style={S.td}><span style={S.badge}>{r.type}</span></td>
+                      <td style={S.td}>
+                        <span style={S.badge}>{r.type}</span>
+                        {check && (
+                          <span style={{
+                            ...S.state,
+                            color: check.state === "ok" ? "var(--nw-success)"
+                              : check.state === "unknown" ? "var(--nw-text-muted)" : "#DC2626",
+                          }}>
+                            {check.state === "ok" ? t.stOk
+                              : check.state === "missing" ? t.stMissing
+                              : check.state === "wrong" ? t.stWrong : t.stUnknown}
+                          </span>
+                        )}
+                      </td>
                       <td style={{ ...S.td, ...S.mono }}>{r.name}</td>
                       <td style={{ ...S.td, ...S.mono, wordBreak: "break-all" }}>
                         {r.priority != null ? `${r.priority} ` : ""}{r.value}
+                        {/* Ce qu'on a réellement trouvé, quand ça diffère :
+                            un client qui voit la valeur en place à côté de
+                            celle attendue repère sa faute de copie tout seul. */}
+                        {check?.state === "wrong" && check.found && (
+                          <div style={{ marginTop: 3, color: "#DC2626" }}>
+                            {t.foundLabel} {check.found}
+                          </div>
+                        )}
                       </td>
                       <td style={{ ...S.td, textAlign: "right" }}>
                         <button type="button" style={S.copyBtn}
@@ -408,6 +485,11 @@ const S: Record<string, React.CSSProperties> = {
   badge: {
     padding: "2px 7px", fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase",
     borderRadius: 5, background: "var(--nw-surface-muted)", color: "var(--nw-text-muted)",
+  },
+  state: { display: "block", marginTop: 4, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" },
+  hostBox: {
+    marginTop: 10, padding: "10px 12px", borderRadius: 10,
+    background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border)",
   },
   activeBox: {
     padding: "14px 16px", borderRadius: 11,
