@@ -1,4 +1,4 @@
-# Mailing depuis le domaine du client — état au 23 août 2026
+# Mailing depuis le domaine du client — état au 24 août 2026
 
 Suite de `docs/chantier-mailing-domaine-client.md`, qui reste la spécification.
 Ce document dit **où on en est**, **ce qui reste**, et surtout **pourquoi les
@@ -6,7 +6,7 @@ choses sont faites ainsi** — pour qu'on ne re-débatte pas d'arbitrages déjà
 tranchés en conditions réelles.
 
 **Tout est mergé sur `main` et déployé.** Migrations 085 à 089 en base.
-150 tests. Le code est en production mais **fermé aux clients** : cf. le
+170 tests. Le code est en production mais **fermé aux clients** : cf. le
 garde-fou de lancement ci-dessous.
 
 ---
@@ -62,6 +62,39 @@ Aucun n'était visible en relecture — tests verts, `tsc` et `eslint` propres :
 
 ---
 
+## L'audit du 24/08 — trois trous, tous corrigés
+
+Fait à la demande d'Elyas, après coup, sur du code déjà en production.
+
+1. **Le plafond d'envoi n'existait pas.** La demande d'accès production
+   déposée chez AWS dit : « We enforce a per-customer daily sending cap in
+   our application. » Le seul plafond du code était
+   `DAILY_LIMITS.send = 10 000` par utilisateur — autrement dit aucun.
+   Au-delà de l'exactitude vis-à-vis d'AWS : la réputation SES est celle du
+   COMPTE, donc un seul cabinet qui déborde fait suspendre tous les autres.
+   → `lib/mailing/send-cap.ts`, plafond par ORGANISATION (60/siège,
+   plancher 60). Par organisation et non par utilisateur : c'est l'unité que
+   SES mesure, et un plafond par utilisateur se contourne en ajoutant des
+   sièges. Compte les lignes `email_messages` plutôt qu'un compteur, qui se
+   désynchronise. **Laisse passer si la lecture échoue** — c'est un garde-fou
+   de réputation, pas un contrôle d'accès.
+
+2. **L'analyse des réponses n'avait aucun quota.** Chaque email entrant
+   déclenchait un appel au modèle. Or l'adresse de réception d'un sourceur
+   est publique par construction : elle figure dans chaque message envoyé à
+   un candidat. → imputée à l'organisation. Quota épuisé = pas d'analyse,
+   **mais le message est conservé**.
+
+3. **Les options survivaient à l'impayé.** `subscription_has_pricing` et
+   `subscription_has_mailing` restent à `true` quand un paiement échoue
+   (le webhook pose le verrouillage sans démonter les lignes d'abo). Une org
+   en défaut gardait donc son option — et pouvait nous faire créer une zone
+   Route 53 facturée. → corrigé dans **les deux** fonctions d'un seul geste ;
+   les séparer aurait recréé l'écart. 14 tests écrits en boucle sur les deux,
+   pour qu'un futur écart casse la suite.
+
+---
+
 ## 🔒 Le garde-fou de lancement
 
 `lib/mailing/rollout.ts` → **`MAILING_LAUNCHED = false`**.
@@ -98,12 +131,12 @@ route laisserait la fonctionnalité atteignable par un appel direct.
 - **Accès production SES** — dossier `178726352900266`, sans réponse depuis le
   21/08.
 
-### AWS (à faire à la console)
+### AWS — ✅ fait le 24/08
 
-- **Alerte de facturation** (~5 $). Premier coût variable du chantier.
-- **Règle de cycle de vie S3** sur `naywa-inbound-email-eu`, suppression à
-  ~30 j. Le code supprime l'objet après traitement, mais un message non traité
-  resterait indéfiniment. Minimisation RGPD autant que ménage.
+- **`naywa-mailing-alerte`** : budget mensuel 5 $, alertes à 85 %, 100 % et
+  sur prévision, vers `elyas.malki@naywastudio.com`.
+- **`expire-inbound-30j`** sur `naywa-inbound-email-eu` : portée limitée au
+  préfixe `inbound/`, expiration à 30 j, aucune autre action.
 
 ### Code
 
@@ -117,6 +150,28 @@ route laisserait la fonctionnalité atteignable par un appel direct.
   La troisième porte (`is_test`) le rend possible, mais il faut un domaine
   qui ne soit pas `naywastudio.com` — refusé aux non-admins, à dessein.
   ⏸️ En attente d'un domaine prêté par un tiers.
+
+---
+
+## Prochaine session — l'ordre convenu
+
+Du certain vers l'incertain, en attendant SES et le prix :
+
+1. **L'adresse d'expéditeur.** `careers@careers.cabinet-durand.fr` — le mot
+   répété. C'est ce que voit CHAQUE candidat, et c'est précisément ce que
+   l'add-on vend. Laisser le cabinet choisir sa partie locale
+   (`recrutement@`, `contact@`, son prénom) avec un défaut propre.
+   Ne dépend d'aucun blocage.
+2. **Accessibilité de `/mailing-setup`** — le SEUL écran de Naywa ouvert à
+   quelqu'un qu'on ne connaît pas, sur un poste qu'on ne contrôle pas.
+   Ailleurs les utilisateurs sont des sourceurs équipés ; là, non.
+3. **Passe visuelle courte** sur les écrans mailing — corriger ce qu'on sait
+   faux, pas ce qu'on imagine perfectible : aucun client ne les a utilisés.
+
+**Écarté, et pourquoi** : Domain Connect. Intestable aujourd'hui (il faudrait
+un domaine chez un hébergeur compatible, et rien ne part tant que SES est en
+bac à sable). Le squelette d'une intégration non éprouvée n'est pas un acquis,
+c'est une dette qui en a l'air. À reprendre quand SES sera ouvert.
 
 ---
 
