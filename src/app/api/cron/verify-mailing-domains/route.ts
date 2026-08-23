@@ -44,6 +44,7 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import { verifyCronSecret } from "@/lib/cron-auth"
 import { verifyAndPersist } from "@/lib/mailing/verify-domain"
 import { sendEmail, MAIL_DOMAIN } from "@/lib/resend"
+import { sesAccountSummary } from "@/lib/mailing/ses"
 import type { Organization } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -56,6 +57,26 @@ const MAX_PER_RUN = 25
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  }
+
+  /* ── L'état du compte SES, une fois par jour ───────────────────────────
+   *
+   * Chez SES la réputation est celle du COMPTE : au-delà de 5 % de rebonds ou
+   * 0,1 % de plaintes, AWS peut suspendre l'envoi — pour TOUS les clients à
+   * la fois. Aujourd'hui, rien dans Naywa ne s'en apercevrait : les envois
+   * échoueraient un par un, chez chaque cabinet, sans que personne ne fasse
+   * le lien.
+   *
+   * Un `console.error` remonte dans Sentry, qui alerte. C'est peu, mais c'est
+   * la différence entre l'apprendre le jour même et l'apprendre par un
+   * client. */
+  try {
+    const account = await sesAccountSummary()
+    if (account.envoiActive !== true) {
+      console.error("[cron/verify-mailing] ⚠️ SES A SUSPENDU L'ENVOI SUR LE COMPTE", account)
+    }
+  } catch (err) {
+    console.error("[cron/verify-mailing] état du compte SES illisible:", err)
   }
 
   const admin = getAdminSupabase()
