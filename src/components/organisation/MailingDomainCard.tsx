@@ -97,6 +97,10 @@ const copy = {
     delegateSent: (e: string) => `Configuration envoyée à ${e}`,
     delegateSentHint: "Le lien est valable 14 jours et ne donne accès à rien d'autre. Vous verrez ici quand le domaine sera vérifié.",
     delegateAgain: "Envoyer à quelqu'un d'autre",
+    disconnect: "Reprendre la main",
+    disconnectWarn: "Vos messages repartiront du domaine de Naywa. Les réponses en cours continueront d'arriver.",
+    disconnectConfirm: "Confirmer",
+    disconnecting: "Retrait…",
     zoneTitle: "Ou laissez Naywa s'en occuper",
     zoneBody: "Vous ne publiez alors qu'une seule chose, une seule fois : quatre serveurs de noms. Nous gérons ensuite tous les enregistrements, y compris leurs renouvellements futurs, sans plus jamais vous solliciter.",
     zoneCta: "Laisser Naywa gérer la zone",
@@ -153,6 +157,10 @@ const copy = {
     delegateSent: (e: string) => `Configuration sent to ${e}`,
     delegateSentHint: "The link is valid for 14 days and grants nothing else. You will see here when the domain is verified.",
     delegateAgain: "Send to someone else",
+    disconnect: "Disconnect",
+    disconnectWarn: "Your emails will go back out from Naywa's domain. Ongoing replies will keep arriving.",
+    disconnectConfirm: "Confirm",
+    disconnecting: "Disconnecting…",
     zoneTitle: "Or let Naywa handle it",
     zoneBody: "You then publish one thing, once: four nameservers. We manage every record from there, including future key rotations, without ever asking you again.",
     zoneCta: "Let Naywa manage the zone",
@@ -181,7 +189,7 @@ export default function MailingDomainCard() {
 
   const [state, setState] = useState<DomainState | null>(null)
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState<"declare" | "verify" | "delegate" | "zone" | null>(null)
+  const [busy, setBusy] = useState<"declare" | "verify" | "delegate" | "zone" | "disconnect" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -194,7 +202,25 @@ export default function MailingDomainCard() {
   const [delegateEmail, setDelegateEmail] = useState("")
   const [delegated, setDelegated] = useState<string | null>(null)
 
+  const [disconnecting, setDisconnecting] = useState(false)
+
   const isDelegatedZone = state?.path === "ns_delegation" && (state?.nameservers?.length ?? 0) > 0
+
+  const disconnect = useCallback(async () => {
+    setBusy("disconnect"); setError(null); setNotice(null)
+    try {
+      const res = await fetch("/api/mailing/domain", { method: "DELETE" })
+      const d = await res.json()
+      if (!res.ok) { setError(d.message || t.genericError); return }
+      // Retour à l'état initial : la carte redemande un domaine.
+      setState(null); setChecks([]); setHost(null)
+      setDisconnecting(false); setEditing(true); setDomain(""); setSubdomain("careers")
+    } catch {
+      setError(t.genericError)
+    } finally {
+      setBusy(null)
+    }
+  }, [t.genericError])
 
   const delegateZone = useCallback(async () => {
     setBusy("zone"); setError(null); setNotice(null)
@@ -333,9 +359,33 @@ export default function MailingDomainCard() {
             {t.activeBody} <code style={S.code}>{state?.subdomain}@{state?.sending_domain}</code>
           </p>
           <p style={{ ...S.hint, marginTop: 6 }}>{t.activeReply}</p>
-          <button type="button" style={S.linkBtn} onClick={() => setEditing(true)}>
-            {t.change}
-          </button>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <button type="button" style={S.linkBtn} onClick={() => setEditing(true)}>
+              {t.change}
+            </button>
+            {/* Une fonctionnalité qu'on ne peut pas quitter proprement est
+                une fonctionnalité dont le coût ne fait que monter : la zone
+                Route 53 survivrait à son client, facturée pour rien. */}
+            {disconnecting ? (
+              <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "var(--nw-text-body)" }}>{t.disconnectWarn}</span>
+                <button type="button" style={S.dangerBtn} disabled={busy !== null} onClick={disconnect}>
+                  {busy === "disconnect" ? t.disconnecting : t.disconnectConfirm}
+                </button>
+                <button type="button" style={S.linkBtn} onClick={() => setDisconnecting(false)}>
+                  {t.cancel}
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                style={{ ...S.linkBtn, color: "var(--nw-text-muted)" }}
+                onClick={() => setDisconnecting(true)}
+              >
+                {t.disconnect}
+              </button>
+            )}
+          </div>
         </div>
       ) : null}
 
