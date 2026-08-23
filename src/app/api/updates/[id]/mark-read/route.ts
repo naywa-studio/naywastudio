@@ -49,7 +49,8 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       { onConflict: "user_id,update_id", ignoreDuplicates: true },
     )
   if (upsertErr) {
-    return NextResponse.json({ error: upsertErr.message }, { status: 500 })
+    console.error("[updates/mark-read] upsert failed", upsertErr)
+    return NextResponse.json({ error: "update_failed", detail: "internal_error" }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }

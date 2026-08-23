@@ -95,7 +95,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const { error: orgErr } = await admin.from("organizations")
       .update(patch).eq("id", request.organization_id)
-    if (orgErr) return NextResponse.json({ error: orgErr.message }, { status: 500 })
+    if (orgErr) {
+      console.error("[branding-requests/approve] org update failed", orgErr)
+      return NextResponse.json({ error: "update_failed", detail: "internal_error" }, { status: 500 })
+    }
 
     await admin.from("branding_change_requests").update({
       status: "approved",
