@@ -21,6 +21,8 @@
  */
 
 import { openrouterChat, safeJsonParse } from "../openrouter"
+import { consumeOrgLlmAction } from "../quota"
+import { getAdminSupabase } from "../admin-supabase"
 import type { EmailSentiment } from "../database.types"
 import { stripSignature } from "./route-inbound"
 
@@ -56,9 +58,36 @@ export interface ReplyAnalysis {
  * Ne jette jamais : une panne du modèle ne doit pas faire perdre le message
  * lui-même, qui est la seule chose irremplaçable ici.
  */
-export async function analyzeReply(text: string): Promise<ReplyAnalysis> {
+export async function analyzeReply(
+  text: string,
+  /**
+   * Organisation à qui imputer l'appel. **À passer systématiquement.**
+   *
+   * ── Pourquoi ce paramètre existe ────────────────────────────────────
+   *
+   * Sans lui, chaque email entrant déclenchait un appel au modèle SANS
+   * aucun plafond. L'adresse de réception d'un sourceur est publique par
+   * construction — elle figure dans chaque message envoyé à un candidat.
+   * N'importe qui pouvait donc, en écrivant en boucle à cette adresse,
+   * faire tourner notre facture d'IA sans limite.
+   *
+   * L'analyse est désormais imputée à l'organisation, comme les dix autres
+   * routes qui appellent un modèle. Quand le quota est épuisé, on N'ANALYSE
+   * PAS — mais **on garde le message** : la réponse du candidat est
+   * irremplaçable, la suggestion ne l'est pas.
+   */
+  orgId?: string | null,
+): Promise<ReplyAnalysis> {
   const body = stripSignature(text ?? "")
   if (!body.trim()) return { sentiment: null, summary: null, suggestedStage: null }
+
+  if (orgId) {
+    const quota = await consumeOrgLlmAction(getAdminSupabase(), orgId)
+    if (!quota.ok) {
+      console.warn("[analyze-reply] quota IA épuisé, message conservé sans analyse:", orgId)
+      return { sentiment: null, summary: null, suggestedStage: null }
+    }
+  }
   try {
     const res = await openrouterChat({
       model: "openai/gpt-4o-mini",

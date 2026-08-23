@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
   const jobId = routing.jobId
 
   // 3. LLM suggestion (never auto-applied)
-  const analysis = await analyzeReply(bodyText ?? "")
+  const analysis = await analyzeReply(bodyText ?? "", routing.organizationId)
 
   // 4. Log
   await admin.from("email_messages").insert({

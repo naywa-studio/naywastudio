@@ -22,6 +22,7 @@ import { sendEmail } from "@/lib/resend"
 import { ensureInboxAddress, fromHeader } from "@/lib/mailing/inbox-address"
 import { sendCandidateEmail } from "@/lib/mailing/send"
 import { canSendFromOrgDomain } from "@/lib/subscription"
+import { checkOrgDailySendCap } from "@/lib/mailing/send-cap"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -94,6 +95,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // depuis le domaine du cabinet avec un `Reply-To` chez Naywa : le candidat
   // répondrait ailleurs, et tout aurait l'air de marcher.
   const asAdmin = { isAdmin: profile?.is_admin === true }
+
+  /* ── Plafond quotidien par ORGANISATION ────────────────────────────────
+   *
+   * Le seul plafond existant était `DAILY_LIMITS.send = 10 000` par
+   * utilisateur, c'est-à-dire aucun. Or la réputation SES est celle du
+   * COMPTE : un cabinet qui envoie massivement les fait suspendre tous. Et
+   * c'est ce qu'on a écrit à AWS dans la demande d'accès production.
+   *
+   * Refusé AVANT d'atteindre le fournisseur : on ne consomme rien pour un
+   * envoi qu'on va rejeter. */
+  if (profile?.organization_id) {
+    const cap = await checkOrgDailySendCap(admin, profile.organization_id, org?.subscription_seats)
+    if (!cap.ok) {
+      return NextResponse.json(
+        { error: "daily_send_cap", message: cap.message, sent: cap.sent, limit: cap.limit },
+        { status: 429 },
+      )
+    }
+  }
+
   const onOwnDomain = canSendFromOrgDomain(org, asAdmin)
   const inboxAddress = await ensureInboxAddress(admin, user.id, org, asAdmin)
   const from = fromHeader(profile?.first_name, inboxAddress)

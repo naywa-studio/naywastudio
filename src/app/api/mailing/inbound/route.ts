@@ -223,7 +223,7 @@ export async function POST(req: NextRequest) {
     //
     // Un échec ici ne remonte pas : le message est déjà en base, et une
     // suggestion absente vaut mieux qu'un retraitement complet.
-    const analysis = await analyzeReply(bodyText ?? "")
+    const analysis = await analyzeReply(bodyText ?? "", routing.organizationId)
     if (analysis.sentiment || analysis.summary) {
       await admin.from("email_messages").update({
         ai_sentiment: analysis.sentiment,
