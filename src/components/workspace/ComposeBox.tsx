@@ -41,6 +41,8 @@ const uiCopy = {
     sentFrom: (from: string) => `Parti de ${from}. La réponse du candidat reviendra dans ce fil.`,
     needSubject: "Ajoutez un objet avant d'envoyer.",
     sendFooterHint: "L'envoi part du domaine de votre organisation. Rien n'est envoyé sans ce clic.",
+    toFill: (n: number) => n === 1 ? "1 champ à compléter avant l'envoi" : `${n} champs à compléter avant l'envoi`,
+    toFillHint: "Nora n'invente pas ce qu'elle ne sait pas : remplacez ces crochets par vos informations (votre lien de rendez-vous, votre numéro…).",
   },
   en: {
     email: "Email",
@@ -75,6 +77,8 @@ const uiCopy = {
     sentFrom: (from: string) => `Sent from ${from}. The candidate's reply will land in this thread.`,
     needSubject: "Add a subject before sending.",
     sendFooterHint: "The email goes out from your organisation's domain. Nothing is sent without this click.",
+    toFill: (n: number) => n === 1 ? "1 field to fill in before sending" : `${n} fields to fill in before sending`,
+    toFillHint: "Nora never invents what she doesn't know: replace these brackets with your own details (your booking link, your phone number…).",
   },
 }
 
@@ -134,6 +138,18 @@ export default function ComposeBox({
 
   const hasDraft = bodyText.trim().length > 0
   const edited = hasDraft && (bodyText.trim() !== aiBody.trim() || subject.trim() !== aiSubject.trim())
+
+  /* ── Les champs que Nora a laissés à compléter ──────────────────────────
+   *
+   * Elle ne devine pas ce qu'elle ne sait pas : lien de réservation, numéro,
+   * créneau. Elle pose un crochet, le sourceur remplit.
+   *
+   * L'envoi est BLOQUÉ tant qu'il en reste. C'est volontairement rigide :
+   * un message d'approche qui arrive chez un candidat avec « [votre lien de
+   * réservation] » en toutes lettres ne se rattrape pas — il dit exactement
+   * ce qu'on ne veut pas dire, à savoir que personne ne l'a relu. Débloquer
+   * ne coûte qu'une correction dans le texte, sous les yeux du sourceur. */
+  const placeholders = [...`${subject}\n${bodyText}`.matchAll(/\[[^\]\n]{2,60}\]/g)].map((m) => m[0])
 
   /* ── Quand le bouton « Envoyer » apparaît ───────────────────────────────
    *
@@ -451,11 +467,17 @@ export default function ComposeBox({
           ) : (
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               {canSend && (
-                <button onClick={() => { setError(null); setConfirming(true) }} style={{
-                  padding: "7px 14px", borderRadius: 9, border: "none",
-                  background: "var(--nw-primary)", color: "white",
-                  fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                }}>
+                <button
+                  onClick={() => { setError(null); setConfirming(true) }}
+                  disabled={placeholders.length > 0}
+                  title={placeholders.length > 0 ? placeholders.join("  ") : undefined}
+                  style={{
+                    padding: "7px 14px", borderRadius: 9, border: "none",
+                    background: placeholders.length > 0 ? "var(--nw-primary-200)" : "var(--nw-primary)",
+                    color: "white", fontSize: 12, fontWeight: 700,
+                    cursor: placeholders.length > 0 ? "default" : "pointer", fontFamily: "inherit",
+                  }}
+                >
                   {t.sendBtn}
                 </button>
               )}
@@ -468,6 +490,28 @@ export default function ComposeBox({
               }}>
                 {copied ? t.copied : t.copyBtn}
               </button>
+            </div>
+          )}
+          {!sentAt && placeholders.length > 0 && (
+            <div style={{
+              padding: "8px 11px", borderRadius: 9,
+              background: "#FFFAEB", border: "1px solid #FCD34D",
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--nw-warn-strong)" }}>
+                {t.toFill(placeholders.length)}
+              </span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                {[...new Set(placeholders)].map((p) => (
+                  <code key={p} style={{
+                    fontSize: 11, padding: "2px 7px", borderRadius: 6,
+                    background: "white", border: "1px solid #FCD34D",
+                    color: "var(--nw-warn-strong)", fontFamily: "var(--nw-font-mono)",
+                  }}>{p}</code>
+                ))}
+              </div>
+              <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--nw-text-body)", lineHeight: 1.5 }}>
+                {t.toFillHint}
+              </p>
             </div>
           )}
           {!sentAt && (
