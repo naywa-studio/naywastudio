@@ -25,7 +25,7 @@
     },
     {
       "path": "/api/cron/verify-mailing-domains",
-      "schedule": "15 * * * *"
+      "schedule": "15 6 * * *"
     }
   ],
   "headers": [

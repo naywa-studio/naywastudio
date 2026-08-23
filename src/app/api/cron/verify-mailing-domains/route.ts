@@ -1,5 +1,17 @@
 /**
- * GET /api/cron/verify-mailing-domains — toutes les heures.
+ * GET /api/cron/verify-mailing-domains — une fois par jour.
+ *
+ * ⚠️ **Une fois par jour, et pas plus, tant que le compte Vercel est en
+ * Hobby.** Ce plan REFUSE au déploiement toute expression plus fréquente —
+ * pas à l'exécution, au BUILD. Un `15 * * * *` a fait échouer le déploiement
+ * du commit qui l'introduisait, et bloqué toute la chaîne derrière lui
+ * pendant des heures sans que rien ne le dise clairement.
+ *
+ * Une fois par jour ne suffit évidemment pas à prévenir vite. La compensation
+ * est ailleurs, et elle est meilleure : la page du contact technique
+ * revérifie d'elle-même à chaque ouverture. **La personne qui attend est
+ * celle qui rafraîchit** — ce cron n'est qu'un filet pour les cas où plus
+ * personne ne regarde.
  *
  * Relit l'état des domaines en cours de mise en route, et PRÉVIENT quand l'un
  * devient actif.

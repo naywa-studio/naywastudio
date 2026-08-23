@@ -59,7 +59,35 @@ function SetupInner() {
     }
   }, [token])
 
-  useEffect(() => { if (token) load(); else setLoading(false) }, [token, load])
+  /* Vérifier à l'ouverture, pas seulement au clic.
+   *
+   * Le cron ne passe qu'une fois par jour (limite du plan Vercel Hobby), ce
+   * qui est bien trop lent pour quelqu'un qui vient de publier ses
+   * enregistrements et attend. Or **la personne qui attend est justement
+   * celle qui rafraîchit cette page** : c'est le meilleur déclencheur qu'on
+   * puisse avoir, et il ne coûte rien.
+   *
+   * On passe donc par le POST, qui vérifie ET persiste, plutôt que par la
+   * lecture seule. Un domaine devenu actif est alors constaté au moment même
+   * où le prestataire revient voir. */
+  useEffect(() => {
+    if (!token) { setLoading(false); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/mailing/delegate/${encodeURIComponent(token)}`, { method: "POST" })
+        if (!cancelled) setData(await res.json())
+      } catch {
+        // Le fournisseur peut être injoignable : on retombe sur la lecture
+        // seule plutôt que d'afficher une page en erreur à quelqu'un qui
+        // vient nous rendre service.
+        if (!cancelled) await load()
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [token, load])
 
   const verify = async () => {
     setBusy(true)
