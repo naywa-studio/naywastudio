@@ -596,16 +596,32 @@ export default function CabinetPage() {
   const showClientsSection = caps.isOrgAdmin
     && (orgUsesClients(organization.org_type) || caps.isAdminNaywa)
 
+  /* Déclarés AVANT `visibleSections` : ce useMemo les lit pour décider quelles
+   * entrées afficher, et il s'exécute pendant le rendu. Les laisser plus bas
+   * produisait un ReferenceError de zone morte temporelle — que TypeScript ne
+   * signale pas à travers une closure, et qui n'apparaît donc qu'à l'écran. */
+  const canUsePricing = hasPricingAccess(organization, { isAdmin: profile.is_admin === true })
+  // Double condition : l'option acquise ET le lancement ouvert. Tant que SES
+  // est en bac à sable et que le prix LIVE n'existe pas, seuls les admins
+  // Naywa (et les organisations de test) voient le Mailing.
+  const canUseMailing =
+    mailingVisible(profile, organization) && hasMailingAccess(organization, { isAdmin: profile.is_admin === true })
+
   // Sections visibles selon les caps (source unique), dans l'ordre d'affichage
   // de la barre latérale. Un délégué ne voit que ce qu'il peut gérer.
   const visibleSections = useMemo<OrgSection[]>(() => [
     "overview" as OrgSection,
     ...(caps.canBranding ? (["branding"] as OrgSection[]) : []),
+    // Le domaine d'envoi mérite sa propre entrée : c'est un PARCOURS de mise
+    // en route (déclarer, publier, vérifier, déléguer), pas un champ de plus
+    // dans un formulaire d'identité. L'enfouir sous « Branding » obligeait à
+    // faire défiler une page entière pour y revenir.
+    ...(caps.canBranding && canUseMailing ? (["mailing"] as OrgSection[]) : []),
     ...(showPricingSection ? (["pricing"] as OrgSection[]) : []),
     ...(caps.isOrgAdmin ? (["team"] as OrgSection[]) : []),
     ...(showClientsSection ? (["clients"] as OrgSection[]) : []),
     ...(caps.isOrgAdmin ? (["billing", "advanced"] as OrgSection[]) : []),
-  ], [caps.canBranding, showPricingSection, caps.isOrgAdmin, showClientsSection])
+  ], [caps.canBranding, canUseMailing, showPricingSection, caps.isOrgAdmin, showClientsSection])
 
   // Sous-sections regroupées sous l'entrée « Mon organisation » (onglets
   // horizontaux) — dans l'ordre voulu, filtrées par ce qui est visible.
@@ -622,7 +638,7 @@ export default function CabinetPage() {
     let target: OrgSection | null = null
     if (rawTab === "abonnement") target = "billing"
     else if (rawTab === "securite") target = "advanced"
-    else if (rawTab && (["overview", "branding", "pricing", "team", "clients", "billing", "advanced"] as string[]).includes(rawTab)) {
+    else if (rawTab && (["overview", "branding", "mailing", "pricing", "team", "clients", "billing", "advanced"] as string[]).includes(rawTab)) {
       target = rawTab as OrgSection
     }
     if (target && visibleSections.includes(target)) return target
@@ -702,12 +718,6 @@ export default function CabinetPage() {
   // n'a de sens que pour qui y a droit. Le garde-fou existait mais était calculé
   // puis jeté (`void`) depuis un refactor → un client Sourcing seul voyait la
   // carte ET le wizard. On s'appuie désormais sur la règle produit unique.
-  const canUsePricing = hasPricingAccess(organization, { isAdmin: profile.is_admin === true })
-  // Double condition : l'option acquise ET le lancement ouvert. Tant que SES
-  // est en bac a sable et que le prix LIVE n'existe pas, seuls les admins
-  // Naywa voient le Mailing (cf. lib/mailing/rollout.ts).
-  const canUseMailing =
-    mailingVisible(profile, organization) && hasMailingAccess(organization, { isAdmin: profile.is_admin === true })
 
   // La visite guidée 6 étapes Package Sourcing est désormais déclenchée
   // sur /workspace (premier accès après souscription), pas ici --
@@ -775,13 +785,11 @@ export default function CabinetPage() {
                 canEditLegalName={isOwner}
                 onUpdated={refetch}
               />
-              {/* Le domaine d'envoi EST une identité de marque : il s'affiche
-                  sur chaque message reçu par un candidat, au même titre que le
-                  nom et le logo. Il vit donc ici, et suit la même délégation.
-                  La carte se masque d'elle-même si l'option n'est pas acquise
-                  (la route répond 403 et rien ne s'affiche). */}
-              {canUseMailing && <MailingDomainCard />}
             </>
+          )}
+
+          {activeSection === "mailing" && caps.canBranding && canUseMailing && (
+            <MailingDomainCard />
           )}
 
           {activeSection === "pricing" && caps.canPricing && (
@@ -916,11 +924,12 @@ function PricingOnboardingGate({
 /* OrgSidebar — navigation latérale de la console (6 sections gatées)   */
 /* ────────────────────────────────────────────────────────────────── */
 
-type OrgSection = "overview" | "branding" | "pricing" | "team" | "clients" | "billing" | "advanced"
+type OrgSection = "overview" | "branding" | "mailing" | "pricing" | "team" | "clients" | "billing" | "advanced"
 
 const SECTION_LABELS: Record<OrgSection, { fr: string; en: string }> = {
   overview: { fr: "Vue d'ensemble", en: "Overview" },
   branding: { fr: "Identité et branding", en: "Identity and branding" },
+  mailing: { fr: "Domaine d'envoi", en: "Sending domain" },
   pricing: { fr: "Politique de pricing", en: "Pricing policy" },
   team: { fr: "Équipe et sièges", en: "Team and seats" },
   clients: { fr: "Clients", en: "Clients" },
