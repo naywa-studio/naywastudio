@@ -39,6 +39,7 @@ dans `lib/mailing/provider.ts` : changer de fournisseur = un fichier.
 | Réception d'un gros message | 1 141 Ko, **7×** le plafond de la voie SNS directe |
 | Pièce jointe | 847 Ko sur R2, chemin org-scopé, nom assaini |
 | **Zone Route 53** | créée → 4 enregistrements écrits → **supprimée**, zéro résidu |
+| Suppression à la résiliation | `deleteZone` branché sur les DEUX crons de wipe |
 | Retrait propre | adresses rebasculées, anciennes archivées en alias |
 
 ### Les défauts que SEUL le test réel a trouvés
@@ -65,9 +66,14 @@ Aucun n'était visible en relecture — tests verts, `tsc` et `eslint` propres :
 
 `lib/mailing/rollout.ts` → **`MAILING_LAUNCHED = false`**.
 
-Seuls les admins Naywa voient et utilisent le Mailing. Appliqué **côté serveur**
-autant que côté client : masquer sans fermer la route laisserait la
-fonctionnalité atteignable par un appel direct.
+Trois portes, une seule ouverte à tous le jour venu :
+le drapeau général (fermé), **les admins Naywa**, et **les organisations
+`is_test`** — cette dernière pour éprouver le parcours EXACTEMENT comme un
+client, sans bypass. Un admin ne teste jamais ce que vit un client : il
+contourne les gardes qu'on cherche à vérifier.
+
+Appliqué **côté serveur** autant que côté client : masquer sans fermer la
+route laisserait la fonctionnalité atteignable par un appel direct.
 
 **Ouvrir = passer ce drapeau à `true`**, une fois les DEUX conditions remplies :
 
@@ -106,9 +112,11 @@ fonctionnalité atteignable par un appel direct.
   ~20 hébergeurs dont GoDaddy, IONOS, **Cloudflare**, Squarespace. OVH et Gandi :
   aucune trace de support. La couverture est donc meilleure qu'annoncé.
 - **Domaine géré par Naywa** (lot 5) — pour les cabinets sans domaine.
-- **Suppression de zone à la résiliation.** `deleteZone` existe et est branché
-  sur le retrait volontaire, **pas encore sur les crons de wipe d'organisation**.
-  Une org supprimée laisserait sa zone facturée.
+- **Le parcours client n'a jamais été vécu SANS privilège.** Tout a été
+  éprouvé en admin, qui contourne précisément les gardes qu'on veut vérifier.
+  La troisième porte (`is_test`) le rend possible, mais il faut un domaine
+  qui ne soit pas `naywastudio.com` — refusé aux non-admins, à dessein.
+  ⏸️ En attente d'un domaine prêté par un tiers.
 
 ---
 
