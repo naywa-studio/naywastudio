@@ -103,6 +103,16 @@ export function hasPricingAccess(
 ): boolean {
   if (opts?.isAdmin) return true
   if (!org) return false
+  /* ── L'option ne survit pas à la perte d'accès ────────────────────────
+   *
+   * `subscription_has_pricing` reste à `true` quand un paiement échoue :
+   * le webhook pose le verrouillage mais ne démonte pas les lignes d'abo.
+   * Sans ce contrôle, une organisation en défaut de paiement gardait
+   * l'option — l'accès de base coupé, mais le supplément payant ouvert.
+   *
+   * Corrigé pour les DEUX options en même temps (cf. `hasMailingAccess`) :
+   * les traiter séparément recréerait l'écart qu'on cherche à supprimer. */
+  if (!hasActiveAccess(org, opts)) return false
   if (org.subscription_has_pricing) return true
   // Essai gratuit = accès complet (l'abonnement Stripe, lui, respecte l'option).
   return subscriptionAccess(org, opts).state === "trial"
@@ -131,6 +141,14 @@ export function hasMailingAccess(
 ): boolean {
   if (opts?.isAdmin) return true
   if (!org) return false
+  /* Même règle que la Suite Pricing, et pour la même raison : une option
+   * payante ne survit pas à la perte de l'accès de base.
+   *
+   * L'enjeu est plus concret ici — sans ce contrôle, une organisation en
+   * défaut de paiement pouvait encore déclarer un domaine et nous faire
+   * créer une zone Route 53, facturée 0,50 $/mois par un client qui ne
+   * paie plus. */
+  if (!hasActiveAccess(org, opts)) return false
   if (org.subscription_has_mailing) return true
   return subscriptionAccess(org, opts).state === "trial"
 }
