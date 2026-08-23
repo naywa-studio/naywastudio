@@ -129,3 +129,18 @@ export function sendingDomainFor(root: string, subdomain: string | null | undefi
  * pouvoir dégrader les emails que le cabinet échange avec ses propres clients.
  */
 export const DEFAULT_SUBDOMAIN = "careers"
+
+/**
+ * Partie locale par défaut de l'adresse d'expédition.
+ *
+ * Elle reprenait le sous-domaine, ce qui donnait
+ * `careers@careers.cabinet-durand.fr` — le mot deux fois, en tête de chaque
+ * message reçu par un candidat. C'est la chaîne la plus lue de tout l'add-on,
+ * et elle avait l'air d'une erreur de configuration.
+ *
+ * « recrutement » dit ce que c'est. Le cabinet peut la remplacer par ce qu'il
+ * veut — `contact`, `sophie`, le nom de son équipe — sans rien republier :
+ * la partie locale d'une adresse ne s'authentifie pas, seul le domaine le
+ * fait. C'est le seul réglage de ce chantier qui se change à chaud.
+ */
+export const DEFAULT_FROM_LOCAL = "recrutement"

@@ -133,3 +133,31 @@ export function cleanSubdomain(input: string | null | undefined): string | null 
   if (!/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/.test(value)) return null
   return value
 }
+
+/**
+ * Partie locale de l'adresse d'expédition, saisie par le cabinet.
+ *
+ * Plus permissive que `cleanSubdomain` — le point et le plus sont légitimes
+ * dans une adresse (`jean.dupont@`), pas dans une étiquette DNS — mais loin de
+ * la RFC : les guillemets, espaces et caractères exotiques qu'elle autorise
+ * traverseraient un en-tête `From` où ils n'ont rien à faire.
+ *
+ * ⚠️ Le filtrage anti-injection de `candidateFromHeader` porte sur le NOM
+ * affiché, pas sur l'adresse. Sans contrôle ici, un `x@evil.com>, ` glissé
+ * dans ce champ refermerait l'en-tête. C'est un champ écrit par un client et
+ * lu par un serveur de mail : la liste blanche est la seule forme sûre.
+ *
+ * Renvoie `null` si la saisie est inutilisable — l'appelant retombe sur le
+ * défaut plutôt que de bloquer, comme pour le sous-domaine.
+ */
+export function cleanLocalPart(input: string | null | undefined): string | null {
+  const value = (input ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")   // « prénom » saisi avec accents
+    .replace(/^[.+-]+|[.+-]+$/g, "")   // jamais en tête ni en fin
+  if (!value || value.length > 64) return null
+  if (!/^[a-z0-9]([a-z0-9._+-]{0,62}[a-z0-9])?$/.test(value)) return null
+  return value
+}

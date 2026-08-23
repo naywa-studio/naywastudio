@@ -167,6 +167,7 @@ export async function GET(req: NextRequest) {
       mailing_sending_domain: null
       mailing_domain: null
       mailing_subdomain: null
+      mailing_from_local: null
       mailing_path: null
       mailing_dns_zone_id: null
       mailing_ns_records: null
@@ -179,7 +180,7 @@ export async function GET(req: NextRequest) {
     } = {
       seats_total: 0, subscription_seats: null,
       mailing_sending_domain: null, mailing_domain: null, mailing_subdomain: null,
-      mailing_path: null, mailing_dns_zone_id: null, mailing_ns_records: null,
+      mailing_from_local: null, mailing_path: null, mailing_dns_zone_id: null, mailing_ns_records: null,
       mailing_dns_records: null, mailing_status: null, mailing_verified_at: null,
       mailing_delegate_email: null, mailing_delegate_token: null, mailing_delegate_sent_at: null,
     }

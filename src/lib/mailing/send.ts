@@ -23,7 +23,8 @@
 import type { Organization } from "../database.types"
 import { canSendFromOrgDomain } from "../subscription"
 import { sesProvider } from "./ses"
-import { DEFAULT_SUBDOMAIN, type MailingProvider } from "./provider"
+import { cleanLocalPart } from "./domain-input"
+import { DEFAULT_FROM_LOCAL, type MailingProvider } from "./provider"
 
 /**
  * Le fournisseur actif.
@@ -40,7 +41,7 @@ export type MailingOrg = Pick<
   Organization,
   | "id" | "trial_ends_at" | "subscription_status" | "current_period_end"
   | "subscription_has_mailing" | "mailing_status" | "mailing_sending_domain"
-  | "mailing_subdomain"
+  | "mailing_subdomain" | "mailing_from_local"
 >
 
 export type SendRefusal =
@@ -68,14 +69,25 @@ export type SendCandidateResult =
   | { ok: false; reason: SendRefusal }
 
 /**
- * Adresse d'envoi de l'organisation, ex. `careers@careers-cabinet.fr`.
+ * Adresse d'envoi de l'organisation, ex. `recrutement@careers.cabinet-durand.fr`.
  *
- * La partie locale reprend le sous-domaine (« careers ») : le domaine porte
- * déjà l'identité du cabinet, la répéter dans la boîte n'apporterait rien.
+ * ── Ce que cette fonction a corrigé ───────────────────────────────────────
+ *
+ * La partie locale reprenait le SOUS-DOMAINE, au motif que le domaine portait
+ * déjà l'identité du cabinet. Résultat lu par chaque candidat :
+ * `careers@careers.cabinet-durand.fr`. Le mot deux fois, ce qui ne se lit pas
+ * comme un choix mais comme une configuration bâclée — sur l'unique chaîne que
+ * l'add-on met sous les yeux du destinataire.
+ *
+ * Le cabinet choisit désormais la sienne (`mailing_from_local`). Le défaut ne
+ * dépend plus du sous-domaine : les deux répondent à des questions
+ * différentes — d'où l'on envoie, et qui envoie.
  */
-export function orgFromAddress(org: MailingOrg | null | undefined): string | null {
+export function orgFromAddress(
+  org: Pick<MailingOrg, "mailing_sending_domain" | "mailing_from_local"> | null | undefined,
+): string | null {
   if (!org?.mailing_sending_domain) return null
-  const local = (org.mailing_subdomain ?? "").trim() || DEFAULT_SUBDOMAIN
+  const local = cleanLocalPart(org.mailing_from_local) ?? DEFAULT_FROM_LOCAL
   return `${local}@${org.mailing_sending_domain}`
 }
 

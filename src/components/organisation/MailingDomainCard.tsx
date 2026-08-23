@@ -51,6 +51,8 @@ interface DnsHost {
 interface DomainState {
   domain: string | null
   subdomain: string
+  /** Partie locale de l'adresse d'expédition, avant le « @ ». */
+  from_local: string
   sending_domain: string | null
   status: string | null
   verified_at: string | null
@@ -68,7 +70,13 @@ const copy = {
     domainLabel: "Nom de domaine de votre organisation",
     domainHint: "Celui de votre site, par exemple « cabinet-durand.fr ».",
     subdomainLabel: "Sous-domaine d'envoi",
-    subdomainHint: "Vos emails partiront de cette adresse. Nous n'utilisons jamais la racine de votre domaine : sa réputation sert déjà à votre messagerie interne.",
+    subdomainHint: "Nous n'utilisons jamais la racine de votre domaine : sa réputation sert déjà à votre messagerie interne.",
+    fromLabel: "Adresse d'expédition",
+    fromHint: "C'est elle que lisent les candidats, en tête de chaque message. Modifiable à tout moment, domaine actif compris — elle ne dépend d'aucun réglage DNS.",
+    fromEdit: "Modifier l'adresse",
+    fromSave: "Enregistrer",
+    fromSaving: "Enregistrement…",
+    fromSaved: "Adresse d'expédition mise à jour.",
     declare: "Déclarer ce domaine",
     declaring: "Déclaration en cours…",
     recordsTitle: "À publier chez votre hébergeur DNS",
@@ -130,7 +138,13 @@ const copy = {
     domainLabel: "Your organisation's domain name",
     domainHint: "The one your website uses, for example “durand-recruiting.com”.",
     subdomainLabel: "Sending subdomain",
-    subdomainHint: "Your emails will come from this address. We never use your root domain: its reputation already serves your internal mail.",
+    subdomainHint: "We never use your root domain: its reputation already serves your internal mail.",
+    fromLabel: "Sender address",
+    fromHint: "This is what candidates read at the top of every message. You can change it at any time, even once the domain is live — it depends on no DNS setting.",
+    fromEdit: "Change this address",
+    fromSave: "Save",
+    fromSaving: "Saving…",
+    fromSaved: "Sender address updated.",
     declare: "Declare this domain",
     declaring: "Declaring…",
     recordsTitle: "To publish with your DNS host",
@@ -193,13 +207,16 @@ export default function MailingDomainCard() {
 
   const [state, setState] = useState<DomainState | null>(null)
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState<"declare" | "verify" | "delegate" | "zone" | "disconnect" | null>(null)
+  const [busy, setBusy] = useState<"declare" | "verify" | "delegate" | "zone" | "disconnect" | "from" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [needsConfirm, setNeedsConfirm] = useState(false)
   const [domain, setDomain] = useState("")
   const [subdomain, setSubdomain] = useState("careers")
+  const [fromLocal, setFromLocal] = useState("recrutement")
+  /** Édition de l'adresse d'expédition depuis l'écran « domaine actif ». */
+  const [editingFrom, setEditingFrom] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [checks, setChecks] = useState<RecordCheck[]>([])
   const [host, setHost] = useState<DnsHost | null>(null)
@@ -218,7 +235,8 @@ export default function MailingDomainCard() {
       if (!res.ok) { setError(d.message || t.genericError); return }
       // Retour à l'état initial : la carte redemande un domaine.
       setState(null); setChecks([]); setHost(null)
-      setDisconnecting(false); setEditing(true); setDomain(""); setSubdomain("careers")
+      setDisconnecting(false); setEditing(true); setDomain("")
+      setSubdomain("careers"); setFromLocal("recrutement"); setEditingFrom(false)
     } catch {
       setError(t.genericError)
     } finally {
@@ -274,6 +292,7 @@ export default function MailingDomainCard() {
         setState(d)
         if (d.domain) setDomain(d.domain)
         if (d.subdomain) setSubdomain(d.subdomain)
+        if (d.from_local) setFromLocal(d.from_local)
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -286,7 +305,7 @@ export default function MailingDomainCard() {
       const res = await fetch("/api/mailing/domain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain, subdomain, confirm_replace: confirmReplace }),
+        body: JSON.stringify({ domain, subdomain, from_local: fromLocal, confirm_replace: confirmReplace }),
       })
       const d = await res.json()
       if (res.status === 409 && d.error === "replace_requires_confirmation") {
@@ -294,7 +313,9 @@ export default function MailingDomainCard() {
       }
       if (!res.ok) { setError(d.message || t.genericError); return }
       setState({
-        domain: d.domain, subdomain: d.subdomain, sending_domain: d.sending_domain,
+        domain: d.domain, subdomain: d.subdomain,
+        from_local: d.from_local ?? fromLocal,
+        sending_domain: d.sending_domain,
         status: d.status, verified_at: null, records: d.records ?? [],
         // Une déclaration repart toujours du parcours manuel : c'est ensuite,
         // et seulement si le client le demande, qu'on héberge sa zone.
@@ -306,7 +327,36 @@ export default function MailingDomainCard() {
     } finally {
       setBusy(null)
     }
-  }, [domain, subdomain, t.genericError])
+  }, [domain, subdomain, fromLocal, t.genericError])
+
+  /**
+   * L'adresse d'expédition, changée à chaud.
+   *
+   * Sa propre route (`PATCH`) plutôt que la déclaration : elle ne touche à
+   * aucun enregistrement DNS, donc rien à republier ni à revérifier, et rien
+   * à interrompre. C'est le seul réglage de cette carte qui se modifie sans
+   * conséquence sur les envois en cours.
+   */
+  const saveFromLocal = useCallback(async () => {
+    setBusy("from"); setError(null); setNotice(null)
+    try {
+      const res = await fetch("/api/mailing/domain", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from_local: fromLocal }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setError(d.message || t.genericError); return }
+      setFromLocal(d.from_local)
+      setState((s) => s ? { ...s, from_local: d.from_local } : s)
+      setEditingFrom(false)
+      setNotice(t.fromSaved)
+    } catch {
+      setError(t.genericError)
+    } finally {
+      setBusy(null)
+    }
+  }, [fromLocal, t.genericError, t.fromSaved])
 
   const verify = useCallback(async () => {
     setBusy("verify"); setError(null); setNotice(null)
@@ -360,9 +410,49 @@ export default function MailingDomainCard() {
             <strong style={{ fontSize: 14 }}>{t.activeTitle}</strong>
           </div>
           <p style={S.activeText}>
-            {t.activeBody} <code style={S.code}>{state?.subdomain}@{state?.sending_domain}</code>
+            {t.activeBody} <code style={S.code}>{state?.from_local}@{state?.sending_domain}</code>
           </p>
           <p style={{ ...S.hint, marginTop: 6 }}>{t.activeReply}</p>
+
+          {/* ── L'adresse se change à chaud ──────────────────────────────
+              La partie locale ne s'authentifie pas : seul le domaine le
+              fait. La modifier ne demande donc aucune republication et
+              n'interrompt aucun envoi — c'est le seul réglage de cette
+              carte qui puisse bouger sans conséquence, et le seul que le
+              candidat lise en tête de chaque message. */}
+          {editingFrom ? (
+            <div style={{ marginTop: 10 }}>
+              <label style={S.label} htmlFor="mailing-from-active">{t.fromLabel}</label>
+              <div style={S.inlineField}>
+                <input
+                  id="mailing-from-active"
+                  style={{ ...S.input, maxWidth: 200, marginBottom: 0 }}
+                  value={fromLocal}
+                  onChange={(e) => setFromLocal(e.target.value)}
+                  placeholder="recrutement"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <span style={S.inlineSuffix}>@{state?.sending_domain}</span>
+              </div>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}>
+                <button type="button" style={S.primaryBtn} disabled={busy !== null} onClick={saveFromLocal}>
+                  {busy === "from" ? t.fromSaving : t.fromSave}
+                </button>
+                <button
+                  type="button"
+                  style={S.linkBtn}
+                  onClick={() => { setEditingFrom(false); setFromLocal(state?.from_local ?? "recrutement") }}
+                >
+                  {t.cancel}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" style={{ ...S.linkBtn, marginTop: 8 }} onClick={() => setEditingFrom(true)}>
+              {t.fromEdit}
+            </button>
+          )}
 
           {/* ── La zone gérée reste offerte APRÈS l'activation ───────────
               Elle n'était proposée que sur l'écran des enregistrements,
@@ -460,6 +550,28 @@ export default function MailingDomainCard() {
             <span style={S.inlineSuffix}>.{domain || "…"}</span>
           </div>
           <p style={S.hint}>{t.subdomainHint}</p>
+
+          {/* Le suffixe montre l'adresse ENTIÈRE, pas seulement le domaine :
+              c'est la seule chaîne de tout ce parcours que le candidat verra,
+              et elle mérite d'être relue avant d'être figée. */}
+          <label style={{ ...S.label, marginTop: 14 }} htmlFor="mailing-from">
+            {t.fromLabel}
+          </label>
+          <div style={S.inlineField}>
+            <input
+              id="mailing-from"
+              style={{ ...S.input, maxWidth: 200, marginBottom: 0 }}
+              value={fromLocal}
+              onChange={(e) => setFromLocal(e.target.value)}
+              placeholder="recrutement"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <span style={S.inlineSuffix}>
+              @{subdomain || "careers"}.{domain || "…"}
+            </span>
+          </div>
+          <p style={S.hint}>{t.fromHint}</p>
 
           {needsConfirm ? (
             <div style={S.warnBox}>

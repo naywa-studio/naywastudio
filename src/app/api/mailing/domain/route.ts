@@ -28,8 +28,8 @@ import { getCapabilities } from "@/lib/capabilities"
 import { hasMailingAccess } from "@/lib/subscription"
 import { mailingVisible } from "@/lib/mailing/rollout"
 import { activeProvider, reputationGroupFor } from "@/lib/mailing/send"
-import { DEFAULT_SUBDOMAIN, sendingDomainFor } from "@/lib/mailing/provider"
-import { checkRootDomain, cleanSubdomain, explainRejection, isForbiddenSendingDomain } from "@/lib/mailing/domain-input"
+import { DEFAULT_FROM_LOCAL, DEFAULT_SUBDOMAIN, sendingDomainFor } from "@/lib/mailing/provider"
+import { checkRootDomain, cleanLocalPart, cleanSubdomain, explainRejection, isForbiddenSendingDomain } from "@/lib/mailing/domain-input"
 import { explainSesError, ensureReputationGroup } from "@/lib/mailing/ses"
 import { switchOrgInboxAddresses } from "@/lib/mailing/inbox-address"
 import { deleteZone, explainRoute53Error } from "@/lib/mailing/dns-zone"
@@ -89,6 +89,7 @@ function publicState(org: Record<string, unknown>) {
   return {
     domain: org.mailing_domain ?? null,
     subdomain: org.mailing_subdomain ?? DEFAULT_SUBDOMAIN,
+    from_local: org.mailing_from_local ?? DEFAULT_FROM_LOCAL,
     sending_domain: org.mailing_sending_domain ?? null,
     status: org.mailing_status ?? null,
     verified_at: org.mailing_verified_at ?? null,
@@ -149,6 +150,7 @@ export async function DELETE() {
   const { error } = await admin.from("organizations").update({
     mailing_domain: null,
     mailing_subdomain: null,
+    mailing_from_local: null,
     mailing_sending_domain: null,
     mailing_path: null,
     mailing_dns_zone_id: null,
@@ -183,13 +185,58 @@ export async function GET() {
   return NextResponse.json({ ok: true, ...publicState(g.org) })
 }
 
+/**
+ * PATCH — l'adresse d'expédition, et elle seule.
+ *
+ * ── Pourquoi une route séparée du POST ───────────────────────────────────
+ *
+ * Parce que ce réglage n'a rien à voir avec le DNS. La partie locale d'une
+ * adresse ne s'authentifie pas : seul le domaine le fait. La changer ne
+ * demande donc aucune republication, aucune revérification, et surtout aucune
+ * interruption — c'est le seul réglage de ce chantier qui se modifie à chaud,
+ * domaine actif compris.
+ *
+ * Le faire passer par le POST forcerait une redéclaration chez le fournisseur
+ * pour un champ cosmétique, et rouvrirait la question de remplacement de
+ * domaine (le 409) là où il n'y a rien à remplacer.
+ */
+export async function PATCH(req: NextRequest) {
+  const g = await gate()
+  if (!g.ok) return g.response
+  const { admin, org } = g
+
+  const body = await req.json().catch(() => null) as { from_local?: unknown } | null
+  const fromLocal = cleanLocalPart(typeof body?.from_local === "string" ? body.from_local : null)
+  if (!fromLocal) {
+    return NextResponse.json({
+      error: "invalid_from_local",
+      message: "Utilisez des lettres, chiffres, points ou tirets — par exemple « recrutement » ou « jean.dupont ».",
+    }, { status: 400 })
+  }
+
+  const { error } = await admin
+    .from("organizations")
+    .update({ mailing_from_local: fromLocal })
+    .eq("id", org.id)
+  if (error) {
+    console.error("[mailing/domain] adresse d'expédition non enregistrée:", error.message)
+    return NextResponse.json({ error: "store_failed", detail: "internal_error" }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    ok: true,
+    from_local: fromLocal,
+    from_address: org.mailing_sending_domain ? `${fromLocal}@${org.mailing_sending_domain}` : null,
+  })
+}
+
 export async function POST(req: NextRequest) {
   const g = await gate()
   if (!g.ok) return g.response
   const { admin, org } = g
 
   const body = await req.json().catch(() => null) as {
-    domain?: unknown; subdomain?: unknown; confirm_replace?: unknown
+    domain?: unknown; subdomain?: unknown; from_local?: unknown; confirm_replace?: unknown
   } | null
 
   const check = checkRootDomain(
@@ -205,6 +252,15 @@ export async function POST(req: NextRequest) {
   const subdomain = cleanSubdomain(typeof body?.subdomain === "string" ? body.subdomain : null)
     ?? DEFAULT_SUBDOMAIN
   const sendingDomain = sendingDomainFor(check.value, subdomain)
+
+  /* La partie locale de l'adresse d'expédition. Facultative comme le
+   * sous-domaine : une saisie inutilisable retombe sur le défaut plutôt que de
+   * bloquer une mise en route pour un champ de confort. Ce qui est déjà
+   * enregistré prime sur le défaut — repasser par la déclaration ne doit pas
+   * effacer un choix fait plus tôt. */
+  const fromLocal = cleanLocalPart(typeof body?.from_local === "string" ? body.from_local : null)
+    ?? org.mailing_from_local
+    ?? DEFAULT_FROM_LOCAL
 
   // Le contrôle qui compte : ce depuis quoi on enverra RÉELLEMENT. Il porte
   // sur le domaine composé, pas sur la racine saisie — une racine anodine et
@@ -283,6 +339,7 @@ export async function POST(req: NextRequest) {
   const { error } = await admin.from("organizations").update({
     mailing_domain: check.value,
     mailing_subdomain: subdomain,
+    mailing_from_local: fromLocal,
     mailing_sending_domain: sendingDomain,
     mailing_provider_domain_id: declared.id,
     mailing_dns_records: declared.records,
@@ -315,6 +372,7 @@ export async function POST(req: NextRequest) {
     ok: true,
     domain: check.value,
     subdomain,
+    from_local: fromLocal,
     sending_domain: sendingDomain,
     status: declared.status,
     records: declared.records,

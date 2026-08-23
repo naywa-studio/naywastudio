@@ -68,6 +68,7 @@ const ORG_ACTIVE = {
   subscription_has_mailing: true,
   mailing_status: "active",
   mailing_sending_domain: "careers.cabinet-durand.fr",
+  mailing_from_local: null,
 } satisfies InboxOrg
 
 const ORG_SANS_OPTION = { ...ORG_ACTIVE, subscription_has_mailing: false } satisfies InboxOrg
@@ -221,5 +222,40 @@ describe("fromHeader", () => {
 
   it("retombe sur un nom neutre plutôt que sur un en-tête sans nom", () => {
     expect(fromHeader(null, "a@b.fr")).toBe("Naywa Studio <a@b.fr>")
+  })
+})
+
+/* ── L'adresse d'expédition de l'organisation est prise ────────────────────── */
+
+describe("collision avec l'adresse d'expédition", () => {
+  it("ne donne JAMAIS à un sourceur l'adresse depuis laquelle l'org envoie", async () => {
+    // Le cas concret : le cabinet envoie depuis `recrutement@`, et un sourceur
+    // arrive dont le prénom donne la même partie locale. Il se retrouverait
+    // avec un `Reply-To` identique au `From` — les rebonds et les réponses
+    // automatiques atterriraient dans son fil comme des messages de candidat.
+    const admin = fakeAdmin([
+      { user_id: "u1", first_name: "Recrutement", inbox_address: null, inbox_aliases: [] },
+    ])
+    const address = await ensureInboxAddress(
+      admin,
+      "u1",
+      { ...ORG_ACTIVE, mailing_from_local: "recrutement" },
+    )
+    expect(address).not.toBe("recrutement@careers.cabinet-durand.fr")
+    expect(address).toBe("recrutement2@careers.cabinet-durand.fr")
+  })
+
+  it("laisse passer la même partie locale sur un AUTRE domaine", async () => {
+    // Sans domaine actif, la réception reste chez Naywa : il n'y a alors
+    // aucune collision possible avec l'expédition du cabinet.
+    const admin = fakeAdmin([
+      { user_id: "u1", first_name: "Recrutement", inbox_address: null, inbox_aliases: [] },
+    ])
+    const address = await ensureInboxAddress(
+      admin,
+      "u1",
+      { ...ORG_SANS_OPTION, mailing_from_local: "recrutement" },
+    )
+    expect(address.startsWith("recrutement@")).toBe(true)
   })
 })

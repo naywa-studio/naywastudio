@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { checkRootDomain, cleanSubdomain, isForbiddenSendingDomain } from "./domain-input"
+import { checkRootDomain, cleanLocalPart, cleanSubdomain, isForbiddenSendingDomain } from "./domain-input"
 import { sendingDomainFor } from "./provider"
 
 /**
@@ -139,5 +139,50 @@ describe("isForbiddenSendingDomain", () => {
     // « mail » + « naywastudio.com » : deux saisies anodines, un résultat qui
     // ne l'est pas. C'est précisément le trou de la version précédente.
     expect(isForbiddenSendingDomain(sendingDomainFor("naywastudio.com", "mail"))).toBe(true)
+  })
+})
+
+/**
+ * La partie locale de l'adresse d'expédition.
+ *
+ * Elle est saisie par un client, puis écrite dans un en-tête `From` lu par des
+ * serveurs de mail. Le filtrage anti-injection de `candidateFromHeader` porte
+ * sur le NOM affiché, pas sur l'adresse : ce qui passe ici va tel quel dans
+ * l'en-tête. La liste blanche est la seule forme sûre.
+ */
+describe("cleanLocalPart", () => {
+  it("accepte les formes ordinaires", () => {
+    expect(cleanLocalPart("recrutement")).toBe("recrutement")
+    expect(cleanLocalPart("jean.dupont")).toBe("jean.dupont")
+    expect(cleanLocalPart("talent-team")).toBe("talent-team")
+    expect(cleanLocalPart("job+2026")).toBe("job+2026")
+  })
+
+  it("normalise ce qu'un humain tape vraiment", () => {
+    expect(cleanLocalPart("  Recrutement  ")).toBe("recrutement")
+    expect(cleanLocalPart("Prénom")).toBe("prenom")
+  })
+
+  it("refuse ce qui refermerait l'en-tête From", () => {
+    // Sans ce refus, `x@evil.com>, ` composerait une adresse d'expédition
+    // qui referme l'en-tête pour en ouvrir un autre — un `Bcc:`, typiquement.
+    expect(cleanLocalPart("x@evil.com>, y")).toBeNull()
+    expect(cleanLocalPart("sophie\r\nBcc: tout@le.monde")).toBeNull()
+    expect(cleanLocalPart('"guillemets"')).toBeNull()
+    expect(cleanLocalPart("avec espace")).toBeNull()
+  })
+
+  it("refuse le vide et le trop long", () => {
+    expect(cleanLocalPart(null)).toBeNull()
+    expect(cleanLocalPart("   ")).toBeNull()
+    expect(cleanLocalPart("a".repeat(65))).toBeNull()
+  })
+
+  it("ne laisse jamais un séparateur en tête ni en fin", () => {
+    // `.recrutement@…` et `recrutement.@…` sont refusées par bon nombre de
+    // serveurs : l'adresse serait acceptée chez nous et rejetée en vol.
+    expect(cleanLocalPart(".recrutement")).toBe("recrutement")
+    expect(cleanLocalPart("recrutement.")).toBe("recrutement")
+    expect(cleanLocalPart("...")).toBeNull()
   })
 })

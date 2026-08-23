@@ -5,7 +5,7 @@ import {
   reputationGroupFor,
   type MailingOrg,
 } from "./send"
-import { sendingDomainFor, DEFAULT_SUBDOMAIN } from "./provider"
+import { sendingDomainFor, DEFAULT_FROM_LOCAL } from "./provider"
 import { canSendFromOrgDomain, hasMailingAccess } from "../subscription"
 
 /**
@@ -26,6 +26,7 @@ const ORG_BASE: MailingOrg = {
   mailing_status: null,
   mailing_sending_domain: null,
   mailing_subdomain: null,
+  mailing_from_local: null,
 } as MailingOrg
 
 const org = (patch: Partial<MailingOrg>): MailingOrg => ({ ...ORG_BASE, ...patch })
@@ -85,18 +86,44 @@ describe("qui a le droit d'envoyer", () => {
 })
 
 describe("adresse et en-tête d'envoi", () => {
-  it("compose l'adresse depuis le sous-domaine", () => {
+  it("compose l'adresse depuis la partie locale choisie par le cabinet", () => {
     expect(orgFromAddress(org({
       mailing_sending_domain: "careers.cabinet-durand.fr",
-      mailing_subdomain: "careers",
-    }))).toBe("careers@careers.cabinet-durand.fr")
+      mailing_from_local: "contact",
+    }))).toBe("contact@careers.cabinet-durand.fr")
   })
 
-  it("retombe sur le sous-domaine par défaut s'il manque", () => {
+  it("retombe sur le défaut produit si le cabinet n'a rien choisi", () => {
     expect(orgFromAddress(org({
       mailing_sending_domain: "careers.cabinet-durand.fr",
-      mailing_subdomain: null,
-    }))).toBe(`${DEFAULT_SUBDOMAIN}@careers.cabinet-durand.fr`)
+      mailing_from_local: null,
+    }))).toBe(`${DEFAULT_FROM_LOCAL}@careers.cabinet-durand.fr`)
+  })
+
+  it("ne répète PLUS le sous-domaine dans la partie locale", () => {
+    // Le défaut d'origine reprenait le sous-domaine, ce qui donnait
+    // `careers@careers.…` — le mot deux fois, en tête de chaque message lu par
+    // un candidat. C'est la seule chaîne de tout l'add-on que le destinataire
+    // voit, et elle se lisait comme une configuration bâclée.
+    const address = orgFromAddress(org({
+      mailing_sending_domain: "careers.cabinet-durand.fr",
+      mailing_subdomain: "careers",
+      mailing_from_local: null,
+    }))!
+    const [local, domain] = address.split("@")
+    expect(domain.startsWith(`${local}.`)).toBe(false)
+  })
+
+  it("ignore une partie locale inutilisable plutôt que d'envoyer depuis n'importe quoi", () => {
+    // Ce champ est saisi par un client et lu par un serveur de mail. Une
+    // valeur qui refermerait l'en-tête `From` ne doit jamais l'atteindre : on
+    // retombe sur le défaut, on ne compose pas une adresse cassée.
+    for (const bad of ["x@evil.com>, y", "avec espace", "", "«guillemets»", "a".repeat(65)]) {
+      expect(orgFromAddress(org({
+        mailing_sending_domain: "careers.cabinet-durand.fr",
+        mailing_from_local: bad,
+      }))).toBe(`${DEFAULT_FROM_LOCAL}@careers.cabinet-durand.fr`)
+    }
   })
 
   it("l'en-tête porte le nom du SOURCEUR, pas celui de Naywa", () => {

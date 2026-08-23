@@ -325,6 +325,10 @@ export type Database = {
           // date pour ce chantier, la 085 ne fait que le rejoindre.
           /** Sous-domaine d'envoi, "careers" par défaut. */
           mailing_subdomain: string | null
+          /** Partie locale de l'adresse d'expédition candidat, avant le « @ ».
+           *  NULL = `DEFAULT_FROM_LOCAL`. Sans conséquence DNS : modifiable à
+           *  tout moment, domaine actif compris. */
+          mailing_from_local: string | null
           /** Dérivé : "careers.cabinet-durand.fr". Clé de correspondance avec
            *  le fournisseur d'envoi, et identifiant de l'org à la réception. */
           mailing_sending_domain: string | null

@@ -23,6 +23,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database, Organization } from "../database.types"
 import { canSendFromOrgDomain } from "../subscription"
+import { orgFromAddress } from "./send"
 import { MAIL_DOMAIN } from "../resend"
 
 /** Champs de l'org dont dépend le domaine de réception. */
@@ -30,6 +31,7 @@ export type InboxOrg = Pick<
   Organization,
   | "trial_ends_at" | "subscription_status" | "current_period_end"
   | "subscription_has_mailing" | "mailing_status" | "mailing_sending_domain"
+  | "mailing_from_local"
 >
 
 /**
@@ -166,10 +168,19 @@ export async function ensureInboxAddress(
   // mêlant égalité et contenance de tableau exige un échappement que le
   // caractère « @ » d'une adresse rend fragile. Une erreur de quoting ne
   // planterait pas — elle ne trouverait simplement plus les collisions.
+  //
+  // L'adresse d'EXPÉDITION de l'organisation compte comme prise. Elle vit sur
+  // le même domaine, et rien n'empêche un sourceur d'en dériver la même partie
+  // locale — un prénom « Recrutement », ou un compte `recrutement@` chez le
+  // cabinet. Le sourceur se retrouverait alors avec un `Reply-To` identique au
+  // `From` : les rebonds et les réponses automatiques du candidat atterriraient
+  // dans son fil comme des messages de candidat.
+  const orgSender = orgFromAddress(org)?.toLowerCase() ?? null
+
   let local = localBase
   let address = `${local}@${domain}`
   for (let n = 2; n < 200; n++) {
-    if (!(await addressTaken(admin, address, userId))) break
+    if (address.toLowerCase() !== orgSender && !(await addressTaken(admin, address, userId))) break
     local = `${localBase}${n}`
     address = `${local}@${domain}`
   }
