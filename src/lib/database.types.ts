@@ -1056,6 +1056,27 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['branding_change_requests']['Row']>
         Relationships: []
       }
+      /** Adresses à ne plus contacter (migration 093).
+       *
+       *  `organization_id` NULL = suppression GLOBALE : rebond définitif
+       *  (l'adresse n'existe pas) ou plainte (elle pèse sur la réputation du
+       *  compte d'envoi, donc sur tous les cabinets). Renseigné = désinscription
+       *  auprès d'un cabinet précis — une relation, pas un fait sur l'adresse. */
+      suppressed_addresses: {
+        Row: {
+          id: string
+          organization_id: string | null
+          email: string
+          reason: 'bounce' | 'complaint' | 'unsubscribe' | 'manual'
+          detail: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['suppressed_addresses']['Row']> & {
+          email: string; reason: 'bounce' | 'complaint' | 'unsubscribe' | 'manual'
+        }
+        Update: Partial<Database['public']['Tables']['suppressed_addresses']['Row']>
+        Relationships: []
+      }
     }
     Views: { [_ in never]: never }
     Functions: {

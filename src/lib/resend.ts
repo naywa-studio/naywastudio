@@ -24,6 +24,8 @@ export interface SendEmailInput {
   html?: string
   cc?: string
   bcc?: string
+  /** En-têtes bruts, ex. `List-Unsubscribe`. */
+  headers?: Record<string, string>
 }
 
 export interface SendEmailResult {
@@ -53,6 +55,13 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       ...(input.html ? { html: input.html } : {}),
       ...(input.cc ? { cc: [input.cc] } : {}),
       ...(input.bcc ? { bcc: [input.bcc] } : {}),
+      // En-têtes personnalisés — aujourd'hui `List-Unsubscribe` sur l'outreach
+      // candidat. Posés ici AUSSI, et pas seulement sur le chemin SES : un
+      // cabinet sans domaine propre envoie par ce relais, et ses messages
+      // perdraient sinon le bouton « Se désabonner » sans que ça se voie.
+      ...(input.headers && Object.keys(input.headers).length > 0
+        ? { headers: input.headers }
+        : {}),
     }),
   })
 

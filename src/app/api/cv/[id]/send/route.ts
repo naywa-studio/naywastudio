@@ -23,6 +23,9 @@ import { ensureInboxAddress, fromHeader } from "@/lib/mailing/inbox-address"
 import { sendCandidateEmail } from "@/lib/mailing/send"
 import { canSendFromOrgDomain } from "@/lib/subscription"
 import { checkOrgDailySendCap } from "@/lib/mailing/send-cap"
+import { suppressionFor, explainSuppression } from "@/lib/mailing/suppression"
+import { unsubscribeHeaders } from "@/lib/mailing/unsubscribe"
+import { getAppUrl } from "@/lib/stripe"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -115,6 +118,25 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
   }
 
+  /* ── A-t-il demandé à ne plus être contacté ? ──────────────────────────
+   *
+   * Avant tout envoi, et avant de consommer quoi que ce soit. Une adresse qui
+   * a rebondi définitivement ou dont le titulaire s'est plaint ne doit plus
+   * jamais recevoir — y compris par un AUTRE membre de l'organisation, qui ne
+   * peut pas savoir.
+   *
+   * Sur erreur de lecture, `suppressionFor` refuse : écrire à quelqu'un qui a
+   * dit non a des conséquences (pour lui, et pour la réputation partagée du
+   * compte d'envoi) qu'un refus temporaire n'a pas. */
+  const suppression = await suppressionFor(admin, candidate.email, profile?.organization_id)
+  if (suppression.blocked) {
+    return NextResponse.json({
+      error: "recipient_suppressed",
+      reason: suppression.reason,
+      message: explainSuppression(suppression.reason),
+    }, { status: suppression.unknown ? 503 : 409 })
+  }
+
   const onOwnDomain = canSendFromOrgDomain(org, asAdmin)
   const inboxAddress = await ensureInboxAddress(admin, user.id, org, asAdmin)
   const from = fromHeader(profile?.first_name, inboxAddress)
@@ -133,6 +155,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           subject,
           text: messageBody,
           bcc,
+          // Le bouton natif « Se désabonner » de Gmail et d'Outlook. Son
+          // absence est l'un des signaux qui font traiter un expéditeur comme
+          // un indésirable — et c'était une des promesses faites à AWS.
+          headers: unsubscribeHeaders(candidate.email, org.id, getAppUrl(req)),
         },
         asAdmin,
       )
@@ -150,6 +176,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         subject,
         text: messageBody,
         bcc,
+        // Le même en-tête que sur le chemin « domaine du cabinet ». L'oublier
+        // ici priverait du bouton « Se désabonner » précisément les cabinets
+        // qui n'ont PAS d'add-on — donc la majorité des envois.
+        ...(profile?.organization_id
+          ? { headers: unsubscribeHeaders(candidate.email, profile.organization_id, getAppUrl(req)) }
+          : {}),
       })
       providerId = sent.id
     }

@@ -62,6 +62,8 @@ export interface CandidateEmailInput {
   html?: string
   /** Copie au sourceur, s'il a coché `inbox_cc_self`. */
   bcc?: string
+  /** En-têtes supplémentaires — aujourd'hui `List-Unsubscribe`. */
+  headers?: Record<string, string>
 }
 
 export type SendCandidateResult =
@@ -149,6 +151,7 @@ export async function sendCandidateEmail(
     text: input.text,
     html: input.html,
     bcc: input.bcc,
+    headers: input.headers,
     // Un jeu de configuration par organisation : la réputation est partagée
     // au niveau du compte, c'est ce qui permet de mesurer chaque client
     // séparément et de couper le fautif sans toucher aux autres.

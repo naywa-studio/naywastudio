@@ -176,6 +176,11 @@ export const sesProvider: MailingProvider = {
       ...(configurationSet ? { ConfigurationSetName: configurationSet } : {}),
       Content: {
         Simple: {
+          // SESv2 accepte des en-têtes personnalisés sur un contenu simple :
+          // pas besoin de composer le MIME à la main pour List-Unsubscribe.
+          ...(input.headers && Object.keys(input.headers).length > 0
+            ? { Headers: Object.entries(input.headers).map(([Name, Value]) => ({ Name, Value })) }
+            : {}),
           // Un saut de ligne dans un sujet permet d'injecter des en-têtes.
           // Filtré ici plutôt que chez chaque appelant : la garde protège
           // tous les points d'envoi, présents et futurs.

@@ -95,6 +95,14 @@ export interface ProviderSendInput {
    * le fournisseur ne s'en aperçoive.
    */
   reputationGroup?: string
+  /**
+   * En-têtes supplémentaires, aujourd'hui `List-Unsubscribe`.
+   *
+   * Dans le contrat plutôt que chez SES : tout fournisseur de remplacement
+   * doit savoir les poser, sinon la bascule ferait disparaître le bouton
+   * « Se désabonner » sans que personne s'en aperçoive.
+   */
+  headers?: Record<string, string>
 }
 
 /**

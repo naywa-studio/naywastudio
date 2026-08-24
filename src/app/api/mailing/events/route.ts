@@ -27,6 +27,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { verifySnsMessage, isTrustedCertUrl, type SnsMessage } from "@/lib/mailing/sns"
 import { classifySesEvent, shouldApply, type MessageStatus, type SesEventPayload } from "@/lib/mailing/delivery-events"
+import { suppressAddress } from "@/lib/mailing/suppression"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 
 export const runtime = "nodejs"
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
    * jamais la plainte. `shouldApply` interdit tout retour en arrière. */
   const { data: message } = await admin
     .from("email_messages")
-    .select("id, status")
+    .select("id, status, to_address")
     .eq("provider_id", event.providerId)
     .eq("direction", "outbound")
     .maybeSingle()
@@ -128,6 +129,24 @@ export async function POST(req: NextRequest) {
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ ok: true, unchanged: true })
+  }
+
+  /* ── Ne plus jamais écrire à cette adresse ─────────────────────────────
+   *
+   * Sans ça, une adresse qui rebondit définitivement pouvait être recontactée
+   * le lendemain par un collègue de la même organisation, indéfiniment.
+   * Harcèlement involontaire côté candidat, et — la réputation SES étant
+   * partagée entre tous les cabinets du compte — le meilleur moyen de faire
+   * suspendre l'envoi de TOUT LE MONDE.
+   *
+   * Posé avant la mise à jour du message : c'est l'effet qui compte le plus,
+   * et il ne doit pas dépendre de la réussite d'une écriture cosmétique. */
+  if (patch.status === "bounced" || patch.status === "complained") {
+    await suppressAddress(admin, {
+      email: message.to_address,
+      reason: patch.status === "bounced" ? "bounce" : "complaint",
+      detail: event.error,
+    })
   }
 
   const { error } = await admin.from("email_messages").update(patch).eq("id", message.id)
