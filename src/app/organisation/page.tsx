@@ -625,8 +625,12 @@ export default function CabinetPage() {
 
   // Sous-sections regroupées sous l'entrée « Mon organisation » (onglets
   // horizontaux) — dans l'ordre voulu, filtrées par ce qui est visible.
+  // Le domaine d'envoi se range juste après l'identité : c'est la même chose
+  // vue par le candidat — le nom, le logo et l'adresse d'où part le message
+  // arrivent ensemble sous ses yeux. Il suit d'ailleurs déjà la même
+  // délégation (`canBranding`).
   const orgSubTabs = useMemo<OrgSection[]>(
-    () => (["branding", "pricing", "team"] as OrgSection[]).filter((s) => visibleSections.includes(s)),
+    () => (["branding", "mailing", "pricing", "team"] as OrgSection[]).filter((s) => visibleSections.includes(s)),
     [visibleSections],
   )
 
@@ -939,8 +943,12 @@ const SECTION_LABELS: Record<OrgSection, { fr: string; en: string }> = {
 
 // Onglets horizontaux du groupe « Mon organisation » (libellés courts, la
 // section porte déjà le contexte). Distincts des libellés longs de la sidebar.
-const SUBTAB_LABELS: Record<"branding" | "pricing" | "team", { fr: string; en: string }> = {
+/** Les sections repliees sous l entree « Mon organisation ». */
+type OrgSubTab = "branding" | "mailing" | "pricing" | "team"
+
+const SUBTAB_LABELS: Record<OrgSubTab, { fr: string; en: string }> = {
   branding: { fr: "Identité", en: "Identity" },
+  mailing: { fr: "Domaine d'envoi", en: "Sending domain" },
   pricing: { fr: "Pricing", en: "Pricing" },
   team: { fr: "Équipe", en: "Team" },
 }
@@ -1029,8 +1037,8 @@ function OrgSidebar({
 }
 
 /**
- * Onglets horizontaux du groupe « Mon organisation » — Identité / Pricing /
- * Équipe. Rendu en tête du contenu quand la section active appartient au
+ * Onglets horizontaux du groupe « Mon organisation » — Identité / Domaine
+ * d envoi / Pricing / Équipe. Rendu en tête du contenu quand la section active appartient au
  * groupe. Sync URL via `onChange` (goToSection).
  */
 function OrgSubTabsBar({
@@ -1048,7 +1056,10 @@ function OrgSubTabsBar({
     }}>
       {tabs.map((id) => {
         const isActive = active === id
-        const label = SUBTAB_LABELS[id as "branding" | "pricing" | "team"][lang]
+        // Le cast reste necessaire (le parent passe des OrgSection), mais il
+        // porte desormais sur un type nomme : ajouter un onglet sans son
+        // libelle ne compile plus.
+        const label = SUBTAB_LABELS[id as OrgSubTab][lang]
         return (
           <button
             key={id}
