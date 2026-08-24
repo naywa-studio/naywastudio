@@ -4,10 +4,11 @@
 --
 -- Le garde-fou de lancement du Mailing s'ouvrait aux organisations marquées
 -- `is_test`, au motif qu'elles « ne désignent jamais un vrai client ».
--- Vérification faite en base : **GMH est marqué `is_test`**, dans ses deux
--- organisations, sans aucun admin. Le premier client payant aurait donc vu
--- l'offre de l'option Mailing en production — celle dont le prix n'existe pas
--- encore dans le catalogue LIVE, donc celle qui échoue au clic.
+-- Vérification faite en base : il existe TROIS organisations nommées GMH —
+-- celle qui paie (`is_test = false`) et deux doublons marqués `is_test`, dont
+-- l'un porte un vrai utilisateur du client. Ces comptes-là auraient vu l'offre
+-- de l'option Mailing en production — celle dont le prix n'existe pas encore
+-- dans le catalogue LIVE, donc celle qui échoue au clic.
 --
 -- `is_test` a été créé pour EXCLURE des organisations des KPIs admin. S'en
 -- servir comme droit d'accès, c'est faire dépendre une visibilité produit d'un

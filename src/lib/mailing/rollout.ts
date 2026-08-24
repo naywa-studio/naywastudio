@@ -56,10 +56,11 @@ export type MailingOrgFlag = { mailing_early_access?: boolean | null } | null | 
  * vérifier.
  *
  * ⚠️ **Elle s'appuyait d'abord sur `is_test`**, au motif que ce drapeau « ne
- * désigne jamais un vrai client ». C'était faux : vérification faite en base,
- * **GMH** — le seul client payant — est marqué `is_test`, dans ses deux
- * organisations et sans aucun admin. Il aurait donc vu, en production, l'offre
- * de l'option Mailing dont le prix n'existe pas encore dans le catalogue LIVE :
+ * désigne jamais un vrai client ». C'était faux. Il existe TROIS organisations
+ * nommées GMH : celle qui paie (`is_test = false`, donc jamais concernée) et
+ * deux doublons marqués `is_test`, dont l'un porte un vrai utilisateur du
+ * client. Ce sont ces comptes-là qui auraient vu, en production, l'offre de
+ * l'option Mailing dont le prix n'existe pas encore dans le catalogue LIVE :
  * proposer puis refuser au clic, exactement ce que ce fichier existe pour
  * empêcher.
  *
