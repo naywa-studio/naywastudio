@@ -127,6 +127,58 @@ l'approche du 10ᵉ cabinet.
 
 ---
 
+---
+
+## 7. La voie qu'on n'avait pas ouverte : la boîte du sourceur
+
+**L'objection d'Elyas (24/08)** : « un sourceur ne peut pas envoyer des mails
+depuis sa boîte ? C'est contradictoire avec le métier. »
+
+Elle est juste, et elle démonte une confusion que cette étude entretenait.
+
+**Rien n'interdit de contacter un candidat.** Ce que les fournisseurs
+encadrent, ce n'est pas l'acte, c'est le **canal** : l'envoi en volume par API
+sur une infrastructure mutualisée, où un locataire indélicat brûle la
+réputation de tous. Un recruteur qui écrit depuis son Outlook ne pose aucun
+problème à personne — même message, même destinataire, même base légale.
+
+D'où une troisième architecture, et c'est celle que retiennent les outils du
+métier (Lever, Greenhouse, Recruitee) : **envoyer par la boîte du sourceur**,
+via OAuth Google Workspace ou Microsoft 365.
+
+**Ce que ça règle d'un coup :**
+
+- Plus aucune politique d'usage à subir : c'est sa boîte, son domaine, son
+  envoi. Le refus d'AWS devient sans objet.
+- Délivrabilité réelle : domaine et réputation déjà établis, pas un
+  sous-domaine neuf à chauffer.
+- **Zéro DNS.** Le vrai « zéro configuration » — meilleur que ce qu'on a
+  construit, qui demande encore quatre enregistrements ou une délégation.
+- Le message atterrit dans ses **Éléments envoyés**, et la réponse dans sa
+  boîte. C'est ce qu'il attend.
+- **Aucun coût d'envoi pour Naywa.** La marge sur 9,99 € devient entière.
+
+**Le coût d'entrée, vérifié à la source :** le scope Gmail
+`gmail.send` est classé **« Sensitive »**, PAS « Restricted » — la
+documentation Google le dit noir sur blanc. Donc **vérification OAuth standard
+(gratuite), sans évaluation de sécurité CASA**, laquelle aurait coûté entre
+15 000 et 75 000 $ par an et aurait tué la piste. Côté Microsoft, `Mail.Send`
+en permission déléguée passe par le consentement classique.
+
+**Ce que ça ne couvre pas :** un cabinet sans Google ni Microsoft, et une
+adresse d'équipe partagée (`recrutement@`) plutôt que nominative. Le travail
+sur le domaine d'envoi n'est donc pas perdu — il devient le **second** parcours,
+pour ces cas-là.
+
+**Limites d'envoi** : ~2 000 destinataires/jour en Workspace, très au-dessus de
+notre plafond maison de 60 par siège.
+
+**Conséquence sur le classement** : la boîte du sourceur passe **devant** SES
+et MailerSend. Le domaine dédié reste offert à ceux qui le veulent, et la
+demande AWS redevient un filet, pas la condition d'ouverture.
+
+---
+
 ## Sources
 
 - [Resend — Acceptable Use Policy](https://resend.com/legal/acceptable-use)
@@ -139,4 +191,8 @@ l'approche du 10ᵉ cabinet.
 - [Scaleway — TEM capabilities and limits](https://www.scaleway.com/en/docs/transactional-email/reference-content/tem-capabilities-and-limits/)
 - [AWS — Request production access](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)
 - [Waypoint — AWS denied your production access to Amazon SES?](https://www.usewaypoint.com/blog/aws-denied-your-production-access-to-amazon-ses)
+- [Google — Gmail API scopes (gmail.send = Sensitive)](https://developers.google.com/gmail/api/auth/scopes)
+- [Google — Restricted scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification)
+- [Microsoft Graph — permissions reference (Mail.Send)](https://learn.microsoft.com/en-us/graph/permissions-reference)
+- [CNIL — Recrutement et donnees personnelles](https://www.cnil.fr/fr/recrutement-et-donnees-personnelles-dans-les-tpepme-cinq-questions-incontournables-se-poser)
 - [Brevo — Inbound parse webhooks](https://developers.brevo.com/docs/inbound-parse-webhooks)
