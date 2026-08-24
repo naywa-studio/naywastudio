@@ -177,14 +177,23 @@ c'est une dette qui en a l'air. À reprendre quand SES sera ouvert.
 
 ## Ressources AWS (région `eu-west-1`, sauf Route 53 qui est global)
 
-| Ressource | Valeur |
+> ⚠️ **Ce dépôt est PUBLIC** — Vercel Hobby refuse de déployer un dépôt privé
+> appartenant à une organisation GitHub, donc le passer en privé coûterait un
+> plan Pro. Aucune clé n'y figure (vérifié : aucun `.env` réel suivi, ni
+> maintenant ni dans l'historique), mais on n'y écrit pas non plus le numéro de
+> compte AWS ni les ARN complets : ils n'ouvrent rien, et servent quand même à
+> cibler un compte précis. Les valeurs réelles se lisent dans la console AWS et
+> dans les variables Vercel.
+
+| Ressource | Où la trouver |
 |---|---|
-| Compte | `795364428552` |
-| Identité domaine | `careers-test.naywastudio.com` |
-| Rubrique SNS | `arn:aws:sns:eu-west-1:795364428552:naywa-inbound-email` |
-| Bucket S3 | `naywa-inbound-email-eu`, préfixe `inbound/` |
+| Compte AWS | Console AWS, en haut à droite |
+| Identité domaine | SES → Identités (`careers-test.naywastudio.com` pour les tests) |
+| Rubrique SNS entrante | `AWS_SNS_INBOUND_TOPIC_ARN` |
+| Rubrique SNS événements | `AWS_SNS_EVENTS_TOPIC_ARN` (rebonds, plaintes, remises) |
+| Bucket S3 | `AWS_SES_INBOUND_BUCKET`, préfixe `inbound/` |
 | Jeu de règles SES | `naywa-inbound` — actif |
-| IAM | `naywa-mailing` + `naywa-mailing-policy` (v2) + `naywa-inbound-s3-policy` |
+| IAM | utilisateur `naywa-mailing` + ses politiques attachées |
 
 `naywa-mailing-policy` **v2** ajoute `route53:ListResourceRecordSets` — c'est
 elle qui permet de VIDER une zone avant suppression, Route 53 refusant de
