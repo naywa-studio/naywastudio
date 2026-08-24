@@ -977,42 +977,53 @@ function OrgSidebar({
 
   const groupActive = orgSubTabs.includes(activeSection)
 
+  /* ── Pilotée par `sections`, et surtout PAS écrite à la main ─────────────
+   *
+   * Cette barre listait ses entrées une par une, en dur. `visibleSections`
+   * calculait donc « mailing », la section se rendait à la bonne condition,
+   * le lien profond `?tab=mailing` fonctionnait — et le bouton n'existait
+   * nulle part. Le domaine d'envoi est resté injoignable exactement comme ça :
+   * rien ne signale une entrée qu'on a oublié d'écrire.
+   *
+   * Dérivée de la liste, l'omission devient impossible : toute section visible
+   * a son bouton, dans l'ordre où le parent l'a rangée. Les sous-sections du
+   * groupe « Mon organisation » (identité, pricing, équipe) se replient sur
+   * une entrée unique, posée à la place de la première d'entre elles. */
+  const entries: { key: string; label: string; active: boolean; go: () => void }[] = []
+  let groupPlaced = false
+  for (const section of sections) {
+    if (orgSubTabs.includes(section)) {
+      if (groupPlaced) continue
+      groupPlaced = true
+      entries.push({
+        key: "org-group",
+        label: ORG_GROUP_LABEL[lang],
+        active: groupActive,
+        go: () => { if (!groupActive) onChange(orgSubTabs[0]) },
+      })
+      continue
+    }
+    entries.push({
+      key: section,
+      label: SECTION_LABELS[section][lang],
+      active: activeSection === section,
+      go: () => onChange(section),
+    })
+  }
+
   return (
     <nav aria-label="Sections de l'organisation" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {sections.includes("overview") && (
-        <button type="button" aria-current={activeSection === "overview" ? "page" : undefined}
-          onClick={() => onChange("overview")} style={itemStyle(activeSection === "overview")}>
-          {SECTION_LABELS.overview[lang]}
+      {entries.map((e) => (
+        <button
+          key={e.key}
+          type="button"
+          aria-current={e.active ? "page" : undefined}
+          onClick={e.go}
+          style={itemStyle(e.active)}
+        >
+          {e.label}
         </button>
-      )}
-
-      {orgSubTabs.length > 0 && (
-        <button type="button" aria-current={groupActive ? "page" : undefined}
-          onClick={() => { if (!groupActive) onChange(orgSubTabs[0]) }} style={itemStyle(groupActive)}>
-          {ORG_GROUP_LABEL[lang]}
-        </button>
-      )}
-
-      {sections.includes("clients") && (
-        <button type="button" aria-current={activeSection === "clients" ? "page" : undefined}
-          onClick={() => onChange("clients")} style={itemStyle(activeSection === "clients")}>
-          {SECTION_LABELS.clients[lang]}
-        </button>
-      )}
-
-      {sections.includes("billing") && (
-        <button type="button" aria-current={activeSection === "billing" ? "page" : undefined}
-          onClick={() => onChange("billing")} style={itemStyle(activeSection === "billing")}>
-          {SECTION_LABELS.billing[lang]}
-        </button>
-      )}
-
-      {sections.includes("advanced") && (
-        <button type="button" aria-current={activeSection === "advanced" ? "page" : undefined}
-          onClick={() => onChange("advanced")} style={itemStyle(activeSection === "advanced")}>
-          {SECTION_LABELS.advanced[lang]}
-        </button>
-      )}
+      ))}
     </nav>
   )
 }
