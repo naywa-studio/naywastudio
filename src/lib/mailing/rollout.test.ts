@@ -29,17 +29,27 @@ describe("mailingVisible", () => {
     expect(mailingVisible({ is_admin: true })).toBe(true)
   })
 
-  it("ouvre aux organisations de TEST, sans bypass admin", () => {
+  it("ouvre aux organisations en AVANT-PREMIÈRE, sans bypass admin", () => {
     // C'est ce qui permet d'éprouver le parcours exactement comme un client :
     // mêmes droits, mêmes écrans, mêmes refus. Un admin ne teste jamais
     // vraiment ce que vit un client -- il contourne les gardes qu'on cherche
     // justement à vérifier.
-    expect(mailingVisible({ is_admin: false }, { is_test: true })).toBe(true)
+    expect(mailingVisible({ is_admin: false }, { mailing_early_access: true })).toBe(true)
+  })
+
+  it("n'ouvre RIEN sur la foi de `is_test`", () => {
+    if (MAILING_LAUNCHED) return
+    // Le vrai défaut, trouvé en base : GMH -- le seul client payant -- est
+    // marqué `is_test`, dans ses deux organisations et sans aucun admin. Tant
+    // que cette porte existait, il voyait en production l'offre d'une option
+    // dont le prix n'existe pas encore. Un drapeau posé pour exclure des KPIs
+    // ne doit gouverner aucune visibilité produit.
+    expect(mailingVisible({ is_admin: false }, { is_test: true } as never)).toBe(false)
   })
 
   it("ne l'ouvre PAS à une organisation ordinaire", () => {
     if (MAILING_LAUNCHED) return
-    expect(mailingVisible({ is_admin: false }, { is_test: false })).toBe(false)
+    expect(mailingVisible({ is_admin: false }, { mailing_early_access: false })).toBe(false)
     expect(mailingVisible({ is_admin: false }, {})).toBe(false)
     expect(mailingVisible({ is_admin: false }, null)).toBe(false)
   })

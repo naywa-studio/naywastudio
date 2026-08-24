@@ -247,6 +247,10 @@ export type Database = {
           id: string
           name: string
           is_test: boolean
+          /** Avant-première Mailing. ⚠️ NE PAS remplacer par `is_test` : celui-ci
+           *  sert à exclure des KPIs admin et se pose aussi sur de VRAIS clients
+           *  (GMH). Un drapeau par intention, cf. migration 092. */
+          mailing_early_access: boolean
           owner_user_id: string | null
           /** Type de structure choisi à l'onboarding. Pilote l'affichage
            *  clients + pricing. NULL = org pré-migration non backfillée. */

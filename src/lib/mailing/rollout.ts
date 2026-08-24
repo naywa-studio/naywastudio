@@ -33,7 +33,7 @@ export const MAILING_LAUNCHED = false
 export type MailingViewer = { is_admin?: boolean | null } | null | undefined
 
 /** Idem côté organisation : on ne lit que ce qui sert à décider. */
-export type MailingOrgFlag = { is_test?: boolean | null } | null | undefined
+export type MailingOrgFlag = { mailing_early_access?: boolean | null } | null | undefined
 
 /**
  * Cette personne peut-elle voir et utiliser le Mailing ?
@@ -47,15 +47,27 @@ export type MailingOrgFlag = { is_test?: boolean | null } | null | undefined
  *
  *  - `MAILING_LAUNCHED` : l'ouverture générale, encore fermée ;
  *  - **admin Naywa** : pour éprouver en production ;
- *  - **organisation de test** (`organizations.is_test`) : pour éprouver le
- *    parcours EXACTEMENT comme un client — sans bypass admin, avec les mêmes
- *    droits, les mêmes écrans, les mêmes refus.
+ *  - **avant-première** (`organizations.mailing_early_access`) : pour éprouver
+ *    le parcours EXACTEMENT comme un client — sans bypass admin, avec les
+ *    mêmes droits, les mêmes écrans, les mêmes refus.
  *
  * Cette troisième porte existe parce qu'un admin ne teste jamais vraiment ce
  * que vit un client : il contourne les gardes qu'on cherche justement à
- * vérifier. `is_test` est déjà le drapeau qui exclut ces organisations des
- * KPIs — il ne désigne donc jamais un vrai client.
+ * vérifier.
+ *
+ * ⚠️ **Elle s'appuyait d'abord sur `is_test`**, au motif que ce drapeau « ne
+ * désigne jamais un vrai client ». C'était faux : vérification faite en base,
+ * **GMH** — le seul client payant — est marqué `is_test`, dans ses deux
+ * organisations et sans aucun admin. Il aurait donc vu, en production, l'offre
+ * de l'option Mailing dont le prix n'existe pas encore dans le catalogue LIVE :
+ * proposer puis refuser au clic, exactement ce que ce fichier existe pour
+ * empêcher.
+ *
+ * La leçon vaut au-delà du Mailing : `is_test` sert à EXCLURE des KPIs. Un
+ * drapeau posé pour une raison ne doit pas en gouverner une autre — personne ne
+ * pense à relire la seconde quand il change la première. D'où
+ * `mailing_early_access` (migration 092), qui ne dit qu'une chose.
  */
 export function mailingVisible(viewer: MailingViewer, org?: MailingOrgFlag): boolean {
-  return MAILING_LAUNCHED || viewer?.is_admin === true || org?.is_test === true
+  return MAILING_LAUNCHED || viewer?.is_admin === true || org?.mailing_early_access === true
 }
