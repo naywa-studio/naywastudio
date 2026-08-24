@@ -30,7 +30,7 @@ import { mailingVisible } from "@/lib/mailing/rollout"
 import { activeProvider, reputationGroupFor } from "@/lib/mailing/send"
 import { DEFAULT_FROM_LOCAL, DEFAULT_SUBDOMAIN, sendingDomainFor } from "@/lib/mailing/provider"
 import { checkRootDomain, cleanLocalPart, cleanSubdomain, explainRejection, isForbiddenSendingDomain } from "@/lib/mailing/domain-input"
-import { explainSesError, ensureReputationGroup } from "@/lib/mailing/ses"
+import { explainSesError, ensureReputationGroup, ensureEventDestination } from "@/lib/mailing/ses"
 import { switchOrgInboxAddresses } from "@/lib/mailing/inbox-address"
 import { deleteZone, explainRoute53Error } from "@/lib/mailing/dns-zone"
 
@@ -320,7 +320,12 @@ export async function POST(req: NextRequest) {
    *
    * Placé ici parce que c'est le seul endroit qui connaît à la fois
    * l'organisation et le moment où elle se met en route. */
-  await ensureReputationGroup(reputationGroupFor(org.id))
+  const group = reputationGroupFor(org.id)
+  await ensureReputationGroup(group)
+  // ⚠️ Sans CET appel, le jeu de configuration existe mais ne publie rien :
+  // un message rebondi reste « envoyé » pour toujours. C'était le cas jusqu'ici
+  // — la mesure était créée, jamais branchée.
+  await ensureEventDestination(group)
 
   // Déclaration chez le fournisseur. Idempotente par contrat : un domaine
   // déjà déclaré est renvoyé tel quel, jamais recréé — recréer ferait tourner

@@ -919,7 +919,7 @@ export type Database = {
           body_text: string | null
           body_html: string | null
           provider_id: string | null
-          status: 'sent' | 'delivered' | 'received' | 'failed' | 'bounced'
+          status: 'sent' | 'delivered' | 'received' | 'failed' | 'bounced' | 'complained'
           error: string | null
           ai_sentiment: 'interested' | 'not_interested' | 'question' | 'neutral' | 'negotiation' | null
           ai_summary: string | null
@@ -942,7 +942,7 @@ export type Database = {
           body_text?: string | null
           body_html?: string | null
           provider_id?: string | null
-          status?: 'sent' | 'delivered' | 'received' | 'failed' | 'bounced'
+          status?: 'sent' | 'delivered' | 'received' | 'failed' | 'bounced' | 'complained'
           error?: string | null
           ai_sentiment?: 'interested' | 'not_interested' | 'question' | 'neutral' | 'negotiation' | null
           ai_summary?: string | null

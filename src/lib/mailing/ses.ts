@@ -28,6 +28,7 @@ import {
   SendEmailCommand,
   GetAccountCommand,
   CreateConfigurationSetCommand,
+  CreateConfigurationSetEventDestinationCommand,
   type DkimStatus,
 } from "@aws-sdk/client-sesv2"
 import {
@@ -249,6 +250,59 @@ export async function ensureReputationGroup(name: string): Promise<boolean> {
     // Déjà là : c'est le résultat voulu, pas un échec.
     if (errName === "AlreadyExistsException") return true
     console.error("[ses] jeu de configuration non créé:", name, explainSesError(err))
+    return false
+  }
+}
+
+/** Nom de la destination d'événements, un seul par jeu de configuration. */
+const EVENT_DESTINATION = "naywa-delivery"
+
+/**
+ * Branche les rebonds, plaintes et remises sur notre rubrique SNS.
+ *
+ * ── Ce que son absence provoquait ─────────────────────────────────────────
+ *
+ * Rien de visible, et c'est le problème. Le jeu de configuration existait mais
+ * ne publiait aucun événement : un message rebondi restait `sent` pour
+ * toujours. Le sourceur relançait un candidat qui n'avait jamais rien reçu.
+ *
+ * C'est aussi, d'après AWS, la première cause de refus d'accès production —
+ * un compte qui ne collecte pas ses rebonds ne peut pas prouver qu'il les
+ * traite.
+ *
+ * ── Pourquoi « best-effort » ──────────────────────────────────────────────
+ *
+ * Comme `ensureReputationGroup` : si la rubrique n'est pas configurée ou que
+ * la politique IAM refuse, on perd la remontée d'état — pas le service. Un
+ * cabinet ne doit pas se retrouver incapable d'envoyer parce qu'une mesure
+ * accessoire n'a pas pu être posée.
+ *
+ * Idempotent : une destination déjà là est le résultat voulu.
+ */
+export async function ensureEventDestination(configurationSetName: string): Promise<boolean> {
+  const topicArn = (process.env.AWS_SNS_EVENTS_TOPIC_ARN ?? "").trim()
+  if (!topicArn) {
+    console.warn("[ses] AWS_SNS_EVENTS_TOPIC_ARN absente — rebonds non collectés")
+    return false
+  }
+  try {
+    await client().send(new CreateConfigurationSetEventDestinationCommand({
+      ConfigurationSetName: configurationSetName,
+      EventDestinationName: EVENT_DESTINATION,
+      EventDestination: {
+        Enabled: true,
+        // Volontairement PAS d'ouvertures ni de clics : ils exigent un pixel
+        // espion et la réécriture des liens, ce qui trahirait le message d'un
+        // cabinet à son candidat. On ne suit que l'acheminement.
+        MatchingEventTypes: ["BOUNCE", "COMPLAINT", "DELIVERY", "REJECT"],
+        SnsDestination: { TopicArn: topicArn },
+      },
+    }))
+    return true
+  } catch (err) {
+    const errName = (err as { name?: string })?.name ?? ""
+    if (errName === "AlreadyExistsException") return true
+    console.error("[ses] destination d'événements non créée:", configurationSetName, explainSesError(err))
     return false
   }
 }

@@ -53,6 +53,9 @@ const copy = {
     sent: "Envoyé",
     received: "Reçu",
     failed: "Échec de l'envoi",
+    bounced: "Non remis",
+    complained: "Signalé comme indésirable",
+    delivered: "Remis",
     noraRead: "Nora a lu cette réponse",
     suggests: "Étape suggérée",
     apply: "Déplacer ici",
@@ -80,6 +83,9 @@ const copy = {
     sent: "Sent",
     received: "Received",
     failed: "Sending failed",
+    bounced: "Not delivered",
+    complained: "Marked as spam",
+    delivered: "Delivered",
     noraRead: "Nora read this reply",
     suggests: "Suggested stage",
     apply: "Move here",
@@ -206,7 +212,14 @@ export default function MessageThread({
         <ol style={S.list}>
           {messages.map((m) => {
             const inbound = m.direction === "inbound"
-            const failed = m.status === "failed"
+            /* ⚠️ Ne PAS revenir à `status === "failed"`.
+             *
+             * C'est ce que faisait ce fil, et un message rebondi s'y affichait
+             * comme un envoi réussi : le seul endroit où le sourceur aurait pu
+             * apprendre que son candidat n'a rien reçu le lui cachait. Un
+             * échec doit se voir quel que soit le nom que lui donne le
+             * fournisseur. */
+            const failed = m.status === "failed" || m.status === "bounced" || m.status === "complained"
             return (
               <li key={m.id} style={{ ...S.item, alignItems: inbound ? "flex-start" : "flex-end" }}>
                 <div style={{
@@ -216,7 +229,12 @@ export default function MessageThread({
                 }}>
                   <div style={S.meta}>
                     <span style={{ fontWeight: 700, color: failed ? "var(--nw-danger-strong)" : "var(--nw-text-muted)" }}>
-                      {failed ? t.failed : inbound ? t.received : t.sent}
+                      {m.status === "bounced" ? t.bounced
+                        : m.status === "complained" ? t.complained
+                        : m.status === "failed" ? t.failed
+                        : inbound ? t.received
+                        : m.status === "delivered" ? t.delivered
+                        : t.sent}
                     </span>
                     <span>·</span>
                     <time dateTime={m.created_at}>
@@ -242,7 +260,10 @@ export default function MessageThread({
                     </div>
                   )}
 
-                  {failed && m.error && <p style={S.errText}>{m.error}</p>}
+                  {/* La cause s'affiche même sans échec déclaré : un rebond
+                      transitoire (boîte pleine) ne change pas l'état, mais
+                      c'est lui qui explique un silence qui dure. */}
+                  {m.error && <p style={S.errText}>{m.error}</p>}
                 </div>
 
                 {inbound && (m.ai_summary || m.ai_sentiment) && (
