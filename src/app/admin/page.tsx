@@ -231,7 +231,7 @@ function PlatformCard({
    lang === "fr"
      ? {
          title: "Plateforme",
-         firms: "Cabinets", 
+         firms: "Organisations", 
          users: "Utilisateurs", 
          seats: "Sièges", 
          breakdown: "Répartition",
@@ -241,7 +241,7 @@ function PlatformCard({
         } 
       : { 
          title: "Platform", 
-         firms: "Firms", 
+         firms: "Organizations", 
          users: "Users", 
          seats: "Seats",
          breakdown: "Breakdown",
@@ -299,6 +299,8 @@ return (
       display: "grid", 
       gridTemplateColumns: "repeat(3, minmax(0, 1fr))", 
       gap: 12, 
+      alignSelf: "start",
+
     }} 
     > 
     <PlatformMetric 
@@ -383,6 +385,8 @@ function PlatformMetric({
     minWidth: 0, 
     paddingRight: 10, 
     borderRight: "1px solid var(--nw-border-soft)", 
+    alignSelf: "start",
+
   }} 
   > 
   <p 
@@ -477,6 +481,8 @@ function KpiCard({
           borderRadius: 14,
           gridColumn: wide ? "span 2" : undefined,
           minWidth: 0,
+          alignSelf: "start",
+
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, color: "var(--nw-primary)" }}>
