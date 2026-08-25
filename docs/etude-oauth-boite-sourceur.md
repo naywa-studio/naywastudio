@@ -217,6 +217,48 @@ décision irréversible du lot, et elle multiplierait le coût par cent.
 
 ---
 
+---
+
+## 7. Ce qui est déjà en place (2026-08-25)
+
+Le projet Google Cloud existe. Ce qui suit a été fait et **vérifié dans la
+console**, pas supposé :
+
+| Élément | Valeur |
+|---|---|
+| Projet | `naywa-studio` |
+| API Gmail | activée |
+| Écran de consentement | nom « Naywa Studio », type **Externe** |
+| Adresse de support | le Gmail personnel d'Elyas — **choix assumé**, cf. ci-dessous |
+| Contact développeur | `elyas.malki@naywastudio.com` (jamais montré aux utilisateurs) |
+| Client OAuth | « Naywa Studio - Web » → `GOOGLE_OAUTH_CLIENT_ID` |
+| Origine autorisée | `https://naywastudio.com` |
+| **URI de redirection** | `https://naywastudio.com/api/mailing/oauth/google/callback` |
+| Scope déclaré | `gmail.send`, **classé « sensible »** |
+
+⚠️ **L'URI de redirection est figée côté Google.** Le connecteur devra exposer
+exactement cette route — un autre chemin ferait échouer le consentement avec
+une erreur qui ne dit pas laquelle des deux valeurs est fausse.
+
+**Le point le plus important de ce tableau** : `gmail.send` apparaît bien dans
+« Vos champs d'application **sensibles** », et non dans « restreints ».
+Confirmé sur le projet réel. C'est ce qui garantit une vérification standard
+et gratuite plutôt qu'une évaluation CASA à 15 000-75 000 $/an — toute
+l'économie de cette piste tient à cette ligne.
+
+**L'adresse de support restera visible** des clients sur l'écran de
+consentement. Elle est aujourd'hui personnelle faute de compte Google sur
+`naywastudio.com` — la création a buté sur une limite anti-abus du numéro de
+téléphone d'Elyas, saturé par ses autres comptes. Ce n'est **pas** un motif de
+refus de vérification ; c'est un défaut d'image, corrigeable plus tard par un
+abonnement Workspace à quelques euros (⚠️ sans jamais changer les MX, la
+messagerie restant chez Lark).
+
+**Le secret client n'a jamais été relevé** : il se copie de la console vers
+Vercel directement, sous `GOOGLE_OAUTH_CLIENT_SECRET`.
+
+---
+
 ## Sources
 
 - [Google — Gmail API scopes (gmail.send = Sensitive)](https://developers.google.com/gmail/api/auth/scopes)
