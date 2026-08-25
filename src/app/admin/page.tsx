@@ -483,6 +483,9 @@ function KpiCard({
           minWidth: 0,
           minHeight: 150,
           alignSelf: "start",
+          display: "flex",
+          flexDirection: "column",
+
 
         }}
       >
@@ -503,8 +506,12 @@ function KpiCard({
           {display}
         </p>
         <p style={{
-          margin: "6px 0 0", fontSize: 11.5, color: "var(--nw-text-muted)", lineHeight: 1.5,
-        }}>
+          margin: "auto 0 0",
+          paddingTop: 12,
+          fontSize: 11.5,
+          color: "var(--nw-text-muted)",
+          lineHeight: 1.5,
+          }}>
           {hint}
         </p>
       </m.div>
