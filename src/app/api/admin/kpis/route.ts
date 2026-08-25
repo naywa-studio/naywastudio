@@ -72,6 +72,25 @@ export async function GET() {
       .in("subscription_status", ["active", "trialing"])
       .eq("is_test", false)
   ])
+  const { data: orgTypes, error: orgTypesError } = await admin
+  .from("organizations")
+  .select("org_type")
+  .is("pending_deletion_at", null)
+  .eq("is_test", false)
+
+if (orgTypesError) throw orgTypesError
+
+const orgTypeCounts = {
+  esn_conseil: 0,
+  cabinet_recrutement: 0,
+  equipe_interne: 0,
+}
+
+for (const row of orgTypes ?? []) {
+  if (row.org_type === "esn_conseil") orgTypeCounts.esn_conseil++
+  else if (row.org_type === "cabinet_recrutement") orgTypeCounts.cabinet_recrutement++
+  else if (row.org_type === "equipe_interne") orgTypeCounts.equipe_interne++
+}
 
   // Le montant se recalcule depuis le barème (sièges + option), au lieu d'être
   // lu dans une table figée par palier : un abonnement à 7 sièges se valorise
@@ -90,5 +109,6 @@ export async function GET() {
     candidates_parsed: candidatesParsed.count ?? 0,
     trials_active: trialsActive.count ?? 0,
     mrr_estimated_eur: Math.round(mrrEur * 100) / 100,
+    org_type_counts: orgTypeCounts,
   })
 }

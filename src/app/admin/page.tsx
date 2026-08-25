@@ -22,6 +22,11 @@ interface Kpis {
   candidates_parsed: number
   trials_active: number
   mrr_estimated_eur: number
+  org_type_counts: {
+    esn_conseil: number
+    cabinet_recrutement: number
+    equipe_interne: number
+  }
 }
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -34,7 +39,11 @@ const copy = {
     refresh: "Actualiser",
     errorWithStatus: (status: number) => `Erreur ${status}`,
     platform: "Plateforme",
-    platformFirms:"Cabinets actifs",
+    platformFirms:"Organisations",
+    breakdown: "Répartition",
+    esn: "ESN Conseil",
+    cabinet: "Cabinet recrutement",
+    interne: "Équipe interne",
     platformUsers:"Utilisateurs",
     platformSeats: "Sièges occupés",
     kpiCandidates: "Candidats parsés",
@@ -52,7 +61,11 @@ const copy = {
     refresh: "Refresh", 
     errorWithStatus: (status: number) => `Error ${status}`, 
     platform: "Platform", 
-    platformFirms: "Firms", 
+    platformFirms: "Organizations", 
+    breakdown: "Breakdown",
+    esn: "ESN Consulting",
+    cabinet: "Recruitment Agency",
+    interne: "Internal Team",
     platformUsers: "Users", 
     platformSeats: "Seats", 
     kpiCandidates: "Parsed candidates", 
@@ -71,6 +84,7 @@ export default function AdminDashboardPage() {
   const [kpis, setKpis] = useState<Kpis | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
 
   const fetchKpis = async () => {
     setLoading(true); 
@@ -152,6 +166,7 @@ export default function AdminDashboardPage() {
            firms={kpis?.cabinets_active} 
            users={kpis?.users_total} 
            seats={kpis?.seats_occupied}
+           orgTypes={kpis?.org_type_counts}
            delay={0}
           />
          
@@ -197,15 +212,21 @@ function PlatformCard({
   firms,
   users,
   seats,
+  orgTypes,
   delay=0,
 }: {
   firms?:number
   users?:number
   seats?:number
+  orgTypes?: {
+    esn_conseil: number
+    cabinet_recrutement: number
+    equipe_interne: number
+  }
   delay?:number
 }) {
   const {lang }=useLanguage()
-
+  const [expanded, setExpanded] = useState(false)
   const labels = 
    lang === "fr"
      ? {
@@ -213,12 +234,20 @@ function PlatformCard({
          firms: "Cabinets", 
          users: "Utilisateurs", 
          seats: "Sièges", 
+         breakdown: "Répartition",
+         esn: "ESN Conseil",
+         cabinet: "Cabinet recrutement",
+         interne: "Équipe interne",
         } 
       : { 
          title: "Platform", 
          firms: "Firms", 
          users: "Users", 
          seats: "Seats",
+         breakdown: "Breakdown",
+         esn: "ESN Consulting",
+         cabinet: "Recruitment Agency",
+         interne: "Internal Team",
         }
   const formatNumber =(value?: number )=>
     value === undefined
@@ -286,7 +315,58 @@ return (
       label={labels.seats} 
       value={formatNumber(seats)} 
     /> 
-    </div> 
+    </div>
+    <button
+  type="button"
+  onClick={() => setExpanded(!expanded)}
+  style={{
+    marginTop: 16,
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    background: "transparent",
+    border: "none",
+    color: "var(--nw-primary)",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 600,
+    padding: 0,
+  }}
+>
+  {labels.breakdown}
+  <span>{expanded ? "▲" : "▼"}</span>
+  </button>
+
+  {expanded && (
+  <m.div
+    initial={{ opacity: 0, height: 0 }}
+    animate={{ opacity: 1, height: "auto" }}
+    transition={{ duration: 0.25 }}
+    style={{
+      overflow: "hidden",
+      marginTop: 14,
+      paddingTop: 14,
+      borderTop: "1px solid var(--nw-border-soft)",
+      display: "grid",
+      gap: 10,
+    }}
+  >
+    <OrgTypeRow
+      label={labels.esn}
+      value={orgTypes?.esn_conseil}
+    />
+
+    <OrgTypeRow
+      label={labels.cabinet}
+      value={orgTypes?.cabinet_recrutement}
+    />
+
+    <OrgTypeRow
+      label={labels.interne}
+      value={orgTypes?.equipe_interne}
+    />
+  </m.div>
+)}
     </m.div> 
     ) 
   } 
@@ -333,6 +413,42 @@ function PlatformMetric({
       </p> 
       </div> 
     )
+}
+
+function OrgTypeRow({
+  label,
+  value,
+}: {
+  label: string
+  value?: number
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}
+    >
+      <span
+        style={{
+          fontSize: 12,
+          color: "var(--nw-text-body)",
+        }}
+      >
+        {label}
+      </span>
+
+      <span
+        style={{
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value ?? "—"}
+      </span>
+    </div>
+  )
 }
 
 function KpiCard({
