@@ -174,10 +174,10 @@ function SetupInner() {
               <table style={S.table}>
                 <thead>
                   <tr>
-                    <th style={S.th}>Type</th>
-                    <th style={S.th}>Nom</th>
-                    <th style={S.th}>Valeur</th>
-                    <th style={S.th} aria-label="Copier" />
+                    <th scope="col" style={S.th}>Type</th>
+                    <th scope="col" style={S.th}>Nom</th>
+                    <th scope="col" style={S.th}>Valeur</th>
+                    <th scope="col" style={S.th}><span style={S.srOnly}>Copier</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -191,7 +191,7 @@ function SetupInner() {
                           {check && (
                             <span style={{
                               ...S.state,
-                              color: check.state === "ok" ? "#16A34A"
+                              color: check.state === "ok" ? "#15803D"
                                 : check.state === "unknown" ? "#6B7280" : "#DC2626",
                             }}>
                               {check.state === "ok" ? "En place"
@@ -208,7 +208,12 @@ function SetupInner() {
                           )}
                         </td>
                         <td style={{ ...S.td, textAlign: "right" }}>
-                          <button type="button" style={S.copyBtn} onClick={() => copy(key, r.value)}>
+                          <button
+                            type="button"
+                            style={S.copyBtn}
+                            aria-label={`Copier la valeur de l’enregistrement ${r.type} ${r.name}`}
+                            onClick={() => copy(key, r.value)}
+                          >
                             {copied === key ? "Copié" : "Copier"}
                           </button>
                         </td>
@@ -220,7 +225,7 @@ function SetupInner() {
             </div>
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 16 }}>
-              <button type="button" style={S.primary} disabled={busy} onClick={verify}>
+              <button type="button" style={S.primary} disabled={busy} aria-busy={busy} onClick={verify}>
                 {busy ? "Vérification…" : "Vérifier"}
               </button>
             </div>
@@ -228,6 +233,10 @@ function SetupInner() {
             {/* Distinguer « tout est publié, laissez propager » de « il manque
                 quelque chose » évite la boucle où l'on refait une
                 configuration déjà correcte. */}
+            {/* `role="status"` + `aria-live` : sans ça, le verdict de la
+                vérification s'affiche en silence pour qui n'a pas l'écran sous
+                les yeux. Or c'est la seule information que cette page produit. */}
+            <div role="status" aria-live="polite">
             {checks.length > 0 && (
               <p style={{ ...S.pMuted, marginTop: 12 }}>
                 {allOk
@@ -235,6 +244,7 @@ function SetupInner() {
                   : "Certains enregistrements ne sont pas encore visibles. C'est normal juste après la publication : réessayez dans quelques minutes."}
               </p>
             )}
+            </div>
           </>
         )}
       </div>
@@ -261,6 +271,11 @@ const S: Record<string, React.CSSProperties> = {
     margin: 0, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em",
     textTransform: "uppercase", color: "var(--nw-primary, #7C63C8)",
     fontFamily: "var(--nw-font-mono, monospace)",
+  },
+  /** Lu par les lecteurs d'écran, invisible à l'œil. */
+  srOnly: {
+    position: "absolute", width: 1, height: 1, padding: 0, margin: -1,
+    overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0,
   },
   h1: { margin: "10px 0 14px", fontSize: 22, fontWeight: 650, color: "var(--nw-text, #111827)" },
   p: { margin: "0 0 10px", fontSize: 14, lineHeight: 1.65, color: "var(--nw-text-body, #374151)" },

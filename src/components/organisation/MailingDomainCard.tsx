@@ -105,6 +105,9 @@ const copy = {
     delegateSent: (e: string) => `Configuration envoyée à ${e}`,
     delegateSentHint: "Le lien est valable 14 jours et ne donne accès à rien d'autre. Vous verrez ici quand le domaine sera vérifié.",
     delegateAgain: "Envoyer à quelqu'un d'autre",
+    stuckTitle: "Votre messagerie n'est ni Google ni Microsoft ?",
+    stuckBody: "Écrivez-nous : nous regardons votre configuration avec vous et nous vous disons en une réponse si c'est possible.",
+    stuckCta: "Nous écrire",
     disconnect: "Reprendre la main",
     disconnectWarn: "Vos messages repartiront du domaine de Naywa. Les réponses en cours continueront d'arriver.",
     disconnectConfirm: "Confirmer",
@@ -173,6 +176,9 @@ const copy = {
     delegateSent: (e: string) => `Configuration sent to ${e}`,
     delegateSentHint: "The link is valid for 14 days and grants nothing else. You will see here when the domain is verified.",
     delegateAgain: "Send to someone else",
+    stuckTitle: "Your mailbox is neither Google nor Microsoft?",
+    stuckBody: "Write to us: we will look at your setup with you and tell you in one reply whether it can work.",
+    stuckCta: "Contact us",
     disconnect: "Disconnect",
     disconnectWarn: "Your emails will go back out from Naywa's domain. Ongoing replies will keep arriving.",
     disconnectConfirm: "Confirm",
@@ -795,6 +801,19 @@ export default function MailingDomainCard() {
                 </div>
               </>
             )}
+
+            {/* ── L'issue pour ceux que rien de tout ça ne couvre ───────────
+                Un cabinet chez OVH, Gandi, IONOS, Infomaniak ou Zoho ne sera
+                jamais éligible aux connecteurs Google et Microsoft. Sans cette
+                porte, il arrive au bout du parcours et ne trouve rien — le
+                pire endroit où laisser quelqu'un qui vient de payer. */}
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--nw-border)" }}>
+              <strong style={{ fontSize: 12 }}>{t.stuckTitle}</strong>
+              <p style={{ ...S.hint, marginTop: 4 }}>{t.stuckBody}</p>
+              <a href="/contact" style={{ ...S.linkBtn, display: "inline-block", marginTop: 6, textDecoration: "none" }}>
+                {t.stuckCta}
+              </a>
+            </div>
           </div>
         </div>
       ) : null}
