@@ -380,9 +380,11 @@ function PlatformMetric({
   label: string 
   value: string 
 }) { 
+  const [expanded, setExpanded] = useState(false)
   return ( 
   <div style={{ 
     minWidth: 0, 
+    height: expanded ? "auto" : 150,
     paddingRight: 10, 
     borderRight: "1px solid var(--nw-border-soft)", 
     alignSelf: "start",
@@ -481,6 +483,7 @@ function KpiCard({
           borderRadius: 14,
           gridColumn: wide ? "span 2" : undefined,
           minWidth: 0,
+          minHeight: 150,
           alignSelf: "start",
 
         }}
