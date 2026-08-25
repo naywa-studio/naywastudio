@@ -40,6 +40,22 @@ function secret(): string | null {
   return fallback || null
 }
 
+/**
+ * Le secret est-il configuré du tout ?
+ *
+ * Exporté pour que la route puisse distinguer **« lien invalide »** de
+ * **« service non configuré »**. Sans cette distinction, les deux cas rendent
+ * la même page, et on ne peut plus savoir de l'extérieur si l'en-tête part ou
+ * non — c'est exactement ce qui nous a fait chercher à l'aveugle.
+ *
+ * Et pour le destinataire, la différence compte : lui dire que son lien est
+ * invalide alors que c'est notre serveur qui est mal configuré est un
+ * mensonge, et il n'insistera pas.
+ */
+export function hasUnsubscribeSecret(): boolean {
+  return secret() !== null
+}
+
 function sign(payload: string, key: string): string {
   return createHmac("sha256", key).update(payload).digest("base64url")
 }

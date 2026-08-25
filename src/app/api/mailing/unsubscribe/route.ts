@@ -20,13 +20,13 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { readUnsubscribeToken } from "@/lib/mailing/unsubscribe"
+import { readUnsubscribeToken, hasUnsubscribeSecret } from "@/lib/mailing/unsubscribe"
 import { suppressAddress } from "@/lib/mailing/suppression"
 
 export const runtime = "nodejs"
 
 /** Page minimale, sans dépendance ni style externe. */
-function page(title: string, body: string, token?: string): NextResponse {
+function page(title: string, body: string, token?: string, status = 200): NextResponse {
   const form = token
     ? `<form method="post" action="/api/mailing/unsubscribe?t=${encodeURIComponent(token)}">
          <button type="submit">Confirmer</button>
@@ -46,11 +46,24 @@ function page(title: string, body: string, token?: string): NextResponse {
               padding:12px 22px;font-size:15px;cursor:pointer;font-family:inherit}
      </style></head>
      <body><main><h1>${title}</h1><p>${body}</p>${form}</main></body></html>`,
-    { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
+    { status, headers: { "Content-Type": "text/html; charset=utf-8" } },
   )
 }
 
 export async function GET(req: NextRequest) {
+  /* Service non configuré ≠ lien invalide. Répondre « invalide » à un
+   * destinataire dont le lien est parfaitement bon serait un mensonge — et
+   * de l'extérieur, on ne pourrait plus distinguer les deux cas. */
+  if (!hasUnsubscribeSecret()) {
+    console.error("[mailing/unsubscribe] MAILING_UNSUBSCRIBE_SECRET absente")
+    return page(
+      "Service momentanément indisponible",
+      "Nous ne pouvons pas traiter votre demande pour l'instant. Réessayez plus tard, ou répondez simplement au message.",
+      undefined,
+      503,
+    )
+  }
+
   const token = req.nextUrl.searchParams.get("t")
   const claim = readUnsubscribeToken(token)
   if (!claim) {
@@ -65,6 +78,19 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  /* Service non configuré ≠ lien invalide. Répondre « invalide » à un
+   * destinataire dont le lien est parfaitement bon serait un mensonge — et
+   * de l'extérieur, on ne pourrait plus distinguer les deux cas. */
+  if (!hasUnsubscribeSecret()) {
+    console.error("[mailing/unsubscribe] MAILING_UNSUBSCRIBE_SECRET absente")
+    return page(
+      "Service momentanément indisponible",
+      "Nous ne pouvons pas traiter votre demande pour l'instant. Réessayez plus tard, ou répondez simplement au message.",
+      undefined,
+      503,
+    )
+  }
+
   const token = req.nextUrl.searchParams.get("t")
   const claim = readUnsubscribeToken(token)
   if (!claim) {
