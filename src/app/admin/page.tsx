@@ -268,6 +268,8 @@ return (
       border: "1 px solid var(--nw--border--soft)",
       borderRadius: 14,
       minWidth: 0,
+      minHeight: 150,
+      alignSelf: "start",
     }}
   > 
   <div 
@@ -383,11 +385,8 @@ function PlatformMetric({
   return ( 
   <div style={{ 
     minWidth: 0, 
-    minHeight: 150,
     paddingRight: 10, 
     borderRight: "1px solid var(--nw-border-soft)", 
-    alignSelf: "start",
-
   }} 
   > 
   <p 
