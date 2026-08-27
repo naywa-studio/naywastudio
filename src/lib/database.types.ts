@@ -1056,6 +1056,33 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['branding_change_requests']['Row']>
         Relationships: []
       }
+      /** Boîtes mail connectées en OAuth (migration 096).
+       *
+       *  ⚠️ `refresh_token_encrypted` n'est JAMAIS lisible depuis le navigateur :
+       *  la table a RLS activée et AUCUNE policy. Seul le service role y accède,
+       *  au moment d'envoyer. Ne pas ajouter de policy « pour dépanner ». */
+      connected_mailboxes: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          provider: 'google' | 'microsoft'
+          email: string
+          refresh_token_encrypted: string
+          /** Un jeton meurt sans prévenir — mot de passe changé, révocation,
+           *  politique du tenant. Cet état est ce qui le rend VISIBLE. */
+          status: 'active' | 'needs_reconnect'
+          last_error: string | null
+          connected_at: string
+          last_used_at: string | null
+        }
+        Insert: Partial<Database['public']['Tables']['connected_mailboxes']['Row']> & {
+          organization_id: string; user_id: string
+          provider: 'google' | 'microsoft'; email: string; refresh_token_encrypted: string
+        }
+        Update: Partial<Database['public']['Tables']['connected_mailboxes']['Row']>
+        Relationships: []
+      }
       /** Adresses à ne plus contacter (migration 093).
        *
        *  `organization_id` NULL = suppression GLOBALE : rebond définitif
