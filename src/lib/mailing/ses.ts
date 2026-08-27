@@ -80,6 +80,39 @@ function dmarcRecord(domain: string): MailingDnsRecord {
 }
 
 /**
+ * Le MX de RÉCEPTION — celui qui manquait.
+ *
+ * ── Le défaut qu'il corrige, et pourquoi il était invisible ───────────────
+ *
+ * Les enregistrements remis au client couvraient l'ENVOI (trois clés DKIM) et
+ * la surveillance (DMARC). **Aucun ne concernait la réception.** Un cabinet
+ * qui suivait scrupuleusement les instructions obtenait donc un domaine
+ * vérifié, un écran vert, des envois qui partaient — et **chaque réponse de
+ * candidat rejetée**, parce que son sous-domaine n'avait aucun MX.
+ *
+ * Et rien ne l'aurait signalé : la vérification ne contrôle que les
+ * enregistrements qu'elle a elle-même produits, donc elle passait. Le sourceur
+ * aurait conclu que ses candidats ne répondent pas.
+ *
+ * Notre domaine de test recevait uniquement parce que son MX avait été posé à
+ * la main, hors du produit, pendant la mise en route. C'est exactement ce qui
+ * rend ce genre de trou indétectable : le test marche, pour une raison qui
+ * n'existe pas chez le client.
+ *
+ * L'hôte dépend de la RÉGION : le figer ferait échouer la réception le jour
+ * où `AWS_SES_REGION` change, avec une erreur incompréhensible.
+ */
+function inboundMxRecord(domain: string): MailingDnsRecord {
+  const region = (process.env.AWS_SES_REGION ?? "").trim() || DEFAULT_REGION
+  return {
+    type: "MX",
+    name: domain,
+    value: `inbound-smtp.${region}.amazonaws.com`,
+    priority: 10,
+  }
+}
+
+/**
  * État SES → état produit.
  *
  * `verifiedForSending` fait foi : c'est lui qui conditionne réellement l'envoi.
@@ -126,7 +159,13 @@ async function readDomain(domain: string): Promise<SendingDomain | null> {
        * autoritaire sans aucune clé DKIM, et son domaine d'envoi tombait —
        * après avoir fonctionné. Le fournisseur dit la vérité ; c'est à
        * l'interface de décider ce qu'elle montre. */
-      records: [...dkimRecords(domain, out.DkimAttributes?.Tokens), dmarcRecord(domain)],
+      records: [
+        ...dkimRecords(domain, out.DkimAttributes?.Tokens),
+        dmarcRecord(domain),
+        // Sans lui, le domaine envoie mais ne reçoit rien — et l'écran dit
+        // « actif ». Cf. l'en-tête de `inboundMxRecord`.
+        inboundMxRecord(domain),
+      ],
     }
   } catch (err) {
     if (isNotFound(err)) return null
