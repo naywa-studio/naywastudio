@@ -11,6 +11,33 @@ garde-fou de lancement ci-dessous.
 
 ---
 
+## ⚠️ ACCÈS PRODUCTION SES ACCORDÉ — 2026-08-26
+
+AWS a **accordé** l'accès production sur le dossier `178726352900266`, à la
+seconde demande : **50 000 messages/jour, 14/seconde, compte sorti du bac à
+sable** en eu-west-1.
+
+Ce qui a changé entre les deux demandes, et qui explique probablement le
+retournement : la première décrivait quatre dispositifs qui **n'existaient
+pas** (consommation SNS des rebonds, liste de suppression, désinscription,
+alarmes). La seconde l'a **dit franchement**, et les trois premiers avaient
+été construits entre-temps. La leçon vaut au-delà d'AWS : on ne décrit à un
+fournisseur que ce qui est dans le code.
+
+**Conséquence sur les priorités.** Après le refus, j'avais recommandé de
+reléguer SES et de faire d'OAuth la fondation. **Cet arbitrage s'inverse.**
+Le parcours domaine fonctionne désormais de bout en bout — envoi ET
+réception — pour tout le monde, sans revue par client, sans consentement
+d'administrateur, sans plafond de 100. OAuth redevient ce qu'il aurait dû
+rester : le chemin **sans DNS**, un confort d'adoption, pas un sauvetage.
+
+**Les deux conditions d'ouverture** consignées plus haut : la première est
+levée. Reste le prix `mailing_addon` dans le catalogue LIVE (9,99 €,
+arbitré par Elyas).
+
+
+---
+
 ## Le fournisseur : Amazon SES
 
 Retenu après comparatif, sur des **critères durs, pas sur le prix** :
