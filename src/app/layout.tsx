@@ -12,6 +12,25 @@ const SITE_URL = 'https://naywastudio.com'
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
 
+  /* ── Propriété du domaine, prouvée à Google ─────────────────────────────
+   *
+   * Ce n'est PAS du référencement : c'est une pièce du dossier de
+   * vérification OAuth. Google exige que le domaine déclaré sur l'écran de
+   * consentement soit prouvé dans la Search Console **par le compte
+   * propriétaire du projet Cloud** — et ne pas le faire est le troisième
+   * motif de refus documenté.
+   *
+   * Doublé par `public/google5cb37fcd5b6d92e3.html`, qui prouve la même
+   * chose autrement. Deux méthodes valent mieux qu'une : perdre la
+   * validation ferait retomber l'application en « non vérifiée », donc
+   * plafonnée à 100 connexions, sans que rien ne le signale.
+   *
+   * ⚠️ Ne pas retirer, même longtemps après la validation : Google
+   * revérifie, et une propriété qui cesse d'être prouvée est révoquée. */
+  verification: {
+    google: '9ACws-wu60rzGkAVLdJm7oKD0qR0MADV0dMpm2zUOlM',
+  },
+
   title: {
     default: 'Naywa Studio, l\'optimisation de vos process métier',
     template: '%s | Naywa Studio',
