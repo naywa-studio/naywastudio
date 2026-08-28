@@ -35,8 +35,20 @@ export const GOOGLE_SCOPES = [
   "email",
 ] as const
 
+/**
+ * L'identifiant client, avec sa valeur réelle en défaut.
+ *
+ * Ce n'est **pas un secret** : il figure dans l'URL de consentement que voit
+ * chaque utilisateur, et Google le publie dans la barre d'adresse. L'écrire
+ * ici évite une variable d'environnement de plus à poser sur chaque
+ * environnement — donc une occasion de moins de se tromper.
+ *
+ * Le secret, lui, n'est JAMAIS dans le code.
+ */
+const DEFAULT_CLIENT_ID = "575112726480-nspvtf5mbetevujj6cjacj4r42cinpph.apps.googleusercontent.com"
+
 export function googleClientId(): string {
-  return (process.env.GOOGLE_OAUTH_CLIENT_ID ?? "").trim()
+  return (process.env.GOOGLE_OAUTH_CLIENT_ID ?? "").trim() || DEFAULT_CLIENT_ID
 }
 
 function googleClientSecret(): string {
