@@ -31,6 +31,7 @@ import { orgUsesPricing, orgUsesClients } from "@/lib/org-type"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import PricingPolicyForm from "@/components/organisation/PricingPolicyForm"
 import MailingDomainCard from "@/components/organisation/MailingDomainCard"
+import ConnectedMailboxCard from "@/components/organisation/ConnectedMailboxCard"
 import { mailingVisible } from "@/lib/mailing/rollout"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
 import { useEscapeKey } from "@/components/ui/useEscapeKey"
@@ -616,7 +617,12 @@ export default function CabinetPage() {
     // en route (déclarer, publier, vérifier, déléguer), pas un champ de plus
     // dans un formulaire d'identité. L'enfouir sous « Branding » obligeait à
     // faire défiler une page entière pour y revenir.
-    ...(caps.canBranding && canUseMailing ? (["mailing"] as OrgSection[]) : []),
+    // ⚠️ Volontairement PAS conditionne a `canBranding`. Connecter sa propre
+    // boite mail est un geste PERSONNEL : un sourceur ordinaire doit pouvoir
+    // le faire sans passer par l'owner. Le domaine d'envoi, lui, reste gate
+    // sur `canBranding` a l'interieur de la section -- c'est une identite
+    // d'organisation, pas une preference individuelle.
+    ...(canUseMailing ? (["mailing"] as OrgSection[]) : []),
     ...(showPricingSection ? (["pricing"] as OrgSection[]) : []),
     ...(caps.isOrgAdmin ? (["team"] as OrgSection[]) : []),
     ...(showClientsSection ? (["clients"] as OrgSection[]) : []),
@@ -792,8 +798,14 @@ export default function CabinetPage() {
             </>
           )}
 
-          {activeSection === "mailing" && caps.canBranding && canUseMailing && (
-            <MailingDomainCard />
+          {activeSection === "mailing" && canUseMailing && (
+            <>
+              {/* La boite connectee d'abord : c'est le chemin sans DNS, donc
+                  celui qu'on veut voir en premier. Le domaine reste offert
+                  en dessous, pour qui n'a ni Google ni Microsoft. */}
+              <ConnectedMailboxCard />
+              {caps.canBranding && <MailingDomainCard />}
+            </>
           )}
 
           {activeSection === "pricing" && caps.canPricing && (
