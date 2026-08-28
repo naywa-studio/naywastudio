@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "../database.types"
 import { ensureInboxAddress, fromHeader, inboxDomainFor, slugifyLocalPart, type InboxOrg } from "./inbox-address"
+import { INBOX_DOMAIN, MAIL_DOMAIN } from "../resend"
 
 /**
  * L'adresse de réception d'un sourceur, et sa bascule d'un domaine à l'autre.
@@ -81,17 +82,17 @@ describe("inboxDomainFor", () => {
   })
 
   it("reste sur Naywa si l'option n'est pas acquise", () => {
-    expect(inboxDomainFor(ORG_SANS_OPTION)).toBe("mail.naywastudio.com")
+    expect(inboxDomainFor(ORG_SANS_OPTION)).toBe(INBOX_DOMAIN)
   })
 
   it("reste sur Naywa tant que le DNS n'est pas vérifié", () => {
     // Le point qui compte : payer ne suffit pas. Sans clés DKIM publiées, une
     // adresse sur ce domaine ne recevrait rien.
-    expect(inboxDomainFor({ ...ORG_ACTIVE, mailing_status: "awaiting_dns" })).toBe("mail.naywastudio.com")
+    expect(inboxDomainFor({ ...ORG_ACTIVE, mailing_status: "awaiting_dns" })).toBe(INBOX_DOMAIN)
   })
 
   it("reste sur Naywa sans organisation", () => {
-    expect(inboxDomainFor(null)).toBe("mail.naywastudio.com")
+    expect(inboxDomainFor(null)).toBe(INBOX_DOMAIN)
   })
 
   it("suit le bypass admin, comme l'envoi", () => {
@@ -101,7 +102,7 @@ describe("inboxDomainFor", () => {
     // répondu à la mauvaise adresse, l'échange serait revenu par l'ancien
     // chemin, et le test aurait semblé réussir sans rien prouver.
     const orgSansAbo = { ...ORG_ACTIVE, subscription_has_mailing: false } satisfies InboxOrg
-    expect(inboxDomainFor(orgSansAbo)).toBe("mail.naywastudio.com")
+    expect(inboxDomainFor(orgSansAbo)).toBe(INBOX_DOMAIN)
     expect(inboxDomainFor(orgSansAbo, { isAdmin: true })).toBe("careers.cabinet-durand.fr")
   })
 
@@ -109,7 +110,7 @@ describe("inboxDomainFor", () => {
     // Le bypass porte sur le paiement, jamais sur les clés publiées : sans
     // DKIM, l'adresse ne recevrait rien et le mail partirait en spam.
     expect(inboxDomainFor({ ...ORG_ACTIVE, mailing_status: "verifying" }, { isAdmin: true }))
-      .toBe("mail.naywastudio.com")
+      .toBe(INBOX_DOMAIN)
   })
 })
 
@@ -119,22 +120,22 @@ describe("ensureInboxAddress", () => {
   it("crée l'adresse au premier usage, à partir du prénom", async () => {
     const rows: FakeProfile[] = [{ user_id: "u1", first_name: "Sophie", inbox_address: null, inbox_aliases: [] }]
     const addr = await ensureInboxAddress(fakeAdmin(rows), "u1", ORG_SANS_OPTION)
-    expect(addr).toBe("sophie@mail.naywastudio.com")
+    expect(addr).toBe(`sophie@${INBOX_DOMAIN}`)
     expect(rows[0].inbox_address).toBe(addr)
   })
 
   it("retombe sur l'email de connexion si le profil n'a pas de prénom", async () => {
     const rows: FakeProfile[] = [{ user_id: "u1", first_name: null, inbox_address: null, inbox_aliases: [] }]
     const addr = await ensureInboxAddress(fakeAdmin(rows), "u1", null)
-    expect(addr).toBe("sophie.durand@mail.naywastudio.com")
+    expect(addr).toBe(`sophie.durand@${INBOX_DOMAIN}`)
   })
 
   it("ne rappelle rien quand l'adresse est déjà sur le bon domaine", async () => {
     const rows: FakeProfile[] = [
-      { user_id: "u1", first_name: "Sophie", inbox_address: "sophie@mail.naywastudio.com", inbox_aliases: [] },
+      { user_id: "u1", first_name: "Sophie", inbox_address: `sophie@${INBOX_DOMAIN}`, inbox_aliases: [] },
     ]
     const addr = await ensureInboxAddress(fakeAdmin(rows), "u1", ORG_SANS_OPTION)
-    expect(addr).toBe("sophie@mail.naywastudio.com")
+    expect(addr).toBe(`sophie@${INBOX_DOMAIN}`)
     expect(rows[0].inbox_aliases).toEqual([])
   })
 
@@ -142,7 +143,7 @@ describe("ensureInboxAddress", () => {
     // Le sourceur recevait sur « sophie@ » : cette partie figure dans les
     // signatures et dans la tête des gens. Seul le domaine doit bouger.
     const rows: FakeProfile[] = [
-      { user_id: "u1", first_name: "Sophie", inbox_address: "sophie@mail.naywastudio.com", inbox_aliases: [] },
+      { user_id: "u1", first_name: "Sophie", inbox_address: `sophie@${INBOX_DOMAIN}`, inbox_aliases: [] },
     ]
     const addr = await ensureInboxAddress(fakeAdmin(rows), "u1", ORG_ACTIVE)
     expect(addr).toBe("sophie@careers.cabinet-durand.fr")
@@ -152,19 +153,19 @@ describe("ensureInboxAddress", () => {
     // LE test de ce fichier. Sans cette ligne, toutes les réponses aux
     // messages déjà envoyés tombent dans le vide, sans erreur nulle part.
     const rows: FakeProfile[] = [
-      { user_id: "u1", first_name: "Sophie", inbox_address: "sophie@mail.naywastudio.com", inbox_aliases: [] },
+      { user_id: "u1", first_name: "Sophie", inbox_address: `sophie@${INBOX_DOMAIN}`, inbox_aliases: [] },
     ]
     await ensureInboxAddress(fakeAdmin(rows), "u1", ORG_ACTIVE)
-    expect(rows[0].inbox_aliases).toContain("sophie@mail.naywastudio.com")
+    expect(rows[0].inbox_aliases).toContain(`sophie@${INBOX_DOMAIN}`)
   })
 
   it("empile les alias sur plusieurs bascules, sans doublon", async () => {
     const rows: FakeProfile[] = [
-      { user_id: "u1", first_name: "Sophie", inbox_address: "sophie@ancien.fr", inbox_aliases: ["sophie@mail.naywastudio.com"] },
+      { user_id: "u1", first_name: "Sophie", inbox_address: "sophie@ancien.fr", inbox_aliases: [`sophie@${INBOX_DOMAIN}`] },
     ]
     await ensureInboxAddress(fakeAdmin(rows), "u1", ORG_ACTIVE)
     expect(rows[0].inbox_aliases).toEqual(
-      expect.arrayContaining(["sophie@mail.naywastudio.com", "sophie@ancien.fr"]),
+      expect.arrayContaining([`sophie@${INBOX_DOMAIN}`, "sophie@ancien.fr"]),
     )
     expect(new Set(rows[0].inbox_aliases).size).toBe(rows[0].inbox_aliases.length)
   })
@@ -175,19 +176,19 @@ describe("ensureInboxAddress", () => {
     // deux collaborateurs de la même organisation.
     const rows: FakeProfile[] = [
       { user_id: "u1", first_name: "Sophie", inbox_address: null, inbox_aliases: [] },
-      { user_id: "u2", first_name: "Autre", inbox_address: "x@y.fr", inbox_aliases: ["sophie@mail.naywastudio.com"] },
+      { user_id: "u2", first_name: "Autre", inbox_address: "x@y.fr", inbox_aliases: [`sophie@${INBOX_DOMAIN}`] },
     ]
     const addr = await ensureInboxAddress(fakeAdmin(rows), "u1", ORG_SANS_OPTION)
-    expect(addr).toBe("sophie2@mail.naywastudio.com")
+    expect(addr).toBe(`sophie2@${INBOX_DOMAIN}`)
   })
 
   it("évite aussi l'adresse COURANTE d'un collègue", async () => {
     const rows: FakeProfile[] = [
       { user_id: "u1", first_name: "Sophie", inbox_address: null, inbox_aliases: [] },
-      { user_id: "u2", first_name: "Sophie", inbox_address: "sophie@mail.naywastudio.com", inbox_aliases: [] },
+      { user_id: "u2", first_name: "Sophie", inbox_address: `sophie@${INBOX_DOMAIN}`, inbox_aliases: [] },
     ]
     const addr = await ensureInboxAddress(fakeAdmin(rows), "u1", ORG_SANS_OPTION)
-    expect(addr).toBe("sophie2@mail.naywastudio.com")
+    expect(addr).toBe(`sophie2@${INBOX_DOMAIN}`)
   })
 })
 
@@ -257,5 +258,21 @@ describe("collision avec l'adresse d'expédition", () => {
       { ...ORG_SANS_OPTION, mailing_from_local: "recrutement" },
     )
     expect(address.startsWith("recrutement@")).toBe(true)
+  })
+})
+
+/* ── La séparation envoi / réception ─────────────────────────────────────── */
+
+describe("le domaine qui reçoit n'est pas celui qui envoie", () => {
+  it("INBOX_DOMAIN et MAIL_DOMAIN sont DISTINCTS", () => {
+    // Ce test protège contre le défaut le plus durable du chantier : les
+    // adresses de réception étaient composées sur le domaine d'ENVOI, qui n'a
+    // aucun MX. Chaque réponse de candidat rebondissait, depuis toujours, et
+    // le sourceur en concluait que personne ne lui répondait.
+    //
+    // Les refusionner « pour simplifier » recréerait exactement ça — et
+    // brancherait de la réception sur le domaine qui porte le SMTP de
+    // Supabase, donc l'authentification de tous les utilisateurs.
+    expect(INBOX_DOMAIN).not.toBe(MAIL_DOMAIN)
   })
 })

@@ -24,7 +24,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database, Organization } from "../database.types"
 import { canSendFromOrgDomain } from "../subscription"
 import { orgFromAddress } from "./send"
-import { MAIL_DOMAIN } from "../resend"
+import { INBOX_DOMAIN } from "../resend"
 
 /** Champs de l'org dont dépend le domaine de réception. */
 export type InboxOrg = Pick<
@@ -63,7 +63,8 @@ export function inboxDomainFor(
   if (org && canSendFromOrgDomain(org, opts) && org.mailing_sending_domain) {
     return org.mailing_sending_domain
   }
-  return MAIL_DOMAIN
+  // Le domaine de RÉCEPTION, pas celui d'envoi : cf. `INBOX_DOMAIN`.
+  return INBOX_DOMAIN
 }
 
 /** Transforme un nom (ou une partie locale) en partie locale d'email sûre. */

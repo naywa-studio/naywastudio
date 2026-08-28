@@ -11,6 +11,27 @@
  */
 
 export const MAIL_DOMAIN = "mail.naywastudio.com"
+
+/**
+ * Le domaine qui REÇOIT — distinct de celui qui envoie, et c'est le point.
+ *
+ * ── Le défaut que cette séparation corrige ────────────────────────────────
+ *
+ * Les adresses de réception des sourceurs étaient composées sur
+ * `MAIL_DOMAIN`, c'est-à-dire sur le domaine d'ENVOI. Or celui-ci n'a aucun
+ * enregistrement MX : il ne sait qu'expédier. **Chaque réponse de candidat
+ * adressée à `prenom@mail.naywastudio.com` rebondissait donc**, depuis
+ * toujours, et le sourceur en concluait que personne ne lui répondait.
+ *
+ * Le défaut a survécu si longtemps parce qu'une seule constante portait deux
+ * rôles opposés : personne ne se demande si un domaine d'envoi sait recevoir.
+ *
+ * ⚠️ Ne jamais les refusionner. `mail.` porte le SMTP de Supabase — donc les
+ * confirmations d'inscription et les mots de passe oubliés. Y brancher de la
+ * réception mêlerait l'authentification de tous les utilisateurs au courrier
+ * des candidats.
+ */
+export const INBOX_DOMAIN = "reply.naywastudio.com"
 const RESEND_ENDPOINT = "https://api.resend.com/emails"
 
 /* ─────────────────────────── Sending ─────────────────────────── */
