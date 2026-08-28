@@ -23,6 +23,7 @@ import { ensureInboxAddress, fromHeader } from "@/lib/mailing/inbox-address"
 import { sendCandidateEmail } from "@/lib/mailing/send"
 import { canSendFromOrgDomain } from "@/lib/subscription"
 import { checkOrgDailySendCap } from "@/lib/mailing/send-cap"
+import { activeMailboxFor, sendFromMailbox } from "@/lib/mailing/send-via-mailbox"
 import { suppressionFor, explainSuppression } from "@/lib/mailing/suppression"
 import { unsubscribeHeaders } from "@/lib/mailing/unsubscribe"
 import { getAppUrl } from "@/lib/stripe"
@@ -141,11 +142,59 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const inboxAddress = await ensureInboxAddress(admin, user.id, org, asAdmin)
   const from = fromHeader(profile?.first_name, inboxAddress)
   const bcc = profile?.inbox_cc_self ? (user.email ?? undefined) : undefined
+  const unsubHeaders = profile?.organization_id
+    ? unsubscribeHeaders(candidate.email, profile.organization_id, getAppUrl(req))
+    : {}
+
+  /* ── Par quelle boîte ce message part-il ? ─────────────────────────────
+   *
+   * Trois transports, dans cet ordre :
+   *
+   *   1. LA BOÎTE CONNECTÉE du sourceur (OAuth). Prioritaire, et pas par
+   *      commodité : les cabinets sont presque toujours sur Workspace avec
+   *      leur propre domaine, donc c'est déjà `sophie@cabinet-durand.fr` qui
+   *      envoie — sa vraie adresse, sa réputation déjà établie, et une copie
+   *      dans ses « Éléments envoyés ». Aucun DNS n'a été demandé à personne.
+   *   2. LE DOMAINE de l'organisation (SES), pour qui n'a pas connecté de
+   *      boîte mais a fait la configuration.
+   *   3. LE DOMAINE NAYWA, comme depuis toujours.
+   *
+   * Une boîte marquée `needs_reconnect` n'est PAS retenue : elle s'affiche
+   * dans l'écran avec son bandeau, mais laisser l'envoi tomber dessus ferait
+   * échouer chaque tentative au lieu de basculer proprement. */
+  const mailbox = await activeMailboxFor(admin, user.id)
 
   // Send
   let providerId: string
   try {
-    if (onOwnDomain && org) {
+    if (mailbox) {
+      const sent = await sendFromMailbox(admin, mailbox, {
+        fromName: profile?.first_name,
+        to: candidate.email,
+        subject,
+        text: messageBody,
+        bcc,
+        headers: unsubHeaders,
+        /* Pas de `Reply-To` : le message part de SA boîte, les réponses y
+         * reviennent naturellement. En poser un vers Naywa créerait un
+         * désaccord de domaines entre `From` et `Reply-To` — motif classique
+         * d'hameçonnage pour les filtres — au moment même où ce chemin est
+         * censé améliorer la délivrabilité.
+         *
+         * Contrepartie assumée : ces réponses n'alimentent pas le fil de
+         * conversation. À dire dans l'interface plutôt qu'à laisser
+         * découvrir. */
+      })
+      if (!sent.ok) {
+        // `needs_reconnect` remonte tel quel : c'est une consigne pour le
+        // sourceur (« reconnectez »), pas une panne à réessayer.
+        return NextResponse.json(
+          { error: sent.reason, message: sent.message },
+          { status: sent.reason === "needs_reconnect" ? 409 : 502 },
+        )
+      }
+      providerId = sent.id
+    } else if (onOwnDomain && org) {
       const sent = await sendCandidateEmail(
         {
           org,
@@ -158,7 +207,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           // Le bouton natif « Se désabonner » de Gmail et d'Outlook. Son
           // absence est l'un des signaux qui font traiter un expéditeur comme
           // un indésirable — et c'était une des promesses faites à AWS.
-          headers: unsubscribeHeaders(candidate.email, org.id, getAppUrl(req)),
+          headers: unsubHeaders,
         },
         asAdmin,
       )
@@ -179,9 +228,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         // Le même en-tête que sur le chemin « domaine du cabinet ». L'oublier
         // ici priverait du bouton « Se désabonner » précisément les cabinets
         // qui n'ont PAS d'add-on — donc la majorité des envois.
-        ...(profile?.organization_id
-          ? { headers: unsubscribeHeaders(candidate.email, profile.organization_id, getAppUrl(req)) }
-          : {}),
+        headers: unsubHeaders,
       })
       providerId = sent.id
     }
