@@ -24,6 +24,33 @@ export const runtime = "nodejs"
 export const maxDuration = 30
 
 /** Extract a bare email address from "Name <addr>" / "addr" / { address }. */
+/**
+ * TOUTES les adresses d'un champ, pas seulement la première.
+ *
+ * ⚠️ Cette fonction ne lisait que `v[0]`, et ça devenait faux dès qu'un
+ * message avait plusieurs destinataires — c'est-à-dire dès qu'on pose un
+ * `Reply-To` à deux adresses (celle du sourceur, la nôtre). Le candidat
+ * répond, sa messagerie remplit les deux, la PREMIÈRE est celle du sourceur…
+ * qui ne correspond à aucun profil. La réponse serait alors jetée en silence,
+ * et le sourceur conclurait que son candidat ne répond pas.
+ */
+function allAddresses(v: unknown): string[] {
+  if (!v) return []
+  if (Array.isArray(v)) return v.flatMap(allAddresses)
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>
+    return allAddresses(o.address ?? o.email ?? o.value)
+  }
+  if (typeof v !== "string") return []
+  // Un champ d'en-tête peut porter plusieurs adresses séparées par des
+  // virgules, y compris à l'intérieur d'une seule chaîne.
+  return v.split(",").map((part) => {
+    const m = part.match(/<([^>]+)>/)
+    const addr = (m ? m[1] : part).trim().toLowerCase()
+    return addr.includes("@") ? addr : ""
+  }).filter(Boolean)
+}
+
 function bareAddress(v: unknown): string | null {
   if (!v) return null
   if (Array.isArray(v)) return bareAddress(v[0])
@@ -97,7 +124,10 @@ export async function POST(req: NextRequest) {
   // we treat anything that isn't a known delivery event and carries from/to
   // as an inbound message.
   const fromAddr = bareAddress(data.from)
-  const toAddr = bareAddress(data.to)
+  // Toutes les adresses destinataires, la nôtre n'étant pas forcément la
+  // première — cf. l'avertissement sur `allAddresses`.
+  const toCandidates = [...allAddresses(data.to), ...allAddresses(data.cc)]
+  const toAddr = toCandidates[0] ?? null
   if (!fromAddr || !toAddr) {
     // Unknown event shape — acknowledge so Resend doesn't retry forever.
     return NextResponse.json({ ok: true, ignored: true })
@@ -126,10 +156,16 @@ export async function POST(req: NextRequest) {
   // rattacher à l'identique. Cette logique était dupliquée ici ; deux copies
   // finissent par diverger, et la divergence est muette — un message rattaché
   // au mauvais candidat ressemble à un message qui n'est jamais arrivé.
-  const routing = await resolveInboundRouting(admin, {
-    toAddress: toAddr,
-    fromAddress: fromAddr,
-  })
+  /* On essaie CHAQUE destinataire jusqu'à en trouver un qui soit une de nos
+   * adresses. Un message adressé à la fois au sourceur et à nous doit être
+   * rattaché par la nôtre, quelle que soit sa position dans l'en-tête. */
+  let routing = await resolveInboundRouting(admin, { toAddress: toAddr, fromAddress: fromAddr })
+  let matchedTo = toAddr
+  for (const addr of toCandidates.slice(1)) {
+    if (routing.userId && routing.organizationId) break
+    routing = await resolveInboundRouting(admin, { toAddress: addr, fromAddress: fromAddr })
+    matchedTo = addr
+  }
   if (!routing.userId || !routing.organizationId) {
     // Not one of our addresses — acknowledge and drop.
     return NextResponse.json({ ok: true, ignored: true })
@@ -147,7 +183,7 @@ export async function POST(req: NextRequest) {
     job_id: jobId,
     direction: "inbound",
     from_address: fromAddr,
-    to_address: toAddr,
+    to_address: matchedTo,
     subject,
     body_text: bodyText,
     body_html: bodyHtml,

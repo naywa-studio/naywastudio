@@ -175,15 +175,27 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         text: messageBody,
         bcc,
         headers: unsubHeaders,
-        /* Pas de `Reply-To` : le message part de SA boîte, les réponses y
-         * reviennent naturellement. En poser un vers Naywa créerait un
-         * désaccord de domaines entre `From` et `Reply-To` — motif classique
-         * d'hameçonnage pour les filtres — au moment même où ce chemin est
-         * censé améliorer la délivrabilité.
+        /* ── DEUX adresses de réponse, dans cet ordre ──────────────────
          *
-         * Contrepartie assumée : ces réponses n'alimentent pas le fil de
-         * conversation. À dire dans l'interface plutôt qu'à laisser
-         * découvrir. */
+         * La sienne d'abord, la nôtre ensuite. Le candidat clique
+         * « Répondre », sa messagerie remplit les deux : la réponse arrive
+         * chez le sourceur ET dans Naywa, donc le fil se remplit, Nora
+         * analyse, le pipeline avance.
+         *
+         * L'ORDRE n'est pas cosmétique. Un `Reply-To` entièrement hors du
+         * domaine du `From` est un motif classique d'hameçonnage pour les
+         * filtres ; en mettant la sienne en tête, le désaccord total —
+         * le vrai signal d'alerte — n'existe pas.
+         *
+         * La RFC 5322 définit bien `Reply-To` comme une LISTE : ce n'est pas
+         * un détournement. Et l'adresse est VISIBLE par le candidat, ce qui
+         * distingue ce choix d'une copie cachée : il voit à qui il écrit, et
+         * peut retirer la nôtre s'il ne la veut pas.
+         *
+         * ⚠️ Limite connue : quelques messageries anciennes ou mobiles ne
+         * gardent que la première adresse. On perd alors la copie — sans
+         * bruit. C'est le défaut résiduel de ce chemin. */
+        replyTo: `${mailbox.email}, ${inboxAddress}`,
       })
       if (!sent.ok) {
         // `needs_reconnect` remonte tel quel : c'est une consigne pour le

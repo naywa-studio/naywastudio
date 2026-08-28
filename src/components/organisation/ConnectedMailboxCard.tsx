@@ -56,7 +56,7 @@ const copy = {
     reconnectBody: "Google n'accepte plus notre accès — cela arrive après un changement de mot de passe ou une révocation. Vos envois passent par l'adresse de votre organisation en attendant.",
     reconnect: "Reconnecter",
     repliesTitle: "Où arrivent les réponses",
-    repliesBody: "Les candidats répondent directement dans votre boîte mail, comme pour n'importe quel message. Ces réponses n'apparaissent pas dans le fil de conversation de Naywa.",
+    repliesBody: "Les candidats répondent dans votre boîte mail, et une copie revient dans Naywa pour alimenter le fil de conversation. Vous restez dans la boucle des deux côtés.",
     notConfigured: "La connexion de boîte mail n'est pas encore disponible sur votre espace.",
     errors: {
       cancelled: "Connexion annulée.",
@@ -90,7 +90,7 @@ const copy = {
     reconnectBody: "Google no longer accepts our access — this happens after a password change or a revocation. Your sending falls back to your organisation's address in the meantime.",
     reconnect: "Reconnect",
     repliesTitle: "Where replies arrive",
-    repliesBody: "Candidates reply straight into your mailbox, like any other message. Those replies do not appear in the Naywa conversation thread.",
+    repliesBody: "Candidates reply into your mailbox, and a copy comes back to Naywa to fill the conversation thread. You stay in the loop on both sides.",
     notConfigured: "Mailbox connection is not available on your workspace yet.",
     errors: {
       cancelled: "Connection cancelled.",
