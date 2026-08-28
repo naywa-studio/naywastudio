@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { Candidate, OutreachMeta } from "@/lib/database.types"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useWorkspace } from "@/app/workspace/layout"
@@ -153,24 +153,54 @@ export default function ComposeBox({
 
   /* ── Quand le bouton « Envoyer » apparaît ───────────────────────────────
    *
-   * Seulement quand l'organisation peut RÉELLEMENT écrire depuis son domaine.
-   * Sans l'option, on garde le copier-coller vers Gmail : c'est ce que font
-   * les cabinets aujourd'hui, et le leur retirer serait une régression.
+   * Quand il existe RÉELLEMENT un moyen d'envoyer. Sans, on garde le
+   * copier-coller vers Gmail : c'est ce que font les cabinets aujourd'hui, et
+   * le leur retirer serait une régression. C'est aussi, très exactement, ce
+   * que l'add-on achète — passer du copier-coller à l'envoi depuis
+   * l'application.
    *
-   * C'est aussi, très exactement, ce que l'add-on achète — passer du
-   * copier-coller à l'envoi depuis l'application, sous sa propre marque.
+   * DEUX moyens, et il fallait les deux :
    *
-   * ⚠️ Ce bouton était absent de TOUTE l'interface : la route d'envoi
-   * existait sans aucun appelant depuis le commit qui a masqué l'UI mail.
-   * L'add-on reposait donc sur une action que le produit n'exposait plus. */
+   *   la BOÎTE CONNECTÉE du sourceur (OAuth), qui ne demande aucun DNS ;
+   *   le DOMAINE de l'organisation, pour qui n'a pas connecté de boîte.
+   *
+   * ⚠️ Ce bouton a manqué DEUX fois, pour la même raison. D'abord parce que
+   * la route d'envoi n'avait aucun appelant. Puis parce que cette condition
+   * ne testait que le domaine : un sourceur ayant connecté sa boîte voyait le
+   * transport fonctionner côté serveur et aucun bouton pour s'en servir.
+   * À chaque nouveau transport, revenir ICI. */
   const asAdmin = { isAdmin: profile?.is_admin === true }
-  const senderAddress = orgFromAddress(organization)
+  const orgAddress = orgFromAddress(organization)
+  const canSendFromDomain = canSendFromOrgDomain(organization, asAdmin) && !!orgAddress
+
+  /* La boîte connectée se lit au montage : elle est personnelle, donc absente
+   * du contexte d'organisation. Un échec est silencieux — on retombe alors
+   * sur le domaine, ou sur le copier-coller. */
+  const [mailbox, setMailbox] = useState<{ email: string } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/mailing/mailbox")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d?.ok) return
+        const active = (d.mailboxes ?? []).find(
+          (m: { status: string }) => m.status === "active",
+        )
+        if (active) setMailbox({ email: active.email })
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  // L'adresse réellement affichée : la boîte connectée passe devant, comme
+  // côté serveur. Les deux doivent dire la même chose, sinon le sourceur lit
+  // une adresse et le candidat en reçoit une autre.
+  const senderAddress = mailbox?.email ?? orgAddress
   const canSend =
     channel === "email" &&
     !isReadOnly &&
     !!candidate.email &&
-    canSendFromOrgDomain(organization, asAdmin) &&
-    !!senderAddress
+    (!!mailbox || canSendFromDomain)
 
   const send = async () => {
     if (!subject.trim()) { setError(t.needSubject); setConfirming(false); return }
