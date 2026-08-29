@@ -46,9 +46,26 @@ inbox, their contacts, their labels, or any message they did not send through
 our product.
 
 Replies from candidates are not read from the user's mailbox. Each message we
-send carries a Reply-To address belonging to our own platform, so replies
-reach us directly and are shown in the conversation thread of that candidate.
-This design was chosen specifically so that we never need read access.
+send carries **two** Reply-To addresses: the recruiter's own address, and an
+address on a domain we operate. A candidate who replies therefore answers the
+recruiter directly — the human relationship is never intermediated — while a
+copy also reaches our platform, where it is shown in that candidate's
+conversation thread. This is the reason we never need read access: we receive
+the reply on our own domain rather than looking for it in the user's inbox.
+Multiple addresses in Reply-To are permitted by RFC 5322, which defines the
+field as an address list.
+
+Every message also carries `List-Unsubscribe` and `List-Unsubscribe-Post`
+headers, so a candidate can opt out in one click from their mail client; the
+address is then suppressed and our platform refuses to write to it again.
+
+**The user always stays in control of what is sent**
+
+The recruiter writes the message, sees it in full, and sends it with an
+explicit click. Our product suggests wording, but never sends on the user's
+behalf and never sends on a schedule. There is no bulk campaign feature and no
+automatic follow-up sequence: one recruiter, one candidate, one message they
+chose to send.
 
 **Data handling**
 
