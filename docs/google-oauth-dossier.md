@@ -240,3 +240,36 @@ même résultat sans ouvrir cet accès — c'est la voie retenue.
 
 Une fois le TXT propagé : « Valider » dans Search Console, puis retour au centre
 de validation, qui devrait alors laisser soumettre le dossier (§1) et la vidéo.
+
+### Domaine vérifié — et pourtant toujours bloqué (29/08, fin de journée)
+
+`naywastudio.com` est **vérifié** dans Search Console (méthode « fournisseur de
+nom de domaine »). ⚠️ Ne pas supprimer le TXT : c'est lui qui maintient le
+statut. Au passage, une propriété `https://naywastudio.com/` existait déjà,
+vérifiée par un TXT antérieur — laisser les deux enregistrements cohabiter.
+
+**Toutes les conditions documentées par Google sont réunies** et vérifiées une
+à une : application en production, domaine vérifié **par un compte Owner** du
+projet (contrôlé dans IAM), branding complet (nom, logo, accueil,
+confidentialité, CGU, domaine autorisé), scopes déclarés.
+
+**Le bouton « Verify branding » n'est simplement pas rendu** — ni en français
+ni en anglais (`?hl=en`), avant comme après un enregistrement de la page
+Branding. « Prepare for verification » reste donc grisé. C'est un
+dysfonctionnement rapporté par plusieurs développeurs sur le forum Google
+(fils 381088, 389245, 390969, 393040), sans réponse officielle, et l'ancien
+formulaire de contact « OAuth verification » renvoie un 404.
+
+**Adresse d'assistance : Google ne laisse pas le choix.** Le menu ne propose
+que l'adresse du compte connecté et les Google Groups dont on est
+propriétaire. Mettre `elyas.malki@naywastudio.com` supposerait de créer un
+groupe, ou de donner un rôle IAM à ce compte — deux gestes qui reviennent à
+Elyas. En l'état l'écran de consentement affichera `elyas.malki1003@gmail.com`.
+
+**Modification faite pour tenter de déclencher l'évaluation** : l'URL d'accueil
+est passée de `https://naywastudio.com/` à `https://naywastudio.com` (sans la
+barre finale). Sans conséquence — même page, domaine autorisé inchangé — et le
+bouton n'est pas apparu pour autant.
+
+**À reprendre** : réessayer après quelques heures ; si le bouton reste absent,
+la seule voie est le forum Google Cloud (support Basic = pas de ticket).
