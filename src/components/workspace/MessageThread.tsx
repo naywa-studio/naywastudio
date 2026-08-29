@@ -26,6 +26,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { linkify, isSafeHref } from "@/lib/mailing/linkify"
 import { useWorkspace } from "@/app/workspace/layout"
 
 interface ThreadAttachment { filename: string; size: number; contentType: string }
@@ -64,6 +65,7 @@ const copy = {
     applyFailed: "Impossible de déplacer le candidat.",
     loadFailed: "Impossible de charger les échanges.",
     refresh: "Actualiser",
+    download: "Télécharger",
     attachmentsLabel: "Pièces jointes",
     sentiments: {
       interested: "Intéressé",
@@ -94,6 +96,7 @@ const copy = {
     applyFailed: "Could not move the candidate.",
     loadFailed: "Could not load the conversation.",
     refresh: "Refresh",
+    download: "Download",
     attachmentsLabel: "Attachments",
     sentiments: {
       interested: "Interested",
@@ -150,6 +153,19 @@ export default function MessageThread({
   // fléchée écrite dans le JSX change d'identité à chaque fois.
   const onCountRef = useRef(onCount)
   useEffect(() => { onCountRef.current = onCount }, [onCount])
+
+  /* Le chemin R2 n'est JAMAIS exposé au navigateur : on demande la pièce
+   * n° N d'un message, le serveur relit le chemin en base et signe une URL
+   * valable cinq minutes. */
+  const openAttachment = useCallback(async (messageId: string, index: number) => {
+    try {
+      const res = await fetch(`/api/mailing/attachment?message=${messageId}&index=${index}`)
+      const d = await res.json()
+      if (res.ok && d.url) window.open(d.url, "_blank", "noopener,noreferrer")
+    } catch {
+      // Silencieux : un échec de téléchargement ne doit pas casser le fil.
+    }
+  }, [])
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -246,16 +262,44 @@ export default function MessageThread({
 
                   {m.subject && <div style={S.subject}>{m.subject}</div>}
 
-                  {/* Texte brut, jamais de HTML : cf. l'en-tête de ce fichier. */}
-                  <p style={S.body}>{m.body_text}</p>
+                  {/* Toujours pas de HTML : on rend des SEGMENTS qu'on a
+                      produits nous-mêmes, jamais une chaîne interpolée. Le
+                      contenu vient d'un inconnu et s'affiche dans la session
+                      d'un sourceur connecté. */}
+                  <p style={S.body}>
+                    {linkify(m.body_text ?? "").map((seg, i) =>
+                      seg.kind === "link" && isSafeHref(seg.href) ? (
+                        <a
+                          key={i}
+                          href={seg.href}
+                          target="_blank"
+                          /* `noopener` empêche la page ouverte d'accéder à la
+                             nôtre par `window.opener` ; `noreferrer` évite de
+                             lui transmettre l'URL de la fiche. */
+                          rel="noopener noreferrer nofollow"
+                          style={S.link}
+                        >
+                          {seg.label}
+                        </a>
+                      ) : (
+                        <span key={i}>{seg.kind === "link" ? seg.label : seg.value}</span>
+                      ),
+                    )}
+                  </p>
 
                   {m.attachments.length > 0 && (
                     <div style={S.attachments}>
                       <span style={S.attachLabel}>{t.attachmentsLabel}</span>
                       {m.attachments.map((a, i) => (
-                        <span key={i} style={S.attachChip}>
+                        <button
+                          key={i}
+                          type="button"
+                          style={{ ...S.attachChip, cursor: "pointer", border: 0 }}
+                          onClick={() => openAttachment(m.id, i)}
+                          title={t.download}
+                        >
                           {a.filename} · {Math.max(1, Math.round(a.size / 1024))} Ko
-                        </span>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -351,6 +395,7 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase",
     color: "var(--nw-text-muted)", fontFamily: "var(--nw-font-mono)",
   },
+  link: { color: "var(--nw-primary)", textDecoration: "underline", wordBreak: "break-word" },
   attachChip: {
     fontSize: 11, padding: "2px 8px", borderRadius: 6,
     background: "var(--nw-bg)", border: "1px solid var(--nw-border)", color: "var(--nw-text-body)",

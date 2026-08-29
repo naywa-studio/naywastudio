@@ -31,6 +31,16 @@ type Row = Pick<MatchAssessment, "id" | "job_id" | "score" | "match_tier" | "pip
 const STAGES: { key: PipelineStage; color: string; bg: string }[] = [
   { key: "identified", color: "#8E86B8", bg: "rgba(124,99,200,0.04)" },
   { key: "contacted",  color: "#7C70C0", bg: "rgba(124,99,200,0.06)" },
+  /* ⚠️ « A répondu » DOIT avoir sa propre colonne.
+   *
+   * Elle était repliée sur « Contacté », et le libellé différait de celui du
+   * fil de conversation. Nora suggérait donc « A répondu », le sourceur
+   * cliquait « Déplacer ici », la carte restait affichée exactement au même
+   * endroit — et il en concluait que le bouton ne marchait pas.
+   *
+   * C'est aussi la distinction la plus utile du pipeline : « je l'ai
+   * contacté » et « il m'a répondu » ne demandent pas le même geste. */
+  { key: "replied",    color: "#6E5FBA", bg: "rgba(124,99,200,0.07)" },
   { key: "interview",  color: "#6151AE", bg: "rgba(124,99,200,0.08)" },
   { key: "offer",      color: "#5b4aa8", bg: "rgba(124,99,200,0.10)" },
   { key: "hired",      color: "#0F766E", bg: "rgba(15,118,110,0.06)" },
@@ -40,7 +50,7 @@ const STAGES: { key: PipelineStage; color: string; bg: string }[] = [
 const copy = {
   fr: {
     stageLabels: {
-      identified: "À contacter", contacted: "Contacté", replied: "Contacté",
+      identified: "À contacter", contacted: "Contacté", replied: "A répondu",
       interview: "Entretien", offer: "Présenté", hired: "Recruté", rejected: "Écarté",
     } as Record<PipelineStage, string>,
     loading: "Chargement du pipeline…",
@@ -56,7 +66,7 @@ const copy = {
   },
   en: {
     stageLabels: {
-      identified: "To contact", contacted: "Contacted", replied: "Contacted",
+      identified: "To contact", contacted: "Contacted", replied: "Replied",
       interview: "Interview", offer: "Presented", hired: "Recruited", rejected: "Dropped",
     } as Record<PipelineStage, string>,
     loading: "Loading pipeline…",
