@@ -324,3 +324,49 @@ configurable — il faut laisser passer la nuit, puis vérifier si le bouton
 
 **Si demain le checkup est vert et que le bouton reste absent**, alors seulement
 on saura que c'est le bug du forum, et non une condition manquante.
+
+---
+
+## Le blocage était une COLONNE MASQUÉE — 29/08, résolu
+
+Le bouton **« Vérifier le branding »** existe bel et bien. Il vit dans une
+colonne de droite « État de validation » sur la page Branding, et cette colonne
+**disparaît en fenêtre étroite**. Le panneau navigateur de la session fait
+800 px : la colonne n'y était jamais rendue. J'en ai conclu à un bug de Google,
+à tort — Elyas l'a vu du premier coup sur son écran large.
+
+**Leçon, plus large que ce dossier** : avant de conclure qu'une interface est
+cassée, vérifier la largeur de la fenêtre. Une console pleine de colonnes
+latérales cache ses actions les plus importantes au premier point de rupture.
+(Et les deux conditions du *Project Checkup* — facturation, second contact —
+n'étaient sans doute pas bloquantes du tout ; elles restent bonnes à avoir.)
+
+### Enchaînement, une fois la fenêtre élargie à 1600 px
+
+1. Branding → **Verify branding** → « Verification in progress… » (< 1 min)
+   → « Your branding has been verified » ⚠️ **le résultat expire en 7 jours**.
+2. → **Publish branding** → « verified and is being shown to users ».
+3. Verification Center → **Prepare for verification** n'est plus grisé.
+
+### Ce que demande le formulaire
+
+- **Justification par scope**, plafonnée à **1000 caractères** — la version
+  longue du §1 ne rentre pas. La version courte réellement saisie (937
+  caractères) est reproduite ci-dessous.
+- **Lien de la vidéo de démonstration : OBLIGATOIRE.** Sans lui, le bouton
+  *Save* de la page Data Access reste inactif. La question « faut-il vraiment
+  une vidéo ? » est donc tranchée : oui.
+- Champ « Additional info » libre (1000 caractères), facultatif.
+
+⚠️ **Le texte saisi n'est pas enregistré tant que le lien vidéo manque** : il
+faudra le recoller après la vidéo. D'où sa présence ici.
+
+⚠️ Avertissement de Google sur le tournage : ne pas déployer un scope non
+vérifié sur le trafic de production. Enregistrer depuis une **organisation de
+test** — ce que le script prévoyait déjà.
+
+### Justification courte, à recoller telle quelle (937 caractères)
+
+```
+Naywa Studio is a recruitment platform. A recruiter writes to one candidate about one open role, and the message is sent only when they click Send. Nothing is automated: no bulk campaigns, no scheduled follow-ups. We need gmail.send so the candidate receives the message from the recruiter's own professional address, the one they recognise and can reply to, with a copy in the recruiter's Sent folder. No narrower Gmail scope permits sending. gmail.compose is restricted and would also grant draft access we do not need. SMTP would require us to store the user's password, which is worse for them than a revocable grant. We request no read access at all: no gmail.readonly, gmail.modify or gmail.metadata. Replies are never read from the mailbox. Each message carries a second Reply-To on a domain we operate, so replies reach us there instead. We store only the encrypted refresh token and the connected address, never mailbox content.
+```
