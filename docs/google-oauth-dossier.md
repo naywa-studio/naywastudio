@@ -271,5 +271,34 @@ est passée de `https://naywastudio.com/` à `https://naywastudio.com` (sans la
 barre finale). Sans conséquence — même page, domaine autorisé inchangé — et le
 bouton n'est pas apparu pour autant.
 
-**À reprendre** : réessayer après quelques heures ; si le bouton reste absent,
-la seule voie est le forum Google Cloud (support Basic = pas de ticket).
+### Ce n'était PAS un bug — le « Project Checkup » (29/08, soir)
+
+La page **OAuth Overview** (`/auth/overview`) porte un encadré *Project
+Checkup* qu'on ne voit ni sur Branding ni au centre de validation. Il énumère
+les conditions réellement évaluées, et deux manquent, toutes deux sous
+**« Developer identity »** :
+
+1. **Billing account verification** — « Your app does not have an associated
+   Cloud billing account. » Aucun compte de facturation n'est rattaché
+   (vérifié : la page Billing est vide).
+2. **Project contacts** — « Your app does not have the right number of project
+   owners/editors. » Le projet n'a **qu'un seul** Owner. Google veut plusieurs
+   contacts ; sa documentation n'énonce pas de chiffre, mais la console
+   réclame au minimum un second.
+
+C'est très probablement ce qui retient le bouton « Verify branding » : Google
+n'évalue pas une marque sans identité développeur établie. **Leçon** : quand
+un écran refuse sans dire pourquoi, chercher la page qui ÉNUMÈRE les
+conditions plutôt que d'essayer de deviner le déclencheur — deux heures
+perdues à tâtonner sur Branding pendant que la réponse était à un onglet.
+
+**À faire, dans cet ordre, en retestant après chaque étape :**
+
+1. IAM → *Grant access* → `e53056801@gmail.com` (compte Google actif déjà
+   possédé, aucune création nécessaire) en **Owner**. ⚠️ Une adresse sans
+   compte Google est refusée — c'est pourquoi `elyas.malki@naywastudio.com`,
+   qui est une boîte Lark, ne passe pas.
+2. Billing → *Add billing account* (carte requise ; OAuth ne consomme rien de
+   payant).
+3. Branding → le bouton **Verify branding** devrait apparaître, puis
+   *Publish branding*, puis *Prepare for verification*.
