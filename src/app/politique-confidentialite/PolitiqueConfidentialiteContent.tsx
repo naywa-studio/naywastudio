@@ -43,7 +43,8 @@ const SECTIONS: Record<"fr" | "en", LegalSection[]> = {
         "Pour faire fonctionner le service, Naywa Studio s'appuie sur les prestataires suivants, tous engagés contractuellement à respecter le RGPD :",
         "**Supabase Inc.** *(Irlande / États-Unis)* :base de données, authentification, stockage des fichiers. Hébergement de la base sur eu-central-1.",
         "**Vercel Inc.** *(États-Unis)* :hébergement de l'application web. Région de déploiement : cdg1 (Paris).",
-        "**Resend Inc.** *(États-Unis)* :envoi et réception des emails outbound/inbound. Domaine : mail.naywastudio.com.",
+        "**Resend Inc.** *(États-Unis)* :envoi des emails de service (confirmation d'inscription, réinitialisation de mot de passe, contact, support). Domaine : mail.naywastudio.com.",
+        "**Amazon Web Services EMEA SARL** *(Luxembourg)* :envoi et réception des emails adressés aux candidats (service SES), en région **Europe (Irlande)**. Les messages entrants transitent par un stockage temporaire (service S3, même région) et sont supprimés dès leur traitement.",
         "**OpenRouter** *(États-Unis)* :passerelle d'accès aux modèles de langage (gpt-4o-mini pour parsing CV / scoring / messages, plugin file-parser pour OCR).",
         "**Cloudflare, Inc.** *(États-Unis)* :stockage des CVs et des documents anonymisés générés (service R2), en **jurisdiction Union européenne** — les fichiers sont stockés dans l'UE. Cloudflare étant une société américaine, la relation de sous-traitance reste encadrée par les clauses contractuelles types (SCC) et le Data Privacy Framework UE-USA.",
         "**Stripe, Inc.** *(États-Unis)* :traitement des paiements et de la facturation des abonnements. Aucune donnée bancaire ne transite ni n'est stockée chez Naywa Studio.",
@@ -51,6 +52,16 @@ const SECTIONS: Record<"fr" | "en", LegalSection[]> = {
         "**Localisation des données** :les données que vous confiez (base de données et fichiers CV) sont stockées dans l'**Union européenne** (Supabase Francfort, Cloudflare R2 jurisdiction UE). Certains sous-traitants sont des sociétés américaines qui traitent des données techniques (hébergement applicatif, emails, IA, paiement) ; ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (SCC) et/ou le Data Privacy Framework UE-USA.",
       ],
     },
+    {
+      title: "4 bis. Échanges avec les candidats",
+      content: [
+        "**Connexion de votre messagerie (Google / Microsoft)** :si vous choisissez de connecter votre boîte professionnelle, Naywa Studio obtient une autorisation limitée à **l'envoi de messages en votre nom**. Nous ne demandons, et ne recevons, **aucun droit de lecture** : ni vos messages reçus, ni vos contacts, ni vos libellés ne nous sont accessibles. Nous conservons uniquement le jeton d'autorisation, chiffré, et l'adresse connectée. Vous pouvez vous déconnecter à tout moment depuis Naywa Studio, ou révoquer l'accès depuis votre compte Google ou Microsoft. L'usage des données issues des API Google respecte la [Politique relative aux données utilisateur des services API Google](https://developers.google.com/terms/api-services-user-data-policy), y compris ses exigences d'utilisation limitée.",
+        "**Réponses des candidats** :les messages que vous envoyez portent une adresse de réponse hébergée par Naywa Studio, afin que l'échange apparaisse dans la fiche du candidat. Cette adresse est **visible** par le destinataire, qui peut choisir de ne répondre qu'à vous.",
+        "**Analyse automatisée des réponses** :chaque réponse reçue est soumise à un modèle de langage qui en propose un **sentiment**, un **résumé** et une **étape de suivi**. Ces éléments sont des **suggestions destinées au recruteur** : aucune décision concernant un candidat n'est prise automatiquement, aucun mouvement n'est appliqué sans action humaine explicite.",
+        "**Désinscription** :chaque message comporte un lien permettant au destinataire de demander à ne plus être contacté. Les adresses concernées, ainsi que celles ayant produit un échec de remise définitif, sont enregistrées et ne sont plus sollicitées.",
+      ],
+    },
+
     {
       title: "5. Durée de conservation",
       content: [
@@ -168,7 +179,8 @@ const SECTIONS: Record<"fr" | "en", LegalSection[]> = {
         "To run the service, Naywa Studio relies on the following providers, all contractually bound to comply with the GDPR:",
         "**Supabase Inc.** *(Ireland / United States)*: database, authentication, file storage. Database hosted on eu-central-1.",
         "**Vercel Inc.** *(United States)*: web application hosting. Deployment region: cdg1 (Paris).",
-        "**Resend Inc.** *(United States)*: sending and receiving outbound/inbound emails. Domain: mail.naywastudio.com.",
+        "**Resend Inc.** *(United States)*: sending service emails (sign-up confirmation, password reset, contact, support). Domain: mail.naywastudio.com.",
+        "**Amazon Web Services EMEA SARL** *(Luxembourg)*: sending and receiving candidate emails (SES service), in the **Europe (Ireland)** region. Incoming messages pass through temporary storage (S3, same region) and are deleted as soon as they are processed.",
         "**OpenRouter** *(United States)*: gateway to language models (gpt-4o-mini for CV parsing / scoring / messages, file-parser plugin for OCR).",
         "**Cloudflare, Inc.** *(United States)*: storage of CVs and generated anonymized documents (R2 service), in the **European Union jurisdiction** — files are stored within the EU. As Cloudflare is a U.S. company, the processing relationship remains governed by the Standard Contractual Clauses (SCC) and the EU-U.S. Data Privacy Framework.",
         "**Stripe, Inc.** *(United States)*: payment processing and subscription billing. No banking data ever passes through or is stored by Naywa Studio.",
@@ -176,6 +188,16 @@ const SECTIONS: Record<"fr" | "en", LegalSection[]> = {
         "**Data location**: the data you entrust to us (database and CV files) is stored within the **European Union** (Supabase Frankfurt, Cloudflare R2 EU jurisdiction). Some subprocessors are U.S. companies that handle technical data (application hosting, emails, AI, payment); these transfers are governed by the European Commission's Standard Contractual Clauses (SCC) and/or the EU-U.S. Data Privacy Framework.",
       ],
     },
+    {
+      title: "4 bis. Exchanges with candidates",
+      content: [
+        "**Connecting your mailbox (Google / Microsoft)**: if you choose to connect your professional mailbox, Naywa Studio receives an authorization limited to **sending messages on your behalf**. We neither request nor receive **any read access**: your incoming messages, your contacts and your labels remain inaccessible to us. We store only the authorization token, encrypted, and the connected address. You can disconnect at any time from Naywa Studio, or revoke access from your Google or Microsoft account. Naywa Studio's use of information received from Google APIs adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements.",
+        "**Candidate replies**: the messages you send carry a reply address hosted by Naywa Studio, so that the exchange appears in the candidate's record. That address is **visible** to the recipient, who may choose to reply to you only.",
+        "**Automated analysis of replies**: each reply received is passed to a language model that proposes a **sentiment**, a **summary** and a **follow-up stage**. These are **suggestions for the recruiter**: no decision about a candidate is taken automatically, and no move is applied without an explicit human action.",
+        "**Unsubscribe**: every message carries a link allowing the recipient to ask not to be contacted again. Those addresses, along with any that produced a permanent delivery failure, are recorded and no longer contacted.",
+      ],
+    },
+
     {
       title: "5. Retention period",
       content: [
