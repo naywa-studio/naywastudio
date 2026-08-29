@@ -181,3 +181,45 @@ including the Limited Use requirements.
 5. Déposer le dossier avec la justification (§1).
 6. Passer l'application **en production** dès la vérification obtenue, sinon
    les jetons expirent tous les 7 jours.
+
+---
+
+## Où en est le dossier — 29 août 2026
+
+Fait dans la console, dans cet ordre :
+
+- **Logo, page d'accueil, confidentialité, CGU, domaine autorisé** : déjà en
+  place sur l'écran Branding.
+- **Scopes déclarés** (ils ne l'étaient pas, et c'était le vrai blocage : Google
+  ne peut pas vérifier un scope qu'on ne lui a pas déclaré). `gmail.send`
+  apparaît bien dans **« champs d'application SENSIBLES »**, la colonne
+  « restreints » reste vide — confirmation par la console elle-même qu'il n'y a
+  **pas de CASA** à payer.
+- **Publication en production.** Effet immédiat, indépendant de la vérification :
+  les jetons de rafraîchissement **n'expirent plus au bout de 7 jours**. En
+  contrepartie l'écran « Google n'a pas validé cette application » s'affiche, et
+  le plafond de **100 utilisateurs** court tant que le scope n'est pas approuvé.
+
+### Ce qui bloque la soumission
+
+Le centre de validation répond : « Vous devez valider et publier votre branding
+avant de pouvoir demander la validation. » La condition manquante n'est pas dans
+la console Cloud mais dans **Google Search Console** : la propriété du domaine
+`naywastudio.com` n'y est pas vérifiée, or Google exige de prouver qu'on possède
+le domaine affiché sur l'écran de consentement.
+
+Propriété créée (type **Domaine**, donc DNS obligatoire). Enregistrement à
+publier chez Cloudflare, sur la racine :
+
+```
+Type : TXT
+Nom  : @   (naywastudio.com)
+Valeur : google-site-verification=9ACws-wu60rzGkAVLdJm7oKD0qR0MADV0dMpm2zUOlM
+```
+
+⚠️ Search Console propose aussi une validation **automatique via Cloudflare** :
+elle demande à autoriser Google à accéder au compte DNS. Le TXT manuel donne le
+même résultat sans ouvrir cet accès — c'est la voie retenue.
+
+Une fois le TXT propagé : « Valider » dans Search Console, puis retour au centre
+de validation, qui devrait alors laisser soumettre le dossier (§1) et la vidéo.
