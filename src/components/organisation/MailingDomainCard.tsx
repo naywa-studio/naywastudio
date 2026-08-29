@@ -53,6 +53,10 @@ interface DomainState {
   subdomain: string
   /** Partie locale de l'adresse d'expédition, avant le « @ ». */
   from_local: string
+  notice_enabled: boolean
+  notice_text: string | null
+  /** Ce qui est RÉELLEMENT joint aujourd'hui, calculé côté serveur. */
+  notice_effective: string | null
   sending_domain: string | null
   status: string | null
   verified_at: string | null
@@ -105,6 +109,16 @@ const copy = {
     delegateSent: (e: string) => `Configuration envoyée à ${e}`,
     delegateSentHint: "Le lien est valable 14 jours et ne donne accès à rien d'autre. Vous verrez ici quand le domaine sera vérifié.",
     delegateAgain: "Envoyer à quelqu'un d'autre",
+    noticeTitle: "Mention d'information aux candidats",
+    noticeBody: "Lorsque vous écrivez à quelqu'un dont vous avez obtenu le CV ailleurs — CVthèque, cooptation —, le RGPD vous impose de l'informer au plus tard lors de ce premier message. Naywa joint cette mention pour vous.",
+    noticeWhose: "C'est votre obligation, pas la nôtre : vous pouvez la reformuler ou la retirer.",
+    noticeEnabled: "Joindre la mention à mes messages",
+    noticeCustom: "Texte de la mention",
+    noticeCustomHint: "Laissez vide pour utiliser le texte proposé par Naywa.",
+    noticeSave: "Enregistrer",
+    noticeSaving: "Enregistrement…",
+    noticeSaved: "Mention mise à jour.",
+    noticeOff: "Aucune mention n'est jointe. Assurez-vous d'informer les candidats par un autre moyen.",
     stuckTitle: "Votre messagerie n'est ni Google ni Microsoft ?",
     stuckBody: "Écrivez-nous : nous regardons votre configuration avec vous et nous vous disons en une réponse si c'est possible.",
     stuckCta: "Nous écrire",
@@ -176,6 +190,16 @@ const copy = {
     delegateSent: (e: string) => `Configuration sent to ${e}`,
     delegateSentHint: "The link is valid for 14 days and grants nothing else. You will see here when the domain is verified.",
     delegateAgain: "Send to someone else",
+    noticeTitle: "Privacy notice to candidates",
+    noticeBody: "When you write to someone whose CV you obtained elsewhere — a CV database, a referral — the GDPR requires you to inform them at the latest in this first message. Naywa attaches that notice for you.",
+    noticeWhose: "This is your obligation, not ours: you can reword it or remove it.",
+    noticeEnabled: "Attach the notice to my messages",
+    noticeCustom: "Notice text",
+    noticeCustomHint: "Leave empty to use the wording Naywa proposes.",
+    noticeSave: "Save",
+    noticeSaving: "Saving…",
+    noticeSaved: "Notice updated.",
+    noticeOff: "No notice is attached. Make sure candidates are informed some other way.",
     stuckTitle: "Your mailbox is neither Google nor Microsoft?",
     stuckBody: "Write to us: we will look at your setup with you and tell you in one reply whether it can work.",
     stuckCta: "Contact us",
@@ -213,7 +237,7 @@ export default function MailingDomainCard() {
 
   const [state, setState] = useState<DomainState | null>(null)
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState<"declare" | "verify" | "delegate" | "zone" | "disconnect" | "from" | null>(null)
+  const [busy, setBusy] = useState<"declare" | "verify" | "delegate" | "zone" | "disconnect" | "from" | "notice" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -223,6 +247,10 @@ export default function MailingDomainCard() {
   const [fromLocal, setFromLocal] = useState("recrutement")
   /** Édition de l'adresse d'expédition depuis l'écran « domaine actif ». */
   const [editingFrom, setEditingFrom] = useState(false)
+  // Mention RGPD : deux réglages distincts. Le texte vide n'est PAS un retrait
+  // (c'est la case qui retire), il vaut « reprends le texte par défaut ».
+  const [noticeEnabled, setNoticeEnabled] = useState(true)
+  const [noticeText, setNoticeText] = useState("")
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [checks, setChecks] = useState<RecordCheck[]>([])
   const [host, setHost] = useState<DnsHost | null>(null)
@@ -299,6 +327,8 @@ export default function MailingDomainCard() {
         if (d.domain) setDomain(d.domain)
         if (d.subdomain) setSubdomain(d.subdomain)
         if (d.from_local) setFromLocal(d.from_local)
+        setNoticeEnabled(d.notice_enabled !== false)
+        setNoticeText(d.notice_text ?? "")
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -318,7 +348,14 @@ export default function MailingDomainCard() {
         setNeedsConfirm(true); return
       }
       if (!res.ok) { setError(d.message || t.genericError); return }
-      setState({
+      // Forme fonctionnelle : déclarer un domaine ne dit RIEN de la mention
+      // d'information, qui vit à part. La reconstruire à plat l'effacerait de
+      // l'écran jusqu'au prochain rechargement.
+      setState((s) => ({
+        ...s,
+        notice_enabled: s?.notice_enabled ?? true,
+        notice_text: s?.notice_text ?? null,
+        notice_effective: s?.notice_effective ?? null,
         domain: d.domain, subdomain: d.subdomain,
         from_local: d.from_local ?? fromLocal,
         sending_domain: d.sending_domain,
@@ -326,7 +363,7 @@ export default function MailingDomainCard() {
         // Une déclaration repart toujours du parcours manuel : c'est ensuite,
         // et seulement si le client le demande, qu'on héberge sa zone.
         path: null, nameservers: [],
-      })
+      }))
       setEditing(false); setNeedsConfirm(false)
     } catch {
       setError(t.genericError)
@@ -363,6 +400,39 @@ export default function MailingDomainCard() {
       setBusy(null)
     }
   }, [fromLocal, t.genericError, t.fromSaved])
+
+  /**
+   * La mention d'information, enregistrée seule.
+   *
+   * Elle ne vit pas avec le domaine : elle part sur TOUS les messages, y
+   * compris ceux d'un cabinet qui envoie encore depuis une boîte connectée ou
+   * depuis le domaine de Naywa. D'où un PATCH qui ne porte que ces deux
+   * champs — sauver la mention ne doit jamais toucher l'adresse d'expédition.
+   */
+  const saveNotice = useCallback(async () => {
+    setBusy("notice"); setError(null); setNotice(null)
+    try {
+      const res = await fetch("/api/mailing/domain", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notice_enabled: noticeEnabled, notice_text: noticeText }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setError(d.message || t.genericError); return }
+      setNoticeText(d.notice_text ?? "")
+      setState((s) => s ? {
+        ...s,
+        notice_enabled: d.notice_enabled,
+        notice_text: d.notice_text ?? null,
+        notice_effective: d.notice_effective ?? null,
+      } : s)
+      setNotice(t.noticeSaved)
+    } catch {
+      setError(t.genericError)
+    } finally {
+      setBusy(null)
+    }
+  }, [noticeEnabled, noticeText, t.genericError, t.noticeSaved])
 
   const verify = useCallback(async () => {
     setBusy("verify"); setError(null); setNotice(null)
@@ -818,6 +888,57 @@ export default function MailingDomainCard() {
         </div>
       ) : null}
 
+      {/* ── Mention d'information aux candidats ─────────────────────────────
+          Hors du parcours DNS à dessein : elle s'applique à tous les envois,
+          quel que soit le transport, y compris avant qu'un domaine existe.
+
+          Et elle se retire. L'article 14 pèse sur le CABINET, pas sur Naywa :
+          on rend la conformité facile, on ne l'impose pas dans le message de
+          quelqu'un d'autre. Un cabinet qui informe les candidats autrement —
+          page de collecte, mention dans sa signature — a le droit de la
+          décocher sans avoir à se justifier. */}
+      <div style={S.noticeBox}>
+        <strong style={{ fontSize: 13 }}>{t.noticeTitle}</strong>
+        <p style={{ ...S.hint, marginTop: 6 }}>{t.noticeBody}</p>
+        <p style={{ ...S.hint, marginTop: 4, fontStyle: "italic" }}>{t.noticeWhose}</p>
+
+        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 12, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={noticeEnabled}
+            onChange={(e) => setNoticeEnabled(e.target.checked)}
+            style={{ marginTop: 2 }}
+          />
+          <span style={{ fontSize: 13, color: "var(--nw-text)" }}>{t.noticeEnabled}</span>
+        </label>
+
+        {noticeEnabled ? (
+          <div style={{ marginTop: 12 }}>
+            <label style={S.label} htmlFor="mailing-notice-text">{t.noticeCustom}</label>
+            <textarea
+              id="mailing-notice-text"
+              style={{ ...S.input, minHeight: 84, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+              value={noticeText}
+              onChange={(e) => setNoticeText(e.target.value)}
+              placeholder={state?.notice_effective ?? ""}
+              spellCheck
+            />
+            <p style={S.hint}>{t.noticeCustomHint}</p>
+          </div>
+        ) : (
+          <p style={{ ...S.hint, marginTop: 10 }}>{t.noticeOff}</p>
+        )}
+
+        <button
+          type="button"
+          style={{ ...S.primaryBtn, marginTop: 12 }}
+          disabled={busy !== null}
+          onClick={saveNotice}
+        >
+          {busy === "notice" ? t.noticeSaving : t.noticeSave}
+        </button>
+      </div>
+
       {notice ? <p style={S.notice}>{notice}</p> : null}
       {error ? <p style={S.error}>{error}</p> : null}
     </section>
@@ -839,6 +960,10 @@ const S: Record<string, React.CSSProperties> = {
     width: "100%", padding: "9px 12px", fontSize: 14, marginBottom: 6,
     border: "1px solid var(--nw-border)", borderRadius: 9,
     background: "var(--nw-bg)", color: "var(--nw-text)",
+  },
+  noticeBox: {
+    marginTop: 22, paddingTop: 18,
+    borderTop: "1px solid var(--nw-border)",
   },
   inlineField: { display: "flex", alignItems: "center", gap: 8, marginBottom: 6 },
   inlineSuffix: { fontSize: 13, color: "var(--nw-text-muted)", fontFamily: "var(--font-mono, monospace)" },

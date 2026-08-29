@@ -33,6 +33,7 @@ import { checkRootDomain, cleanLocalPart, cleanSubdomain, explainRejection, isFo
 import { explainSesError, ensureReputationGroup, ensureEventDestination } from "@/lib/mailing/ses"
 import { switchOrgInboxAddresses } from "@/lib/mailing/inbox-address"
 import { deleteZone, explainRoute53Error } from "@/lib/mailing/dns-zone"
+import { noticeFor, type NoticeOrg } from "@/lib/mailing/legal-notice"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -90,6 +91,11 @@ function publicState(org: Record<string, unknown>) {
     domain: org.mailing_domain ?? null,
     subdomain: org.mailing_subdomain ?? DEFAULT_SUBDOMAIN,
     from_local: org.mailing_from_local ?? DEFAULT_FROM_LOCAL,
+    notice_enabled: org.mailing_notice_enabled !== false,
+    notice_text: org.mailing_notice_text ?? null,
+    /* Le texte réellement joint aujourd'hui, calculé côté serveur : l'écran
+     * doit montrer ce qui PART, pas reconstruire une approximation. */
+    notice_effective: noticeFor(org as NoticeOrg),
     sending_domain: org.mailing_sending_domain ?? null,
     status: org.mailing_status ?? null,
     verified_at: org.mailing_verified_at ?? null,
@@ -205,7 +211,38 @@ export async function PATCH(req: NextRequest) {
   if (!g.ok) return g.response
   const { admin, org } = g
 
-  const body = await req.json().catch(() => null) as { from_local?: unknown } | null
+  const body = await req.json().catch(() => null) as {
+    from_local?: unknown; notice_enabled?: unknown; notice_text?: unknown
+  } | null
+
+  /* ── La mention d'information, réglée séparément ───────────────────────
+   *
+   * Un PATCH qui ne porte QUE la mention est légitime : c'est un réglage
+   * distinct de l'adresse d'expédition, et exiger les deux ensemble
+   * obligerait l'écran à renvoyer une valeur qu'il ne modifie pas — donc à
+   * l'écraser un jour par accident. */
+  if (body && ("notice_enabled" in body || "notice_text" in body)) {
+    const patch: { mailing_notice_enabled?: boolean; mailing_notice_text?: string | null } = {}
+    if (typeof body.notice_enabled === "boolean") patch.mailing_notice_enabled = body.notice_enabled
+    if ("notice_text" in body) {
+      const txt = typeof body.notice_text === "string" ? body.notice_text.trim() : ""
+      // Chaîne vide → NULL, donc retour au texte par défaut. Stocker "" ferait
+      // disparaître la mention en silence, ce qui n'est pas la même décision
+      // que décocher — et le cabinet n'aurait aucun moyen de s'en apercevoir.
+      patch.mailing_notice_text = txt || null
+    }
+    const { error: noticeErr } = await admin.from("organizations").update(patch).eq("id", org.id)
+    if (noticeErr) {
+      console.error("[mailing/domain] mention non enregistrée:", noticeErr.message)
+      return NextResponse.json({ error: "store_failed", detail: "internal_error" }, { status: 500 })
+    }
+    if (!("from_local" in body)) {
+      const { data: fresh } = await admin
+        .from("organizations").select("*").eq("id", org.id).single()
+      return NextResponse.json({ ok: true, ...publicState(fresh ?? org) })
+    }
+  }
+
   const fromLocal = cleanLocalPart(typeof body?.from_local === "string" ? body.from_local : null)
   if (!fromLocal) {
     return NextResponse.json({

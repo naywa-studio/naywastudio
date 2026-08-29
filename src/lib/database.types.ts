@@ -333,6 +333,12 @@ export type Database = {
            *  NULL = `DEFAULT_FROM_LOCAL`. Sans conséquence DNS : modifiable à
            *  tout moment, domaine actif compris. */
           mailing_from_local: string | null
+          /** Joindre la mention d'information RGPD aux messages candidats.
+           *  ⚠️ Désactivable : l'obligation est celle du CABINET (article 14),
+           *  pas de Naywa. On aide, on n'impose pas. */
+          mailing_notice_enabled: boolean
+          /** Texte personnalisé. NULL = texte par défaut du produit. */
+          mailing_notice_text: string | null
           /** Dérivé : "careers.cabinet-durand.fr". Clé de correspondance avec
            *  le fournisseur d'envoi, et identifiant de l'org à la réception. */
           mailing_sending_domain: string | null

@@ -26,6 +26,7 @@ import { checkOrgDailySendCap } from "@/lib/mailing/send-cap"
 import { activeMailboxFor, sendFromMailbox } from "@/lib/mailing/send-via-mailbox"
 import { suppressionFor, explainSuppression } from "@/lib/mailing/suppression"
 import { unsubscribeHeaders } from "@/lib/mailing/unsubscribe"
+import { noticeFor, appendNotice } from "@/lib/mailing/legal-notice"
 import { getAppUrl } from "@/lib/stripe"
 
 export const runtime = "nodejs"
@@ -142,6 +143,18 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const inboxAddress = await ensureInboxAddress(admin, user.id, org, asAdmin)
   const from = fromHeader(profile?.first_name, inboxAddress)
   const bcc = profile?.inbox_cc_self ? (user.email ?? undefined) : undefined
+  /* ── La mention d'information ─────────────────────────────────────────
+   *
+   * Ajoutée ICI, une seule fois, avant le choix du transport. La poser dans
+   * chaque branche garantirait qu'on l'oublie dans la prochaine — et une
+   * mention absente ne se voit pas : le message part, il a l'air normal, et
+   * c'est le cabinet qui est en défaut sans le savoir.
+   *
+   * L'obligation est celle du cabinet (article 14 du RGPD, information due au
+   * plus tard lors de la PREMIÈRE communication). Il peut retirer la mention
+   * ou écrire la sienne — cf. `lib/mailing/legal-notice.ts`. */
+  const bodyToSend = appendNotice(messageBody, noticeFor(org))
+
   const unsubHeaders = profile?.organization_id
     ? unsubscribeHeaders(candidate.email, profile.organization_id, getAppUrl(req))
     : {}
@@ -172,7 +185,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         fromName: profile?.first_name,
         to: candidate.email,
         subject,
-        text: messageBody,
+        text: bodyToSend,
         bcc,
         headers: unsubHeaders,
         /* ── DEUX adresses de réponse, dans cet ordre ──────────────────
@@ -214,7 +227,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           replyTo: inboxAddress,
           to: candidate.email,
           subject,
-          text: messageBody,
+          text: bodyToSend,
           bcc,
           // Le bouton natif « Se désabonner » de Gmail et d'Outlook. Son
           // absence est l'un des signaux qui font traiter un expéditeur comme
@@ -235,7 +248,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         to: candidate.email,
         replyTo: inboxAddress,
         subject,
-        text: messageBody,
+        text: bodyToSend,
         bcc,
         // Le même en-tête que sur le chemin « domaine du cabinet ». L'oublier
         // ici priverait du bouton « Se désabonner » précisément les cabinets
@@ -254,7 +267,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       from_address: inboxAddress,
       to_address: candidate.email,
       subject,
-      body_text: messageBody,
+      body_text: bodyToSend,
       status: "failed",
       error: (err as Error).message,
     })
@@ -281,7 +294,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       from_address: inboxAddress,
       to_address: candidate.email,
       subject,
-      body_text: messageBody,
+      body_text: bodyToSend,
       provider_id: providerId,
       status: "sent",
     })
