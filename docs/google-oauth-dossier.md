@@ -302,3 +302,25 @@ perdues à tâtonner sur Branding pendant que la réponse était à un onglet.
    payant).
 3. Branding → le bouton **Verify branding** devrait apparaître, puis
    *Publish branding*, puis *Prepare for verification*.
+
+### Les deux conditions sont remplies — reste l'attente (29/08, soir)
+
+- **Facturation** : compte créé (essai gratuit, 263 € / 90 j) **puis rattaché
+  au projet**. ⚠️ Créer le compte ne suffit pas — le projet reste « not linked »
+  tant qu'on n'a pas fait Billing → *Link a billing account* → *Set account*.
+  C'est l'étape qu'on rate.
+- **Contacts** : `e53056801@gmail.com` ajouté en **Editor** (vérifié dans IAM,
+  aux côtés de l'Owner). Editor suffit — le checkup dit « owners/**editors** »,
+  inutile de donner les pleins pouvoirs à un second compte.
+- **Budget de sécurité** : « Alerte des le premier centime », 0 €, mensuel,
+  tous projets / tous services, alerte e-mail aux 3 seuils. Le projet ne
+  consomme rien de payant (OAuth et la vérification sont gratuits) ; le budget
+  n'est qu'une ceinture.
+
+**Le Project Checkup affiche toujours les deux avertissements** : il est
+recalculé par lots, pas au chargement de la page. Rien de plus n'est
+configurable — il faut laisser passer la nuit, puis vérifier si le bouton
+« Verify branding » apparaît.
+
+**Si demain le checkup est vert et que le bouton reste absent**, alors seulement
+on saura que c'est le bug du forum, et non une condition manquante.
