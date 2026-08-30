@@ -370,3 +370,43 @@ test** — ce que le script prévoyait déjà.
 ```
 Naywa Studio is a recruitment platform. A recruiter writes to one candidate about one open role, and the message is sent only when they click Send. Nothing is automated: no bulk campaigns, no scheduled follow-ups. We need gmail.send so the candidate receives the message from the recruiter's own professional address, the one they recognise and can reply to, with a copy in the recruiter's Sent folder. No narrower Gmail scope permits sending. gmail.compose is restricted and would also grant draft access we do not need. SMTP would require us to store the user's password, which is worse for them than a revocable grant. We request no read access at all: no gmail.readonly, gmail.modify or gmail.metadata. Replies are never read from the mailbox. Each message carries a second Reply-To on a domain we operate, so replies reach us there instead. We store only the encrypted refresh token and the connected address, never mailbox content.
 ```
+
+---
+
+## Révision du script vidéo — 29/08, après ouverture du formulaire
+
+Trois manques dans le §2, découverts en lisant ce que Google demande vraiment.
+
+### 1. L'écran « Google n'a pas validé cette application » — le MONTRER
+
+L'application est en production sans être vérifiée : cet écran s'affichera
+pendant le tournage. Ne pas le contourner ni le couper au montage — filmer le
+passage par *Advanced → Go to Naywa Studio*. Google sait qu'il apparaît (le
+formulaire l'annonce lui-même) ; une vidéo qui l'escamote donne l'impression
+qu'on cache une étape.
+
+### 2. Montrer le DOUBLE Reply-To — le plan qui vaut le plus
+
+La justification affirme qu'on ne lit jamais la boîte et que les réponses nous
+reviennent par notre propre domaine. **C'est démontrable à l'image** : ouvrir
+le message reçu côté candidat, afficher les en-têtes ou cliquer « Répondre »,
+et laisser voir les deux adresses — celle du sourceur et la nôtre.
+
+C'est l'argument central du dossier ; le laisser à l'état d'affirmation écrite
+serait dommage alors qu'une capture le prouve en dix secondes.
+
+### 3. Fournir un compte de test dans « Additional info »
+
+Le champ libre (1000 caractères) sert explicitement à ça : « test user
+credentials ». Un évaluateur qui peut essayer lui-même tranche plus vite qu'un
+évaluateur qui doit croire une vidéo. **Créer un compte de démonstration dédié**
+— jamais un compte client, jamais un compte personnel — avec une organisation
+de test contenant des candidats fictifs.
+
+### Rappels de calendrier
+
+- ⏳ **La vérification du branding expire 7 jours** après le clic. Passé ce
+  délai, recliquer « Vérifier le branding » (instantané) avant de soumettre.
+- ⚠️ Enregistrer depuis une **organisation de test**, jamais le trafic de
+  production : Google demande de ne pas exposer un scope non vérifié à de vrais
+  utilisateurs.
