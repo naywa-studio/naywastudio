@@ -612,7 +612,12 @@ function PipelineCard({
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pipeline_stage: stage }),
     })
-    if (!res.ok) { onLocalUpdate(row.id, { pipeline_stage: prev }); return }
+    if (!res.ok) {
+      // TEMPORAIRE (diagnostic bug pipeline) : log le détail de l'échec —
+      // ouvrir F12 > Console pour le voir.
+      console.error("[mission pipeline] stage change failed", stage, await res.json().catch(() => res.statusText))
+      onLocalUpdate(row.id, { pipeline_stage: prev }); return
+    }
     if (reasons !== undefined) void saveReasons(reasons)
   }
 

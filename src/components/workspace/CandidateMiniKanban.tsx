@@ -142,6 +142,9 @@ export default function CandidateMiniKanban({
       body: JSON.stringify({ pipeline_stage: stage, ...extra }),
     })
     if (!res.ok) {
+      // TEMPORAIRE (diagnostic bug pipeline) : log le détail de l'échec —
+      // ouvrir F12 > Console pour le voir.
+      console.error("[mini kanban] stage change failed", stage, await res.json().catch(() => res.statusText))
       const { data } = await sb
         .from("match_assessments")
         .select("id, job_id, score, match_tier, pipeline_stage, updated_at, job:jobs(id, title)")

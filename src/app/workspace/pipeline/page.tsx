@@ -250,7 +250,12 @@ export default function PipelinePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pipeline_stage: stage, ...extra }),
     })
-    if (!res.ok) load()
+    if (!res.ok) {
+      // TEMPORAIRE (diagnostic bug pipeline) : log le détail de l'échec
+      // dans la console navigateur — ouvrir F12 > Console pour le voir.
+      console.error("[pipeline] stage change failed", stage, await res.json().catch(() => res.statusText))
+      load()
+    }
   }
 
   const moveCard = async (rowId: string, stage: PipelineStage) => {

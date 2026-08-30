@@ -112,8 +112,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .single()
 
   if (updateErr) {
-    console.error("[match/stage] db update failed:", updateErr.message)
-    return NextResponse.json({ error: "db_update_failed", detail: "internal_error" }, { status: 500 })
+    console.error("[match/stage] db update failed:", stage, updateErr)
+    // TEMPORAIRE (diagnostic bug pipeline) : on renvoie le détail Postgres
+    // réel au lieu de "internal_error" pour identifier la contrainte qui
+    // bloque contacted/interview/offer. À remettre en "internal_error" une
+    // fois la cause corrigée.
+    return NextResponse.json(
+      { error: "db_update_failed", detail: updateErr.message, code: updateErr.code, hint: updateErr.hint },
+      { status: 500 },
+    )
   }
   return NextResponse.json({ ok: true, assessment: updated })
 }
