@@ -410,3 +410,10 @@ de test contenant des candidats fictifs.
 - ⚠️ Enregistrer depuis une **organisation de test**, jamais le trafic de
   production : Google demande de ne pas exposer un scope non vérifié à de vrais
   utilisateurs.
+
+### 🔴 À DÉFAIRE APRÈS LE TOURNAGE
+
+`SHOW_SENDING_DOMAIN_CARD = false` en tête de `src/app/organisation/page.tsx`
+masque la carte « Domaine d'envoi ». **Repasser à `true`** dès la vidéo
+enregistrée — sinon le parcours DNS devient inatteignable pour les cabinets
+qui n'ont ni Google ni Microsoft, et rien à l'écran ne le signalera.
