@@ -22,6 +22,10 @@
     {
       "path": "/api/cron/migrate-cv-to-r2",
       "schedule": "0 4 * * 0"
+    },
+    {
+      "path": "/api/cron/wipe-expired-candidates",
+      "schedule": "15 3 * * *"
     }
   ],
   "headers": [

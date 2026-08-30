@@ -609,6 +609,18 @@ export type Database = {
           created_at: string
           updated_at: string
           consulted_at: string | null
+          /** Déclaratif (posé par le sourceur) : accord obtenu pour garder ce
+           *  profil en vivier au-delà d'un process. Voir migration 098. */
+          talent_pool_consent: boolean
+          talent_pool_consent_at: string | null
+          talent_pool_consent_by: string | null
+          /** Dérivé de match_assessments.contacted_at par trigger — lecture
+           *  seule côté app, ne jamais l'écrire directement. */
+          last_contact_at: string | null
+          /** Date de purge RGPD automatique (cron wipe-expired-candidates).
+           *  NULL = jamais purgé auto. Recalculée par trigger, lecture seule
+           *  côté app. */
+          retention_until: string | null
         }
         Insert: {
           id?: string
@@ -652,6 +664,13 @@ export type Database = {
           created_at?: string
           updated_at?: string
           consulted_at?: string | null
+          talent_pool_consent?: boolean
+          talent_pool_consent_at?: string | null
+          talent_pool_consent_by?: string | null
+          /** Ne pas écrire directement — dérivé par trigger (migration 098). */
+          last_contact_at?: string | null
+          /** Ne pas écrire directement — recalculée par trigger (migration 098). */
+          retention_until?: string | null
         }
         Update: Partial<Database['public']['Tables']['candidates']['Insert']>
         Relationships: []
