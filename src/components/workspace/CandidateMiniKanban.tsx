@@ -31,16 +31,16 @@ type Row = Pick<MatchAssessment, "id" | "job_id" | "score" | "match_tier" | "pip
 const STAGES: { key: PipelineStage; color: string; bg: string }[] = [
   { key: "identified", color: "#8E86B8", bg: "rgba(124,99,200,0.04)" },
   { key: "contacted",  color: "#7C70C0", bg: "rgba(124,99,200,0.06)" },
-  /* ⚠️ « A répondu » DOIT avoir sa propre colonne.
+  /* ⚠️ PAS de colonne « A répondu » ici.
    *
-   * Elle était repliée sur « Contacté », et le libellé différait de celui du
-   * fil de conversation. Nora suggérait donc « A répondu », le sourceur
-   * cliquait « Déplacer ici », la carte restait affichée exactement au même
-   * endroit — et il en concluait que le bouton ne marchait pas.
+   * Elle avait été ajoutée à ce seul kanban — ni le pipeline global ni celui
+   * de la mission ne l'ont —, et `displayStage` la repliait malgré tout sur
+   * « Contacté » : la colonne restait donc toujours VIDE. Une colonne que
+   * l'utilisateur voit et qui ne se remplit jamais est pire que son absence.
    *
-   * C'est aussi la distinction la plus utile du pipeline : « je l'ai
-   * contacté » et « il m'a répondu » ne demandent pas le même geste. */
-  { key: "replied",    color: "#6E5FBA", bg: "rgba(124,99,200,0.07)" },
+   * La distinction « contacté » / « a répondu » reste juste sur le fond, et le
+   * stade existe toujours en base. Elle reviendra quand les trois kanbans
+   * l'auront ensemble, avec ce que Nora en recommande. */
   { key: "interview",  color: "#6151AE", bg: "rgba(124,99,200,0.08)" },
   { key: "offer",      color: "#5b4aa8", bg: "rgba(124,99,200,0.10)" },
   { key: "hired",      color: "#0F766E", bg: "rgba(15,118,110,0.06)" },

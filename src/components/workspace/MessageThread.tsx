@@ -324,7 +324,14 @@ export default function MessageThread({
 
                     {/* La suggestion reste une suggestion : un mouvement
                         automatique se piloterait depuis une boîte mail. */}
-                    {m.ai_suggested_stage && matchId && !isReadOnly && (
+                    {/* ⚠️ « A répondu » n'est plus une colonne (cf.
+                        CandidateMiniKanban). Proposer d'y déplacer quelqu'un
+                        rangerait la carte dans « Contacté », là où elle est
+                        déjà : le sourceur en conclurait que le bouton est
+                        cassé. On masque la suggestion plutôt que d'offrir un
+                        geste sans effet visible. « Entretien » et « Écarté »,
+                        eux, déplacent vraiment. */}
+                    {m.ai_suggested_stage && m.ai_suggested_stage !== "replied" && matchId && !isReadOnly && (
                       appliedOn === m.id ? (
                         <span style={S.appliedNote}>{t.applied}</span>
                       ) : (
