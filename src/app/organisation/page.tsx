@@ -31,6 +31,17 @@ import { orgUsesPricing, orgUsesClients } from "@/lib/org-type"
 import { PricingOnboardingWizard } from "@/components/organisation/PricingOnboardingWizard"
 import PricingPolicyForm from "@/components/organisation/PricingPolicyForm"
 import MailingDomainCard from "@/components/organisation/MailingDomainCard"
+
+/**
+ * ⚠️ INTERRUPTEUR TEMPORAIRE — remettre à `true` après le tournage de la vidéo
+ * de vérification Google.
+ *
+ * Masque la carte « Domaine d'envoi » pour que la vidéo ne montre qu'un seul
+ * chemin de mise en route. Une ligne à rebasculer, volontairement isolée ici
+ * plutôt que noyée dans le JSX : un réglage qu'on doit défaire se range là où
+ * on le retrouve.
+ */
+const SHOW_SENDING_DOMAIN_CARD = false
 import ConnectedMailboxCard from "@/components/organisation/ConnectedMailboxCard"
 import { mailingVisible } from "@/lib/mailing/rollout"
 import { BrandColorPicker } from "@/components/organisation/BrandColorPicker"
@@ -804,7 +815,15 @@ export default function CabinetPage() {
                   celui qu'on veut voir en premier. Le domaine reste offert
                   en dessous, pour qui n'a ni Google ni Microsoft. */}
               <ConnectedMailboxCard />
-              {caps.canBranding && <MailingDomainCard />}
+              {/* ⚠️ TEMPORAIRE — À REMETTRE À `true` APRÈS LE TOURNAGE.
+                  La carte du domaine d'envoi est masquée le temps de la vidéo
+                  de vérification Google : celle-ci doit montrer UN parcours,
+                  la connexion de boîte, et une seconde mise en route à l'écran
+                  brouille la démonstration.
+                  Sans conséquence pour qui que ce soit — cet onglet n'est
+                  visible que des admins Naywa et des organisations en accès
+                  anticipé (cf. lib/mailing/rollout.ts). */}
+              {SHOW_SENDING_DOMAIN_CARD && caps.canBranding && <MailingDomainCard />}
             </>
           )}
 
