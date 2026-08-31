@@ -1,9 +1,14 @@
 /**
  * Envoyer par la boîte connectée d'un sourceur, jeton compris.
  *
- * Ce fichier fait le lien entre la ligne en base (jeton chiffré) et l'API
- * Gmail : déchiffrer, rafraîchir, envoyer, et surtout **marquer la boîte
- * quand elle cesse de fonctionner**.
+ * Ce fichier fait le lien entre la ligne en base (jeton chiffré) et l'API du
+ * fournisseur — Gmail ou Microsoft Graph : déchiffrer, rafraîchir, envoyer, et
+ * surtout **marquer la boîte quand elle cesse de fonctionner**.
+ *
+ * ⚠️ **Microsoft fait tourner son jeton durable** : chaque rafraîchissement en
+ * renvoie un nouveau et périme l'ancien. Le ré-enregistrer n'est pas une
+ * optimisation, c'est la condition pour que la boîte fonctionne encore la
+ * semaine prochaine. Cf. `oauth-microsoft.ts`.
  *
  * ── Le défaut le plus probable de tout le connecteur ─────────────────────
  *
@@ -22,7 +27,10 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "../database.types"
 import { decryptToken } from "./token-crypto"
 import { refreshGoogleAccessToken } from "./oauth-google"
+import { refreshMicrosoftAccessToken } from "./oauth-microsoft"
 import { sendViaGmail, type GmailMessage } from "./gmail-send"
+import { sendViaGraph } from "./graph-send"
+import { encryptToken } from "./token-crypto"
 
 export interface MailboxRow {
   id: string
@@ -100,16 +108,46 @@ export async function sendFromMailbox(
     }
   }
 
-  const accessToken = await refreshGoogleAccessToken(refresh)
+  const provider = mailbox.provider === "microsoft" ? "Microsoft" : "Google"
+  let accessToken: string | null
+
+  if (mailbox.provider === "microsoft") {
+    const refreshed = await refreshMicrosoftAccessToken(refresh)
+    accessToken = refreshed?.accessToken ?? null
+
+    /* Le nouveau jeton durable, ré-enregistré AVANT l'envoi.
+     *
+     * Avant, parce que l'ancien est déjà mort à cet instant : si l'envoi
+     * échouait et qu'on sortait sans écrire, la boîte serait définitivement
+     * inutilisable alors que le rafraîchissement, lui, avait réussi.
+     *
+     * Best-effort : rater cette écriture coûte une reconnexion, la refuser
+     * coûterait un message non parti. */
+    if (refreshed && refreshed.refreshToken !== refresh) {
+      const encrypted = encryptToken(refreshed.refreshToken)
+      if (encrypted) {
+        await admin
+          .from("connected_mailboxes")
+          .update({ refresh_token_encrypted: encrypted })
+          .eq("id", mailbox.id)
+          .then(undefined, () => {})
+      }
+    }
+  } else {
+    accessToken = await refreshGoogleAccessToken(refresh)
+  }
+
   if (!accessToken) {
-    await markNeedsReconnect(admin, mailbox.id, "Google a refusé le jeton (révocation ou mot de passe changé).")
+    await markNeedsReconnect(admin, mailbox.id, `${provider} a refusé le jeton (révocation ou mot de passe changé).`)
     return {
       ok: false, reason: "needs_reconnect",
-      message: "Google a révoqué l'accès à votre boîte mail. Reconnectez-la pour continuer à écrire.",
+      message: `${provider} a révoqué l'accès à votre boîte mail. Reconnectez-la pour continuer à écrire.`,
     }
   }
 
-  const sent = await sendViaGmail(accessToken, { ...message, fromEmail: mailbox.email })
+  const sent = mailbox.provider === "microsoft"
+    ? await sendViaGraph(accessToken, { ...message, fromEmail: mailbox.email })
+    : await sendViaGmail(accessToken, { ...message, fromEmail: mailbox.email })
 
   if (sent.ok) {
     // Best-effort : sert à montrer « dernière utilisation » dans l'écran, pas
