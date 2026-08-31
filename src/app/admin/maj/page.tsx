@@ -33,7 +33,7 @@ const CATEGORIES: Record<Lang, { value: AppUpdateCategory; label: string; color:
     { value: "fix",       label: "Correctif", color: "#0369A1" },
     { value: "important", label: "Important", color: "var(--nw-warn)" },
     { value: "announce",  label: "Annonce",   color: "var(--nw-primary)" },
-    { value: "announce",  label: "Archive",   color: "var(--nw-primary)" },
+   
     
   ],
   en: [
@@ -41,7 +41,7 @@ const CATEGORIES: Record<Lang, { value: AppUpdateCategory; label: string; color:
     { value: "fix",       label: "Fix",         color: "#0369A1" },
     { value: "important", label: "Important",   color: "var(--nw-warn)" },
     { value: "announce",  label: "Announcement", color: "var(--nw-primary)" },
-    { value: "announce",  label: "Archive",   color: "var(--nw-primary)" },
+    
   ],
 }
 
@@ -292,7 +292,7 @@ const filteredRows = rows.filter((row) => {
   </button>
 
   {categories.map((cat) => {
-    const count = rows.filter((r) => r.category === cat.value).length
+    const count = rows.filter((r) => r.category === cat.value && !r.archived_at).length
 
     return (
       <button
@@ -399,6 +399,16 @@ const filteredRows = rows.filter((row) => {
                       }}>
                         {isDraft ? t.draft : t.published}
                       </span>
+                      {row.archived_at && (
+                        <span style={{
+                           fontSize: 10, fontWeight: 700, color: "var(--nw-text-muted)",
+                            background: "var(--nw-neutral-100)",
+                            padding: "2px 7px", borderRadius: 100,
+                            letterSpacing: "0.05em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+                             }}>
+                               Archived
+                               </span>
+                               )}
                     </div>
                     <p style={{
                       margin: 0, fontSize: 14, fontWeight: 700, color: "var(--nw-text)",
