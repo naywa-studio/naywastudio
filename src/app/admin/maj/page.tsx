@@ -144,6 +144,7 @@ export default function AdminMajPage() {
   const categories = CATEGORIES[lang]
   const [rows, setRows] = useState<Row[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [showArchived, setShowArchived] = useState(false)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Row | "new" | null>(null)
 
@@ -185,10 +186,19 @@ export default function AdminMajPage() {
   void fetchAll()
 }
 
-  const filteredRows =
-    selectedCategory === "Tutorial"
-        ? rows
-        : rows.filter(r => r.category === selectedCategory)
+ const filteredRows = rows.filter((row) => {
+  const isArchived = !!row.archived_at
+  if (showArchived) {
+    return isArchived
+  }
+  if (isArchived) {
+    return false
+  }
+  if (selectedCategory === "all") {
+    return true
+  }
+  return row.category === selectedCategory
+})
       
 
   return (
@@ -242,7 +252,10 @@ export default function AdminMajPage() {
 >
   <button
     type="button"
-    onClick={() => setSelectedCategory("all")}
+    onClick={() => { 
+      setSelectedCategory("all") 
+      setShowArchived(false)
+}}
     style={{
       padding: "8px 14px",
       borderRadius: 999,
@@ -298,6 +311,28 @@ export default function AdminMajPage() {
       </button>
     )
   })}
+  <button
+  type="button"
+  onClick={() => setShowArchived(true)}
+  style={{
+    padding: "8px 14px",
+    borderRadius: 999,
+    border: showArchived
+      ? "1px solid var(--nw-primary)"
+      : "1px solid var(--nw-border)",
+    background: showArchived
+      ? "var(--nw-primary)"
+      : "white",
+    color: showArchived
+      ? "white"
+      : "var(--nw-text-body)",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontFamily: "inherit",
+  }}
+>
+  Archivées ({rows.filter((r) => !!r.archived_at).length})
+</button>
 </div>
 
         {loading ? (
@@ -367,12 +402,11 @@ export default function AdminMajPage() {
                     <button type="button" onClick={() => void togglePublish(row)} style={smallBtnGhost}>
                       {isDraft ? t.publish : t.unpublish}
                     </button>
-                    <button type="button" onClick={() => void archive(row)} style={smallBtnGhost}>
-                      {t.archive}
-                    </button>
-                    <button type="button" onClick={() => void archive(row)} style={smallBtnGhost}>
-                      {t.archive}
-                      </button>
+                    {row.category === "feature" && !row.archived_at && (
+                      <button type="button" onClick={() => void archive(row)} style={smallBtnGhost}>
+                        {t.archive}
+                        </button>
+                      )}
                     <button type="button" onClick={() => void remove(row)} style={{ ...smallBtnGhost, color: "var(--nw-danger-strong)" }}>
                       {t.delete}
                     </button>
