@@ -427,7 +427,7 @@ function CandidatesParsedCard({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 8,
           marginBottom: 10,
           color: "var(--nw-primary)",
         }}
@@ -460,6 +460,17 @@ function CandidatesParsedCard({
         }}
       >
         {display}
+      </p>
+
+      <p
+        style={{
+          margin: "12px 0 0",
+          fontSize: 11.5,
+          color: "var(--nw-text-muted)",
+          lineHeight: 1.5,
+        }}
+      >
+        {labels.hint}
       </p>
 
       <button
@@ -541,16 +552,7 @@ function CandidatesParsedCard({
   </m.div>
 )}
 
-      <p
-        style={{
-          margin: "12px 0 0",
-          fontSize: 11.5,
-          color: "var(--nw-text-muted)",
-          lineHeight: 1.5,
-        }}
-      >
-        {labels.hint}
-      </p>
+      
     </m.div>
   )
 }
