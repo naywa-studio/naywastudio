@@ -41,8 +41,9 @@ await admin
   .update({
     archived_at: new Date().toISOString(),
   })
+  .eq("category", "feature")
   .is("archived_at", null)
-    .lt("created_at", archiveCutoff)
+  .lt("created_at", archiveCutoff)
  
   // On lit les updates via le client RLS (filtre auto les non-publiées).
   const { data: updates, error } = await sb
