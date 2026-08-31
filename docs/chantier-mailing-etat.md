@@ -11,6 +11,48 @@ garde-fou de lancement ci-dessous.
 
 ---
 
+## ÉTAT AU 31 AOÛT 2026 — les deux verrous d'ouverture sont levés
+
+**Prix LIVE créé.** Produit *Naywa — Mailing candidats*, **9,99 € HT/mois**,
+récurrent, taxes exclues, clé de recherche `mailing_addon`. C'était la seconde
+des deux conditions d'ouverture ; l'accès production SES était la première.
+**`MAILING_LAUNCHED` reste pourtant à `false`** — cf. « ce qui manque encore ».
+
+**Dossier Google soumis** (`docs/google-oauth-dossier.md`) : *under review*.
+`gmail.send` est classé **sensible**, pas restreint — confirmé par la console
+elle-même : **pas de CASA**. L'application est passée **en production**, donc
+les jetons de rafraîchissement n'expirent plus au bout de 7 jours.
+
+**Étude Microsoft** (`docs/etude-connecteur-microsoft.md`) : l'obstacle n'est
+pas le consentement administrateur — c'est la **vérification d'éditeur**, qui
+est gratuite mais demande un tenant Entra et un compte partenaire vérifié.
+
+### Décisions produit prises depuis
+
+- **Le parcours DNS manuel est abandonné.** La carte « Domaine d'envoi » est
+  masquée (`SHOW_SENDING_DOMAIN_CARD = false`) et **ne sera pas remise** :
+  l'intention est de la remplacer par **Domain Connect**, qui publie les
+  enregistrements chez l'hébergeur en un clic. ⚠️ **Conséquence à ne pas
+  perdre de vue : tant que Domain Connect n'existe pas, un cabinet qui n'a ni
+  Google ni Microsoft n'a AUCUN chemin.** Sans effet aujourd'hui puisque le
+  Mailing est fermé, mais **bloquant avant l'ouverture commerciale**.
+- **Mention d'information RGPD** : jointe par défaut, éditable et
+  **désactivable** par le cabinet (migration 097). L'obligation de l'article 14
+  pèse sur lui, pas sur nous : on aide, on n'impose pas. Elle suit désormais la
+  langue du sourceur.
+
+### Ce qui manque encore avant d'ouvrir
+
+1. **Domain Connect** — sans lui, un tiers du marché n'a pas de chemin.
+2. **Réponse de Google** — sans elle, plafond de 100 utilisateurs et écran
+   « application non validée » à chaque connexion.
+3. **Connecteur Microsoft** + vérification d'éditeur.
+4. Remettre la mention légale à l'écran : elle vit dans la carte masquée, donc
+   **plus personne ne peut l'éditer** aujourd'hui. À déplacer quand la section
+   sera refondue autour de Domain Connect.
+
+---
+
 ## ⚠️ ACCÈS PRODUCTION SES ACCORDÉ — 2026-08-26
 
 AWS a **accordé** l'accès production sur le dossier `178726352900266`, à la
