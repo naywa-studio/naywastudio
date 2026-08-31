@@ -1,11 +1,22 @@
 # Accord de traitement de données (DPA)
 
-**Version 1.1 — applicable au 20 juin 2026**
+**Version 1.2 — applicable au 31 août 2026**
 
-*Cette version 1.1 ajoute la section 9 « Rôle administrateur Naywa »
-qui décrit explicitement les accès dont dispose l'équipe Naywa Studio
-pour assurer le support technique du service. Elle ne modifie aucune
-des garanties précédentes.*
+*Cette version 1.2 : (1) ajoute Cloudflare (stockage des CV, section 6)
+et Amazon Web Services / SES (envoi et réception des messages
+candidats, section 6), absents de la version précédente bien que déjà
+en production ; (2) précise que les données candidats ne servent
+jamais à entraîner un modèle d'IA ni à constituer une base commune
+entre clients (section 2) ; (3) documente le mécanisme de rétention
+automatique par candidat (section 5) ; (4) met à jour la section 10 —
+l'export, la suppression, l'anonymisation et le retrait du vivier d'un
+candidat sont désormais en libre-service dans la plateforme, ce
+n'était jusqu'ici qu'annoncé « en développement ». Aucune garantie
+antérieure n'est retirée.*
+
+*La version 1.1 avait ajouté la section 9 « Rôle administrateur Naywa »,
+qui décrit les accès dont dispose l'équipe Naywa Studio pour le support
+technique du service.*
 
 Ce document constitue l'accord de traitement de données (Data Processing
 Agreement, ci-après « DPA ») prévu à l'article 28 du Règlement (UE)
@@ -41,6 +52,24 @@ strictement nécessaires à l'exécution du service :
   demande, suivi du pipeline candidat
 - calcul de chiffrages selon la convention Syntec (lorsque le Client
   souscrit à Sourcing Pro)
+- envoi et réception des messages échangés avec les candidats
+  (fonctionnalité optionnelle « Mailing »), avec une aide à l'analyse
+  des réponses par un modèle d'intelligence artificielle : cette
+  analyse ne produit que des SUGGESTIONS présentées au Client, aucune
+  décision concernant un candidat (retenu, écarté, recontacté) n'est
+  prise automatiquement — voir aussi l'article 22 RGPD, hors du champ
+  duquel ce traitement se situe pour cette raison
+- gestion de la durée de conservation par candidat et suppression ou
+  anonymisation automatique en fin de rétention (voir section 5)
+
+**Naywa ne réutilise jamais les données candidats du Client pour
+entraîner ses propres modèles d'intelligence artificielle, constituer
+une base de profils commune à plusieurs clients, ou sourcer
+automatiquement pour le compte d'un autre client.** Chaque organisation
+cliente est strictement cloisonnée (voir section 8, isolation
+multi-tenant) ; les modèles d'IA utilisés sont des services tiers
+appelés à la demande (voir section 6, OpenRouter), jamais ré-entraînés
+sur les données transmises.
 
 ## 3. Catégories de données traitées
 
@@ -67,10 +96,31 @@ opèrent la plateforme au quotidien.
 
 ## 5. Durée du traitement
 
-Les données sont conservées pour la durée d'exécution du contrat
-d'abonnement. À la résiliation, Naywa supprime les données dans un
-délai de **30 jours**, sauf demande contraire écrite du Client
-(export, prolongation pour finalisation d'un dossier en cours).
+**Au niveau du contrat.** Les données sont conservées pour la durée
+d'exécution du contrat d'abonnement. À la résiliation, Naywa supprime
+les données dans un délai de **30 jours**, sauf demande contraire
+écrite du Client (export, prolongation pour finalisation d'un dossier
+en cours).
+
+**Au niveau de chaque candidat**, indépendamment de la durée du
+contrat, la plateforme applique une rétention automatique :
+
+- **180 jours** à compter du dernier contact avec le candidat (ou de
+  son import si jamais contacté), par défaut ;
+- **2 ans** à compter du dernier contact si le Client a déclaré avoir
+  obtenu l'accord du candidat pour une conservation en vivier au-delà
+  du process de recrutement en cours (case « Conserver en vivier » sur
+  la fiche du candidat — déclaratif, la plateforme ne collecte pas
+  elle-même ce consentement auprès du candidat) ;
+- un contact ultérieur avec le candidat repousse d'autant cette
+  échéance ; un candidat toujours suivi activement ne s'éteint donc
+  jamais faute d'action du Client.
+
+Un traitement automatisé quotidien supprime le CV et les données
+identifiantes de tout candidat dont l'échéance est dépassée, sans
+action requise du Client. Le Client reste libre, à tout moment, de
+supprimer ou d'anonymiser un candidat par avance, ou de retirer son
+consentement à la conservation prolongée (voir section 10).
 
 ## 6. Sous-traitants ultérieurs (article 28.2 RGPD)
 
@@ -79,11 +129,14 @@ suivants pour l'exécution du service :
 
 | Sous-traitant | Service rendu | Hébergement |
 |---|---|---|
-| **Supabase (Supabase Inc.)** | Base de données PostgreSQL, authentification, stockage objet | Union européenne (Francfort) |
+| **Supabase (Supabase Inc.)** | Base de données PostgreSQL, authentification | Union européenne (Francfort) |
+| **Cloudflare (Cloudflare, Inc.)** | Stockage des fichiers CV et des documents anonymisés générés (service R2) | Union européenne — bucket à restriction de juridiction UE |
 | **Vercel (Vercel Inc.)** | Hébergement de l'application web et des fonctions serverless | Union européenne (Paris, région cdg1) |
 | **OpenRouter (OpenRouter Inc.)** | Acheminement vers les modèles d'IA (parsing CV, scoring, anonymisation textuelle) | États-Unis (avec engagement contractuel de non-rétention) |
 | **Stripe (Stripe Payments Europe Ltd.)** | Traitement des paiements et facturation | Union européenne (Irlande) |
-| **Resend (Resend Inc.)** | Acheminement des e-mails transactionnels | Union européenne |
+| **Resend (Resend Inc.)** | Envoi des e-mails de service (inscription, mot de passe, contact, support) — ne traite pas les messages échangés avec les candidats | Union européenne |
+| **Amazon Web Services EMEA SARL** | Envoi et réception des messages échangés avec les candidats (fonctionnalité optionnelle « Mailing », service SES). Les messages entrants transitent par un stockage temporaire (service S3) supprimé dès leur traitement | Union européenne (Irlande) |
+| **Sentry (Functional Software, Inc.)** | Suivi des erreurs applicatives — peut incidemment capter des fragments de données techniques (identifiants, messages d'erreur), jamais le contenu d'un CV | États-Unis (avec engagement contractuel de non-rétention) |
 
 Naywa informe le Client de tout changement de sous-traitant ultérieur
 avec un préavis raisonnable. Le Client peut s'y opposer pour motif
@@ -96,10 +149,12 @@ de leurs propres DPA (disponibles publiquement sur leurs sites).
 
 ## 7. Transferts hors Union européenne
 
-Pour OpenRouter, le transfert vers les États-Unis est encadré par les
-clauses contractuelles types (CCT) adoptées par la Commission européenne
-le 4 juin 2021 (décision 2021/914). Aucune autre donnée personnelle
-n'est transférée hors UE.
+Pour OpenRouter et Sentry, seuls sous-traitants situés hors UE, le
+transfert vers les États-Unis est encadré par les clauses
+contractuelles types (CCT) adoptées par la Commission européenne le 4
+juin 2021 (décision 2021/914). Aucune autre donnée personnelle n'est
+transférée hors UE — Supabase, Cloudflare, Vercel, Stripe et AWS SES
+hébergent et traitent exclusivement en Union européenne.
 
 ## 8. Mesures de sécurité (article 32 RGPD)
 
@@ -175,14 +230,36 @@ Naywa assiste le Client, dans la mesure du raisonnable, pour répondre
 aux demandes d'exercice des droits prévus aux articles 15 à 22 RGPD
 (accès, rectification, effacement, limitation, portabilité, opposition).
 
-- **Suppression d'un candidat** : un seul clic dans la plateforme suffit
-  à supprimer définitivement le CV et toutes ses dérivées (PDF
-  anonymisé, fiches pricing, etc.)
-- **Export du vivier** : export complet sur demande à
-  contact@naywastudio.com pendant que la fonctionnalité self-service
-  est en cours de développement (mise à disposition prévue en 2026)
-- **Délai de réponse** : Naywa s'engage à répondre aux demandes
-  d'assistance du Client dans un délai maximum de 7 jours ouvrés
+Sur la fiche de chaque candidat, le Client dispose en libre-service,
+sans délai ni intervention de Naywa, de :
+
+- **l'export des données** : télécharge un fichier contenant
+  l'intégralité de ce que la plateforme détient sur ce candidat (droit
+  d'accès, article 15)
+- **la suppression définitive** : supprime le CV et toutes ses dérivées
+  (PDF anonymisé, fiches pricing, etc.) — irréversible
+- **l'anonymisation** : vide les données identifiantes (nom, e-mail,
+  téléphone, CV) tout en conservant la fiche à des fins statistiques
+  agrégées, non ré-identifiantes (droit d'effacement partiel, article
+  17)
+- **le retrait du consentement de conservation en vivier**, qui
+  ramène la date de suppression automatique à l'échéance courte par
+  défaut (voir section 5)
+- **la consultation de l'historique** des actions RGPD effectuées sur
+  ce candidat (qui, quand, quelle action)
+
+Chacune de ces actions est journalisée de manière inaltérable et
+subsiste même après suppression du candidat, à des fins de preuve de
+conformité.
+
+**Export complet du vivier** : accessible au propriétaire du compte
+depuis les paramètres de l'organisation, en un clic, à tout moment
+(sans délai d'attente).
+
+**Délai de réponse** : pour toute demande que ces outils en
+libre-service ne couvriraient pas, Naywa s'engage à répondre aux
+demandes d'assistance du Client dans un délai maximum de 7 jours
+ouvrés.
 
 ## 11. Notification de violation (article 33 RGPD)
 
