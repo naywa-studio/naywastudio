@@ -27,7 +27,7 @@ export async function GET() {
   const admin = getAdminSupabase()
   const { data, error } = await admin
     .from("app_updates")
-    .select("id, title, body, category, published_at, author_user_id, affected_paths, created_at, updated_at")
+    .select("id, title, body, category, published_at, author_user_id, affected_paths, created_at, archived_at, updated_at")
     .order("created_at", { ascending: false })
   if (error) {
     console.error("[admin/maj] list error:", error.message)

@@ -21,6 +21,7 @@ interface Row {
   body: string
   category: AppUpdateCategory
   published_at: string | null
+  archived_at: string | null
   affected_paths: string[] | null
   created_at: string
   updated_at: string
@@ -32,6 +33,7 @@ const CATEGORIES: Record<Lang, { value: AppUpdateCategory; label: string; color:
     { value: "fix",       label: "Correctif", color: "#0369A1" },
     { value: "important", label: "Important", color: "var(--nw-warn)" },
     { value: "announce",  label: "Annonce",   color: "var(--nw-primary)" },
+    
   ],
   en: [
     { value: "feature",   label: "Feature",     color: "var(--nw-success)" },
@@ -54,6 +56,7 @@ const copy = {
     edit: "Éditer",
     publish: "Publier",
     unpublish: "Dépublier",
+    archive: "Archiver",
     delete: "Supprimer",
     deleteConfirm: (title: string) => `Supprimer définitivement "${title}" ?`,
     errorWithStatus: (status: number) => `Erreur ${status}`,
@@ -98,6 +101,7 @@ const copy = {
     edit: "Edit",
     publish: "Publish",
     unpublish: "Unpublish",
+    archive:"Archive",
     delete: "Delete",
     deleteConfirm: (title: string) => `Permanently delete "${title}"?`,
     errorWithStatus: (status: number) => `Error ${status}`,
@@ -171,10 +175,21 @@ export default function AdminMajPage() {
     void fetchAll()
   }
 
+  const archive = async (row: Row) => {
+  await fetch(`/api/admin/maj/${row.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ archive: true }),
+  })
+
+  void fetchAll()
+}
+
   const filteredRows =
-    selectedCategory === "all"
+    selectedCategory === "Tutorial"
         ? rows
         : rows.filter(r => r.category === selectedCategory)
+      
 
   return (
     <LazyMotion features={domAnimation}>
@@ -352,6 +367,12 @@ export default function AdminMajPage() {
                     <button type="button" onClick={() => void togglePublish(row)} style={smallBtnGhost}>
                       {isDraft ? t.publish : t.unpublish}
                     </button>
+                    <button type="button" onClick={() => void archive(row)} style={smallBtnGhost}>
+                      {t.archive}
+                    </button>
+                    <button type="button" onClick={() => void archive(row)} style={smallBtnGhost}>
+                      {t.archive}
+                      </button>
                     <button type="button" onClick={() => void remove(row)} style={{ ...smallBtnGhost, color: "var(--nw-danger-strong)" }}>
                       {t.delete}
                     </button>

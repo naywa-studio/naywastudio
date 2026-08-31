@@ -825,6 +825,7 @@ export type Database = {
           /** NULL = brouillon. <= now() = visible. > now() = planifié. */
           published_at: string | null
           author_user_id: string | null
+          archived_at: string | null
           /** Zones de l'app concernées (paths exact-match) :
            *  ['/workspace/vivier', '/organisation']. Utilisé pour
            *  afficher une pastille violette par item de menu sidebar.

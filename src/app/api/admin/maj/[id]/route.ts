@@ -26,6 +26,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const gate = await requireAdmin()
   if (!gate.ok) return gate.response
   const { id } = await ctx.params
+  const admin = getAdminSupabase()
 
   const body = await req.json().catch(() => null) as {
     title?: unknown
@@ -33,6 +34,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     category?: unknown
     publish?: unknown
     unpublish?: unknown
+    archive?: unknown
     affected_paths?: unknown
   } | null
   if (!body) return NextResponse.json({ error: "invalid_body" }, { status: 400 })
@@ -44,6 +46,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (typeof body.category === "string" && VALID_CATEGORIES.includes(body.category as AppUpdateCategory)) {
     patch.category = body.category as AppUpdateCategory
   }
+  if (body.archive === true) {
+  const { error } = await admin
+    .from("app_updates")
+    .update({
+      archived_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+
+  if (error) throw error
+
+  return NextResponse.json({ ok: true })
+}
   if (body.publish === true) patch.published_at = new Date().toISOString()
   if (body.unpublish === true) patch.published_at = null
   // affected_paths : on accepte un array même vide (= reset à tous).
@@ -55,7 +69,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: "nothing_to_update" }, { status: 400 })
   }
 
-  const admin = getAdminSupabase()
+  
   const { error } = await admin.from("app_updates").update(patch).eq("id", id)
   if (error) {
     console.error("[admin/maj] update error:", error.message)
@@ -94,3 +108,4 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
 
   return NextResponse.json({ ok: true })
 }
+

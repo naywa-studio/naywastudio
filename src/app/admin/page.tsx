@@ -429,7 +429,7 @@ function CandidatesParsedCard({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 8,
           marginBottom: 10,
           color: "var(--nw-primary)",
         }}
