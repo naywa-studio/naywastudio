@@ -272,7 +272,8 @@ return (
       border: "1 px solid var(--nw--border--soft)",
       borderRadius: 14,
       minWidth: 0,
-      minHeight: 150,
+      height: expanded ? "auto" : 150,
+      boxSizing: "border-box",
       alignSelf: "start",
     }}
   > 
@@ -417,7 +418,8 @@ function CandidatesParsedCard({
         border: "1px solid var(--nw-border-soft)",
         borderRadius: 14,
         minWidth: 0,
-        minHeight: 150,
+        height: expanded ? "auto" : 150,
+        boxSizing: "border-box",
         alignSelf: "start",
         display: "flex",
         flexDirection: "column",
@@ -427,7 +429,7 @@ function CandidatesParsedCard({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
+          gap: 10,
           marginBottom: 10,
           color: "var(--nw-primary)",
         }}
@@ -663,7 +665,8 @@ function KpiCard({
           borderRadius: 14,
           gridColumn: wide ? "span 2" : undefined,
           minWidth: 0,
-          minHeight: 150,
+          height: 150,
+          boxSizing: "border-box",
           alignSelf: "start",
           display: "flex",
           flexDirection: "column",
