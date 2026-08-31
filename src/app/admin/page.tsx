@@ -389,7 +389,7 @@ function CandidatesParsedCard({
   delay?: number
 }) {
   const { lang } = useLanguage()
-
+  const [expanded, setExpanded] = useState(false)
   const display =
     value === undefined
       ? "—"
@@ -417,7 +417,8 @@ function CandidatesParsedCard({
         border: "1px solid var(--nw-border-soft)",
         borderRadius: 14,
         minWidth: 0,
-        minHeight: 220,
+        minHeight: 150,
+        alignSelf: "start",
         display: "flex",
         flexDirection: "column",
       }}
@@ -461,49 +462,84 @@ function CandidatesParsedCard({
         {display}
       </p>
 
-      <div style={{ flex: 1, minHeight: 90, marginTop: 12 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data ?? []}>
-            <defs>
-              <linearGradient
-                id="candidateFill"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop
-                  offset="5%"
-                  stopColor="var(--nw-primary)"
-                  stopOpacity={0.35}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--nw-primary)"
-                  stopOpacity={0}
-                />
-              </linearGradient>
-            </defs>
+      <button
+       type="button"
+       onClick={() => setExpanded(!expanded)}
+       style={{
+        marginTop: 16,
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: "transparent",
+        border: "none",
+        color: "var(--nw-primary)",
+        cursor: "pointer",
+        fontSize: 12,
+        fontWeight: 600,
+        padding: 0,
+        }}
+>
+  {lang === "fr" ? "Évolution mensuelle" : "Monthly trend"}
+  <span>{expanded ? "▲" : "▼"}</span>
+</button>
 
-            <XAxis
-              dataKey="month"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 11 }}
-            />
+{expanded && (
+  <m.div
+    initial={{ opacity: 0, height: 0 }}
+    animate={{ opacity: 1, height: "auto" }}
+    transition={{ duration: 0.25 }}
+    style={{
+      overflow: "hidden",
+      marginTop: 14,
+      paddingTop: 14,
+      borderTop: "1px solid var(--nw-border-soft)",
+    }}
+  >
+    <div style={{ width: "100%", height: 110 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data ?? []}>
+          <defs>
+            <linearGradient
+              id="candidateFill"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop
+                offset="5%"
+                stopColor="var(--nw-primary)"
+                stopOpacity={0.35}
+              />
+              <stop
+                offset="95%"
+                stopColor="var(--nw-primary)"
+                stopOpacity={0}
+              />
+            </linearGradient>
+          </defs>
 
-            <Tooltip cursor={false} />
+          <XAxis
+            dataKey="month"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 11 }}
+          />
 
-            <Area
-              type="monotone"
-              dataKey="count"
-              stroke="var(--nw-primary)"
-              strokeWidth={3}
-              fill="url(#candidateFill)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
+          <Tooltip cursor={false} />
+
+          <Area
+            type="monotone"
+            dataKey="count"
+            stroke="var(--nw-primary)"
+            strokeWidth={3}
+            fill="url(#candidateFill)"
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  </m.div>
+)}
 
       <p
         style={{
