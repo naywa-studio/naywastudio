@@ -417,3 +417,52 @@ de test contenant des candidats fictifs.
 masque la carte « Domaine d'envoi ». **Repasser à `true`** dès la vidéo
 enregistrée — sinon le parcours DNS devient inatteignable pour les cabinets
 qui n'ont ni Google ni Microsoft, et rien à l'écran ne le signalera.
+
+---
+
+## ✅ DOSSIER SOUMIS — 31/08/2026
+
+État : **« Your app's data access is under review. »**
+
+Contenu déposé :
+
+- **Scopes** : `gmail.send` (sensible), `userinfo.email`, `openid`. Aucun
+  restreint — donc **pas de CASA**.
+- **Justification** : la version courte de 937 caractères (le champ plafonne à
+  1000, la version longue du §1 ne rentre pas).
+- **Vidéo** : https://www.youtube.com/watch?v=zQS9IIGHCxw (non répertoriée,
+  1 min 47). Accessibilité vérifiée depuis un contexte sans les cookies
+  d'Elyas — c'est ce que verra l'évaluateur.
+- **Additional info** (813 car.) : explique que les écrans de Google et Gmail
+  apparaissent en français (machine française), que le contenu du CV est
+  français parce que nos utilisateurs le sont, et que l'adresse destinataire
+  est un alias de la boîte du développeur — aucune donnée d'un tiers.
+- **Questionnaire** : non aux quatre questions (usage personnel / interne /
+  développement / plugin WordPress), plus les deux déclarations d'usage.
+
+⚠️ **Une erreur évitée de justesse** : le premier jet d'« Additional info »
+citait un timecode (« At 1:20 the message headers are shown ») que je ne
+pouvais pas vérifier — je ne visionne pas les vidéos. Un évaluateur qui va à
+cette seconde et n'y trouve rien perd confiance dans tout le reste. C'est
+exactement ce qui avait fait refuser le dossier AWS : décrire ce qu'on n'a
+pas vérifié. Remplacé par « near the end of the video », puis par une
+formulation sans repère temporel.
+
+### Ce que la vidéo montre (vérifié sur captures, pas sur parole)
+
+- l'URL de consentement avec le `client_id` lisible — motif de refus n°1 évité ;
+- l'écran de non-validation, que Google exige explicitement de montrer ;
+- **« Send email on your behalf »**, seul scope, coché ;
+- l'envoi depuis l'interface, avec la phrase « Nothing is sent without this
+  click » visible à l'écran — le contrôle humain, prouvé par le produit ;
+- les en-têtes du message reçu, avec les deux `Reply-To`.
+
+### Délai et suite
+
+Réponse annoncée sous 3-5 jours ouvrés, en pratique une à trois semaines, par
+mail à `elyas.malki@naywastudio.com` (surveiller les indésirables). En
+attendant, l'application reste en production : jetons durables, connecteur
+fonctionnel, plafond de 100 utilisateurs sans effet à ce stade.
+
+**Ne pas changer l'état de publication ni le type d'utilisateur pendant
+l'examen** — Google prévient que cela retarde le traitement.
