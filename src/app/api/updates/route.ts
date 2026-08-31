@@ -1,7 +1,7 @@
 /**
  * GET /api/updates
  *
- * Renvoie la liste des nouveautés publiées (published_at <= now()),
+ * Renvoie la liste des nouveautés publiées (published_at <= now()) et ne sont pas des archives,
  * triées du plus récent au plus ancien, avec pour chaque update un
  * booléen `is_read` calculé pour le user courant.
  *
@@ -31,10 +31,25 @@ export async function GET() {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 })
 
+    const admin = getAdminSupabase()
+    const archiveCutoff = new Date(
+      Date.now() - 60 * 24 * 60 * 60 * 1000
+    ).toISOString()
+
+await admin
+  .from("app_updates")
+  .update({
+    archived_at: new Date().toISOString(),
+  })
+  .is("archived_at", null)
+    .lt("created_at", archiveCutoff)
+ 
   // On lit les updates via le client RLS (filtre auto les non-publiées).
   const { data: updates, error } = await sb
     .from("app_updates")
     .select("id, title, body, category, published_at, affected_paths")
+    .lte("published_at", new Date().toISOString())
+    .is("archived_at", null)
     .order("published_at", { ascending: false })
 
   if (error) {
@@ -50,7 +65,7 @@ export async function GET() {
   // Via admin client (les reads RLS sont déjà restreintes au user
   // mais on veut juste un set d'IDs lus, et l'admin client est plus
   // direct ici).
-  const admin = getAdminSupabase()
+ 
   const updateIds = updates.map((u) => u.id)
   const { data: reads } = await admin
     .from("app_updates_reads")

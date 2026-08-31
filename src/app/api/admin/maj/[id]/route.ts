@@ -35,6 +35,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     publish?: unknown
     unpublish?: unknown
     archive?: unknown
+    unarchive?: unknown
     affected_paths?: unknown
   } | null
   if (!body) return NextResponse.json({ error: "invalid_body" }, { status: 400 })
@@ -55,6 +56,21 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     .eq("id", id)
 
   if (error) throw error
+
+  return NextResponse.json({ ok: true })
+}
+if (body.unarchive === true) {
+  const { error } = await admin
+    .from("app_updates")
+    .update({
+      archived_at: null,
+    })
+    .eq("id", id)
+
+  if (error) {
+    console.error("[admin/maj] unarchive error:", error.message)
+    return NextResponse.json({ error: "db_error" }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }
