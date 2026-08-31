@@ -152,3 +152,79 @@ le navigateur intégré et le dépôt.
 - [Publisher verification overview](https://learn.microsoft.com/en-us/entra/identity-platform/publisher-verification-overview)
 - [MC1304287 — secure-by-default changes for Exchange APIs](https://mc.merill.net/message/MC1304287)
 - [Configure user consent / risk-based step-up consent](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/user-admin-consent-overview)
+
+---
+
+## 7. À quel taux le connecteur marchera-t-il réellement ? — 01/09/2026
+
+Question posée par Elyas. Réponse en séparant ce qui est **vérifié** dans la
+documentation de ce qui est **estimé** — les deux ne se raisonnent pas
+pareil, et mélanger les deux produit un chiffre faussement rassurant.
+
+### Vérifié : le défaut Entra est PERMISSIF
+
+*« By default, all users are allowed to consent to applications for
+permissions that don't require administrator consent. For example, by default,
+a user can consent to allow an app to access their mailbox. »*
+
+C'est décisif, et c'est meilleur que ce que je craignais : **`Mail.Send`
+délégué n'exige pas le consentement d'un administrateur**, et le réglage par
+défaut d'un tenant (`microsoft-user-default-legacy`) laisse l'utilisateur
+consentir seul.
+
+**Le seul verrou par défaut est donc la vérification d'éditeur** — le
+consentement gradué au risque, qui bloque les applications multi-tenant non
+vérifiées. Une fois le badge obtenu, un tenant resté au réglage d'usine laisse
+le sourceur se connecter tout seul.
+
+### Vérifié aussi : ce qui casse chez les tenants durcis
+
+Microsoft **recommande** le réglage `microsoft-user-default-low` — « seulement
+les éditeurs vérifiés, et seulement les permissions classées à faible
+impact ». Or la classification « faible impact » par défaut ne contient que
+`User.Read`, `openid`, `profile`, `email` et `offline_access`. **`Mail.Send`
+n'y est pas.** Chez ces tenants, même vérifiés, il faudra un administrateur —
+sauf s'il classe `Mail.Send` en faible impact, ce qu'il ne fera pas.
+
+### Estimé : la répartition
+
+Aucune source fiable ne donne ces parts pour les cabinets de recrutement
+français. Ce sont des ordres de grandeur, à corriger dès qu'on aura dix
+clients réels — c'est-à-dire à ne pas traiter comme des mesures.
+
+| | Estimation | Effet |
+|---|---|---|
+| Cabinets sous Microsoft 365 | 55-70 % | concernés par ce connecteur |
+| Cabinets sous Google Workspace | 20-30 % | déjà couverts |
+| Autres (OVH, Infomaniak, Gandi, Zoho, Lark…) | 10-20 % | **aucun connecteur possible** |
+| Parmi les tenants Microsoft : réglage d'usine | 70-85 % | connexion en autonomie |
+| Parmi les tenants Microsoft : durcis | 15-30 % | administrateur requis |
+
+### Le chiffre
+
+- **Connecteur Microsoft, une fois l'éditeur vérifié : ~75 % des cabinets sous
+  Microsoft se connectent seuls.** Les autres y arrivent, mais en passant par
+  leur informaticien.
+- **Google + Microsoft ensemble : ~85 % des cabinets** ont un chemin sans DNS.
+- **Les 15 % restants n'ont AUCUN chemin** tant que Domain Connect n'existe
+  pas. C'est le vrai enseignement de ce calcul : le connecteur Microsoft fait
+  passer la couverture de 25 % à 85 %, mais **c'est Domain Connect qui décide
+  du dernier sixième**, et lui seul.
+
+### Ce qui déplace le chiffre, et qui dépend de nous
+
+Le taux n'est pas subi. Trois gestes le remontent :
+
+1. **Le lien de consentement administrateur.** Microsoft expose
+   `/adminconsent?client_id=…` : un sourceur bloqué peut envoyer ce lien à son
+   informaticien, qui approuve une fois pour tout le cabinet. Sans ce lien,
+   l'écran dit « ça n'a pas marché » ; avec, il dit « envoyez ceci à votre
+   informaticien ». **Le même refus devient un parcours.** À construire dans
+   l'écran de connexion — c'est le meilleur rapport effort/effet de tout ce
+   chantier.
+2. **Détecter l'erreur `AADSTS65001` / `AADSTS900971`** au retour et afficher
+   ce lien plutôt qu'un message générique.
+3. **Un consentement administrateur vaut pour toute l'organisation** : chez un
+   cabinet de six sourceurs, un seul geste d'informaticien débloque tout le
+   monde. La friction est par CABINET, pas par personne — ce qui la rend
+   beaucoup plus acceptable qu'il n'y paraît.
