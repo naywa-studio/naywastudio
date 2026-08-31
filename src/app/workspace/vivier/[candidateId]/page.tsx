@@ -10,6 +10,7 @@ import { customTagsOf, SYSTEM_TAGS } from "@/lib/tags"
 import { candidateRefLabel } from "@/lib/candidate-ref"
 import TagPicker from "@/components/workspace/TagPicker"
 import CandidateCvEditor from "@/components/workspace/CandidateCvEditor"
+import CandidateRgpdPanel from "@/components/workspace/CandidateRgpdPanel"
 import { DetailSkeleton } from "@/components/workspace/PageSkeletons"
 import { showUndoToast } from "@/components/ui/UndoToast"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
@@ -803,6 +804,15 @@ export default function CandidatePage() {
               }}
             />
           </Section>
+
+          <CandidateRgpdPanel
+            candidateId={candidate.id}
+            hasEmail={!!candidate.email}
+            talentPoolConsent={candidate.talent_pool_consent}
+            retentionUntil={candidate.retention_until}
+            rgpdAnonymizedAt={candidate.rgpd_anonymized_at}
+            isReadOnly={isReadOnly}
+          />
         </div>
 
         {/* RIGHT — Missions matchées + CV original. Not sticky anymore — the
