@@ -73,7 +73,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("first_name, inbox_cc_self, organization_id, is_admin")
+    .select("first_name, inbox_cc_self, organization_id, is_admin, preferred_language")
     .eq("user_id", user.id)
     .single()
 
@@ -153,7 +153,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
    * L'obligation est celle du cabinet (article 14 du RGPD, information due au
    * plus tard lors de la PREMIÈRE communication). Il peut retirer la mention
    * ou écrire la sienne — cf. `lib/mailing/legal-notice.ts`. */
-  const bodyToSend = appendNotice(messageBody, noticeFor(org))
+  // La mention suit la langue du sourceur : une ligne en français sous un
+  // message anglais saute aux yeux, et décrédite le passage même qui doit
+  // rassurer le candidat. Cf. lib/mailing/legal-notice.ts.
+  const noticeLang = profile?.preferred_language === "en" ? "en" : "fr"
+  const bodyToSend = appendNotice(messageBody, noticeFor(org, noticeLang))
 
   const unsubHeaders = profile?.organization_id
     ? unsubscribeHeaders(candidate.email, profile.organization_id, getAppUrl(req))

@@ -33,7 +33,7 @@ import { checkRootDomain, cleanLocalPart, cleanSubdomain, explainRejection, isFo
 import { explainSesError, ensureReputationGroup, ensureEventDestination } from "@/lib/mailing/ses"
 import { switchOrgInboxAddresses } from "@/lib/mailing/inbox-address"
 import { deleteZone, explainRoute53Error } from "@/lib/mailing/dns-zone"
-import { noticeFor, type NoticeOrg } from "@/lib/mailing/legal-notice"
+import { noticeFor, type NoticeOrg, type NoticeLang } from "@/lib/mailing/legal-notice"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -49,7 +49,7 @@ async function gate() {
   const admin = getAdminSupabase()
   const { data: profile } = await admin
     .from("profiles")
-    .select("user_id, organization_id, role, is_admin, can_manage_branding, can_manage_pricing, can_manage_team, has_sourcing_seat")
+    .select("user_id, organization_id, role, is_admin, can_manage_branding, can_manage_pricing, can_manage_team, has_sourcing_seat, preferred_language")
     .eq("user_id", user.id)
     .single()
   if (!profile) {
@@ -82,11 +82,18 @@ async function gate() {
     }
   }
 
-  return { ok: true as const, admin, org, isAdmin: caps.isAdminNaywa }
+  return { ok: true as const, admin, org, isAdmin: caps.isAdminNaywa, lang: langOf(profile) }
 }
 
 /** Vue publique de l'état du domaine. Ne renvoie jamais le jeton de délégation. */
-function publicState(org: Record<string, unknown>) {
+/** `lang` : l'aperçu doit montrer la mention TELLE QU'ELLE PARTIRA — donc dans
+ *  la langue du sourceur, pas systématiquement en français. */
+/** Langue du caller, réduite au motif sûr utilisé partout dans le produit. */
+function langOf(p: { preferred_language?: string | null } | null | undefined): NoticeLang {
+  return p?.preferred_language === "en" ? "en" : "fr"
+}
+
+function publicState(org: Record<string, unknown>, lang: NoticeLang = "fr") {
   return {
     domain: org.mailing_domain ?? null,
     subdomain: org.mailing_subdomain ?? DEFAULT_SUBDOMAIN,
@@ -95,7 +102,7 @@ function publicState(org: Record<string, unknown>) {
     notice_text: org.mailing_notice_text ?? null,
     /* Le texte réellement joint aujourd'hui, calculé côté serveur : l'écran
      * doit montrer ce qui PART, pas reconstruire une approximation. */
-    notice_effective: noticeFor(org as NoticeOrg),
+    notice_effective: noticeFor(org as NoticeOrg, lang),
     sending_domain: org.mailing_sending_domain ?? null,
     status: org.mailing_status ?? null,
     verified_at: org.mailing_verified_at ?? null,
@@ -188,7 +195,7 @@ export async function DELETE() {
 export async function GET() {
   const g = await gate()
   if (!g.ok) return g.response
-  return NextResponse.json({ ok: true, ...publicState(g.org) })
+  return NextResponse.json({ ok: true, ...publicState(g.org, g.lang) })
 }
 
 /**
@@ -239,7 +246,7 @@ export async function PATCH(req: NextRequest) {
     if (!("from_local" in body)) {
       const { data: fresh } = await admin
         .from("organizations").select("*").eq("id", org.id).single()
-      return NextResponse.json({ ok: true, ...publicState(fresh ?? org) })
+      return NextResponse.json({ ok: true, ...publicState(fresh ?? org, g.lang) })
     }
   }
 

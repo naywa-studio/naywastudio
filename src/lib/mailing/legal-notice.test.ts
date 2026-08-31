@@ -60,3 +60,32 @@ describe("ajout au message", () => {
     expect(appendNotice("Bonjour Marc", null)).toBe("Bonjour Marc")
   })
 })
+
+describe("la langue de la mention", () => {
+  it("suit la langue du sourceur", () => {
+    // Une ligne en français sous un message anglais se voit immédiatement, et
+    // décrédite justement le passage censé rassurer le candidat.
+    const en = noticeFor({ name: "Durand Recruiting" }, "en")
+    expect(en).toContain("is contacting you about a recruitment")
+    expect(en).not.toContain("vous contacte")
+  })
+
+  it("reste en français par défaut", () => {
+    // Le défaut protège l'usage majoritaire : nos cabinets sont français.
+    expect(noticeFor({ name: "Cabinet Durand" })).toContain("vous contacte")
+  })
+
+  it("traduit aussi le nom de repli", () => {
+    // Sans nom d'organisation, « Cette organisation » dans un texte anglais
+    // serait la faute la plus visible de la phrase.
+    expect(defaultNotice("This organisation", "en")).toContain("This organisation")
+    expect(noticeFor({}, "en")).toContain("This organisation")
+  })
+
+  it("un texte personnalisé l'emporte sur la langue", () => {
+    // Le cabinet qui a écrit sa propre mention l'a écrite dans SA langue :
+    // la traduire par-dessus serait réécrire ses mots.
+    expect(noticeFor({ name: "X", mailing_notice_text: "Notre texte." }, "en"))
+      .toBe("Notre texte.")
+  })
+})

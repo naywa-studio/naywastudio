@@ -18,6 +18,21 @@
  * traitement-là et hérite de sa propre obligation.
  */
 
+/**
+ * La langue du message.
+ *
+ * ⚠️ Ce n'est PAS un détail cosmétique. La mention se lit **dans le message**,
+ * juste sous la signature du sourceur. Une ligne en français au bas d'un
+ * message écrit en anglais se voit immédiatement, et discrédite précisément le
+ * passage censé rassurer le candidat sur le traitement de ses données.
+ *
+ * On prend la langue du SOURCEUR (`profiles.preferred_language`), faute de
+ * mieux : celle du message lui-même n'est stockée nulle part. C'est une
+ * approximation raisonnable — quelqu'un qui travaille en anglais écrit en
+ * anglais — et elle vaut mieux que le français imposé à tout le monde.
+ */
+export type NoticeLang = "fr" | "en"
+
 /** Champs de l'org dont dépend la mention. */
 export interface NoticeOrg {
   name?: string | null
@@ -34,7 +49,14 @@ export interface NoticeOrg {
  * qui nuirait à la fois au taux de réponse et à la délivrabilité. Trois
  * informations suffisent : qui traite, pourquoi, et comment s'y opposer.
  */
-export function defaultNotice(orgLabel: string): string {
+export function defaultNotice(orgLabel: string, lang: NoticeLang = "fr"): string {
+  if (lang === "en") {
+    return (
+      `— ${orgLabel} is contacting you about a recruitment opportunity, based on a CV ` +
+      `in its possession. You may request access to, rectification or deletion of your ` +
+      `data, or object to being contacted again, by replying to this message.`
+    )
+  }
   return (
     `— ${orgLabel} vous contacte dans le cadre d'un recrutement, à partir d'un CV ` +
     `en sa possession. Vous pouvez demander l'accès, la rectification ou la ` +
@@ -44,8 +66,11 @@ export function defaultNotice(orgLabel: string): string {
 }
 
 /** Le nom sous lequel le cabinet se présente au candidat. */
-function orgLabel(org: NoticeOrg | null | undefined): string {
-  return (org?.brand_name?.trim() || org?.name?.trim() || "Cette organisation")
+function orgLabel(org: NoticeOrg | null | undefined, lang: NoticeLang): string {
+  return (
+    org?.brand_name?.trim() || org?.name?.trim() ||
+    (lang === "en" ? "This organisation" : "Cette organisation")
+  )
 }
 
 /**
@@ -54,12 +79,15 @@ function orgLabel(org: NoticeOrg | null | undefined): string {
  * Un texte personnalisé vide compte comme un retrait : quelqu'un qui efface
  * tout exprime la même chose que quelqu'un qui décoche.
  */
-export function noticeFor(org: NoticeOrg | null | undefined): string | null {
+export function noticeFor(
+  org: NoticeOrg | null | undefined,
+  lang: NoticeLang = "fr",
+): string | null {
   if (org?.mailing_notice_enabled === false) return null
   const custom = org?.mailing_notice_text?.trim()
   if (custom) return custom
   if (org?.mailing_notice_text !== null && org?.mailing_notice_text !== undefined && !custom) return null
-  return defaultNotice(orgLabel(org))
+  return defaultNotice(orgLabel(org, lang), lang)
 }
 
 /**
