@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react"
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip } from "recharts"
 
 interface Kpis {
   cabinets_active: number
@@ -27,6 +28,10 @@ interface Kpis {
     cabinet_recrutement: number
     equipe_interne: number
   }
+  candidates_by_month: {
+    month: string
+    count: number
+  }[]
 }
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -171,13 +176,12 @@ export default function AdminDashboardPage() {
           />
          
           
-          <KpiCard
-            label={t.kpiCandidates}
+         <CandidatesParsedCard
             value={kpis?.candidates_parsed}
-            icon={<FileIcon />}
-            hint={t.kpiCandidatesHint}
+            data={kpis?.candidates_by_month}
             delay={0.12}
           />
+
           <KpiCard
             label={t.kpiTrials}
             value={kpis?.trials_active}
@@ -374,6 +378,146 @@ return (
     </m.div> 
     ) 
   } 
+
+function CandidatesParsedCard({
+  value,
+  data,
+  delay = 0,
+}: {
+  value?: number
+  data?: { month: string; count: number }[]
+  delay?: number
+}) {
+  const { lang } = useLanguage()
+
+  const display =
+    value === undefined
+      ? "—"
+      : value.toLocaleString(lang === "fr" ? "fr-FR" : "en-US")
+
+  const labels =
+    lang === "fr"
+      ? {
+          title: "Candidats parsés",
+          hint: "CV uploadés et analysés par Nora",
+        }
+      : {
+          title: "Parsed candidates",
+          hint: "CVs uploaded and analyzed by Nora",
+        }
+
+  return (
+    <m.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: EASE, delay }}
+      style={{
+        padding: "16px 18px",
+        background: "white",
+        border: "1px solid var(--nw-border-soft)",
+        borderRadius: 14,
+        minWidth: 0,
+        minHeight: 220,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 10,
+          color: "var(--nw-primary)",
+        }}
+      >
+        <FileIcon />
+
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "var(--nw-text-muted)",
+            letterSpacing: "0.06em",
+            fontFamily: "var(--nw-font-mono)",
+            textTransform: "uppercase",
+          }}
+        >
+          {labels.title}
+        </span>
+      </div>
+
+      <p
+        style={{
+          margin: 0,
+          fontSize: 32,
+          fontWeight: 800,
+          color: "var(--nw-text)",
+          letterSpacing: "-0.025em",
+          lineHeight: 1.1,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {display}
+      </p>
+
+      <div style={{ flex: 1, minHeight: 90, marginTop: 12 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data ?? []}>
+            <defs>
+              <linearGradient
+                id="candidateFill"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop
+                  offset="5%"
+                  stopColor="var(--nw-primary)"
+                  stopOpacity={0.35}
+                />
+                <stop
+                  offset="95%"
+                  stopColor="var(--nw-primary)"
+                  stopOpacity={0}
+                />
+              </linearGradient>
+            </defs>
+
+            <XAxis
+              dataKey="month"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11 }}
+            />
+
+            <Tooltip cursor={false} />
+
+            <Area
+              type="monotone"
+              dataKey="count"
+              stroke="var(--nw-primary)"
+              strokeWidth={3}
+              fill="url(#candidateFill)"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <p
+        style={{
+          margin: "12px 0 0",
+          fontSize: 11.5,
+          color: "var(--nw-text-muted)",
+          lineHeight: 1.5,
+        }}
+      >
+        {labels.hint}
+      </p>
+    </m.div>
+  )
+}
 
 function PlatformMetric({ 
   label, 

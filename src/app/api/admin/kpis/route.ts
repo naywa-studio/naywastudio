@@ -41,6 +41,7 @@ export async function GET() {
     candidatesParsed,
     trialsActive,
     subActive,
+    candidatesByMonth,
   ] = await Promise.all([
     admin.from("organizations")
      .select("id", { count: "exact", head: true })
@@ -70,7 +71,13 @@ export async function GET() {
     admin.from("organizations")
       .select("subscription_seats, subscription_has_pricing, subscription_status")
       .in("subscription_status", ["active", "trialing"])
-      .eq("is_test", false)
+      .eq("is_test", false),
+    
+    admin
+  .from("candidates")
+  .select("created_at, organizations!inner(is_test)")
+  .eq("parse_status", "parsed")
+  .eq("organizations.is_test", false)
   ])
   const { data: orgTypes, error: orgTypesError } = await admin
   .from("organizations")
@@ -102,6 +109,24 @@ for (const row of orgTypes ?? []) {
     mrrEur += monthlyTotalEur(row.subscription_seats, row.subscription_has_pricing === true)
   }
 
+  const monthMap = new Map<string, number>()
+
+for (const row of candidatesByMonth.data ?? []) {
+  const date = new Date(row.created_at)
+  const month = date.toLocaleString("en-US", {
+    month: "short",
+  })
+
+  monthMap.set(month, (monthMap.get(month) ?? 0) + 1)
+}
+
+const candidates_by_month = Array.from(monthMap.entries()).map(
+  ([month, count]) => ({
+    month,
+    count,
+  })
+)
+
   return NextResponse.json({
     cabinets_active: cabinetsActive.count ?? 0,
     users_total: usersTotal.count ?? 0,
@@ -110,5 +135,6 @@ for (const row of orgTypes ?? []) {
     trials_active: trialsActive.count ?? 0,
     mrr_estimated_eur: Math.round(mrrEur * 100) / 100,
     org_type_counts: orgTypeCounts,
+    candidates_by_month,
   })
 }
