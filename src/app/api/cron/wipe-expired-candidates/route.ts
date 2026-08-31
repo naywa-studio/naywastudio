@@ -3,6 +3,7 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import { r2GetSize, r2SumSizeByPrefix, r2DeleteByPrefix } from "@/lib/r2-storage"
 import { decrementStorageUsed } from "@/lib/quota"
 import { verifyCronSecret } from "@/lib/cron-auth"
+import { candidateRefLabel, logCandidateRgpdAction } from "@/lib/candidate-rgpd"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -74,6 +75,18 @@ export async function GET(req: NextRequest) {
         // ligne partie avec un fichier orphelin (rattrapable) qu'une donnée
         // candidat conservée au-delà de sa rétention (non conforme).
       }
+    }
+
+    // AVANT le delete : FK candidate_id exige une ligne existante.
+    if (orgId) {
+      await logCandidateRgpdAction(admin, {
+        organizationId: orgId,
+        candidateId: candidate.id as string,
+        candidateRef: candidateRefLabel(candidate.id as string),
+        action: "auto_purged",
+        actorUserId: null,
+        detail: "Rétention RGPD expirée (cron quotidien).",
+      })
     }
 
     const { error: delErr } = await admin.from("candidates").delete().eq("id", candidate.id)

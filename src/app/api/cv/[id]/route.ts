@@ -12,6 +12,7 @@ import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { r2GetSize, r2SumSizeByPrefix, r2DeleteByPrefix } from "@/lib/r2-storage"
 import { decrementStorageUsed } from "@/lib/quota"
+import { candidateRefLabel, logCandidateRgpdAction } from "@/lib/candidate-rgpd"
 
 export const runtime = "nodejs"
 
@@ -67,6 +68,18 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   } else if (candidate.cv_file_path) {
     // Fallback : ancien path Supabase Storage (avant migration R2).
     await admin.storage.from("cv-uploads").remove([candidate.cv_file_path])
+  }
+
+  // AVANT le delete : candidate_id référence encore une ligne existante
+  // (contrainte FK) — logger après échouerait, la ligne n'existant plus.
+  if (orgId) {
+    await logCandidateRgpdAction(admin, {
+      organizationId: orgId,
+      candidateId: candidate.id,
+      candidateRef: candidateRefLabel(candidate.id),
+      action: "delete",
+      actorUserId: user.id,
+    })
   }
 
   const { error: delErr } = await admin.from("candidates").delete().eq("id", candidate.id)
