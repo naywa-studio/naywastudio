@@ -621,6 +621,10 @@ export type Database = {
            *  NULL = jamais purgé auto. Recalculée par trigger, lecture seule
            *  côté app. */
           retention_until: string | null
+          /** Horodatage du scrub RGPD (PII vidée, ligne conservée pour les
+           *  stats). Distinct de `anonymized_at` (document remis au client) —
+           *  voir migration 100. */
+          rgpd_anonymized_at: string | null
         }
         Insert: {
           id?: string
@@ -671,8 +675,38 @@ export type Database = {
           last_contact_at?: string | null
           /** Ne pas écrire directement — recalculée par trigger (migration 098). */
           retention_until?: string | null
+          rgpd_anonymized_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['candidates']['Insert']>
+        Relationships: []
+      }
+      candidate_rgpd_log: {
+        Row: {
+          id: string
+          organization_id: string
+          /** NULL une fois le candidat supprimé (ON DELETE SET NULL) — le
+           *  log survit à la ligne candidate. Voir migration 100. */
+          candidate_id: string | null
+          /** Réf lisible (candidateRefLabel) capturée AU MOMENT de l'action —
+           *  reste affichable même après candidate_id devenu NULL. */
+          candidate_ref: string
+          action: 'export' | 'delete' | 'anonymize' | 'consent_granted' | 'consent_revoked' | 'opt_out_contact' | 'auto_purged'
+          /** NULL pour une action système (cron de purge). */
+          actor_user_id: string | null
+          detail: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          candidate_id?: string | null
+          candidate_ref: string
+          action: 'export' | 'delete' | 'anonymize' | 'consent_granted' | 'consent_revoked' | 'opt_out_contact' | 'auto_purged'
+          actor_user_id?: string | null
+          detail?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['candidate_rgpd_log']['Insert']>
         Relationships: []
       }
       clients: {
@@ -1068,7 +1102,8 @@ export const CANDIDATE_COLUMNS =
   // PAS `parsed_cv_original` : c'est un second CV complet, aussi lourd que
   // `raw_text`, et il ne sert qu'au moment précis où l'on annule.
   "outreach_draft, outreach_meta, parse_status, parse_error, parsed_at, parsed_cv_edited_at, " +
-  "notes, tags, sectors, sector_status, created_at, updated_at, consulted_at"
+  "notes, tags, sectors, sector_status, created_at, updated_at, consulted_at, " +
+  "talent_pool_consent, talent_pool_consent_at, retention_until, rgpd_anonymized_at"
 
 // ── Aliases métier ────────────────────────────────────────────────────────────
 export type Profile = Database['public']['Tables']['profiles']['Row']
@@ -1077,6 +1112,7 @@ export type OrgInvite = Database['public']['Tables']['org_invites']['Row']
 export type OrgRole = Profile['role']
 export type Job = Database['public']['Tables']['jobs']['Row']
 export type Candidate = Database['public']['Tables']['candidates']['Row']
+export type CandidateRgpdLog = Database['public']['Tables']['candidate_rgpd_log']['Row']
 export type Sector = Database['public']['Tables']['sectors']['Row']
 export type SectorStatus = Candidate['sector_status']
 export type Client = Database['public']['Tables']['clients']['Row']
