@@ -11,6 +11,74 @@ garde-fou de lancement ci-dessous.
 
 ---
 
+## ÉTAT AU 1er SEPTEMBRE 2026 — Google approuvé, Microsoft en attente
+
+**À lire en premier après un compactage.** Cinq documents complètent celui-ci :
+`etude-connecteur-microsoft.md` (Microsoft de bout en bout),
+`google-oauth-dossier.md` (le dossier et son approbation),
+`cadrage-experience-mailing.md` (les décisions d'UX à venir),
+plus les deux études de fournisseur et d'OAuth.
+
+### ✅ Google — TERMINÉ
+
+Dossier soumis le 31/08 au soir, **approuvé le 01/09** en moins de 12 h.
+Console : « Your app's data access has been verified ». Plus d'écran
+« application non validée », plus de plafond de 100 utilisateurs.
+**Le connecteur Gmail est utilisable par n'importe quel cabinet, aujourd'hui.**
+
+⚠️ Google prévient : tout **scope supplémentaire rouvre un dossier complet**.
+Et un scope de lecture est *restricted* → CASA, 15 000-75 000 $/an. La
+discipline du scope unique se tient dans la durée.
+
+### ⏳ Microsoft — tout est fait sauf deux choses
+
+Fait : tenant `38ef3422-f61c-47dc-98e1-a6ae1b7a7e0d`, domaine
+`naywastudio.com` vérifié dedans, compte professionnel
+`elyas@elyasmalkinaywastudio.onmicrosoft.com` (Global Admin, MFA),
+application **`3a5fcf8d-0f0b-4190-babd-b1686de9b751`** (multi-tenant +
+comptes personnels), cinq autorisations déléguées **sans aucune lecture**,
+domaine d'éditeur posé, URI de redirection vérifiée par comparaison stricte,
+secret dans Vercel, connecteur écrit (264 tests).
+
+**Chaîne OAuth prouvée en conditions réelles** : consentement, jetons, lecture
+de l'adresse via Graph, enregistrement chiffré.
+
+**Compte partenaire créé — Partner One ID `7154643`** — vérification
+d'entreprise **soumise le 01/09**, avis SIRENE et justificatif de domaine
+joints. Statut *Pending*.
+
+**Il reste donc :**
+
+1. **L'association du Partner One ID à l'application** dès que le statut passe
+   à vérifié → *Personnalisation et propriétés → Vérification de l'éditeur*.
+   5 minutes. C'est ce qui fait disparaître le « non vérifié ».
+2. ⚠️ **L'ENVOI N'A JAMAIS ÉTÉ TESTÉ EN VRAI.** Aucun message n'est parti par
+   Graph. Aucun compte Microsoft disponible n'a de boîte aux lettres : celui
+   du tenant n'a pas de licence Exchange, et `elyas.malki@naywastudio.com` est
+   un compte Microsoft créé sur une adresse externe. La création d'un compte
+   Outlook.com a été **bloquée par l'anti-fraude** (deux tentatives depuis un
+   flux OAuth). À refaire depuis `outlook.com`, hors parcours de consentement.
+   Les tests unitaires couvrent la logique — ce n'est pas la même chose.
+
+### 🔴 Consigne d'Elyas, 01/09
+
+**On ne montre RIEN à GMH tant que l'application Microsoft n'est pas vérifiée.**
+GMH est sous Microsoft : sans le badge, leurs sourceurs verraient
+« Approbation requise » et devraient passer par leur informaticien.
+
+Nuance qui justifie la consigne : un tenant durci est le choix du client et
+s'assume — mais **sans badge d'éditeur, le blocage frappe MÊME les tenants
+restés au réglage d'usine**. La friction serait donc la nôtre, pas la leur.
+
+### Plan arrêté avec Elyas
+
+1. Microsoft vérifié → association du badge
+2. **Puis l'expérience** (cf. `cadrage-experience-mailing.md`)
+3. **Puis Domain Connect**, en parallèle des deux semaines de Mailing offertes
+   à GMH
+
+---
+
 ## ÉTAT AU 31 AOÛT 2026 — les deux verrous d'ouverture sont levés
 
 **Prix LIVE créé.** Produit *Naywa — Mailing candidats*, **9,99 € HT/mois**,
