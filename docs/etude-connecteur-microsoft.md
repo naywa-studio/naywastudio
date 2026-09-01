@@ -228,3 +228,59 @@ Le taux n'est pas subi. Trois gestes le remontent :
    cabinet de six sourceurs, un seul geste d'informaticien débloque tout le
    monde. La friction est par CABINET, pas par personne — ce qui la rend
    beaucoup plus acceptable qu'il n'y paraît.
+
+---
+
+## 8. Le parcours réel, tel qu'on l'a fait — 01/09/2026
+
+L'ordre théorique du §5 ne correspond pas à ce qui s'est passé. Voici le vrai,
+avec les pièges rencontrés.
+
+### Le tenant : le portail Entra ne suffit pas
+
+**Impossible de créer un annuaire depuis `entra.microsoft.com`** avec un compte
+Microsoft personnel : le bouton « Créer » est grisé et la liste des locataires
+est vide. C'est **documenté**, pas un bug :
+
+> *« Only paid customers can create a new Workforce tenant. Customers using a
+> free tenant, or a trial subscription won't be able to create additional
+> tenants from the Microsoft Entra admin center. »*
+
+La sortie officielle est l'**inscription à un compte Azure**, qui crée
+l'annuaire elle-même. Deux tentatives ont été nécessaires :
+
+- **essai gratuit (`ms-azr-0044p`) → refusé**, « You are not eligible ».
+  Vraisemblablement parce que le compte personnel utilise une adresse au
+  domaine `naywastudio.com`, déjà rattaché à un tenant fantôme ;
+- **paiement à l'utilisation (`ms-azr-0003p`) → accepté.** Plan de support
+  « Pas de support technique » (les autres sont à 24 €, 84 € et 843 €/mois),
+  et un budget d'alerte posé dans la foulée — 0 étant refusé, 0,01 € avec
+  alerte à 100 % revient au même.
+
+Résultat : annuaire `elyasmalkinaywastudio.onmicrosoft.com`, tenant
+`38ef3422-f61c-47dc-98e1-a6ae1b7a7e0d`, licence Entra ID gratuite.
+
+### Le compte qui compte
+
+Le compte personnel reste **invité** dans son propre annuaire. Il a fallu créer
+`elyas@elyasmalkinaywastudio.onmicrosoft.com`, Administrateur général : c'est
+le seul « work or school account », et **une application enregistrée par un
+compte personnel ne peut jamais être vérifiée**.
+
+### L'application
+
+`3a5fcf8d-0f0b-4190-babd-b1686de9b751`, multi-tenant + comptes personnels,
+domaine d'éditeur `naywastudio.com`, cinq autorisations déléguées, aucune
+lecture de courrier, consentement administrateur **non** accordé.
+
+### Le compte partenaire
+
+⚠️ **S'inscrire avec le compte DU TENANT**, pas avec le compte personnel :
+c'est ce qui associe l'annuaire au *partner global account*. Sinon il faut les
+rattacher à la main ensuite.
+
+Sur l'écran « How would you like to partner with Microsoft ? », deux cases et
+deux seulement : **Microsoft AI Cloud Partner Program** (qui donne le Partner
+One ID) et **ISV**. Ne pas cocher revendeur, intégrateur, OEM ni MSP — déclarer
+une activité qu'on n'exerce pas devant un programme dont le métier est
+précisément de vérifier l'entreprise serait une mauvaise entrée en matière.
