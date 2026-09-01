@@ -56,16 +56,18 @@ export const MICROSOFT_SCOPES = [
 ] as const
 
 /**
- * L'identifiant client.
+ * L'identifiant client, avec sa valeur réelle en défaut.
  *
- * Pas un secret — il figure dans l'URL de consentement que voit l'utilisateur.
- * Contrairement à Google, il n'a pas de valeur par défaut en dur : l'app
- * Microsoft n'existera qu'une fois le tenant Entra créé, et une valeur
- * inventée ici produirait une erreur incompréhensible à la place d'un écran
- * qui dit franchement « pas encore disponible ».
+ * Ce n'est **pas un secret** : il figure dans l'URL de consentement que voit
+ * chaque sourceur, et Microsoft l'affiche dans la barre d'adresse. L'écrire
+ * ici évite une variable d'environnement de plus à tenir synchronisée entre
+ * la production, les préversions et les postes — même choix que pour Google.
+ *
+ * Application « Naywa Studio », annuaire naywastudio.com, multi-tenant +
+ * comptes personnels.
  */
 export function microsoftClientId(): string {
-  return (process.env.MICROSOFT_OAUTH_CLIENT_ID ?? "").trim()
+  return (process.env.MICROSOFT_OAUTH_CLIENT_ID ?? "3a5fcf8d-0f0b-4190-babd-b1686de9b751").trim()
 }
 
 function microsoftClientSecret(): string {
