@@ -466,3 +466,29 @@ fonctionnel, plafond de 100 utilisateurs sans effet à ce stade.
 
 **Ne pas changer l'état de publication ni le type d'utilisateur pendant
 l'examen** — Google prévient que cela retarde le traitement.
+
+---
+
+## ✅ APPROUVÉ — 01/09/2026, moins de 12 h après la soumission
+
+> *« We've approved your OAuth App Verification request for project
+> 575112726480 (Project ID: naywa-studio) for the following scopes:
+> .../auth/gmail.send »*
+
+Confirmé dans la console : **« Your app's data access has been verified. »**
+
+**Ce que ça change** : plus d'écran « application non validée », et le plafond
+de 100 utilisateurs disparaît. Le connecteur Google est utilisable par
+n'importe quel cabinet, sans friction.
+
+**Ce que Google rappelle, et qui compte pour la suite** :
+
+> *« You will need to submit a new verification request for access to new
+> scopes, or if you make any changes to your OAuth consent screen
+> configuration. »*
+
+Autrement dit : **toute demande de scope supplémentaire rouvre un dossier
+complet** — nouvelle justification, nouvelle vidéo, nouvelle attente. Et un
+scope de LECTURE (`gmail.readonly`, `gmail.modify`) est *restricted*, donc
+CASA à 15 000-75 000 $/an. La discipline du scope unique n'était pas une
+précaution de départ : c'est ce qu'il faut tenir dans la durée.
