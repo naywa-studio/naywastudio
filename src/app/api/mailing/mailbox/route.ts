@@ -25,6 +25,7 @@ import { getCapabilities } from "@/lib/capabilities"
 import { hasMailingAccess } from "@/lib/subscription"
 import { mailingVisible } from "@/lib/mailing/rollout"
 import { googleOAuthConfigured } from "@/lib/mailing/oauth-google"
+import { microsoftOAuthConfigured } from "@/lib/mailing/oauth-microsoft"
 
 export const runtime = "nodejs"
 
@@ -80,7 +81,10 @@ export async function GET() {
     mailboxes: data ?? [],
     // L'interface doit pouvoir masquer le bouton plutôt que proposer une
     // connexion qui échouera faute de configuration serveur.
-    providers: { google: googleOAuthConfigured() },
+    /* L'écran n'affiche un bouton que pour un fournisseur réellement
+     * configuré : proposer une connexion qui mènerait à une page d'erreur du
+     * fournisseur est pire que ne rien proposer. */
+    providers: { google: googleOAuthConfigured(), microsoft: microsoftOAuthConfigured() },
   })
 }
 

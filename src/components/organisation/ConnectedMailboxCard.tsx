@@ -40,7 +40,8 @@ const copy = {
     title: "Votre boîte mail",
     subtitle: "Écrivez aux candidats depuis votre propre adresse, sans rien configurer.",
     why: "Le message part de votre messagerie habituelle, avec votre adresse et votre signature d'expéditeur. Vous en retrouvez une copie dans vos « Éléments envoyés ». Aucun enregistrement DNS à publier.",
-    connect: "Connecter ma boîte Gmail",
+    connectGoogle: "Connecter ma boîte Gmail",
+    connectMicrosoft: "Connecter ma boîte Outlook / Microsoft 365",
     connected: "Boîte connectée",
     sendsFrom: "Vos messages aux candidats partent de",
     connectedOn: (d: string) => `Connectée le ${d}`,
@@ -51,9 +52,11 @@ const copy = {
     disconnectConfirm: "Confirmer",
     cancel: "Annuler",
     disconnectWarn: "Vos prochains messages repartiront de l'adresse de votre organisation.",
-    revokeNote: "Déconnecter ici supprime notre accès. Vous pouvez aussi le révoquer depuis votre compte Google, dans « Applications tierces ».",
+    revokeNote: (p: string) =>
+      `Déconnecter ici supprime notre accès. Vous pouvez aussi le révoquer depuis votre compte ${p}.`,
     reconnectTitle: "Reconnectez votre boîte",
-    reconnectBody: "Google n'accepte plus notre accès — cela arrive après un changement de mot de passe ou une révocation. Vos envois passent par l'adresse de votre organisation en attendant.",
+    reconnectBody: (p: string) =>
+      `${p} n'accepte plus notre accès — cela arrive après un changement de mot de passe ou une révocation. Vos envois passent par l'adresse de votre organisation en attendant.`,
     reconnect: "Reconnecter",
     repliesTitle: "Où arrivent les réponses",
     repliesBody: "Les candidats répondent dans votre boîte mail, et une copie revient dans Naywa pour alimenter le fil de conversation. Vous restez dans la boucle des deux côtés.",
@@ -74,7 +77,8 @@ const copy = {
     title: "Your mailbox",
     subtitle: "Email candidates from your own address, with nothing to configure.",
     why: "The message goes out from your usual mailbox, with your address and sender identity. A copy lands in your Sent folder. No DNS record to publish.",
-    connect: "Connect my Gmail mailbox",
+    connectGoogle: "Connect my Gmail mailbox",
+    connectMicrosoft: "Connect my Outlook / Microsoft 365 mailbox",
     connected: "Mailbox connected",
     sendsFrom: "Your messages to candidates are sent from",
     connectedOn: (d: string) => `Connected on ${d}`,
@@ -85,9 +89,11 @@ const copy = {
     disconnectConfirm: "Confirm",
     cancel: "Cancel",
     disconnectWarn: "Your next messages will go out from your organisation's address.",
-    revokeNote: "Disconnecting here removes our access. You can also revoke it from your Google account, under “Third-party apps”.",
+    revokeNote: (p: string) =>
+      `Disconnecting here removes our access. You can also revoke it from your ${p} account.`,
     reconnectTitle: "Reconnect your mailbox",
-    reconnectBody: "Google no longer accepts our access — this happens after a password change or a revocation. Your sending falls back to your organisation's address in the meantime.",
+    reconnectBody: (p: string) =>
+      `${p} no longer accepts our access — this happens after a password change or a revocation. Your sending falls back to your organisation's address in the meantime.`,
     reconnect: "Reconnect",
     repliesTitle: "Where replies arrive",
     repliesBody: "Candidates reply into your mailbox, and a copy comes back to Naywa to fill the conversation thread. You stay in the loop on both sides.",
@@ -113,6 +119,7 @@ export default function ConnectedMailboxCard() {
   const [loading, setLoading] = useState(true)
   const [mailbox, setMailbox] = useState<Mailbox | null>(null)
   const [googleReady, setGoogleReady] = useState(false)
+  const [microsoftReady, setMicrosoftReady] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
@@ -125,6 +132,7 @@ export default function ConnectedMailboxCard() {
       if (!res.ok) return
       setMailbox((d.mailboxes ?? [])[0] ?? null)
       setGoogleReady(d.providers?.google === true)
+      setMicrosoftReady(d.providers?.microsoft === true)
     } catch {
       // Silencieux : l'écran affiche simplement l'état « non connectée ».
     } finally {
@@ -176,6 +184,20 @@ export default function ConnectedMailboxCard() {
 
   const needsReconnect = mailbox?.status === "needs_reconnect"
 
+  /* Le nom du fournisseur, tel que le sourceur le connaît.
+   *
+   * Il s'écrivait « Google » en dur, y compris sous une boîte Microsoft
+   * fraîchement connectée : l'écran n'avait jamais envisagé qu'un autre
+   * fournisseur puisse s'y afficher. Un libellé faux à cet endroit envoie le
+   * sourceur chercher une révocation dans le mauvais compte. */
+  const providerName = mailbox?.provider === "microsoft" ? "Microsoft" : "Google"
+  /* Le chemin de reconnexion doit repartir du MÊME fournisseur : renvoyer vers
+   * Google une boîte Microsoft ferait connecter une seconde adresse au lieu de
+   * réparer la première. */
+  const startPath = mailbox?.provider === "microsoft"
+    ? "/api/mailing/oauth/microsoft/start"
+    : "/api/mailing/oauth/google/start"
+
   return (
     <section style={S.card}>
       <header style={{ marginBottom: 16 }}>
@@ -192,8 +214,8 @@ export default function ConnectedMailboxCard() {
       {needsReconnect && (
         <div style={S.warnBox} role="status">
           <strong style={{ fontSize: 13 }}>{t.reconnectTitle}</strong>
-          <p style={{ ...S.hint, marginTop: 4 }}>{t.reconnectBody}</p>
-          <a href="/api/mailing/oauth/google/start" style={{ ...S.primaryBtn, marginTop: 10 }}>
+          <p style={{ ...S.hint, marginTop: 4 }}>{t.reconnectBody(providerName)}</p>
+          <a href={startPath} style={{ ...S.primaryBtn, marginTop: 10 }}>
             {t.reconnect}
           </a>
         </div>
@@ -235,15 +257,25 @@ export default function ConnectedMailboxCard() {
               </button>
             )}
           </div>
-          <p style={{ ...S.hint, marginTop: 8 }}>{t.revokeNote}</p>
+          <p style={{ ...S.hint, marginTop: 8 }}>{t.revokeNote(providerName)}</p>
         </div>
       )}
 
       {!mailbox && (
         <>
           <p style={S.why}>{t.why}</p>
-          {googleReady ? (
-            <a href="/api/mailing/oauth/google/start" style={S.primaryBtn}>{t.connect}</a>
+          {/* Un bouton par fournisseur configuré. Le sourceur choisit le
+              sien — on ne devine pas : beaucoup de cabinets ont les deux, et
+              celui qui compte est celui d'où partiront les messages. */}
+          {googleReady || microsoftReady ? (
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {googleReady && (
+                <a href="/api/mailing/oauth/google/start" style={S.primaryBtn}>{t.connectGoogle}</a>
+              )}
+              {microsoftReady && (
+                <a href="/api/mailing/oauth/microsoft/start" style={S.secondaryBtn}>{t.connectMicrosoft}</a>
+              )}
+            </div>
           ) : (
             <p style={S.hint}>{t.notConfigured}</p>
           )}
@@ -297,6 +329,12 @@ const S: Record<string, React.CSSProperties> = {
     display: "inline-block", background: "var(--nw-primary)", color: "#fff",
     border: 0, borderRadius: 9, padding: "10px 16px", fontSize: 13.5,
     fontWeight: 600, cursor: "pointer", textDecoration: "none", fontFamily: "inherit",
+  },
+  secondaryBtn: {
+    display: "inline-block", background: "var(--nw-surface-muted)", color: "var(--nw-text)",
+    border: "1px solid var(--nw-border)", borderRadius: 9, padding: "10px 16px",
+    fontSize: 13.5, fontWeight: 600, cursor: "pointer", textDecoration: "none",
+    fontFamily: "inherit",
   },
   linkBtn: {
     background: "none", border: 0, padding: 0, fontSize: 13,
