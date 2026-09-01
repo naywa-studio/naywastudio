@@ -18,6 +18,27 @@
  *     d'écrire à une adresse non vérifiée. Elle aurait fait le travail DNS
  *     pour rien, ce qui est la meilleure façon de ne jamais le refaire.
  *
+ * ── Où on en est (01/09/2026) ─────────────────────────────────────────────
+ *
+ * Les deux conditions ci-dessus sont LEVÉES : SES est en production depuis le
+ * 26/08, et le prix `mailing_addon` existe dans le catalogue LIVE à 9,99 €.
+ * Google a même approuvé `gmail.send` le 01/09 — ce chemin-là est prêt.
+ *
+ * **Et pourtant l'interrupteur reste fermé**, pour deux raisons neuves :
+ *
+ *  3. **L'application Microsoft n'est pas vérifiée.** Sans le badge d'éditeur,
+ *     le consentement gradué au risque bloque le sourceur **même chez un
+ *     tenant resté au réglage d'usine**. On ferait donc porter à des clients
+ *     qui n'ont rien durci une friction qui est la NÔTRE. Une fois vérifiés,
+ *     seuls les tenants volontairement durcis demanderont une approbation —
+ *     là, c'est leur choix, et l'assumer est légitime.
+ *     ⚠️ GMH est sous Microsoft : cette condition les concerne directement.
+ *     **Consigne d'Elyas, 01/09 : on ne leur montre rien avant la
+ *     vérification.**
+ *  4. **Domain Connect n'existe pas**, et le parcours DNS manuel a été retiré
+ *     de l'écran. Un cabinet qui n'a ni Google ni Microsoft n'a donc AUCUN
+ *     chemin (cf. `SHOW_SENDING_DOMAIN_CARD` dans organisation/page.tsx).
+ *
  * ── Comment l'ouvrir ──────────────────────────────────────────────────────
  *
  * Passer `MAILING_LAUNCHED` à `true`, une fois les deux conditions remplies.
