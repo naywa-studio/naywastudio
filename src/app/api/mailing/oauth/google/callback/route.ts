@@ -30,6 +30,7 @@ import { hasMailingAccess } from "@/lib/subscription"
 import { mailingVisible } from "@/lib/mailing/rollout"
 import { exchangeGoogleCode, readState } from "@/lib/mailing/oauth-google"
 import { encryptToken } from "@/lib/mailing/token-crypto"
+import { checkMailboxDomain } from "@/lib/mailing/mailbox-domain"
 import { getAppUrl } from "@/lib/stripe"
 
 export const runtime = "nodejs"
@@ -87,6 +88,24 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error("[oauth/google] échange impossible:", (err as Error).message)
     return back(appUrl, "mailbox_error=exchange_failed")
+  }
+
+  /* ── La boîte appartient-elle bien au cabinet ? ───────────────────────
+   *
+   * Contrôlé ICI et pas avant : on ne connaît l'adresse réellement choisie
+   * qu'après l'échange. Un sourceur peut très bien lancer le parcours puis
+   * sélectionner son compte personnel sur l'écran Google.
+   *
+   * Le jeton n'est PAS enregistré en cas de refus — il ne sert à rien, et
+   * garder un jeton d'accès à une boîte qu'on s'interdit d'utiliser serait
+   * exactement ce qu'on reproche aux autres. Il expirera de lui-même. */
+  const verdict = checkMailboxDomain(tokens.email, {
+    accountEmail: user.email,
+    orgContactEmail: org.contact_email,
+    orgSendingDomain: org.mailing_sending_domain,
+  })
+  if (!verdict.allowed) {
+    return back(appUrl, `mailbox_error=domain_not_allowed&got=${encodeURIComponent(verdict.domain ?? "")}&expected=${encodeURIComponent(verdict.expected.join(","))}`)
   }
 
   /* Chiffré AVANT d'atteindre la base — cf. `token-crypto.ts`. Un jeton de

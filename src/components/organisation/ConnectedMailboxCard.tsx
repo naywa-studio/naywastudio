@@ -72,6 +72,10 @@ const copy = {
       not_configured: "La connexion de boîte mail n'est pas encore disponible.",
       generic: "Une erreur est survenue. Réessayez.",
     } as Record<string, string>,
+    /* Un refus qui ne nomme ni ce qui a été tenté ni ce qui est attendu laisse
+     * le sourceur relancer le même parcours en boucle. */
+    domainNotAllowed: (got: string, expected: string) =>
+      `Cette boîte (${got || "adresse inconnue"}) n'appartient pas à votre organisation. Connectez une adresse ${expected ? `en @${expected}` : "professionnelle de votre organisation"}.`,
   },
   en: {
     title: "Your mailbox",
@@ -109,6 +113,8 @@ const copy = {
       not_configured: "Mailbox connection is not available yet.",
       generic: "Something went wrong. Try again.",
     } as Record<string, string>,
+    domainNotAllowed: (got: string, expected: string) =>
+      `This mailbox (${got || "unknown address"}) does not belong to your organisation. Connect an address ${expected ? `at @${expected}` : "from your organisation"}.`,
   },
 }
 
@@ -152,10 +158,18 @@ export default function ConnectedMailboxCard() {
     if (!connected && !failed) return
 
     if (connected) setNotice(connected)
-    if (failed) setError(t.errors[failed] ?? t.errors.generic)
+    if (failed === "domain_not_allowed") {
+      // Le seul refus qui porte des données : le domaine tenté et ceux qui
+      // auraient été acceptés. Sans eux, le message ne dit rien d'actionnable.
+      setError(t.domainNotAllowed(p.get("got") ?? "", (p.get("expected") ?? "").split(",")[0] ?? ""))
+    } else if (failed) {
+      setError(t.errors[failed] ?? t.errors.generic)
+    }
 
     p.delete("mailbox_connected")
     p.delete("mailbox_error")
+    p.delete("got")
+    p.delete("expected")
     const qs = p.toString()
     window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""))
   }, [t])

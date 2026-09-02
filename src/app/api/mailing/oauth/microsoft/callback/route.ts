@@ -30,6 +30,7 @@ import { hasMailingAccess } from "@/lib/subscription"
 import { mailingVisible } from "@/lib/mailing/rollout"
 import { exchangeMicrosoftCode, readMicrosoftState } from "@/lib/mailing/oauth-microsoft"
 import { encryptToken } from "@/lib/mailing/token-crypto"
+import { checkMailboxDomain } from "@/lib/mailing/mailbox-domain"
 import { getAppUrl } from "@/lib/stripe"
 
 export const runtime = "nodejs"
@@ -87,6 +88,19 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error("[oauth/microsoft] échange impossible:", (err as Error).message)
     return back(appUrl, "mailbox_error=exchange_failed")
+  }
+
+  /* La boîte appartient-elle bien au cabinet ? Contrôlé ici, car l'adresse
+   * réellement choisie n'est connue qu'après l'échange — l'écran Microsoft
+   * permet de basculer sur un compte personnel en fin de parcours. Le jeton
+   * n'est pas enregistré en cas de refus. */
+  const verdict = checkMailboxDomain(tokens.email, {
+    accountEmail: user.email,
+    orgContactEmail: org.contact_email,
+    orgSendingDomain: org.mailing_sending_domain,
+  })
+  if (!verdict.allowed) {
+    return back(appUrl, `mailbox_error=domain_not_allowed&got=${encodeURIComponent(verdict.domain ?? "")}&expected=${encodeURIComponent(verdict.expected.join(","))}`)
   }
 
   /* Chiffré AVANT d'atteindre la base — cf. `token-crypto.ts`. Un jeton de
