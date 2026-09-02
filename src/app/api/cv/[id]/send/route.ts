@@ -305,6 +305,28 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .select("*")
     .single()
 
+  /* ── Répondre, c'est prendre en charge ────────────────────────────────
+   *
+   * Les réponses non traitées alimentent la section « Vos candidats ont
+   * répondu » de l'accueil et le compteur de la navigation. Si seul un clic
+   * explicite sur « Je m'en occupe » pouvait les éteindre, la liste
+   * accumulerait des candidats à qui on a DÉJÀ répondu — et un compteur qui
+   * ne descend pas cesse d'être regardé, y compris le jour où il compte.
+   *
+   * Le geste qui traite vraiment une réponse, c'est écrire au candidat. On
+   * l'enregistre donc ici, sans rien demander au sourceur.
+   *
+   * Best-effort, comme le journal d'audit : rater cette écriture laisse une
+   * ligne de trop dans une liste, alors qu'échouer casserait un envoi déjà
+   * parti chez le candidat. */
+  await admin
+    .from("email_messages")
+    .update({ handled_at: new Date().toISOString(), handled_by: user.id })
+    .eq("candidate_id", candidate.id)
+    .eq("direction", "inbound")
+    .is("handled_at", null)
+    .then(undefined, () => {})
+
   // Advance the pipeline stage for the linked job, if still at "identified".
   if (jobId) {
     const { data: assessment } = await admin

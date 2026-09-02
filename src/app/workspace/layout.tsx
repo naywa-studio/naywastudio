@@ -12,6 +12,7 @@ import { SeatReadOnlyBanner } from "@/components/workspace/SeatReadOnlyBanner"
 import { TrialBanner } from "@/components/trial/TrialBanner"
 import { QuotaWarningBanner } from "@/components/quota/QuotaWarningBanner"
 import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
+import RepliesNavCount from "@/components/workspace/RepliesNavCount"
 import { SupportButton } from "@/components/support/SupportButton"
 import { CguGate } from "@/components/legal/CguGate"
 import { isWorkspaceReadOnly, hasActiveAccess, graceInfo, hasPricingAccess } from "@/lib/subscription"
@@ -261,6 +262,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         {tab.label}
         {tab.showUnreadBadge && <UpdatesNavBadge />}
         {!tab.showUnreadBadge && <NavUnreadDot href={tab.href} />}
+        {/* La section « Réponses » vit sur l'accueil : sans repère ici, un
+            sourceur resté trois heures dans une mission ne saurait pas qu'un
+            candidat lui a écrit. */}
+        {tab.href === "/workspace" && <RepliesNavCount />}
       </Link>
     )
   })

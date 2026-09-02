@@ -10,6 +10,7 @@ import { getSupabase } from "@/lib/supabase"
 import { trialStatus } from "@/lib/trial"
 import { hasPricingAccess } from "@/lib/subscription"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
+import RepliesSection from "@/components/workspace/RepliesSection"
 import { getCapabilities } from "@/lib/capabilities"
 import type { Organization } from "@/lib/database.types"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
@@ -349,6 +350,12 @@ export default function WorkspaceHome() {
           </div>
         </div>
       </m.section>
+
+      {/* ── Réponses des candidats (uniquement s'il y en a) ───
+          Placée AVANT les nouveautés et les raccourcis : c'est ce qui a
+          changé depuis hier, et la seule chose de cet écran qui attende une
+          action d'un autre être humain. */}
+      <RepliesSection />
 
       {/* ── Card Nouveautés (uniquement si non-lues) ─────────── */}
       <UpdatesHeroCard />

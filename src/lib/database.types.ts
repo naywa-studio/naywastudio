@@ -937,6 +937,10 @@ export type Database = {
           /** Pieces jointes stockees sur R2 : [{ filename, contentType, size, path }].
            *  Le `path` est org-scope -- cf. `lib/mailing/attachments.ts`. */
           attachments: { filename: string; contentType: string; size: number; path: string }[]
+          /** Réponse prise en charge par un membre : intention humaine, seule
+           *  donnée du mailing qui ne se dérive pas (cf. migration 099). */
+          handled_at: string | null
+          handled_by: string | null
           created_at: string
         }
         Insert: {
@@ -958,6 +962,8 @@ export type Database = {
           ai_summary?: string | null
           ai_suggested_stage?: string | null
           attachments?: { filename: string; contentType: string; size: number; path: string }[]
+          handled_at?: string | null
+          handled_by?: string | null
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['email_messages']['Insert']>

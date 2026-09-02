@@ -10,6 +10,7 @@ import { kindOf, type Criterion, type CriterionEval } from "@/lib/job-criteria-c
 import { criterionHeaderLabel, shortCriterionLabel, dimColor, statusColor } from "@/lib/criterion-display"
 import ComposeBox from "@/components/workspace/ComposeBox"
 import MessageThread from "@/components/workspace/MessageThread"
+import OutreachReadiness, { type ReadinessPayload } from "@/components/workspace/OutreachReadiness"
 import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
 import { AnonymizedCvLivePreview } from "@/components/workspace/anonymize/AnonymizedCvLivePreview"
 import { AnonymizeSidePanel } from "@/components/workspace/anonymize/AnonymizeSidePanel"
@@ -299,6 +300,12 @@ export default function MatchPage() {
   const [threadCount, setThreadCount] = useState(0)
   const [replying, setReplying] = useState(false)
   const [threadReload, setThreadReload] = useState(0)
+  /* `null` tant que la réponse n'est pas là — et on laisse écrire dans cet
+   * intervalle. L'inverse ferait clignoter la zone de rédaction à chaque
+   * ouverture de fiche, et une seconde de réseau lent la ferait disparaître
+   * sous les yeux du sourceur. La route d'envoi reste le garde-fou réel. */
+  const [readiness, setReadiness] = useState<ReadinessPayload | null>(null)
+  const cannotWrite = readiness !== null && !readiness.canWrite
   const [candidate, setCandidate] = useState<Candidate | null>(null)
   const [clientDirectory, setClientDirectory] = useState<OffLimitsClientRef[]>([])
   const [siblingMatches, setSiblingMatches] = useState<MatchSummary[]>([])
@@ -1157,6 +1164,18 @@ export default function MatchPage() {
               rédaction se replie derrière « Répondre ». Empiler les deux
               allongeait la fiche sans que le sourceur y gagne — il vient
               d'abord lire ce que le candidat a dit. */}
+          {/* La mémoire du cabinet et l'identité d'expédition, AVANT tout le
+              reste. C'est la seule position qui a du sens : plus bas, le
+              sourceur aurait déjà commencé à écrire. */}
+          {!isReadOnly && (
+            <OutreachReadiness
+              candidateId={candidate.id}
+              jobId={job?.id ?? null}
+              reloadKey={threadReload}
+              onVerdict={setReadiness}
+            />
+          )}
+
           <MessageThread
             candidateId={candidate.id}
             jobId={job?.id ?? null}
@@ -1171,7 +1190,7 @@ export default function MatchPage() {
             }
           />
 
-          {threadCount > 0 && !replying && !isReadOnly && (
+          {threadCount > 0 && !replying && !isReadOnly && !cannotWrite && (
             <button
               type="button"
               onClick={() => setReplying(true)}
@@ -1185,7 +1204,10 @@ export default function MatchPage() {
             </button>
           )}
 
-          {(threadCount === 0 || replying) && (
+          {/* Bloqué : la zone de rédaction disparaît au lieu de rester
+              ouverte pour un envoi qui sera refusé. Le bandeau ci-dessus dit
+              pourquoi — laisser les deux serait se contredire à l'écran. */}
+          {(threadCount === 0 || replying) && !cannotWrite && (
           <section style={{ flex: 1, background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16, padding: 18 }}>
             <h3 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "var(--nw-text-muted)", letterSpacing: "0.08em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase" }}>
               {threadCount > 0 ? t.replyTitle : t.approachMessageTitle}
