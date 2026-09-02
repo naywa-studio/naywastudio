@@ -128,6 +128,22 @@ besoin d'équipe.
 messages figurent dans les *Éléments envoyés* de la BAL dans Outlook. À ne
 rouvrir que sur demande réelle.
 
+#### ⚠️ Arbitrage d'Elyas (03/09) : une adresse par membre, point
+
+Le raisonnement ci-dessus tient, mais **la conclusion est reportée**. Décision :
+
+- **une seule adresse par membre**, la sienne, sur le domaine du cabinet ;
+- **on ne demande AUCUN enregistrement DNS à un client.** La quasi-totalité
+  des cabinets français est chez Microsoft ou Google : les deux connecteurs
+  couvrent le marché réel. Domain Connect est repoussé, pas prioritaire ;
+- **on ne propose donc plus de « domaine d'envoi » dans l'écran** ;
+- l'option « adresse du cabinet » sera **soumise aux clients par sondage**
+  avant d'être construite.
+
+Conséquence à assumer : sans domaine d'envoi ni boîte connectée, l'envoi
+retombe sur le domaine Naywa. C'est ce que signale l'avertissement
+`generic_identity` — le seul chemin restant est donc de connecter sa boîte.
+
 ### Surface 2 — la fiche match : là où on écrit
 
 C'est la surface principale, elle existe déjà (colonne 2 de
@@ -227,6 +243,32 @@ multiplierait les lignes et ne résoudrait pas le conflit n° 3 — deux sourceu
 répondant à la même personne. Conséquence assumée : la pastille de non-lu est
 celle du **cabinet**, et elle s'éteint pour tout le monde quand l'un s'en
 saisit. C'est le comportement qu'on veut.
+
+---
+
+## 6bis. ⚠️ Nos réponses n'atterrissent pas dans le fil du candidat
+
+Trouvé le 03/09 en répondant à une question d'Elyas — « quand on répond à la
+réponse du candidat, c'est toujours dans la même boucle ? »
+
+**Dans Naywa, oui. Chez le candidat, non.** `lib/mailing/inbound.ts` *lit*
+bien le `Message-ID` et la chaîne `References` du message entrant — et
+**personne ne les stocke**. Aucun envoi sortant ne pose `In-Reply-To` ni
+`References`. Notre réponse arrive donc chez le candidat comme un message
+neuf, à côté de l'échange en cours. Rien n'échoue, personne ne le voit depuis
+le workspace : le fil y est parfait.
+
+Ce qu'il faut : garder le `Message-ID` de l'entrant (une colonne), et le
+renvoyer en `In-Reply-To` + `References` sur la réponse.
+
+⚠️ **Et Graph ne le permettra pas par le chemin actuel.** `POST /me/sendMail`
+n'accepte dans `internetMessageHeaders` que des en-têtes commençant par `X-`
+— `In-Reply-To` est refusé. Il faudra envoyer un **MIME complet** à Graph
+(qu'il accepte) au lieu du JSON. Gmail ne pose pas ce problème : on lui envoie
+déjà du MIME brut (`buildRawMessage`).
+
+À traiter avec le sous-adressage (§7) : les deux touchent le même chemin
+d'envoi, et les séparer ferait payer deux fois la même relecture.
 
 ---
 
