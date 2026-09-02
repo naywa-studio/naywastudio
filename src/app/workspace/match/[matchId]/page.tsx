@@ -11,6 +11,7 @@ import { criterionHeaderLabel, shortCriterionLabel, dimColor, statusColor } from
 import ComposeBox from "@/components/workspace/ComposeBox"
 import MessageThread from "@/components/workspace/MessageThread"
 import OutreachReadiness, { type ReadinessPayload } from "@/components/workspace/OutreachReadiness"
+import { mailingVisible } from "@/lib/mailing/rollout"
 import { AnonymizeControls } from "@/components/workspace/anonymize/AnonymizeControls"
 import { AnonymizedCvLivePreview } from "@/components/workspace/anonymize/AnonymizedCvLivePreview"
 import { AnonymizeSidePanel } from "@/components/workspace/anonymize/AnonymizeSidePanel"
@@ -291,7 +292,11 @@ export default function MatchPage() {
   const sb = useMemo(() => getSupabase(), [])
   // Lecture seule : anonymisation, compose/envoi, pipeline et prétention
   // salariale sont bloqués côté serveur (requireActiveAccess). On grise l'UI.
-  const { isReadOnly, organization } = useWorkspace()
+  const { isReadOnly, organization, profile } = useWorkspace()
+  /* Même raison qu'à l'accueil : sans cette garde, chaque ouverture de fiche
+   * déclencherait un appel réseau chez des clients à qui le Mailing n'est pas
+   * proposé, pour s'entendre répondre « pas concerné ». */
+  const mailingOn = mailingVisible(profile, organization)
 
   const [match, setMatch] = useState<LoadedMatch | null>(null)
 
@@ -1167,7 +1172,7 @@ export default function MatchPage() {
           {/* La mémoire du cabinet et l'identité d'expédition, AVANT tout le
               reste. C'est la seule position qui a du sens : plus bas, le
               sourceur aurait déjà commencé à écrire. */}
-          {!isReadOnly && (
+          {!isReadOnly && mailingOn && (
             <OutreachReadiness
               candidateId={candidate.id}
               jobId={job?.id ?? null}

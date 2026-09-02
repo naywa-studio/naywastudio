@@ -13,6 +13,7 @@ import { TrialBanner } from "@/components/trial/TrialBanner"
 import { QuotaWarningBanner } from "@/components/quota/QuotaWarningBanner"
 import { NavUnreadDot, UpdatesNavBadge } from "@/components/updates/UpdatesNavItem"
 import RepliesNavCount from "@/components/workspace/RepliesNavCount"
+import { mailingVisible } from "@/lib/mailing/rollout"
 import { SupportButton } from "@/components/support/SupportButton"
 import { CguGate } from "@/components/legal/CguGate"
 import { isWorkspaceReadOnly, hasActiveAccess, graceInfo, hasPricingAccess } from "@/lib/subscription"
@@ -237,6 +238,13 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   // `!== true` (TS narrow le type et rejette la 2ᵉ comparaison comme impossible).
   const isAdminUser = profile?.is_admin === true
 
+  /* Gaté ICI et pas seulement dans le composant : monté pour tout le monde, il
+   * ouvrirait un appel réseau toutes les trois minutes chez des clients à qui
+   * le Mailing n'est même pas proposé. Ce projet a déjà payé exactement cette
+   * erreur avec `useUnreadUpdates` — premier poste de consommation Fluid CPU
+   * sur Vercel. Une réponse « pas concerné » reste une requête. */
+  const mailingOn = mailingVisible(profile, organization)
+
   const tabLinks = TABS[lang].filter((tab) => !tab.requiresPricing || canPricing).map((tab) => {
     const active = isActive(tab.href)
     return (
@@ -265,7 +273,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         {/* La section « Réponses » vit sur l'accueil : sans repère ici, un
             sourceur resté trois heures dans une mission ne saurait pas qu'un
             candidat lui a écrit. */}
-        {tab.href === "/workspace" && <RepliesNavCount />}
+        {tab.href === "/workspace" && mailingOn && <RepliesNavCount />}
       </Link>
     )
   })
