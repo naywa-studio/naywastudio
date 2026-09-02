@@ -100,6 +100,34 @@ Trois lignes de tableau, pas un écran.
 Le choix entre *relation personnelle* (meilleur taux de réponse) et *adresse
 générique* (survit au départ d'un sourceur) doit être **posé**, pas deviné.
 
+#### La boîte partagée d'équipe : c'est le domaine d'envoi, pas un connecteur
+
+Question d'Elyas (02/09) : l'owner ne pourrait-il pas connecter une BAL
+partagée, chaque membre choisissant ensuite sa boîte ou celle de l'équipe ?
+
+**Techniquement, non.** Une boîte aux lettres partagée Microsoft n'a ni licence
+ni mot de passe et **ne peut pas se connecter** : il n'y a personne à
+authentifier. Ce qui existe, c'est qu'un *utilisateur* disposant du droit
+« Envoyer en tant que » s'authentifie avec le scope `Mail.Send.Shared` et
+envoie *au nom de* la BAL. Tous les envois de l'équipe passeraient alors par
+**le jeton d'une personne** — l'owner part, tout s'arrête. On aurait recréé le
+problème qu'on cherche à éviter.
+
+**La réponse est déjà dans le produit : le domaine d'envoi.**
+`recrutement@cabinet.fr` expédié par SES sous le domaine authentifié du
+cabinet. Ni BAL, ni scope supplémentaire, ni dépendance à un salarié. L'owner
+configure une fois, tout le monde en dispose, ça survit à tous les départs.
+
+Le mécanisme voulu reste exactement celui décrit, posé sur cette voie-là :
+**chaque membre choisit — ma boîte, ou l'adresse du cabinet.** Ce qui donne à
+Domain Connect un rôle qu'on ne lui prêtait pas : ce n'est pas seulement le
+chemin de repli des cabinets sans Google ni Microsoft, c'est **la** réponse au
+besoin d'équipe.
+
+`Mail.Send.Shared` reste l'issue de secours si un client exige que les
+messages figurent dans les *Éléments envoyés* de la BAL dans Outlook. À ne
+rouvrir que sur demande réelle.
+
 ### Surface 2 — la fiche match : là où on écrit
 
 C'est la surface principale, elle existe déjà (colonne 2 de
@@ -261,7 +289,31 @@ outil qu'il abandonne au bout de trois semaines sans savoir dire pourquoi.
 
 ---
 
-## 9. Ordre de construction
+## 9. Ce qui est construit (02/09, commit `137bb3f`)
+
+Lots 1 et 3 livrés, branche `claude/mailing-from-address`, en attente de
+validation en preview. tsc + eslint propres, 287 tests (23 neufs).
+
+- `lib/mailing/readiness.ts` — l'échelle d'états du §5, fonction **pure** : la
+  route rassemble les faits, ce fichier décide de l'ordre. Un ordre se teste,
+  une suite de `if` dans une route non.
+- `lib/mailing/contact-history.ts` — la mémoire, **dérivée** d'`email_messages`.
+- `GET /api/mailing/readiness` — les deux ci-dessus, en une lecture, avant
+  d'écrire. N'écrit rien : ne crée notamment pas l'adresse de réception.
+- `OutreachReadiness` — le bandeau, au-dessus de la rédaction, qui disparaît
+  avec elle quand c'est bloquant.
+- `GET/POST /api/mailing/replies` + `RepliesSection` + `RepliesNavCount` —
+  la surface 3, sur l'accueil, avec le compteur sur l'onglet.
+- Migration **099** appliquée : `handled_at`/`handled_by` + les deux index.
+- **Répondre marque la prise en charge**, sans rien demander. Un compteur qui
+  ne descend jamais cesse d'être regardé — y compris le jour où il compte.
+
+Reste du plan : le sous-adressage (lot 2), la section Messagerie (lot 4), le
+consentement administrateur Microsoft (lot 5).
+
+---
+
+## 10. Ordre de construction
 
 L'ordre suit le risque, pas la facilité.
 
@@ -288,7 +340,7 @@ offertes à GMH.
 
 ---
 
-## 10. Ce qu'on ne fait pas, et pourquoi
+## 11. Ce qu'on ne fait pas, et pourquoi
 
 - **Pas de scope de lecture**, ni `gmail.readonly` ni `Mail.Read`. Ce serait
   le moyen le plus rapide de capter 100 % des réponses, et le plus sûr de
