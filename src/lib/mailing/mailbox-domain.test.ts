@@ -65,6 +65,21 @@ describe("ce qui doit passer — et c'est le plus important", () => {
   })
 })
 
+describe("le bypass administrateur Naywa", () => {
+  it("laisse un admin connecter n'importe quelle boîte", () => {
+    // Même motif que partout ailleurs (`hasActiveAccess`, `getQuotas`…).
+    // Sans lui, éprouver le connecteur imposerait de désactiver la garde pour
+    // TOUT LE MONDE — donc de risquer de livrer sans elle.
+    const v = checkMailboxDomain("perso@gmail.com", cabinet, { isAdmin: true })
+    expect(v.allowed).toBe(true)
+  })
+
+  it("ne s'applique pas à un simple membre du cabinet", () => {
+    expect(checkMailboxDomain("perso@gmail.com", cabinet, { isAdmin: false }).allowed).toBe(false)
+    expect(checkMailboxDomain("perso@gmail.com", cabinet, {}).allowed).toBe(false)
+  })
+})
+
 describe("le domaine d'envoi et sa racine", () => {
   it("un salarié du cabinet passe alors que l'envoi est sur un sous-domaine", () => {
     // Le domaine d'envoi est `careers.cabinet.fr` mais les boîtes des salariés

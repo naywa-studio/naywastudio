@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
     accountEmail: user.email,
     orgContactEmail: org.contact_email,
     orgSendingDomain: org.mailing_sending_domain,
-  })
+  }, { isAdmin: caps.isAdminNaywa })
   if (!verdict.allowed) {
     return back(appUrl, `mailbox_error=domain_not_allowed&got=${encodeURIComponent(verdict.domain ?? "")}&expected=${encodeURIComponent(verdict.expected.join(","))}`)
   }

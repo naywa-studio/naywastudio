@@ -87,9 +87,21 @@ export interface MailboxDomainVerdict {
 export function checkMailboxDomain(
   mailboxEmail: string,
   ctx: MailboxDomainContext,
+  /**
+   * Bypass administrateur Naywa, comme partout ailleurs dans le produit
+   * (`hasActiveAccess`, `getQuotas`, `subscriptionAccess`…).
+   *
+   * Ce n'est pas une commodité : sans lui, tester le connecteur exigerait de
+   * désactiver la garde pour TOUT LE MONDE — donc de livrer un jour sans
+   * elle, ou de la remettre en se souvenant de le faire. Une exception nommée
+   * et visible vaut mieux qu'un interrupteur global qu'on oublie.
+   */
+  opts?: { isAdmin?: boolean },
 ): MailboxDomainVerdict {
   const domain = domainOf(mailboxEmail)
   const expected = allowedMailboxDomains(ctx)
+
+  if (opts?.isAdmin) return { allowed: true, domain, expected }
 
   /* Aucun repère connu : on laisse passer. Refuser ici bloquerait un cabinet
    * dont les données sont simplement incomplètes, pour prévenir un abus qu'on
