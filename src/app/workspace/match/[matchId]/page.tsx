@@ -1230,7 +1230,17 @@ export default function MatchPage() {
                 // Au-delà du premier message, Nora RÉPOND : elle relit tout
                 // l'échange plutôt que de refaire une approche.
                 isReply={threadCount > 0}
-                onSent={() => { setReplying(false); setThreadReload((n) => n + 1) }}
+                onSent={() => {
+                  setReplying(false)
+                  setThreadReload((n) => n + 1)
+                  /* Le serveur fait exactement ça : un envoi vaut contact, et
+                     entre le candidat dans la shortlist. Le refléter tout de
+                     suite évite que l'en-tête continue de proposer « Ajouter
+                     à la shortlist » pour quelqu'un qu'on vient de contacter. */
+                  setMatch((prev) => prev && prev.pipeline_stage === "identified"
+                    ? { ...prev, pipeline_stage: "contacted" as PipelineStage, in_pipeline: true }
+                    : prev ? { ...prev, in_pipeline: true } : prev)
+                }}
               />
             ) : (
               <p style={{ margin: 0, fontSize: 13, color: "var(--nw-text-muted)" }}>
@@ -1257,6 +1267,11 @@ export default function MatchPage() {
               layout="vertical"
               onlyMatchId={match.id}
               readOnly={isReadOnly}
+              /* Un envoi fait passer le match de « À contacter » à
+                 « Contacté » côté serveur. Sans ce rechargement, le rail
+                 gardait l'état d'avant et le sourceur croyait que rien ne
+                 s'était produit. */
+              reloadKey={threadReload}
             />
           </div>
         </aside>

@@ -71,6 +71,23 @@ export async function GET(req: NextRequest) {
       // affichage sous une clé R2 illisible.
       filename: file.filename,
     })
+    /* ── Pourquoi une redirection, et pas seulement du JSON ──────────────
+     *
+     * Le fil ouvrait la pièce jointe en appelant cette route, puis
+     * `window.open` avec l'URL reçue. Or ce second appel a lieu APRÈS une
+     * attente réseau : le navigateur ne le rattache plus au clic, et Chrome
+     * le bloque comme une fenêtre surgissante — **sans rien dire**. Le
+     * sourceur cliquait, rien ne se passait, et le journal restait muet.
+     *
+     * Avec une redirection, le fil n'a plus qu'un lien ordinaire : rien à
+     * bloquer, et l'ouverture dans un nouvel onglet, le clic du milieu ou
+     * « enregistrer la cible sous » fonctionnent comme partout ailleurs.
+     *
+     * Le JSON reste servi par défaut : c'est le contrat d'origine, et rien
+     * n'oblige un futur appelant à vouloir la redirection. */
+    if (req.nextUrl.searchParams.get("redirect") === "1") {
+      return NextResponse.redirect(url)
+    }
     return NextResponse.json({ ok: true, url, filename: file.filename })
   } catch (err) {
     console.error("[mailing/attachment] URL impossible:", (err as Error).message)

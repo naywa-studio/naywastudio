@@ -96,6 +96,7 @@ export default function CandidateMiniKanban({
   layout = "horizontal",
   onlyMatchId,
   readOnly = false,
+  reloadKey = 0,
 }: {
   candidateId: string
   /** Nom du candidat — utilisé dans la modale "raison du rejet" pour
@@ -110,6 +111,11 @@ export default function CandidateMiniKanban({
    *  matches the candidate has are hidden so the rail mirrors the job
    *  picker upstream. */
   onlyMatchId?: string
+  /** Incrémenté par le parent après une action qui déplace le candidat —
+   *  un envoi, typiquement. Sans ça le rail garde l.état d.avant : la base dit
+   *  « Contacté », l.écran affiche encore « À contacter », et le sourceur
+   *  conclut que l.envoi n.a rien fait. */
+  reloadKey?: number
   /** Lecture seule : le drag & drop est désactivé (mutation bloquée serveur). */
   readOnly?: boolean
 }) {
@@ -136,7 +142,7 @@ export default function CandidateMiniKanban({
       setLoading(false)
     })()
     return () => { mounted = false }
-  }, [candidateId, sb])
+  }, [candidateId, sb, reloadKey])
 
   const commitMove = async (
     rowId: string,

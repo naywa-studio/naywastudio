@@ -154,19 +154,6 @@ export default function MessageThread({
   const onCountRef = useRef(onCount)
   useEffect(() => { onCountRef.current = onCount }, [onCount])
 
-  /* Le chemin R2 n'est JAMAIS exposé au navigateur : on demande la pièce
-   * n° N d'un message, le serveur relit le chemin en base et signe une URL
-   * valable cinq minutes. */
-  const openAttachment = useCallback(async (messageId: string, index: number) => {
-    try {
-      const res = await fetch(`/api/mailing/attachment?message=${messageId}&index=${index}`)
-      const d = await res.json()
-      if (res.ok && d.url) window.open(d.url, "_blank", "noopener,noreferrer")
-    } catch {
-      // Silencieux : un échec de téléchargement ne doit pas casser le fil.
-    }
-  }, [])
-
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
       const url = `/api/candidates/${candidateId}/messages${jobId ? `?job_id=${jobId}` : ""}`
@@ -290,16 +277,22 @@ export default function MessageThread({
                   {m.attachments.length > 0 && (
                     <div style={S.attachments}>
                       <span style={S.attachLabel}>{t.attachmentsLabel}</span>
+                      {/* Un lien, pas un bouton : l'ancienne version appelait
+                          la route puis `window.open`, donc APRÈS une attente
+                          réseau — Chrome bloquait alors l'ouverture comme une
+                          fenêtre surgissante, en silence. Le sourceur cliquait
+                          et rien ne se passait. */}
                       {m.attachments.map((a, i) => (
-                        <button
+                        <a
                           key={i}
-                          type="button"
-                          style={{ ...S.attachChip, cursor: "pointer", border: 0 }}
-                          onClick={() => openAttachment(m.id, i)}
+                          href={`/api/mailing/attachment?message=${m.id}&index=${i}&redirect=1`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ ...S.attachChip, cursor: "pointer", border: 0, textDecoration: "none" }}
                           title={t.download}
                         >
                           {a.filename} · {Math.max(1, Math.round(a.size / 1024))} Ko
-                        </button>
+                        </a>
                       ))}
                     </div>
                   )}
