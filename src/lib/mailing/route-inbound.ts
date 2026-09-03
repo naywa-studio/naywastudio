@@ -41,6 +41,15 @@ export interface InboundRouting {
   candidateId: string | null
   /** Mission déduite du dernier échange sortant. */
   jobId: string | null
+  /**
+   * Le destinataire est-il un administrateur Naywa ?
+   *
+   * Remonté d'ici parce que la lecture du profil a DÉJÀ lieu : le chemin
+   * entrant n'a pas de session, donc sans ça l'appelant devrait relire la même
+   * ligne pour savoir s'il peut analyser la réponse. C'était le seul chemin
+   * appelant un modèle sans transmettre ce bypass.
+   */
+  isAdmin: boolean
 }
 
 /**
@@ -68,14 +77,14 @@ export async function resolveInboundRouting(
   // message jamais reçu, et le sourceur en conclut que personne n'a répondu.
   let { data: profile } = await admin
     .from("profiles")
-    .select("user_id, organization_id")
+    .select("user_id, organization_id, is_admin")
     .eq("inbox_address", toAddr)
     .maybeSingle()
 
   if (!profile) {
     const { data: byAlias } = await admin
       .from("profiles")
-      .select("user_id, organization_id")
+      .select("user_id, organization_id, is_admin")
       .contains("inbox_aliases", [toAddr])
       .limit(1)
       .maybeSingle()
@@ -83,7 +92,7 @@ export async function resolveInboundRouting(
   }
 
   if (!profile) {
-    return { userId: null, organizationId: null, candidateId: null, jobId: null }
+    return { userId: null, organizationId: null, candidateId: null, jobId: null, isAdmin: false }
   }
 
   /* ── Le chemin CERTAIN : l'adresse portait la conversation ─────────────
@@ -111,6 +120,7 @@ export async function resolveInboundRouting(
         organizationId: profile.organization_id,
         candidateId: match.candidate_id,
         jobId: match.job_id,
+        isAdmin: profile.is_admin === true,
       }
     }
   }
@@ -143,6 +153,7 @@ export async function resolveInboundRouting(
     organizationId: profile.organization_id,
     candidateId: candidate?.id ?? null,
     jobId,
+    isAdmin: profile.is_admin === true,
   }
 }
 

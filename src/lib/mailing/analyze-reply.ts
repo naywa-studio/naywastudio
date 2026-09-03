@@ -77,14 +77,29 @@ export async function analyzeReply(
    * irremplaçable, la suggestion ne l'est pas.
    */
   orgId?: string | null,
+  /**
+   * Bypass administrateur Naywa, comme les dix autres routes qui appellent un
+   * modèle. Ce chemin était le SEUL à ne pas le transmettre : une organisation
+   * admin, sans abonnement, se voyait donc refuser l'analyse avec un
+   * « quota épuisé » alors qu'elle était à zéro action consommée. Le message
+   * était trompeur autant que le refus.
+   */
+  opts?: { isAdmin?: boolean },
 ): Promise<ReplyAnalysis> {
   const body = stripSignature(text ?? "")
   if (!body.trim()) return { sentiment: null, summary: null, suggestedStage: null }
 
   if (orgId) {
-    const quota = await consumeOrgLlmAction(getAdminSupabase(), orgId)
+    const quota = await consumeOrgLlmAction(getAdminSupabase(), orgId, opts)
     if (!quota.ok) {
-      console.warn("[analyze-reply] quota IA épuisé, message conservé sans analyse:", orgId)
+      /* « Épuisé » était faux dans le cas le plus fréquent : une limite à zéro
+       * (essai terminé, pas d'abonnement) n'est pas un quota consommé. Un
+       * journal qui ment fait chercher au mauvais endroit — il a coûté une
+       * demi-heure ici même. */
+      console.warn(
+        `[analyze-reply] pas de quota IA (${quota.used}/${quota.limit}), message conservé sans analyse:`,
+        orgId,
+      )
       return { sentiment: null, summary: null, suggestedStage: null }
     }
   }

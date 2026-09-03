@@ -24,7 +24,7 @@ const AUTRE_ORG = "org-2"
 const MATCH = "3a5fcf8d-0f0b-4190-babd-b1686de9b751"
 
 interface Fixture {
-  profile?: { user_id: string; organization_id: string } | null
+  profile?: { user_id: string; organization_id: string; is_admin?: boolean } | null
   match?: { id: string; candidate_id: string; job_id: string; organization_id: string } | null
   candidate?: { id: string } | null
   lastOutboundJobId?: string | null
@@ -71,7 +71,7 @@ describe("le suffixe l'emporte : on SAIT au lieu de deviner", () => {
     })
 
     expect(routing).toEqual({
-      userId: "u-sophie", organizationId: ORG, candidateId: "cand-A", jobId: "job-A",
+      userId: "u-sophie", organizationId: ORG, candidateId: "cand-A", jobId: "job-A", isAdmin: false,
     })
   })
 
@@ -141,8 +141,26 @@ describe("le repli, qui reste le chemin de tout l'existant", () => {
     })
 
     expect(routing).toEqual({
-      userId: "u-sophie", organizationId: ORG, candidateId: "cand-A", jobId: "job-A",
+      userId: "u-sophie", organizationId: ORG, candidateId: "cand-A", jobId: "job-A", isAdmin: false,
     })
+  })
+
+  it("remonte le statut admin du destinataire", async () => {
+    /* Le chemin entrant n'a pas de session : sans cette valeur, l'analyse de
+     * la réponse par Nora est refusée à une organisation admin, avec un
+     * « quota épuisé » alors qu'elle est à zéro action consommée. C'était le
+     * seul appel à un modèle du produit qui ne transmettait pas ce bypass. */
+    const admin = fakeAdmin({
+      profile: { user_id: "u-elyas", organization_id: ORG, is_admin: true },
+      candidate: { id: "cand-A" },
+    })
+
+    const routing = await resolveInboundRouting(admin, {
+      toAddress: "elyas@reply.naywastudio.com",
+      fromAddress: "candidat@exemple.fr",
+    })
+
+    expect(routing.isAdmin).toBe(true)
   })
 
   it("un candidat inconnu au vivier laisse un message sans rattachement, pas une erreur", async () => {
@@ -165,7 +183,7 @@ describe("le repli, qui reste le chemin de tout l'existant", () => {
     })
 
     expect(routing).toEqual({
-      userId: null, organizationId: null, candidateId: null, jobId: null,
+      userId: null, organizationId: null, candidateId: null, jobId: null, isAdmin: false,
     })
   })
 })
