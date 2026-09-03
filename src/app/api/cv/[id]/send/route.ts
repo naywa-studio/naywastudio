@@ -189,6 +189,36 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     ? unsubscribeHeaders(candidate.email, profile.organization_id, getAppUrl(req))
     : {}
 
+  /* ── Répondre DANS le fil du candidat ──────────────────────────────────
+   *
+   * Dans Naywa le fil était parfait ; chez le candidat, non. Faute de
+   * `In-Reply-To`, nos réponses arrivaient comme des messages neufs, à côté
+   * de l'échange en cours. Rien n'échouait, et le seul endroit où ça se voyait
+   * était sa boîte à lui.
+   *
+   * On reprend le `Message-ID` de son DERNIER message : c'est à celui-là qu'on
+   * répond. `References` reçoit la même valeur — la chaîne complète serait
+   * plus fidèle à la RFC, mais tous les clients de messagerie chaînent sur le
+   * dernier maillon, et une chaîne partielle vaut mieux qu'une absente.
+   *
+   * Silencieux si l'échange est antérieur à la colonne, ou si c'est le premier
+   * message : il n'y a alors rien à rattacher. */
+  const threadHeaders: Record<string, string> = {}
+  const { data: lastInbound } = await admin
+    .from("email_messages")
+    .select("rfc_message_id")
+    .eq("candidate_id", candidate.id)
+    .eq("direction", "inbound")
+    .not("rfc_message_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (lastInbound?.rfc_message_id) {
+    threadHeaders["In-Reply-To"] = lastInbound.rfc_message_id
+    threadHeaders["References"] = lastInbound.rfc_message_id
+  }
+  const outHeaders = { ...unsubHeaders, ...threadHeaders }
+
   /* ── Par quelle boîte ce message part-il ? ─────────────────────────────
    *
    * Trois transports, dans cet ordre :
@@ -217,7 +247,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         subject,
         text: bodyToSend,
         bcc,
-        headers: unsubHeaders,
+        headers: outHeaders,
         /* ── DEUX adresses de réponse, dans cet ordre ──────────────────
          *
          * La sienne d'abord, la nôtre ensuite. Le candidat clique
@@ -262,7 +292,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           // Le bouton natif « Se désabonner » de Gmail et d'Outlook. Son
           // absence est l'un des signaux qui font traiter un expéditeur comme
           // un indésirable — et c'était une des promesses faites à AWS.
-          headers: unsubHeaders,
+          headers: outHeaders,
         },
         asAdmin,
       )
@@ -283,7 +313,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         // Le même en-tête que sur le chemin « domaine du cabinet ». L'oublier
         // ici priverait du bouton « Se désabonner » précisément les cabinets
         // qui n'ont PAS d'add-on — donc la majorité des envois.
-        headers: unsubHeaders,
+        headers: outHeaders,
       })
       providerId = sent.id
     }

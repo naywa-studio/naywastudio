@@ -17,74 +17,76 @@ function http(status: number, body = ""): Response {
   return { ok: false, status, text: async () => body } as unknown as Response
 }
 
-function captureBody(): { get: () => Record<string, unknown> } {
-  const seen: Record<string, unknown>[] = []
+/** Capture le MIME réellement transmis, décodé. */
+function captureMime(): { get: () => string; contentType: () => string } {
+  const seen: { body: string; type: string }[] = []
   vi.stubGlobal("fetch", vi.fn(async (_u: string, init: RequestInit) => {
-    seen.push(JSON.parse(String(init.body)))
+    const headers = (init.headers ?? {}) as Record<string, string>
+    seen.push({ body: Buffer.from(String(init.body), "base64").toString("utf8"), type: headers["Content-Type"] })
     return OK
   }))
-  return { get: () => seen[0] }
+  return { get: () => seen[0]?.body ?? "", contentType: () => seen[0]?.type ?? "" }
 }
 
 afterEach(() => { vi.unstubAllGlobals() })
 
 describe("ce que Graph reçoit", () => {
-  it("garde une copie dans les éléments envoyés", async () => {
-    // C'est LA promesse du connecteur : écrire depuis sa vraie boîte, et
-    // retrouver la trace dans sa vraie boîte. Sans ça, le sourceur ne sait
-    // plus ce qu'il a envoyé.
-    const body = captureBody()
+  it("un MIME, et non le JSON de Graph", async () => {
+    // C'est ce qui débloque `In-Reply-To` et `List-Unsubscribe` : par la voie
+    // JSON, Microsoft refuse tout en-tête ne commençant pas par « X- ».
+    const mime = captureMime()
     await sendViaGraph("tok", { fromEmail: "s@cab.fr", to: "c@x.fr", subject: "S", text: "T" })
-    expect(body.get().saveToSentItems).toBe(true)
+    expect(mime.contentType()).toBe("text/plain")
+    expect(mime.get()).toContain("To: c@x.fr")
+    expect(mime.get()).toContain("MIME-Version: 1.0")
   })
 
-  it("éclate les deux adresses de réponse", async () => {
+  it("porte les deux adresses de réponse", async () => {
     // Le double Reply-To est l'argument central du dossier de vérification :
-    // le candidat répond au sourceur, et une copie nous revient. Graph veut
-    // une liste d'objets, pas la chaîne « a, b » qu'attend Gmail.
-    const body = captureBody()
+    // le candidat répond au sourceur, et une copie nous revient.
+    const mime = captureMime()
     await sendViaGraph("tok", {
       fromEmail: "s@cab.fr", to: "c@x.fr", subject: "S", text: "T",
       replyTo: "s@cab.fr, suivi@reply.naywastudio.com",
     })
-    const msg = body.get().message as { replyTo: { emailAddress: { address: string } }[] }
-    expect(msg.replyTo.map((r) => r.emailAddress.address))
-      .toEqual(["s@cab.fr", "suivi@reply.naywastudio.com"])
+    expect(mime.get()).toContain("Reply-To: s@cab.fr, suivi@reply.naywastudio.com")
   })
 
-  it("ignore une virgule en trop plutôt que de faire échouer l'envoi", async () => {
-    // Graph rejette la requête ENTIÈRE sur un destinataire vide : une virgule
-    // de trop ferait perdre le message, pas seulement l'adresse.
-    const body = captureBody()
+  it("rattache la réponse au fil du candidat", async () => {
+    // Sans cet en-tête, notre réponse arrive comme un message NEUF, à côté de
+    // l'échange en cours. Impossible par la voie JSON — c'est la raison
+    // d'être de la bascule.
+    const mime = captureMime()
     await sendViaGraph("tok", {
-      fromEmail: "s@cab.fr", to: "c@x.fr,", subject: "S", text: "T", bcc: " , ",
+      fromEmail: "s@cab.fr", to: "c@x.fr", subject: "Re: S", text: "T",
+      headers: { "In-Reply-To": "<abc@mail.gmail.com>", "References": "<abc@mail.gmail.com>" },
     })
-    const msg = body.get().message as { toRecipients: unknown[]; bccRecipients: unknown[] }
-    expect(msg.toRecipients).toHaveLength(1)
-    expect(msg.bccRecipients).toHaveLength(0)
+    expect(mime.get()).toContain("In-Reply-To: <abc@mail.gmail.com>")
+    expect(mime.get()).toContain("References: <abc@mail.gmail.com>")
   })
 
-  it("n'envoie que les en-têtes que Microsoft accepte", async () => {
-    // Graph refuse tout en-tête personnalisé qui ne commence pas par « X- »,
-    // et refuse le message entier avec. `List-Unsubscribe` doit donc être
-    // écarté ici — la limite est assumée, cf. le commentaire dans le module.
-    const body = captureBody()
+  it("porte enfin le bouton « Se désabonner » natif", async () => {
+    // Son absence est l'un des signaux qui font traiter un expéditeur comme
+    // indésirable. Il était perdu sur tout le chemin Microsoft.
+    const mime = captureMime()
     await sendViaGraph("tok", {
       fromEmail: "s@cab.fr", to: "c@x.fr", subject: "S", text: "T",
-      headers: { "List-Unsubscribe": "<mailto:stop@x.fr>", "X-Naywa-Match": "abc" },
+      headers: { "List-Unsubscribe": "<mailto:stop@x.fr>" },
     })
-    const msg = body.get().message as { internetMessageHeaders?: { name: string }[] }
-    expect(msg.internetMessageHeaders).toHaveLength(1)
-    expect(msg.internetMessageHeaders?.[0].name).toBe("X-Naywa-Match")
+    expect(mime.get()).toContain("List-Unsubscribe: <mailto:stop@x.fr>")
   })
 
-  it("aplatit un sujet multiligne", async () => {
-    const body = captureBody()
+  it("un sujet multiligne ne peut pas fabriquer un second en-tête", async () => {
+    /* Le vecteur revient avec le MIME : il y a de nouveau des en-têtes à
+     * refermer. Un `Bcc:` glissé dans un sujet enverrait une copie que le
+     * sourceur ne verrait jamais. */
+    const mime = captureMime()
     await sendViaGraph("tok", {
       fromEmail: "s@cab.fr", to: "c@x.fr", subject: "Bonjour\r\nBcc: pirate@x.fr", text: "T",
     })
-    const msg = body.get().message as { subject: string }
-    expect(msg.subject).not.toContain("\n")
+    const entete = mime.get().split("\r\n\r\n")[0]
+    expect(entete).not.toMatch(/^Bcc: pirate@x\.fr$/m)
+    expect(entete).toContain("Bonjour Bcc: pirate@x.fr")
   })
 })
 

@@ -23,85 +23,22 @@
  * 15 000-75 000 $/an). Cf. `lib/mailing/oauth-google.ts`.
  */
 
+import { buildMimeMessage, type MimeMessage } from "./mime"
+
 const SEND_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 
-export interface GmailMessage {
-  /** Nom affiché de l'expéditeur — le sourceur. */
-  fromName?: string | null
-  /** L'adresse connectée. Gmail refuse tout autre expéditeur. */
-  fromEmail: string
-  to: string
-  subject: string
-  text: string
-  replyTo?: string
-  bcc?: string
-  headers?: Record<string, string>
-}
+/** Le message tel que l'appelant le fournit. Identique à celui de Graph : les
+ *  deux passent désormais par le même assembleur MIME (cf. `mime.ts`). */
+export type GmailMessage = MimeMessage
 
 /**
- * Retire ce qui permettrait de refermer un en-tête pour en injecter un autre.
+ * Assemble le message RFC 822 attendu par l'API Gmail.
  *
- * Les sauts de ligne d'abord — c'est par là qu'on ajoute un `Bcc:` que le
- * sourceur ne verrait jamais. Appliqué à CHAQUE valeur d'en-tête, pas
- * seulement à celles qui semblent risquées : c'est la seule façon que la
- * garde survive à l'ajout d'un champ.
+ * Réexporté sous son nom historique. L'assembleur lui-même vit maintenant dans
+ * `mime.ts`, parce que Graph en a besoin mot pour mot : sans MIME, Microsoft
+ * refuse `In-Reply-To`, et nos réponses arrivent hors du fil du candidat.
  */
-function headerValue(v: string): string {
-  return v.replace(/[\r\n]+/g, " ").trim()
-}
-
-/**
- * Encode un en-tête non-ASCII selon la RFC 2047.
- *
- * Sans ça, un sujet contenant un accent — donc la quasi-totalité des sujets
- * en français — arrive illisible chez le candidat. Le mot encodé est
- * volontairement produit d'un bloc : découper proprement sur plusieurs lignes
- * ne vaut la peine que pour des sujets très longs, et un découpage FAUX est
- * pire qu'une ligne longue.
- */
-function encodeHeader(v: string): string {
-  const clean = headerValue(v)
-  if (/^[\x00-\x7F]*$/.test(clean)) return clean
-  return `=?UTF-8?B?${Buffer.from(clean, "utf8").toString("base64")}?=`
-}
-
-/** L'en-tête `From` : nom du sourceur, adresse connectée. */
-function fromHeader(name: string | null | undefined, email: string): string {
-  // L'arobase est retirée du NOM : sans ça, « Sophie x@evil.com » s'afficherait
-  // tel quel chez le candidat, qui lirait un expéditeur qui n'en est pas un.
-  const clean = headerValue((name ?? "").replace(/["<>@]/g, " ")).replace(/\s{2,}/g, " ")
-  return clean ? `${encodeHeader(clean)} <${email}>` : email
-}
-
-/**
- * Assemble le message RFC 822, prêt pour l'API Gmail.
- *
- * Exporté pour être éprouvé : c'est ici que se joue l'injection d'en-têtes, et
- * un défaut n'y produirait aucune erreur — seulement un message parti avec un
- * destinataire caché.
- */
-export function buildRawMessage(m: GmailMessage): string {
-  const lines: string[] = [
-    `From: ${fromHeader(m.fromName, m.fromEmail)}`,
-    `To: ${headerValue(m.to)}`,
-    `Subject: ${encodeHeader(m.subject)}`,
-    "MIME-Version: 1.0",
-    'Content-Type: text/plain; charset="UTF-8"',
-    "Content-Transfer-Encoding: base64",
-  ]
-  if (m.replyTo) lines.push(`Reply-To: ${headerValue(m.replyTo)}`)
-  if (m.bcc) lines.push(`Bcc: ${headerValue(m.bcc)}`)
-  for (const [name, value] of Object.entries(m.headers ?? {})) {
-    // Le NOM d'en-tête est filtré lui aussi : un « : » ou un saut de ligne
-    // dedans permettrait d'en fabriquer un second.
-    const key = name.replace(/[^A-Za-z0-9-]/g, "")
-    if (key) lines.push(`${key}: ${headerValue(value)}`)
-  }
-
-  // Corps en base64 sur des lignes de 76 caractères, comme l'exige le MIME.
-  const body = Buffer.from(m.text, "utf8").toString("base64").replace(/(.{76})/g, "$1\r\n")
-  return `${lines.join("\r\n")}\r\n\r\n${body}`
-}
+export const buildRawMessage = buildMimeMessage
 
 export type GmailSendResult =
   | { ok: true; id: string }

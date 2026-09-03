@@ -1,31 +1,35 @@
 /**
  * Envoi par Microsoft Graph — l'équivalent de `gmail-send.ts`.
  *
- * ── Plus court que Gmail, et ce n'est pas un raccourci ───────────────────
+ * ── Le même message que Gmail, par le même assembleur ────────────────────
  *
- * Gmail veut un message RFC 822 complet, que `buildRawMessage` assemble à la
- * main — d'où tout l'appareil de protection contre l'injection d'en-têtes.
- * Graph, lui, prend un objet JSON et compose le message lui-même. Le vecteur
- * « un saut de ligne dans le sujet ajoute un `Bcc:` » **n'existe pas ici**,
- * parce qu'il n'y a pas d'en-têtes à refermer.
+ * Ce fichier composait un objet JSON que Graph transformait lui-même en
+ * message. C'était plus court, et ça coûtait deux en-têtes : Microsoft
+ * n'accepte dans `internetMessageHeaders` que ce qui commence par « X- »,
+ * donc ni `In-Reply-To` (nos réponses arrivaient hors du fil du candidat) ni
+ * `List-Unsubscribe` (pas de bouton « Se désabonner » natif).
  *
- * On nettoie quand même sujet et nom affiché (`sanitize`) : ce n'est plus une
- * garde de sécurité mais une garde de propreté, et surtout la même donnée
- * part parfois par l'un ou l'autre chemin. Deux comportements différents pour
- * un même message seraient un piège pour la personne qui viendra après.
+ * Graph accepte aussi un **MIME complet**. On lui envoie donc exactement ce
+ * qu'on envoie à Gmail, via `mime.ts`. Un message part identique quel que soit
+ * le transport, et une règle d'en-tête écrite une fois vaut pour les deux.
+ *
+ * Contrepartie assumée : l'injection d'en-têtes redevient un vecteur réel,
+ * puisqu'il y a de nouveau des en-têtes à refermer. Le filtrage vit dans
+ * `mime.ts` et y est éprouvé.
  *
  * ── Ce que Graph impose ───────────────────────────────────────────────────
  *
  * - **L'expéditeur n'est pas paramétrable.** Graph envoie depuis la boîte du
- *   jeton, point. On ne passe donc pas de `from` — le préciser ferait échouer
- *   l'appel sur les comptes sans droit d'usurpation.
- * - **`saveToSentItems`** doit valoir `true` : le sourceur doit retrouver son
- *   message dans ses « Éléments envoyés ». C'est la promesse du connecteur —
- *   écrire depuis sa vraie boîte, avec la trace dans sa vraie boîte.
- * - Les en-têtes libres passent par `internetMessageHeaders`, et Microsoft
- *   **exige qu'ils commencent par `X-`**. `List-Unsubscribe` est donc refusé
- *   par cette voie : cf. le commentaire à l'endroit où on l'écarte.
+ *   jeton, point. Le `From` du MIME est donc informatif : le préciser
+ *   autrement ferait échouer l'appel sur les comptes sans droit d'usurpation.
+ * - **Les « Éléments envoyés »** : en JSON, `saveToSentItems: true` le
+ *   garantissait. En MIME il n'y a pas d'équivalent — Graph y range le message
+ *   par défaut. ⚠️ **Non constaté par nous** : à vérifier au premier envoi
+ *   réel, c'est une promesse du connecteur (écrire depuis sa vraie boîte, avec
+ *   la trace dans sa vraie boîte).
  */
+
+import { buildMimeMessage } from "./mime"
 
 const SEND_ENDPOINT = "https://graph.microsoft.com/v1.0/me/sendMail"
 
@@ -43,23 +47,6 @@ export interface GraphMessage {
   headers?: Record<string, string>
 }
 
-/** Retire les sauts de ligne et les espaces superflus. Cf. l'en-tête. */
-function sanitize(v: string): string {
-  return v.replace(/[\r\n]+/g, " ").trim()
-}
-
-/** `a@b.fr, c@d.fr` → la forme attendue par Graph. Les entrées vides sont
- *  écartées : une virgule en trop ne doit pas produire un destinataire vide,
- *  que Graph rejetterait en bloc — donc l'envoi entier échouerait. */
-function recipients(list: string | undefined): { emailAddress: { address: string } }[] {
-  if (!list) return []
-  return list
-    .split(",")
-    .map((a) => sanitize(a))
-    .filter((a) => a.includes("@"))
-    .map((address) => ({ emailAddress: { address } }))
-}
-
 export type GraphSendResult =
   | { ok: true; id: string }
   /** Le jeton est mort : reconnecter, ne pas réessayer. */
@@ -75,27 +62,38 @@ export type GraphSendResult =
  * parce que Microsoft a hoqueté obligerait à reconnecter pour rien.
  */
 export async function sendViaGraph(accessToken: string, m: GraphMessage): Promise<GraphSendResult> {
-  /* `List-Unsubscribe` ne peut PAS passer par Graph : Microsoft refuse tout
-   * en-tête personnalisé qui ne commence pas par « X- ». Le candidat garde
-   * malgré tout un moyen de refus — la mention légale en pied de message
-   * l'invite à répondre, et la liste de suppression traite ces réponses.
-   * C'est moins bien qu'un clic dans le client de messagerie ; c'est la
-   * limite de ce chemin, et elle est assumée plutôt que masquée. */
-  const custom = Object.entries(m.headers ?? {})
-    .filter(([k]) => /^x-/i.test(k))
-    .map(([name, value]) => ({ name: sanitize(name), value: sanitize(value) }))
-
-  const body = {
-    message: {
-      subject: sanitize(m.subject),
-      body: { contentType: "Text", content: m.text },
-      toRecipients: recipients(m.to),
-      bccRecipients: recipients(m.bcc),
-      replyTo: recipients(m.replyTo),
-      ...(custom.length > 0 ? { internetMessageHeaders: custom } : {}),
-    },
-    saveToSentItems: true,
-  }
+  /* ── Pourquoi un MIME et non le JSON de Graph ──────────────────────────
+   *
+   * `internetMessageHeaders` n'accepte que des en-têtes commençant par « X- ».
+   * Deux en-têtes essentiels y étaient donc impossibles :
+   *
+   *   - `In-Reply-To` / `References` — sans eux, notre réponse arrive chez le
+   *     candidat comme un message NEUF, à côté de l'échange en cours ;
+   *   - `List-Unsubscribe` — le bouton « Se désabonner » natif d'Outlook et de
+   *     Gmail, dont l'absence est l'un des signaux qui font traiter un
+   *     expéditeur comme indésirable.
+   *
+   * Graph accepte en revanche un message MIME complet, encodé en base64 avec
+   * `Content-Type: text/plain`. On passe donc par le même assembleur que
+   * Gmail : un message part identique quel que soit le transport.
+   *
+   * ⚠️ Ce chemin n'a JAMAIS été exécuté contre le vrai Graph — aucune boîte
+   * Microsoft n'a encore pu être connectée (cf. `docs/etude-connecteur-
+   * microsoft.md`). L'assemblage est éprouvé par des tests, l'envoi ne l'est
+   * pas. À vérifier au premier envoi réel : que le message atterrisse bien
+   * dans les « Éléments envoyés » — le MIME n'a pas d'équivalent au drapeau
+   * `saveToSentItems`, Graph l'y range par défaut mais nous ne l'avons pas
+   * constaté nous-mêmes. */
+  const mime = buildMimeMessage({
+    fromName: m.fromName,
+    fromEmail: m.fromEmail,
+    to: m.to,
+    subject: m.subject,
+    text: m.text,
+    replyTo: m.replyTo,
+    bcc: m.bcc,
+    headers: m.headers,
+  })
 
   let res: Response
   try {
@@ -103,9 +101,10 @@ export async function sendViaGraph(accessToken: string, m: GraphMessage): Promis
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+        // Graph distingue les deux modes par ce seul en-tête.
+        "Content-Type": "text/plain",
       },
-      body: JSON.stringify(body),
+      body: Buffer.from(mime, "utf8").toString("base64"),
     })
   } catch (err) {
     return { ok: false, reason: "failed", detail: err instanceof Error ? err.message : "network" }

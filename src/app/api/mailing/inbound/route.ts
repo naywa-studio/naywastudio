@@ -201,6 +201,12 @@ export async function POST(req: NextRequest) {
         body_text: bodyText || null,
         body_html: email.html,
         provider_id: providerId,
+        /* L'identifiant RFC du message du candidat. Il était LU par
+         * `parseInboundEmail` puis jeté — sans lui, nos réponses ne peuvent
+         * pas porter `In-Reply-To`, et arrivent chez lui à côté de l'échange
+         * en cours au lieu d'y répondre. Distinct de `provider_id`, qui est
+         * l'identifiant SES. */
+        rfc_message_id: email.messageId,
         status: "received",
       }, { onConflict: "provider_id", ignoreDuplicates: false })
       .select("id")

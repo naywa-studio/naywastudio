@@ -941,6 +941,10 @@ export type Database = {
            *  donnée du mailing qui ne se dérive pas (cf. migration 099). */
           handled_at: string | null
           handled_by: string | null
+          /** En-tête `Message-ID` d'un entrant, renvoyé en `In-Reply-To` pour
+           *  que nos réponses restent dans le fil du candidat. À ne PAS
+           *  confondre avec `provider_id` (identifiant SES/Gmail). */
+          rfc_message_id: string | null
           created_at: string
         }
         Insert: {
@@ -964,6 +968,7 @@ export type Database = {
           attachments?: { filename: string; contentType: string; size: number; path: string }[]
           handled_at?: string | null
           handled_by?: string | null
+          rfc_message_id?: string | null
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['email_messages']['Insert']>
