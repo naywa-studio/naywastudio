@@ -159,11 +159,11 @@ export async function POST(req: NextRequest) {
   /* On essaie CHAQUE destinataire jusqu'à en trouver un qui soit une de nos
    * adresses. Un message adressé à la fois au sourceur et à nous doit être
    * rattaché par la nôtre, quelle que soit sa position dans l'en-tête. */
-  let routing = await resolveInboundRouting(admin, { toAddress: toAddr, fromAddress: fromAddr })
+  let routing = await resolveInboundRouting(admin, { toAddress: toAddr, fromAddress: fromAddr, subject })
   let matchedTo = toAddr
   for (const addr of toCandidates.slice(1)) {
     if (routing.userId && routing.organizationId) break
-    routing = await resolveInboundRouting(admin, { toAddress: addr, fromAddress: fromAddr })
+    routing = await resolveInboundRouting(admin, { toAddress: addr, fromAddress: fromAddr, subject })
     matchedTo = addr
   }
   if (!routing.userId || !routing.organizationId) {

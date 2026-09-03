@@ -29,27 +29,39 @@ interface Fixture {
   match?: { id: string; candidate_id: string; job_id: string; organization_id: string } | null
   candidate?: { id: string } | null
   lastOutboundJobId?: string | null
+  /** Les sortants réels, quand le test porte sur le rapprochement par l'objet. */
+  outbound?: { job_id: string | null; subject: string | null; created_at: string }[]
 }
 
-/** Client minimal : seules les formes de requête réellement utilisées. */
+/**
+ * Client minimal : seules les formes de requête réellement utilisées.
+ *
+ * Le nœud est CHAÎNABLE et THENABLE — certaines requêtes se terminent par
+ * `.maybeSingle()`, d'autres s'attendent directement pour obtenir une liste.
+ * Un faux qui ne couvrirait que la première forme échouerait sur la seconde
+ * avec une erreur qui ne dit rien du vrai sujet.
+ */
 function fakeAdmin(f: Fixture): SupabaseClient<Database> {
-  const chain = (value: unknown) => {
+  const chain = (single: unknown, list: unknown[] = []) => {
     const node: Record<string, unknown> = {}
     for (const method of ["select", "eq", "contains", "limit", "order"]) {
       node[method] = () => node
     }
-    node.maybeSingle = () => Promise.resolve({ data: value, error: null })
+    node.maybeSingle = () => Promise.resolve({ data: single, error: null })
+    node.then = (resolve: (v: unknown) => unknown) => resolve({ data: list, error: null })
     return node
   }
+
+  const sortants = f.outbound ?? (f.lastOutboundJobId
+    ? [{ job_id: f.lastOutboundJobId, subject: null, created_at: "2026-09-01T10:00:00Z" }]
+    : [])
 
   return {
     from: (table: string) => {
       if (table === "profiles") return chain(f.profile ?? null)
       if (table === "match_assessments") return chain(f.match ?? null)
       if (table === "candidates") return chain(f.candidate ?? null)
-      if (table === "email_messages") return chain(
-        f.lastOutboundJobId ? { job_id: f.lastOutboundJobId } : null,
-      )
+      if (table === "email_messages") return chain(sortants[0] ?? null, sortants)
       throw new Error(`table inattendue: ${table}`)
     },
   } as unknown as SupabaseClient<Database>
@@ -144,6 +156,48 @@ describe("le repli, qui reste le chemin de tout l'existant", () => {
     expect(routing).toEqual({
       userId: "u-sophie", organizationId: ORG, candidateId: "cand-A", jobId: "job-A", isAdmin: false,
     })
+  })
+
+  it("l'OBJET l'emporte sur la chronologie — c'est ce qui remplace le jeton", async () => {
+    /* Le cas qui a motivé tout le mécanisme : un candidat approché sur deux
+     * missions répond à la PLUS ANCIENNE. La déduction par « dernier sortant »
+     * la rattacherait à la plus récente, en silence. */
+    const admin = fakeAdmin({
+      profile: SOURCEUR,
+      candidate: { id: "cand-A" },
+      outbound: [
+        { job_id: "job-recent", subject: "Un poste chez BNP", created_at: "2026-09-02T10:00:00Z" },
+        { job_id: "job-ancien", subject: "Une opportunité chez Club Med", created_at: "2026-09-01T10:00:00Z" },
+      ],
+    })
+
+    const routing = await resolveInboundRouting(admin, {
+      toAddress: "sophie@reply.naywastudio.com",
+      fromAddress: "candidat@exemple.fr",
+      subject: "Re : Une opportunité chez Club Med",
+    })
+
+    expect(routing.jobId).toBe("job-ancien")
+  })
+
+  it("sans objet exploitable, la chronologie reprend la main", async () => {
+    // Un objet réécrit par le candidat ne doit pas faire disparaître sa
+    // réponse : mieux vaut un rattachement approximatif que rien.
+    const admin = fakeAdmin({
+      profile: SOURCEUR,
+      candidate: { id: "cand-A" },
+      outbound: [
+        { job_id: "job-recent", subject: "Un poste chez BNP", created_at: "2026-09-02T10:00:00Z" },
+      ],
+    })
+
+    const routing = await resolveInboundRouting(admin, {
+      toAddress: "sophie@reply.naywastudio.com",
+      fromAddress: "candidat@exemple.fr",
+      subject: "Question",
+    })
+
+    expect(routing.jobId).toBe("job-recent")
   })
 
   it("remonte le statut admin du destinataire", async () => {

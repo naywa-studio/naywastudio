@@ -144,6 +144,7 @@ export async function POST(req: NextRequest) {
     const routing = await resolveInboundRouting(admin, {
       toAddress: target,
       fromAddress: email.fromAddress,
+      subject: email.subject,
     })
 
     if (!routing.userId || !routing.organizationId) {

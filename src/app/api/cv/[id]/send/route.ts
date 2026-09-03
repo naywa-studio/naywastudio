@@ -20,7 +20,7 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeQuota } from "@/lib/quota"
 import { sendEmail } from "@/lib/resend"
 import { ensureInboxAddress, fromHeader } from "@/lib/mailing/inbox-address"
-import { replyAddressFor, newReplyToken } from "@/lib/mailing/reply-address"
+
 import { namedAddress } from "@/lib/mailing/mime"
 import { sendCandidateEmail } from "@/lib/mailing/send"
 import { canSendFromOrgDomain } from "@/lib/subscription"
@@ -145,44 +145,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const inboxAddress = await ensureInboxAddress(admin, user.id, org, asAdmin)
   const from = fromHeader(profile?.first_name, inboxAddress)
 
-  /* ── L'adresse de réponse porte la CONVERSATION ────────────────────────
+  /* ── L'adresse de réponse est NUE, et c'est un choix ───────────────────
    *
-   * Sans ce suffixe, la mission d'une réponse était DEVINÉE à partir du
-   * dernier message sortant : un candidat approché sur deux postes voyait sa
-   * réponse rattachée à la plus récente, quoi qu'il réponde. Le fil se
-   * remplissait, rien n'échouait, personne ne le voyait.
+   * Elle a porté un jeton (`elyas+97w26uu2@…`), qui rattachait la réponse à
+   * coup sûr. Il a été retiré parce qu'il est VISIBLE par le candidat, dans
+   * son champ « répondre à » : une adresse qui ressemble à un mouchard, sur un
+   * message dont tout l'enjeu est d'inspirer confiance.
    *
-   * Lu ici et pas plus bas parce que les trois transports en ont besoin. Le
-   * `Reply-To` reste l'adresse du sourceur : seul un suffixe s'y ajoute — le
-   * candidat voit toujours à qui il répond.
+   * Ce que le jeton garantissait est repris par le rapprochement sur l'OBJET
+   * (`lib/mailing/subject-match.ts`), qui fonctionne dès la première réponse
+   * et ne s'affiche nulle part. Ce n'est plus une certitude : deux missions au
+   * même objet retombent sur la déduction — soit le comportement d'avant, donc
+   * jamais pire.
    *
-   * Sans mission, pas de match, donc pas de suffixe : `replyAddressFor`
-   * renvoie l'adresse inchangée et on retombe sur l'ancien comportement. */
-  let replyToken: string | null = null
-  if (jobId) {
-    const { data: m } = await admin
-      .from("match_assessments")
-      .select("id, reply_token")
-      .eq("candidate_id", candidate.id)
-      .eq("job_id", jobId)
-      .maybeSingle()
-    if (m) {
-      replyToken = m.reply_token
-      if (!replyToken) {
-        /* Posé au premier envoi, jamais à la création du match : la plupart
-         * des matchs ne reçoivent aucun message, et leur attribuer un jeton
-         * consommerait l'espace de nommage sans rien apporter. */
-        const fresh = newReplyToken()
-        const { error: tokenErr } = await admin
-          .from("match_assessments").update({ reply_token: fresh }).eq("id", m.id)
-        // Une collision (index unique) ou une panne d'écriture ne doit pas
-        // empêcher l'envoi : sans jeton, on retombe sur la déduction.
-        if (!tokenErr) replyToken = fresh
-        else console.error("[cv/send] jeton de réponse non posé:", tokenErr.message)
-      }
-    }
-  }
-  const replyAddress = replyAddressFor(inboxAddress, replyToken)
+   * ⚠️ `In-Reply-To` aurait été invisible ET certain, mais il exige de
+   * connaître l'identifiant RFC de notre propre envoi. Gmail et Graph ne le
+   * rendent pas et écrasent celui qu'on poserait : la PREMIÈRE réponse d'un
+   * candidat, la plus importante, resterait non rattachée. */
+  const replyAddress = inboxAddress
   /* Le nom du cabinet devant l'adresse de suivi. C'est ce que le candidat lit
    * dans « répondre à » — l'adresse brute y ressemblait à une adresse de
    * machine, et faisait douter de l'expéditeur. */

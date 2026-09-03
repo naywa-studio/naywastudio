@@ -291,6 +291,16 @@ export default function MessageThread({
                           style={{ ...S.attachChip, cursor: "pointer", border: 0, textDecoration: "none" }}
                           title={t.download}
                         >
+                          {/* L'icône fait le travail que le texte seul ne
+                              faisait pas : dire que c'est un fichier, et
+                              qu'on peut le prendre. */}
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                            strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
                           {a.filename} · {Math.max(1, Math.round(a.size / 1024))} Ko
                         </a>
                       ))}
@@ -396,9 +406,18 @@ const S: Record<string, React.CSSProperties> = {
     color: "var(--nw-text-muted)", fontFamily: "var(--nw-font-mono)",
   },
   link: { color: "var(--nw-primary)", textDecoration: "underline", wordBreak: "break-word" },
+  /* Traité comme une ACTION, pas comme une étiquette.
+   *
+   * La version précédente — texte gris sur fond clair, sans bordure marquée —
+   * ne se lisait pas comme cliquable : Elyas a testé une réponse avec pièce
+   * jointe et ne l'a pas vue à l'écran, alors qu'elle s'y trouvait. Une pièce
+   * jointe est souvent un CV à jour ; la manquer coûte cher. */
   attachChip: {
-    fontSize: 11, padding: "2px 8px", borderRadius: 6,
-    background: "var(--nw-bg)", border: "1px solid var(--nw-border)", color: "var(--nw-text-body)",
+    display: "inline-flex", alignItems: "center", gap: 6,
+    fontSize: 12, fontWeight: 600, padding: "5px 11px", borderRadius: 8,
+    background: "var(--nw-primary-50, rgba(124,99,200,0.08))",
+    border: "1px solid var(--nw-primary-200, rgba(124,99,200,0.35))",
+    color: "var(--nw-primary)",
   },
   nora: { maxWidth: "88%", border: "1px solid", borderRadius: 11, padding: "9px 12px" },
   noraHead: {
