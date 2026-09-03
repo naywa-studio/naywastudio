@@ -14,16 +14,24 @@
  *
  * ── L'ordre de résolution ────────────────────────────────────────────────
  *
- * 1. L'adresse DESTINATAIRE désigne le sourceur (`profiles.inbox_address`).
- *    Inconnue = ce n'est pas une de nos adresses : on abandonne sans erreur.
- * 2. L'adresse EXPÉDITEUR désigne le candidat, cherché dans TOUTE
- *    l'organisation — le vivier est partagé entre membres, et une réponse
- *    adressée à un sourceur peut venir d'un candidat importé par un collègue.
- * 3. Le dernier message SORTANT vers ce candidat porte le contexte mission.
+ * 1. L'adresse DESTINATAIRE, base sans suffixe, désigne le sourceur
+ *    (`profiles.inbox_address`). Inconnue = ce n'est pas une de nos adresses :
+ *    on abandonne sans erreur.
+ * 2. Son SUFFIXE, s'il en a un, désigne la conversation — on connaît alors le
+ *    candidat et la mission avec certitude (cf. `reply-address.ts`).
+ * 3. Sinon seulement, on déduit : l'adresse EXPÉDITEUR désigne le candidat,
+ *    cherché dans TOUTE l'organisation (le vivier est partagé, et une réponse
+ *    adressée à un sourceur peut venir d'un candidat importé par un collègue),
+ *    et le dernier message SORTANT vers lui porte le contexte mission.
+ *
+ * L'étape 3 reste indispensable : c'est le chemin de TOUTES les réponses aux
+ * messages envoyés avant le sous-adressage. La supprimer perdrait en silence
+ * les échanges en cours le jour du déploiement.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "../database.types"
+import { parseReplyAddress } from "./reply-address"
 
 export interface InboundRouting {
   /** Le sourceur destinataire. `null` = adresse inconnue, message à ignorer. */
@@ -44,7 +52,10 @@ export async function resolveInboundRouting(
   admin: SupabaseClient<Database>,
   opts: { toAddress: string; fromAddress: string },
 ): Promise<InboundRouting> {
-  const toAddr = opts.toAddress.trim().toLowerCase()
+  /* L'adresse peut porter la conversation dans son suffixe
+   * (`sophie+<jeton>@…`). On la décompose AVANT de chercher le sourceur :
+   * c'est la base, sans suffixe, qui figure dans `profiles.inbox_address`. */
+  const { base: toAddr, matchId } = parseReplyAddress(opts.toAddress)
   const fromAddr = opts.fromAddress.trim().toLowerCase()
 
   // L'adresse courante d'abord, puis les anciennes.
@@ -73,6 +84,35 @@ export async function resolveInboundRouting(
 
   if (!profile) {
     return { userId: null, organizationId: null, candidateId: null, jobId: null }
+  }
+
+  /* ── Le chemin CERTAIN : l'adresse portait la conversation ─────────────
+   *
+   * On sait alors le candidat ET la mission, au lieu de les déduire. C'est ce
+   * qui règle le défaut d'origine : un candidat approché sur deux postes voyait
+   * sa réponse rattachée à la plus récente, quoi qu'il réponde.
+   *
+   * ⚠️ Le contrôle d'organisation n'est pas une formalité. Le jeton voyage
+   * dans une adresse, donc chez le candidat, donc à la portée de quiconque
+   * reçoit un de nos messages. Sans cette comparaison, un jeton recopié dans
+   * une réponse envoyée à l'adresse d'un AUTRE cabinet y injecterait un
+   * message rattaché à une conversation qui ne lui appartient pas. On retombe
+   * alors sur la déduction, qui reste bornée à l'organisation du destinataire. */
+  if (matchId) {
+    const { data: match } = await admin
+      .from("match_assessments")
+      .select("id, candidate_id, job_id, organization_id")
+      .eq("id", matchId)
+      .maybeSingle()
+
+    if (match && match.organization_id === profile.organization_id) {
+      return {
+        userId: profile.user_id,
+        organizationId: profile.organization_id,
+        candidateId: match.candidate_id,
+        jobId: match.job_id,
+      }
+    }
   }
 
   // Le vivier est partagé : on cherche dans toute l'organisation, pas

@@ -20,6 +20,7 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeQuota } from "@/lib/quota"
 import { sendEmail } from "@/lib/resend"
 import { ensureInboxAddress, fromHeader } from "@/lib/mailing/inbox-address"
+import { replyAddressFor } from "@/lib/mailing/reply-address"
 import { sendCandidateEmail } from "@/lib/mailing/send"
 import { canSendFromOrgDomain } from "@/lib/subscription"
 import { checkOrgDailySendCap } from "@/lib/mailing/send-cap"
@@ -142,6 +143,31 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const onOwnDomain = canSendFromOrgDomain(org, asAdmin)
   const inboxAddress = await ensureInboxAddress(admin, user.id, org, asAdmin)
   const from = fromHeader(profile?.first_name, inboxAddress)
+
+  /* ── L'adresse de réponse porte la CONVERSATION ────────────────────────
+   *
+   * Sans ce suffixe, la mission d'une réponse était DEVINÉE à partir du
+   * dernier message sortant : un candidat approché sur deux postes voyait sa
+   * réponse rattachée à la plus récente, quoi qu'il réponde. Le fil se
+   * remplissait, rien n'échouait, personne ne le voyait.
+   *
+   * Lu ici et pas plus bas parce que les trois transports en ont besoin. Le
+   * `Reply-To` reste l'adresse du sourceur : seul un suffixe s'y ajoute — le
+   * candidat voit toujours à qui il répond.
+   *
+   * Sans mission, pas de match, donc pas de suffixe : `replyAddressFor`
+   * renvoie l'adresse inchangée et on retombe sur l'ancien comportement. */
+  let replyMatchId: string | null = null
+  if (jobId) {
+    const { data: m } = await admin
+      .from("match_assessments")
+      .select("id")
+      .eq("candidate_id", candidate.id)
+      .eq("job_id", jobId)
+      .maybeSingle()
+    replyMatchId = m?.id ?? null
+  }
+  const replyAddress = replyAddressFor(inboxAddress, replyMatchId)
   const bcc = profile?.inbox_cc_self ? (user.email ?? undefined) : undefined
   /* ── La mention d'information ─────────────────────────────────────────
    *
@@ -212,7 +238,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
          * ⚠️ Limite connue : quelques messageries anciennes ou mobiles ne
          * gardent que la première adresse. On perd alors la copie — sans
          * bruit. C'est le défaut résiduel de ce chemin. */
-        replyTo: `${mailbox.email}, ${inboxAddress}`,
+        replyTo: `${mailbox.email}, ${replyAddress}`,
       })
       if (!sent.ok) {
         // `needs_reconnect` remonte tel quel : c'est une consigne pour le
@@ -228,7 +254,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         {
           org,
           senderName: profile?.first_name,
-          replyTo: inboxAddress,
+          replyTo: replyAddress,
           to: candidate.email,
           subject,
           text: bodyToSend,
@@ -250,7 +276,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       const sent = await sendEmail({
         from,
         to: candidate.email,
-        replyTo: inboxAddress,
+        replyTo: replyAddress,
         subject,
         text: bodyToSend,
         bcc,
