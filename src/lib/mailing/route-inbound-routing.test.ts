@@ -22,6 +22,7 @@ import type { Database } from "../database.types"
 const ORG = "org-1"
 const AUTRE_ORG = "org-2"
 const MATCH = "3a5fcf8d-0f0b-4190-babd-b1686de9b751"
+const TOKEN = "k3f9d2a7"
 
 interface Fixture {
   profile?: { user_id: string; organization_id: string; is_admin?: boolean } | null
@@ -66,7 +67,7 @@ describe("le suffixe l'emporte : on SAIT au lieu de deviner", () => {
     })
 
     const routing = await resolveInboundRouting(admin, {
-      toAddress: replyAddressFor("sophie@reply.naywastudio.com", MATCH),
+      toAddress: replyAddressFor("sophie@reply.naywastudio.com", TOKEN),
       fromAddress: "candidat@exemple.fr",
     })
 
@@ -84,7 +85,7 @@ describe("le suffixe l'emporte : on SAIT au lieu de deviner", () => {
     })
 
     const routing = await resolveInboundRouting(admin, {
-      toAddress: replyAddressFor("marie@reply.naywastudio.com", MATCH),
+      toAddress: replyAddressFor("marie@reply.naywastudio.com", TOKEN),
       fromAddress: "candidat@exemple.fr",
     })
 
@@ -106,7 +107,7 @@ describe("un jeton d'une autre organisation ne rattache rien", () => {
     })
 
     const routing = await resolveInboundRouting(admin, {
-      toAddress: replyAddressFor("sophie@reply.naywastudio.com", MATCH),
+      toAddress: replyAddressFor("sophie@reply.naywastudio.com", TOKEN),
       fromAddress: "candidat@exemple.fr",
     })
 
@@ -121,7 +122,7 @@ describe("un jeton d'une autre organisation ne rattache rien", () => {
     })
 
     const routing = await resolveInboundRouting(admin, {
-      toAddress: replyAddressFor("sophie@reply.naywastudio.com", MATCH),
+      toAddress: replyAddressFor("sophie@reply.naywastudio.com", TOKEN),
       fromAddress: "candidat@exemple.fr",
     })
 

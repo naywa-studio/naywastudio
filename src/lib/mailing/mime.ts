@@ -73,6 +73,28 @@ export function mimeFromHeader(name: string | null | undefined, email: string): 
 }
 
 /**
+ * `Nom <adresse>`, pour une adresse figurant dans une LISTE.
+ *
+ * ── Pourquoi ça compte ────────────────────────────────────────────────────
+ *
+ * L'adresse de suivi est visible par le candidat, dans son champ « répondre
+ * à ». Brute, elle ressemble à une adresse de machine. Avec le nom du cabinet
+ * devant, la plupart des messageries affichent « Cabinet Durand » et l'adresse
+ * disparaît de sa vue.
+ *
+ * ── La virgule, et pourquoi elle est retirée ──────────────────────────────
+ *
+ * `Reply-To` est une liste séparée par des virgules. Un cabinet nommé
+ * « Durand, Martin & Associés » couperait donc la liste en deux, et la seconde
+ * moitié deviendrait une adresse invalide : les réponses ne nous reviendraient
+ * plus. Le défaut ne se verrait qu'à l'usage, chez ce client-là uniquement.
+ */
+export function namedAddress(name: string | null | undefined, address: string): string {
+  const clean = headerValue((name ?? "").replace(/[",<>@]/g, " ")).replace(/\s{2,}/g, " ")
+  return clean ? `${encodeHeader(clean)} <${address}>` : address
+}
+
+/**
  * Assemble le message, prêt à être encodé pour Gmail ou pour Graph.
  *
  * Exporté pour être éprouvé : c'est le seul endroit du produit où une chaîne

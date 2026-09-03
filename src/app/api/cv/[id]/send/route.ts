@@ -20,7 +20,8 @@ import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeQuota } from "@/lib/quota"
 import { sendEmail } from "@/lib/resend"
 import { ensureInboxAddress, fromHeader } from "@/lib/mailing/inbox-address"
-import { replyAddressFor } from "@/lib/mailing/reply-address"
+import { replyAddressFor, newReplyToken } from "@/lib/mailing/reply-address"
+import { namedAddress } from "@/lib/mailing/mime"
 import { sendCandidateEmail } from "@/lib/mailing/send"
 import { canSendFromOrgDomain } from "@/lib/subscription"
 import { checkOrgDailySendCap } from "@/lib/mailing/send-cap"
@@ -157,17 +158,35 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
    *
    * Sans mission, pas de match, donc pas de suffixe : `replyAddressFor`
    * renvoie l'adresse inchangée et on retombe sur l'ancien comportement. */
-  let replyMatchId: string | null = null
+  let replyToken: string | null = null
   if (jobId) {
     const { data: m } = await admin
       .from("match_assessments")
-      .select("id")
+      .select("id, reply_token")
       .eq("candidate_id", candidate.id)
       .eq("job_id", jobId)
       .maybeSingle()
-    replyMatchId = m?.id ?? null
+    if (m) {
+      replyToken = m.reply_token
+      if (!replyToken) {
+        /* Posé au premier envoi, jamais à la création du match : la plupart
+         * des matchs ne reçoivent aucun message, et leur attribuer un jeton
+         * consommerait l'espace de nommage sans rien apporter. */
+        const fresh = newReplyToken()
+        const { error: tokenErr } = await admin
+          .from("match_assessments").update({ reply_token: fresh }).eq("id", m.id)
+        // Une collision (index unique) ou une panne d'écriture ne doit pas
+        // empêcher l'envoi : sans jeton, on retombe sur la déduction.
+        if (!tokenErr) replyToken = fresh
+        else console.error("[cv/send] jeton de réponse non posé:", tokenErr.message)
+      }
+    }
   }
-  const replyAddress = replyAddressFor(inboxAddress, replyMatchId)
+  const replyAddress = replyAddressFor(inboxAddress, replyToken)
+  /* Le nom du cabinet devant l'adresse de suivi. C'est ce que le candidat lit
+   * dans « répondre à » — l'adresse brute y ressemblait à une adresse de
+   * machine, et faisait douter de l'expéditeur. */
+  const replyLabel = namedAddress(org?.brand_name || org?.name, replyAddress)
   const bcc = profile?.inbox_cc_self ? (user.email ?? undefined) : undefined
   /* ── La mention d'information ─────────────────────────────────────────
    *
@@ -268,7 +287,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
          * ⚠️ Limite connue : quelques messageries anciennes ou mobiles ne
          * gardent que la première adresse. On perd alors la copie — sans
          * bruit. C'est le défaut résiduel de ce chemin. */
-        replyTo: `${mailbox.email}, ${replyAddress}`,
+        replyTo: `${namedAddress(profile?.first_name, mailbox.email)}, ${replyLabel}`,
       })
       if (!sent.ok) {
         // `needs_reconnect` remonte tel quel : c'est une consigne pour le
@@ -284,7 +303,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         {
           org,
           senderName: profile?.first_name,
-          replyTo: replyAddress,
+          replyTo: replyLabel,
           to: candidate.email,
           subject,
           text: bodyToSend,
@@ -306,7 +325,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       const sent = await sendEmail({
         from,
         to: candidate.email,
-        replyTo: replyAddress,
+        replyTo: replyLabel,
         subject,
         text: bodyToSend,
         bcc,

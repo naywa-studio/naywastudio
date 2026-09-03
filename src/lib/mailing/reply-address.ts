@@ -3,33 +3,34 @@
  *
  * ── Le défaut que ça supprime ─────────────────────────────────────────────
  *
- * Jusqu'ici, `resolve-inbound` devinait la mission d'une réponse en prenant
- * celle du **dernier message sortant** vers ce candidat. Un candidat approché
- * pour deux postes voyait donc sa réponse rattachée à la plus récente, même
- * s'il répondait à l'autre. Le fil se remplissait, rien n'échouait, et
- * personne ne s'en apercevait — la pire forme de défaut.
+ * `resolve-inbound` devinait la mission d'une réponse en prenant celle du
+ * **dernier message sortant** vers ce candidat. Un candidat approché pour deux
+ * postes voyait donc sa réponse rattachée à la plus récente, même s'il
+ * répondait à l'autre. Le fil se remplissait, rien n'échouait, et personne ne
+ * s'en apercevait — la pire forme de défaut.
  *
  * Désormais le contexte voyage DANS l'adresse :
- * `sophie+<jeton>@reply.naywastudio.com`. Le client de messagerie du candidat
- * n'a rien à préserver, il répond à l'adresse. On sait donc la conversation
- * au lieu de la supposer.
+ * `sophie+k3f9d2a7@reply.naywastudio.com`. Le client de messagerie du candidat
+ * n'a rien à préserver, il répond à l'adresse. On SAIT la conversation au lieu
+ * de la supposer.
  *
  * Effet de bord précieux : une conversation cesse d'appartenir à une personne
  * pour appartenir au cabinet. Un collègue qui reprend un dossier réutilise le
  * même jeton, et le départ d'un sourceur ne perd plus rien.
  *
- * ── Pourquoi un jeton encodé, et pas l'identifiant tel quel ───────────────
+ * ── Pourquoi un jeton COURT, et tiré au sort ──────────────────────────────
  *
- * Contrainte trouvée en écrivant : la partie locale d'une adresse est limitée
- * à **64 caractères** (RFC 5321). Or `slugifyLocalPart` produit jusqu'à 32
- * caractères, auxquels s'ajoute un suffixe numérique en cas de collision. Avec
- * un identifiant écrit en clair (36 caractères), on dépasse — pour les
- * sourceurs aux noms longs seulement, ce qui aurait donné un défaut réservé à
- * quelques personnes et impossible à reproduire chez nous.
+ * La première version encodait l'identifiant du match en base32, soit 26
+ * caractères. Réversible, sans stockage — et **visible par le candidat**, dans
+ * le champ « répondre à » de son message. Une adresse qui ressemble à une clé
+ * de chiffrement fait douter de l'expéditeur, et c'est exactement la confiance
+ * qu'on cherche à préserver.
  *
- * Base32 ramène les 16 octets à **26 caractères**, ce qui tient dans tous les
- * cas. L'encodage est réversible : aucune colonne, aucune table de
- * correspondance, donc rien qui puisse se désynchroniser.
+ * Huit caractères tirés au sort, stockés sur le match (migration 101). On perd
+ * la réversibilité — il faut une lecture en base — et on gagne une adresse qui
+ * se lit. L'unicité vient de l'index, pas de la probabilité : une collision
+ * devient une erreur d'écriture visible, jamais une réponse silencieusement
+ * rattachée à la mauvaise conversation.
  *
  * ── Ce que ce fichier ne fait PAS ─────────────────────────────────────────
  *
@@ -39,94 +40,57 @@
  * soit. Cf. `route-inbound.ts`.
  */
 
-/** RFC 4648, en minuscules et sans remplissage — une adresse ignore la casse. */
-const ALPHABET = "abcdefghijklmnopqrstuvwxyz234567"
+import { randomBytes } from "crypto"
 
-/** Longueur d'un jeton : 16 octets encodés en base32. */
-export const TOKEN_LENGTH = 26
+/**
+ * Alphabet sans caractères confondables.
+ *
+ * Ni `0`/`o`, ni `1`/`l`/`i` : cette adresse finit recopiée à la main, lue au
+ * téléphone, ou relue dans une capture d'écran de support. Un jeton
+ * indéchiffrable à l'œil transforme un incident de cinq minutes en enquête.
+ */
+const ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+/** Assez court pour se lire, assez long pour ne pas se deviner. */
+export const TOKEN_LENGTH = 8
 
-function uuidToBytes(uuid: string): Uint8Array | null {
-  if (!UUID_RE.test(uuid)) return null
-  const hex = uuid.replace(/-/g, "")
-  const out = new Uint8Array(16)
-  for (let i = 0; i < 16; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
-  return out
-}
+const TOKEN_RE = new RegExp(`^[${ALPHABET}]{${TOKEN_LENGTH}}$`)
 
-function bytesToUuid(bytes: Uint8Array): string {
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-}
-
-/** L'identifiant d'un match, ramené à un jeton court utilisable en adresse. */
-export function encodeMatchToken(matchId: string): string | null {
-  const bytes = uuidToBytes(matchId)
-  if (!bytes) return null
-
+/**
+ * Un nouveau jeton de conversation.
+ *
+ * Tiré de `crypto.randomBytes` et non de `Math.random` : ce jeton voyage chez
+ * le candidat et sert à rattacher un message dans le fil d'un cabinet. Un
+ * générateur prévisible permettrait de fabriquer des adresses valides.
+ *
+ * Le modulo introduit un biais négligeable (256 % 31), sans importance ici :
+ * l'unicité est garantie par l'index, pas par l'uniformité du tirage.
+ */
+export function newReplyToken(): string {
+  const bytes = randomBytes(TOKEN_LENGTH)
   let out = ""
-  let buffer = 0
-  let bits = 0
-  for (const byte of bytes) {
-    buffer = (buffer << 8) | byte
-    bits += 8
-    while (bits >= 5) {
-      out += ALPHABET[(buffer >>> (bits - 5)) & 31]
-      bits -= 5
-    }
-  }
-  // Les bits restants (16 octets = 128 bits, soit 25 groupes de 5 + 3 bits)
-  // sont complétés par des zéros : le décodage les ignore symétriquement.
-  if (bits > 0) out += ALPHABET[(buffer << (5 - bits)) & 31]
+  for (const b of bytes) out += ALPHABET[b % ALPHABET.length]
   return out
-}
-
-/** L'opération inverse. `null` si le jeton est absent, tronqué ou altéré. */
-export function decodeMatchToken(token: string): string | null {
-  const normalized = token.trim().toLowerCase()
-  if (normalized.length !== TOKEN_LENGTH) return null
-
-  const bytes = new Uint8Array(16)
-  let buffer = 0
-  let bits = 0
-  let index = 0
-  for (const char of normalized) {
-    const value = ALPHABET.indexOf(char)
-    if (value < 0) return null
-    buffer = (buffer << 5) | value
-    bits += 5
-    if (bits >= 8) {
-      // `index` peut dépasser sur le dernier groupe de bits de remplissage :
-      // on s'arrête, ces bits ne portent aucune information.
-      if (index < 16) bytes[index++] = (buffer >>> (bits - 8)) & 255
-      bits -= 8
-    }
-  }
-  if (index !== 16) return null
-  return bytesToUuid(bytes)
 }
 
 /**
  * L'adresse de réponse pour une conversation donnée.
  *
- * Sans match — un message hors mission — on renvoie l'adresse telle quelle :
+ * Sans jeton — un message hors mission — on renvoie l'adresse telle quelle :
  * mieux vaut l'ancien comportement qu'une adresse bancale.
  */
-export function replyAddressFor(inboxAddress: string, matchId: string | null | undefined): string {
+export function replyAddressFor(inboxAddress: string, token: string | null | undefined): string {
   const at = inboxAddress.lastIndexOf("@")
-  if (at < 1 || !matchId) return inboxAddress
-
-  const token = encodeMatchToken(matchId)
-  if (!token) return inboxAddress
+  if (at < 1 || !token || !TOKEN_RE.test(token)) return inboxAddress
 
   const local = inboxAddress.slice(0, at)
   const domain = inboxAddress.slice(at + 1)
 
-  /* Garde-fou de dernier recours. Si la partie locale dépassait malgré tout,
-   * on renonce au jeton plutôt que de fabriquer une adresse invalide : perdre
-   * la précision du rattachement est réparable, un message qui rebondit ne
-   * l'est pas — il n'atteint jamais le candidat. */
+  /* Garde-fou : la partie locale d'une adresse est limitée à 64 caractères
+   * (RFC 5321). Neuf caractères de plus ne peuvent dépasser que pour un
+   * sourceur au nom très long — et dans ce cas on renonce au jeton plutôt que
+   * de fabriquer une adresse invalide. Perdre la précision du rattachement est
+   * réparable ; un message qui rebondit n'atteint jamais le candidat. */
   if (local.length + 1 + token.length > 64) return inboxAddress
 
   return `${local}+${token}@${domain}`
@@ -135,33 +99,35 @@ export function replyAddressFor(inboxAddress: string, matchId: string | null | u
 export interface ParsedReplyAddress {
   /** L'adresse sans son suffixe : celle qui identifie le sourceur. */
   base: string
-  /** La conversation, si l'adresse en portait une. */
-  matchId: string | null
+  /** Le jeton de conversation, si l'adresse en portait un. */
+  token: string | null
 }
 
 /**
  * Décompose une adresse reçue.
  *
- * Le repli — `matchId: null` — n'est pas un cas d'erreur : c'est le cas
- * NORMAL pour toutes les réponses aux messages envoyés avant ce changement.
- * Elles doivent continuer d'arriver, sans quoi la mise en production perdrait
- * en silence les échanges en cours.
+ * Le repli — `token: null` — n'est pas un cas d'erreur : c'est le cas NORMAL
+ * pour toute réponse à un message envoyé avant le sous-adressage. Elles
+ * doivent continuer d'arriver, sans quoi une mise en production perdrait en
+ * silence les échanges en cours.
  */
 export function parseReplyAddress(address: string): ParsedReplyAddress {
   const clean = address.trim().toLowerCase()
   const at = clean.lastIndexOf("@")
-  if (at < 1) return { base: clean, matchId: null }
+  if (at < 1) return { base: clean, token: null }
 
   const local = clean.slice(0, at)
   const domain = clean.slice(at + 1)
   const plus = local.indexOf("+")
-  if (plus < 0) return { base: clean, matchId: null }
+  if (plus < 0) return { base: clean, token: null }
 
+  const suffix = local.slice(plus + 1)
   return {
     base: `${local.slice(0, plus)}@${domain}`,
-    // Un suffixe qui n'est pas un jeton valide (un candidat qui bricole
-    // l'adresse, un « +test » ajouté à la main) ne doit pas faire perdre le
-    // message : on le traite comme une adresse sans suffixe.
-    matchId: decodeMatchToken(local.slice(plus + 1)),
+    /* Un suffixe qui n'a pas la forme d'un jeton — un « +test » ajouté à la
+     * main par un candidat, l'ancien jeton de 26 caractères — ne doit pas
+     * faire perdre le message : on le traite comme une adresse sans suffixe,
+     * et la déduction reprend la main. */
+    token: TOKEN_RE.test(suffix) ? suffix : null,
   }
 }

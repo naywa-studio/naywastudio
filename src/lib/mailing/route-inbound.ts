@@ -64,7 +64,7 @@ export async function resolveInboundRouting(
   /* L'adresse peut porter la conversation dans son suffixe
    * (`sophie+<jeton>@…`). On la décompose AVANT de chercher le sourceur :
    * c'est la base, sans suffixe, qui figure dans `profiles.inbox_address`. */
-  const { base: toAddr, matchId } = parseReplyAddress(opts.toAddress)
+  const { base: toAddr, token } = parseReplyAddress(opts.toAddress)
   const fromAddr = opts.fromAddress.trim().toLowerCase()
 
   // L'adresse courante d'abord, puis les anciennes.
@@ -107,11 +107,11 @@ export async function resolveInboundRouting(
    * une réponse envoyée à l'adresse d'un AUTRE cabinet y injecterait un
    * message rattaché à une conversation qui ne lui appartient pas. On retombe
    * alors sur la déduction, qui reste bornée à l'organisation du destinataire. */
-  if (matchId) {
+  if (token) {
     const { data: match } = await admin
       .from("match_assessments")
       .select("id, candidate_id, job_id, organization_id")
-      .eq("id", matchId)
+      .eq("reply_token", token)
       .maybeSingle()
 
     if (match && match.organization_id === profile.organization_id) {

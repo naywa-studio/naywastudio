@@ -771,6 +771,10 @@ export type Database = {
           organization_id: string
           candidate_id: string
           job_id: string
+          /** Jeton court porté par l'adresse de réponse (`sophie+<jeton>@…`),
+           *  qui rattache une réponse entrante à CETTE conversation. Posé au
+           *  premier envoi — cf. migration 101. */
+          reply_token: string | null
           score: number | null
           score_dimensions: ScoreDimensions | null
           justification: string | null
@@ -847,6 +851,7 @@ export type Database = {
           organization_id?: string
           candidate_id: string
           job_id: string
+          reply_token?: string | null
           score?: number | null
           score_dimensions?: ScoreDimensions | null
           justification?: string | null
