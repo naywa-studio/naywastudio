@@ -246,7 +246,7 @@ saisit. C'est le comportement qu'on veut.
 
 ---
 
-## 6bis. ⚠️ Nos réponses n'atterrissent pas dans le fil du candidat
+## 6bis. Nos réponses n'atterrissaient pas dans le fil du candidat — CORRIGÉ 03/09
 
 Trouvé le 03/09 en répondant à une question d'Elyas — « quand on répond à la
 réponse du candidat, c'est toujours dans la même boucle ? »
@@ -267,8 +267,16 @@ n'accepte dans `internetMessageHeaders` que des en-têtes commençant par `X-`
 (qu'il accepte) au lieu du JSON. Gmail ne pose pas ce problème : on lui envoie
 déjà du MIME brut (`buildRawMessage`).
 
-À traiter avec le sous-adressage (§7) : les deux touchent le même chemin
-d'envoi, et les séparer ferait payer deux fois la même relecture.
+**Corrigé** (migration 100, `rfc_message_id`). Et la limite Graph a été levée
+plutôt que contournée : l'assembleur MIME de `gmail-send` est sorti dans
+`mime.ts` et sert **les deux** fournisseurs. Un message part identique quel
+que soit le transport, et `List-Unsubscribe` — perdu sur tout le chemin
+Microsoft — passe enfin lui aussi.
+
+⚠️ Contrepartie : l'injection d'en-têtes redevient un vecteur réel côté Graph,
+puisqu'il y a de nouveau des en-têtes à refermer. Le filtrage vit dans
+`mime.ts`, éprouvé par le test « un sujet multiligne ne peut pas fabriquer un
+second en-tête ».
 
 ---
 
@@ -350,8 +358,29 @@ validation en preview. tsc + eslint propres, 287 tests (23 neufs).
 - **Répondre marque la prise en charge**, sans rien demander. Un compteur qui
   ne descend jamais cesse d'être regardé — y compris le jour où il compte.
 
-Reste du plan : le sous-adressage (lot 2), la section Messagerie (lot 4), le
-consentement administrateur Microsoft (lot 5).
+### Lot 2 livré le 03/09 (`28747e6`)
+
+- `lib/mailing/reply-address.ts` — `sophie+<jeton>@…`. Contrainte trouvée en
+  écrivant : la partie locale est limitée à **64 caractères**, et un
+  identifiant en clair en fait 36 pour une base qui peut en faire 34. Base32
+  ramène les 16 octets à 26, réversible, sans colonne ni table.
+- `route-inbound.ts` — le suffixe l'emporte, avec **contrôle d'organisation**
+  (le jeton voyage chez le candidat, donc à la portée de quiconque reçoit un
+  de nos messages) et **repli conservé** pour tout l'existant.
+- `mime.ts` + Graph en MIME — cf. §6bis.
+- Migration **100** appliquée.
+
+**Reste du plan** : la section Messagerie (lot 4, dont le rapatriement de
+l'éditeur de mention légale), le consentement administrateur Microsoft
+(lot 5), et la liste blanche de domaines de boîtes — à ne construire que le
+jour où un client bute dessus (arbitrage du 03/09).
+
+⚠️ **Deux choses restent non prouvées en réel** : l'envoi Graph (aucune boîte
+Microsoft connectable tant que le badge d'éditeur n'est pas obtenu) et le
+passage du `+` par la règle de réception SES. Cette dernière ne peut échouer
+que d'une façon — la règle porterait sur des adresses nommées plutôt que sur
+le domaine — ce qui est exclu par construction, puisque les adresses de
+réception sont créées à la volée par sourceur et déclarées nulle part.
 
 ---
 
