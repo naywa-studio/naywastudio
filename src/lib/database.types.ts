@@ -764,6 +764,30 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['sectors']['Insert']>
         Relationships: []
       }
+      /** Adresse de réponse dédiée à un couple (sourceur, mission). Sa
+       *  correspondance EXACTE rattache une réponse entrante à la bonne
+       *  conversation, sans jeton visible par le candidat — cf. migration 102
+       *  et `lib/mailing/mission-alias.ts`. */
+      mailing_inbox_aliases: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          job_id: string
+          address: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          user_id: string
+          job_id: string
+          address: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['mailing_inbox_aliases']['Insert']>
+        Relationships: []
+      }
       match_assessments: {
         Row: {
           id: string

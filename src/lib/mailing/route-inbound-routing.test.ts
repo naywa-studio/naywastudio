@@ -31,6 +31,8 @@ interface Fixture {
   lastOutboundJobId?: string | null
   /** Les sortants réels, quand le test porte sur le rapprochement par l'objet. */
   outbound?: { job_id: string | null; subject: string | null; created_at: string }[]
+  /** L'adresse dédiée à une mission, quand elle existe. */
+  alias?: { user_id: string; organization_id: string; job_id: string } | null
 }
 
 /**
@@ -44,7 +46,7 @@ interface Fixture {
 function fakeAdmin(f: Fixture): SupabaseClient<Database> {
   const chain = (single: unknown, list: unknown[] = []) => {
     const node: Record<string, unknown> = {}
-    for (const method of ["select", "eq", "contains", "limit", "order"]) {
+    for (const method of ["select", "eq", "ilike", "contains", "limit", "order"]) {
       node[method] = () => node
     }
     node.maybeSingle = () => Promise.resolve({ data: single, error: null })
@@ -58,6 +60,7 @@ function fakeAdmin(f: Fixture): SupabaseClient<Database> {
 
   return {
     from: (table: string) => {
+      if (table === "mailing_inbox_aliases") return chain(f.alias ?? null)
       if (table === "profiles") return chain(f.profile ?? null)
       if (table === "match_assessments") return chain(f.match ?? null)
       if (table === "candidates") return chain(f.candidate ?? null)
@@ -68,6 +71,69 @@ function fakeAdmin(f: Fixture): SupabaseClient<Database> {
 }
 
 const SOURCEUR = { user_id: "u-sophie", organization_id: ORG }
+
+describe("l'adresse dédiée à une mission : le chemin infaillible", () => {
+  it("tranche même quand l'objet et la chronologie désignent une AUTRE mission", async () => {
+    /* Le cas que l'objet ne pouvait pas résoudre : deux missions au même
+     * intitulé, donc au même objet. L'adresse, elle, ne désigne qu'un seul
+     * couple (sourceur, mission) — c'est ce qui la rend infaillible. */
+    const admin = fakeAdmin({
+      alias: { user_id: "u-sophie", organization_id: ORG, job_id: "job-vrai" },
+      profile: SOURCEUR,
+      candidate: { id: "cand-A" },
+      outbound: [
+        { job_id: "job-homonyme", subject: "Commercial", created_at: "2026-09-02T10:00:00Z" },
+      ],
+    })
+
+    const routing = await resolveInboundRouting(admin, {
+      toAddress: "sophie.commercial-2@reply.naywastudio.com",
+      fromAddress: "candidat@exemple.fr",
+      subject: "Re: Commercial",
+    })
+
+    expect(routing.jobId).toBe("job-vrai")
+    expect(routing.candidateId).toBe("cand-A")
+    expect(routing.userId).toBe("u-sophie")
+  })
+
+  it("rattache la mission même quand le candidat est inconnu du vivier", async () => {
+    // L'adresse dit la mission ; l'expéditeur dit le candidat. L'un ne doit
+    // pas faire tomber l'autre.
+    const admin = fakeAdmin({
+      alias: { user_id: "u-sophie", organization_id: ORG, job_id: "job-vrai" },
+      profile: SOURCEUR,
+      candidate: null,
+    })
+
+    const routing = await resolveInboundRouting(admin, {
+      toAddress: "sophie.commercial@reply.naywastudio.com",
+      fromAddress: "inconnu@exemple.fr",
+    })
+
+    expect(routing.jobId).toBe("job-vrai")
+    expect(routing.candidateId).toBeNull()
+  })
+
+  it("une adresse d'une AUTRE organisation ne rattache pas sa mission", async () => {
+    /* Même garde que pour l'ancien jeton : l'adresse circule chez les
+     * candidats. Un alias appartenant à un autre cabinet ne doit pas injecter
+     * sa mission dans le fil de celui-ci. */
+    const admin = fakeAdmin({
+      alias: { user_id: "u-sophie", organization_id: AUTRE_ORG, job_id: "job-espion" },
+      profile: SOURCEUR,
+      candidate: { id: "cand-A" },
+      outbound: [{ job_id: "job-legitime", subject: "X", created_at: "2026-09-01T10:00:00Z" }],
+    })
+
+    const routing = await resolveInboundRouting(admin, {
+      toAddress: "sophie.espion@reply.naywastudio.com",
+      fromAddress: "candidat@exemple.fr",
+    })
+
+    expect(routing.jobId).toBe("job-legitime")
+  })
+})
 
 describe("le suffixe l'emporte : on SAIT au lieu de deviner", () => {
   it("rattache au candidat et à la mission du match", async () => {
