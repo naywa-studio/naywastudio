@@ -22,6 +22,7 @@ import { sendEmail } from "@/lib/resend"
 import { ensureInboxAddress, fromHeader } from "@/lib/mailing/inbox-address"
 
 import { namedAddress } from "@/lib/mailing/mime"
+import { ensureMissionAlias } from "@/lib/mailing/mission-alias"
 import { sendCandidateEmail } from "@/lib/mailing/send"
 import { canSendFromOrgDomain } from "@/lib/subscription"
 import { checkOrgDailySendCap } from "@/lib/mailing/send-cap"
@@ -145,24 +146,43 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const inboxAddress = await ensureInboxAddress(admin, user.id, org, asAdmin)
   const from = fromHeader(profile?.first_name, inboxAddress)
 
-  /* ── L'adresse de réponse est NUE, et c'est un choix ───────────────────
+  /* ── L'adresse de réponse EST l'identifiant de la conversation ─────────
    *
-   * Elle a porté un jeton (`elyas+97w26uu2@…`), qui rattachait la réponse à
-   * coup sûr. Il a été retiré parce qu'il est VISIBLE par le candidat, dans
-   * son champ « répondre à » : une adresse qui ressemble à un mouchard, sur un
-   * message dont tout l'enjeu est d'inspirer confiance.
+   * Trois pistes ont précédé celle-ci, et chacune manquait une exigence :
    *
-   * Ce que le jeton garantissait est repris par le rapprochement sur l'OBJET
-   * (`lib/mailing/subject-match.ts`), qui fonctionne dès la première réponse
-   * et ne s'affiche nulle part. Ce n'est plus une certitude : deux missions au
-   * même objet retombent sur la déduction — soit le comportement d'avant, donc
-   * jamais pire.
+   *  - un jeton (`elyas+97w26uu2@…`) : certain, mais visible dans le champ
+   *    « répondre à » du candidat, sur un message dont tout l'enjeu est
+   *    d'inspirer confiance ;
+   *  - `In-Reply-To` : invisible et certain, mais il exige de connaître
+   *    l'identifiant RFC de notre propre envoi — Gmail et Graph ne le rendent
+   *    pas et écrasent celui qu'on poserait. La PREMIÈRE réponse d'un
+   *    candidat, la plus importante, resterait non rattachée ;
+   *  - le rapprochement par l'objet : lisible et efficace dès la première
+   *    réponse, mais faillible dès que deux missions portent le même intitulé.
    *
-   * ⚠️ `In-Reply-To` aurait été invisible ET certain, mais il exige de
-   * connaître l'identifiant RFC de notre propre envoi. Gmail et Graph ne le
-   * rendent pas et écrasent celui qu'on poserait : la PREMIÈRE réponse d'un
-   * candidat, la plus importante, resterait non rattachée. */
-  const replyAddress = inboxAddress
+   * D'où le renversement : au lieu de cacher l'identifiant, on le rend
+   * lisible. Cf. `lib/mailing/mission-alias.ts`. */
+  /* Une adresse dédiée à la mission : `elyas.commercial-immobilier@…`. Elle
+   * EST l'identifiant de la conversation — correspondance exacte au retour,
+   * aucune déduction, y compris quand deux missions portent le même intitulé
+   * (l'index unique les départage par un `-2`).
+   *
+   * Hors mission, ou si la pose échoue, on garde l'adresse générique du
+   * sourceur : perdre la précision du rattachement est réparable, un message
+   * qui ne part pas ne l'est pas. */
+  let replyAddress = inboxAddress
+  if (jobId && profile?.organization_id) {
+    const { data: job } = await admin
+      .from("jobs").select("title, role_name").eq("id", jobId).maybeSingle()
+    const dedicated = await ensureMissionAlias(admin, {
+      userId: user.id,
+      organizationId: profile.organization_id,
+      jobId,
+      jobTitle: job?.title || job?.role_name || null,
+      inboxAddress,
+    })
+    if (dedicated) replyAddress = dedicated
+  }
   /* Le nom du cabinet devant l'adresse de suivi. C'est ce que le candidat lit
    * dans « répondre à » — l'adresse brute y ressemblait à une adresse de
    * machine, et faisait douter de l'expéditeur. */

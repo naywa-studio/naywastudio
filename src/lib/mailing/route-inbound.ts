@@ -14,9 +14,12 @@
  *
  * ── L'ordre de résolution ────────────────────────────────────────────────
  *
- * 1. L'adresse DESTINATAIRE, base sans suffixe, désigne le sourceur
- *    (`profiles.inbox_address`). Inconnue = ce n'est pas une de nos adresses :
- *    on abandonne sans erreur.
+ * 0. L'adresse DESTINATAIRE est-elle une adresse dédiée à une mission
+ *    (`elyas.commercial-immobilier@…`, cf. `mission-alias.ts`) ? Alors on sait
+ *    le sourceur ET la mission, exactement. C'est le chemin normal depuis
+ *    qu'on pose ces adresses, et le seul qui soit INFAILLIBLE.
+ * 1. Sinon, l'adresse désigne le sourceur seul (`profiles.inbox_address`).
+ *    Inconnue = ce n'est pas une de nos adresses : on abandonne sans erreur.
  * 2. Son SUFFIXE, s'il en a un, désigne la conversation avec certitude. On
  *    n'en pose plus — l'adresse doit rester présentable au candidat — mais des
  *    messages en portent encore, et leurs réponses doivent continuer d'être
@@ -78,6 +81,22 @@ export async function resolveInboundRouting(
   const { base: toAddr, token } = parseReplyAddress(opts.toAddress)
   const fromAddr = opts.fromAddress.trim().toLowerCase()
 
+  /* ── Le chemin CERTAIN : une adresse dédiée à une mission ──────────────
+   *
+   * `elyas.commercial-immobilier@reply.naywastudio.com` ne désigne qu'un seul
+   * couple (sourceur, mission). Correspondance exacte, aucune déduction —
+   * c'est ce qui rend le rattachement infaillible là où l'objet ne pouvait
+   * que le supposer.
+   *
+   * Testé AVANT `profiles.inbox_address`, sans quoi rien ne le trouverait :
+   * l'adresse générique du sourceur ne correspond à aucun alias, et un alias
+   * ne figure dans aucun profil. */
+  const { data: alias } = await admin
+    .from("mailing_inbox_aliases")
+    .select("user_id, organization_id, job_id")
+    .ilike("address", toAddr)
+    .maybeSingle()
+
   // L'adresse courante d'abord, puis les anciennes.
   //
   // Une organisation qui active son domaine change l'adresse de réception de
@@ -86,11 +105,17 @@ export async function resolveInboundRouting(
   // courante ferait tomber toutes ces réponses dans « destinataire inconnu »,
   // sans le moindre signe : un message non rattaché est indiscernable d'un
   // message jamais reçu, et le sourceur en conclut que personne n'a répondu.
-  let { data: profile } = await admin
-    .from("profiles")
-    .select("user_id, organization_id, is_admin")
-    .eq("inbox_address", toAddr)
-    .maybeSingle()
+  let { data: profile } = alias
+    ? await admin
+        .from("profiles")
+        .select("user_id, organization_id, is_admin")
+        .eq("user_id", alias.user_id)
+        .maybeSingle()
+    : await admin
+        .from("profiles")
+        .select("user_id, organization_id, is_admin")
+        .eq("inbox_address", toAddr)
+        .maybeSingle()
 
   if (!profile) {
     const { data: byAlias } = await admin
@@ -145,6 +170,20 @@ export async function resolveInboundRouting(
     .eq("email", fromAddr)
     .limit(1)
     .maybeSingle()
+
+  /* L'alias a déjà tranché la mission : aucune déduction ne doit la
+   * contredire. C'est tout l'intérêt du mécanisme — une adresse dédiée ne
+   * laisse aucune place au doute, même quand deux missions portent le même
+   * intitulé et le même objet. */
+  if (alias && alias.organization_id === profile.organization_id) {
+    return {
+      userId: profile.user_id,
+      organizationId: profile.organization_id,
+      candidateId: candidate?.id ?? null,
+      jobId: alias.job_id,
+      isAdmin: profile.is_admin === true,
+    }
+  }
 
   let jobId: string | null = null
   if (candidate) {
