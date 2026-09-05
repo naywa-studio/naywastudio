@@ -29,9 +29,16 @@ export async function resolveCandidateByToken(
 ): Promise<Candidate | null> {
   const candidateId = verifyCandidatePrivacyToken(token)
   if (!candidateId) return null
+  // CANDIDATE_COLUMNS n'inclut PAS organization_id (comme user_id, exclus du
+  // set standard) — sans cet ajout, les 4 routes self-service journalisaient
+  // avec organization_id=undefined, et candidate_rgpd_log.organization_id
+  // est NOT NULL : l'insert échouait en silence (logCandidateRgpdAction est
+  // best-effort par design, pour ne jamais bloquer l'action RGPD elle-même
+  // sur un souci de journalisation — mais ça veut dire qu'un bug ici ne
+  // remonte JAMAIS d'erreur visible, seulement un historique vide).
   const { data } = await admin
     .from("candidates")
-    .select(CANDIDATE_COLUMNS)
+    .select(`${CANDIDATE_COLUMNS}, organization_id`)
     .eq("id", candidateId)
     .maybeSingle()
   return (data as unknown as Candidate) ?? null
