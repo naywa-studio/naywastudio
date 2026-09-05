@@ -15,9 +15,11 @@
  *
  * Champs V1 (volontairement resserrés — TJM/expérience/portfolio pas
  * demandés en V1, ajoutables plus tard sans migration bloquante) :
- * full_name, email, phone (optionnel), location (optionnel),
- * linkedin_url (optionnel), message (optionnel), cv (fichier, requis),
- * talent_pool_consent (checkbox), website (honeypot, doit rester vide).
+ * first_name, last_name (recombinés en full_name pour candidates.full_name,
+ * qui reste un champ unique), email, phone (optionnel, validé côté client),
+ * location (optionnel), linkedin_url (optionnel), message (optionnel),
+ * cv (fichier, requis), talent_pool_consent (checkbox), website (honeypot,
+ * doit rester vide).
  */
 
 import { NextRequest, NextResponse } from "next/server"
@@ -78,7 +80,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
     return NextResponse.json({ ok: true })
   }
 
-  const fullName = String(form.get("full_name") ?? "").trim().slice(0, 200)
+  // Prénom + nom séparés côté formulaire (UX + moins d'ambiguïté qu'un champ
+  // unique) — recombinés ici, `candidates.full_name` reste un champ unique.
+  const firstName = String(form.get("first_name") ?? "").trim().slice(0, 100)
+  const lastName = String(form.get("last_name") ?? "").trim().slice(0, 100)
+  const fullName = `${firstName} ${lastName}`.trim().slice(0, 200)
   const email = String(form.get("email") ?? "").trim().slice(0, 200)
   const phone = String(form.get("phone") ?? "").trim().slice(0, 40) || null
   const location = String(form.get("location") ?? "").trim().slice(0, 200) || null
@@ -237,7 +243,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
   try {
     await sendApplyConfirmationEmail({
       candidateEmail: email,
-      candidateFirstName: fullName.split(/\s+/)[0] ?? null,
+      candidateFirstName: firstName || null,
       candidateId: created.id,
       jobTitle: jobRow.title,
       orgLabel,

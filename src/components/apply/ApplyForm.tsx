@@ -99,9 +99,17 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
         <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" />
       </div>
 
-      <div>
-        <label style={labelStyle} htmlFor="full_name">Nom complet *</label>
-        <input style={inputStyle} id="full_name" name="full_name" type="text" required maxLength={200} placeholder="Jean Dupont" />
+      <p style={{ margin: 0, fontSize: 11.5, color: "#9CA3AF" }}>* Champs obligatoires</p>
+
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 200px" }}>
+          <label style={labelStyle} htmlFor="first_name">Prénom *</label>
+          <input style={inputStyle} id="first_name" name="first_name" type="text" required maxLength={100} placeholder="Jean" />
+        </div>
+        <div style={{ flex: "1 1 200px" }}>
+          <label style={labelStyle} htmlFor="last_name">Nom *</label>
+          <input style={inputStyle} id="last_name" name="last_name" type="text" required maxLength={100} placeholder="Dupont" />
+        </div>
       </div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 220px" }}>
@@ -110,7 +118,11 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
         </div>
         <div style={{ flex: "1 1 160px" }}>
           <label style={labelStyle} htmlFor="phone">Téléphone</label>
-          <input style={inputStyle} id="phone" name="phone" type="tel" maxLength={40} placeholder="06 12 34 56 78" />
+          <input
+            style={inputStyle} id="phone" name="phone" type="tel" maxLength={20}
+            placeholder="06 12 34 56 78" pattern="^[0-9+()\-\s.]{8,20}$"
+            title="8 à 20 chiffres, espaces, +, -, ( ) ou . acceptés"
+          />
         </div>
       </div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -126,11 +138,35 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
 
       <div>
         <label style={labelStyle} htmlFor="cv">CV (PDF) *</label>
+        {/* L'input natif reste dans le formulaire (requis pour la
+            soumission + required natif) mais visuellement caché : son
+            widget par défaut ("Choisir un fichier" + "Aucun fichier
+            choisi") ne se stylise pas correctement et affichait le nom du
+            fichier en double avec notre propre aperçu ci-dessous. Un
+            <label htmlFor> ouvre le sélecteur même sur un input caché. */}
         <input
-          style={inputStyle} id="cv" name="cv" type="file" accept="application/pdf" required
+          style={{ position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden" }}
+          id="cv" name="cv" type="file" accept="application/pdf" required
           onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
         />
-        {fileName && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#6B7280" }}>{fileName}</p>}
+        <label
+          htmlFor="cv"
+          style={{
+            display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+            padding: "11px 13px", fontSize: 14, border: "1px dashed #D1D5DB", borderRadius: 10,
+            background: "#FAFAFA", color: fileName ? "#111827" : "#9CA3AF",
+          }}
+        >
+          <span style={{
+            fontSize: 12.5, fontWeight: 700, color: "#374151", background: "white",
+            border: "1px solid #E5E7EB", borderRadius: 6, padding: "5px 10px", whiteSpace: "nowrap",
+          }}>
+            Choisir un fichier
+          </span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {fileName ?? "Aucun fichier choisi (PDF, 10 Mo max)"}
+          </span>
+        </label>
       </div>
 
       <div>
