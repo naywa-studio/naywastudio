@@ -610,20 +610,22 @@ export type Database = {
           updated_at: string
           consulted_at: string | null
           /** Déclaratif (posé par le sourceur) : accord obtenu pour garder ce
-           *  profil en vivier au-delà d'un process. Voir migration 098. */
+           *  profil en vivier au-delà d'un process. Colonne posée migration
+           *  102, mécanique de calcul migration 098. */
           talent_pool_consent: boolean
           talent_pool_consent_at: string | null
           talent_pool_consent_by: string | null
-          /** Dérivé de match_assessments.contacted_at par trigger — lecture
-           *  seule côté app, ne jamais l'écrire directement. */
+          /** Dérivé de match_assessments.contacted_at par trigger (migration
+           *  102) — lecture seule côté app, ne jamais l'écrire directement. */
           last_contact_at: string | null
           /** Date de purge RGPD automatique (cron wipe-expired-candidates).
-           *  NULL = jamais purgé auto. Recalculée par trigger, lecture seule
-           *  côté app. */
+           *  NULL = jamais purgé auto. Recalculée par trigger (098 au
+           *  changement de consentement, 102 au changement de contact),
+           *  lecture seule côté app. */
           retention_until: string | null
           /** Horodatage du scrub RGPD (PII vidée, ligne conservée pour les
            *  stats). Distinct de `anonymized_at` (document remis au client) —
-           *  voir migration 100. */
+           *  voir migration 103. */
           rgpd_anonymized_at: string | null
         }
         Insert: {
@@ -671,9 +673,9 @@ export type Database = {
           talent_pool_consent?: boolean
           talent_pool_consent_at?: string | null
           talent_pool_consent_by?: string | null
-          /** Ne pas écrire directement — dérivé par trigger (migration 098). */
+          /** Ne pas écrire directement — dérivé par trigger (migration 102). */
           last_contact_at?: string | null
-          /** Ne pas écrire directement — recalculée par trigger (migration 098). */
+          /** Ne pas écrire directement — recalculée par trigger (098 et 102). */
           retention_until?: string | null
           rgpd_anonymized_at?: string | null
         }
@@ -685,7 +687,7 @@ export type Database = {
           id: string
           organization_id: string
           /** NULL une fois le candidat supprimé (ON DELETE SET NULL) — le
-           *  log survit à la ligne candidate. Voir migration 100. */
+           *  log survit à la ligne candidate. Voir migration 103. */
           candidate_id: string | null
           /** Réf lisible (candidateRefLabel) capturée AU MOMENT de l'action —
            *  reste affichable même après candidate_id devenu NULL. */

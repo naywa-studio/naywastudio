@@ -4,7 +4,7 @@
  * Consentement vivier — DÉCLARATIF (pas de formulaire candidat public
  * aujourd'hui, cf. CLAUDE.md) : le sourceur déclare avoir obtenu l'accord du
  * candidat pour une conservation prolongée (2 ans au lieu de 180 jours par
- * défaut — voir migrations 098/099/100 pour le calcul de retention_until).
+ * défaut — voir migrations 098/102/103 pour le calcul de retention_until).
  *
  * L'UPDATE déclenche le trigger `recompute_candidate_retention_on_consent_
  * change` (098) qui recalcule `retention_until` automatiquement — cette
@@ -12,7 +12,7 @@
  *
  * Passe par une route serveur (plutôt qu'une écriture directe RLS comme
  * notes/tags) uniquement pour pouvoir écrire dans candidate_rgpd_log, qui
- * n'accepte aucune écriture authenticated par design (cf. migration 100).
+ * n'accepte aucune écriture authenticated par design (cf. migration 103).
  */
 
 import { NextResponse } from "next/server"

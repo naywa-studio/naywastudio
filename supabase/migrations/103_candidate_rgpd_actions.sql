@@ -1,6 +1,9 @@
--- 100 — Slice 2 RGPD : historique des actions candidat + colonne d'anonymisation
+-- 103 — Slice 2 RGPD : historique des actions candidat + colonne d'anonymisation
 --
--- Complète 098 (fix prod adopté) + 099 (colonnes rétention + last_contact_at)
+-- Renumérotée depuis 100 pour la même raison que 102 (ex-099) — cf. son
+-- en-tête. origin/main occupe 099-101 avec le chantier Mailing, sans rapport.
+--
+-- Complète 098 (fix prod adopté) + 102 (colonnes rétention + last_contact_at)
 -- avec ce qu'il faut pour les actions recruteur sur la fiche candidat :
 -- exporter, supprimer, anonymiser (RGPD), retirer du vivier, s'opposer au
 -- contact, et un historique traçable de tout ça.

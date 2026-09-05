@@ -1,4 +1,10 @@
--- 099 — Rétention candidats : ferme la dette de colonnes + last_contact_at
+-- 102 — Rétention candidats : ferme la dette de colonnes + last_contact_at
+--
+-- ⚠️ Numérotée 102 et non 099 : au moment d'écrire cette migration,
+-- origin/main était encore à 098. Entre-temps le chantier Mailing a posé
+-- 099/100/101 (email_messages, match_assessments.reply_token — sans rapport,
+-- vérifié). Renumérotée pour éviter la collision, avant même d'avoir été
+-- appliquée en base — aucun risque de double numérotation type migration 070.
 --
 -- Complète 098 (adopté d'origin/main, déjà vérifié en prod), qui ne
 -- contenait QUE le correctif GRANT sur `compute_candidate_retention_until`.
