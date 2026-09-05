@@ -45,8 +45,14 @@ export async function sendApplyConfirmationEmail(params: ApplyConfirmationParams
     "Cet email est envoyé automatiquement par Naywa Studio pour le compte de " + orgLabel + ".",
   ].filter((line) => line !== null).join("\n")
 
+  // orgLabel vient de brand_name/name, saisi librement par le cabinet — un
+  // "<", ">" ou guillemet dedans casserait la syntaxe du header From et
+  // ferait rejeter l'envoi par Resend (silencieusement, côté candidat).
+  // Même nettoyage que fromHeader() dans resend.ts.
+  const safeOrgLabel = orgLabel.replace(/["<>]/g, "")
+
   await sendEmail({
-    from: `${orgLabel} via Naywa <candidatures@${MAIL_DOMAIN}>`,
+    from: `${safeOrgLabel} via Naywa <candidatures@${MAIL_DOMAIN}>`,
     to: candidateEmail,
     replyTo: contactEmail,
     subject: `Candidature reçue — ${jobTitle}`,
