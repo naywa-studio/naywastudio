@@ -57,6 +57,7 @@ const TABS: Record<Lang, { href: string; label: string; showUnreadBadge?: boolea
     // fuite de monétisation.
     { href: "/workspace/pricing",  label: "Pricing", requiresPricing: true },
     { href: "/workspace/pipeline", label: "Pipeline" },
+    { href: "/workspace/rgpd",     label: "RGPD" },
     { href: "/nouveautes",         label: "Nouveautés", showUnreadBadge: true },
   ],
   en: [
@@ -65,6 +66,7 @@ const TABS: Record<Lang, { href: string; label: string; showUnreadBadge?: boolea
     { href: "/workspace/vivier",   label: "Talent pool" },
     { href: "/workspace/pricing",  label: "Pricing", requiresPricing: true },
     { href: "/workspace/pipeline", label: "Pipeline" },
+    { href: "/workspace/rgpd",     label: "GDPR" },
     { href: "/nouveautes",         label: "Updates", showUnreadBadge: true },
   ],
 }
