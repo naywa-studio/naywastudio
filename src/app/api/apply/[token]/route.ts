@@ -93,8 +93,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
   const talentPoolConsent = form.get("talent_pool_consent") === "on"
   const file = form.get("cv")
 
-  if (!fullName || !email || !EMAIL_RE.test(email)) {
-    return NextResponse.json({ error: "invalid_fields", message: "Nom et email valide requis." }, { status: 400 })
+  // Redondant avec le "required" + pattern natifs du formulaire — mais un
+  // appel direct à cette route (sans passer par le navigateur) contourne
+  // toute validation HTML, donc on revalide ici. Même pattern que le champ.
+  const PHONE_RE = /^[0-9+()\s.-]{8,20}$/
+  if (!fullName || !email || !EMAIL_RE.test(email) || !phone || !PHONE_RE.test(phone)) {
+    return NextResponse.json({ error: "invalid_fields", message: "Nom, email valide et téléphone valide requis." }, { status: 400 })
   }
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "missing_file" }, { status: 400 })

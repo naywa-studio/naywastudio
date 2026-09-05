@@ -43,7 +43,7 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
       if (!res.ok) {
         const messages: Record<string, string> = {
           rate_limited: "Trop de tentatives depuis votre connexion — réessayez dans un moment.",
-          invalid_fields: "Merci de renseigner votre nom et un email valide.",
+          invalid_fields: "Merci de renseigner votre nom, un email et un téléphone valides.",
           missing_file: "Merci de joindre votre CV (PDF).",
           invalid_type: "Seuls les fichiers PDF sont acceptés.",
           too_large: "Le fichier dépasse 10 Mo.",
@@ -117,11 +117,22 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
           <input style={inputStyle} id="email" name="email" type="email" required maxLength={200} placeholder="jean@email.fr" />
         </div>
         <div style={{ flex: "1 1 160px" }}>
-          <label style={labelStyle} htmlFor="phone">Téléphone</label>
+          <label style={labelStyle} htmlFor="phone">Téléphone *</label>
           <input
-            style={inputStyle} id="phone" name="phone" type="tel" maxLength={20}
-            placeholder="06 12 34 56 78" pattern="^[0-9+()\-\s.]{8,20}$"
-            title="8 à 20 chiffres, espaces, +, -, ( ) ou . acceptés"
+            style={inputStyle} id="phone" name="phone" type="tel" maxLength={20} required
+            placeholder="06 12 34 56 78"
+            // "\-" et "\s" à l'intérieur d'une chaîne JS NON-regex ne sont
+            // PAS des séquences d'échappement reconnues : JS les réduit
+            // silencieusement à "-" et "s" (le backslash disparaît). Le
+            // pattern envoyé au navigateur devenait "[0-9+()-s.]" — un "-"
+            // entre ")" et "s" que le moteur regex lit comme une PLAGE de
+            // caractères, pas un tiret littéral. D'où une validation qui ne
+            // vérifiait presque rien. Il faut doubler le backslash ("\\s")
+            // pour qu'il survive au parsing JS, et placer "-" en dernier
+            // dans la classe de caractères pour qu'il soit toujours littéral
+            // sans avoir besoin de l'échapper.
+            pattern="^[0-9+()\\s.-]{8,20}$"
+            title="8 à 20 caractères : chiffres, espaces, +, ( ), point ou tiret"
           />
         </div>
       </div>
