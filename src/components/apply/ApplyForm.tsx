@@ -49,6 +49,12 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
           too_large: "Le fichier dépasse 10 Mo.",
           empty_file: "Le fichier semble vide.",
           cv_quota_exceeded: "Ce cabinet a atteint sa capacité d'accueil pour le moment — réessayez plus tard.",
+          // Code réel renvoyé par lib/quota.ts pour le stockage ET le LLM
+          // (checkStorageQuota / consumeOrgLlmAction) — "storage_quota_
+          // exceeded" et "llm_quota_exceeded" ne sont JAMAIS les valeurs
+          // effectivement renvoyées, seulement des fallbacks théoriques
+          // dans la route qui ne se déclenchent jamais.
+          quota_exceeded: "Ce cabinet n'est pas en mesure de recevoir votre candidature pour le moment — contactez-le directement ou réessayez plus tard.",
         }
         setErrorMsg(messages[json.error] ?? "Une erreur est survenue. Réessayez dans un instant.")
         setStatus("error")
