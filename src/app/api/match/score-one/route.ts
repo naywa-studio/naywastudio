@@ -1,15 +1,16 @@
 /**
  * POST /api/match/score-one  body: { candidate_id, job_id }
  *
- * Score un SEUL candidat contre une SEULE mission, en utilisant le même
- * pipeline LLM que /api/jobs/[id]/match (cf. lib/matching.ts).
+ * Score un SEUL candidat contre une SEULE mission — wrapper authentifié
+ * autour de lib/candidate-score-one.ts (extrait en Slice 6.1 pour que la
+ * route publique de candidature appelle le même code sans session).
  *
  * Cas d'usage :
- *   - Le sourceur dépose un CV directement sur la page mission (E1) →
- *     on score immédiatement après le parse au lieu d'attendre un
- *     "Matcher le vivier" complet.
- *   - Plus tard : le formulaire de candidature publique (E2) appelle
- *     aussi cette route quand un candidat postule à une mission.
+ *   - Le sourceur dépose un CV directement sur la page mission (E1).
+ *   - Le formulaire de candidature publique (E2 / Slice 6.1) appelle
+ *     lib/candidate-score-one.ts directement, pas cette route (pas de
+ *     session à présenter, pas de quota utilisateur à consommer côté
+ *     candidat).
  *
  * Upsert sur match_assessments : si une row existe déjà pour ce
  * couple (job_id, candidate_id), elle est mise à jour.
@@ -20,11 +21,8 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { consumeOrgLlmActionForUser } from "@/lib/quota"
-import { scoreBatchCriteria, withMissionTag, missionTagFor } from "@/lib/matching"
-import type { Criterion } from "@/lib/job-criteria-catalog"
-import { CANDIDATE_COLUMNS, type Candidate, type Job, type Database } from "@/lib/database.types"
-
-type MatchInsert = Database["public"]["Tables"]["match_assessments"]["Insert"]
+import { scoreOneCandidate } from "@/lib/candidate-score-one"
+import { CANDIDATE_COLUMNS, type Candidate, type Job } from "@/lib/database.types"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -44,38 +42,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 })
   }
   const lang: "fr" | "en" = body?.lang === "en" ? "en" : "fr"
-  // E1 (modale upload mission) envoie source="uploaded". E2 (formulaire
-  // public, à venir) enverra source="applied". Défaut "uploaded" puisque
-  // cette route n'est aujourd'hui appelée que par E1.
   const sourceParam = typeof body?.source === "string" ? body.source : "uploaded"
-  const source: "applied" | "uploaded" =
-    sourceParam === "applied" ? "applied" : "uploaded"
+  const source: "applied" | "uploaded" = sourceParam === "applied" ? "applied" : "uploaded"
 
-  // RLS-scoped reads pour vérifier que les deux appartiennent à l'org.
   const [{ data: candRow }, { data: jobRow }] = await Promise.all([
     sb.from("candidates").select(CANDIDATE_COLUMNS).eq("id", candidateId).maybeSingle(),
     sb.from("jobs").select("*").eq("id", jobId).maybeSingle(),
   ])
   if (!candRow) return NextResponse.json({ error: "candidate_not_found" }, { status: 404 })
   if (!jobRow) return NextResponse.json({ error: "job_not_found" }, { status: 404 })
-
-  const candidate = candRow as unknown as Candidate
-  const job = jobRow as Job
-  if (candidate.parse_status !== "parsed") {
-    return NextResponse.json({
-      error: "candidate_not_parsed",
-      message: "Le candidat n'est pas encore parsé.",
-    }, { status: 400 })
-  }
-
-  // PR-Z : on a besoin de critères configurés pour scorer.
-  const criteria = (job.criteria ?? []) as Criterion[]
-  if (!job.criteria_locked_at || criteria.length === 0) {
-    return NextResponse.json({
-      error: "criteria_not_configured",
-      message: "Configure les critères de la mission avant d'importer des candidats.",
-    }, { status: 400 })
-  }
 
   const orgLlm = await consumeOrgLlmActionForUser(getAdminSupabase(), user.id)
   if (!orgLlm.ok) {
@@ -85,73 +60,37 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  let results
-  try {
-    results = await scoreBatchCriteria(job, criteria, [candidate], lang)
-  } catch (err) {
-    return NextResponse.json(
-      { error: "scoring_failed", detail: (err as Error).message },
-      { status: 502 },
-    )
-  }
-  if (results.length === 0) {
-    return NextResponse.json({
-      error: "no_result",
-      message: "Nora n'a pas pu scorer ce candidat.",
-    }, { status: 502 })
-  }
-  const r = results[0]
+  const outcome = await scoreOneCandidate(getAdminSupabase(), {
+    candidate: candRow as unknown as Candidate,
+    job: jobRow as Job,
+    userId: user.id,
+    source,
+    lang,
+  })
 
-  const admin = getAdminSupabase()
-  const { data: existing } = await admin
-    .from("match_assessments")
-    .select("id")
-    .eq("job_id", jobId)
-    .eq("candidate_id", candidateId)
-    .maybeSingle()
-
-  let matchRow
-  if (existing) {
-    // L'action explicite du sourceur (upload / candidature) prime sur la
-    // source historique : on écrase la source même en UPDATE.
-    const { data } = await admin
-      .from("match_assessments")
-      .update({
-        score: r.score,
-        criteria_eval: r.criteria_eval,
-        match_tier: r.tier,
-        source,
+  switch (outcome.kind) {
+    case "candidate_not_parsed":
+      return NextResponse.json({
+        error: "candidate_not_parsed",
+        message: "Le candidat n'est pas encore parsé.",
+      }, { status: 400 })
+    case "criteria_not_configured":
+      return NextResponse.json({
+        error: "criteria_not_configured",
+        message: "Configure les critères de la mission avant d'importer des candidats.",
+      }, { status: 400 })
+    case "scoring_failed":
+      return NextResponse.json({ error: "scoring_failed", detail: outcome.detail }, { status: 502 })
+    case "no_result":
+      return NextResponse.json({
+        error: "no_result",
+        message: "Nora n'a pas pu scorer ce candidat.",
+      }, { status: 502 })
+    case "success":
+      return NextResponse.json({
+        ok: true,
+        match: outcome.match,
+        result: { score: outcome.score, tier: outcome.tier },
       })
-      .eq("id", existing.id)
-      .select("*")
-      .single()
-    matchRow = data
-  } else {
-    const insert: MatchInsert = {
-      user_id: user.id,
-      job_id: jobId,
-      candidate_id: candidateId,
-      score: r.score,
-      criteria_eval: r.criteria_eval,
-      match_tier: r.tier,
-      pipeline_stage: "identified",
-      source,
-    }
-    const { data } = await admin
-      .from("match_assessments")
-      .insert(insert)
-      .select("*")
-      .single()
-    matchRow = data
   }
-
-  // Mission tag write-back si bon match (cohérent avec le matching vivier).
-  if (r.tier === "excellent" || r.tier === "good") {
-    const nextTax = withMissionTag(candidate.taxonomy, missionTagFor(job))
-    if (nextTax !== candidate.taxonomy) {
-      await admin.from("candidates").update({ taxonomy: nextTax }).eq("id", candidate.id)
-    }
-  }
-
-  return NextResponse.json({ ok: true, match: matchRow, result: r })
 }
