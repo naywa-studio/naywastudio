@@ -12,6 +12,30 @@ import type { Database } from "./database.types"
 import { candidateRefLabel } from "./candidate-ref"
 import { r2GetSize, r2SumSizeByPrefix, r2DeleteByPrefix } from "./r2-storage"
 import { decrementStorageUsed } from "./quota"
+import { verifyCandidatePrivacyToken } from "./candidate-privacy-token"
+import { CANDIDATE_COLUMNS, type Candidate } from "./database.types"
+
+/**
+ * Résout un candidat à partir d'un jeton self-service (Slice 6.2). `null` si
+ * le jeton est invalide/forgé OU si le candidat n'existe plus (déjà supprimé
+ * ou anonymisé — le jeton reste valide indéfiniment côté cryptographie, mais
+ * la ligne qu'il désigne a pu disparaître depuis). Centralisé ici : les 4
+ * routes self-service (export/delete/opt-out/update) en ont toutes besoin,
+ * avec exactement la même sémantique d'échec.
+ */
+export async function resolveCandidateByToken(
+  admin: SupabaseClient<Database>,
+  token: string,
+): Promise<Candidate | null> {
+  const candidateId = verifyCandidatePrivacyToken(token)
+  if (!candidateId) return null
+  const { data } = await admin
+    .from("candidates")
+    .select(CANDIDATE_COLUMNS)
+    .eq("id", candidateId)
+    .maybeSingle()
+  return (data as unknown as Candidate) ?? null
+}
 
 export type CandidateRgpdAction =
   | "export"
@@ -21,6 +45,7 @@ export type CandidateRgpdAction =
   | "consent_revoked"
   | "opt_out_contact"
   | "auto_purged"
+  | "rectification"
 
 /**
  * Écrit une ligne d'historique. Best-effort (même pattern que
