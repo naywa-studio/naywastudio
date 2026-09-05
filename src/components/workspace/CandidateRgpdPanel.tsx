@@ -37,6 +37,7 @@ const ACTION_LABEL: Record<Lang, Record<CandidateRgpdLog["action"], string>> = {
     consent_revoked: "Consentement vivier retiré",
     opt_out_contact: "Opposition au contact",
     auto_purged: "Purge automatique (rétention expirée)",
+    rectification: "Correction par le candidat (self-service)",
   },
   en: {
     export: "Data export",
@@ -46,6 +47,7 @@ const ACTION_LABEL: Record<Lang, Record<CandidateRgpdLog["action"], string>> = {
     consent_revoked: "Talent pool consent revoked",
     opt_out_contact: "Contact opposition",
     auto_purged: "Automatic purge (retention expired)",
+    rectification: "Correction by the candidate (self-service)",
   },
 }
 

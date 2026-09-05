@@ -1,18 +1,16 @@
 /**
  * DELETE /api/cv/:id  — remove a candidate (DB row + R2 objects).
  *
- * Décrémente storage_used_bytes pour refléter l'espace libéré (le cron
- * nightly recalculera la vraie valeur en tout cas, mais on évite que la
- * jauge "lag" une journée).
+ * Wrapper authentifié autour de lib/candidate-rgpd.ts::deleteCandidateCompletely
+ * (extrait en Slice 6.2 pour être réutilisé par la route de suppression
+ * self-service candidat, /api/privacy-request/[token]/delete).
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { requireActiveAccess } from "@/lib/access-guard"
 import { getAdminSupabase } from "@/lib/admin-supabase"
-import { r2GetSize, r2SumSizeByPrefix, r2DeleteByPrefix } from "@/lib/r2-storage"
-import { decrementStorageUsed } from "@/lib/quota"
-import { candidateRefLabel, logCandidateRgpdAction } from "@/lib/candidate-rgpd"
+import { candidateRefLabel, deleteCandidateCompletely, logCandidateRgpdAction } from "@/lib/candidate-rgpd"
 
 export const runtime = "nodejs"
 
@@ -29,7 +27,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   // the candidate — which is the required permission.
   const { data: candidate, error: fetchErr } = await sb
     .from("candidates")
-    .select("id, organization_id, cv_file_path, anonymized_pdf_path")
+    .select("id, organization_id, cv_file_path")
     .eq("id", id)
     .single()
 
@@ -39,36 +37,6 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
 
   const admin = getAdminSupabase()
   const orgId = candidate.organization_id
-
-  // Compte la taille totale du dossier candidat sur R2 avant suppression
-  // pour décrémenter le compteur stockage de la bonne valeur.
-  let bytesFreed = 0
-  if (candidate.cv_file_path && orgId) {
-    const folder = candidate.cv_file_path.split("/").slice(0, 2).join("/")  // {org_id}/{cand_id}
-    try {
-      bytesFreed = await r2SumSizeByPrefix("cv", folder + "/")
-    } catch {
-      // Si on échoue à lister, fallback : taille du seul fichier principal.
-      try { bytesFreed = await r2GetSize({ bucket: "cv", path: candidate.cv_file_path, callerOrgId: orgId }) }
-      catch { /* ignore */ }
-    }
-    // Supprime tous les fichiers du dossier candidat (CV original +
-    // PDF anonymisé + DOCX + futurs artefacts). Passe par le wrapper
-    // bucket-aware (résout R2_BUCKET_CV, donc naywa-cv-eu post-migration)
-    // au lieu d'un S3Client fait main qui ciblait "naywa-cv" en dur — sur
-    // une org migrée vers le bucket EU, l'ancien code listait/supprimait
-    // dans le mauvais bucket et laissait le vrai fichier orphelin.
-    try {
-      await r2DeleteByPrefix("cv", folder + "/")
-    } catch (err) {
-      console.error("[cv/delete] R2 cleanup error:", err instanceof Error ? err.message : "unknown")
-      // On continue quand même la suppression DB — le cron nightly
-      // recalcule storage_used_bytes en listant R2.
-    }
-  } else if (candidate.cv_file_path) {
-    // Fallback : ancien path Supabase Storage (avant migration R2).
-    await admin.storage.from("cv-uploads").remove([candidate.cv_file_path])
-  }
 
   // AVANT le delete : candidate_id référence encore une ligne existante
   // (contrainte FK) — logger après échouerait, la ligne n'existant plus.
@@ -82,14 +50,9 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     })
   }
 
-  const { error: delErr } = await admin.from("candidates").delete().eq("id", candidate.id)
-  if (delErr) {
-    console.error("[cv/delete] db error:", delErr.message)
-    return NextResponse.json({ error: "db_delete_failed" }, { status: 500 })
-  }
-
-  if (orgId && bytesFreed > 0) {
-    await decrementStorageUsed(admin, orgId, bytesFreed)
+  const result = await deleteCandidateCompletely(admin, candidate)
+  if (!result.ok) {
+    return NextResponse.json({ error: result.message ?? "db_delete_failed" }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

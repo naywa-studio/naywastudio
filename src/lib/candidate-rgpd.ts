@@ -136,4 +136,61 @@ export async function scrubCandidatePii(
   return { ok: true }
 }
 
+export interface DeleteResult {
+  ok: boolean
+  message?: string
+}
+
+/**
+ * Supprime DÉFINITIVEMENT un candidat (ligne + fichiers R2). Extrait de
+ * `DELETE /api/cv/[id]` (Slice 2) pour être réutilisé par la route de
+ * suppression candidat self-service (Slice 6.2, `/api/privacy-request/
+ * [token]/delete`) — même nettoyage R2, même décrément de quota, un seul
+ * endroit qui sait supprimer.
+ *
+ * N'appelle PAS logCandidateRgpdAction : à faire par l'appelant AVANT ce
+ * delete (la ligne doit encore exister pour la contrainte FK du log).
+ */
+export async function deleteCandidateCompletely(
+  admin: SupabaseClient<Database>,
+  candidate: { id: string; organization_id: string | null; cv_file_path: string | null },
+): Promise<DeleteResult> {
+  const orgId = candidate.organization_id
+  let bytesFreed = 0
+  if (candidate.cv_file_path && orgId) {
+    const folder = candidate.cv_file_path.split("/").slice(0, 2).join("/")
+    try {
+      bytesFreed = await r2SumSizeByPrefix("cv", folder + "/")
+    } catch {
+      try { bytesFreed = await r2GetSize({ bucket: "cv", path: candidate.cv_file_path, callerOrgId: orgId }) }
+      catch { /* ignore */ }
+    }
+    try {
+      await r2DeleteByPrefix("cv", folder + "/")
+    } catch (err) {
+      console.error("[candidate-rgpd] R2 cleanup error (delete):", err instanceof Error ? err.message : "unknown")
+      // On continue quand même la suppression DB — le cron nightly recalcule
+      // storage_used_bytes en listant R2 de toute façon.
+    }
+  } else if (candidate.cv_file_path) {
+    // Fallback : ancien path Supabase Storage (avant migration R2). Ne
+    // concerne jamais un candidat issu du formulaire public (100% R2 dès
+    // l'origine) — gardé pour ne rien perdre du comportement de la route
+    // recruteur existante, qui gère aussi les candidats plus anciens.
+    await admin.storage.from("cv-uploads").remove([candidate.cv_file_path])
+  }
+
+  const { error } = await admin.from("candidates").delete().eq("id", candidate.id)
+  if (error) {
+    console.error("[candidate-rgpd] delete failed:", error.message)
+    return { ok: false, message: "delete_failed" }
+  }
+
+  if (orgId && bytesFreed > 0) {
+    await decrementStorageUsed(admin, orgId, bytesFreed)
+  }
+
+  return { ok: true }
+}
+
 export { candidateRefLabel }

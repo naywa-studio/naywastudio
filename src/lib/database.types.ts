@@ -720,7 +720,7 @@ export type Database = {
           /** Réf lisible (candidateRefLabel) capturée AU MOMENT de l'action —
            *  reste affichable même après candidate_id devenu NULL. */
           candidate_ref: string
-          action: 'export' | 'delete' | 'anonymize' | 'consent_granted' | 'consent_revoked' | 'opt_out_contact' | 'auto_purged'
+          action: 'export' | 'delete' | 'anonymize' | 'consent_granted' | 'consent_revoked' | 'opt_out_contact' | 'auto_purged' | 'rectification'
           /** NULL pour une action système (cron de purge). */
           actor_user_id: string | null
           detail: string | null
@@ -731,7 +731,7 @@ export type Database = {
           organization_id: string
           candidate_id?: string | null
           candidate_ref: string
-          action: 'export' | 'delete' | 'anonymize' | 'consent_granted' | 'consent_revoked' | 'opt_out_contact' | 'auto_purged'
+          action: 'export' | 'delete' | 'anonymize' | 'consent_granted' | 'consent_revoked' | 'opt_out_contact' | 'auto_purged' | 'rectification'
           actor_user_id?: string | null
           detail?: string | null
           created_at?: string
