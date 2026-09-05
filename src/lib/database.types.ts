@@ -501,6 +501,9 @@ export type Database = {
           last_match_mode: 'intelligent' | 'personnalise' | 'complet' | null
           /** Override anonymisation par mission. NULL = défauts du cabinet. */
           anonymize_options: { keepNoraSummary?: boolean; keepCandidateSummary?: boolean } | null
+          /** Jeton opaque identifiant la mission dans /apply/[token] (Slice
+           *  6.1). Ne jamais exposer `id` publiquement à la place. */
+          apply_token: string
           created_at: string
           updated_at: string
         }
@@ -546,10 +549,35 @@ export type Database = {
           target_sectors?: string[]
           last_match_mode?: 'intelligent' | 'personnalise' | 'complet' | null
           anonymize_options?: { keepNoraSummary?: boolean; keepCandidateSummary?: boolean } | null
+          apply_token?: string
           created_at?: string
           updated_at?: string
         }
         Update: Partial<Database['public']['Tables']['jobs']['Insert']>
+        Relationships: []
+      }
+      public_form_submissions: {
+        Row: {
+          id: string
+          job_id: string
+          organization_id: string
+          ip_hash: string
+          email: string | null
+          candidate_id: string | null
+          status: 'accepted' | 'rejected_rate_limit' | 'rejected_honeypot' | 'rejected_invalid'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          job_id: string
+          organization_id: string
+          ip_hash: string
+          email?: string | null
+          candidate_id?: string | null
+          status?: 'accepted' | 'rejected_rate_limit' | 'rejected_honeypot' | 'rejected_invalid'
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['public_form_submissions']['Insert']>
         Relationships: []
       }
       candidates: {
