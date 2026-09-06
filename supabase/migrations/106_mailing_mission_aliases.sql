@@ -43,6 +43,12 @@
 -- réception porte sur le domaine entier. Mille adresses ou une, même prix.
 --
 -- Idempotente.
+--
+-- Renumérotée 102 → 106 le 06/09 : la branche `formulaire_mission` porte déjà
+-- un 102 (rétention candidat). Le NUMÉRO de fichier est la seule chose qui
+-- change — la migration est déjà appliquée en base sous le nom
+-- `mailing_mission_aliases`, et deux fichiers au même numéro finissent par
+-- s'appliquer dans un ordre que personne ne contrôle.
 
 create table if not exists public.mailing_inbox_aliases (
   id              uuid primary key default gen_random_uuid(),
