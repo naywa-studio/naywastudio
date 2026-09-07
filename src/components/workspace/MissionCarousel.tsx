@@ -1,11 +1,11 @@
 "use client"
 
 /**
- * MissionCarousel — coque de la fiche mission en 3 sections « qui coulissent ».
+ * MissionCarousel — coque de la fiche mission en 4 sections « qui coulissent ».
  *
  * Remplace le mur vertical (brief + onglets + bandeaux empilés) par un
- * bandeau persistant (identité + compteurs + navigation) au-dessus de 3
- * panneaux côte à côte : Mission · Candidats · Shortlist.
+ * bandeau persistant (identité + compteurs + navigation) au-dessus de 4
+ * panneaux côte à côte : Mission · Formulaire · Candidats · Shortlist.
  *
  * Navigation :
  *   - flèches ◂ ▸ et onglets → glissement (scroll natif, snap).
@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 
-const SECTIONS = ["mission", "candidats", "shortlist"] as const
+const SECTIONS = ["mission", "formulaire", "candidats", "shortlist"] as const
 export type MissionSection = (typeof SECTIONS)[number]
 
 const HINT_KEY = "nw_missions_carousel_hint_v1"
@@ -39,7 +39,7 @@ const copy = {
     shortlisted: (n: number) => `${n} en shortlist`,
     prev: "Section précédente",
     next: "Section suivante",
-    labels: { mission: "Mission", candidats: "Candidats", shortlist: "Shortlist" },
+    labels: { mission: "Mission", formulaire: "Formulaire", candidats: "Candidats", shortlist: "Shortlist" },
     hint: "Glissez à deux doigts — ou cliquez une section voisine",
     roTitle: "Lecture seule — souscrivez pour reprendre la main",
   },
@@ -53,7 +53,7 @@ const copy = {
     shortlisted: (n: number) => `${n} shortlisted`,
     prev: "Previous section",
     next: "Next section",
-    labels: { mission: "Mission", candidats: "Candidates", shortlist: "Shortlist" },
+    labels: { mission: "Mission", formulaire: "Form", candidats: "Candidates", shortlist: "Shortlist" },
     hint: "Swipe with two fingers — or click an adjacent section",
     roTitle: "Read-only — subscribe to regain control",
   },
@@ -75,6 +75,7 @@ interface Props {
   active: MissionSection
   onActiveChange: (s: MissionSection) => void
   mission: React.ReactNode
+  formulaire: React.ReactNode
   candidats: React.ReactNode
   shortlist: React.ReactNode
 }
@@ -83,7 +84,7 @@ export function MissionCarousel({
   lang, backHref, title, clientName = null, meta,
   relevantCount, shortlistCount, matching, readOnly = false,
   onEdit, onDelete, active, onActiveChange,
-  mission, candidats, shortlist,
+  mission, formulaire, candidats, shortlist,
 }: Props) {
   const t = copy[lang]
   const idx = Math.max(0, SECTIONS.indexOf(active))
@@ -217,6 +218,7 @@ export function MissionCarousel({
 
   const panels: Array<{ key: MissionSection; node: React.ReactNode }> = [
     { key: "mission", node: mission },
+    { key: "formulaire", node: formulaire },
     { key: "candidats", node: candidats },
     { key: "shortlist", node: shortlist },
   ]

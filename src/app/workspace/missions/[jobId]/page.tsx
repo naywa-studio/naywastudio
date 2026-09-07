@@ -15,6 +15,7 @@ import { useEscapeKey } from "@/components/ui/useEscapeKey"
 import { MissionCvUploadModal } from "@/components/workspace/MissionCvUploadModal"
 import { CriteriaOnboarding } from "@/components/workspace/CriteriaOnboarding"
 import { MissionSummaryBar } from "@/components/workspace/MissionSummaryBar"
+import MissionApplyForm from "@/components/workspace/MissionApplyForm"
 import { MissionBriefSection } from "@/components/workspace/MissionBriefSection"
 import { MatchVivierPanel } from "@/components/workspace/MatchVivierPanel"
 import type { MatchMode } from "@/lib/sector-gate"
@@ -688,6 +689,15 @@ export default function JobDetailPage() {
                 />
               )}
             </div>
+          }
+          formulaire={
+            <MissionApplyForm
+              job={job}
+              applicantsCount={tabCounts.applied}
+              isReadOnly={isReadOnly}
+              onViewApplicants={() => { setActive("candidats"); setActiveTab("applied") }}
+              onJobUpdate={(patch) => setJob((prev) => prev ? { ...prev, ...patch } : prev)}
+            />
           }
           shortlist={
             <MissionPipeline
