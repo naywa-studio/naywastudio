@@ -56,6 +56,7 @@ const copy = {
     maxReached: "Nombre maximum de questions atteint.",
     save: "Enregistrer",
     saved: "Enregistré",
+    saveError: "Échec de l'enregistrement — réessayez ou contactez le support.",
     previewTitle: "Aperçu — ce que voit le candidat",
     previewRequired: "obligatoire",
     previewCv: "CV (PDF)",
@@ -87,6 +88,7 @@ const copy = {
     maxReached: "Maximum number of questions reached.",
     save: "Save",
     saved: "Saved",
+    saveError: "Save failed — try again or contact support.",
     previewTitle: "Preview — what the candidate sees",
     previewRequired: "required",
     previewCv: "CV (PDF)",
@@ -203,6 +205,11 @@ export default function MissionApplyForm({ job, applicantsCount, isReadOnly, onV
       body: JSON.stringify({ apply_form_fields: nextFields, apply_custom_questions: customQuestions }),
     }).catch(() => null)
     if (!res || !res.ok) {
+      // Log en console : la cause la plus probable en dev est une migration
+      // pas encore appliquée (colonne manquante) — invisible sans ce log,
+      // le seul retour visuel étant un message générique.
+      const body = await res?.json().catch(() => null)
+      console.error("[MissionApplyForm] save failed:", res?.status, body)
       setSaveStatus("error")
       return
     }
@@ -407,7 +414,7 @@ export default function MissionApplyForm({ job, applicantsCount, isReadOnly, onV
             {saveStatus === "saving" ? "…" : t.save}
           </button>
           {saveStatus === "saved" && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--nw-success)" }}>{t.saved} ✓</span>}
-          {saveStatus === "error" && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--nw-danger-strong)" }}>—</span>}
+          {saveStatus === "error" && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--nw-danger-strong)" }}>{t.saveError}</span>}
         </div>
       </section>
 
