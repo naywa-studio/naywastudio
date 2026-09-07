@@ -504,6 +504,9 @@ export type Database = {
           /** Jeton opaque identifiant la mission dans /apply/[token] (Slice
            *  6.1). Ne jamais exposer `id` publiquement à la place. */
           apply_token: string
+          /** Clés lib/apply-form-fields.ts activées pour /apply/[token] de
+           *  cette mission. Vide = seulement les 4 champs de base. */
+          apply_form_fields: string[]
           created_at: string
           updated_at: string
         }
@@ -550,6 +553,7 @@ export type Database = {
           last_match_mode?: 'intelligent' | 'personnalise' | 'complet' | null
           anonymize_options?: { keepNoraSummary?: boolean; keepCandidateSummary?: boolean } | null
           apply_token?: string
+          apply_form_fields?: string[]
           created_at?: string
           updated_at?: string
         }

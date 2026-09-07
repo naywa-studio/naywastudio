@@ -9,6 +9,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { requireActiveAccess } from "@/lib/access-guard"
 import { normalizeJob } from "@/lib/matching"
 import { readJobOptions } from "@/components/workspace/anonymize/types"
+import { sanitizeApplyFormFields } from "@/lib/apply-form-fields"
 import type { Database } from "@/lib/database.types"
 
 type JobUpdate = Database["public"]["Tables"]["jobs"]["Update"]
@@ -119,6 +120,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // Options d'anonymisation par mission (résumé Nora + message) — passthrough,
   // aucun impact matching. Normalisé (bool + texte cappé) par le lecteur partagé.
   if ("anonymize_options" in body)     { update.anonymize_options = readJobOptions(body.anonymize_options) }
+  // Champs activés sur le formulaire public /apply/[token] — catalogue fermé,
+  // jamais de passthrough brut d'un tableau de strings arbitraire.
+  if ("apply_form_fields" in body)     { update.apply_form_fields = sanitizeApplyFormFields(body.apply_form_fields) }
 
   if (matchingInputsChanged) {
     try {
