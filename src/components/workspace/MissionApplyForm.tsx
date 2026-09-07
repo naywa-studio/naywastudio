@@ -40,6 +40,9 @@ const copy = {
     statusClosed: "Formulaire fermé",
     statusActiveHint: "La mission est ouverte : ce lien accepte les candidatures.",
     statusClosedHint: "La mission n'est pas ouverte — ce lien ne reçoit plus de candidature tant qu'elle n'est pas repassée en « Ouverte ». C'est le seul contrôle d'accès : le lien lui-même ne change jamais.",
+    statusSelectLabel: "Statut de la mission",
+    statusSaved: "Enregistré",
+    statusDraft: "Brouillon", statusOpen: "Ouverte", statusFilled: "Pourvue", statusArchived: "Archivée",
     fieldsTitle: "Personnaliser le formulaire",
     fieldsHint: "Prénom, nom, email et CV sont toujours demandés. Ajoutez les champs utiles à cette mission — une fois ajouté, un champ devient obligatoire pour le candidat.",
     save: "Enregistrer",
@@ -62,6 +65,9 @@ const copy = {
     statusClosed: "Form closed",
     statusActiveHint: "The mission is open: this link accepts applications.",
     statusClosedHint: "The mission isn't open — this link stops receiving applications until it's set back to \"Open\". That's the only access control: the link itself never changes.",
+    statusSelectLabel: "Mission status",
+    statusSaved: "Saved",
+    statusDraft: "Draft", statusOpen: "Open", statusFilled: "Filled", statusArchived: "Archived",
     fieldsTitle: "Customize the form",
     fieldsHint: "First name, last name, email and CV are always asked. Add the fields useful for this mission — once added, a field becomes mandatory for the candidate.",
     save: "Save",
@@ -174,6 +180,23 @@ export default function MissionApplyForm({ job, applicantsCount, isReadOnly, onV
   const isOpen = job.status === "open"
   const previewFields = APPLY_FORM_FIELD_CATALOG.filter((f) => selectedFields.has(f.key))
 
+  const [statusSaving, setStatusSaving] = useState(false)
+  const [statusSaved, setStatusSaved] = useState(false)
+  const changeStatus = async (next: Job["status"]) => {
+    if (isReadOnly || next === job.status) return
+    setStatusSaving(true)
+    const res = await fetch(`/api/jobs/${job.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: next }),
+    }).catch(() => null)
+    setStatusSaving(false)
+    if (!res || !res.ok) return
+    onJobUpdate({ status: next })
+    setStatusSaved(true)
+    window.setTimeout(() => setStatusSaved(false), 2000)
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* Lien public */}
@@ -234,6 +257,26 @@ export default function MissionApplyForm({ job, applicantsCount, isReadOnly, onV
         <p style={{ ...sectionHint, margin: "8px 0 0" }}>
           {isOpen ? t.statusActiveHint : t.statusClosedHint}
         </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--nw-text-body)" }} htmlFor="mission-status">
+            {t.statusSelectLabel}
+          </label>
+          <select
+            id="mission-status" value={job.status} disabled={isReadOnly || statusSaving}
+            onChange={(e) => void changeStatus(e.target.value as Job["status"])}
+            style={{
+              fontSize: 12.5, fontWeight: 600, color: "var(--nw-text)", fontFamily: "inherit",
+              background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 8,
+              padding: "6px 10px", cursor: isReadOnly ? "not-allowed" : "pointer",
+            }}
+          >
+            <option value="draft">{t.statusDraft}</option>
+            <option value="open">{t.statusOpen}</option>
+            <option value="filled">{t.statusFilled}</option>
+            <option value="archived">{t.statusArchived}</option>
+          </select>
+          {statusSaved && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--nw-success)" }}>{t.statusSaved} ✓</span>}
+        </div>
       </section>
 
       {/* Personnalisation */}
