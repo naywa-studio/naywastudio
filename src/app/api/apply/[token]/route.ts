@@ -13,13 +13,15 @@
  * l'absence de quota "par utilisateur" (remplacé par le rate-limit IP)
  * diffèrent.
  *
- * Champs V1 (volontairement resserrés — TJM/expérience/portfolio pas
- * demandés en V1, ajoutables plus tard sans migration bloquante) :
+ * Champs de base, TOUJOURS présents et obligatoires, non désactivables :
  * first_name, last_name (recombinés en full_name pour candidates.full_name,
- * qui reste un champ unique), email, phone (optionnel, validé côté client),
- * location (optionnel), linkedin_url (optionnel), message (optionnel),
- * cv (fichier, requis), talent_pool_consent (checkbox), website (honeypot,
- * doit rester vide).
+ * qui reste un champ unique), email, cv (fichier).
+ *
+ * Champs optionnels du catalogue (lib/apply-form-fields.ts) : activés PAR
+ * MISSION (jobs.apply_form_fields) par le recruteur — dès qu'un champ est
+ * activé, il devient OBLIGATOIRE pour le candidat (pas de champ "activé
+ * mais facultatif"). talent_pool_consent (checkbox, hors catalogue, toujours
+ * optionnel par nature), website (honeypot, doit rester vide).
  */
 
 import { NextRequest, NextResponse } from "next/server"
@@ -30,6 +32,7 @@ import { parseCandidateCv } from "@/lib/candidate-parse"
 import { scoreOneCandidate } from "@/lib/candidate-score-one"
 import { checkApplyRateLimit, clientIp, hashIp } from "@/lib/apply-rate-limit"
 import { sendApplyConfirmationEmail } from "@/lib/apply-confirmation-email"
+import { sanitizeApplyFormFields, type ApplyFormFieldKey } from "@/lib/apply-form-fields"
 import type { Candidate, Job } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -86,20 +89,38 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
   const lastName = String(form.get("last_name") ?? "").trim().slice(0, 100)
   const fullName = `${firstName} ${lastName}`.trim().slice(0, 200)
   const email = String(form.get("email") ?? "").trim().slice(0, 200)
-  const phone = String(form.get("phone") ?? "").trim().slice(0, 40) || null
-  const location = String(form.get("location") ?? "").trim().slice(0, 200) || null
-  const linkedinUrl = String(form.get("linkedin_url") ?? "").trim().slice(0, 500) || null
-  const message = String(form.get("message") ?? "").trim().slice(0, 4000) || null
   const talentPoolConsent = form.get("talent_pool_consent") === "on"
   const file = form.get("cv")
 
-  // Redondant avec le "required" + pattern natifs du formulaire — mais un
-  // appel direct à cette route (sans passer par le navigateur) contourne
-  // toute validation HTML, donc on revalide ici. Même pattern que le champ.
-  const PHONE_RE = /^[0-9+()\s.-]{8,20}$/
-  if (!fullName || !email || !EMAIL_RE.test(email) || !phone || !PHONE_RE.test(phone)) {
-    return NextResponse.json({ error: "invalid_fields", message: "Nom, email valide et téléphone valide requis." }, { status: 400 })
+  // Redondant avec le "required" natif du formulaire — mais un appel direct
+  // à cette route (sans passer par le navigateur) contourne toute
+  // validation HTML, donc on revalide ici.
+  if (!firstName || !lastName || !email || !EMAIL_RE.test(email)) {
+    return NextResponse.json({ error: "invalid_fields", message: "Prénom, nom et email valide requis." }, { status: 400 })
   }
+
+  // Champs du catalogue activés pour CETTE mission — chacun devient
+  // obligatoire une fois activé (cf. lib/apply-form-fields.ts). Un champ non
+  // activé n'est ni lu, ni exigé, ni stocké : le recruteur qui ne l'a pas
+  // demandé ne le voit jamais apparaître, même si un client HTTP direct
+  // l'envoie quand même.
+  const PHONE_RE = /^[0-9+()\s.-]{8,20}$/
+  const enabledFields = sanitizeApplyFormFields(job.apply_form_fields)
+  const extra: Partial<Record<ApplyFormFieldKey, string>> = {}
+  for (const key of enabledFields) {
+    const raw = String(form.get(key) ?? "").trim()
+    if (!raw) {
+      return NextResponse.json({ error: "missing_required_field", field: key }, { status: 400 })
+    }
+    if (key === "phone" && !PHONE_RE.test(raw)) {
+      return NextResponse.json({ error: "invalid_fields", message: "Téléphone invalide." }, { status: 400 })
+    }
+    extra[key] = raw.slice(0, key === "message" ? 4000 : 500)
+  }
+  const phone = extra.phone ?? null
+  const location = extra.location ?? null
+  const linkedinUrl = extra.linkedin_url ?? null
+
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "missing_file" }, { status: 400 })
   }
@@ -200,6 +221,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
   // interne, où il n'y a rien à préserver) ; ici on a des données saisies
   // par le candidat lui-même, à ne pas perdre si le CV ne les répète pas.
   {
+    // Champs du catalogue sans colonne dédiée (storage:"notes") : formatés
+    // en un bloc lisible dans candidates.notes, visible sur la fiche
+    // candidat (section Notes) — pas de colonne ajoutée pour des champs que
+    // rien d'autre ne consomme aujourd'hui.
+    const notesLines: string[] = []
+    if (extra.message) notesLines.push(`Message du candidat (formulaire public) :\n${extra.message}`)
+    if (extra.salary_expectation) notesLines.push(`Prétention salariale : ${extra.salary_expectation}`)
+    if (extra.years_experience) notesLines.push(`Années d'expérience : ${extra.years_experience}`)
+    const notesBlock = notesLines.length > 0 ? notesLines.join("\n\n") : null
+
     const { data: afterParse } = await admin
       .from("candidates")
       .select("full_name, email, phone, location, linkedin_url")
@@ -211,7 +242,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
       phone: afterParse?.phone ?? phone,
       location: afterParse?.location ?? location,
       linkedin_url: afterParse?.linkedin_url ?? linkedinUrl,
-      notes: message ? `Message du candidat (formulaire public) :\n${message}` : null,
+      notes: notesBlock,
     }).eq("id", created.id)
   }
 

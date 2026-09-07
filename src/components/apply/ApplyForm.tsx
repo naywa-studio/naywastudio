@@ -2,28 +2,32 @@
 
 import { useState, type CSSProperties, type FormEvent } from "react"
 import { TALENT_POOL_CONSENT_LABEL } from "@/lib/apply-mention"
+import { APPLY_FORM_FIELD_CATALOG, type ApplyFormFieldKey } from "@/lib/apply-form-fields"
 
 interface Props {
   token: string
   orgLabel: string
   brandColor: string
   mentionText: string
+  /** Champs du catalogue activés pour CETTE mission (lib/apply-form-fields.ts).
+   *  Vide = seuls les 4 champs de base (prénom/nom/email/CV). */
+  enabledFields: ApplyFormFieldKey[]
 }
 
 type Status = "idle" | "sending" | "sent" | "error"
 
 const inputStyle: CSSProperties = {
   width: "100%", boxSizing: "border-box",
-  padding: "11px 13px", fontSize: 14, color: "#111827",
-  background: "white", border: "1px solid #E5E7EB", borderRadius: 10,
+  padding: "11px 13px", fontSize: 14, color: "var(--nw-text)",
+  background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 10,
   outline: "none", fontFamily: "inherit",
 }
 
 const labelStyle: CSSProperties = {
-  display: "block", fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 6,
+  display: "block", fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)", marginBottom: 6,
 }
 
-export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: Props) {
+export default function ApplyForm({ token, orgLabel, brandColor, mentionText, enabledFields }: Props) {
   const [status, setStatus] = useState<Status>("idle")
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
@@ -44,6 +48,7 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
         const messages: Record<string, string> = {
           rate_limited: "Trop de tentatives depuis votre connexion — réessayez dans un moment.",
           invalid_fields: "Merci de renseigner votre nom, un email et un téléphone valides.",
+          missing_required_field: "Merci de compléter tous les champs marqués obligatoires.",
           missing_file: "Merci de joindre votre CV (PDF).",
           invalid_type: "Seuls les fichiers PDF sont acceptés.",
           too_large: "Le fichier dépasse 10 Mo.",
@@ -70,12 +75,12 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
   if (status === "sent") {
     return (
       <div style={{
-        background: "white", border: "1px solid #E5E7EB", borderRadius: 16, padding: 28, textAlign: "center",
+        background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16, padding: 28, textAlign: "center",
       }}>
-        <p style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "#111827" }}>
+        <p style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "var(--nw-text)" }}>
           Candidature envoyée
         </p>
-        <p style={{ margin: 0, fontSize: 13.5, color: "#6B7280", lineHeight: 1.6 }}>
+        <p style={{ margin: 0, fontSize: 13.5, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
           Merci ! {orgLabel} a bien reçu votre candidature. Vous allez recevoir un email de confirmation
           avec un lien pour gérer vos données à tout moment.
         </p>
@@ -83,11 +88,13 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
     )
   }
 
+  const activeCatalogFields = APPLY_FORM_FIELD_CATALOG.filter((f) => enabledFields.includes(f.key))
+
   return (
     <form
       onSubmit={handleSubmit}
       style={{
-        background: "white", border: "1px solid #E5E7EB", borderRadius: 16, padding: 24,
+        background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 16, padding: 24,
         display: "flex", flexDirection: "column", gap: 16,
       }}
     >
@@ -99,7 +106,7 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
         <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" />
       </div>
 
-      <p style={{ margin: 0, fontSize: 11.5, color: "#9CA3AF" }}>* Champs obligatoires</p>
+      <p style={{ margin: 0, fontSize: 11.5, color: "var(--nw-text-muted)" }}>* Champs obligatoires</p>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 200px" }}>
@@ -111,41 +118,32 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
           <input style={inputStyle} id="last_name" name="last_name" type="text" required maxLength={100} placeholder="Dupont" />
         </div>
       </div>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ flex: "1 1 220px" }}>
-          <label style={labelStyle} htmlFor="email">Email *</label>
-          <input style={inputStyle} id="email" name="email" type="email" required maxLength={200} placeholder="jean@email.fr" />
-        </div>
-        <div style={{ flex: "1 1 160px" }}>
-          <label style={labelStyle} htmlFor="phone">Téléphone *</label>
-          <input
-            style={inputStyle} id="phone" name="phone" type="tel" maxLength={20} required
-            placeholder="06 12 34 56 78"
-            // "\-" et "\s" à l'intérieur d'une chaîne JS NON-regex ne sont
-            // PAS des séquences d'échappement reconnues : JS les réduit
-            // silencieusement à "-" et "s" (le backslash disparaît). Le
-            // pattern envoyé au navigateur devenait "[0-9+()-s.]" — un "-"
-            // entre ")" et "s" que le moteur regex lit comme une PLAGE de
-            // caractères, pas un tiret littéral. D'où une validation qui ne
-            // vérifiait presque rien. Il faut doubler le backslash ("\\s")
-            // pour qu'il survive au parsing JS, et placer "-" en dernier
-            // dans la classe de caractères pour qu'il soit toujours littéral
-            // sans avoir besoin de l'échapper.
-            pattern="^[0-9+()\\s.-]{8,20}$"
-            title="8 à 20 caractères : chiffres, espaces, +, ( ), point ou tiret"
-          />
-        </div>
+      <div>
+        <label style={labelStyle} htmlFor="email">Email *</label>
+        <input style={inputStyle} id="email" name="email" type="email" required maxLength={200} placeholder="jean@email.fr" />
       </div>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ flex: "1 1 220px" }}>
-          <label style={labelStyle} htmlFor="location">Ville</label>
-          <input style={inputStyle} id="location" name="location" type="text" maxLength={200} placeholder="Paris" />
+
+      {/* Champs optionnels du catalogue, activés par mission — tous rendus
+          OBLIGATOIRES (une fois choisi par le recruteur, le champ n'est plus
+          "si vous voulez", il est demandé). */}
+      {activeCatalogFields.map((f) => (
+        <div key={f.key}>
+          <label style={labelStyle} htmlFor={f.key}>{f.formLabel.fr} *</label>
+          {f.inputType === "textarea" ? (
+            <textarea
+              style={{ ...inputStyle, resize: "vertical" }} id={f.key} name={f.key} rows={3} required
+              maxLength={4000} placeholder={f.placeholder?.fr}
+            />
+          ) : (
+            <input
+              style={inputStyle} id={f.key} name={f.key}
+              type={f.inputType === "number" ? "number" : f.inputType}
+              required maxLength={f.inputType === "number" ? undefined : 500}
+              placeholder={f.placeholder?.fr}
+            />
+          )}
         </div>
-        <div style={{ flex: "1 1 220px" }}>
-          <label style={labelStyle} htmlFor="linkedin_url">LinkedIn</label>
-          <input style={inputStyle} id="linkedin_url" name="linkedin_url" type="url" maxLength={500} placeholder="linkedin.com/in/…" />
-        </div>
-      </div>
+      ))}
 
       <div>
         <label style={labelStyle} htmlFor="cv">CV (PDF) *</label>
@@ -164,13 +162,13 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
           htmlFor="cv"
           style={{
             display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-            padding: "11px 13px", fontSize: 14, border: "1px dashed #D1D5DB", borderRadius: 10,
-            background: "#FAFAFA", color: fileName ? "#111827" : "#9CA3AF",
+            padding: "11px 13px", fontSize: 14, border: "1px dashed var(--nw-border)", borderRadius: 10,
+            background: "var(--nw-surface-muted)", color: fileName ? "var(--nw-text)" : "var(--nw-text-muted)",
           }}
         >
           <span style={{
-            fontSize: 12.5, fontWeight: 700, color: "#374151", background: "white",
-            border: "1px solid #E5E7EB", borderRadius: 6, padding: "5px 10px", whiteSpace: "nowrap",
+            fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)", background: "white",
+            border: "1px solid var(--nw-border-soft)", borderRadius: 6, padding: "5px 10px", whiteSpace: "nowrap",
           }}>
             Choisir un fichier
           </span>
@@ -180,24 +178,18 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText }: 
         </label>
       </div>
 
-      <div>
-        <label style={labelStyle} htmlFor="message">Message (optionnel)</label>
-        <textarea style={{ ...inputStyle, resize: "vertical" }} id="message" name="message" rows={3} maxLength={4000}
-          placeholder="Un mot sur votre motivation, votre disponibilité…" />
-      </div>
-
       <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer" }}>
         <input type="checkbox" name="talent_pool_consent" style={{ marginTop: 3 }} />
-        <span style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.5 }}>{TALENT_POOL_CONSENT_LABEL}</span>
+        <span style={{ fontSize: 12.5, color: "var(--nw-text-body)", lineHeight: 1.5 }}>{TALENT_POOL_CONSENT_LABEL}</span>
       </label>
 
-      <details style={{ fontSize: 11.5, color: "#6B7280" }}>
+      <details style={{ fontSize: 11.5, color: "var(--nw-text-muted)" }}>
         <summary style={{ cursor: "pointer", fontWeight: 600 }}>Mention d&apos;information (RGPD)</summary>
         <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, marginTop: 8 }}>{mentionText}</p>
       </details>
 
       {errorMsg && (
-        <p style={{ margin: 0, fontSize: 13, color: "#DC2626", fontWeight: 600 }}>{errorMsg}</p>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--nw-danger-strong)", fontWeight: 600 }}>{errorMsg}</p>
       )}
 
       <button
