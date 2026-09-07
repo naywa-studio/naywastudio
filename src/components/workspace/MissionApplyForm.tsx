@@ -18,7 +18,10 @@
 
 import { useEffect, useState, type CSSProperties } from "react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
-import { APPLY_FORM_FIELD_CATALOG, type ApplyFormFieldKey } from "@/lib/apply-form-fields"
+import {
+  APPLY_FORM_FIELD_CATALOG, CUSTOM_QUESTION_MAX_COUNT, CUSTOM_QUESTION_MAX_LENGTH,
+  sanitizeApplyCustomQuestions, type ApplyFormFieldKey,
+} from "@/lib/apply-form-fields"
 import type { Job } from "@/lib/database.types"
 
 interface Props {
@@ -45,6 +48,12 @@ const copy = {
     statusDraft: "Brouillon", statusOpen: "Ouverte", statusFilled: "Pourvue", statusArchived: "Archivée",
     fieldsTitle: "Personnaliser le formulaire",
     fieldsHint: "Prénom, nom, email et CV sont toujours demandés. Ajoutez les champs utiles à cette mission — une fois ajouté, un champ devient obligatoire pour le candidat.",
+    customQuestionsTitle: "Vos propres questions",
+    customQuestionsHint: (max: number) => `Rédigez jusqu'à ${max} questions libres — chacune devient un champ texte obligatoire du formulaire.`,
+    customQuestionPlaceholder: "Ex : Pourquoi ce poste vous intéresse-t-il ?",
+    addQuestion: "Ajouter",
+    removeQuestion: "Retirer cette question",
+    maxReached: "Nombre maximum de questions atteint.",
     save: "Enregistrer",
     saved: "Enregistré",
     previewTitle: "Aperçu — ce que voit le candidat",
@@ -70,6 +79,12 @@ const copy = {
     statusDraft: "Draft", statusOpen: "Open", statusFilled: "Filled", statusArchived: "Archived",
     fieldsTitle: "Customize the form",
     fieldsHint: "First name, last name, email and CV are always asked. Add the fields useful for this mission — once added, a field becomes mandatory for the candidate.",
+    customQuestionsTitle: "Your own questions",
+    customQuestionsHint: (max: number) => `Write up to ${max} free-text questions — each becomes a mandatory text field on the form.`,
+    customQuestionPlaceholder: "E.g.: Why does this role interest you?",
+    addQuestion: "Add",
+    removeQuestion: "Remove this question",
+    maxReached: "Maximum number of questions reached.",
     save: "Save",
     saved: "Saved",
     previewTitle: "Preview — what the candidate sees",
@@ -146,6 +161,10 @@ export default function MissionApplyForm({ job, applicantsCount, isReadOnly, onV
   const [selectedFields, setSelectedFields] = useState<Set<ApplyFormFieldKey>>(
     () => new Set((job.apply_form_fields ?? []) as ApplyFormFieldKey[]),
   )
+  const [customQuestions, setCustomQuestions] = useState<string[]>(
+    () => sanitizeApplyCustomQuestions(job.apply_custom_questions),
+  )
+  const [newQuestion, setNewQuestion] = useState("")
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
 
   const toggleField = (key: ApplyFormFieldKey) => {
@@ -159,6 +178,21 @@ export default function MissionApplyForm({ job, applicantsCount, isReadOnly, onV
     })
   }
 
+  const addQuestion = () => {
+    if (isReadOnly) return
+    const text = newQuestion.trim().slice(0, CUSTOM_QUESTION_MAX_LENGTH)
+    if (!text || customQuestions.length >= CUSTOM_QUESTION_MAX_COUNT) return
+    setCustomQuestions((prev) => [...prev, text])
+    setNewQuestion("")
+    setSaveStatus("idle")
+  }
+
+  const removeQuestion = (index: number) => {
+    if (isReadOnly) return
+    setCustomQuestions((prev) => prev.filter((_, i) => i !== index))
+    setSaveStatus("idle")
+  }
+
   const saveFields = async () => {
     if (isReadOnly || saveStatus === "saving") return
     setSaveStatus("saving")
@@ -166,13 +200,13 @@ export default function MissionApplyForm({ job, applicantsCount, isReadOnly, onV
     const res = await fetch(`/api/jobs/${job.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apply_form_fields: nextFields }),
+      body: JSON.stringify({ apply_form_fields: nextFields, apply_custom_questions: customQuestions }),
     }).catch(() => null)
     if (!res || !res.ok) {
       setSaveStatus("error")
       return
     }
-    onJobUpdate({ apply_form_fields: nextFields })
+    onJobUpdate({ apply_form_fields: nextFields, apply_custom_questions: customQuestions })
     setSaveStatus("saved")
     window.setTimeout(() => setSaveStatus("idle"), 2000)
   }
@@ -300,6 +334,65 @@ export default function MissionApplyForm({ job, applicantsCount, isReadOnly, onV
             </label>
           ))}
         </div>
+
+        <h3 style={{ ...sectionTitle, marginTop: 4 }}>{t.customQuestionsTitle}</h3>
+        <p style={sectionHint}>{t.customQuestionsHint(CUSTOM_QUESTION_MAX_COUNT)}</p>
+        {customQuestions.length > 0 && (
+          <ul style={{ margin: "0 0 10px", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+            {customQuestions.map((q, i) => (
+              <li key={i} style={{
+                display: "flex", alignItems: "center", gap: 8,
+                fontSize: 12.5, color: "var(--nw-text-body)",
+                background: "var(--nw-surface-muted)", border: "1px solid var(--nw-border-soft)",
+                borderRadius: 8, padding: "6px 10px",
+              }}>
+                <span style={{ flex: 1, minWidth: 0, overflowWrap: "break-word" }}>{q}</span>
+                {!isReadOnly && (
+                  <button
+                    type="button" onClick={() => removeQuestion(i)} aria-label={t.removeQuestion}
+                    style={{
+                      border: "none", background: "transparent", cursor: "pointer", padding: 2,
+                      color: "var(--nw-text-muted)", flexShrink: 0, display: "flex",
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {!isReadOnly && (
+          customQuestions.length >= CUSTOM_QUESTION_MAX_COUNT ? (
+            <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--nw-text-muted)" }}>{t.maxReached}</p>
+          ) : (
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <input
+                value={newQuestion} onChange={(e) => setNewQuestion(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addQuestion() } }}
+                placeholder={t.customQuestionPlaceholder} maxLength={CUSTOM_QUESTION_MAX_LENGTH}
+                style={{
+                  flex: 1, minWidth: 0, boxSizing: "border-box",
+                  padding: "8px 11px", fontSize: 12.5, color: "var(--nw-text)", fontFamily: "inherit",
+                  background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 8,
+                }}
+              />
+              <button
+                type="button" onClick={addQuestion} disabled={!newQuestion.trim()}
+                style={{
+                  fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)",
+                  background: "white", border: "1px solid var(--nw-border-soft)", borderRadius: 8,
+                  padding: "8px 14px", cursor: newQuestion.trim() ? "pointer" : "default", fontFamily: "inherit",
+                }}
+              >
+                {t.addQuestion}
+              </button>
+            </div>
+          )
+        )}
+
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             type="button" onClick={saveFields} disabled={isReadOnly || saveStatus === "saving"}
@@ -331,6 +424,9 @@ export default function MissionApplyForm({ job, applicantsCount, isReadOnly, onV
           <PreviewField label="Email" required />
           {previewFields.map((f) => (
             <PreviewField key={f.key} label={f.formLabel[lang]} required multiline={f.inputType === "textarea"} />
+          ))}
+          {customQuestions.map((q, i) => (
+            <PreviewField key={`custom-${i}`} label={q} required multiline />
           ))}
           <PreviewField label={t.previewCv} required />
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--nw-text-muted)" }}>

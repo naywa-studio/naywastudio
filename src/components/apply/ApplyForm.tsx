@@ -12,6 +12,10 @@ interface Props {
   /** Champs du catalogue activés pour CETTE mission (lib/apply-form-fields.ts).
    *  Vide = seuls les 4 champs de base (prénom/nom/email/CV). */
   enabledFields: ApplyFormFieldKey[]
+  /** Questions libres rédigées par le recruteur, dans l'ordre — chacune un
+   *  champ texte obligatoire, envoyé au serveur via getAll("custom_answer")
+   *  (même name répété = ordre préservé, pas besoin d'index dans le name). */
+  customQuestions: string[]
 }
 
 type Status = "idle" | "sending" | "sent" | "error"
@@ -27,7 +31,7 @@ const labelStyle: CSSProperties = {
   display: "block", fontSize: 12.5, fontWeight: 700, color: "var(--nw-text-body)", marginBottom: 6,
 }
 
-export default function ApplyForm({ token, orgLabel, brandColor, mentionText, enabledFields }: Props) {
+export default function ApplyForm({ token, orgLabel, brandColor, mentionText, enabledFields, customQuestions }: Props) {
   const [status, setStatus] = useState<Status>("idle")
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
@@ -142,6 +146,19 @@ export default function ApplyForm({ token, orgLabel, brandColor, mentionText, en
               placeholder={f.placeholder?.fr}
             />
           )}
+        </div>
+      ))}
+
+      {/* Questions libres rédigées par le recruteur — même name répété
+          ("custom_answer") pour toutes : côté serveur, form.getAll() renvoie
+          les réponses dans l'ordre du DOM, qui est celui de customQuestions. */}
+      {customQuestions.map((q, i) => (
+        <div key={i}>
+          <label style={labelStyle} htmlFor={`custom-q-${i}`}>{q} *</label>
+          <textarea
+            style={{ ...inputStyle, resize: "vertical" }} id={`custom-q-${i}`} name="custom_answer"
+            rows={3} required maxLength={2000}
+          />
         </div>
       ))}
 

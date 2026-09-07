@@ -507,6 +507,9 @@ export type Database = {
           /** Clés lib/apply-form-fields.ts activées pour /apply/[token] de
            *  cette mission. Vide = seulement les 4 champs de base. */
           apply_form_fields: string[]
+          /** Questions libres rédigées par le recruteur, dans l'ordre —
+           *  chacune devient un champ texte obligatoire de /apply/[token]. */
+          apply_custom_questions: string[]
           created_at: string
           updated_at: string
         }
@@ -554,6 +557,7 @@ export type Database = {
           anonymize_options?: { keepNoraSummary?: boolean; keepCandidateSummary?: boolean } | null
           apply_token?: string
           apply_form_fields?: string[]
+          apply_custom_questions?: string[]
           created_at?: string
           updated_at?: string
         }

@@ -110,3 +110,23 @@ export function applyFormFieldDef(key: ApplyFormFieldKey): ApplyFormFieldDef {
   if (!def) throw new Error(`unknown apply form field: ${key}`)
   return def
 }
+
+export const CUSTOM_QUESTION_MAX_COUNT = 5
+export const CUSTOM_QUESTION_MAX_LENGTH = 300
+
+/** Nettoie une liste de questions libres (venant d'un PATCH client) : trim,
+ *  retire les vides, plafonne la longueur ET le nombre — un recruteur ne
+ *  doit pas pouvoir transformer le formulaire en questionnaire de 40
+ *  questions, et un texte non plafonné pourrait gonfler indéfiniment
+ *  candidates.notes à chaque candidature. */
+export function sanitizeApplyCustomQuestions(input: unknown): string[] {
+  if (!Array.isArray(input)) return []
+  const out: string[] = []
+  for (const v of input) {
+    if (typeof v !== "string") continue
+    const trimmed = v.trim().slice(0, CUSTOM_QUESTION_MAX_LENGTH)
+    if (trimmed) out.push(trimmed)
+    if (out.length >= CUSTOM_QUESTION_MAX_COUNT) break
+  }
+  return out
+}

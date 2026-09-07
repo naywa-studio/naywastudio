@@ -15,7 +15,7 @@
 import { notFound } from "next/navigation"
 import { getAdminSupabase } from "@/lib/admin-supabase"
 import { applyMentionText } from "@/lib/apply-mention"
-import { sanitizeApplyFormFields } from "@/lib/apply-form-fields"
+import { sanitizeApplyFormFields, sanitizeApplyCustomQuestions } from "@/lib/apply-form-fields"
 import ApplyForm from "@/components/apply/ApplyForm"
 
 export default async function ApplyPage({ params }: { params: Promise<{ token: string }> }) {
@@ -24,7 +24,7 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
 
   const { data: job } = await admin
     .from("jobs")
-    .select("id, title, location, organization_id, status, apply_form_fields")
+    .select("id, title, location, organization_id, status, apply_form_fields, apply_custom_questions")
     .eq("apply_token", token)
     .maybeSingle()
 
@@ -41,6 +41,7 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
   const contactEmail = org?.contact_email?.trim() || "contact@naywastudio.com"
   const mention = applyMentionText({ orgLabel, jobTitle: job.title, contactEmail })
   const enabledFields = sanitizeApplyFormFields(job.apply_form_fields)
+  const customQuestions = sanitizeApplyCustomQuestions(job.apply_custom_questions)
 
   return (
     <main style={{
@@ -68,7 +69,10 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
           <p style={{ margin: "0 0 32px", fontSize: 14, color: "var(--nw-text-muted)" }}>{job.location}</p>
         )}
 
-        <ApplyForm token={token} orgLabel={orgLabel} brandColor={brandColor} mentionText={mention} enabledFields={enabledFields} />
+        <ApplyForm
+          token={token} orgLabel={orgLabel} brandColor={brandColor} mentionText={mention}
+          enabledFields={enabledFields} customQuestions={customQuestions}
+        />
 
         <p style={{ marginTop: 40, fontSize: 11, color: "var(--nw-text-muted)", textAlign: "center" }}>
           Ce formulaire est opéré via Naywa Studio, sous-traitant technique de {orgLabel}.

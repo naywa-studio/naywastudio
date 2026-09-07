@@ -22,6 +22,10 @@
  * activé, il devient OBLIGATOIRE pour le candidat (pas de champ "activé
  * mais facultatif"). talent_pool_consent (checkbox, hors catalogue, toujours
  * optionnel par nature), website (honeypot, doit rester vide).
+ *
+ * Questions libres (jobs.apply_custom_questions) : texte rédigé par le
+ * recruteur, toujours obligatoires elles aussi. Pas de colonne dédiée —
+ * réponses formatées dans candidates.notes, comme message/salaire/expérience.
  */
 
 import { NextRequest, NextResponse } from "next/server"
@@ -32,7 +36,7 @@ import { parseCandidateCv } from "@/lib/candidate-parse"
 import { scoreOneCandidate } from "@/lib/candidate-score-one"
 import { checkApplyRateLimit, clientIp, hashIp } from "@/lib/apply-rate-limit"
 import { sendApplyConfirmationEmail } from "@/lib/apply-confirmation-email"
-import { sanitizeApplyFormFields, type ApplyFormFieldKey } from "@/lib/apply-form-fields"
+import { sanitizeApplyFormFields, sanitizeApplyCustomQuestions, type ApplyFormFieldKey } from "@/lib/apply-form-fields"
 import type { Candidate, Job } from "@/lib/database.types"
 
 export const runtime = "nodejs"
@@ -120,6 +124,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
   const phone = extra.phone ?? null
   const location = extra.location ?? null
   const linkedinUrl = extra.linkedin_url ?? null
+
+  // Questions libres rédigées par le recruteur — même name répété côté
+  // formulaire ("custom_answer"), getAll() les renvoie dans l'ordre du DOM,
+  // qui est celui de job.apply_custom_questions. Toujours obligatoires.
+  const customQuestions = sanitizeApplyCustomQuestions(job.apply_custom_questions)
+  const customAnswersRaw = form.getAll("custom_answer").map((v) => String(v).trim())
+  if (customAnswersRaw.length < customQuestions.length || customAnswersRaw.slice(0, customQuestions.length).some((a) => !a)) {
+    return NextResponse.json({ error: "missing_required_field", field: "custom_answer" }, { status: 400 })
+  }
+  const customAnswers = customQuestions.map((q, i) => ({ question: q, answer: customAnswersRaw[i]!.slice(0, 2000) }))
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "missing_file" }, { status: 400 })
@@ -239,6 +253,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
     if (extra.message) notesLines.push(`Message du candidat (formulaire public) :\n${extra.message}`)
     if (extra.salary_expectation) notesLines.push(`Prétention salariale : ${extra.salary_expectation}`)
     if (extra.years_experience) notesLines.push(`Années d'expérience : ${extra.years_experience}`)
+    for (const { question, answer } of customAnswers) {
+      notesLines.push(`${question}\n${answer}`)
+    }
     const notesBlock = notesLines.length > 0 ? notesLines.join("\n\n") : null
 
     const { data: afterParse } = await admin
