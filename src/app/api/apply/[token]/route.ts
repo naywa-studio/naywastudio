@@ -215,11 +215,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
     taxonomy: null,
   })
 
-  // Rattrape les champs saisis dans le formulaire quand le parsing n'a pas
-  // trouvé mieux — parseCandidateCv écrase full_name/email/phone/location
-  // avec ce que le LLM a lu dans le CV (comportement voulu pour l'upload
-  // interne, où il n'y a rien à préserver) ; ici on a des données saisies
-  // par le candidat lui-même, à ne pas perdre si le CV ne les répète pas.
+  // Le candidat a TAPÉ son identité lui-même — ça doit primer sur ce que le
+  // parsing du CV devine, pas l'inverse. parseCandidateCv() écrase
+  // full_name/email/phone/location avec ce que le LLM a lu dans le PDF
+  // (comportement voulu pour l'upload interne par un sourceur, où il n'y a
+  // AUCUNE saisie candidat à préserver) — ici on écrit PAR-DESSUS avec les
+  // valeurs du formulaire pour les champs que le candidat a explicitement
+  // renseignés (prénom/nom/email toujours ; téléphone/ville/LinkedIn si le
+  // recruteur les avait activés pour cette mission). Un CV mal extrait, un
+  // CV au nom de quelqu'un d'autre glissé par erreur, ou simplement une
+  // graphie différente ne doivent jamais remplacer ce que la personne a
+  // affirmé être sur son propre formulaire.
+  //
+  // Pour les champs NON demandés par cette mission (ex. téléphone pas dans
+  // le catalogue activé), on garde ce que le parsing a éventuellement
+  // trouvé — mieux qu'un champ vide si le CV le mentionnait.
   {
     // Champs du catalogue sans colonne dédiée (storage:"notes") : formatés
     // en un bloc lisible dans candidates.notes, visible sur la fiche
@@ -233,15 +243,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
 
     const { data: afterParse } = await admin
       .from("candidates")
-      .select("full_name, email, phone, location, linkedin_url")
+      .select("phone, location, linkedin_url")
       .eq("id", created.id)
       .single()
     await admin.from("candidates").update({
-      full_name: afterParse?.full_name ?? fullName,
-      email: afterParse?.email ?? email,
-      phone: afterParse?.phone ?? phone,
-      location: afterParse?.location ?? location,
-      linkedin_url: afterParse?.linkedin_url ?? linkedinUrl,
+      full_name: fullName,
+      email,
+      phone: phone ?? afterParse?.phone ?? null,
+      location: location ?? afterParse?.location ?? null,
+      linkedin_url: linkedinUrl ?? afterParse?.linkedin_url ?? null,
       notes: notesBlock,
     }).eq("id", created.id)
   }
