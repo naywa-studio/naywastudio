@@ -41,6 +41,17 @@ const CATEGORY_META: Record<AppUpdateCategory, { label: string; color: string; b
   announce:  { label: "Annonce",    color: "var(--nw-primary)", bg: "rgba(124,99,200,0.10)" },
 }
 
+const TUTORIAL_TABS = [
+  { key: "accueil", label: "Accueil" },
+  { key: "missions", label: "Vos missions" },
+  { key: "vivier", label: "Le vivier" },
+  { key: "pipeline", label: "La Pipeline" },
+  { key: "pricing", label: "Le pricing" },
+] as const
+
+type TutorialTab = (typeof TUTORIAL_TABS)[number]["key"]
+
+const [activeTab, setActiveTab] = useState<TutorialTab>("accueil")
 const ALL_TAB = "__all__"
 const GENERAL_TAB = "__general__"
 
@@ -172,6 +183,29 @@ export default function NouveautesPage() {
           {backHref === "/organisation" ? "Retour à mon organisation" : "Retour au workspace"}
         </Link>
 
+
+        {/* Tutorial tabs */}
+        <div className="mt-6 border-b border-slate-200">
+          <div className="flex gap-1 overflow-x-auto">
+            {TUTORIAL_TABS.map((tab) => (  
+              <button
+               key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                 className={`whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+          activeTab === tab.key
+            ? "border-[#7a5af8] text-[#7a5af8]"
+            : "border-transparent text-slate-500 hover:text-slate-900"
+        }`}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+</div>
+
+     
+
         <header style={{ marginBottom: 20 }}>
           <p style={{
             margin: "0 0 6px", fontSize: 11, fontWeight: 700,
@@ -183,7 +217,7 @@ export default function NouveautesPage() {
             margin: 0, fontSize: 32, fontWeight: 800, color: "var(--nw-text)",
             letterSpacing: "-0.02em", lineHeight: 1.15,
           }}>
-            Nouveautés
+            Tutoriels
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--nw-text-muted)", lineHeight: 1.55 }}>
             Filtrez par zone, dépliez ce qui vous intéresse. Les nouveautés

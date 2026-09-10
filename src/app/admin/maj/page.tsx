@@ -288,7 +288,7 @@ const filteredRows = rows.filter((row) => {
       fontFamily: "inherit",
     }}
   >
-    All ({rows.length})
+    All ({rows.filter(r => !r.archived_at).length})
   </button>
 
   {categories.map((cat) => {
