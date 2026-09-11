@@ -186,7 +186,15 @@ export default function NouveautesPage() {
 
 
         {/* Tutorial tabs */}
-        <div className="mt-6 border-b border-slate-200">
+        <div className="mt-3 mb-3 border-b gap-2 border-slate-200">
+
+           <p style={{
+            margin: "0 0 6px", fontSize: 11, fontWeight: 700,
+            color: "var(--nw-primary)", letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
+          }}>
+            Naywa Studio
+          </p>
+
           <div className="flex gap-1 overflow-x-auto">
             {TUTORIAL_TABS.map((tab) => (  
               <button
@@ -208,12 +216,7 @@ export default function NouveautesPage() {
      
 
         <header style={{ marginBottom: 20 }}>
-          <p style={{
-            margin: "0 0 6px", fontSize: 11, fontWeight: 700,
-            color: "var(--nw-primary)", letterSpacing: "0.10em", fontFamily: "var(--nw-font-mono)", textTransform: "uppercase",
-          }}>
-            Naywa Studio
-          </p>
+         
           <h1 style={{
             margin: 0, fontSize: 32, fontWeight: 800, color: "var(--nw-text)",
             letterSpacing: "-0.02em", lineHeight: 1.15,
