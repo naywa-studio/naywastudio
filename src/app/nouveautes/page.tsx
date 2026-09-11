@@ -51,7 +51,7 @@ const TUTORIAL_TABS = [
 
 type TutorialTab = (typeof TUTORIAL_TABS)[number]["key"]
 
-const [activeTab, setActiveTab] = useState<TutorialTab>("accueil")
+
 const ALL_TAB = "__all__"
 const GENERAL_TAB = "__general__"
 
@@ -59,9 +59,10 @@ export default function NouveautesPage() {
   const [items, setItems] = useState<UpdateRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<string>(ALL_TAB)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [backHref, setBackHref] = useState<string>("/workspace")
+  const [tutorialTab, setTutorialTab] = useState<TutorialTab>("accueil")
+  const [activeTab, setActiveTab] = useState<string>(ALL_TAB)
 
   useEffect(() => {
     let cancelled = false
@@ -191,9 +192,9 @@ export default function NouveautesPage() {
               <button
                key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => setTutorialTab(tab.key)}
                  className={`whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-          activeTab === tab.key
+          tutorialTab === tab.key
             ? "border-[#7a5af8] text-[#7a5af8]"
             : "border-transparent text-slate-500 hover:text-slate-900"
         }`}
