@@ -11,12 +11,21 @@ import RejectReasonPicker from "@/components/workspace/RejectReasonPicker"
 import type { RejectReason } from "@/lib/reject-reasons"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
 import { useWorkspace } from "../layout"
+import { isMissionClosed } from "@/lib/mission-status"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 type Row = MatchAssessment & {
   candidate: { id: string; full_name: string | null; current_title: string | null; cv_file_name: string | null } | null
-  job: { id: string; title: string } | null
+  /** `status` : les candidats d'une mission fermée sortent du tableau. */
+  job: { id: string; title: string; status: string } | null
+}
+
+/** Une carte est au tableau si sa mission est celle choisie dans le menu
+ *  déroulant, ou, sans choix, si sa mission est encore en cours. Les candidats
+ *  d'une mission fermée restent joignables en la sélectionnant. */
+function rowInScope(r: Row, jobFilter: string): boolean {
+  return jobFilter ? r.job?.id === jobFilter : !isMissionClosed(r.job?.status)
 }
 
 type StageMeta = { key: PipelineStage; color: string; bg: string }
@@ -51,7 +60,8 @@ const copy = {
     subtitleTerminal: "Issues finales. Glissez une carte vers le pipeline pour la réactiver.",
     subtitleBoard: "Glissez une carte d'une colonne à l'autre pour faire avancer un candidat.",
     missionLabel: "Mission",
-    allMissions: (n: number) => `Toutes les missions (${n})`,
+    allMissions: (n: number) => `Toutes les missions en cours (${n})`,
+    closedHint: "fermée",
     chipTitle: (label: string) => `${label}, cliquez pour voir, ou glissez une carte ici`,
     relanceSuggested: (n: number) => `${n} relance${n > 1 ? "s" : ""} suggérée${n > 1 ? "s" : ""}`,
     relanceBody: " : des candidats stagnent dans une étape (badge ⏰ sur les cartes).",
@@ -94,7 +104,8 @@ const copy = {
     subtitleTerminal: "Final outcomes. Drag a card back to the pipeline to reactivate it.",
     subtitleBoard: "Drag a card from one column to another to move a candidate forward.",
     missionLabel: "Mission",
-    allMissions: (n: number) => `All missions (${n})`,
+    allMissions: (n: number) => `All active missions (${n})`,
+    closedHint: "closed",
     chipTitle: (label: string) => `${label}, click to view, or drop a card here`,
     relanceSuggested: (n: number) => `${n} follow-up${n > 1 ? "s" : ""} suggested`,
     relanceBody: ": some candidates are stalled in a stage (⏰ badge on the cards).",
@@ -210,7 +221,7 @@ export default function PipelinePage() {
   const load = useCallback(async () => {
     const { data } = await sb
       .from("match_assessments")
-      .select("*, candidate:candidates(id, full_name, current_title, cv_file_name), job:jobs(id, title)")
+      .select("*, candidate:candidates(id, full_name, current_title, cv_file_name), job:jobs(id, title, status)")
       // Seuls les candidats explicitement suivis (choix sourceur ou contact
       // auto) apparaissent — la pipeline n'est pas un déversoir du matching.
       .eq("in_pipeline", true)
@@ -269,20 +280,25 @@ export default function PipelinePage() {
     void commitMove(rowId, stage)
   }
 
-  // Unique jobs across all rows — used by the filter selector.
+  // Unique jobs across all rows — used by the filter selector. Missions en
+  // cours d'abord, fermées ensuite : c'est par ce menu qu'on retrouve les
+  // candidats d'une mission fermée.
   const allJobs = useMemo(() => {
-    const seen = new Map<string, string>()
+    const seen = new Map<string, { title: string; closed: boolean }>()
     for (const r of rows) {
-      if (r.job && !seen.has(r.job.id)) seen.set(r.job.id, r.job.title)
+      if (r.job && !seen.has(r.job.id)) {
+        seen.set(r.job.id, { title: r.job.title, closed: isMissionClosed(r.job.status) })
+      }
     }
-    return Array.from(seen, ([id, title]) => ({ id, title }))
-      .sort((a, b) => a.title.localeCompare(b.title))
+    return Array.from(seen, ([id, v]) => ({ id, ...v }))
+      .sort((a, b) => Number(a.closed) - Number(b.closed) || a.title.localeCompare(b.title))
   }, [rows])
 
-  // Filter by job (if user selected one), then by score, then bucket by stage.
-  // Manually assigned matches have score === null and are always kept.
+  // Filter by job (if user selected one), otherwise hide closed missions,
+  // then bucket by stage. Manually assigned matches have score === null and
+  // are always kept.
   const filteredRows = useMemo(() => {
-    return jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows
+    return rows.filter((r) => rowInScope(r, jobFilter))
   }, [rows, jobFilter])
 
   // Swimlanes : one lane per mission, each lane bucketed by active stage.
@@ -313,7 +329,7 @@ export default function PipelinePage() {
   // Terminal counts (respect the job filter, ignore the weak filter so an
   // outcome is never hidden). Keyed by stage.
   const terminalCounts = useMemo(() => {
-    const scoped = jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows
+    const scoped = rows.filter((r) => rowInScope(r, jobFilter))
     const counts: Record<string, number> = {}
     for (const s of TERMINAL_STAGES) {
       counts[s.key] = scoped.filter((r) => r.pipeline_stage === s.key).length
@@ -324,7 +340,7 @@ export default function PipelinePage() {
   // Rows shown in the terminal list view (when a chip is selected).
   const terminalRows = useMemo(() => {
     if (!terminalView) return []
-    const scoped = jobFilter ? rows.filter((r) => r.job?.id === jobFilter) : rows
+    const scoped = rows.filter((r) => rowInScope(r, jobFilter))
     return scoped.filter((r) => r.pipeline_stage === terminalView)
   }, [rows, jobFilter, terminalView])
 
@@ -378,8 +394,8 @@ export default function PipelinePage() {
                   value={jobFilter}
                   onChange={setJobFilter}
                   options={[
-                    { value: "", label: t.allMissions(allJobs.length) },
-                    ...allJobs.map((j) => ({ value: j.id, label: j.title })),
+                    { value: "", label: t.allMissions(allJobs.filter((j) => !j.closed).length) },
+                    ...allJobs.map((j) => ({ value: j.id, label: j.title, hint: j.closed ? t.closedHint : undefined })),
                   ]}
                   style={{ minWidth: 220 }}
                 />

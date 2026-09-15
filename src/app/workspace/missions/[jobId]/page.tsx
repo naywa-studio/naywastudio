@@ -31,10 +31,14 @@ import { useWorkspace } from "../../layout"
 import { getCapabilities } from "@/lib/capabilities"
 import { orgUsesClients } from "@/lib/org-type"
 import { detectOffLimitsForCandidate, type OffLimitsClientRef, type OffLimitsVerdict } from "@/lib/off-limits"
+import MissionCloseDialog from "@/components/workspace/MissionCloseDialog"
+import { deleteMission, isMissionClosed, setMissionOpen } from "@/lib/mission-status"
 
 const copy = {
   fr: {
-    confirmDelete: "Supprimer cette mission ? Les matchs associés seront perdus.",
+    closedBannerTitle: "Mission fermée",
+    closedBannerBody: "Elle n'apparaît plus dans vos missions ni dans la pipeline. Tout est conservé : réouvrez-la pour la reprendre là où vous l'aviez laissée.",
+    reopenCta: "Réouvrir",
     matchingFailed: "Le matching a échoué.",
     loadingMission: "Chargement de la mission",
     notFound: "Mission introuvable.",
@@ -100,7 +104,9 @@ const copy = {
     forceRetry: "Forcer la relance",
   },
   en: {
-    confirmDelete: "Delete this mission? The associated matches will be lost.",
+    closedBannerTitle: "Closed mission",
+    closedBannerBody: "It no longer appears in your missions or the pipeline. Everything is kept: reopen it to pick up where you left off.",
+    reopenCta: "Reopen",
     matchingFailed: "Matching failed.",
     loadingMission: "Loading mission",
     notFound: "Mission not found.",
@@ -222,6 +228,8 @@ export default function JobDetailPage() {
   /** Canary : nb de profils hors périmètre ressortis bons au dernier run. */
   const [canaryHits, setCanaryHits] = useState(0)
   const [showEdit, setShowEdit] = useState(false)
+  /** Fenêtre fermer / réouvrir / supprimer (menu ⋯ ou bandeau « fermée »). */
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false)
   /** Force le wizard à s'afficher (édition manuelle des critères). */
   const [editCriteriaMode, setEditCriteriaMode] = useState(false)
   const [activeTab, setActiveTab] = useState<SourceTab>("all")
@@ -497,11 +505,26 @@ export default function JobDetailPage() {
     void generateAdjust(src, instruction)
   }, [adjust, generateAdjust])
 
-  const handleDelete = async () => {
-    if (!job) return
-    if (!confirm(t.confirmDelete)) return
-    const res = await fetch(`/api/jobs/${job.id}`, { method: "DELETE" })
-    if (res.ok) router.push("/workspace/missions")
+  // Menu ⋯ ou bandeau « Mission fermée » → MissionCloseDialog. Fermer et
+  // réouvrir laissent le sourceur sur la fiche : le bandeau apparaît ou
+  // disparaît sous ses yeux, preuve que c'est fait. Supprimer renvoie à la
+  // liste, puisque la fiche n'existe plus.
+  const toggleMissionOpen = async (): Promise<boolean> => {
+    if (!job) return false
+    const updated = await setMissionOpen(job.id, isMissionClosed(job.status))
+    if (!updated) return false
+    // Seul le statut change : on ne remplace pas le reste de la mission, qui
+    // peut porter un état local plus récent (matching en cours, critères).
+    setJob((prev) => prev ? { ...prev, status: updated.status } : prev)
+    setCloseDialogOpen(false)
+    return true
+  }
+
+  const removeMission = async (): Promise<boolean> => {
+    if (!job) return false
+    const ok = await deleteMission(job.id)
+    if (ok) router.push("/workspace/missions")
+    return ok
   }
 
   const togglePipeline = async (rowId: string, next: boolean) => {
@@ -608,11 +631,62 @@ export default function JobDetailPage() {
   const relevantRows = filteredRows.filter((r) => r.score == null || r.score >= WEAK_BELOW)
   const weakRows = filteredRows.filter((r) => r.score != null && r.score < WEAK_BELOW)
 
+  const missionClosed = isMissionClosed(job.status)
+
   return (
     <main style={{
       padding: "32px 24px 80px", maxWidth: 1100, margin: "0 auto",
       fontFamily: "var(--font-inter), sans-serif",
     }}>
+      {/* Mission fermée : on le dit en tête, avec la sortie à portée de main.
+          Sans ce bandeau, une fiche arrivée par l'historique ressemble en
+          tout point à une mission en cours. */}
+      {!showWizard && missionClosed && (
+        <div role="status" style={{
+          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          padding: "11px 14px", marginBottom: 12, borderRadius: 12,
+          background: "var(--nw-neutral-100)", border: "1px solid var(--nw-border)",
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--nw-text-muted)"
+            strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <rect x="3" y="4" width="18" height="4" rx="1" />
+            <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
+          </svg>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--nw-text)" }}>
+              {t.closedBannerTitle}
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.5 }}>
+              {t.closedBannerBody}
+            </p>
+          </div>
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={() => setCloseDialogOpen(true)}
+              style={{
+                padding: "8px 14px", borderRadius: 9, border: "none",
+                background: "var(--nw-primary)", color: "white",
+                fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {t.reopenCta}
+            </button>
+          )}
+        </div>
+      )}
+
+      {closeDialogOpen && (
+        <MissionCloseDialog
+          mode={missionClosed ? "reopen" : "close"}
+          missionTitle={job.role_name?.trim() || job.title}
+          onDismiss={() => setCloseDialogOpen(false)}
+          onPrimary={toggleMissionOpen}
+          onDelete={removeMission}
+        />
+      )}
+
       {showWizard ? (
         <>
           <div style={{ marginBottom: 18 }}>
@@ -646,8 +720,9 @@ export default function JobDetailPage() {
           shortlistCount={shortlistCount}
           matching={matching}
           readOnly={isReadOnly}
+          closed={missionClosed}
           onEdit={() => setShowEdit(true)}
-          onDelete={handleDelete}
+          onDelete={() => setCloseDialogOpen(true)}
           active={active}
           onActiveChange={setActive}
           mission={

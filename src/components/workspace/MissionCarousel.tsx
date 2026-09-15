@@ -32,7 +32,8 @@ const copy = {
   fr: {
     back: "← Missions",
     edit: "Modifier la mission",
-    delete: "Supprimer",
+    delete: "Fermer ou supprimer…",
+    reopenOrDelete: "Réouvrir ou supprimer…",
     menu: "Actions de la mission",
     matching: "matching en cours",
     relevant: (n: number) => `${n} pertinent${n > 1 ? "s" : ""}`,
@@ -46,7 +47,8 @@ const copy = {
   en: {
     back: "← Missions",
     edit: "Edit mission",
-    delete: "Delete",
+    delete: "Close or delete…",
+    reopenOrDelete: "Reopen or delete…",
     menu: "Mission actions",
     matching: "matching in progress",
     relevant: (n: number) => `${n} relevant`,
@@ -70,6 +72,8 @@ interface Props {
   shortlistCount: number
   matching: boolean
   readOnly?: boolean
+  /** Mission fermée : l'item du menu ⋯ propose de la réouvrir. */
+  closed?: boolean
   onEdit?: () => void
   onDelete?: () => void
   active: MissionSection
@@ -81,7 +85,7 @@ interface Props {
 
 export function MissionCarousel({
   lang, backHref, title, clientName = null, meta,
-  relevantCount, shortlistCount, matching, readOnly = false,
+  relevantCount, shortlistCount, matching, readOnly = false, closed = false,
   onEdit, onDelete, active, onActiveChange,
   mission, candidats, shortlist,
 }: Props) {
@@ -317,8 +321,8 @@ export function MissionCarousel({
                       </button>
                     )}
                     {onDelete && (
-                      <button type="button" onClick={() => { setMenuOpen(false); onDelete() }} style={{ ...menuItem, color: "var(--nw-danger-strong)" }}>
-                        {t.delete}
+                      <button type="button" onClick={() => { setMenuOpen(false); onDelete() }} style={menuItem}>
+                        {closed ? t.reopenOrDelete : t.delete}
                       </button>
                     )}
                   </div>

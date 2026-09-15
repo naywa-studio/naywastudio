@@ -19,6 +19,9 @@ import { hsl } from "@/lib/vivier-clusters"
 import { sectorHue } from "@/lib/sector-color"
 import { rejectReasonLabel, type RejectReason } from "@/lib/reject-reasons"
 import { useLanguage, type Lang } from "@/lib/i18n/LanguageContext"
+import MissionCloseDialog from "@/components/workspace/MissionCloseDialog"
+import { showUndoToast } from "@/components/ui/UndoToast"
+import { deleteMission, isMissionClosed, setMissionOpen } from "@/lib/mission-status"
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
@@ -52,7 +55,15 @@ const copy = {
     statusDraft: "Brouillon",
     statusOpen: "Ouvert",
     statusFilled: "Pourvu",
-    statusArchived: "Archivé",
+    statusArchived: "Fermé",
+    closeMissionAria: (title: string) => `Fermer ou supprimer « ${title} »`,
+    reopen: "Réouvrir",
+    reopenAria: (title: string) => `Réouvrir ou supprimer « ${title} »`,
+    closedSection: (n: number) => `Missions fermées (${n})`,
+    closedSectionHint: "Elles n'apparaissent plus dans vos missions ni dans la pipeline. Réouvrez-en une pour la reprendre là où vous l'aviez laissée.",
+    closedToast: (title: string) => `« ${title} » est fermée`,
+    reopenedToast: (title: string) => `« ${title} » est réouverte`,
+    noOpenMissions: "Aucune mission en cours. Vos missions fermées sont rangées plus bas.",
     emptyTitle: "Créez votre première mission",
     emptyDesc: "Décrivez le besoin (titre, séniorité, compétences). Nora compare la mission à tout votre vivier et vous sort les candidats pertinents, classés et justifiés.",
     emptyCta: "Créer une mission",
@@ -182,7 +193,15 @@ const copy = {
     statusDraft: "Draft",
     statusOpen: "Open",
     statusFilled: "Filled",
-    statusArchived: "Archived",
+    statusArchived: "Closed",
+    closeMissionAria: (title: string) => `Close or delete "${title}"`,
+    reopen: "Reopen",
+    reopenAria: (title: string) => `Reopen or delete "${title}"`,
+    closedSection: (n: number) => `Closed missions (${n})`,
+    closedSectionHint: "They no longer appear in your missions or the pipeline. Reopen one to pick it up where you left off.",
+    closedToast: (title: string) => `"${title}" is closed`,
+    reopenedToast: (title: string) => `"${title}" is reopened`,
+    noOpenMissions: "No missions in progress. Your closed missions are listed below.",
     emptyTitle: "Create your first mission",
     emptyDesc: "Describe the need (title, seniority, skills). Nora compares the mission against your entire talent pool and surfaces relevant candidates, ranked and justified.",
     emptyCta: "Create a mission",
@@ -324,6 +343,11 @@ export default function MissionsPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [members, setMembers] = useState<Map<string, string>>(new Map())
   const [clientsById, setClientsById] = useState<Map<string, string>>(new Map())
+  /** Mission visée par la fenêtre fermer / réouvrir / supprimer. */
+  const [dialogJob, setDialogJob] = useState<Job | null>(null)
+  /** Section « Missions fermées » : repliée par défaut, c'est un rangement,
+   *  pas une liste de travail. */
+  const [showClosed, setShowClosed] = useState(false)
   const showClients = organization ? orgUsesClients(organization.org_type) : false
 
   useEffect(() => {
@@ -381,23 +405,30 @@ export default function MissionsPage() {
       //    Pas de mails ici tant que l'intégration mail n'est pas en place.
       const { data: maRows } = await sb
         .from("match_assessments")
-        .select("in_pipeline, pipeline_stage, reject_reason, updated_at, score")
+        .select("job_id, in_pipeline, pipeline_stage, reject_reason, updated_at, score")
       if (!mounted) return
+      // Missions fermées : leurs candidats ne comptent plus « en pipeline » ni
+      // « pertinents », puisqu'ils ont quitté la pipeline et la liste. Les
+      // recrutés et les motifs d'écart restent comptés : une mission se ferme
+      // souvent PARCE QU'elle est pourvue, et ses écarts restent un signal.
+      const closedJobIds = new Set(jobsRows.filter((j) => isMissionClosed(j.status)).map((j) => j.id))
       const reasonCount = new Map<RejectReason, number>()
       let inPipeline = 0
       let recruited = 0
       let totalMatches = 0
       for (const r of (maRows ?? []) as Array<{
+        job_id: string
         in_pipeline: boolean | null
         pipeline_stage: string | null
         reject_reason: RejectReason | null
         updated_at: string | null
         score: number | null
       }>) {
+        const onOpenMission = !closedJobIds.has(r.job_id)
         // Même seuil "pertinent" (score ≥ 55) que les cartes mission, la fiche
         // et l'accueil — un seul chiffre, un seul sens, partout.
-        if ((r.score ?? 0) >= 55) totalMatches++
-        if (r.in_pipeline) inPipeline++
+        if (onOpenMission && (r.score ?? 0) >= 55) totalMatches++
+        if (onOpenMission && r.in_pipeline) inPipeline++
         if (r.pipeline_stage === "hired") recruited++
         if (r.reject_reason && r.updated_at && r.updated_at >= MONTH_START_ISO) {
           reasonCount.set(r.reject_reason, (reasonCount.get(r.reject_reason) ?? 0) + 1)
@@ -453,18 +484,53 @@ export default function MissionsPage() {
     return () => { mounted = false }
   }, [sb, showClients])
 
-  const filteredJobs = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return jobs
-    return jobs.filter((j) => {
-      const hay = [
-        j.title, j.role_name, j.location, j.seniority,
-        ...(j.required_skills ?? []),
-        ...(j.nice_to_have_skills ?? []),
-      ].filter(Boolean).join(" ").toLowerCase()
-      return hay.includes(q)
-    })
-  }, [jobs, query])
+  // Missions fermées (lib/mission-status) : sorties de la liste de travail,
+  // rangées dans la section repliée en bas de page. La recherche porte sur
+  // les deux, pour qu'on retrouve une mission fermée en tapant son nom.
+  const openJobs = useMemo(() => jobs.filter((j) => !isMissionClosed(j.status)), [jobs])
+  const closedJobs = useMemo(() => jobs.filter((j) => isMissionClosed(j.status)), [jobs])
+  const trimmedQuery = query.trim().toLowerCase()
+  const filteredJobs = useMemo(
+    () => (trimmedQuery ? openJobs.filter((j) => jobMatchesQuery(j, trimmedQuery)) : openJobs),
+    [openJobs, trimmedQuery],
+  )
+  const filteredClosedJobs = useMemo(
+    () => (trimmedQuery ? closedJobs.filter((j) => jobMatchesQuery(j, trimmedQuery)) : closedJobs),
+    [closedJobs, trimmedQuery],
+  )
+
+  const patchLocalJob = (next: Job) =>
+    setJobs((prev) => prev.map((j) => (j.id === next.id ? next : j)))
+
+  /** Filet contre le clic de trop : la carte vient de changer de section, le
+   *  toast permet de revenir en arrière sans rouvrir la fenêtre. */
+  const offerUndo = async (job: Job, reopened: boolean) => {
+    const title = shortMissionTitle(job)
+    const { cancelled } = await showUndoToast(reopened ? t.reopenedToast(title) : t.closedToast(title))
+    if (!cancelled) return
+    const reverted = await setMissionOpen(job.id, !reopened)
+    if (reverted) patchLocalJob(reverted)
+  }
+
+  /** Fermer ou réouvrir depuis la fenêtre. La carte change de section tout de
+   *  suite, sans attendre le temps réel. */
+  const toggleMissionOpen = async (job: Job): Promise<boolean> => {
+    const reopening = isMissionClosed(job.status)
+    const updated = await setMissionOpen(job.id, reopening)
+    if (!updated) return false
+    patchLocalJob(updated)
+    setDialogJob(null)
+    void offerUndo(job, reopening)
+    return true
+  }
+
+  const removeMission = async (job: Job): Promise<boolean> => {
+    const ok = await deleteMission(job.id)
+    if (!ok) return false
+    setJobs((prev) => prev.filter((j) => j.id !== job.id))
+    setDialogJob(null)
+    return true
+  }
 
   /** Regroupement par créateur :
    *    Section 1 : "Mes missions" (user_id = caller, même vide on saute)
@@ -514,9 +580,9 @@ export default function MissionsPage() {
             {t.title}
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--nw-text-muted)", lineHeight: 1.6 }}>
-            {jobs.length === 0
+            {openJobs.length === 0
               ? t.subtitleEmpty
-              : t.subtitleCount(jobs.length)}
+              : t.subtitleCount(openJobs.length)}
           </p>
         </div>
         <button
@@ -546,7 +612,7 @@ export default function MissionsPage() {
           gap: 16, alignItems: "start",
         }}>
           {/* Sidebar — récap activité + top motifs d'écart */}
-          <SidebarStats stats={stats} totalJobs={jobs.length} />
+          <SidebarStats stats={stats} totalJobs={openJobs.length} />
 
           {/* Right — search bar pleine largeur + grid missions */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
@@ -575,19 +641,23 @@ export default function MissionsPage() {
                 color: "var(--nw-text-muted)", fontSize: 14,
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
               }}>
-                <div>{t.noResults(query)}</div>
+                {/* Sans recherche, une liste vide veut dire « tout est fermé » :
+                    on le dit, plutôt qu'un « aucun résultat pour  » absurde. */}
+                <div>{trimmedQuery ? t.noResults(query) : t.noOpenMissions}</div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => setQuery("")}
-                    style={{
-                      padding: "9px 16px", borderRadius: 9,
-                      border: "1px solid var(--nw-border)", background: "white", color: "var(--nw-text-body)",
-                      fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-                    }}
-                  >
-                    {t.clearFilter}
-                  </button>
+                  {trimmedQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setQuery("")}
+                      style={{
+                        padding: "9px 16px", borderRadius: 9,
+                        border: "1px solid var(--nw-border)", background: "white", color: "var(--nw-text-body)",
+                        fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                      }}
+                    >
+                      {t.clearFilter}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => router.push("/workspace/missions/new")}
@@ -613,6 +683,7 @@ export default function MissionsPage() {
                     jobs={groupedJobs.mine}
                     visuals={visuals}
                     clientsById={clientsById}
+                    onAction={isReadOnly ? undefined : setDialogJob}
                   />
                 )}
                 {groupedJobs.others.map((g) => (
@@ -622,6 +693,7 @@ export default function MissionsPage() {
                     jobs={g.missions}
                     visuals={visuals}
                     clientsById={clientsById}
+                    onAction={isReadOnly ? undefined : setDialogJob}
                   />
                 ))}
               </div>
@@ -639,12 +711,38 @@ export default function MissionsPage() {
                     visual={visuals[j.id]}
                     clientName={j.client_id ? clientsById.get(j.client_id) ?? null : null}
                     delay={Math.min(i * 0.03, 0.2)}
+                    onAction={isReadOnly ? undefined : () => setDialogJob(j)}
                   />
                 ))}
               </div>
             )}
+
+            {/* Une recherche qui ne trouve sa réponse que parmi les missions
+                fermées déplie la section : sinon le résultat resterait caché
+                derrière un bouton. */}
+            {closedJobs.length > 0 && (
+              <ClosedMissionsSection
+                jobs={filteredClosedJobs}
+                total={closedJobs.length}
+                open={showClosed || (trimmedQuery !== "" && filteredClosedJobs.length > 0)}
+                onToggle={() => setShowClosed((v) => !v)}
+                visuals={visuals}
+                clientsById={clientsById}
+                onAction={isReadOnly ? undefined : setDialogJob}
+              />
+            )}
           </div>
         </div>
+      )}
+
+      {dialogJob && (
+        <MissionCloseDialog
+          mode={isMissionClosed(dialogJob.status) ? "reopen" : "close"}
+          missionTitle={missionDisplayTitle(dialogJob)}
+          onDismiss={() => setDialogJob(null)}
+          onPrimary={() => toggleMissionOpen(dialogJob)}
+          onDelete={() => removeMission(dialogJob)}
+        />
       )}
     </main>
   )
@@ -653,13 +751,15 @@ export default function MissionsPage() {
 /* ─── Group de missions par créateur ──────────────────────────────── */
 
 function MissionGroup({
-  title, jobs, visuals, isMine, clientsById,
+  title, jobs, visuals, isMine, clientsById, onAction,
 }: {
   title: string
   jobs: Job[]
   visuals: Record<string, MissionVisual>
   isMine?: boolean
   clientsById: Map<string, string>
+  /** Croix des cartes. Absent en lecture seule. */
+  onAction?: (job: Job) => void
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
@@ -700,11 +800,106 @@ function MissionGroup({
             visual={visuals[j.id]}
             clientName={j.client_id ? clientsById.get(j.client_id) ?? null : null}
             delay={Math.min(i * 0.03, 0.2)}
+            onAction={onAction ? () => onAction(j) : undefined}
           />
         ))}
       </div>
     </section>
   )
+}
+
+/* ─── Missions fermées ─────────────────────────────────────────────── */
+
+/** Rangement des missions fermées, replié par défaut. Même carte qu'une
+ *  mission en cours, où la croix devient « Réouvrir ». */
+function ClosedMissionsSection({
+  jobs, total, open, onToggle, visuals, clientsById, onAction,
+}: {
+  jobs: Job[]
+  total: number
+  open: boolean
+  onToggle: () => void
+  visuals: Record<string, MissionVisual>
+  clientsById: Map<string, string>
+  onAction?: (job: Job) => void
+}) {
+  const { lang } = useLanguage()
+  const t = copy[lang]
+  return (
+    <section style={{ marginTop: 8, paddingTop: 16, borderTop: "1px solid var(--nw-border-soft)" }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 8,
+          padding: "8px 13px", borderRadius: 9,
+          border: "1px solid var(--nw-border)", background: "white",
+          color: "var(--nw-text-body)", fontSize: 13, fontWeight: 700,
+          cursor: "pointer", fontFamily: "inherit",
+        }}
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="4" rx="1" />
+          <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
+        </svg>
+        {t.closedSection(total)}
+        <svg width="11" height="7" viewBox="0 0 12 8" aria-hidden="true" style={{
+          transform: `rotate(${open ? 180 : 0}deg)`, transition: "transform 160ms",
+          color: "var(--nw-text-muted)",
+        }}>
+          <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </svg>
+      </button>
+
+      {open && (
+        <>
+          <p style={{ margin: "10px 0 12px", fontSize: 12.5, color: "var(--nw-text-muted)", lineHeight: 1.55, maxWidth: 640 }}>
+            {t.closedSectionHint}
+          </p>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gridAutoRows: "1fr",
+            gap: 12,
+          }}>
+            {jobs.map((j, i) => (
+              <JobCard
+                key={j.id}
+                job={j}
+                visual={visuals[j.id]}
+                clientName={j.client_id ? clientsById.get(j.client_id) ?? null : null}
+                delay={Math.min(i * 0.03, 0.2)}
+                onAction={onAction ? () => onAction(j) : undefined}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+/** Titre affiché d'une mission : le poste s'il est renseigné, sinon le titre. */
+function missionDisplayTitle(job: Job): string {
+  return job.role_name?.trim() || job.title
+}
+
+/** Même titre, raccourci pour tenir dans un toast. */
+function shortMissionTitle(job: Job, max = 48): string {
+  const s = missionDisplayTitle(job)
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s
+}
+
+/** Recherche plein texte sur les champs visibles d'une carte mission. */
+function jobMatchesQuery(j: Job, q: string): boolean {
+  const hay = [
+    j.title, j.role_name, j.location, j.seniority,
+    ...(j.required_skills ?? []),
+    ...(j.nice_to_have_skills ?? []),
+  ].filter(Boolean).join(" ").toLowerCase()
+  return hay.includes(q)
 }
 
 /* ─── Sidebar ──────────────────────────────────────────────────── */
@@ -824,22 +1019,28 @@ function seniorityLabel(job: Job, lang: Lang): string | null {
 
 /* ─── Job card ─────────────────────────────────────────────────── */
 
-function JobCard({ job, visual, delay, clientName = null }: {
+function JobCard({ job, visual, delay, clientName = null, onAction }: {
   job: Job
   visual: MissionVisual | undefined
   delay: number
   clientName?: string | null
+  /** Croix (mission en cours) ou « Réouvrir » (mission fermée) : les deux
+   *  ouvrent MissionCloseDialog. Absent en lecture seule. */
+  onAction?: () => void
 }) {
   const { lang } = useLanguage()
   const t = copy[lang]
   const ms = job.match_status
+  const closed = isMissionClosed(job.status)
+  const displayTitle = missionDisplayTitle(job)
 
   // Bande couleur secteur — dérivée des candidats matchés. Monochrome ou
   // bicolore en gradient selon la composition du matching. Gris si pas
-  // encore de matching.
+  // encore de matching, et gris sur une mission fermée : on la range, on ne
+  // la met plus en valeur.
   const hues = visual?.hues ?? []
   const barBackground =
-    hues.length === 0   ? "var(--nw-border)" :
+    closed || hues.length === 0 ? "var(--nw-border)" :
     hues.length === 1   ? hsl(hues[0], 60, 55) :
     `linear-gradient(180deg, ${hsl(hues[0], 60, 55)} 0%, ${hsl(hues[1], 60, 55)} 100%)`
 
@@ -849,7 +1050,8 @@ function JobCard({ job, visual, delay, clientName = null }: {
       transition={{ duration: 0.4, delay, ease: EASE }}
       whileHover={{ y: -2 }}
       style={{
-        background: "white", borderRadius: 12, border: "1px solid var(--nw-border-soft)",
+        background: closed ? "var(--nw-surface-muted)" : "white",
+        borderRadius: 12, border: "1px solid var(--nw-border-soft)",
         padding: "14px 16px 14px 20px",
         display: "flex", flexDirection: "column", gap: 9,
         position: "relative", overflow: "hidden",
@@ -864,7 +1066,7 @@ function JobCard({ job, visual, delay, clientName = null }: {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
         <div style={{ minWidth: 0 }}>
           <h2 style={{ margin: 0, fontSize: 14.5, fontWeight: 800, color: "var(--nw-text)", lineHeight: 1.3 }}>
-            {job.role_name?.trim() || job.title}
+            {displayTitle}
           </h2>
           {job.role_name?.trim() && job.title && job.title !== job.role_name && (
             <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--nw-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -872,7 +1074,52 @@ function JobCard({ job, visual, delay, clientName = null }: {
             </p>
           )}
         </div>
-        <StatusChip status={job.status} />
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <StatusChip status={job.status} />
+          {onAction && (closed ? (
+            <button
+              type="button"
+              onClick={onAction}
+              aria-label={t.reopenAria(displayTitle)}
+              title={t.reopenAria(displayTitle)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "3px 9px", borderRadius: 7,
+                border: "1px solid rgba(124,99,200,0.30)", background: "white",
+                color: "var(--nw-primary)", fontSize: 11, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 2.64-6.36L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              {t.reopen}
+            </button>
+          ) : (
+            // Croix NEUTRE (grise, pas rouge) : elle n'efface rien, elle ouvre
+            // un choix dont l'option mise en avant est la fermeture réversible.
+            <button
+              type="button"
+              onClick={onAction}
+              aria-label={t.closeMissionAria(displayTitle)}
+              title={t.closeMissionAria(displayTitle)}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--nw-text)"; e.currentTarget.style.background = "var(--nw-neutral-100)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--nw-text-muted)"; e.currentTarget.style.background = "transparent" }}
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 24, height: 24, padding: 0, borderRadius: 7, border: "none",
+                background: "transparent", color: "var(--nw-text-muted)", cursor: "pointer",
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          ))}
+        </div>
       </div>
 
       {clientName && (

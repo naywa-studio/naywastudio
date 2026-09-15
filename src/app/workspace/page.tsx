@@ -7,6 +7,7 @@ import { useWorkspace } from "./layout"
 import NoraLoader from "@/components/workspace/NoraLoader"
 import { StarterChecklist } from "@/components/workspace/StarterChecklist"
 import { getSupabase } from "@/lib/supabase"
+import { CLOSED_MISSION_STATUSES } from "@/lib/mission-status"
 import { trialStatus } from "@/lib/trial"
 import { hasPricingAccess } from "@/lib/subscription"
 import { UpdatesHeroCard } from "@/components/updates/UpdatesHeroCard"
@@ -212,11 +213,15 @@ export default function WorkspaceHome() {
         // Missions ouvertes.
         sb.from("jobs").select("id", { count: "exact", head: true })
           .eq("status", "open"),
-        // Matchs à qualifier (global) : forts, en pipeline, encore « identified ».
-        sb.from("match_assessments").select("id", { count: "exact", head: true })
+        // Matchs à qualifier (global) : forts, en pipeline, encore « identified »,
+        // sur une mission EN COURS. Une mission fermée sort de la pipeline
+        // (lib/mission-status) : compter ses candidats ici enverrait le
+        // sourceur chercher des cartes qu'il ne trouvera pas.
+        sb.from("match_assessments").select("id, job:jobs!inner(status)", { count: "exact", head: true })
           .in("match_tier", ["excellent", "good"])
           .eq("in_pipeline", true)
-          .eq("pipeline_stage", "identified"),
+          .eq("pipeline_stage", "identified")
+          .not("job.status", "in", `(${CLOSED_MISSION_STATUSES.join(",")})`),
         // Missions du moment : les 2 ouvertes les plus récemment actives.
         sb.from("jobs")
           .select("id, title")
